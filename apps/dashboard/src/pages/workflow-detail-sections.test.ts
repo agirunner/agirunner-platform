@@ -30,12 +30,15 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('owner_role');
     expect(source).toContain('onSelectWorkItem');
     expect(source).toContain('selectedWorkItemId');
+    expect(source).toContain('Focused detail open');
+    expect(source).toContain('A selected work-item packet is open beside the board.');
     expect(source).toContain('Grouped by Milestone');
     expect(source).toContain('Flat Board');
     expect(source).toContain('Grouped board mode keeps parent milestones first-class');
     expect(source).toContain('Ungrouped board mode shows every work item directly');
     expect(source).toContain('children_completed');
     expect(source).toContain('% complete');
+    expect(source).toContain("xl:grid-cols-3 2xl:grid-cols-4");
     expect(source).toContain('Apply Board Move');
     expect(source).toContain('Board move controls');
     expect(source).toContain('dashboardApi.updateWorkflowWorkItem');

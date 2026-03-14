@@ -705,10 +705,12 @@ export function WorkflowDocumentsCard(props: {
             />
           ))}
           {props.documents.length === 0 && !props.isLoading && !props.hasError ? (
-            <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
-              No workflow documents registered yet. Use the controls above to create the first
-              operator reference packet.
-            </div>
+            <ContentEmptyState
+              title="No workflow documents registered yet"
+              badge="Reference library empty"
+              summary="Use the operator controls above to create the first workflow reference packet."
+              detail="Documents become the reusable knowledge packet for this board run, including repository references, artifact-backed documents, and external links."
+            />
           ) : null}
         </div>
       </CardContent>
@@ -763,9 +765,12 @@ export function ProjectMemoryCard(props: {
             <ProjectMemoryEntryCard key={entry.key} entry={entry} />
           ))}
           {props.entries.length === 0 && !props.isLoading && !props.hasError ? (
-            <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
-              No project memory recorded yet.
-            </div>
+            <ContentEmptyState
+              title="No project memory recorded yet"
+              badge="No shared handoff notes"
+              summary="Project memory is still empty for this workflow family."
+              detail="Write a structured memory entry below when you need future runs, child boards, or downstream operators to inherit shared context."
+            />
           ) : null}
         </div>
         <div className="grid gap-4 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm">
@@ -1250,6 +1255,26 @@ function MemoryDraftPreview(props: { drafts: StructuredEntryDraft[] }): JSX.Elem
       ) : (
         <StructuredRecordView data={parsed.value} emptyMessage="No memory payload." />
       )}
+    </div>
+  );
+}
+
+function ContentEmptyState(props: {
+  title: string;
+  badge: string;
+  summary: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 rounded-xl border border-dashed border-border/70 bg-border/5 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="text-sm font-medium text-foreground">{props.title}</div>
+          <p className="text-sm leading-6 text-muted">{props.summary}</p>
+        </div>
+        <Badge variant="outline">{props.badge}</Badge>
+      </div>
+      <p className="text-sm leading-6 text-muted">{props.detail}</p>
     </div>
   );
 }

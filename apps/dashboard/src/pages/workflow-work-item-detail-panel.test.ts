@@ -41,6 +41,9 @@ describe('workflow work item detail panel source', () => {
 
   it('renders dedicated tabs for steps, memory, artifacts, and event history', () => {
     const source = readSource();
+    expect(source).toContain('TabsTrigger value="summary">Summary packet');
+    expect(source).toContain('TabsTrigger value="operate">Operator controls');
+    expect(source).toContain('TabsTrigger value="evidence">Evidence &amp; history');
     expect(source).toContain('grid h-auto w-full grid-cols-2');
     expect(source).toContain('xl:grid-cols-4');
     expect(source).toContain('describeCountLabel(props.tasks.length, \'linked step\')');
@@ -102,6 +105,8 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Linked execution steps stay here');
     expect(source).toContain('Operator Flow Controls');
     expect(source).toContain('Brief and operator notes');
+    expect(source).toContain('Brief &amp; metadata');
+    expect(source).toContain('Routing &amp; ownership');
     expect(source).toContain('Metadata patch');
     expect(source).toContain('WorkItemMetadataEditor');
     expect(source).toContain('acceptance_criteria: acceptanceCriteria.trim()');
@@ -116,6 +121,10 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Choose from roles already active on this board run');
     expect(source).toContain('Save Operator Changes');
     expect(source).toContain('Create Child Work Item');
+    expect(source).toContain('WorkItemFocusPacket');
+    expect(source).toContain('WorkItemReviewClosure');
+    expect(source).toContain('Summary complete');
+    expect(source).toContain('Evidence packet complete');
     expect(source).toContain('Child acceptance criteria');
     expect(source).toContain('Child notes');
     expect(source).toContain('Add Child Metadata Entry');

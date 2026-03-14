@@ -149,7 +149,8 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('workflowId={workflowId}');
     expect(source).toContain('workflowState={workflowQuery.data?.state}');
     expect(source).toContain('canEnqueueManualActivation={canEnqueueManualActivation}');
-    expect(source).toContain('onActivationQueued={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}');
+    expect(source).toContain('onActivationQueued={() =>');
+    expect(source).toContain('invalidateWorkflowQueries(queryClient, workflowId, projectId)');
   });
 });
 
@@ -173,6 +174,10 @@ describe('workflow detail work-item creation form', () => {
     expect(source).toContain('Add Metadata Entry');
     expect(source).toContain('disabled={');
     expect(source).toContain('!workItemMetadataValidation.isValid');
+    expect(source).toContain('setIsCreateWorkItemDialogOpen(true)');
+    expect(source).toContain('DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"');
+    expect(source).toContain('<CardTitle>Quick-create work item</CardTitle>');
+    expect(source).toContain('Collapsed by default');
   });
 });
 
@@ -273,8 +278,9 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('columns={boardQuery.data?.columns ?? []}');
     expect(source).toContain('stages={stagesQuery.data ?? []}');
     expect(source).toContain('aria-label="Selected work-item focus"');
-    expect(source).toContain('onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}');
-    expect(source).toContain('onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}');
+    expect(source).toContain('onWorkItemChanged={() =>');
+    expect(source).toContain('onBoardChanged={() =>');
+    expect(source).toContain('invalidateWorkflowQueries(queryClient, workflowId, projectId)');
   });
 
   it('broadens workflow detail invalidation to board, stages, activations, gates, and effective models', () => {
@@ -323,6 +329,12 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('Terminal run signals');
     expect(source).toContain('PacketFactGrid');
     expect(source).toContain('PacketBadgePanel');
+    expect(source).toContain('Board workspace');
+    expect(source).toContain('Triage, run controls, and review lanes');
+    expect(source).toContain('TabsTrigger value="board">Board &amp; triage');
+    expect(source).toContain('TabsTrigger value="controls">Run controls');
+    expect(source).toContain('TabsTrigger value="review">Gates &amp; activations');
+    expect(source).toContain('Open a focused work-item packet');
   });
 
   it('passes workflow document operator context into the knowledge tab surface', () => {

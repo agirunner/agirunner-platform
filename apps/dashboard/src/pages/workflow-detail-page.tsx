@@ -87,6 +87,13 @@ import {
   CardHeader,
   CardTitle,
 } from '../components/ui/card.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog.js';
 import { Input } from '../components/ui/input.js';
 import { Textarea } from '../components/ui/textarea.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
@@ -181,6 +188,8 @@ export function WorkflowDetailPage(): JSX.Element {
   >([]);
   const [workItemError, setWorkItemError] = useState<string | null>(null);
   const [isChainDialogOpen, setIsChainDialogOpen] = useState(false);
+  const [isCreateWorkItemDialogOpen, setIsCreateWorkItemDialogOpen] = useState(false);
+  const [primarySurface, setPrimarySurface] = useState<'board' | 'controls' | 'review'>('board');
   const [secondarySurface, setSecondarySurface] = useState<
     'context' | 'knowledge' | 'activity'
   >('context');
@@ -337,6 +346,16 @@ export function WorkflowDetailPage(): JSX.Element {
       setSecondarySurface('activity');
     }
   }, [location.hash, selectedChildWorkflowId]);
+
+  useEffect(() => {
+    if (selectedActivationId || selectedGateStageName) {
+      setPrimarySurface('review');
+      return;
+    }
+    if (selectedWorkItemId) {
+      setPrimarySurface('board');
+    }
+  }, [selectedActivationId, selectedGateStageName, selectedWorkItemId]);
 
   const summary = useMemo(() => summarizeTasks(taskQuery.data?.data ?? []), [taskQuery.data?.data]);
   const historyEvents = useMemo(
@@ -577,6 +596,7 @@ export function WorkflowDetailPage(): JSX.Element {
       setWorkItemPriority(normalizeWorkItemPriority(undefined));
       setWorkItemMetadataDrafts([]);
       setWorkItemError(null);
+      setIsCreateWorkItemDialogOpen(false);
       await invalidateWorkflowQueries(queryClient, workflowId, projectId);
     },
     onError: (error) => {
@@ -807,237 +827,226 @@ export function WorkflowDetailPage(): JSX.Element {
         </div>
 
         {isPlaybookWorkflow ? (
-          <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
-            <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.6fr)]">
-              <Card className="bg-surface/80">
-                <CardHeader>
-                  <CardTitle>Create Work Item</CardTitle>
-                  <CardDescription>
-                    Add new work directly onto the playbook board with a stage-aware form.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-foreground">Title</span>
-                      <Input
-                        value={workItemTitle}
-                        onChange={(event) => {
-                          setWorkItemError(null);
-                          setWorkItemTitle(event.target.value);
-                        }}
-                        placeholder="e.g. Implement billing webhooks"
-                      />
-                    </label>
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-foreground">Stage</span>
-                      <Select
-                        value={workItemStage || '__auto__'}
-                        onValueChange={(value) => {
-                          setWorkItemError(null);
-                          setWorkItemStage(value === '__auto__' ? '' : value);
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Use default stage" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="__auto__">Use default stage</SelectItem>
-                          {(stagesQuery.data ?? []).map((stage) => (
-                            <SelectItem key={stage.id} value={stage.name}>
-                              {stage.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </label>
-                  </div>
-                  <label className="grid gap-1.5">
-                    <span className="text-sm font-medium text-foreground">Goal</span>
-                    <Textarea
-                      value={workItemGoal}
-                      onChange={(event) => {
-                        setWorkItemError(null);
-                        setWorkItemGoal(event.target.value);
-                      }}
-                      className="min-h-[88px]"
-                      placeholder="Describe the desired outcome and acceptance intent."
-                    />
-                  </label>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-foreground">Priority</span>
-                      <Select
-                        value={workItemPriority}
-                        onValueChange={(value) => {
-                          setWorkItemError(null);
-                          setWorkItemPriority(normalizeWorkItemPriority(value));
-                        }}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select priority" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted">
-                        {WORK_ITEM_PRIORITY_OPTIONS.find(
-                          (option) => option.value === workItemPriority,
-                        )?.description ?? ''}
-                      </p>
-                    </label>
-                    <label className="grid gap-1.5">
-                      <span className="text-sm font-medium text-foreground">
-                        Acceptance criteria
-                      </span>
-                      <Textarea
-                        value={workItemAcceptanceCriteria}
-                        onChange={(event) => {
-                          setWorkItemError(null);
-                          setWorkItemAcceptanceCriteria(event.target.value);
-                        }}
-                        className="min-h-[112px]"
-                        placeholder="List the conditions that must be true before this work item can be closed."
-                      />
-                    </label>
-                  </div>
-                  <label className="grid gap-1.5">
-                    <span className="text-sm font-medium text-foreground">Notes</span>
-                    <Textarea
-                      value={workItemNotes}
-                      onChange={(event) => {
-                        setWorkItemError(null);
-                        setWorkItemNotes(event.target.value);
-                      }}
-                      className="min-h-[112px]"
-                      placeholder="Capture operator guidance, context, or follow-up constraints."
-                    />
-                  </label>
-                  <WorkItemMetadataEditor
-                    title="Structured metadata"
-                    description="Add supported typed metadata as key and value pairs instead of pasting raw JSON."
-                    drafts={workItemMetadataDrafts}
-                    validation={workItemMetadataValidation}
-                    addLabel="Add Metadata Entry"
-                    onChange={(drafts) => {
-                      setWorkItemError(null);
-                      setWorkItemMetadataDrafts(drafts);
-                    }}
-                  />
-                  {workItemError ? (
-                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                      {workItemError}
-                    </p>
-                  ) : null}
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => void createWorkItemMutation.mutate()}
-                      disabled={
-                        createWorkItemMutation.isPending || !workItemMetadataValidation.isValid
-                      }
-                    >
-                      {createWorkItemMutation.isPending ? 'Creating…' : 'Create Work Item'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-surface/80">
-                <CardHeader>
-                  <CardTitle>Launch Child Board</CardTitle>
-                  <CardDescription>
-                    Create a linked follow-up board run using a playbook and preserve lineage.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-4">
-                  <div className="grid gap-3 rounded-lg border border-dashed border-border/70 bg-border/10 p-4">
-                    <p className="text-sm text-muted">
-                      Child workflows inherit parent context and stay linked for operator drill-in.
-                    </p>
-                    <div className="flex justify-end">
-                      <Button onClick={() => setIsChainDialogOpen(true)}>Create Child Board</Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-        ) : null}
-
-        <div className={selectedWorkItemId ? 'grid gap-6 2xl:grid-cols-[minmax(0,1.6fr)_minmax(22rem,0.95fr)]' : 'grid gap-6'}>
-          <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
-            <PlaybookBoardCard
-              workflowId={workflowId}
-              board={boardQuery.data}
-              stages={stagesQuery.data ?? []}
-              isLoading={boardQuery.isLoading}
-              hasError={Boolean(boardQuery.error)}
-              selectedWorkItemId={selectedWorkItemId}
-              onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
-              onBoardChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
-            />
-          </section>
-
-          {selectedWorkItemId ? (
-            <aside
-              id={`work-item-${selectedWorkItemId}`}
-              className="grid content-start gap-3 rounded-3xl border border-accent/20 bg-accent/5 p-4 shadow-sm 2xl:sticky 2xl:top-6"
-              data-testid="selected-work-item-rail"
-              aria-label="Selected work-item focus"
-            >
-              <div className="grid gap-1 rounded-2xl border border-accent/20 bg-background/80 px-4 py-3">
-                <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
-                  Selected work-item focus
-                </div>
-                <div className="text-sm text-muted">
-                  Keep board triage on the left and operator review for the selected work item in
-                  this dedicated side panel.
+          <section className="grid gap-5 rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+            <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+              <div className="space-y-2">
+                <Badge variant="outline" className="w-fit">
+                  Board workspace
+                </Badge>
+                <div className="space-y-1">
+                  <h2 className="text-xl font-semibold text-foreground">
+                    Triage, run controls, and review lanes
+                  </h2>
+                  <p className="max-w-3xl text-sm leading-6 text-muted">
+                    Keep the live board as the default surface. Open quick-create and child-board
+                    controls only when needed, then switch to review lanes for stage gates and
+                    orchestrator activity.
+                  </p>
                 </div>
               </div>
-              <WorkflowWorkItemDetailPanel
-                workflowId={workflowId}
-                workItemId={selectedWorkItemId}
-                workItems={groupedWorkItems}
-                selectedWorkItem={selectedBoardWorkItem}
-                columns={boardQuery.data?.columns ?? []}
-                stages={stagesQuery.data ?? []}
-                ownerRoleOptions={ownerRoleOptions}
-                tasks={selectedWorkItemTasks}
-                onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
-                onWorkItemChanged={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
-                onClearSelection={() => clearWorkflowSelection('work_item')}
-              />
-            </aside>
-          ) : null}
-        </div>
+              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[38rem]">
+                <WorkflowSignalTile
+                  label="Board focus"
+                  value={selectedWorkItemId ? 'Selected item open' : 'Triage mode'}
+                  detail={
+                    selectedWorkItemId
+                      ? 'Operator rail stays dedicated to the active work item'
+                      : 'Select a work item to open its focused operator packet'
+                  }
+                />
+                <WorkflowSignalTile
+                  label="Run controls"
+                  value="Collapsed by default"
+                  detail="Quick-create and child-board launch stay out of the board scroll until needed"
+                />
+                <WorkflowSignalTile
+                  label="Review lanes"
+                  value={`${stagesQuery.data?.length ?? 0} stages`}
+                  detail={`${activationsQuery.data?.length ?? 0} activations available for operator review`}
+                />
+              </div>
+            </div>
 
-        <div className="grid gap-6 xl:grid-cols-2">
-          <WorkflowStagesCard
-            stages={stagesQuery.data ?? []}
-            isLoading={stagesQuery.isLoading}
-            hasError={Boolean(stagesQuery.error)}
-            selectedGateStageName={selectedGateStageName}
-            onSelectGate={(stageName) => updateWorkflowSelection('gate', stageName)}
-          />
-          <WorkflowActivationsCard
-            workflowId={workflowId}
-            workflowState={workflowQuery.data?.state}
-            activations={activationsQuery.data ?? []}
-            isLoading={activationsQuery.isLoading}
-            hasError={Boolean(activationsQuery.error)}
-            canEnqueueManualActivation={canEnqueueManualActivation}
-            selectedActivationId={selectedActivationId}
-            onSelectActivation={(activationId) =>
-              updateWorkflowSelection('activation', activationId)
-            }
-            onActivationQueued={() => invalidateWorkflowQueries(queryClient, workflowId, projectId)}
-          />
-        </div>
+            <Tabs
+              value={primarySurface}
+              onValueChange={(value) =>
+                setPrimarySurface(value as 'board' | 'controls' | 'review')
+              }
+              className="grid gap-4"
+            >
+              <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 lg:grid-cols-3">
+                <TabsTrigger value="board">Board &amp; triage</TabsTrigger>
+                <TabsTrigger value="controls">Run controls</TabsTrigger>
+                <TabsTrigger value="review">Gates &amp; activations</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="board" className="mt-0 grid gap-5">
+                <div
+                  className={
+                    selectedWorkItemId
+                      ? 'grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(24rem,0.9fr)] 2xl:grid-cols-[minmax(0,1.85fr)_minmax(24rem,0.82fr)]'
+                      : 'grid gap-6'
+                  }
+                >
+                  <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+                    <PlaybookBoardCard
+                      workflowId={workflowId}
+                      board={boardQuery.data}
+                      stages={stagesQuery.data ?? []}
+                      isLoading={boardQuery.isLoading}
+                      hasError={Boolean(boardQuery.error)}
+                      selectedWorkItemId={selectedWorkItemId}
+                      onSelectWorkItem={(workItemId) =>
+                        updateWorkflowSelection('work_item', workItemId)
+                      }
+                      onBoardChanged={() =>
+                        invalidateWorkflowQueries(queryClient, workflowId, projectId)
+                      }
+                    />
+                  </section>
+
+                  {selectedWorkItemId ? (
+                    <aside
+                      id={`work-item-${selectedWorkItemId}`}
+                      className="grid content-start gap-3 rounded-3xl border border-accent/20 bg-accent/5 p-4 shadow-sm xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto"
+                      data-testid="selected-work-item-rail"
+                      aria-label="Selected work-item focus"
+                    >
+                      <div className="grid gap-1 rounded-2xl border border-accent/20 bg-background/80 px-4 py-3">
+                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
+                          Selected work-item focus
+                        </div>
+                        <div className="text-sm text-muted">
+                          The board stays on the left for triage. The right rail is reserved for
+                          one work item at a time so operator review does not sprawl across the
+                          whole page.
+                        </div>
+                      </div>
+                      <WorkflowWorkItemDetailPanel
+                        workflowId={workflowId}
+                        workItemId={selectedWorkItemId}
+                        workItems={groupedWorkItems}
+                        selectedWorkItem={selectedBoardWorkItem}
+                        columns={boardQuery.data?.columns ?? []}
+                        stages={stagesQuery.data ?? []}
+                        ownerRoleOptions={ownerRoleOptions}
+                        tasks={selectedWorkItemTasks}
+                        onSelectWorkItem={(workItemId) =>
+                          updateWorkflowSelection('work_item', workItemId)
+                        }
+                        onWorkItemChanged={() =>
+                          invalidateWorkflowQueries(queryClient, workflowId, projectId)
+                        }
+                        onClearSelection={() => clearWorkflowSelection('work_item')}
+                      />
+                    </aside>
+                  ) : (
+                    <Card className="border-dashed border-border/70 bg-border/5 shadow-none">
+                      <CardHeader>
+                        <CardTitle>Open a focused work-item packet</CardTitle>
+                        <CardDescription>
+                          Select any work item on the board to review its brief, operator controls,
+                          execution evidence, and history in a dedicated side rail.
+                        </CardDescription>
+                      </CardHeader>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="controls" className="mt-0 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.7fr)]">
+                <Card className="bg-surface/80">
+                  <CardHeader>
+                    <CardTitle>Quick-create work item</CardTitle>
+                    <CardDescription>
+                      Keep the board clean by launching the full stage-aware work-item form only
+                      when you are ready to add work.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <div className="grid gap-3 sm:grid-cols-3">
+                      <WorkflowSignalTile
+                        label="Default stage"
+                        value={workItemStage || 'Auto'}
+                        detail="Use board defaults or preselect a stage before opening the form"
+                      />
+                      <WorkflowSignalTile
+                        label="Priority posture"
+                        value={
+                          WORK_ITEM_PRIORITY_OPTIONS.find(
+                            (option) => option.value === workItemPriority,
+                          )?.label ?? 'Normal'
+                        }
+                        detail="Priority carries into the quick-create form"
+                      />
+                      <WorkflowSignalTile
+                        label="Metadata mode"
+                        value="Structured fields"
+                        detail="Typed metadata stays in guided controls instead of raw JSON"
+                      />
+                    </div>
+                    <div className="rounded-xl border border-border/70 bg-border/10 p-4">
+                      <p className="text-sm leading-6 text-muted">
+                        Open the guided create flow when you need a new board item. The form stays
+                        out of the main scroll until then, which keeps the workflow detail page
+                        focused on triage and review.
+                      </p>
+                    </div>
+                    <div className="flex justify-end">
+                      <Button onClick={() => setIsCreateWorkItemDialogOpen(true)}>
+                        Create Work Item
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card className="bg-surface/80">
+                  <CardHeader>
+                    <CardTitle>Launch Child Board</CardTitle>
+                    <CardDescription>
+                      Create a linked follow-up board run using a playbook and preserve lineage.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="grid gap-4">
+                    <div className="grid gap-3 rounded-lg border border-dashed border-border/70 bg-border/10 p-4">
+                      <p className="text-sm text-muted">
+                        Child workflows inherit parent context and stay linked for operator drill-in.
+                      </p>
+                      <div className="flex justify-end">
+                        <Button onClick={() => setIsChainDialogOpen(true)}>Create Child Board</Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="review" className="mt-0 grid gap-6 xl:grid-cols-2">
+                <WorkflowStagesCard
+                  stages={stagesQuery.data ?? []}
+                  isLoading={stagesQuery.isLoading}
+                  hasError={Boolean(stagesQuery.error)}
+                  selectedGateStageName={selectedGateStageName}
+                  onSelectGate={(stageName) => updateWorkflowSelection('gate', stageName)}
+                />
+                <WorkflowActivationsCard
+                  workflowId={workflowId}
+                  workflowState={workflowQuery.data?.state}
+                  activations={activationsQuery.data ?? []}
+                  isLoading={activationsQuery.isLoading}
+                  hasError={Boolean(activationsQuery.error)}
+                  canEnqueueManualActivation={canEnqueueManualActivation}
+                  selectedActivationId={selectedActivationId}
+                  onSelectActivation={(activationId) =>
+                    updateWorkflowSelection('activation', activationId)
+                  }
+                  onActivationQueued={() =>
+                    invalidateWorkflowQueries(queryClient, workflowId, projectId)
+                  }
+                />
+              </TabsContent>
+            </Tabs>
+          </section>
+        ) : null}
       </section>
 
       <section
@@ -1279,6 +1288,149 @@ export function WorkflowDetailPage(): JSX.Element {
         defaultPlaybookId={workflowQuery.data?.playbook_id ?? undefined}
         defaultWorkflowName={workflowQuery.data?.name ?? 'Workflow'}
       />
+      <Dialog
+        open={isCreateWorkItemDialogOpen}
+        onOpenChange={(isOpen) => {
+          setIsCreateWorkItemDialogOpen(isOpen);
+          if (isOpen) {
+            return;
+          }
+          setWorkItemError(null);
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Create Work Item</DialogTitle>
+            <DialogDescription>
+              Add new work directly onto the playbook board with a stage-aware form.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-1.5">
+                <span className="text-sm font-medium text-foreground">Title</span>
+                <Input
+                  value={workItemTitle}
+                  onChange={(event) => {
+                    setWorkItemError(null);
+                    setWorkItemTitle(event.target.value);
+                  }}
+                  placeholder="e.g. Implement billing webhooks"
+                />
+              </label>
+              <label className="grid gap-1.5">
+                <span className="text-sm font-medium text-foreground">Stage</span>
+                <Select
+                  value={workItemStage || '__auto__'}
+                  onValueChange={(value) => {
+                    setWorkItemError(null);
+                    setWorkItemStage(value === '__auto__' ? '' : value);
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Use default stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__auto__">Use default stage</SelectItem>
+                    {(stagesQuery.data ?? []).map((stage) => (
+                      <SelectItem key={stage.id} value={stage.name}>
+                        {stage.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+            <label className="grid gap-1.5">
+              <span className="text-sm font-medium text-foreground">Goal</span>
+              <Textarea
+                value={workItemGoal}
+                onChange={(event) => {
+                  setWorkItemError(null);
+                  setWorkItemGoal(event.target.value);
+                }}
+                className="min-h-[88px]"
+                placeholder="Describe the desired outcome and acceptance intent."
+              />
+            </label>
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="grid gap-1.5">
+                <span className="text-sm font-medium text-foreground">Priority</span>
+                <Select
+                  value={workItemPriority}
+                  onValueChange={(value) => {
+                    setWorkItemError(null);
+                    setWorkItemPriority(normalizeWorkItemPriority(value));
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted">
+                  {WORK_ITEM_PRIORITY_OPTIONS.find((option) => option.value === workItemPriority)
+                    ?.description ?? ''}
+                </p>
+              </label>
+              <label className="grid gap-1.5">
+                <span className="text-sm font-medium text-foreground">Acceptance criteria</span>
+                <Textarea
+                  value={workItemAcceptanceCriteria}
+                  onChange={(event) => {
+                    setWorkItemError(null);
+                    setWorkItemAcceptanceCriteria(event.target.value);
+                  }}
+                  className="min-h-[112px]"
+                  placeholder="List the conditions that must be true before this work item can be closed."
+                />
+              </label>
+            </div>
+            <label className="grid gap-1.5">
+              <span className="text-sm font-medium text-foreground">Notes</span>
+              <Textarea
+                value={workItemNotes}
+                onChange={(event) => {
+                  setWorkItemError(null);
+                  setWorkItemNotes(event.target.value);
+                }}
+                className="min-h-[112px]"
+                placeholder="Capture operator guidance, context, or follow-up constraints."
+              />
+            </label>
+            <WorkItemMetadataEditor
+              title="Structured metadata"
+              description="Add supported typed metadata as key and value pairs instead of pasting raw JSON."
+              drafts={workItemMetadataDrafts}
+              validation={workItemMetadataValidation}
+              addLabel="Add Metadata Entry"
+              onChange={(drafts) => {
+                setWorkItemError(null);
+                setWorkItemMetadataDrafts(drafts);
+              }}
+            />
+            {workItemError ? (
+              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+                {workItemError}
+              </p>
+            ) : null}
+            <div className="flex justify-end">
+              <Button
+                onClick={() => void createWorkItemMutation.mutate()}
+                disabled={createWorkItemMutation.isPending || !workItemMetadataValidation.isValid}
+              >
+                {createWorkItemMutation.isPending ? 'Creating…' : 'Create Work Item'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -1293,9 +1445,12 @@ function WorkflowContextPacket(props: {
 
   if (contextKeys.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
-        No workflow context is available yet.
-      </p>
+      <PacketEmptyState
+        title="No workflow context is available yet"
+        badge="Waiting for first packet"
+        summary="Context appears here after the board run records orchestrator-scoped values."
+        detail="When available, this panel becomes the operator-facing packet for shared workflow context, launch parameters, and orchestration metadata."
+      />
     );
   }
 
@@ -1606,12 +1761,39 @@ function PacketBadgePanel(props: {
   );
 }
 
+function PacketEmptyState(props: {
+  title: string;
+  badge: string;
+  summary: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 rounded-xl border border-dashed border-border/70 bg-border/5 p-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="text-sm font-medium text-foreground">{props.title}</div>
+          <p className="text-sm leading-6 text-muted">{props.summary}</p>
+        </div>
+        <Badge variant="outline">{props.badge}</Badge>
+      </div>
+      <p className="text-sm leading-6 text-muted">{props.detail}</p>
+    </div>
+  );
+}
+
 function ResolvedModelResolutionList(props: {
   effectiveModels: Record<string, DashboardEffectiveModelResolution>;
 }): JSX.Element {
   const entries = Object.entries(props.effectiveModels);
   if (entries.length === 0) {
-    return <p className="text-sm text-muted">No resolved model information is available.</p>;
+    return (
+      <PacketEmptyState
+        title="No resolved model information is available"
+        badge="No effective models"
+        summary="This board run has not resolved any role-level model selections yet."
+        detail="Once defaults and overrides resolve, each role will surface its provider, model, and fallback posture here."
+      />
+    );
   }
 
   return (
@@ -1649,9 +1831,12 @@ function WorkflowModelOverridesPacket(props: {
 
   if (entries.length === 0) {
     return (
-      <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
-        No board-run model overrides configured.
-      </p>
+      <PacketEmptyState
+        title="No board-run model overrides configured"
+        badge="Using inherited defaults"
+        summary="This board run is currently inheriting model selections from broader defaults."
+        detail="Configure workflow-scoped overrides only when this board needs a different role model, provider, or reasoning profile."
+      />
     );
   }
 

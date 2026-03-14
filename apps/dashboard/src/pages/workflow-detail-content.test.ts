@@ -25,6 +25,7 @@ describe('workflow detail content source', () => {
     expect(source).toContain('DocumentCard');
     expect(source).toContain('DocumentMetadataEntryEditor');
     expect(source).toContain('ProjectMemoryEntryCard');
+    expect(source).toContain('ContentEmptyState');
     expect(source).toContain('describeProjectMemoryEntry');
     expect(source).toContain('dashboardApi.createWorkflowDocument');
     expect(source).toContain('dashboardApi.updateWorkflowDocument');
@@ -38,6 +39,8 @@ describe('workflow detail content source', () => {
     expect(source).toContain('Save Document Changes');
     expect(source).toContain('Delete Reference');
     expect(source).toContain('Confirm Delete');
+    expect(source).toContain('Reference library empty');
+    expect(source).toContain('No shared handoff notes');
     expect(source).toContain('Task linkage');
     expect(source).toContain('Operator-ready facts');
     expect(source).toContain('Open full memory packet');

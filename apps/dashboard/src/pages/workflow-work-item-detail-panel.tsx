@@ -323,6 +323,9 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
     (canEditParent
       ? (boardWorkItem?.parent_work_item_id ?? workItem?.parent_work_item_id ?? '')
       : '') !== (canEditParent ? parentWorkItemId : '');
+  const [activeDetailSurface, setActiveDetailSurface] = useState<
+    'summary' | 'operate' | 'evidence'
+  >('summary');
   const operatorSectionProps = workItem
     ? ({
         isMilestone: isMilestoneWorkItem(boardWorkItem),
@@ -373,6 +376,10 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
       } satisfies Parameters<typeof WorkItemOperatorSection>[0])
     : null;
 
+  useEffect(() => {
+    setActiveDetailSurface('summary');
+  }, [props.workItemId]);
+
   return (
     <Card
       className="overflow-hidden border-accent/30 bg-surface/95 shadow-lg ring-1 ring-accent/10"
@@ -385,7 +392,7 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
       <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="grid gap-3">
-          <div className={metaRowClass}>
+            <div className={metaRowClass}>
               <Badge variant="secondary">Selected work item</Badge>
               <Badge variant="outline">{describeCountLabel(props.tasks.length, 'linked step')}</Badge>
               {artifactQuery.data ? (
@@ -399,8 +406,9 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
                 Work Item Detail
               </CardTitle>
               <CardDescription className="max-w-3xl text-sm leading-6">
-                Operator view of the selected work item, including linked execution steps,
-                artifacts, event history, and scoped memory.
+                Layered operator review for the selected work item. Start with the summary packet,
+                switch to operator controls only when editing, then open evidence and history on
+                demand.
               </CardDescription>
             </div>
           </div>
@@ -416,80 +424,115 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
           <p className={errorTextClass}>Failed to load work item detail.</p>
         ) : null}
         {workItem ? (
-          <WorkItemHeader
-            workItem={boardWorkItem ?? workItem}
-            breadcrumbs={workItemBreadcrumbs}
-            childCount={milestoneChildren.length}
-            linkedTaskCount={props.tasks.length}
-            artifactCount={artifactQuery.data?.length ?? 0}
-            stages={props.stages}
-            onSelectWorkItem={props.onSelectWorkItem}
-          />
-        ) : null}
+          <Tabs
+            value={activeDetailSurface}
+            onValueChange={(value) =>
+              setActiveDetailSurface(value as 'summary' | 'operate' | 'evidence')
+            }
+            className="grid gap-4"
+          >
+            <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 md:grid-cols-3">
+              <TabsTrigger value="summary">Summary packet</TabsTrigger>
+              <TabsTrigger value="operate">Operator controls</TabsTrigger>
+              <TabsTrigger value="evidence">Evidence &amp; history</TabsTrigger>
+            </TabsList>
 
-        {recoveryBrief ? <WorkItemRecoveryBriefSection brief={recoveryBrief} /> : null}
+            <TabsContent value="summary" className="mt-0 grid gap-4">
+              <WorkItemHeader
+                workItem={boardWorkItem ?? workItem}
+                breadcrumbs={workItemBreadcrumbs}
+                childCount={milestoneChildren.length}
+                linkedTaskCount={props.tasks.length}
+                artifactCount={artifactQuery.data?.length ?? 0}
+                stages={props.stages}
+                onSelectWorkItem={props.onSelectWorkItem}
+              />
+              {recoveryBrief ? <WorkItemRecoveryBriefSection brief={recoveryBrief} /> : null}
+              <WorkItemFocusPacket
+                executionSummary={executionSummary}
+                artifactCount={artifactQuery.data?.length ?? 0}
+                memoryCount={memoryEntries.length}
+                eventCount={events.length}
+              />
+              {milestoneOperatorSummary ? (
+                <MilestoneOperatorSummarySection summary={milestoneOperatorSummary} />
+              ) : null}
+              {isMilestoneWorkItem(boardWorkItem) ? (
+                <MilestoneChildrenSection
+                  children={milestoneChildren}
+                  onSelectWorkItem={props.onSelectWorkItem}
+                />
+              ) : null}
+              <WorkItemReviewClosure
+                title="Summary complete"
+                detail="Open operator controls to reroute or edit this work item, or switch to evidence when you need step-by-step execution detail."
+              />
+            </TabsContent>
 
-        {milestoneOperatorSummary ? (
-          <MilestoneOperatorSummarySection summary={milestoneOperatorSummary} />
-        ) : null}
+            <TabsContent value="operate" className="mt-0 grid gap-4">
+              {operatorSectionProps ? <WorkItemOperatorSection {...operatorSectionProps} /> : null}
+              <WorkItemReviewClosure
+                title="Operator changes are contained here"
+                detail="This editing surface is separated from the execution evidence so board review stays lightweight until you intentionally switch into edit mode."
+              />
+            </TabsContent>
 
-        {operatorSectionProps ? <WorkItemOperatorSection {...operatorSectionProps} /> : null}
+            <TabsContent value="evidence" className="mt-0 grid gap-4">
+              <Tabs defaultValue="steps" className="grid gap-4" data-testid="work-item-detail-tabs">
+                <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 xl:grid-cols-4">
+                  <TabsTrigger value="steps">Steps</TabsTrigger>
+                  <TabsTrigger value="memory">Memory</TabsTrigger>
+                  <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
+                  <TabsTrigger value="history">Event History</TabsTrigger>
+                </TabsList>
 
-        <Tabs defaultValue="steps" className="grid gap-4" data-testid="work-item-detail-tabs">
-          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 xl:grid-cols-4">
-            <TabsTrigger value="steps">Steps</TabsTrigger>
-            <TabsTrigger value="memory">Memory</TabsTrigger>
-            <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
-            <TabsTrigger value="history">Event History</TabsTrigger>
-          </TabsList>
+                <TabsContent value="steps" className="mt-0 grid">
+                  <WorkItemTasksSection
+                    workflowId={props.workflowId}
+                    tasks={props.tasks}
+                    executionSummary={executionSummary}
+                    isMilestone={isMilestoneWorkItem(boardWorkItem)}
+                    childCount={milestoneChildren.length}
+                    onWorkItemChanged={props.onWorkItemChanged}
+                  />
+                </TabsContent>
 
-          <TabsContent value="steps" className="mt-0 grid">
-            <WorkItemTasksSection
-              workflowId={props.workflowId}
-              tasks={props.tasks}
-              executionSummary={executionSummary}
-              isMilestone={isMilestoneWorkItem(boardWorkItem)}
-              childCount={milestoneChildren.length}
-              onWorkItemChanged={props.onWorkItemChanged}
-            />
-          </TabsContent>
+                <TabsContent value="memory" className="mt-0 grid">
+                  <WorkItemMemorySection
+                    isLoading={memoryQuery.isLoading}
+                    hasError={Boolean(memoryQuery.error)}
+                    entries={memoryEntries}
+                    history={memoryHistory}
+                    isHistoryLoading={memoryHistoryQuery.isLoading}
+                    hasHistoryError={Boolean(memoryHistoryQuery.error)}
+                  />
+                </TabsContent>
 
-          <TabsContent value="memory" className="mt-0 grid">
-            <WorkItemMemorySection
-              isLoading={memoryQuery.isLoading}
-              hasError={Boolean(memoryQuery.error)}
-              entries={memoryEntries}
-              history={memoryHistory}
-              isHistoryLoading={memoryHistoryQuery.isLoading}
-              hasHistoryError={Boolean(memoryHistoryQuery.error)}
-            />
-          </TabsContent>
+                <TabsContent value="artifacts" className="mt-0 grid">
+                  <WorkItemArtifactsSection
+                    isLoading={artifactQuery.isLoading}
+                    hasError={Boolean(artifactQuery.error)}
+                    tasks={props.tasks}
+                    artifacts={artifactQuery.data ?? []}
+                  />
+                </TabsContent>
 
-          <TabsContent value="artifacts" className="mt-0 grid">
-            <WorkItemArtifactsSection
-              isLoading={artifactQuery.isLoading}
-              hasError={Boolean(artifactQuery.error)}
-              tasks={props.tasks}
-              artifacts={artifactQuery.data ?? []}
-            />
-          </TabsContent>
-
-          <TabsContent value="history" className="mt-0 grid">
-            <WorkItemEventHistorySection
-              workflowId={props.workflowId}
-              workItemId={props.workItemId}
-              isLoading={eventQuery.isLoading}
-              hasError={Boolean(eventQuery.error)}
-              events={events}
-            />
-          </TabsContent>
-        </Tabs>
-
-        {isMilestoneWorkItem(boardWorkItem) ? (
-          <MilestoneChildrenSection
-            children={milestoneChildren}
-            onSelectWorkItem={props.onSelectWorkItem}
-          />
+                <TabsContent value="history" className="mt-0 grid">
+                  <WorkItemEventHistorySection
+                    workflowId={props.workflowId}
+                    workItemId={props.workItemId}
+                    isLoading={eventQuery.isLoading}
+                    hasError={Boolean(eventQuery.error)}
+                    events={events}
+                  />
+                </TabsContent>
+              </Tabs>
+              <WorkItemReviewClosure
+                title="Evidence packet complete"
+                detail="When you have enough signal, return to operator controls to save changes or clear the selection to go back to broad board triage."
+              />
+            </TabsContent>
+          </Tabs>
         ) : null}
       </CardContent>
     </Card>
@@ -549,6 +592,13 @@ function WorkItemOperatorSection(props: {
   const selectedChildPriority = WORK_ITEM_PRIORITY_OPTIONS.find(
     (option) => option.value === props.childPriority,
   );
+  const [activeControlSurface, setActiveControlSurface] = useState<
+    'brief' | 'routing' | 'decompose'
+  >(props.isMilestone ? 'brief' : 'routing');
+
+  useEffect(() => {
+    setActiveControlSurface(props.isMilestone ? 'brief' : 'routing');
+  }, [props.isMilestone]);
 
   return (
     <section
@@ -572,175 +622,289 @@ function WorkItemOperatorSection(props: {
         Adjust board placement, stage ownership, and milestone nesting without leaving the work-item
         operator view.
       </p>
-      <OperatorSectionCard
-        eyebrow="Work-item brief"
-        title="Brief and operator notes"
-        description="Keep the selected work-item packet current with explicit priority, acceptance criteria, and operator notes."
-      >
-        <div className="grid gap-4">
-          <label className={fieldStackClass}>
-            <span className="text-sm font-medium text-foreground">Priority</span>
-            <Select
-              value={props.priority}
-              onValueChange={(value) => props.onPriorityChange(normalizeWorkItemPriority(value))}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select priority" />
-              </SelectTrigger>
-              <SelectContent>
-                {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs leading-5 text-muted">{selectedPriority?.description}</p>
-          </label>
-          <div className="grid gap-4 md:grid-cols-2">
-            <label className={fieldStackClass}>
-              <span className="text-sm font-medium text-foreground">Acceptance criteria</span>
-              <Textarea
-                value={props.acceptanceCriteria}
-                onChange={(event) => props.onAcceptanceCriteriaChange(event.target.value)}
-                className="min-h-[124px]"
-                placeholder="List the conditions that define done for this work item."
-              />
-            </label>
-            <label className={fieldStackClass}>
-              <span className="text-sm font-medium text-foreground">Notes</span>
-              <Textarea
-                value={props.notes}
-                onChange={(event) => props.onNotesChange(event.target.value)}
-                className="min-h-[124px]"
-                placeholder="Capture operator context, watchouts, or board-specific follow-up."
-              />
-            </label>
-          </div>
-        </div>
-      </OperatorSectionCard>
-      <OperatorSectionCard
-        eyebrow="Structured metadata"
-        title="Metadata patch"
-        description="Update typed metadata entries with structured controls. Existing keys can be edited here, but key removal is not supported in this operator flow."
-      >
-        <WorkItemMetadataEditor
-          title="Work-item metadata"
-          description="Use typed key and value rows instead of raw JSON so metadata stays accessible in the operator surface."
-          drafts={props.metadataDrafts}
-          validation={props.metadataValidation}
-          addLabel="Add Metadata Entry"
-          lockedDraftIds={props.lockedMetadataDraftIds}
-          onChange={props.onMetadataDraftsChange}
-        />
-      </OperatorSectionCard>
-      <OperatorSectionCard
-        eyebrow="Board placement"
-        title="Stage and board routing"
-        description="Keep the work item in the correct stage and visible board column while execution is in flight."
-      >
-        <div className="grid gap-4 md:grid-cols-2">
-          <label className={fieldStackClass}>
-            <span className="text-sm font-medium text-foreground">Stage</span>
-            <Select value={props.stageName} onValueChange={props.onStageNameChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select stage" />
-              </SelectTrigger>
-              <SelectContent>
-                {props.stages.map((stage) => (
-                  <SelectItem key={stage.id} value={stage.name}>
-                    {stage.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-          <label className={fieldStackClass}>
-            <span className="text-sm font-medium text-foreground">Board column</span>
-            <Select value={props.columnId} onValueChange={props.onColumnIdChange}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select column" />
-              </SelectTrigger>
-              <SelectContent>
-                {props.columns.map((column) => (
-                  <SelectItem key={column.id} value={column.id}>
-                    {column.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </label>
-        </div>
-      </OperatorSectionCard>
-
-      <OperatorSectionCard
-        eyebrow="Ownership and linkage"
-        title={props.isMilestone ? 'Milestone ownership' : 'Ownership and milestone linkage'}
-        description={
-          props.isMilestone
-            ? 'Milestones stay top-level and coordinate child delivery rather than nesting under another parent.'
-            : 'Adjust responsibility and milestone grouping without leaving the selected work-item flow.'
+      <Tabs
+        value={activeControlSurface}
+        onValueChange={(value) =>
+          setActiveControlSurface(value as 'brief' | 'routing' | 'decompose')
         }
+        className="grid gap-4"
       >
-        <div className="grid gap-4 md:grid-cols-2">
-          {!props.isMilestone ? (
-            <label className={fieldStackClass}>
-              <span className="text-sm font-medium text-foreground">Reparent under milestone</span>
-              <Select
-                value={props.parentWorkItemId || '__none__'}
-                onValueChange={(value) =>
-                  props.onParentWorkItemIdChange(value === '__none__' ? '' : value)
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Top-level work item" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Top-level work item</SelectItem>
-                  {props.parentMilestones.map((item) => (
-                    <SelectItem key={item.id} value={item.id}>
-                      {item.title}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </label>
-          ) : (
-            <div className="rounded-lg border border-border/70 bg-border/10 p-4 text-sm leading-6 text-muted">
-              Parent milestones stay top-level. Move or reparent child work items instead of nesting
-              milestones.
+        <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-xl border border-border/70 bg-background/80 p-1 md:grid-cols-3">
+          <TabsTrigger value="brief">Brief &amp; metadata</TabsTrigger>
+          <TabsTrigger value="routing">Routing &amp; ownership</TabsTrigger>
+          <TabsTrigger value="decompose" disabled={!props.isMilestone}>
+            Milestone decomposition
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="brief" className="mt-0 grid gap-4">
+          <OperatorSectionCard
+            eyebrow="Work-item brief"
+            title="Brief and operator notes"
+            description="Keep the selected work-item packet current with explicit priority, acceptance criteria, and operator notes."
+          >
+            <div className="grid gap-4">
+              <label className={fieldStackClass}>
+                <span className="text-sm font-medium text-foreground">Priority</span>
+                <Select
+                  value={props.priority}
+                  onValueChange={(value) =>
+                    props.onPriorityChange(normalizeWorkItemPriority(value))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs leading-5 text-muted">{selectedPriority?.description}</p>
+              </label>
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className={fieldStackClass}>
+                  <span className="text-sm font-medium text-foreground">Acceptance criteria</span>
+                  <Textarea
+                    value={props.acceptanceCriteria}
+                    onChange={(event) => props.onAcceptanceCriteriaChange(event.target.value)}
+                    className="min-h-[124px]"
+                    placeholder="List the conditions that define done for this work item."
+                  />
+                </label>
+                <label className={fieldStackClass}>
+                  <span className="text-sm font-medium text-foreground">Notes</span>
+                  <Textarea
+                    value={props.notes}
+                    onChange={(event) => props.onNotesChange(event.target.value)}
+                    className="min-h-[124px]"
+                    placeholder="Capture operator context, watchouts, or board-specific follow-up."
+                  />
+                </label>
+              </div>
             </div>
-          )}
-          <label className={fieldStackClass}>
-            <span className="text-sm font-medium text-foreground">
-              {props.isMilestone ? 'Owner role' : 'Owner role override'}
-            </span>
-            <Select
-              value={props.ownerRole || '__unassigned__'}
-              onValueChange={(value) =>
-                props.onOwnerRoleChange(value === '__unassigned__' ? '' : value)
-              }
+          </OperatorSectionCard>
+          <OperatorSectionCard
+            eyebrow="Structured metadata"
+            title="Metadata patch"
+            description="Update typed metadata entries with structured controls. Existing keys can be edited here, but key removal is not supported in this operator flow."
+          >
+            <WorkItemMetadataEditor
+              title="Work-item metadata"
+              description="Use typed key and value rows instead of raw JSON so metadata stays accessible in the operator surface."
+              drafts={props.metadataDrafts}
+              validation={props.metadataValidation}
+              addLabel="Add Metadata Entry"
+              lockedDraftIds={props.lockedMetadataDraftIds}
+              onChange={props.onMetadataDraftsChange}
+            />
+          </OperatorSectionCard>
+        </TabsContent>
+
+        <TabsContent value="routing" className="mt-0 grid gap-4">
+          <OperatorSectionCard
+            eyebrow="Board placement"
+            title="Stage and board routing"
+            description="Keep the work item in the correct stage and visible board column while execution is in flight."
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className={fieldStackClass}>
+                <span className="text-sm font-medium text-foreground">Stage</span>
+                <Select value={props.stageName} onValueChange={props.onStageNameChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select stage" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {props.stages.map((stage) => (
+                      <SelectItem key={stage.id} value={stage.name}>
+                        {stage.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className={fieldStackClass}>
+                <span className="text-sm font-medium text-foreground">Board column</span>
+                <Select value={props.columnId} onValueChange={props.onColumnIdChange}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select column" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {props.columns.map((column) => (
+                      <SelectItem key={column.id} value={column.id}>
+                        {column.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </label>
+            </div>
+          </OperatorSectionCard>
+
+          <OperatorSectionCard
+            eyebrow="Ownership and linkage"
+            title={props.isMilestone ? 'Milestone ownership' : 'Ownership and milestone linkage'}
+            description={
+              props.isMilestone
+                ? 'Milestones stay top-level and coordinate child delivery rather than nesting under another parent.'
+                : 'Adjust responsibility and milestone grouping without leaving the selected work-item flow.'
+            }
+          >
+            <div className="grid gap-4 md:grid-cols-2">
+              {!props.isMilestone ? (
+                <label className={fieldStackClass}>
+                  <span className="text-sm font-medium text-foreground">Reparent under milestone</span>
+                  <Select
+                    value={props.parentWorkItemId || '__none__'}
+                    onValueChange={(value) =>
+                      props.onParentWorkItemIdChange(value === '__none__' ? '' : value)
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Top-level work item" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Top-level work item</SelectItem>
+                      {props.parentMilestones.map((item) => (
+                        <SelectItem key={item.id} value={item.id}>
+                          {item.title}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+              ) : (
+                <div className="rounded-lg border border-border/70 bg-border/10 p-4 text-sm leading-6 text-muted">
+                  Parent milestones stay top-level. Move or reparent child work items instead of nesting
+                  milestones.
+                </div>
+              )}
+              <label className={fieldStackClass}>
+                <span className="text-sm font-medium text-foreground">
+                  {props.isMilestone ? 'Owner role' : 'Owner role override'}
+                </span>
+                <Select
+                  value={props.ownerRole || '__unassigned__'}
+                  onValueChange={(value) =>
+                    props.onOwnerRoleChange(value === '__unassigned__' ? '' : value)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select owner role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__unassigned__">Unassigned</SelectItem>
+                    {props.ownerRoleOptions.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {role}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs leading-5 text-muted">
+                  {props.ownerRoleOptions.length > 0
+                    ? 'Choose from roles already active on this board run instead of typing a free-form override.'
+                    : 'No known board roles are available yet. Configure roles on the playbook or through active model assignments first.'}
+                </p>
+              </label>
+            </div>
+          </OperatorSectionCard>
+        </TabsContent>
+
+        {props.isMilestone ? (
+          <TabsContent value="decompose" className="mt-0 grid gap-4">
+            <OperatorSectionCard
+              eyebrow="Milestone decomposition"
+              title="Create child work item"
+              description="Break this milestone into child deliverables so operators can track each downstream work item separately."
             >
-              <SelectTrigger>
-                <SelectValue placeholder="Select owner role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__unassigned__">Unassigned</SelectItem>
-                {props.ownerRoleOptions.map((role) => (
-                  <SelectItem key={role} value={role}>
-                    {role}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs leading-5 text-muted">
-              {props.ownerRoleOptions.length > 0
-                ? 'Choose from roles already active on this board run instead of typing a free-form override.'
-                : 'No known board roles are available yet. Configure roles on the playbook or through active model assignments first.'}
-            </p>
-          </label>
-        </div>
-      </OperatorSectionCard>
+              <div className="grid gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className={fieldStackClass}>
+                    <span className="text-sm font-medium text-foreground">Title</span>
+                    <Input
+                      value={props.childTitle}
+                      onChange={(event) => props.onChildTitleChange(event.target.value)}
+                      placeholder="e.g. Implement auth service"
+                    />
+                  </label>
+                  <label className={fieldStackClass}>
+                    <span className="text-sm font-medium text-foreground">Priority</span>
+                    <Select
+                      value={props.childPriority}
+                      onValueChange={(value) =>
+                        props.onChildPriorityChange(normalizeWorkItemPriority(value))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select priority" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs leading-5 text-muted">{selectedChildPriority?.description}</p>
+                  </label>
+                </div>
+                <label className={fieldStackClass}>
+                  <span className="text-sm font-medium text-foreground">Goal</span>
+                  <Textarea
+                    value={props.childGoal}
+                    onChange={(event) => props.onChildGoalChange(event.target.value)}
+                    className="min-h-[96px]"
+                    placeholder="Describe the child deliverable."
+                  />
+                </label>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className={fieldStackClass}>
+                    <span className="text-sm font-medium text-foreground">
+                      Child acceptance criteria
+                    </span>
+                    <Textarea
+                      value={props.childAcceptanceCriteria}
+                      onChange={(event) => props.onChildAcceptanceCriteriaChange(event.target.value)}
+                      className="min-h-[124px]"
+                      placeholder="List the acceptance criteria this child work item must satisfy."
+                    />
+                  </label>
+                  <label className={fieldStackClass}>
+                    <span className="text-sm font-medium text-foreground">Child notes</span>
+                    <Textarea
+                      value={props.childNotes}
+                      onChange={(event) => props.onChildNotesChange(event.target.value)}
+                      className="min-h-[124px]"
+                      placeholder="Capture implementation notes or operator guidance for the child item."
+                    />
+                  </label>
+                </div>
+                <WorkItemMetadataEditor
+                  title="Child metadata"
+                  description="Attach supported typed metadata to the child work item without writing raw JSON."
+                  drafts={props.childMetadataDrafts}
+                  validation={props.childMetadataValidation}
+                  addLabel="Add Child Metadata Entry"
+                  onChange={props.onChildMetadataDraftsChange}
+                />
+                <div className="flex justify-end">
+                  <Button
+                    onClick={props.onCreateChild}
+                    disabled={!props.canCreateChild || props.isCreatingChild}
+                  >
+                    {props.isCreatingChild ? 'Creating…' : 'Create Child Work Item'}
+                  </Button>
+                </div>
+              </div>
+            </OperatorSectionCard>
+          </TabsContent>
+        ) : null}
+      </Tabs>
       {props.error ? <p className={errorTextClass}>{props.error}</p> : null}
       {props.message ? (
         <p className="rounded-lg border border-border/70 bg-surface px-4 py-3 text-sm text-muted">
@@ -765,94 +929,6 @@ function WorkItemOperatorSection(props: {
           {props.isSaving ? 'Saving…' : 'Save Operator Changes'}
         </Button>
       </div>
-      {props.isMilestone ? (
-        <OperatorSectionCard
-          eyebrow="Milestone decomposition"
-          title="Create child work item"
-          description="Break this milestone into child deliverables so operators can track each downstream work item separately."
-        >
-          <div className="grid gap-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className={fieldStackClass}>
-                <span className="text-sm font-medium text-foreground">Title</span>
-                <Input
-                  value={props.childTitle}
-                  onChange={(event) => props.onChildTitleChange(event.target.value)}
-                  placeholder="e.g. Implement auth service"
-                />
-              </label>
-              <label className={fieldStackClass}>
-                <span className="text-sm font-medium text-foreground">Priority</span>
-                <Select
-                  value={props.childPriority}
-                  onValueChange={(value) =>
-                    props.onChildPriorityChange(normalizeWorkItemPriority(value))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select priority" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {WORK_ITEM_PRIORITY_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs leading-5 text-muted">{selectedChildPriority?.description}</p>
-              </label>
-            </div>
-            <label className={fieldStackClass}>
-              <span className="text-sm font-medium text-foreground">Goal</span>
-              <Textarea
-                value={props.childGoal}
-                onChange={(event) => props.onChildGoalChange(event.target.value)}
-                className="min-h-[96px]"
-                placeholder="Describe the child deliverable."
-              />
-            </label>
-            <div className="grid gap-4 md:grid-cols-2">
-              <label className={fieldStackClass}>
-                <span className="text-sm font-medium text-foreground">
-                  Child acceptance criteria
-                </span>
-                <Textarea
-                  value={props.childAcceptanceCriteria}
-                  onChange={(event) => props.onChildAcceptanceCriteriaChange(event.target.value)}
-                  className="min-h-[124px]"
-                  placeholder="List the acceptance criteria this child work item must satisfy."
-                />
-              </label>
-              <label className={fieldStackClass}>
-                <span className="text-sm font-medium text-foreground">Child notes</span>
-                <Textarea
-                  value={props.childNotes}
-                  onChange={(event) => props.onChildNotesChange(event.target.value)}
-                  className="min-h-[124px]"
-                  placeholder="Capture implementation notes or operator guidance for the child item."
-                />
-              </label>
-            </div>
-            <WorkItemMetadataEditor
-              title="Child metadata"
-              description="Attach supported typed metadata to the child work item without writing raw JSON."
-              drafts={props.childMetadataDrafts}
-              validation={props.childMetadataValidation}
-              addLabel="Add Child Metadata Entry"
-              onChange={props.onChildMetadataDraftsChange}
-            />
-            <div className="flex justify-end">
-              <Button
-                onClick={props.onCreateChild}
-                disabled={!props.canCreateChild || props.isCreatingChild}
-              >
-                {props.isCreatingChild ? 'Creating…' : 'Create Child Work Item'}
-              </Button>
-            </div>
-          </div>
-        </OperatorSectionCard>
-      ) : null}
     </section>
   );
 }
@@ -1228,6 +1304,69 @@ function MilestoneOperatorSummarySection(props: {
           </Badge>
         </div>
       </article>
+    </section>
+  );
+}
+
+function WorkItemFocusPacket(props: {
+  executionSummary: ReturnType<typeof summarizeWorkItemExecution>;
+  artifactCount: number;
+  memoryCount: number;
+  eventCount: number;
+}): JSX.Element {
+  const nextMove =
+    props.executionSummary.awaitingOperator > 0
+      ? 'Open evidence first to clear approvals, requested changes, or escalations before editing board routing.'
+      : props.executionSummary.retryableSteps > 0
+        ? 'Review evidence for retryable or escalated steps, then return to operator controls for any routing changes.'
+        : 'Use operator controls only if the work item needs rerouting or a metadata update. Otherwise stay in the summary packet and keep triage moving.';
+
+  return (
+    <section className="grid gap-4 rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm">
+      <div className="grid gap-1">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          Operator snapshot
+        </div>
+        <strong className="text-base text-foreground">What needs attention next</strong>
+        <p className={mutedBodyClass}>{nextMove}</p>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <DetailStatCard
+          label="Needs review"
+          value={String(props.executionSummary.awaitingOperator)}
+          detail="Approvals or changes pending"
+        />
+        <DetailStatCard
+          label="Retryable"
+          value={String(props.executionSummary.retryableSteps)}
+          detail="Failed or escalated steps"
+        />
+        <DetailStatCard
+          label="Memory packets"
+          value={String(props.memoryCount)}
+          detail="Scoped memory entries"
+        />
+        <DetailStatCard
+          label="Evidence"
+          value={`${props.artifactCount} / ${props.eventCount}`}
+          detail="Artifacts / history events"
+        />
+      </div>
+    </section>
+  );
+}
+
+function WorkItemReviewClosure(props: {
+  title: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <section className="grid gap-2 rounded-xl border border-dashed border-border/70 bg-background/80 p-4">
+      <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+        Review checkpoint
+      </div>
+      <strong className="text-sm text-foreground">{props.title}</strong>
+      <p className={mutedBodyClass}>{props.detail}</p>
     </section>
   );
 }

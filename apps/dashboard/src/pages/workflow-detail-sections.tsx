@@ -308,6 +308,9 @@ export function PlaybookBoardCard(props: {
             </CardDescription>
           </div>
           <div className="flex flex-wrap gap-2">
+            {props.selectedWorkItemId ? (
+              <Badge variant="outline">Focused detail open</Badge>
+            ) : null}
             <Button
               type="button"
               variant={boardMode === 'grouped' ? 'default' : 'outline'}
@@ -331,6 +334,12 @@ export function PlaybookBoardCard(props: {
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
+        {props.selectedWorkItemId ? (
+          <div className="rounded-xl border border-border/70 bg-border/10 p-4 text-sm leading-6 text-muted">
+            A selected work-item packet is open beside the board. Keep the board in triage mode
+            here, then use the dedicated focus rail for edits, evidence, and step-level review.
+          </div>
+        ) : null}
         {props.isLoading ? (
           <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
             Loading board...
@@ -364,7 +373,13 @@ export function PlaybookBoardCard(props: {
                 ))}
               </div>
             ) : null}
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div
+              className={
+                props.selectedWorkItemId
+                  ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
+                  : 'grid gap-4 md:grid-cols-2 xl:grid-cols-4'
+              }
+            >
               {props.board.columns.map((column) => {
                 const flatItems =
                   props.board?.work_items.filter((item) => item.column_id === column.id) ?? [];
