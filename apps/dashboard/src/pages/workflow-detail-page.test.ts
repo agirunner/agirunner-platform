@@ -266,8 +266,10 @@ describe('workflow detail deep links', () => {
 
     expect(source).toContain('autoSelectedWorkItemIdRef');
     expect(source).toContain('hasExplicitWorkflowDetailSelection');
+    expect(source).toContain('readWorkflowDetailScrollContainer');
+    expect(source).toContain("document.querySelector('main')");
+    expect(source).toContain('scrollWorkflowDetailToTop()');
     expect(source).toContain('selectedWorkItemId !== selection.autoSelectedWorkItemId');
-    expect(source).toContain('window.scrollTo({ top: 0, left: 0 })');
     expect(source).toContain('if (!workflowId || shouldPreserveWorkflowDetailScroll) {');
   });
 

@@ -390,7 +390,7 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
       tabIndex={-1}
       aria-labelledby={panelTitleId}
     >
-      <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
+      <CardHeader className="gap-3 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="grid gap-3">
             <div className={metaRowClass}>
@@ -407,9 +407,8 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
                 Work Item Detail
               </CardTitle>
               <CardDescription className="max-w-3xl text-sm leading-6">
-                Layered operator review for the selected work item. Start with the summary packet,
-                switch to operator controls only when editing, then open evidence and history on
-                demand.
+                Start with the summary, open controls only when editing, then switch to evidence
+                when you need execution detail.
               </CardDescription>
             </div>
           </div>
@@ -419,7 +418,7 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
         </div>
       </CardHeader>
 
-      <CardContent className="grid gap-6 p-5">
+      <CardContent className="grid gap-5 p-4">
         {workItemQuery.isLoading ? <p className={loadingTextClass}>Loading work item...</p> : null}
         {workItemQuery.error ? (
           <p className={errorTextClass}>Failed to load work item detail.</p>
@@ -1132,31 +1131,25 @@ function WorkItemHeader(props: {
           <OperatorStatusBadge status={workItem.completed_at ? 'completed' : 'active'} />
         </div>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <DetailStatCard
-          label="Stage group"
-          value={workItem.stage_name ?? 'Unassigned'}
-          detail="Current stage routing"
-        />
-        <DetailStatCard
-          label="Board placement"
-          value={workItem.column_id ?? 'Unassigned'}
-          detail="Active board column"
-        />
-        <DetailStatCard
-          label="Execution steps"
-          value={String(props.linkedTaskCount)}
-          detail="Linked operator-visible steps"
-        />
-        <DetailStatCard
-          label="Artifacts"
-          value={String(props.artifactCount)}
-          detail="Previewable outputs"
-        />
+      <div className="grid gap-3 rounded-xl border border-border/70 bg-background/80 p-4">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          Current routing
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline">{workItem.stage_name ?? 'Unassigned stage'}</Badge>
+          <Badge variant="outline">{workItem.column_id ?? 'Unassigned column'}</Badge>
+          <Badge variant="outline">{describeCountLabel(props.linkedTaskCount, 'linked step')}</Badge>
+          <Badge variant="outline">{describeCountLabel(props.artifactCount, 'artifact')}</Badge>
+          {workItem.owner_role ? <Badge variant="outline">{workItem.owner_role}</Badge> : null}
+        </div>
+        <p className={mutedBodyClass}>
+          {milestone
+            ? `This milestone coordinates ${props.childCount} child work item${props.childCount === 1 ? '' : 's'} across the board.`
+            : 'Review the summary first. Open controls only when routing or metadata needs to change.'}
+        </p>
       </div>
       {stageRecord ? <WorkItemStageProgressCard stage={stageRecord} /> : null}
       <div className={metaRowClass}>
-        {workItem.owner_role ? <Badge variant="outline">{workItem.owner_role}</Badge> : null}
         {workItem.task_count !== undefined ? (
           <Badge variant="outline">{describeCountLabel(workItem.task_count, 'linked step')}</Badge>
         ) : null}
@@ -1269,9 +1262,11 @@ function WorkItemRecoveryBriefSection(props: {
         </div>
         <Badge variant={props.brief.tone}>{props.brief.badge}</Badge>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="flex flex-wrap gap-2">
         {props.brief.facts.map((fact) => (
-          <DetailStatCard key={fact.label} label={fact.label} value={fact.value} detail="" />
+          <Badge key={fact.label} variant="outline">
+            {fact.label}: {fact.value}
+          </Badge>
         ))}
       </div>
     </section>
@@ -1353,27 +1348,16 @@ function WorkItemFocusPacket(props: {
         <strong className="text-base text-foreground">What needs attention next</strong>
         <p className={mutedBodyClass}>{nextMove}</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <DetailStatCard
-          label="Needs review"
-          value={String(props.executionSummary.awaitingOperator)}
-          detail="Approvals or changes pending"
-        />
-        <DetailStatCard
-          label="Retryable"
-          value={String(props.executionSummary.retryableSteps)}
-          detail="Failed or escalated steps"
-        />
-        <DetailStatCard
-          label="Memory packets"
-          value={String(props.memoryCount)}
-          detail="Scoped memory entries"
-        />
-        <DetailStatCard
-          label="Evidence"
-          value={`${props.artifactCount} / ${props.eventCount}`}
-          detail="Artifacts / history events"
-        />
+      <div className="flex flex-wrap gap-2">
+        <Badge variant={props.executionSummary.awaitingOperator > 0 ? 'warning' : 'outline'}>
+          {props.executionSummary.awaitingOperator} need review
+        </Badge>
+        <Badge variant={props.executionSummary.retryableSteps > 0 ? 'warning' : 'outline'}>
+          {props.executionSummary.retryableSteps} retryable
+        </Badge>
+        <Badge variant="outline">{props.memoryCount} memory packets</Badge>
+        <Badge variant="outline">{props.artifactCount} artifacts</Badge>
+        <Badge variant="outline">{props.eventCount} history events</Badge>
       </div>
     </section>
   );
@@ -1384,7 +1368,7 @@ function WorkItemReviewClosure(props: {
   detail: string;
 }): JSX.Element {
   return (
-    <section className="grid gap-2 rounded-xl border border-dashed border-border/70 bg-background/80 p-4">
+    <section className="grid gap-2 rounded-xl border border-dashed border-border/70 bg-background/80 p-3">
       <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
         Review checkpoint
       </div>

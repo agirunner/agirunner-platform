@@ -84,9 +84,8 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Recovery brief');
     expect(source).toContain('props.brief.badge');
     expect(source).toContain('props.brief.facts.map((fact) => (');
-    expect(source).toContain('DetailStatCard key={fact.label}');
     expect(source).toContain('Operator breadcrumb');
-    expect(source).toContain('Board placement');
+    expect(source).toContain('Current routing');
     expect(source).toContain('Stage and board routing');
     expect(source).toContain('Ownership and linkage');
     expect(source).toContain('Milestone decomposition');
@@ -127,6 +126,9 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('WorkItemReviewClosure');
     expect(source).toContain('Summary complete');
     expect(source).toContain('Evidence packet complete');
+    expect(source).toContain('Review the summary first. Open controls only when routing or metadata needs to change.');
+    expect(source).toContain('need review');
+    expect(source).toContain('history events');
     expect(source).toContain('Child acceptance criteria');
     expect(source).toContain('Child notes');
     expect(source).toContain('Add Child Metadata Entry');

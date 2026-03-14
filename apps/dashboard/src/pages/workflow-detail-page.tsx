@@ -189,6 +189,16 @@ function focusWorkflowDetailTarget(targetId: string): boolean {
   return true;
 }
 
+function readWorkflowDetailScrollContainer(): HTMLElement | Window {
+  const main = document.querySelector('main');
+  return main instanceof HTMLElement ? main : window;
+}
+
+function scrollWorkflowDetailToTop(): void {
+  const container = readWorkflowDetailScrollContainer();
+  container.scrollTo({ top: 0, left: 0 });
+}
+
 export function WorkflowDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -585,10 +595,10 @@ export function WorkflowDetailPage(): JSX.Element {
       return;
     }
     const frame = window.requestAnimationFrame(() => {
-      window.scrollTo({ top: 0, left: 0 });
+      scrollWorkflowDetailToTop();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [location.key, shouldPreserveWorkflowDetailScroll, workflowId]);
+  }, [location.key, location.pathname, shouldPreserveWorkflowDetailScroll, workflowId]);
 
   if (workflowQuery.data && !workflowQuery.data.playbook_id) {
     return (
