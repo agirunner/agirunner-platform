@@ -39,6 +39,8 @@ describe('project artifact explorer panel source', () => {
     expect(source).toContain('ProjectArtifactExplorerShell');
     expect(source).toContain('dashboardApi.readTaskArtifactContent');
     expect(source).toContain('dashboardApi.downloadTaskArtifact');
+    expect(source).toContain('buildProjectArtifactBrowserPath');
+    expect(source).toContain("returnSource: 'project-artifacts'");
     expect(source).toContain('pagination={{');
     expect(source).toContain('setPageAndReset(Math.max(page - 1, 1))');
     expect(source).toContain('Downloaded ${artifactsToDownload.length} artifacts');

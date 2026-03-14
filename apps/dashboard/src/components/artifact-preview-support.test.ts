@@ -11,6 +11,12 @@ import {
 describe('artifact preview support', () => {
   it('builds a stable artifact permalink', () => {
     expect(buildArtifactPermalink('task-1', 'artifact-1')).toBe('/artifacts/tasks/task-1/artifact-1');
+    expect(
+      buildArtifactPermalink('task-1', 'artifact-1', {
+        returnTo: '/projects/project-1/artifacts?workflow_id=workflow-1',
+        returnSource: 'project-artifacts',
+      }),
+    ).toContain('return_source=project-artifacts');
   });
 
   it('classifies markdown, html, json, text, and binary artifacts', () => {

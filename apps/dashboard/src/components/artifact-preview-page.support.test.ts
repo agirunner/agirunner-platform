@@ -85,6 +85,51 @@ describe('artifact preview page support', () => {
     });
   });
 
+  it('prefers explicit project and content return paths when provided', () => {
+    expect(
+      buildArtifactPreviewOperatorNavigation({
+        taskId: 'task-1',
+        task: {
+          workflow: { id: 'workflow-1' },
+          work_item_id: 'work-item-1',
+        },
+        returnContext: {
+          returnTo: '/projects/project-1/artifacts?workflow_id=workflow-1',
+          returnSource: 'project-artifacts',
+        },
+      }),
+    ).toEqual({
+      primaryHref: '/projects/project-1/artifacts?workflow_id=workflow-1',
+      primaryLabel: 'Back to project artifacts',
+      primaryHelper:
+        'Return to the project artifact explorer so the selected workflow scope, filters, and artifact packet stay intact.',
+      diagnosticHref: '/work/tasks/task-1',
+      diagnosticLabel: 'Open step diagnostics',
+      sourceContextBody:
+        'This preview was opened from the project artifact explorer, so return there first to keep project-level browsing, provenance checks, and adjacent artifact review intact.',
+    });
+
+    expect(
+      buildArtifactPreviewOperatorNavigation({
+        taskId: 'task-1',
+        task: null,
+        returnContext: {
+          returnTo: '/projects/project-1/content?tab=artifacts&workflow=workflow-1',
+          returnSource: 'project-content',
+        },
+      }),
+    ).toEqual({
+      primaryHref: '/projects/project-1/content?tab=artifacts&workflow=workflow-1',
+      primaryLabel: 'Back to project content',
+      primaryHelper:
+        'Return to the project content surface so artifact review stays attached to the current workflow and task packet.',
+      diagnosticHref: '/work/tasks/task-1',
+      diagnosticLabel: 'Open step diagnostics',
+      sourceContextBody:
+        'This preview was opened from the project content surface, so return there first to continue document and artifact management in one place.',
+    });
+  });
+
   it('formats file sizes and preview mode labels for operator-facing copy', () => {
     expect(formatArtifactPreviewFileSize(512)).toBe('512 B');
     expect(formatArtifactPreviewFileSize(2048)).toBe('2.0 KB');

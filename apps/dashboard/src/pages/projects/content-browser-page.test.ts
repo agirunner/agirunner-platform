@@ -65,6 +65,8 @@ describe('content browser page source', () => {
     expect(source).toContain('preferredTab');
     expect(source).toContain('Back to Project');
     expect(source).toContain('Select a task to unlock artifact management');
+    expect(source).toContain('returnSource: \'project-content\'');
+    expect(source).toContain('artifactPreviewReturnPath');
   });
 
   it('normalizes project, document, and artifact payloads before rendering selector and table content', () => {

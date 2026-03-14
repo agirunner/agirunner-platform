@@ -22,6 +22,7 @@ interface ArtifactsTableProps {
   artifacts: DashboardTaskArtifactRecord[];
   isLoading: boolean;
   taskId: string;
+  buildPreviewHref?(artifact: DashboardTaskArtifactRecord): string;
   deletingArtifactId?: string | null;
   onDelete?(artifact: DashboardTaskArtifactRecord): void;
 }
@@ -107,6 +108,7 @@ export function ArtifactsTable(props: ArtifactsTableProps): JSX.Element {
           <ArtifactCard
             key={artifact.id}
             artifact={artifact}
+            previewHref={props.buildPreviewHref?.(artifact)}
             deletingArtifactId={props.deletingArtifactId}
             onDelete={props.onDelete}
           />
@@ -128,6 +130,7 @@ export function ArtifactsTable(props: ArtifactsTableProps): JSX.Element {
                 key={artifact.id}
                 artifact={artifact}
                 taskId={props.taskId}
+                previewHref={props.buildPreviewHref?.(artifact)}
                 deletingArtifactId={props.deletingArtifactId}
                 onDelete={props.onDelete}
               />

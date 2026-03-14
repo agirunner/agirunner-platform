@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Copy, Download, FileText, Loader2, Package } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { dashboardApi } from '../lib/api.js';
+import { readArtifactPreviewReturnState } from '../lib/artifact-navigation.js';
 import { toast } from '../lib/toast.js';
 import { Badge } from './ui/badge.js';
 import { Button } from './ui/button.js';
@@ -30,6 +31,7 @@ import {
 
 export function ArtifactPreviewPage(): JSX.Element {
   const { taskId = '', artifactId = '' } = useParams<{ taskId: string; artifactId: string }>();
+  const [searchParams] = useSearchParams();
   const [isDownloading, setIsDownloading] = useState(false);
 
   const artifactListQuery = useQuery({
@@ -66,6 +68,7 @@ export function ArtifactPreviewPage(): JSX.Element {
   const operatorNavigation = buildArtifactPreviewOperatorNavigation({
     taskId,
     task: taskQuery.data,
+    returnContext: readArtifactPreviewReturnState(searchParams),
   });
 
   async function handleCopyPermalink() {

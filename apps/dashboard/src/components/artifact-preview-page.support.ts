@@ -1,3 +1,4 @@
+import type { ArtifactPreviewReturnSource } from '../lib/artifact-navigation.js';
 import { buildWorkflowOperatorPermalink } from '../pages/work/task-operator-flow.js';
 
 import { MAX_INLINE_ARTIFACT_PREVIEW_BYTES } from './artifact-preview-support.js';
@@ -16,6 +17,12 @@ export interface ArtifactPreviewTaskContext {
   work_item_id?: string | null;
   stage_name?: string | null;
   activation_id?: string | null;
+  project_id?: string | null;
+}
+
+export interface ArtifactPreviewReturnContext {
+  returnTo: string | null;
+  returnSource: ArtifactPreviewReturnSource | null;
 }
 
 export function formatArtifactPreviewFileSize(bytes: number): string {
@@ -47,7 +54,15 @@ export function getPreviewModeLabel(
 export function buildArtifactPreviewOperatorNavigation(input: {
   taskId: string;
   task: ArtifactPreviewTaskContext | null | undefined;
+  returnContext?: ArtifactPreviewReturnContext;
 }): ArtifactPreviewOperatorNavigation {
+  const contextualNavigation = buildContextualArtifactNavigation(
+    input.taskId,
+    input.returnContext,
+  );
+  if (contextualNavigation) {
+    return contextualNavigation;
+  }
   const workflowScope = {
     workflow_id: input.task?.workflow?.id ?? null,
     work_item_id: input.task?.work_item_id ?? null,
@@ -103,5 +118,77 @@ export function buildArtifactPreviewOperatorNavigation(input: {
     diagnosticLabel: null,
     sourceContextBody:
       'This preview is only linked to the source step record, so continue review there unless a broader board context is added later.',
+  };
+}
+
+function buildContextualArtifactNavigation(
+  taskId: string,
+  returnContext: ArtifactPreviewReturnContext | undefined,
+): ArtifactPreviewOperatorNavigation | null {
+  if (!returnContext?.returnTo || !returnContext.returnSource) {
+    return null;
+  }
+
+  if (returnContext.returnSource === 'project-artifacts') {
+    return {
+      primaryHref: returnContext.returnTo,
+      primaryLabel: 'Back to project artifacts',
+      primaryHelper:
+        'Return to the project artifact explorer so the selected workflow scope, filters, and artifact packet stay intact.',
+      diagnosticHref: `/work/tasks/${encodeURIComponent(taskId)}`,
+      diagnosticLabel: 'Open step diagnostics',
+      sourceContextBody:
+        'This preview was opened from the project artifact explorer, so return there first to keep project-level browsing, provenance checks, and adjacent artifact review intact.',
+    };
+  }
+
+  if (returnContext.returnSource === 'project-content') {
+    return {
+      primaryHref: returnContext.returnTo,
+      primaryLabel: 'Back to project content',
+      primaryHelper:
+        'Return to the project content surface so artifact review stays attached to the current workflow and task packet.',
+      diagnosticHref: `/work/tasks/${encodeURIComponent(taskId)}`,
+      diagnosticLabel: 'Open step diagnostics',
+      sourceContextBody:
+        'This preview was opened from the project content surface, so return there first to continue document and artifact management in one place.',
+    };
+  }
+
+  if (returnContext.returnSource === 'workflow-board') {
+    return {
+      primaryHref: returnContext.returnTo,
+      primaryLabel: 'Back to board context',
+      primaryHelper:
+        'Return to the board first so artifact review stays attached to the surrounding stage and work-item flow.',
+      diagnosticHref: `/work/tasks/${encodeURIComponent(taskId)}`,
+      diagnosticLabel: 'Open step diagnostics',
+      sourceContextBody:
+        'This preview was opened from the board surface, so return there first and only open lower-level diagnostics when needed.',
+    };
+  }
+
+  if (returnContext.returnSource === 'workflow-inspector') {
+    return {
+      primaryHref: returnContext.returnTo,
+      primaryLabel: 'Back to board inspector',
+      primaryHelper:
+        'Return to the inspector so the artifact stays attached to the current activation trace and board diagnostics.',
+      diagnosticHref: `/work/tasks/${encodeURIComponent(taskId)}`,
+      diagnosticLabel: 'Open step diagnostics',
+      sourceContextBody:
+        'This preview was opened from the inspector, so return there first to continue trace review alongside the raw execution context.',
+    };
+  }
+
+  return {
+    primaryHref: returnContext.returnTo,
+    primaryLabel: 'Back to step record',
+    primaryHelper:
+      'Return to the source step record so artifact review stays attached to the producing execution packet.',
+    diagnosticHref: `/work/tasks/${encodeURIComponent(taskId)}`,
+    diagnosticLabel: 'Open step diagnostics',
+    sourceContextBody:
+      'This preview was opened from the source step record, so return there first unless you need a broader board or project surface.',
   };
 }

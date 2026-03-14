@@ -1,3 +1,5 @@
+import { buildArtifactPermalink } from '../lib/artifact-navigation.js';
+
 const SAFE_LINK_PROTOCOLS = ['http:', 'https:', 'mailto:'] as const;
 const ALLOWED_HTML_TAGS = new Set([
   'a',
@@ -33,10 +35,6 @@ export interface ArtifactPreviewDescriptor {
   kind: ArtifactPreviewKind;
   canPreview: boolean;
   language: string;
-}
-
-export function buildArtifactPermalink(taskId: string, artifactId: string): string {
-  return `/artifacts/tasks/${encodeURIComponent(taskId)}/${encodeURIComponent(artifactId)}`;
 }
 
 export function describeArtifactPreview(
@@ -324,3 +322,5 @@ function escapeHtml(value: string): string {
 function escapeHtmlAttribute(value: string): string {
   return escapeHtml(value);
 }
+
+export { buildArtifactPermalink };

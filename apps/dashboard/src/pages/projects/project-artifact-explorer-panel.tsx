@@ -3,8 +3,14 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 
 import {
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
+  buildArtifactPermalink,
   describeArtifactPreview,
 } from '../../components/artifact-preview-support.js';
+import {
+  buildProjectArtifactBrowserPath,
+  DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE,
+  type ProjectArtifactRouteState,
+} from '../../lib/artifact-navigation.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import {
@@ -30,20 +36,24 @@ const PROJECT_ARTIFACT_PAGE_SIZE = 50;
 export function ProjectArtifactExplorerPanel(props: {
   projectId: string;
   showHeader?: boolean;
+  initialRouteState?: ProjectArtifactRouteState;
 }): JSX.Element {
-  const [query, setQuery] = useState('');
-  const [selectedWorkflowId, setSelectedWorkflowId] = useState('');
-  const [selectedWorkItemId, setSelectedWorkItemId] = useState('');
-  const [selectedTaskId, setSelectedTaskId] = useState('');
-  const [selectedStageName, setSelectedStageName] = useState('');
-  const [selectedRole, setSelectedRole] = useState('');
-  const [selectedContentType, setSelectedContentType] = useState('');
-  const [previewMode, setPreviewMode] = useState<ProjectArtifactPreviewMode>('all');
-  const [createdFrom, setCreatedFrom] = useState('');
-  const [createdTo, setCreatedTo] = useState('');
-  const [sort, setSort] = useState<ProjectArtifactSort>('newest');
-  const [page, setPage] = useState(1);
-  const [selectedArtifactId, setSelectedArtifactId] = useState('');
+  const initialRouteState = props.initialRouteState ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE;
+  const [query, setQuery] = useState(initialRouteState.query);
+  const [selectedWorkflowId, setSelectedWorkflowId] = useState(initialRouteState.workflowId);
+  const [selectedWorkItemId, setSelectedWorkItemId] = useState(initialRouteState.workItemId);
+  const [selectedTaskId, setSelectedTaskId] = useState(initialRouteState.taskId);
+  const [selectedStageName, setSelectedStageName] = useState(initialRouteState.stageName);
+  const [selectedRole, setSelectedRole] = useState(initialRouteState.role);
+  const [selectedContentType, setSelectedContentType] = useState(initialRouteState.contentType);
+  const [previewMode, setPreviewMode] = useState<ProjectArtifactPreviewMode>(
+    initialRouteState.previewMode,
+  );
+  const [createdFrom, setCreatedFrom] = useState(initialRouteState.createdFrom);
+  const [createdTo, setCreatedTo] = useState(initialRouteState.createdTo);
+  const [sort, setSort] = useState<ProjectArtifactSort>(initialRouteState.sort);
+  const [page, setPage] = useState(initialRouteState.page);
+  const [selectedArtifactId, setSelectedArtifactId] = useState(initialRouteState.artifactId);
   const [selectedArtifactIds, setSelectedArtifactIds] = useState<string[]>([]);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
 
@@ -108,6 +118,39 @@ export function ProjectArtifactExplorerPanel(props: {
   const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const selectedArtifact =
     artifacts.find((artifact) => artifact.id === selectedArtifactId) ?? artifacts[0] ?? null;
+  const browserState = useMemo(
+    () => ({
+      query,
+      workflowId: selectedWorkflowId,
+      workItemId: selectedWorkItemId,
+      taskId: selectedTaskId,
+      stageName: selectedStageName,
+      role: selectedRole,
+      contentType: selectedContentType,
+      previewMode,
+      createdFrom,
+      createdTo,
+      sort,
+      page,
+      artifactId: selectedArtifactId,
+    }),
+    [
+      createdFrom,
+      createdTo,
+      page,
+      previewMode,
+      props.projectId,
+      query,
+      selectedArtifactId,
+      selectedContentType,
+      selectedRole,
+      selectedStageName,
+      selectedTaskId,
+      selectedWorkItemId,
+      selectedWorkflowId,
+      sort,
+    ],
+  );
 
   const scopeChips = useMemo(
     () =>
@@ -338,6 +381,15 @@ export function ProjectArtifactExplorerPanel(props: {
             isLoading: previewQuery.isLoading,
             error: previewQuery.error instanceof Error ? previewQuery.error.message : null,
           }}
+          buildPreviewHref={(artifact) =>
+            buildArtifactPermalink(artifact.taskId, artifact.artifactId, {
+              returnTo: buildProjectArtifactBrowserPath(props.projectId, {
+                ...browserState,
+                artifactId: artifact.id,
+              }),
+              returnSource: 'project-artifacts',
+            })
+          }
         />
       }
     />

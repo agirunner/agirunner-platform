@@ -146,7 +146,7 @@ describe('workflow inspector support', () => {
       },
       {
         label: 'Project artifacts',
-        href: '/projects/project-1/artifacts',
+        href: '/projects/project-1/artifacts?workflow_id=workflow-1',
         detail: 'Review delivered artifacts and workflow output packets.',
       },
     ]);

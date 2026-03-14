@@ -43,6 +43,7 @@ export function ProjectArtifactExplorerList(props: {
   selectedArtifactIds: string[];
   onSelectArtifact(artifactId: string): void;
   onToggleArtifact(artifactId: string): void;
+  buildPreviewHref(artifact: ProjectArtifactEntry): string;
 }): JSX.Element {
   return (
     <Card className="overflow-hidden">
@@ -119,7 +120,7 @@ export function ProjectArtifactExplorerList(props: {
                       <a href={artifact.downloadUrl}>Download</a>
                     </Button>
                     <Button asChild size="sm">
-                      <Link to={buildArtifactPermalink(artifact.taskId, artifact.artifactId)}>
+                      <Link to={props.buildPreviewHref(artifact)}>
                         Open Preview
                       </Link>
                     </Button>
@@ -149,6 +150,7 @@ export function ProjectArtifactQuickInspector(props: {
   previewKind: string;
   isPreviewLoading: boolean;
   previewError: string | null;
+  previewHref: string | null;
 }): JSX.Element {
   return (
     <Card className="xl:sticky xl:top-20">
@@ -195,7 +197,12 @@ export function ProjectArtifactQuickInspector(props: {
                 </Button>
               ) : null}
               <Button asChild size="sm">
-                <Link to={buildArtifactPermalink(props.artifact.taskId, props.artifact.artifactId)}>
+                <Link
+                  to={
+                    props.previewHref
+                    ?? buildArtifactPermalink(props.artifact.taskId, props.artifact.artifactId)
+                  }
+                >
                   <ExternalLink className="h-4 w-4" />
                   Full Preview
                 </Link>

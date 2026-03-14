@@ -1,6 +1,8 @@
-import { Link, useParams } from 'react-router-dom';
+import { useMemo } from 'react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 
 import { Button } from '../../components/ui/button.js';
+import { readProjectArtifactRouteState } from '../../lib/artifact-navigation.js';
 import {
   Card,
   CardContent,
@@ -12,10 +14,19 @@ import { ProjectArtifactExplorerPanel } from './project-artifact-explorer-panel.
 
 export function ProjectArtifactBrowserPage(): JSX.Element {
   const params = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
   const projectId = params.id?.trim() ?? '';
   const projectPath = projectId ? `/projects/${projectId}` : '/projects';
   const contentPath = projectId ? `/projects/${projectId}/content` : '/projects';
   const memoryPath = projectId ? `/projects/${projectId}/memory` : '/projects';
+  const initialRouteState = useMemo(
+    () => readProjectArtifactRouteState(searchParams),
+    [searchParams],
+  );
+  const panelKey = useMemo(
+    () => `${projectId}:${searchParams.toString()}`,
+    [projectId, searchParams],
+  );
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -63,7 +74,12 @@ export function ProjectArtifactBrowserPage(): JSX.Element {
         </div>
       </section>
 
-      <ProjectArtifactExplorerPanel projectId={projectId} showHeader={false} />
+      <ProjectArtifactExplorerPanel
+        key={panelKey}
+        projectId={projectId}
+        showHeader={false}
+        initialRouteState={initialRouteState}
+      />
     </div>
   );
 }

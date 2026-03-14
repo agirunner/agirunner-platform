@@ -18,6 +18,7 @@ import {
   type DashboardResolvedDocumentReference,
   type DashboardResolvedConfigResponse,
 } from '../lib/api.js';
+import { buildProjectArtifactBrowserPath } from '../lib/artifact-navigation.js';
 import { subscribeToEvents } from '../lib/sse.js';
 import {
   deriveWorkflowRoleOptions,
@@ -723,7 +724,13 @@ export function WorkflowDetailPage(): JSX.Element {
                         </Button>
                         {projectId ? (
                           <Button asChild size="sm" variant="outline">
-                            <Link to={`/projects/${projectId}/artifacts?workflow=${workflowId}`}>Workflow Artifacts</Link>
+                            <Link
+                              to={buildProjectArtifactBrowserPath(projectId, {
+                                workflowId,
+                              })}
+                            >
+                              Workflow Artifacts
+                            </Link>
                           </Button>
                         ) : null}
                       </div>

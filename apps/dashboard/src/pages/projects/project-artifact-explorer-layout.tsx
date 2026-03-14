@@ -38,6 +38,7 @@ export function ProjectArtifactExplorerAdaptiveLayout(props: {
     onToggleArtifact(artifactId: string): void;
   };
   selectedArtifact: ProjectArtifactEntry | null;
+  buildPreviewHref(artifact: ProjectArtifactEntry): string;
 }): JSX.Element {
   const [mobileView, setMobileView] = useState<'browse' | 'inspect'>('browse');
 
@@ -79,6 +80,7 @@ export function ProjectArtifactExplorerAdaptiveLayout(props: {
               isLoading={props.isLoading}
               pagination={props.pagination}
               selection={props.listSelection}
+              buildPreviewHref={props.buildPreviewHref}
             />
           </TabsContent>
           <TabsContent value="inspect" className="space-y-4">
@@ -87,6 +89,7 @@ export function ProjectArtifactExplorerAdaptiveLayout(props: {
               previewDescriptor={props.previewDescriptor}
               previewContentText={props.previewContentText}
               previewState={props.previewState}
+              buildPreviewHref={props.buildPreviewHref}
             />
           </TabsContent>
         </Tabs>
@@ -98,12 +101,14 @@ export function ProjectArtifactExplorerAdaptiveLayout(props: {
           isLoading={props.isLoading}
           pagination={props.pagination}
           selection={props.listSelection}
+          buildPreviewHref={props.buildPreviewHref}
         />
         <ArtifactInspectorPane
           selectedArtifact={props.selectedArtifact}
           previewDescriptor={props.previewDescriptor}
           previewContentText={props.previewContentText}
           previewState={props.previewState}
+          buildPreviewHref={props.buildPreviewHref}
         />
       </div>
     </>
@@ -127,6 +132,7 @@ function ArtifactListPane(props: {
     onSelectArtifact(artifactId: string): void;
     onToggleArtifact(artifactId: string): void;
   };
+  buildPreviewHref(artifact: ProjectArtifactEntry): string;
 }): JSX.Element {
   return (
     <ProjectArtifactExplorerList
@@ -137,6 +143,7 @@ function ArtifactListPane(props: {
       selectedArtifactIds={props.selection.selectedArtifactIds}
       onSelectArtifact={props.selection.onSelectArtifact}
       onToggleArtifact={props.selection.onToggleArtifact}
+      buildPreviewHref={props.buildPreviewHref}
     />
   );
 }
@@ -146,6 +153,7 @@ function ArtifactInspectorPane(props: {
   previewDescriptor: ArtifactPreviewDescriptor | null;
   previewContentText: string | null;
   previewState: { isLoading: boolean; error: string | null };
+  buildPreviewHref(artifact: ProjectArtifactEntry): string;
 }): JSX.Element {
   return (
     <ProjectArtifactQuickInspector
@@ -163,6 +171,9 @@ function ArtifactInspectorPane(props: {
       previewKind={props.previewDescriptor?.kind ?? 'binary'}
       isPreviewLoading={props.previewState.isLoading}
       previewError={props.previewState.error}
+      previewHref={
+        props.selectedArtifact ? props.buildPreviewHref(props.selectedArtifact) : null
+      }
     />
   );
 }

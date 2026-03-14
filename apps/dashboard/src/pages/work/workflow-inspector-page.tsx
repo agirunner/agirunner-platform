@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { LogsSurface } from '../mission-control/logs-page.js';
 import { dashboardApi } from '../../lib/api.js';
+import { buildProjectArtifactBrowserPath } from '../../lib/artifact-navigation.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -166,7 +167,11 @@ export function WorkflowInspectorPage(): JSX.Element {
               ) : null}
               {workflow?.project_id ? (
                 <Button asChild variant="outline">
-                  <Link to={`/projects/${workflow.project_id}/artifacts`}>
+                  <Link
+                    to={buildProjectArtifactBrowserPath(workflow.project_id, {
+                      workflowId,
+                    })}
+                  >
                     Project Artifacts
                     <ExternalLink className="h-4 w-4" />
                   </Link>

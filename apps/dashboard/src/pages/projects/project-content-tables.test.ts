@@ -24,6 +24,8 @@ describe('project content tables source', () => {
     const tablesSource = readSource('./project-content-tables.tsx');
     const recordsSource = readSource('./project-content-artifact-records.tsx');
     expect(tablesSource).toContain('ArtifactDesktopRow');
+    expect(tablesSource).toContain('buildPreviewHref');
+    expect(recordsSource).toContain('previewHref?: string');
     expect(recordsSource).toContain('onDelete?(artifact: DashboardTaskArtifactRecord)');
     expect(recordsSource).toContain('deletingArtifactId');
     expect(recordsSource).toContain('Delivery packet');

@@ -23,4 +23,11 @@ describe('project artifact browser page source', () => {
     expect(source).toContain('Open Documents');
     expect(source).toContain('Cross-check Memory');
   });
+
+  it('hydrates the explorer from artifact route params so workflow-scoped links land on the right slice', () => {
+    const source = readSource();
+    expect(source).toContain('useSearchParams');
+    expect(source).toContain('readProjectArtifactRouteState');
+    expect(source).toContain('initialRouteState={initialRouteState}');
+  });
 });

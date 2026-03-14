@@ -4,6 +4,7 @@ import type {
   DashboardWorkflowStageRecord,
   DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
+import { buildProjectArtifactBrowserPath } from '../../lib/artifact-navigation.js';
 import type { WorkflowInspectorTraceLink } from './workflow-inspector-support.js';
 
 export function buildWorkflowInspectorTraceLinks(
@@ -66,7 +67,7 @@ export function buildWorkflowInspectorTraceLinks(
       },
       {
         label: 'Project artifacts',
-        href: `/projects/${projectId}/artifacts`,
+        href: buildProjectArtifactBrowserPath(projectId, { workflowId }),
         detail: 'Review delivered artifacts and workflow output packets.',
       },
     );

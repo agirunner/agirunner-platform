@@ -349,4 +349,15 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('areTasksLoading={taskQuery.isLoading}');
     expect(source).toContain('hasTasksError={Boolean(taskQuery.error)}');
   });
+
+  it('routes workflow artifact navigation through the project explorer with canonical workflow filters', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('buildProjectArtifactBrowserPath');
+    expect(source).toContain('Workflow Artifacts');
+    expect(source).not.toContain('/artifacts?workflow=');
+  });
 });

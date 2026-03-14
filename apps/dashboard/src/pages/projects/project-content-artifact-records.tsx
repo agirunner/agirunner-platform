@@ -14,6 +14,7 @@ import {
 
 export function ArtifactCard(props: {
   artifact: DashboardTaskArtifactRecord;
+  previewHref?: string;
   deletingArtifactId?: string | null;
   onDelete?(artifact: DashboardTaskArtifactRecord): void;
 }): JSX.Element {
@@ -25,7 +26,7 @@ export function ArtifactCard(props: {
         <div className="flex flex-wrap items-center gap-2">
           <Link
             className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
-            to={buildArtifactPermalink(props.artifact.task_id, props.artifact.id)}
+            to={props.previewHref ?? buildArtifactPermalink(props.artifact.task_id, props.artifact.id)}
           >
             <FileText className="h-3.5 w-3.5" />
             Preview
@@ -58,6 +59,7 @@ export function ArtifactCard(props: {
 export function ArtifactDesktopRow(props: {
   artifact: DashboardTaskArtifactRecord;
   taskId: string;
+  previewHref?: string;
   deletingArtifactId?: string | null;
   onDelete?(artifact: DashboardTaskArtifactRecord): void;
 }): JSX.Element {
@@ -78,7 +80,7 @@ export function ArtifactDesktopRow(props: {
         <div className="flex flex-wrap items-center gap-2">
           <Link
             className="inline-flex items-center gap-1 text-sm text-accent hover:underline"
-            to={buildArtifactPermalink(props.artifact.task_id, props.artifact.id)}
+            to={props.previewHref ?? buildArtifactPermalink(props.artifact.task_id, props.artifact.id)}
           >
             <FileText className="h-3.5 w-3.5" />
             Preview

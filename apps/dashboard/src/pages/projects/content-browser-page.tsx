@@ -10,6 +10,7 @@ import {
   type DashboardWorkflowDocumentCreateInput,
   type DashboardWorkflowDocumentUpdateInput,
 } from '../../lib/api.js';
+import { buildArtifactPermalink as buildArtifactPreviewPath } from '../../components/artifact-preview-support.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
@@ -187,6 +188,31 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
       }),
     [artifactFile?.name, artifactPath, parsedArtifactMetadata.error, selectedTask],
   );
+  const artifactPreviewReturnPath = useMemo(() => {
+    const pathname = scopedProjectId
+      ? `/projects/${scopedProjectId}/content`
+      : '/projects/content';
+    const search = new URLSearchParams({ tab: 'artifacts' });
+    if (selectedProjectId) {
+      search.set('project', selectedProjectId);
+    }
+    if (selectedWorkflowId) {
+      search.set('workflow', selectedWorkflowId);
+    }
+    if (selectedWorkItemId) {
+      search.set('work_item', selectedWorkItemId);
+    }
+    if (selectedTaskId) {
+      search.set('task', selectedTaskId);
+    }
+    return `${pathname}?${search.toString()}`;
+  }, [
+    scopedProjectId,
+    selectedProjectId,
+    selectedTaskId,
+    selectedWorkItemId,
+    selectedWorkflowId,
+  ]);
 
   useEffect(() => {
     if (scopedProjectId && selectedProjectId !== scopedProjectId) {
@@ -1326,6 +1352,12 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                       artifacts={artifacts}
                       isLoading={artifactsQuery.isLoading}
                       taskId={selectedTaskId}
+                      buildPreviewHref={(artifact) =>
+                        buildArtifactPreviewPath(artifact.task_id, artifact.id, {
+                          returnTo: artifactPreviewReturnPath,
+                          returnSource: 'project-content',
+                        })
+                      }
                       deletingArtifactId={deleteArtifactMutation.variables?.id ?? null}
                       onDelete={(artifact) => deleteArtifactMutation.mutate(artifact)}
                     />
