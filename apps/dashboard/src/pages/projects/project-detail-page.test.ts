@@ -6,78 +6,129 @@ function readSource(filename: string) {
   return readFileSync(resolve(import.meta.dirname, filename), 'utf8');
 }
 
-describe('project detail automation tab source', () => {
-  it('uses delivery-oriented operator copy for project run history', () => {
+describe('project detail workspace shell source', () => {
+  it('uses delivery-oriented operator copy for project run history inside the delivery tab', () => {
     const source = readSource('./project-detail-page.tsx');
     const supportSource = readSource('./project-detail-support.ts');
-    const deliverySource = readSource('./project-delivery-history.tsx');
-    expect(supportSource).toContain("value: 'timeline'");
-    expect(source).toContain('<ProjectDeliveryHistory projectId={projectId} />');
+    const deliverySource = [
+      readSource('./project-delivery-history.tsx'),
+      readSource('./project-delivery-history-support.ts'),
+    ].join('\n');
+    expect(supportSource).toContain("value: 'delivery'");
+    expect(source).toContain('<ProjectDeliveryHistory projectId={project.id} />');
     expect(deliverySource).toContain('Delivery overview');
+    expect(deliverySource).toContain('buildProjectDeliveryAttentionOverview');
+    expect(deliverySource).toContain('What ran');
+    expect(deliverySource).toContain('Needs attention');
+    expect(deliverySource).toContain('Inspect next');
     expect(deliverySource).toContain('Failed to load delivery history.');
     expect(deliverySource).toContain('No delivery history for this project yet.');
     expect(deliverySource).toContain('Open board');
     expect(deliverySource).toContain('Open inspector');
   });
 
-  it('adds an automation tab for scheduled work-item triggers', () => {
+  it('keeps an automation tab for scheduled work-item triggers', () => {
     const source = readSource('./project-detail-page.tsx');
     const supportSource = readSource('./project-detail-support.ts');
+    const automationSource = [
+      readSource('./project-automation-tab.tsx'),
+      readSource('./project-automation-tab.support.ts'),
+    ].join('\n');
     expect(supportSource).toContain("value: 'automation'");
-    expect(source).toContain('<ScheduledTriggersCard project={project} />');
-    expect(source).toContain('Automation workspace');
+    expect(source).toContain('<ProjectAutomationTab project={project} />');
+    expect(automationSource).toContain('<ScheduledTriggersCard project={project} />');
+    expect(automationSource).toContain('Automation control center');
+    expect(automationSource).toContain('buildProjectAutomationOverview');
+    expect(automationSource).toContain('Active now');
+    expect(automationSource).toContain('Broken');
+    expect(automationSource).toContain('Setup needed');
+    expect(automationSource).not.toContain('Jump to schedules');
+    expect(automationSource).not.toContain('Jump to webhook rules');
+    expect(automationSource).not.toContain('Jump to repository signatures');
   });
 
   it('keeps git webhook management inside the project automation surface', () => {
-    const source = readSource('./project-detail-page.tsx');
-    const triggerSource = readSource('./project-scheduled-triggers-card.tsx');
-    expect(source).toContain('<GitWebhookTab project={project} />');
-    expect(triggerSource).toContain('Open trigger overview');
+    const automationSource = readSource('./project-automation-tab.tsx');
+    expect(automationSource).toContain('<GitWebhookTab project={project} />');
+    expect(automationSource).toContain('Repository signatures');
   });
 
   it('relabels scheduled trigger targeting around project runs instead of workflows', () => {
-    const cardSource = readSource('./project-scheduled-triggers-card.tsx');
     const formSource = readSource('./project-scheduled-trigger-form.tsx');
-    expect(cardSource).toContain('target a project run');
     expect(formSource).toContain('Create a project run before adding a scheduled trigger.');
     expect(formSource).toContain('label="Target run"');
     expect(formSource).toContain('placeholder="Select run"');
   });
 
-  it('adds a model override tab with project override editing and resolved model display', () => {
+  it('rebuilds the top-level taxonomy around overview, settings, knowledge, automation, and delivery', () => {
     const source = readSource('./project-detail-page.tsx');
     const supportSource = readSource('./project-detail-support.ts');
-    expect(source).toContain('useSearchParams()');
     expect(source).toContain("normalizeProjectDetailTab(searchParams.get('tab'))");
-    expect(source).toContain('Select project workspace tab');
-    expect(supportSource).toContain("value: 'models'");
-    expect(source).toContain('Project Model Overrides');
-    expect(source).toContain('dashboardApi.getProjectModelOverrides(project.id)');
-    expect(source).toContain('dashboardApi.getResolvedProjectModels(project.id)');
-    expect(source).toContain('dashboardApi.listLlmProviders()');
-    expect(source).toContain('dashboardApi.listLlmModels()');
-    expect(source).toContain('dashboardApi.patchProject(project.id, {');
-    expect(source).toContain('Resolved Effective Models');
-    expect(source).toContain('<RoleOverrideEditor');
-    expect(source).toContain('Remove role');
-    expect(source).not.toContain('Project model overrides must be valid JSON');
-    expect(source).not.toContain('<select');
+    expect(supportSource).toContain("value: 'overview'");
+    expect(supportSource).toContain("value: 'settings'");
+    expect(supportSource).toContain("value: 'knowledge'");
+    expect(supportSource).toContain("value: 'automation'");
+    expect(supportSource).toContain("value: 'delivery'");
+    expect(source).toContain('<TabsContent value="overview">');
+    expect(source).toContain('<TabsContent value="settings">');
+    expect(source).toContain('<TabsContent value="knowledge">');
+    expect(source).toContain('<TabsContent value="automation">');
+    expect(source).toContain('<TabsContent value="delivery">');
+    expect(source).not.toContain('<TabsContent value="spec">');
+    expect(source).not.toContain('<TabsContent value="resources">');
+    expect(source).not.toContain('<TabsContent value="tools">');
+    expect(source).not.toContain('<TabsContent value="memory">');
+    expect(source).not.toContain('<TabsContent value="artifacts">');
+    expect(source).not.toContain('<TabsContent value="models">');
   });
 
-  it('replaces raw project spec JSON editing with structured spec/config/instruction editors', () => {
+  it('adds a settings shell that keeps model override editing and resolved model display together', () => {
     const source = readSource('./project-detail-page.tsx');
-    expect(source).toContain('Save Spec');
-    expect(source).toContain('Config Entries');
-    expect(source).toContain('Instruction Entries');
-    expect(source).toContain('Resource Entries');
-    expect(source).toContain('Document Entries');
-    expect(source).toContain('Tool Entries');
-    expect(source).toContain('Edit project configuration as structured key/value entries');
-    expect(source).toContain('Edit structured project instructions and document references');
-    expect(source).toContain('dashboardApi.updateProjectSpec(projectId, nextSpec)');
-    expect(source).toContain('SelectTrigger className="w-full"');
-    expect(source).toContain('Remove entry');
-    expect(source).not.toContain('Save (read-only)');
+    const supportSource = readSource('./project-detail-support.ts');
+    const settingsShellSource = readSource('./project-settings-shell.tsx');
+    const settingsTabSource = readSource('./project-settings-tab.tsx');
+    const modelsSource = readSource('./project-model-overrides-tab.tsx');
+    expect(source).toContain('<ProjectSettingsShell');
+    expect(source).toContain('buildProjectSettingsOverview(project)');
+    expect(source).toContain('<ProjectSettingsTab project={project} />');
+    expect(settingsShellSource).toContain('Settings control plane');
+    expect(settingsShellSource).toContain('props.overview.summary');
+    expect(settingsShellSource).not.toContain('WorkspaceMetricCard');
+    expect(settingsShellSource).not.toContain('props.overview.packets.map');
+    expect(settingsTabSource).toContain('Credentials posture');
+    expect(settingsTabSource).toContain('Planning brief');
+    expect(settingsTabSource).toContain('Lifecycle');
+    expect(modelsSource).toContain('Project Model Overrides');
+    expect(modelsSource).not.toContain('Project model overrides must be valid JSON');
+    expect(supportSource).toContain('Stored settings');
+    expect(supportSource).toContain('Repository trust');
+  });
+
+  it('nests structured spec editing under the knowledge shell instead of a top-level spec tab', () => {
+    const source = readSource('./project-detail-page.tsx');
+    const specSource = readSource('./project-spec-tab.tsx');
+    const knowledgeSource = readSource('./project-knowledge-shell.tsx');
+    const structuredEditorSource = readSource('./project-structured-entry-editor.tsx');
+    expect(source).toContain('<ProjectKnowledgeShell');
+    expect(source).toContain('workspaceContent={<ProjectSpecTab projectId={project.id} />}');
+    expect(source).not.toContain('resourcesContent={<ProjectResourcesTab');
+    expect(source).not.toContain('toolsContent={<ProjectToolsTab');
+    expect(knowledgeSource).toContain("value: 'workspace'");
+    expect(specSource).toContain(
+      "import { StructuredEntryEditor } from './project-structured-entry-editor.js';",
+    );
+    expect(specSource).toContain('Save Spec');
+    expect(specSource).toContain('Config Entries');
+    expect(specSource).toContain('Instruction Entries');
+    expect(specSource).toContain('Resource Entries');
+    expect(specSource).toContain('Document Entries');
+    expect(specSource).toContain('Tool Entries');
+    expect(specSource).toContain('Edit project configuration as structured key/value entries');
+    expect(specSource).toContain('Edit structured project instructions and document references');
+    expect(specSource).toContain('dashboardApi.updateProjectSpec(projectId, nextSpec)');
+    expect(structuredEditorSource).toContain('SelectTrigger className="w-full"');
+    expect(structuredEditorSource).toContain('Remove entry');
+    expect(specSource).not.toContain('Save (read-only)');
   });
 
   it('uses bounded workflow stage and role options in the automation form when they are available', () => {
@@ -91,34 +142,48 @@ describe('project detail automation tab source', () => {
     expect(formSource).toContain('label="Owner role"');
   });
 
-  it('uses typed memory entry controls instead of heuristic string-or-json parsing', () => {
+  it('keeps typed memory and artifacts accessible from the knowledge shell', () => {
     const source = readSource('./project-detail-page.tsx');
     const memorySource = readSource('./project-detail-memory-tab.tsx');
+    const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     expect(source).toContain('<ProjectDetailMemoryTab projectId={project.id} />');
+    expect(source).toContain('<ProjectArtifactExplorerPanel projectId={project.id} />');
+    expect(knowledgeSource).toContain('Open documents');
+    expect(knowledgeSource).not.toContain('Open memory explorer');
+    expect(knowledgeSource).not.toContain('Open artifact explorer');
+    expect(knowledgeSource).toContain("value: 'memory'");
+    expect(knowledgeSource).toContain("value: 'artifacts'");
     expect(memorySource).toContain('ProjectMemoryTable');
     expect(memorySource).toContain('MemoryEditor');
     expect(memorySource).toContain('Choose a different key.');
     expect(memorySource).not.toContain('<select');
   });
 
-  it('adds a first-class artifacts tab for inline project-scoped inspection', () => {
+  it('replaces the old artifacts tab with overview and knowledge shell actions', () => {
     const source = readSource('./project-detail-page.tsx');
-    const supportSource = readSource('./project-detail-support.ts');
-    expect(supportSource).toContain("value: 'artifacts'");
-    expect(source).toContain('<ArtifactsTab projectId={project.id} />');
-    expect(source).toContain('<ProjectArtifactExplorerPanel projectId={projectId} />');
+    const knowledgeSource = readSource('./project-knowledge-shell.tsx');
+    const overviewSource = readSource('./project-overview-shell.tsx');
+    expect(source).toContain('<ProjectOverviewShell');
+    expect(knowledgeSource).toContain('Open documents');
+    expect(overviewSource).toContain('Open artifact explorer');
+    expect(source).toContain('<ProjectArtifactExplorerPanel projectId={project.id} />');
   });
 
-  it('adds a workspace overview and mobile-safe resource and tool summaries', () => {
+  it('adds overview, settings, and knowledge shell components to reorganize the workspace', () => {
     const source = readSource('./project-detail-page.tsx');
     const supportSource = readSource('./project-detail-support.ts');
+    expect(source).toContain("import { ProjectSpecTab } from './project-spec-tab.js';");
+    expect(source).toContain("import { ProjectSettingsTab } from './project-settings-tab.js';");
+    expect(source).toContain("import { ProjectAutomationTab } from './project-automation-tab.js';");
     expect(source).toContain('buildProjectWorkspaceOverview(project, projectSpecQuery.data)');
-    expect(supportSource).toContain(
-      'Keep project spec, live context, artifacts, delivery history, models, and automation reachable',
-    );
-    expect(source).toContain('Resource posture');
-    expect(source).toContain('Tool posture');
-    expect(source).toContain('ProjectWorkspaceTabIcon');
-    expect(source).toContain('md:hidden');
+    expect(source).toContain('buildProjectKnowledgeOverview(project, projectSpecQuery.data)');
+    expect(source).toContain('buildProjectSettingsOverview(project)');
+    expect(source).toContain('projectOverview.summary');
+    expect(supportSource).toContain('Knowledge base');
+    expect(source).not.toContain('ProjectWorkspaceTabIcon');
+    expect(source).not.toContain('activeTabOption.description');
+    expect(source).not.toContain('Open memory workspace');
+    expect(source).not.toContain('Open artifact workspace');
+    expect(source).toContain('sm:hidden');
   });
 });
