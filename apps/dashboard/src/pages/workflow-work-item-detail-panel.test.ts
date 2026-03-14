@@ -41,17 +41,18 @@ describe('workflow work item detail panel source', () => {
 
   it('renders dedicated tabs for steps, memory, artifacts, and event history', () => {
     const source = readSource();
-    expect(source).toContain('TabsTrigger value="summary">Summary packet');
-    expect(source).toContain('TabsTrigger value="operate">Operator controls');
-    expect(source).toContain('TabsTrigger value="evidence">Evidence &amp; history');
+    expect(source).toContain("const responsiveTabTriggerClass = 'h-auto whitespace-normal px-3 py-2 text-center leading-5'");
+    expect(source).toContain('TabsTrigger value="summary" className={responsiveTabTriggerClass}');
+    expect(source).toContain('TabsTrigger value="operate" className={responsiveTabTriggerClass}');
+    expect(source).toContain('TabsTrigger value="evidence" className={responsiveTabTriggerClass}');
     expect(source).toContain('grid h-auto w-full grid-cols-2');
     expect(source).toContain('xl:grid-cols-4');
     expect(source).toContain('describeCountLabel(props.tasks.length, \'linked step\')');
     expect(source).toContain('describeCountLabel(artifactQuery.data.length, \'artifact\')');
-    expect(source).toContain('TabsTrigger value="steps"');
-    expect(source).toContain('TabsTrigger value="memory"');
-    expect(source).toContain('TabsTrigger value="artifacts"');
-    expect(source).toContain('TabsTrigger value="history"');
+    expect(source).toContain('TabsTrigger value="steps" className={responsiveTabTriggerClass}');
+    expect(source).toContain('TabsTrigger value="memory" className={responsiveTabTriggerClass}');
+    expect(source).toContain('TabsTrigger value="artifacts" className={responsiveTabTriggerClass}');
+    expect(source).toContain('TabsTrigger value="history" className={responsiveTabTriggerClass}');
   });
 
   it('loads truthful work-item memory and memory history from dashboard api methods', () => {
@@ -121,6 +122,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Choose from roles already active on this board run');
     expect(source).toContain('Save Operator Changes');
     expect(source).toContain('Create Child Work Item');
+    expect(source).toContain('Milestone plan');
     expect(source).toContain('WorkItemFocusPacket');
     expect(source).toContain('WorkItemReviewClosure');
     expect(source).toContain('Summary complete');

@@ -133,12 +133,16 @@ function readActiveWorkflowDetailTargetId(selection: {
   selectedActivationId: string | null;
   selectedChildWorkflowId: string | null;
   selectedGateStageName: string | null;
+  autoSelectedWorkItemId: string | null;
 }): string | null {
   const hashTargetId = decodeWorkflowDetailTargetId(selection.hash);
   if (hashTargetId) {
     return hashTargetId;
   }
-  if (selection.selectedWorkItemId) {
+  if (
+    selection.selectedWorkItemId &&
+    selection.selectedWorkItemId !== selection.autoSelectedWorkItemId
+  ) {
     return `work-item-${selection.selectedWorkItemId}`;
   }
   if (selection.selectedActivationId) {
@@ -151,6 +155,26 @@ function readActiveWorkflowDetailTargetId(selection: {
     return `gate-${selection.selectedGateStageName}`;
   }
   return null;
+}
+
+function hasExplicitWorkflowDetailSelection(selection: {
+  hash: string;
+  selectedWorkItemId: string | null;
+  selectedActivationId: string | null;
+  selectedChildWorkflowId: string | null;
+  selectedGateStageName: string | null;
+  autoSelectedWorkItemId: string | null;
+}): boolean {
+  if (decodeWorkflowDetailTargetId(selection.hash)) {
+    return true;
+  }
+  if (selection.selectedActivationId || selection.selectedChildWorkflowId || selection.selectedGateStageName) {
+    return true;
+  }
+  return (
+    Boolean(selection.selectedWorkItemId) &&
+    selection.selectedWorkItemId !== selection.autoSelectedWorkItemId
+  );
 }
 
 function focusWorkflowDetailTarget(targetId: string): boolean {
@@ -197,6 +221,7 @@ export function WorkflowDetailPage(): JSX.Element {
     'context' | 'knowledge' | 'activity'
   >('context');
   const lastFocusedTargetIdRef = useRef<string | null>(null);
+  const autoSelectedWorkItemIdRef = useRef<string | null>(null);
   const selectedWorkItemId = searchParams.get('work_item');
   const selectedActivationId = searchParams.get('activation');
   const selectedChildWorkflowId = searchParams.get('child');
@@ -293,6 +318,11 @@ export function WorkflowDetailPage(): JSX.Element {
   });
 
   useEffect(() => {
+    autoSelectedWorkItemIdRef.current = null;
+    lastFocusedTargetIdRef.current = null;
+  }, [workflowId]);
+
+  useEffect(() => {
     if (!workItemStage && stagesQuery.data && stagesQuery.data.length > 0) {
       setWorkItemStage(stagesQuery.data[0].name);
     }
@@ -317,6 +347,7 @@ export function WorkflowDetailPage(): JSX.Element {
     if (hasExplicitNonWorkItemSelection) {
       return;
     }
+    autoSelectedWorkItemIdRef.current = workItems[0].id;
     updateWorkflowSelection('work_item', workItems[0].id);
   }, [
     boardQuery.data,
@@ -497,6 +528,25 @@ export function WorkflowDetailPage(): JSX.Element {
         selectedActivationId,
         selectedChildWorkflowId,
         selectedGateStageName,
+        autoSelectedWorkItemId: autoSelectedWorkItemIdRef.current,
+      }),
+    [
+      location.hash,
+      selectedActivationId,
+      selectedChildWorkflowId,
+      selectedGateStageName,
+      selectedWorkItemId,
+    ],
+  );
+  const shouldPreserveWorkflowDetailScroll = useMemo(
+    () =>
+      hasExplicitWorkflowDetailSelection({
+        hash: location.hash,
+        selectedWorkItemId,
+        selectedActivationId,
+        selectedChildWorkflowId,
+        selectedGateStageName,
+        autoSelectedWorkItemId: autoSelectedWorkItemIdRef.current,
       }),
     [
       location.hash,
@@ -529,6 +579,16 @@ export function WorkflowDetailPage(): JSX.Element {
     selectedWorkItemId,
     stagesQuery.data?.length,
   ]);
+
+  useEffect(() => {
+    if (!workflowId || shouldPreserveWorkflowDetailScroll) {
+      return;
+    }
+    const frame = window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, left: 0 });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.key, shouldPreserveWorkflowDetailScroll, workflowId]);
 
   if (workflowQuery.data && !workflowQuery.data.playbook_id) {
     return (
@@ -611,6 +671,9 @@ export function WorkflowDetailPage(): JSX.Element {
     key: 'work_item' | 'activation' | 'child' | 'gate',
     value: string,
   ): void {
+    if (key !== 'work_item') {
+      autoSelectedWorkItemIdRef.current = null;
+    }
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
@@ -634,6 +697,9 @@ export function WorkflowDetailPage(): JSX.Element {
   }
 
   function clearWorkflowSelection(key: 'work_item' | 'activation' | 'child' | 'gate'): void {
+    if (key === 'work_item') {
+      autoSelectedWorkItemIdRef.current = null;
+    }
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
@@ -656,11 +722,14 @@ export function WorkflowDetailPage(): JSX.Element {
       ['active', 'paused'].includes(workflowQuery.data.state) &&
       workflowQuery.data.playbook_id,
   );
+  const selectedPriorityLabel =
+    WORK_ITEM_PRIORITY_OPTIONS.find((option) => option.value === workItemPriority)?.label ??
+    'Normal';
 
   return (
-    <section className="mx-auto grid w-full max-w-[1600px] gap-8 px-4 py-6 lg:px-6 xl:px-8">
-      <section data-testid="workflow-detail-operator-surface" className="grid gap-8">
-        <div className="grid gap-6 2xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.7fr)]">
+    <section className="mx-auto grid w-full max-w-[1600px] gap-6 px-4 py-5 lg:px-6 xl:px-8">
+      <section data-testid="workflow-detail-operator-surface" className="grid gap-6">
+        <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.45fr)_minmax(320px,0.7fr)]">
           <Card className="overflow-hidden border-border/80 bg-card shadow-md">
             <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -682,7 +751,7 @@ export function WorkflowDetailPage(): JSX.Element {
                 ) : null}
               </div>
             </CardHeader>
-            <CardContent className="grid gap-5 p-5">
+            <CardContent className="grid gap-4 p-4">
               {workflowQuery.isLoading ? (
                 <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
                   Loading board run...
@@ -695,8 +764,8 @@ export function WorkflowDetailPage(): JSX.Element {
               ) : null}
               {workflowQuery.data ? (
                 <>
-                  <div className="grid gap-5 rounded-2xl border border-border/70 bg-border/10 p-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-                    <div className="space-y-4">
+                  <div className="grid gap-4 rounded-2xl border border-border/70 bg-border/10 p-4 lg:grid-cols-[minmax(0,1fr)_280px]">
+                    <div className="space-y-3">
                       <div className="space-y-1">
                         <p className="text-xs font-medium uppercase tracking-[0.22em] text-muted">
                           Board Run
@@ -836,7 +905,7 @@ export function WorkflowDetailPage(): JSX.Element {
         </div>
 
         {isPlaybookWorkflow ? (
-          <section className="grid gap-5 rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+          <section className="grid gap-4 rounded-3xl border border-border/70 bg-card/70 p-4 shadow-sm">
             <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
               <div className="space-y-2">
                 <Badge variant="outline" className="w-fit">
@@ -854,16 +923,10 @@ export function WorkflowDetailPage(): JSX.Element {
               </div>
               <div className="flex flex-wrap gap-2 xl:max-w-[42rem] xl:justify-end">
                 <Badge variant="outline">
-                  {selectedWorkItemId
-                    ? 'Focused rail open for one work item'
-                    : 'Board stays in broad triage mode'}
+                  {selectedWorkItemId ? 'Focused rail open' : 'Broad triage mode'}
                 </Badge>
-                <Badge variant="outline">
-                  Create and child-board controls open only on demand
-                </Badge>
-                <Badge variant="outline">
-                  {`${stagesQuery.data?.length ?? 0} stages • ${activationsQuery.data?.length ?? 0} activations in review`}
-                </Badge>
+                <Badge variant="outline">Controls open on demand</Badge>
+                <Badge variant="outline">{`${stagesQuery.data?.length ?? 0} stages • ${activationsQuery.data?.length ?? 0} activations`}</Badge>
               </div>
             </div>
 
@@ -884,11 +947,11 @@ export function WorkflowDetailPage(): JSX.Element {
                 <div
                   className={
                     selectedWorkItemId
-                      ? 'grid gap-6 xl:grid-cols-[minmax(0,1.7fr)_minmax(24rem,0.9fr)] 2xl:grid-cols-[minmax(0,1.85fr)_minmax(24rem,0.82fr)]'
+                      ? 'grid gap-6 xl:grid-cols-[minmax(0,2.15fr)_minmax(20rem,23rem)] 2xl:grid-cols-[minmax(0,2.3fr)_minmax(21rem,24rem)]'
                       : 'grid gap-6'
                   }
                 >
-                  <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+                  <section className="rounded-3xl border border-border/70 bg-card/70 p-4 shadow-sm">
                     <PlaybookBoardCard
                       workflowId={workflowId}
                       board={boardQuery.data}
@@ -896,9 +959,10 @@ export function WorkflowDetailPage(): JSX.Element {
                       isLoading={boardQuery.isLoading}
                       hasError={Boolean(boardQuery.error)}
                       selectedWorkItemId={selectedWorkItemId}
-                      onSelectWorkItem={(workItemId) =>
-                        updateWorkflowSelection('work_item', workItemId)
-                      }
+                      onSelectWorkItem={(workItemId) => {
+                        autoSelectedWorkItemIdRef.current = null;
+                        updateWorkflowSelection('work_item', workItemId);
+                      }}
                       onBoardChanged={() =>
                         invalidateWorkflowQueries(queryClient, workflowId, projectId)
                       }
@@ -908,7 +972,7 @@ export function WorkflowDetailPage(): JSX.Element {
                   {selectedWorkItemId ? (
                     <aside
                       id={`work-item-${selectedWorkItemId}`}
-                      className="grid content-start gap-3 rounded-3xl border border-accent/20 bg-accent/5 p-4 shadow-sm xl:sticky xl:top-6 xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto"
+                      className="grid content-start gap-3 rounded-3xl border border-accent/20 bg-accent/5 p-4 shadow-sm xl:sticky xl:top-6 xl:w-full xl:max-w-[24rem] xl:justify-self-end xl:max-h-[calc(100vh-3rem)] xl:overflow-y-auto"
                       data-testid="selected-work-item-rail"
                       aria-label="Selected work-item focus"
                     >
@@ -921,9 +985,10 @@ export function WorkflowDetailPage(): JSX.Element {
                         stages={stagesQuery.data ?? []}
                         ownerRoleOptions={ownerRoleOptions}
                         tasks={selectedWorkItemTasks}
-                        onSelectWorkItem={(workItemId) =>
-                          updateWorkflowSelection('work_item', workItemId)
-                        }
+                        onSelectWorkItem={(workItemId) => {
+                          autoSelectedWorkItemIdRef.current = null;
+                          updateWorkflowSelection('work_item', workItemId);
+                        }}
                         onWorkItemChanged={() =>
                           invalidateWorkflowQueries(queryClient, workflowId, projectId)
                         }
@@ -944,44 +1009,24 @@ export function WorkflowDetailPage(): JSX.Element {
                 </div>
               </TabsContent>
 
-              <TabsContent value="controls" className="mt-0 grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.7fr)]">
+              <TabsContent value="controls" className="mt-0 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,20rem)]">
                 <Card className="bg-surface/80">
                   <CardHeader>
                     <CardTitle>Quick-create work item</CardTitle>
                     <CardDescription>
-                      Keep the board clean by launching the full stage-aware work-item form only
-                      when you are ready to add work.
+                      Open the guided create flow only when you are ready to add another board item.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4">
-                    <div className="grid gap-3 sm:grid-cols-3">
-                      <WorkflowSignalTile
-                        label="Default stage"
-                        value={workItemStage || 'Auto'}
-                        detail="Use board defaults or preselect a stage before opening the form"
-                      />
-                      <WorkflowSignalTile
-                        label="Priority posture"
-                        value={
-                          WORK_ITEM_PRIORITY_OPTIONS.find(
-                            (option) => option.value === workItemPriority,
-                          )?.label ?? 'Normal'
-                        }
-                        detail="Priority carries into the quick-create form"
-                      />
-                      <WorkflowSignalTile
-                        label="Metadata mode"
-                        value="Structured fields"
-                        detail="Typed metadata stays in guided controls instead of raw JSON"
-                      />
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline">{`Stage: ${workItemStage || 'Auto'}`}</Badge>
+                      <Badge variant="outline">{`Priority: ${selectedPriorityLabel}`}</Badge>
+                      <Badge variant="outline">Structured metadata</Badge>
                     </div>
-                    <div className="rounded-xl border border-border/70 bg-border/10 p-4">
-                      <p className="text-sm leading-6 text-muted">
-                        Open the guided create flow when you need a new board item. The form stays
-                        out of the main scroll until then, which keeps the workflow detail page
-                        focused on triage and review.
-                      </p>
-                    </div>
+                    <p className="text-sm leading-6 text-muted">
+                      Keep the board focused on triage. Use the full create form only when you need
+                      to add work.
+                    </p>
                     <div className="flex justify-end">
                       <Button onClick={() => setIsCreateWorkItemDialogOpen(true)}>
                         Create Work Item
@@ -994,17 +1039,20 @@ export function WorkflowDetailPage(): JSX.Element {
                   <CardHeader>
                     <CardTitle>Launch Child Board</CardTitle>
                     <CardDescription>
-                      Create a linked follow-up board run using a playbook and preserve lineage.
+                      Create a linked follow-up board run and preserve lineage.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="grid gap-4">
-                    <div className="grid gap-3 rounded-lg border border-dashed border-border/70 bg-border/10 p-4">
-                      <p className="text-sm text-muted">
-                        Child workflows inherit parent context and stay linked for operator drill-in.
-                      </p>
-                      <div className="flex justify-end">
-                        <Button onClick={() => setIsChainDialogOpen(true)}>Create Child Board</Button>
-                      </div>
+                    <div className="flex flex-wrap gap-2">
+                      <Badge variant="outline">Lineage preserved</Badge>
+                      <Badge variant="outline">Parent context carried forward</Badge>
+                    </div>
+                    <p className="text-sm leading-6 text-muted">
+                      Open the child-board flow only when this board needs a separate downstream
+                      run.
+                    </p>
+                    <div className="flex justify-end">
+                      <Button onClick={() => setIsChainDialogOpen(true)}>Create Child Board</Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -1040,7 +1088,7 @@ export function WorkflowDetailPage(): JSX.Element {
       </section>
 
       <section
-        className="grid gap-5 rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm"
+        className="grid gap-4 rounded-3xl border border-border/70 bg-card/70 p-4 shadow-sm"
         data-testid="workflow-secondary-tabs"
       >
         <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
@@ -1059,22 +1107,10 @@ export function WorkflowDetailPage(): JSX.Element {
               </p>
             </div>
           </div>
-          <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[38rem]">
-            <WorkflowSignalTile
-              label="Run packets"
-              value="4 views"
-              detail="Context, models, config, and final run summary"
-            />
-            <WorkflowSignalTile
-              label="Knowledge base"
-              value={`${documentQuery.data?.length ?? 0} docs`}
-              detail={`${memoryEntries.length} memory entries ready for operator review`}
-            />
-            <WorkflowSignalTile
-              label="Execution trail"
-              value={`${historyEvents.length} events`}
-              detail={`${taskQuery.data?.data?.length ?? 0} steps and project lineage on demand`}
-            />
+          <div className="flex flex-wrap gap-2 xl:max-w-[42rem] xl:justify-end">
+            <Badge variant="outline">Run packets on demand</Badge>
+            <Badge variant="outline">{`${documentQuery.data?.length ?? 0} docs • ${memoryEntries.length} memory entries`}</Badge>
+            <Badge variant="outline">{`${historyEvents.length} events • ${taskQuery.data?.data?.length ?? 0} steps`}</Badge>
           </div>
         </div>
 

@@ -389,8 +389,8 @@ export function PlaybookBoardCard(props: {
             <div
               className={
                 props.selectedWorkItemId
-                  ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
-                  : 'grid gap-4 md:grid-cols-2 xl:grid-cols-4'
+                  ? 'grid gap-4 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3'
+                  : 'grid gap-4 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4'
               }
             >
               {props.board.columns.map((column) => {
@@ -671,39 +671,45 @@ function BoardMoveControls(props: {
   const hasChanges = columnId !== props.initialColumnId || stageName !== props.initialStageName;
 
   return (
-    <div className="grid gap-2 rounded-md border border-border/60 bg-surface/70 p-3">
+    <div className="grid gap-3 rounded-md border border-border/60 bg-surface/70 p-3">
       <span className="text-xs font-medium uppercase tracking-wide text-muted">
-        Board move controls
+        Move work item
       </span>
-      <div className="grid gap-2 md:grid-cols-2">
-        <Select value={columnId} onValueChange={setColumnId}>
-          <SelectTrigger>
-            <SelectValue placeholder="Board column" />
-          </SelectTrigger>
-          <SelectContent>
-            {props.columns.map((column) => (
-              <SelectItem key={column.id} value={column.id}>
-                {column.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select value={stageName} onValueChange={setStageName}>
-          <SelectTrigger>
-            <SelectValue placeholder="Stage" />
-          </SelectTrigger>
-          <SelectContent>
-            {props.stages.map((stage) => (
-              <SelectItem key={stage.id} value={stage.name}>
-                {stage.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="grid gap-2">
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted">Column</span>
+          <Select value={columnId} onValueChange={setColumnId}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Choose column" />
+            </SelectTrigger>
+            <SelectContent>
+              {props.columns.map((column) => (
+                <SelectItem key={column.id} value={column.id}>
+                  {column.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-xs font-medium text-muted">Stage</span>
+          <Select value={stageName} onValueChange={setStageName}>
+            <SelectTrigger className="w-full">
+              <SelectValue placeholder="Choose stage" />
+            </SelectTrigger>
+            <SelectContent>
+              {props.stages.map((stage) => (
+                <SelectItem key={stage.id} value={stage.name}>
+                  {stage.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
       </div>
-      <div className="flex justify-end">
+      <div className="flex">
         <Button onClick={() => moveMutation.mutate()} disabled={!hasChanges || moveMutation.isPending}>
-          {moveMutation.isPending ? 'Moving…' : 'Apply Board Move'}
+          {moveMutation.isPending ? 'Moving…' : 'Move item'}
         </Button>
       </div>
     </div>

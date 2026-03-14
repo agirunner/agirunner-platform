@@ -136,6 +136,8 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('TabsTrigger value="activity"');
     expect(source).toContain('setSecondarySurface(\'activity\')');
     expect(source).toContain('<CardTitle>Operator Context</CardTitle>');
+    expect(source).toContain('xl:max-w-[24rem]');
+    expect(source).toContain('xl:grid-cols-[minmax(0,2.15fr)_minmax(20rem,23rem)]');
   });
 
   it('wires manual workflow activation controls only for live playbook runs', () => {
@@ -178,7 +180,10 @@ describe('workflow detail work-item creation form', () => {
     expect(source).toContain('setIsCreateWorkItemDialogOpen(true)');
     expect(source).toContain('DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"');
     expect(source).toContain('<CardTitle>Quick-create work item</CardTitle>');
-    expect(source).toContain('Create and child-board controls open only on demand');
+    expect(source).toContain('Controls open on demand');
+    expect(source).not.toContain('Default stage');
+    expect(source).not.toContain('Priority posture');
+    expect(source).not.toContain('Metadata mode');
   });
 });
 
@@ -251,6 +256,19 @@ describe('workflow detail deep links', () => {
     expect(source).toContain("querySelector<HTMLElement>('[data-workflow-focus-anchor=\"true\"]')");
     expect(source).toContain('focusTarget.focus({ preventScroll: true })');
     expect(source).toContain("target.scrollIntoView({ block: 'start' })");
+  });
+
+  it('keeps ordinary board-list entry at the top while preserving explicit focus state', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('autoSelectedWorkItemIdRef');
+    expect(source).toContain('hasExplicitWorkflowDetailSelection');
+    expect(source).toContain('selectedWorkItemId !== selection.autoSelectedWorkItemId');
+    expect(source).toContain('window.scrollTo({ top: 0, left: 0 })');
+    expect(source).toContain('if (!workflowId || shouldPreserveWorkflowDetailScroll) {');
   });
 
   it('hydrates child workflow lineage from workflow relations when project timeline is lagging', () => {
@@ -332,7 +350,7 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('PacketBadgePanel');
     expect(source).toContain('Board workspace');
     expect(source).toContain('Board triage and review lanes');
-    expect(source).toContain('Focused rail open for one work item');
+    expect(source).toContain('Focused rail open');
     expect(source).toContain('TabsTrigger value="board">Board &amp; triage');
     expect(source).toContain('TabsTrigger value="controls">Run controls');
     expect(source).toContain('TabsTrigger value="review">Gates &amp; activations');

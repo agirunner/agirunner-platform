@@ -104,6 +104,7 @@ const fieldStackClass = 'grid gap-2';
 const loadingTextClass =
   'rounded-lg border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted';
 const errorTextClass = 'rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
+const responsiveTabTriggerClass = 'h-auto whitespace-normal px-3 py-2 text-center leading-5';
 
 export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelProps): JSX.Element {
   const panelTitleId = `work-item-detail-title-${props.workItemId}`;
@@ -432,9 +433,15 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
             className="grid gap-4"
           >
             <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 md:grid-cols-3">
-              <TabsTrigger value="summary">Summary packet</TabsTrigger>
-              <TabsTrigger value="operate">Operator controls</TabsTrigger>
-              <TabsTrigger value="evidence">Evidence &amp; history</TabsTrigger>
+              <TabsTrigger value="summary" className={responsiveTabTriggerClass}>
+                Summary
+              </TabsTrigger>
+              <TabsTrigger value="operate" className={responsiveTabTriggerClass}>
+                Controls
+              </TabsTrigger>
+              <TabsTrigger value="evidence" className={responsiveTabTriggerClass}>
+                Evidence
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="summary" className="mt-0 grid gap-4">
@@ -480,10 +487,18 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
             <TabsContent value="evidence" className="mt-0 grid gap-4">
               <Tabs defaultValue="steps" className="grid gap-4" data-testid="work-item-detail-tabs">
                 <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 xl:grid-cols-4">
-                  <TabsTrigger value="steps">Steps</TabsTrigger>
-                  <TabsTrigger value="memory">Memory</TabsTrigger>
-                  <TabsTrigger value="artifacts">Artifacts</TabsTrigger>
-                  <TabsTrigger value="history">Event History</TabsTrigger>
+                  <TabsTrigger value="steps" className={responsiveTabTriggerClass}>
+                    Steps
+                  </TabsTrigger>
+                  <TabsTrigger value="memory" className={responsiveTabTriggerClass}>
+                    Memory
+                  </TabsTrigger>
+                  <TabsTrigger value="artifacts" className={responsiveTabTriggerClass}>
+                    Artifacts
+                  </TabsTrigger>
+                  <TabsTrigger value="history" className={responsiveTabTriggerClass}>
+                    History
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="steps" className="mt-0 grid">
@@ -630,10 +645,18 @@ function WorkItemOperatorSection(props: {
         className="grid gap-4"
       >
         <TabsList className="grid h-auto w-full grid-cols-1 gap-2 rounded-xl border border-border/70 bg-background/80 p-1 md:grid-cols-3">
-          <TabsTrigger value="brief">Brief &amp; metadata</TabsTrigger>
-          <TabsTrigger value="routing">Routing &amp; ownership</TabsTrigger>
-          <TabsTrigger value="decompose" disabled={!props.isMilestone}>
-            Milestone decomposition
+          <TabsTrigger value="brief" className={responsiveTabTriggerClass}>
+            Brief &amp; metadata
+          </TabsTrigger>
+          <TabsTrigger value="routing" className={responsiveTabTriggerClass}>
+            Routing &amp; ownership
+          </TabsTrigger>
+          <TabsTrigger
+            value="decompose"
+            className={responsiveTabTriggerClass}
+            disabled={!props.isMilestone}
+          >
+            Milestone plan
           </TabsTrigger>
         </TabsList>
 

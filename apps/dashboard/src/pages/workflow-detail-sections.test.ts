@@ -39,9 +39,12 @@ describe('workflow detail sections source', () => {
     expect(source).not.toContain('A selected work-item packet is open beside the board.');
     expect(source).toContain('children_completed');
     expect(source).toContain('% complete');
-    expect(source).toContain("xl:grid-cols-3 2xl:grid-cols-4");
-    expect(source).toContain('Apply Board Move');
-    expect(source).toContain('Board move controls');
+    expect(source).toContain("xl:grid-cols-2 2xl:grid-cols-3");
+    expect(source).toContain('Move item');
+    expect(source).toContain('Move work item');
+    expect(source).toContain('Choose column');
+    expect(source).toContain('Choose stage');
+    expect(source).toContain('SelectTrigger className="w-full"');
     expect(source).toContain('dashboardApi.updateWorkflowWorkItem');
   });
 
