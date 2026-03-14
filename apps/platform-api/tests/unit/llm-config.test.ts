@@ -201,7 +201,7 @@ describe('ModelCatalogService — LLM config enhancements', () => {
         reasoningConfig,
       );
 
-      expect(result.reasoning_config).toEqual(reasoningConfig);
+      expect(result?.reasoning_config).toEqual(reasoningConfig);
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('reasoning_config');
       const params = pool.query.mock.calls[0][1] as unknown[];
@@ -227,7 +227,7 @@ describe('ModelCatalogService — LLM config enhancements', () => {
         null,
       );
 
-      expect(result.reasoning_config).toBeNull();
+      expect(result?.reasoning_config).toBeNull();
     });
 
     it('defaults reasoning_config to null when not provided', async () => {

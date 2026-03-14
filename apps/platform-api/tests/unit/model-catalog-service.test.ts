@@ -339,7 +339,7 @@ describe('ModelCatalogService', () => {
       pool.query.mockResolvedValueOnce({ rows: [assignment], rowCount: 1 });
 
       const result = await service.upsertAssignment(TENANT_ID, 'developer', MODEL_ID, null);
-      expect(result.role_name).toBe('developer');
+      expect(result?.role_name).toBe('developer');
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('ON CONFLICT');
     });
