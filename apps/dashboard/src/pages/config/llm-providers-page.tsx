@@ -1169,16 +1169,9 @@ function RoleAssignmentsSection({
     const state = roleStates[role.name];
     return (state?.modelId ?? '__none__') !== '__none__' || state?.reasoningConfig != null;
   }).length;
-  const shouldForceOpenOverrides = staleRoleCount > 0 || !assignmentValidation.isValid;
   const [isOverridesExpanded, setIsOverridesExpanded] = useState(
-    () => shouldForceOpenOverrides || explicitOverrideCount > 0,
+    () => explicitOverrideCount > 0,
   );
-
-  useEffect(() => {
-    if (shouldForceOpenOverrides) {
-      setIsOverridesExpanded(true);
-    }
-  }, [shouldForceOpenOverrides]);
 
   const assignmentSurface = summarizeAssignmentSurface({
     enabledModelCount: enabledModels.length,
@@ -1283,14 +1276,14 @@ function RoleAssignmentsSection({
       </div>
 
       {/* ── Role Overrides ────────────────────────────────────────────── */}
-      <div>
+      <div className="overflow-hidden rounded-md border border-border/70 bg-surface shadow-sm">
         <button
           type="button"
-          className="flex w-full items-start justify-between gap-4 rounded-xl border border-border/70 bg-surface px-4 py-3 text-left shadow-sm transition-colors hover:bg-muted/40"
+          className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50"
           onClick={() => setIsOverridesExpanded((open) => !open)}
           aria-expanded={isOverridesExpanded}
         >
-          <div className="space-y-2">
+          <div className="min-w-0 space-y-2">
             <div className="flex items-center gap-2">
               {isOverridesExpanded ? (
                 <ChevronDown className="h-4 w-4 text-muted" />
@@ -1300,8 +1293,8 @@ function RoleAssignmentsSection({
               <h3 className="text-sm font-semibold">Orchestrator and Role Overrides</h3>
             </div>
             <p className="text-xs text-muted">
-              Keep this collapsed to rely on the shared system default. Open it only when the
-              orchestrator or specific roles need different models or reasoning.
+              Use the shared system default unless the orchestrator or a specific role needs a
+              different model or reasoning policy.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">1 orchestrator row</Badge>
@@ -1319,11 +1312,10 @@ function RoleAssignmentsSection({
           </span>
         </button>
         {isOverridesExpanded ? (
-          <div className="mt-4 space-y-4">
+          <div className="space-y-4 border-t border-border/70 px-4 py-4">
             <p className="text-xs text-muted">
-              The orchestrator is always configurable here even though it is not a normal role
-              definition. Roles set to &quot;None&quot; inherit the system default, and older
-              assignment rows stay visible until they are cleaned up.
+              Choose explicit models only where the default is not enough. Older assignment rows
+              stay visible until they are cleaned up.
             </p>
             <div className="grid gap-3 md:hidden">
               {roleRows.map((role) => {
@@ -1377,11 +1369,13 @@ function RoleAssignmentsSection({
                     const description = truncateRoleDescription(summarizeRoleDescription(role));
                     return (
                       <TableRow key={role.name} className="align-middle [&>td]:py-4">
-                        <TableCell className="font-medium align-middle whitespace-nowrap">
+                        <TableCell className="align-middle text-sm font-medium whitespace-nowrap">
                           {role.name}
                         </TableCell>
                         <TableCell className="align-middle text-sm text-muted">
-                          <span title={summarizeRoleDescription(role)}>{description}</span>
+                          <span className="block truncate" title={summarizeRoleDescription(role)}>
+                            {description}
+                          </span>
                         </TableCell>
                         <TableCell className="align-middle whitespace-nowrap">
                           <div className="flex justify-center">

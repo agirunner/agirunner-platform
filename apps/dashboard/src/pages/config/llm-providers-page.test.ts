@@ -117,11 +117,12 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('hidden md:block');
     expect(source).toContain('Provider Selection');
     expect(source).toContain('Status');
-    expect(source).toContain('Keep this collapsed to rely on the shared system default.');
+    expect(source).toContain('Use the shared system default unless the orchestrator or a specific role needs a');
     expect(source).toContain("Badge variant={explicitOverrideCount > 0 ? 'default' : 'outline'}");
     expect(source).toContain("aria-expanded={isOverridesExpanded}");
     expect(source).toContain("Show overrides");
     expect(source).toContain("Hide overrides");
+    expect(source).toContain("() => explicitOverrideCount > 0");
     expect(source).not.toContain('const ROLE_NAMES');
   });
 
@@ -131,7 +132,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('function truncateRoleDescription(description: string): string {');
     expect(source).toContain('<TableHead className="w-1/5">Description</TableHead>');
     expect(source).toContain('<TableCell className="align-middle text-sm text-muted">');
-    expect(source).toContain('<span title={summarizeRoleDescription(role)}>{description}</span>');
+    expect(source).toContain('<span className="block truncate" title={summarizeRoleDescription(role)}>');
   });
 
   it('renders desktop assignment rows as role, description, status, provider selection, and reasoning columns', () => {
@@ -142,7 +143,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('<TableHead className="w-1/5 text-center">Provider Selection</TableHead>');
     expect(source).toContain('<TableHead className="w-1/5 text-center">Reasoning</TableHead>');
     expect(source).toContain('<TableRow key={role.name} className="align-middle [&>td]:py-4">');
-    expect(source).toContain('<TableCell className="font-medium align-middle whitespace-nowrap">');
+    expect(source).toContain('<TableCell className="align-middle text-sm font-medium whitespace-nowrap">');
     expect(source).toContain('<TableCell className="align-middle whitespace-nowrap">');
     expect(source).toContain('<div className="flex justify-center">');
     expect(source).toContain("const selectClassName = 'h-11 w-full max-w-[180px]';");
