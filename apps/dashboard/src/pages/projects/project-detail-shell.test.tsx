@@ -17,6 +17,7 @@ describe('project detail shell source', () => {
     expect(source).toContain('SelectTrigger aria-label="Select project workspace tab"');
     expect(source).toContain('TabsList');
     expect(source).toContain('TabsTrigger');
+    expect(source).not.toContain('Project workspace');
   });
 
   it('keeps all five project tab panels together in one shell component', () => {

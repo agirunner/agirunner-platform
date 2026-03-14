@@ -54,7 +54,7 @@ export function sortProjects(
       if (byVolume !== 0) {
         return byVolume;
       }
-      return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+      return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }) * direction;
     }
 
     const byActivity = compareNullableNumber(
@@ -65,7 +65,7 @@ export function sortProjects(
     if (byActivity !== 0) {
       return byActivity;
     }
-    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }) * direction;
   });
 }
 
@@ -85,27 +85,20 @@ export function buildProjectReadiness(
   };
 }
 
-export function buildProjectAttentionLabel(
-  project: DashboardProjectRecord,
-): 'Needs attention' | null {
-  if (project.is_active === false) {
-    return null;
-  }
-
-  if ((project.summary?.attention_workflow_count ?? 0) > 0) {
-    return 'Needs attention';
-  }
-
-  return null;
-}
-
 export function buildProjectMetrics(
   project: DashboardProjectRecord,
+  sortKey: ProjectListSortField = 'recent_activity',
 ): string {
   const activeWorkflowCount = project.summary?.active_workflow_count ?? 0;
   const completedWorkflowCount = project.summary?.completed_workflow_count ?? 0;
   const totalWorkflowCount = readTotalWorkflowCount(project);
   const parts: string[] = [];
+
+  if (sortKey === 'workflow_volume') {
+    return totalWorkflowCount > 0
+      ? `${totalWorkflowCount} workflow${totalWorkflowCount === 1 ? '' : 's'} total`
+      : 'No workflows yet';
+  }
 
   if (activeWorkflowCount > 0) {
     parts.push(`${activeWorkflowCount} active workflow${activeWorkflowCount === 1 ? '' : 's'}`);
@@ -154,6 +147,7 @@ export function buildProjectDescription(
 
   return `${description.slice(0, PROJECT_DESCRIPTION_MAX_LENGTH - 1).trimEnd()}…`;
 }
+
 function normalizeDescription(description?: string | null): string {
   return description?.replace(/\s+/g, ' ').trim() ?? '';
 }

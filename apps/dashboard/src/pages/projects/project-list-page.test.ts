@@ -27,7 +27,6 @@ describe('project list page source', () => {
     expect(source).toContain('Most workflows');
     expect(source).toContain('active workflow');
     expect(source).toContain('completed');
-    expect(source).toContain('Needs attention');
     expect(source).toContain('Active');
     expect(source).toContain('Inactive');
     expect(source).not.toContain('Search projects');
@@ -51,8 +50,9 @@ describe('project list page source', () => {
     expect(source).toContain("{ label: 'Delivery', tab: 'delivery' }");
     expect(source).toContain('to={`/projects/${props.project.id}?tab=${workspace.tab}`}');
     expect(source).toContain('Open workspace');
-    expect(source).toContain('Edit basics');
-    expect(source).toContain('Delete');
+    expect(source).not.toContain('Project actions');
+    expect(source).not.toContain('DropdownMenuTrigger asChild');
+    expect(source).not.toContain('Edit basics');
     expect(source).not.toContain('text-foreground/80');
     expect(source).not.toContain('Summary');
     expect(source).not.toContain('CompactSignalPill');
@@ -66,9 +66,13 @@ describe('project list page source', () => {
       'utf8',
     );
     expect(dialogSource).toContain('dashboardApi.deleteProject');
-    expect(dialogSource).toContain('dashboardApi.patchProject');
     expect(dialogSource).toContain('dashboardApi.createProject');
     expect(dialogSource).toContain('max-h-[calc(100vh-4rem)] overflow-y-auto');
+    expect(dialogSource).toContain('navigate(`/projects/${created.id}`)');
+    expect(dialogSource).not.toContain('?tab=settings');
+    expect(dialogSource).not.toContain('Repository URL');
+    expect(dialogSource).not.toContain('repository_url');
+    expect(dialogSource).not.toContain('EditProjectDialog');
     expect(dialogSource).not.toContain('await fetch(');
     expect(dialogSource).not.toContain('API_BASE_URL');
     expect(dialogSource).not.toContain('getAuthHeaders');

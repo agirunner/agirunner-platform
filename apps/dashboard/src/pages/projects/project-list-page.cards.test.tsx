@@ -13,28 +13,30 @@ vi.mock('./project-list-page.dialogs.js', () => ({
   CreateProjectDialog: (props: { buttonLabel?: string }) =>
     createElement('button', undefined, props.buttonLabel ?? 'Create project'),
   DeleteProjectDialog: () => createElement('div', undefined, 'Delete project dialog'),
-  EditProjectDialog: () => createElement('div', undefined, 'Edit project dialog'),
 }));
 
 describe('project list page cards', () => {
-  it('renders project cards with grouped workspace actions and quieter management controls', () => {
-    const markup = renderCards([
-      {
-        id: 'project-1',
-        name: 'Alpha',
-        slug: 'alpha-slug',
-        description: 'Primary delivery workspace',
-        is_active: true,
-        repository_url: null,
-        summary: {
-          active_workflow_count: 2,
-          completed_workflow_count: 5,
-          attention_workflow_count: 0,
-          total_workflow_count: 7,
-          last_workflow_activity_at: '2026-03-14T09:30:00.000Z',
+  it('renders project cards with grouped workspace links and quiet status', () => {
+    const markup = renderCards(
+      [
+        {
+          id: 'project-1',
+          name: 'Alpha',
+          slug: 'alpha-slug',
+          description: 'Primary delivery workspace',
+          is_active: true,
+          repository_url: null,
+          summary: {
+            active_workflow_count: 2,
+            completed_workflow_count: 5,
+            attention_workflow_count: 0,
+            total_workflow_count: 7,
+            last_workflow_activity_at: '2026-03-14T09:30:00.000Z',
+          },
         },
-      },
-    ]);
+      ],
+      'workflow_volume',
+    );
 
     expect(markup).toContain('Alpha');
     expect(markup).toContain('Primary delivery workspace');
@@ -44,14 +46,15 @@ describe('project list page cards', () => {
     expect(markup).toContain('href="/projects/project-1?tab=knowledge"');
     expect(markup).toContain('href="/projects/project-1?tab=automation"');
     expect(markup).toContain('href="/projects/project-1?tab=delivery"');
-    expect(markup).toContain('2 active workflows · 5 completed');
+    expect(markup).toContain('7 workflows total');
     expect(markup).toContain('Open workspace');
     expect(markup).toContain('Settings');
     expect(markup).toContain('Knowledge');
     expect(markup).toContain('Automation');
     expect(markup).toContain('Delivery');
-    expect(markup).toContain('Edit basics');
-    expect(markup).toContain('Delete');
+    expect(markup).not.toContain('Edit basics');
+    expect(markup).not.toContain('Delete');
+    expect(markup).not.toContain('Needs attention');
     expect(markup).not.toContain('alpha-slug');
     expect(markup).not.toContain('Ready');
     expect(markup).not.toContain('Summary');
@@ -63,7 +66,7 @@ describe('project list page cards', () => {
     expect(markup).not.toContain('Repository posture');
   });
 
-  it('renders calmer attention styling while keeping inactive cards neutral', () => {
+  it('keeps inactive cards neutral without separate attention badges', () => {
     const markup = renderCards([
       {
         id: 'project-2',
@@ -97,13 +100,12 @@ describe('project list page cards', () => {
       },
     ]);
 
-    expect(markup).toContain('Needs attention');
-    expect(markup).toContain('bg-amber-50/70');
     expect(markup).toContain('Active');
     expect(markup).toContain('Inactive');
     expect(markup).toContain('Add a short description so this project is scannable from the list.');
     expect(markup).toContain('3 workflows total');
     expect(markup).toContain('3 completed');
+    expect(markup).not.toContain('Needs attention');
     expect(markup).not.toContain('bg-yellow-100');
     expect(markup).not.toContain('Ready');
     expect(markup).not.toContain('Needs repository and brief');
@@ -127,6 +129,7 @@ describe('project list page cards', () => {
 
 function renderCards(
   projects: Parameters<typeof ProjectListGrid>[0]['projects'],
+  sortKey: Parameters<typeof ProjectListGrid>[0]['sortKey'] = 'recent_activity',
 ): string {
   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   try {
@@ -134,7 +137,7 @@ function renderCards(
       createElement(
         MemoryRouter,
         undefined,
-        createElement(ProjectListGrid, { projects }),
+        createElement(ProjectListGrid, { projects, sortKey }),
       ),
     );
   } finally {

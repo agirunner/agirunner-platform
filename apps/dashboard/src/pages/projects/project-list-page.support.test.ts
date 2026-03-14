@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildProjectAttentionLabel,
   buildProjectDescription,
   buildProjectMetrics,
   buildProjectReadiness,
@@ -40,59 +39,6 @@ describe('project list page support', () => {
       label: 'Inactive',
       variant: 'secondary',
     });
-  });
-
-  it('builds a separate attention label only when the project needs intervention', () => {
-    expect(
-      buildProjectAttentionLabel({
-        id: 'p1',
-        name: 'Alpha',
-        slug: 'alpha',
-        description: '',
-        is_active: true,
-        summary: {
-          active_workflow_count: 2,
-          completed_workflow_count: 5,
-          attention_workflow_count: 0,
-          total_workflow_count: 7,
-          last_workflow_activity_at: '2026-03-14T09:30:00.000Z',
-        },
-      }),
-    ).toBeNull();
-
-    expect(
-      buildProjectAttentionLabel({
-        id: 'p2',
-        name: 'Beta',
-        slug: 'beta',
-        description: '',
-        is_active: true,
-        summary: {
-          active_workflow_count: 0,
-          completed_workflow_count: 0,
-          attention_workflow_count: 1,
-          total_workflow_count: 1,
-          last_workflow_activity_at: '2026-03-14T07:00:00.000Z',
-        },
-      }),
-    ).toBe('Needs attention');
-
-    expect(
-      buildProjectAttentionLabel({
-        id: 'p3',
-        name: 'Gamma',
-        slug: 'gamma',
-        description: '',
-        is_active: false,
-        summary: {
-          active_workflow_count: 0,
-          completed_workflow_count: 1,
-          attention_workflow_count: 2,
-          total_workflow_count: 3,
-          last_workflow_activity_at: '2026-03-14T06:00:00.000Z',
-        },
-      }),
-    ).toBeNull();
   });
 
   it('hides inactive projects until the explicit filter is enabled', () => {
@@ -139,20 +85,23 @@ describe('project list page support', () => {
     ).toBe('2 active workflows · 5 completed');
 
     expect(
-      buildProjectMetrics({
-        id: 'p2',
-        name: 'Beta',
-        slug: 'beta',
-        description: '',
-        is_active: true,
-        summary: {
-          active_workflow_count: 0,
-          completed_workflow_count: 0,
-          attention_workflow_count: 1,
-          total_workflow_count: 3,
-          last_workflow_activity_at: '2026-03-14T07:00:00.000Z',
+      buildProjectMetrics(
+        {
+          id: 'p2',
+          name: 'Beta',
+          slug: 'beta',
+          description: '',
+          is_active: true,
+          summary: {
+            active_workflow_count: 0,
+            completed_workflow_count: 0,
+            attention_workflow_count: 1,
+            total_workflow_count: 3,
+            last_workflow_activity_at: '2026-03-14T07:00:00.000Z',
+          },
         },
-      }),
+        'workflow_volume',
+      ),
     ).toBe('3 workflows total');
 
     expect(
@@ -248,11 +197,12 @@ describe('project list page support', () => {
       sortProjects(projects, { key: 'recent_activity', direction: 'desc' }).map(
         (project) => project.name,
       ),
-    ).toEqual([
-      'Alpha',
-      'Gamma',
-      'Beta',
-    ]);
+    ).toEqual(['Alpha', 'Gamma', 'Beta']);
+    expect(
+      sortProjects(projects, { key: 'recent_activity', direction: 'asc' }).map(
+        (project) => project.name,
+      ),
+    ).toEqual(['Gamma', 'Alpha', 'Beta']);
     expect(
       sortProjects(projects, { key: 'project_name', direction: 'asc' }).map(
         (project) => project.name,
@@ -263,6 +213,55 @@ describe('project list page support', () => {
         (project) => project.name,
       ),
     ).toEqual(['Alpha', 'Beta', 'Gamma']);
+    expect(
+      sortProjects(projects, { key: 'workflow_volume', direction: 'asc' }).map(
+        (project) => project.name,
+      ),
+    ).toEqual(['Gamma', 'Beta', 'Alpha']);
+  });
+
+  it('uses the selected direction when recent activity falls back to names', () => {
+    const projects = [
+      {
+        id: 'p1',
+        name: 'Gamma',
+        slug: 'gamma',
+        description: '',
+        is_active: true,
+        summary: {
+          active_workflow_count: 0,
+          completed_workflow_count: 0,
+          attention_workflow_count: 0,
+          total_workflow_count: 1,
+          last_workflow_activity_at: null,
+        },
+      },
+      {
+        id: 'p2',
+        name: 'Alpha',
+        slug: 'alpha',
+        description: '',
+        is_active: true,
+        summary: {
+          active_workflow_count: 0,
+          completed_workflow_count: 0,
+          attention_workflow_count: 0,
+          total_workflow_count: 1,
+          last_workflow_activity_at: null,
+        },
+      },
+    ];
+
+    expect(
+      sortProjects(projects, { key: 'recent_activity', direction: 'asc' }).map(
+        (project) => project.name,
+      ),
+    ).toEqual(['Alpha', 'Gamma']);
+    expect(
+      sortProjects(projects, { key: 'recent_activity', direction: 'desc' }).map(
+        (project) => project.name,
+      ),
+    ).toEqual(['Gamma', 'Alpha']);
   });
 
   it('builds contextual sort direction labels', () => {

@@ -21,6 +21,8 @@ describe('project settings tab source', () => {
     expect(tabSource).toContain('Credentials posture');
     expect(tabSource).toContain('Models');
     expect(tabSource).toContain('Planning brief');
+    expect(tabSource).toContain('Danger');
+    expect(tabSource).toContain('Delete project');
     expect(tabSource).toContain('Open credentials');
     expect(tabSource).toContain('ProjectModelOverridesTab');
     expect(tabSource).toContain('buildProjectSettingsSurfaceSummary');

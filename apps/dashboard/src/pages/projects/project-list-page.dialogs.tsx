@@ -20,14 +20,12 @@ interface ProjectFormData {
   name: string;
   slug: string;
   description: string;
-  repository_url: string;
 }
 
 const INITIAL_FORM: ProjectFormData = {
   name: '',
   slug: '',
   description: '',
-  repository_url: '',
 };
 
 export function formatProjectDialogError(error: unknown): string {
@@ -59,14 +57,13 @@ export function CreateProjectDialog(props?: {
         name: form.name,
         slug: form.slug,
         description: form.description || undefined,
-        repository_url: form.repository_url || undefined,
       }),
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
       setForm(INITIAL_FORM);
       setIsOpen(false);
-      toast.success('Project created. Continue setup in project settings.');
-      navigate(`/projects/${created.id}?tab=settings`);
+      toast.success('Project created. Continue setup in the project workspace.');
+      navigate(`/projects/${created.id}`);
     },
   });
 
@@ -83,7 +80,7 @@ export function CreateProjectDialog(props?: {
           <DialogTitle>Create Project</DialogTitle>
         </DialogHeader>
         <p className="text-sm leading-6 text-muted">
-          Create the workspace here, then hand the main setup flow to the project detail tabs.
+          Create the workspace here, then continue setup from the project detail page.
         </p>
         <ProjectEditorForm
           form={form}
@@ -157,59 +154,6 @@ export function DeleteProjectDialog(props: {
   );
 }
 
-export function EditProjectDialog(props: {
-  project: DashboardProjectRecord;
-  onClose: () => void;
-}): JSX.Element {
-  const queryClient = useQueryClient();
-  const [form, setForm] = useState<ProjectFormData>({
-    name: props.project.name,
-    slug: props.project.slug,
-    description: props.project.description ?? '',
-    repository_url: props.project.repository_url ?? '',
-  });
-
-  const mutation = useMutation({
-    mutationFn: () =>
-      dashboardApi.patchProject(props.project.id, {
-        name: form.name,
-        slug: form.slug,
-        description: form.description || undefined,
-        repository_url: form.repository_url || undefined,
-      }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['projects'] });
-      props.onClose();
-      toast.success('Project identity updated. Continue setup in the project workspace.');
-    },
-    onError: () => {
-      toast.error('Failed to update project');
-    },
-  });
-
-  return (
-    <Dialog open onOpenChange={(open) => !open && props.onClose()}>
-      <DialogContent className="max-h-[calc(100vh-4rem)] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Edit basics</DialogTitle>
-        </DialogHeader>
-        <ProjectEditorForm
-          form={form}
-          error={mutation.error ? formatProjectDialogError(mutation.error) : null}
-          submitLabel="Save basics"
-          isPending={mutation.isPending}
-          onCancel={props.onClose}
-          onNameChange={(value) => setForm((previous) => ({ ...previous, name: value }))}
-          onFieldChange={(field, value) => {
-            setForm((previous) => ({ ...previous, [field]: value }));
-          }}
-          onSubmit={() => mutation.mutate()}
-        />
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 function ProjectEditorForm(props: {
   form: ProjectFormData;
   error: string | null;
@@ -255,14 +199,6 @@ function ProjectEditorForm(props: {
           value={props.form.description}
           onChange={(event) => props.onFieldChange('description', event.target.value)}
           rows={4}
-        />
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Repository URL</label>
-        <Input
-          placeholder="https://github.com/org/repo"
-          value={props.form.repository_url}
-          onChange={(event) => props.onFieldChange('repository_url', event.target.value)}
         />
       </div>
       {props.error ? <p className="text-sm text-red-600">{props.error}</p> : null}

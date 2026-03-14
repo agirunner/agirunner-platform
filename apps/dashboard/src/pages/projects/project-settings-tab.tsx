@@ -19,6 +19,7 @@ import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
+import { DeleteProjectDialog } from './project-list-page.dialogs.js';
 import { ProjectModelOverridesTab } from './project-model-overrides-tab.js';
 import {
   buildProjectSecretPostureSummary,
@@ -45,6 +46,7 @@ type SettingsSectionKey = 'basics' | 'repository' | 'credentials' | 'models' | '
 export function ProjectSettingsTab({ project }: { project: DashboardProjectRecord }): JSX.Element {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(() => createProjectSettingsDraft(project));
+  const [showDelete, setShowDelete] = useState(false);
   const [expandedCredentialKey, setExpandedCredentialKey] = useState<CredentialKey | null>(null);
   const [expandedSection, setExpandedSection] = useState<SettingsSectionKey | null>(null);
   const validation = validateProjectSettingsDraft(draft);
@@ -117,7 +119,8 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
   }
 
   return (
-    <div className="space-y-3">
+    <>
+      <div className="space-y-3">
       <Card className="border-border/70 shadow-none">
         <CardContent className="space-y-3 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
@@ -314,7 +317,26 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
           />
         </div>
       </SettingsDisclosureSection>
-    </div>
+      <Card className="border-red-200/70 bg-red-50/40 shadow-none dark:border-red-500/30 dark:bg-red-500/5">
+        <CardContent className="space-y-3 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-red-700 dark:text-red-200">
+              Danger
+            </h3>
+            <p className="text-sm leading-6 text-muted">
+              Delete this project only when the workspace should be removed permanently for this tenant.
+            </p>
+          </div>
+          <Button variant="destructive" type="button" onClick={() => setShowDelete(true)}>
+            Delete project
+          </Button>
+        </CardContent>
+      </Card>
+      </div>
+      {showDelete ? (
+        <DeleteProjectDialog project={project} onClose={() => setShowDelete(false)} />
+      ) : null}
+    </>
   );
 }
 

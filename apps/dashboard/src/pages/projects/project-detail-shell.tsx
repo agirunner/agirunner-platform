@@ -72,11 +72,6 @@ function ProjectDetailHeader(props: {
               isExpanded ? 'max-w-3xl space-y-3' : 'min-w-0 flex-1 space-y-1.5'
             }
           >
-            {isExpanded ? (
-              <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                Project workspace
-              </div>
-            ) : null}
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant={project.is_active ? 'success' : 'secondary'}>
                 {project.is_active ? 'Active' : 'Inactive'}
