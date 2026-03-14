@@ -5,11 +5,11 @@ import {
   describeReviewPacket,
   toStructuredDetailViewData,
 } from './workflow-detail-presentation.js';
-import { readPacketScalarFacts } from './workflow-detail-support.js';
+import { curatePacketFacts } from './workflow-history-card.packet.support.js';
 
 export function TimelineEventPacket(props: { event: DashboardEventRecord }): JSX.Element {
   const reviewPacket = describeReviewPacket(props.event.data, 'interaction packet');
-  const scalarFacts = readPacketScalarFacts(props.event.data, 4);
+  const scalarFacts = curatePacketFacts(props.event.type, props.event.data, 4);
 
   return (
     <div className="grid gap-3 rounded-lg border border-border/70 bg-surface/80 p-3">
