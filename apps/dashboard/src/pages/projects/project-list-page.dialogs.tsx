@@ -3,7 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
 
 import { dashboardApi, type DashboardProjectRecord } from '../../lib/api.js';
-import { readSession } from '../../lib/session.js';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -15,8 +14,6 @@ import {
 } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
-
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
 interface ProjectFormData {
   name: string;
@@ -31,46 +28,6 @@ const INITIAL_FORM: ProjectFormData = {
   description: '',
   repository_url: '',
 };
-
-function getAuthHeaders(): Record<string, string> {
-  const session = readSession();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return headers;
-}
-
-async function deleteProject(id: string): Promise<void> {
-  const session = readSession();
-  const headers: Record<string, string> = {};
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  const response = await fetch(`${API_BASE_URL}/api/v1/projects/${id}`, {
-    method: 'DELETE',
-    headers,
-    credentials: 'include',
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-}
-
-async function updateProject(
-  id: string,
-  payload: Record<string, unknown>,
-): Promise<DashboardProjectRecord> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/projects/${id}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
 
 export function CreateProjectDialog(): JSX.Element {
   const queryClient = useQueryClient();
@@ -133,7 +90,7 @@ export function DeleteProjectDialog(props: {
 }): JSX.Element {
   const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: () => deleteProject(props.project.id),
+    mutationFn: () => dashboardApi.deleteProject(props.project.id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
       props.onClose();
@@ -190,7 +147,7 @@ export function EditProjectDialog(props: {
 
   const mutation = useMutation({
     mutationFn: () =>
-      updateProject(props.project.id, {
+      dashboardApi.patchProject(props.project.id, {
         name: form.name,
         slug: form.slug,
         description: form.description || undefined,

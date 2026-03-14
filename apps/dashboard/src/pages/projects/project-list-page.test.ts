@@ -37,4 +37,17 @@ describe('project list page source', () => {
     expect(source).toContain('What operators should know about this workspace...');
     expect(source).toContain('Connect the repository so specialists can clone');
   });
+
+  it('uses the shared dashboard api client instead of raw fetch for all project mutations', () => {
+    const dialogSource = readFileSync(
+      resolve(import.meta.dirname, './project-list-page.dialogs.tsx'),
+      'utf8',
+    );
+    expect(dialogSource).toContain('dashboardApi.deleteProject');
+    expect(dialogSource).toContain('dashboardApi.patchProject');
+    expect(dialogSource).toContain('dashboardApi.createProject');
+    expect(dialogSource).not.toContain('await fetch(');
+    expect(dialogSource).not.toContain('API_BASE_URL');
+    expect(dialogSource).not.toContain('getAuthHeaders');
+  });
 });

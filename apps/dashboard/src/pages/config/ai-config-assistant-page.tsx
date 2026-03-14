@@ -11,7 +11,7 @@ import {
   CardTitle,
 } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
-import { readSession } from '../../lib/session.js';
+import { dashboardApi } from '../../lib/api.js';
 import {
   ASSISTANT_STARTER_PROMPTS,
   buildAssistantReviewBuckets,
@@ -19,7 +19,6 @@ import {
   resolveSuggestionDestination,
   summarizeAssistantSession,
   type AssistantMessageRecord,
-  type ConfigSuggestion,
 } from './ai-config-assistant-page.support.js';
 import {
   AssistantQuickPrompts,
@@ -29,35 +28,6 @@ import {
   ChatBubble,
   SuggestionCard,
 } from './ai-config-assistant-page.sections.js';
-
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-interface AssistantResponse {
-  reply: string;
-  suggestions?: ConfigSuggestion[];
-}
-
-function authHeaders(): Record<string, string> {
-  const session = readSession();
-  return {
-    'Content-Type': 'application/json',
-    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-  };
-}
-
-async function askAssistant(question: string): Promise<AssistantResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/config/assistant`, {
-    method: 'POST',
-    headers: authHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({ question }),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return (body.data ?? body) as AssistantResponse;
-}
 
 export function AiConfigAssistantPage(): JSX.Element {
   const [messages, setMessages] = useState<AssistantMessageRecord[]>([]);
@@ -79,7 +49,7 @@ export function AiConfigAssistantPage(): JSX.Element {
   );
 
   const mutation = useMutation({
-    mutationFn: askAssistant,
+    mutationFn: (question: string) => dashboardApi.askConfigAssistant(question),
     onSuccess: (response) => {
       setMessages((prev) => [
         ...prev,

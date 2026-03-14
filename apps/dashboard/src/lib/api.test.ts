@@ -2198,4 +2198,78 @@ describe('dashboard global search', () => {
     expect(client.listProjects).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listPlaybooks).toHaveBeenCalled();
   });
+
+  it('deletes a project through the shared api client', async () => {
+    writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({}), { status: 200 }),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.deleteProject('project-42');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/projects/project-42',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer delete-token',
+        }),
+      }),
+    );
+  });
+
+  it('asks the config assistant through the shared api client', async () => {
+    writeSession({ accessToken: 'assistant-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            reply: 'Your runtime defaults look good.',
+            suggestions: [
+              {
+                path: 'runtime.timeout',
+                current_value: '300',
+                suggested_value: '600',
+                description: 'Increase timeout for long-running tasks',
+              },
+            ],
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {} as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const result = await api.askConfigAssistant('Review my runtime defaults');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/config/assistant',
+      expect.objectContaining({
+        method: 'POST',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          'Content-Type': 'application/json',
+          Authorization: 'Bearer assistant-token',
+        }),
+        body: JSON.stringify({ question: 'Review my runtime defaults' }),
+      }),
+    );
+    expect(result.reply).toBe('Your runtime defaults look good.');
+    expect(result.suggestions).toHaveLength(1);
+    expect(result.suggestions![0].path).toBe('runtime.timeout');
+  });
 });

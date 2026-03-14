@@ -751,6 +751,16 @@ export interface DashboardLoggingConfig {
   level: 'debug' | 'info' | 'warn' | 'error';
 }
 
+export interface DashboardConfigAssistantResponse {
+  reply: string;
+  suggestions?: Array<{
+    path: string;
+    current_value?: string;
+    suggested_value: string;
+    description: string;
+  }>;
+}
+
 export interface DashboardResolvedDocumentReference {
   logical_name: string;
   scope: 'project' | 'workflow';
@@ -1763,6 +1773,8 @@ export interface DashboardApi {
   getLogRoles(filters?: Record<string, string>): Promise<{ data: LogRoleRecord[] }>;
   getLogActors(filters?: Record<string, string>): Promise<{ data: LogActorRecord[] }>;
   exportLogs(filters: Record<string, string>): Promise<Blob>;
+  deleteProject(projectId: string): Promise<void>;
+  askConfigAssistant(question: string): Promise<DashboardConfigAssistantResponse>;
 }
 
 export function createDashboardApi(options: DashboardApiOptions = {}): DashboardApi {
@@ -2963,6 +2975,21 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         );
         if (!res.ok) throw new Error(`Export failed: ${res.status}`);
         return res.blob();
+      }),
+    deleteProject: (projectId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/projects/${projectId}`, { method: 'DELETE' });
+      }),
+    askConfigAssistant: (question) =>
+      withRefresh(async () => {
+        const response = await requestJson<{
+          data?: DashboardConfigAssistantResponse;
+          reply?: string;
+          suggestions?: DashboardConfigAssistantResponse['suggestions'];
+        }>('/api/v1/config/assistant', {
+          body: { question },
+        });
+        return (response.data ?? response) as DashboardConfigAssistantResponse;
       }),
   };
 }

@@ -58,4 +58,15 @@ describe('ai config assistant page source', () => {
     const source = readSource();
     expect(source).toContain('aria-label="Configuration question"');
   });
+
+  it('uses the shared dashboard api client instead of raw fetch', () => {
+    const pageSource = readFileSync(
+      resolve(import.meta.dirname, './ai-config-assistant-page.tsx'),
+      'utf8',
+    );
+    expect(pageSource).toContain('dashboardApi.askConfigAssistant');
+    expect(pageSource).not.toContain('await fetch(');
+    expect(pageSource).not.toContain('API_BASE_URL');
+    expect(pageSource).not.toContain('authHeaders');
+  });
 });
