@@ -63,6 +63,7 @@ import {
   StepEscalationDialog,
 } from './workflow-work-item-task-review-dialogs.js';
 import {
+  buildWorkItemRecoveryBrief,
   buildWorkItemBreadcrumbs,
   describeTaskOperatorPosture,
   flattenArtifactsByTask,
@@ -94,17 +95,15 @@ interface WorkflowWorkItemDetailPanelProps {
   onClearSelection(): void;
 }
 
-const sectionFrameClass =
-  'rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm';
+const sectionFrameClass = 'rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm';
 const metaRowClass = 'flex flex-wrap items-center gap-2';
 const mutedBodyClass = 'text-sm leading-6 text-muted';
 const fieldStackClass = 'grid gap-2';
-const loadingTextClass = 'rounded-lg border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted';
+const loadingTextClass =
+  'rounded-lg border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted';
 const errorTextClass = 'rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700';
 
-export function WorkflowWorkItemDetailPanel(
-  props: WorkflowWorkItemDetailPanelProps,
-): JSX.Element {
+export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelProps): JSX.Element {
   const panelTitleId = `work-item-detail-title-${props.workItemId}`;
   const workItemQuery = useQuery({
     queryKey: ['workflow-work-item', props.workflowId, props.workItemId],
@@ -138,15 +137,13 @@ export function WorkflowWorkItemDetailPanel(
   });
   const memoryHistoryQuery = useQuery({
     queryKey: ['workflow-work-item-memory-history', props.workflowId, props.workItemId],
-    queryFn: () => dashboardApi.getWorkflowWorkItemMemoryHistory(props.workflowId, props.workItemId),
+    queryFn: () =>
+      dashboardApi.getWorkflowWorkItemMemoryHistory(props.workflowId, props.workItemId),
     enabled: props.workflowId.length > 0 && props.workItemId.length > 0,
   });
 
   const workItem = workItemQuery.data;
-  const events = useMemo(
-    () => sortEventsNewestFirst(eventQuery.data ?? []),
-    [eventQuery.data],
-  );
+  const events = useMemo(() => sortEventsNewestFirst(eventQuery.data ?? []), [eventQuery.data]);
   const memoryEntries = useMemo(
     () => sortMemoryEntriesByKey(memoryQuery.data?.entries ?? []),
     [memoryQuery.data?.entries],
@@ -172,9 +169,7 @@ export function WorkflowWorkItemDetailPanel(
     () =>
       props.workItems.filter(
         (item) =>
-          !item.parent_work_item_id &&
-          item.id !== props.workItemId &&
-          isMilestoneWorkItem(item),
+          !item.parent_work_item_id && item.id !== props.workItemId && isMilestoneWorkItem(item),
       ),
     [props.workItemId, props.workItems],
   );
@@ -189,15 +184,25 @@ export function WorkflowWorkItemDetailPanel(
         : null,
     [boardWorkItem, milestoneChildren, props.tasks],
   );
+  const executionSummary = useMemo(() => summarizeWorkItemExecution(props.tasks), [props.tasks]);
+  const recoveryBrief = useMemo(() => {
+    const selectedWorkItem = boardWorkItem ?? workItem;
+    if (!selectedWorkItem) {
+      return null;
+    }
+    return buildWorkItemRecoveryBrief({
+      workItem: selectedWorkItem,
+      executionSummary,
+      milestoneSummary: milestoneOperatorSummary,
+    });
+  }, [boardWorkItem, executionSummary, milestoneOperatorSummary, workItem]);
   const [stageName, setStageName] = useState('');
   const [columnId, setColumnId] = useState('');
   const [ownerRole, setOwnerRole] = useState('');
   const [parentWorkItemId, setParentWorkItemId] = useState('');
   const [acceptanceCriteria, setAcceptanceCriteria] = useState('');
   const [notes, setNotes] = useState('');
-  const [priority, setPriority] = useState<WorkItemPriority>(
-    normalizeWorkItemPriority(undefined),
-  );
+  const [priority, setPriority] = useState<WorkItemPriority>(normalizeWorkItemPriority(undefined));
   const [metadataDrafts, setMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
   const [lockedMetadataDraftIds, setLockedMetadataDraftIds] = useState<string[]>([]);
   const [childTitle, setChildTitle] = useState('');
@@ -207,9 +212,7 @@ export function WorkflowWorkItemDetailPanel(
   const [childPriority, setChildPriority] = useState<WorkItemPriority>(
     normalizeWorkItemPriority(undefined),
   );
-  const [childMetadataDrafts, setChildMetadataDrafts] = useState<
-    StructuredEntryDraft[]
-  >([]);
+  const [childMetadataDrafts, setChildMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
   const [operatorMessage, setOperatorMessage] = useState<string | null>(null);
   const [operatorError, setOperatorError] = useState<string | null>(null);
   const metadataValidation = useMemo(
@@ -223,9 +226,7 @@ export function WorkflowWorkItemDetailPanel(
 
   useEffect(() => {
     const source = boardWorkItem ?? workItem;
-    const metadataState = createWorkItemMetadataDraftState(
-      workItem?.metadata ?? source?.metadata,
-    );
+    const metadataState = createWorkItemMetadataDraftState(workItem?.metadata ?? source?.metadata);
     setStageName(source?.stage_name ?? '');
     setColumnId(source?.column_id ?? '');
     setOwnerRole(source?.owner_role ?? '');
@@ -317,8 +318,9 @@ export function WorkflowWorkItemDetailPanel(
     normalizeWorkItemPriority(workItem?.priority ?? boardWorkItem?.priority) !== priority ||
     (workItem?.notes ?? boardWorkItem?.notes ?? '') !== notes ||
     !areWorkItemMetadataDraftsEqual(metadataDrafts, currentMetadata) ||
-    ((canEditParent ? boardWorkItem?.parent_work_item_id ?? workItem?.parent_work_item_id ?? '' : '') !==
-      (canEditParent ? parentWorkItemId : ''));
+    (canEditParent
+      ? (boardWorkItem?.parent_work_item_id ?? workItem?.parent_work_item_id ?? '')
+      : '') !== (canEditParent ? parentWorkItemId : '');
   const operatorSectionProps = workItem
     ? ({
         isMilestone: isMilestoneWorkItem(boardWorkItem),
@@ -363,8 +365,7 @@ export function WorkflowWorkItemDetailPanel(
         isCreatingChild: createChildMutation.isPending,
         hasChanges: hasOperatorChanges,
         canSave: metadataValidation.isValid,
-        canCreateChild:
-          childTitle.trim().length > 0 && childMetadataValidation.isValid,
+        canCreateChild: childTitle.trim().length > 0 && childMetadataValidation.isValid,
         message: operatorMessage,
         error: operatorError,
       } satisfies Parameters<typeof WorkItemOperatorSection>[0])
@@ -406,9 +407,7 @@ export function WorkflowWorkItemDetailPanel(
       </CardHeader>
 
       <CardContent className="grid gap-6 p-5">
-        {workItemQuery.isLoading ? (
-          <p className={loadingTextClass}>Loading work item...</p>
-        ) : null}
+        {workItemQuery.isLoading ? <p className={loadingTextClass}>Loading work item...</p> : null}
         {workItemQuery.error ? (
           <p className={errorTextClass}>Failed to load work item detail.</p>
         ) : null}
@@ -424,17 +423,15 @@ export function WorkflowWorkItemDetailPanel(
           />
         ) : null}
 
+        {recoveryBrief ? <WorkItemRecoveryBriefSection brief={recoveryBrief} /> : null}
+
         {milestoneOperatorSummary ? (
           <MilestoneOperatorSummarySection summary={milestoneOperatorSummary} />
         ) : null}
 
         {operatorSectionProps ? <WorkItemOperatorSection {...operatorSectionProps} /> : null}
 
-        <Tabs
-          defaultValue="steps"
-          className="grid gap-4"
-          data-testid="work-item-detail-tabs"
-        >
+        <Tabs defaultValue="steps" className="grid gap-4" data-testid="work-item-detail-tabs">
           <TabsList className="grid h-auto w-full grid-cols-2 gap-2 rounded-xl border border-border/70 bg-border/10 p-1 xl:grid-cols-4">
             <TabsTrigger value="steps">Steps</TabsTrigger>
             <TabsTrigger value="memory">Memory</TabsTrigger>
@@ -446,6 +443,7 @@ export function WorkflowWorkItemDetailPanel(
             <WorkItemTasksSection
               workflowId={props.workflowId}
               tasks={props.tasks}
+              executionSummary={executionSummary}
               isMilestone={isMilestoneWorkItem(boardWorkItem)}
               childCount={milestoneChildren.length}
               onWorkItemChanged={props.onWorkItemChanged}
@@ -567,7 +565,8 @@ function WorkItemOperatorSection(props: {
         )}
       </div>
       <p className={mutedBodyClass}>
-        Adjust board placement, stage ownership, and milestone nesting without leaving the work-item operator view.
+        Adjust board placement, stage ownership, and milestone nesting without leaving the work-item
+        operator view.
       </p>
       <OperatorSectionCard
         eyebrow="Work-item brief"
@@ -579,9 +578,7 @@ function WorkItemOperatorSection(props: {
             <span className="text-sm font-medium text-foreground">Priority</span>
             <Select
               value={props.priority}
-              onValueChange={(value) =>
-                props.onPriorityChange(normalizeWorkItemPriority(value))
-              }
+              onValueChange={(value) => props.onPriorityChange(normalizeWorkItemPriority(value))}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select priority" />
@@ -594,20 +591,14 @@ function WorkItemOperatorSection(props: {
                 ))}
               </SelectContent>
             </Select>
-            <p className="text-xs leading-5 text-muted">
-              {selectedPriority?.description}
-            </p>
+            <p className="text-xs leading-5 text-muted">{selectedPriority?.description}</p>
           </label>
           <div className="grid gap-4 md:grid-cols-2">
             <label className={fieldStackClass}>
-              <span className="text-sm font-medium text-foreground">
-                Acceptance criteria
-              </span>
+              <span className="text-sm font-medium text-foreground">Acceptance criteria</span>
               <Textarea
                 value={props.acceptanceCriteria}
-                onChange={(event) =>
-                  props.onAcceptanceCriteriaChange(event.target.value)
-                }
+                onChange={(event) => props.onAcceptanceCriteriaChange(event.target.value)}
                 className="min-h-[124px]"
                 placeholder="List the conditions that define done for this work item."
               />
@@ -712,7 +703,8 @@ function WorkItemOperatorSection(props: {
             </label>
           ) : (
             <div className="rounded-lg border border-border/70 bg-border/10 p-4 text-sm leading-6 text-muted">
-              Parent milestones stay top-level. Move or reparent child work items instead of nesting milestones.
+              Parent milestones stay top-level. Move or reparent child work items instead of nesting
+              milestones.
             </div>
           )}
           <label className={fieldStackClass}>
@@ -804,9 +796,7 @@ function WorkItemOperatorSection(props: {
                     ))}
                   </SelectContent>
                 </Select>
-                <p className="text-xs leading-5 text-muted">
-                  {selectedChildPriority?.description}
-                </p>
+                <p className="text-xs leading-5 text-muted">{selectedChildPriority?.description}</p>
               </label>
             </div>
             <label className={fieldStackClass}>
@@ -825,9 +815,7 @@ function WorkItemOperatorSection(props: {
                 </span>
                 <Textarea
                   value={props.childAcceptanceCriteria}
-                  onChange={(event) =>
-                    props.onChildAcceptanceCriteriaChange(event.target.value)
-                  }
+                  onChange={(event) => props.onChildAcceptanceCriteriaChange(event.target.value)}
                   className="min-h-[124px]"
                   placeholder="List the acceptance criteria this child work item must satisfy."
                 />
@@ -851,7 +839,10 @@ function WorkItemOperatorSection(props: {
               onChange={props.onChildMetadataDraftsChange}
             />
             <div className="flex justify-end">
-              <Button onClick={props.onCreateChild} disabled={!props.canCreateChild || props.isCreatingChild}>
+              <Button
+                onClick={props.onCreateChild}
+                disabled={!props.canCreateChild || props.isCreatingChild}
+              >
                 {props.isCreatingChild ? 'Creating…' : 'Create Child Work Item'}
               </Button>
             </div>
@@ -937,7 +928,9 @@ function WorkItemMemorySection(props: {
           <strong className="text-base">Memory history</strong>
           <Badge variant="outline">{props.history.length} events</Badge>
         </div>
-        {props.isHistoryLoading ? <p className={loadingTextClass}>Loading memory history...</p> : null}
+        {props.isHistoryLoading ? (
+          <p className={loadingTextClass}>Loading memory history...</p>
+        ) : null}
         {props.hasHistoryError ? (
           <p className={errorTextClass}>Failed to load work-item memory history.</p>
         ) : null}
@@ -987,7 +980,10 @@ function WorkItemHeader(props: {
 }): JSX.Element {
   const { workItem } = props;
   const milestone = isMilestoneWorkItem(workItem);
-  const completedChildren = workItem.children_completed ?? workItem.children?.filter((child) => child.completed_at).length ?? 0;
+  const completedChildren =
+    workItem.children_completed ??
+    workItem.children?.filter((child) => child.completed_at).length ??
+    0;
   const stageRecord = props.stages.find((stage) => stage.name === workItem.stage_name) ?? null;
   return (
     <section className="grid gap-4 rounded-xl border border-border/70 bg-gradient-to-br from-border/10 via-surface to-surface p-4 shadow-sm">
@@ -1078,9 +1074,7 @@ function WorkItemHeader(props: {
   );
 }
 
-function WorkItemStageProgressCard(props: {
-  stage: DashboardWorkflowStageRecord;
-}): JSX.Element {
+function WorkItemStageProgressCard(props: { stage: DashboardWorkflowStageRecord }): JSX.Element {
   const progressPercent = readStageProgressPercent(props.stage);
   const completedCount = Math.max(
     0,
@@ -1135,6 +1129,42 @@ function WorkItemStageProgressCard(props: {
   );
 }
 
+function WorkItemRecoveryBriefSection(props: {
+  brief: ReturnType<typeof buildWorkItemRecoveryBrief>;
+}): JSX.Element {
+  return (
+    <section
+      className={cn(
+        'grid gap-4 rounded-xl border p-4 shadow-sm',
+        props.brief.tone === 'destructive'
+          ? 'border-red-300/70 bg-red-50/80 dark:border-red-900/70 dark:bg-red-950/20'
+          : props.brief.tone === 'warning'
+            ? 'border-amber-300/70 bg-amber-50/80 dark:border-amber-900/70 dark:bg-amber-950/20'
+            : props.brief.tone === 'success'
+              ? 'border-green-300/70 bg-green-50/80 dark:border-green-900/70 dark:bg-green-950/20'
+              : 'border-border/70 bg-border/10',
+      )}
+      data-testid="work-item-recovery-brief"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="grid gap-1">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            Recovery brief
+          </div>
+          <strong className="text-base text-foreground">{props.brief.title}</strong>
+          <p className={mutedBodyClass}>{props.brief.summary}</p>
+        </div>
+        <Badge variant={props.brief.tone}>{props.brief.badge}</Badge>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {props.brief.facts.map((fact) => (
+          <DetailStatCard key={fact.label} label={fact.label} value={fact.value} detail="" />
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function MilestoneOperatorSummarySection(props: {
   summary: {
     totalChildren: number;
@@ -1148,10 +1178,7 @@ function MilestoneOperatorSummarySection(props: {
   };
 }): JSX.Element {
   return (
-    <section
-      className="grid gap-4 md:grid-cols-3"
-      data-testid="milestone-operator-summary"
-    >
+    <section className="grid gap-4 md:grid-cols-3" data-testid="milestone-operator-summary">
       <article className="rounded-xl border border-border/70 bg-border/10 p-4 shadow-sm">
         <div className="mb-2 text-[11px] font-medium uppercase tracking-wide text-muted">
           Milestone group summary
@@ -1196,7 +1223,10 @@ function readStageProgressPercent(stage: DashboardWorkflowStageRecord): number |
     return null;
   }
   const completedCount = Math.max(0, stage.total_work_item_count - stage.open_work_item_count);
-  return Math.min(100, Math.max(0, Math.round((completedCount / stage.total_work_item_count) * 100)));
+  return Math.min(
+    100,
+    Math.max(0, Math.round((completedCount / stage.total_work_item_count) * 100)),
+  );
 }
 
 function readStageProgressWidth(percent: number | null): number {
@@ -1212,23 +1242,19 @@ function readStageProgressWidth(percent: number | null): number {
 function WorkItemTasksSection(props: {
   workflowId: string;
   tasks: DashboardWorkItemTaskRecord[];
+  executionSummary: ReturnType<typeof summarizeWorkItemExecution>;
   isMilestone: boolean;
   childCount: number;
   onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
-  const executionSummary = useMemo(
-    () => summarizeWorkItemExecution(props.tasks),
-    [props.tasks],
-  );
-  const orderedTasks = useMemo(
-    () => sortTasksForOperatorReview(props.tasks),
-    [props.tasks],
-  );
-  const attentionTasks = orderedTasks.filter((task) =>
-    task.state === 'awaiting_approval' ||
-    task.state === 'output_pending_review' ||
-    task.state === 'failed' ||
-    task.state === 'escalated',
+  const executionSummary = props.executionSummary;
+  const orderedTasks = useMemo(() => sortTasksForOperatorReview(props.tasks), [props.tasks]);
+  const attentionTasks = orderedTasks.filter(
+    (task) =>
+      task.state === 'awaiting_approval' ||
+      task.state === 'output_pending_review' ||
+      task.state === 'failed' ||
+      task.state === 'escalated',
   );
 
   if (props.tasks.length === 0) {
@@ -1270,8 +1296,8 @@ function WorkItemTasksSection(props: {
             <Badge variant="outline">{executionSummary.completedSteps} completed</Badge>
           </div>
           <p className={mutedBodyClass}>
-            Roles and stage coverage stay visible here so operators can spot ownership gaps
-            before opening individual step records.
+            Roles and stage coverage stay visible here so operators can spot ownership gaps before
+            opening individual step records.
           </p>
           <div className="grid gap-2">
             <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
@@ -1313,8 +1339,8 @@ function WorkItemTasksSection(props: {
             <div className="grid gap-1">
               <strong className="text-base">Requires operator attention</strong>
               <p className={mutedBodyClass}>
-                The highest-urgency steps are pinned here first so approvals and retries do not
-                get buried below routine execution.
+                The highest-urgency steps are pinned here first so approvals and retries do not get
+                buried below routine execution.
               </p>
             </div>
             <Badge variant="warning">{attentionTasks.length} queued for review</Badge>
@@ -1350,17 +1376,19 @@ function WorkItemTasksSection(props: {
       <div className="grid gap-2">
         <strong className="text-base">Execution queue</strong>
         <p className={mutedBodyClass}>
-          Steps are ordered by operator urgency so approvals, escalations, and retries appear
-          before background progress updates.
+          Steps are ordered by operator urgency so approvals, escalations, and retries appear before
+          background progress updates.
         </p>
       </div>
       {props.isMilestone ? (
         <p className={mutedBodyClass}>
-          Showing execution steps linked to this milestone and its {props.childCount} child work items.
+          Showing execution steps linked to this milestone and its {props.childCount} child work
+          items.
         </p>
       ) : (
         <p className={mutedBodyClass}>
-          Linked execution steps stay here so approvals, rework, and retries remain anchored to the selected work item.
+          Linked execution steps stay here so approvals, rework, and retries remain anchored to the
+          selected work item.
         </p>
       )}
       <div className="grid gap-3 lg:hidden">
@@ -1399,7 +1427,9 @@ function WorkItemTasksSection(props: {
                 </TableCell>
                 <TableCell>{task.role ?? 'Unassigned'}</TableCell>
                 <TableCell>{task.stage_name ?? 'unassigned'}</TableCell>
-                <TableCell>{task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}</TableCell>
+                <TableCell>
+                  {task.depends_on.length > 0 ? task.depends_on.join(', ') : '—'}
+                </TableCell>
                 <TableCell className="min-w-[18rem]">
                   <WorkItemTaskActionCell
                     workflowId={props.workflowId}
@@ -1426,7 +1456,10 @@ function TaskExecutionCard(props: {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="grid gap-2">
           <div className="grid gap-2">
-            <Link to={`/work/tasks/${props.task.id}`} className="text-base font-semibold text-foreground">
+            <Link
+              to={`/work/tasks/${props.task.id}`}
+              className="text-base font-semibold text-foreground"
+            >
               {props.task.title}
             </Link>
             <CopyableIdBadge value={props.task.id} label="Step" />
@@ -1448,9 +1481,7 @@ function TaskExecutionCard(props: {
   );
 }
 
-function TaskDependencySummary(props: {
-  task: DashboardWorkItemTaskRecord;
-}): JSX.Element {
+function TaskDependencySummary(props: { task: DashboardWorkItemTaskRecord }): JSX.Element {
   if (props.task.depends_on.length === 0) {
     return (
       <div className="rounded-lg border border-border/70 bg-background/80 px-3 py-2 text-xs text-muted">
@@ -1556,9 +1587,7 @@ function WorkItemTaskActionCell(props: {
     },
     onError: (mutationError) => {
       setError(
-        mutationError instanceof Error
-          ? mutationError.message
-          : 'Failed to resume escalated step.',
+        mutationError instanceof Error ? mutationError.message : 'Failed to resume escalated step.',
       );
     },
   });
@@ -1592,8 +1621,8 @@ function WorkItemTaskActionCell(props: {
     cancelMutation.isPending;
 
   return (
-      <div className="grid gap-3">
-        <TaskOperatorPosturePanel task={props.task} />
+    <div className="grid gap-3">
+      <TaskOperatorPosturePanel task={props.task} />
       <div className={metaRowClass}>
         {taskLinks.map((action) => (
           <Link key={`${props.task.id}:${action.label}`} to={action.href}>
@@ -1622,7 +1651,12 @@ function WorkItemTaskActionCell(props: {
           </Button>
         ) : null}
         {canRetry ? (
-          <Button size="sm" variant="outline" onClick={() => retryMutation.mutate()} disabled={isAnyMutationPending}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => retryMutation.mutate()}
+            disabled={isAnyMutationPending}
+          >
             Retry Step
           </Button>
         ) : null}
@@ -1695,7 +1729,8 @@ function MilestoneChildrenSection(props: {
         <Badge variant="outline">{props.children.length} items</Badge>
       </div>
       <p className={mutedBodyClass}>
-        Child work items inherit this milestone’s operator context but can move independently across the board.
+        Child work items inherit this milestone’s operator context but can move independently across
+        the board.
       </p>
       {props.children.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-5 text-sm text-muted">
@@ -1865,11 +1900,7 @@ function StructuredValueReview(props: {
   );
 }
 
-function DetailStatCard(props: {
-  label: string;
-  value: string;
-  detail: string;
-}): JSX.Element {
+function DetailStatCard(props: { label: string; value: string; detail: string }): JSX.Element {
   return (
     <div className="grid gap-1 rounded-xl border border-border/70 bg-background/80 p-4">
       <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
@@ -1881,9 +1912,7 @@ function DetailStatCard(props: {
   );
 }
 
-function TaskOperatorPosturePanel(props: {
-  task: DashboardWorkItemTaskRecord;
-}): JSX.Element {
+function TaskOperatorPosturePanel(props: { task: DashboardWorkItemTaskRecord }): JSX.Element {
   const posture = describeTaskOperatorPosture(props.task);
   return (
     <div className="grid gap-1 rounded-lg border border-border/70 bg-background/80 p-3">

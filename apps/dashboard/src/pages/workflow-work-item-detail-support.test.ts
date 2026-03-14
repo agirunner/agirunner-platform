@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildWorkItemRecoveryBrief,
   buildWorkItemBreadcrumbs,
   describeTaskOperatorPosture,
   findWorkItemById,
@@ -567,5 +568,128 @@ describe('workflow work item detail support', () => {
 
     expect(entries.map((entry) => entry.key)).toEqual(['alpha', 'zeta']);
     expect(history.map((entry) => entry.event_id)).toEqual([4, 3]);
+  });
+
+  it('prioritizes failed and escalated steps in the work-item recovery brief', () => {
+    expect(
+      buildWorkItemRecoveryBrief({
+        workItem: {
+          id: 'wi-1',
+          workflow_id: 'wf-1',
+          parent_work_item_id: null,
+          stage_name: 'implementation',
+          title: 'Fix deploy',
+          column_id: 'active',
+          priority: 'high',
+          owner_role: 'engineer',
+        },
+        executionSummary: {
+          totalSteps: 3,
+          awaitingOperator: 0,
+          retryableSteps: 2,
+          activeSteps: 1,
+          completedSteps: 0,
+          distinctRoles: ['engineer'],
+          distinctStages: ['implementation'],
+        },
+      }),
+    ).toEqual({
+      title: 'Recover failed execution first',
+      summary:
+        '2 linked steps failed or escalated. Retry, rework, or resolve the escalation before changing lower-risk routing or notes.',
+      tone: 'destructive',
+      badge: 'Recovery blocking',
+      facts: [
+        { label: 'Board routing', value: 'implementation / active' },
+        { label: 'Owner role', value: 'engineer' },
+        { label: 'Pending review', value: 'No decisions waiting' },
+        { label: 'Execution coverage', value: '1 active / 0 complete' },
+      ],
+    });
+  });
+
+  it('requires milestone decomposition before specialist execution exists', () => {
+    expect(
+      buildWorkItemRecoveryBrief({
+        workItem: {
+          id: 'wi-parent',
+          workflow_id: 'wf-1',
+          parent_work_item_id: null,
+          stage_name: 'implementation',
+          title: 'Release milestone',
+          column_id: 'active',
+          priority: 'normal',
+          is_milestone: true,
+        },
+        executionSummary: {
+          totalSteps: 0,
+          awaitingOperator: 0,
+          retryableSteps: 0,
+          activeSteps: 0,
+          completedSteps: 0,
+          distinctRoles: [],
+          distinctStages: [],
+        },
+        milestoneSummary: {
+          totalChildren: 0,
+          completedChildren: 0,
+          openChildren: 0,
+          awaitingStepReviews: 0,
+          failedSteps: 0,
+          inFlightSteps: 0,
+          activeStageNames: [],
+          activeColumnIds: [],
+        },
+      }),
+    ).toEqual({
+      title: 'Break this milestone into child work items',
+      summary:
+        'Milestones only become actionable once they carry child work. Create at least one child item before expecting specialist execution to show up here.',
+      tone: 'warning',
+      badge: 'Needs decomposition',
+      facts: [
+        { label: 'Board routing', value: 'implementation / active' },
+        { label: 'Owner role', value: 'Unassigned' },
+        { label: 'Pending review', value: 'No decisions waiting' },
+        { label: 'Milestone scope', value: '0 open / 0 child items' },
+      ],
+    });
+  });
+
+  it('surfaces routing gaps before a step-free work item can be scheduled', () => {
+    expect(
+      buildWorkItemRecoveryBrief({
+        workItem: {
+          id: 'wi-1',
+          workflow_id: 'wf-1',
+          parent_work_item_id: null,
+          stage_name: '',
+          title: 'Draft rollout note',
+          column_id: '',
+          priority: 'normal',
+        },
+        executionSummary: {
+          totalSteps: 0,
+          awaitingOperator: 0,
+          retryableSteps: 0,
+          activeSteps: 0,
+          completedSteps: 0,
+          distinctRoles: [],
+          distinctStages: [],
+        },
+      }),
+    ).toEqual({
+      title: 'Restore board routing',
+      summary:
+        'This work item is missing stage routing and board placement. Set both so operators and specialists stay aligned on where this packet belongs.',
+      tone: 'warning',
+      badge: 'Routing incomplete',
+      facts: [
+        { label: 'Board routing', value: 'Missing stage / Missing board column' },
+        { label: 'Owner role', value: 'Unassigned' },
+        { label: 'Pending review', value: 'No decisions waiting' },
+        { label: 'Execution coverage', value: 'No linked specialist steps' },
+      ],
+    });
   });
 });

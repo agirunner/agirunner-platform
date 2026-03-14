@@ -69,6 +69,12 @@ describe('workflow work item detail panel source', () => {
 
   it('surfaces milestone operator context with parent-child navigation and grouped task messaging', () => {
     const source = readSource();
+    expect(source).toContain('buildWorkItemRecoveryBrief');
+    expect(source).toContain('data-testid="work-item-recovery-brief"');
+    expect(source).toContain('Recovery brief');
+    expect(source).toContain('props.brief.badge');
+    expect(source).toContain('props.brief.facts.map((fact) => (');
+    expect(source).toContain('DetailStatCard key={fact.label}');
     expect(source).toContain('Operator breadcrumb');
     expect(source).toContain('Board placement');
     expect(source).toContain('Stage and board routing');
@@ -154,7 +160,9 @@ describe('workflow work item detail panel source', () => {
 
   it('uses human-readable descriptors for work-item event history instead of raw event codes', () => {
     const source = readSource();
-    expect(source).toContain("import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';");
+    expect(source).toContain(
+      "import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';",
+    );
     expect(source).toContain('<WorkItemEventHistorySection');
     expect(source).not.toContain('formatTimelineEventType');
     expect(source).not.toContain('<strong>{event.type}</strong>');
