@@ -376,7 +376,15 @@ export class ModelCatalogService {
     roleName: string,
     primaryModelId: string | null,
     reasoningConfig: Record<string, unknown> | null = null,
-  ): Promise<AssignmentRow> {
+  ): Promise<AssignmentRow | null> {
+    if (!primaryModelId && !reasoningConfig) {
+      await this.pool.query(
+        'DELETE FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
+        [tenantId, roleName],
+      );
+      return null;
+    }
+
     const result = await this.pool.query<AssignmentRow>(
       `INSERT INTO role_model_assignments
         (tenant_id, role_name, primary_model_id, reasoning_config)

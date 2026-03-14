@@ -180,6 +180,45 @@ describe('llm providers page support', () => {
     });
   });
 
+  it('does not surface cleanup messaging when stale counts are zero', () => {
+    expect(
+      summarizeAssignmentSurface({
+        enabledModelCount: 7,
+        defaultModelConfigured: true,
+        roleCount: 7,
+        explicitOverrideCount: 0,
+        staleRoleCount: 0,
+        inactiveRoleCount: 0,
+        missingAssignmentCount: 0,
+        blockingIssues: [],
+      }),
+    ).toEqual({
+      cards: [
+        {
+          label: 'Default route',
+          value: 'System default set',
+          detail: 'Roles without overrides inherit the shared model route.',
+        },
+        {
+          label: 'Explicit overrides',
+          value: '0/7',
+          detail: '7 roles inherit the shared default.',
+        },
+        {
+          label: 'Catalog posture',
+          value: '7 enabled models',
+          detail: 'No stale assignment rows remain.',
+        },
+      ],
+      guidance: {
+        tone: 'success',
+        headline: 'Assignments are ready to save',
+        detail:
+          'System default coverage and role overrides are aligned for the current model catalog.',
+      },
+    });
+  });
+
   it('summarizes ready assignment coverage when defaults and overrides are configured', () => {
     expect(
       summarizeAssignmentSurface({

@@ -104,7 +104,8 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).not.toContain('Needs model source');
     expect(source).toContain('Assignment coverage needs attention');
     expect(source).toContain('Assignments are blocked');
-    expect(source).toContain('Assignments are ready to save');
+    expect(source).toContain('const shouldShowAssignmentGuidance =');
+    expect(source).toContain('assignmentValidation.blockingIssues.length > 0 || hasUnsavedChanges');
     expect(source).toContain('Review providers');
     expect(source).toContain('Review model catalog');
     expect(source).toContain('Default route');
@@ -123,6 +124,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain("Show overrides");
     expect(source).toContain("Hide overrides");
     expect(source).toContain("() => explicitOverrideCount > 0");
+    expect(source).toContain('disabled={saveMutation.isPending || !assignmentValidation.isValid || !hasUnsavedChanges}');
     expect(source).not.toContain('const ROLE_NAMES');
   });
 
