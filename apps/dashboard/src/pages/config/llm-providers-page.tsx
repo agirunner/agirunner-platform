@@ -188,6 +188,19 @@ function panelToneStyle(tone: 'danger' | 'warning' | 'success') {
   return SUCCESS_PANEL_STYLE;
 }
 
+function renderRoleStatusBadge(role: AssignmentRoleRow): JSX.Element {
+  if (role.source === 'system') {
+    return <Badge variant="secondary">System</Badge>;
+  }
+  if (role.isActive) {
+    return <Badge variant="outline">Active</Badge>;
+  }
+  if (role.source === 'catalog') {
+    return <Badge variant="warning">Inactive</Badge>;
+  }
+  return <Badge variant="warning">Assignment only</Badge>;
+}
+
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
 export function formatContextWindow(n?: number): string {
@@ -903,6 +916,8 @@ function ReasoningControl({
     return <span className="text-sm text-muted">N/A</span>;
   }
 
+  const selectClassName = 'h-11 w-full max-w-[180px]';
+
   if (schema.options) {
     const current = (value as string) ?? '__default__';
     return (
@@ -916,7 +931,7 @@ function ReasoningControl({
           }
         }}
       >
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className={selectClassName}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -946,7 +961,7 @@ function ReasoningControl({
             onChange(buildReasoningValue(schema, Math.max(min, Math.min(max, n))));
           }
         }}
-        className="w-[120px]"
+        className="h-11 w-[120px]"
       />
       <span className="text-xs text-muted">Thinking budget</span>
     </div>
@@ -974,10 +989,10 @@ function ModelReasoningSelect({
   const modelReasoningSchema = selectedModel?.reasoning_config ?? null;
   const modelTriggerClassName = modelError
     ? layout === 'table'
-      ? 'w-[380px] border-red-300 focus-visible:ring-red-500'
+      ? 'h-11 w-full max-w-[260px] border-red-300 focus-visible:ring-red-500'
       : 'w-full border-red-300 focus-visible:ring-red-500'
     : layout === 'table'
-      ? 'w-[380px]'
+      ? 'h-11 w-full max-w-[260px]'
       : 'w-full';
   const modelField = (
     <div className="space-y-1">
@@ -1028,8 +1043,12 @@ function ModelReasoningSelect({
 
   return (
     <>
-      <TableCell>{modelField}</TableCell>
-      <TableCell>{reasoningField}</TableCell>
+      <TableCell className="align-middle">
+        <div className="flex justify-center">{modelField}</div>
+      </TableCell>
+      <TableCell className="align-middle whitespace-nowrap">
+        <div className="flex justify-center">{reasoningField}</div>
+      </TableCell>
     </>
   );
 }
@@ -1133,13 +1152,26 @@ function RoleAssignmentsSection({
       modelId: roleStates[role.name]?.modelId ?? '__none__',
     })),
   });
+  const explicitOverrideCount = roleRows.filter((role) => {
+    const state = roleStates[role.name];
+    return (state?.modelId ?? '__none__') !== '__none__' || state?.reasoningConfig != null;
+  }).length;
+  const shouldForceOpenOverrides = staleRoleCount > 0 || !assignmentValidation.isValid;
+  const [isOverridesExpanded, setIsOverridesExpanded] = useState(
+    () => shouldForceOpenOverrides || explicitOverrideCount > 0,
+  );
+
+  useEffect(() => {
+    if (shouldForceOpenOverrides) {
+      setIsOverridesExpanded(true);
+    }
+  }, [shouldForceOpenOverrides]);
+
   const assignmentSurface = summarizeAssignmentSurface({
     enabledModelCount: enabledModels.length,
     defaultModelConfigured: defaultModelId !== '__none__',
     roleCount: roleRows.length,
-    explicitOverrideCount: roleRows.filter(
-      (role) => (roleStates[role.name]?.modelId ?? '__none__') !== '__none__',
-    ).length,
+    explicitOverrideCount,
     staleRoleCount,
     blockingIssues: assignmentValidation.blockingIssues,
   });
@@ -1239,117 +1271,121 @@ function RoleAssignmentsSection({
 
       {/* ── Role Overrides ────────────────────────────────────────────── */}
       <div>
-        <div className="mb-3">
-          <h3 className="text-sm font-semibold">Orchestrator and Role Overrides</h3>
-          <p className="text-xs text-muted">
-            The orchestrator is always configurable here even though it is not a normal role
-            definition. Roles set to &quot;None&quot; inherit the system default, and older
-            assignment rows stay visible until they are cleaned up.
-          </p>
-        </div>
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <Badge variant="secondary">1 orchestrator row</Badge>
-          <Badge variant="outline">{activeRoleCount} active roles</Badge>
-          {staleRoleCount > 0 && (
-            <Badge variant="warning">{staleRoleCount} inactive or missing assignments</Badge>
-          )}
-        </div>
-        <div className="grid gap-3 md:hidden">
-          {roleRows.map((role) => {
-            const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
-            return (
-              <Card key={role.name} className={ELEVATED_SURFACE_CLASS_NAME}>
-                <CardHeader className="space-y-2">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <CardTitle className="text-base">{role.name}</CardTitle>
-                    {role.source === 'system' ? (
-                      <Badge variant="secondary">System</Badge>
-                    ) : role.isActive ? (
-                      <Badge variant="outline">Active</Badge>
-                    ) : role.source === 'catalog' ? (
-                      <Badge variant="warning">Inactive</Badge>
-                    ) : (
-                      <Badge variant="warning">Assignment only</Badge>
-                    )}
-                  </div>
-                  <p className="text-sm leading-6 text-muted">
-                    {role.description?.trim()
-                      ? role.description
-                      : role.source === 'assignment'
-                        ? 'This assignment references a role that is no longer in the active catalog.'
-                        : role.source === 'system'
-                          ? 'Configure the dedicated orchestrator model and reasoning policy here.'
-                          : 'This configured role is currently inactive.'}
-                  </p>
-                </CardHeader>
-                <CardContent>
-                  <ModelReasoningSelect
-                    layout="stack"
-                    modelId={s.modelId}
-                    reasoningConfig={s.reasoningConfig}
-                    enabledModels={enabledModels}
-                    modelError={undefined}
-                    onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
-                    onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
-                  />
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-        <div className="hidden md:block">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-[160px]">Role</TableHead>
-                <TableHead>Model</TableHead>
-                <TableHead>Reasoning</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <button
+          type="button"
+          className="flex w-full items-start justify-between gap-4 rounded-xl border border-border/70 bg-surface px-4 py-3 text-left shadow-sm transition-colors hover:bg-muted/40"
+          onClick={() => setIsOverridesExpanded((open) => !open)}
+          aria-expanded={isOverridesExpanded}
+        >
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              {isOverridesExpanded ? (
+                <ChevronDown className="h-4 w-4 text-muted" />
+              ) : (
+                <ChevronRight className="h-4 w-4 text-muted" />
+              )}
+              <h3 className="text-sm font-semibold">Orchestrator and Role Overrides</h3>
+            </div>
+            <p className="text-xs text-muted">
+              Keep this collapsed to rely on the shared system default. Open it only when the
+              orchestrator or specific roles need different models or reasoning.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="secondary">1 orchestrator row</Badge>
+              <Badge variant="outline">{activeRoleCount} active roles</Badge>
+              <Badge variant={explicitOverrideCount > 0 ? 'default' : 'outline'}>
+                {explicitOverrideCount} explicit overrides
+              </Badge>
+              {staleRoleCount > 0 ? (
+                <Badge variant="warning">{staleRoleCount} inactive or missing assignments</Badge>
+              ) : null}
+            </div>
+          </div>
+          <span className="shrink-0 text-xs font-medium text-muted">
+            {isOverridesExpanded ? 'Hide overrides' : 'Show overrides'}
+          </span>
+        </button>
+        {isOverridesExpanded ? (
+          <div className="mt-4 space-y-4">
+            <p className="text-xs text-muted">
+              The orchestrator is always configurable here even though it is not a normal role
+              definition. Roles set to &quot;None&quot; inherit the system default, and older
+              assignment rows stay visible until they are cleaned up.
+            </p>
+            <div className="grid gap-3 md:hidden">
               {roleRows.map((role) => {
                 const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
                 return (
-                  <TableRow key={role.name}>
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium">{role.name}</span>
-                          {role.source === 'system' ? (
-                            <Badge variant="secondary">System</Badge>
-                          ) : role.isActive ? (
-                            <Badge variant="outline">Active</Badge>
-                          ) : role.source === 'catalog' ? (
-                            <Badge variant="warning">Inactive</Badge>
-                          ) : (
-                            <Badge variant="warning">Assignment only</Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-muted">
-                          {role.description?.trim()
-                            ? role.description
-                            : role.source === 'assignment'
-                              ? 'This assignment references a role that is no longer in the active catalog.'
-                              : role.source === 'system'
-                                ? 'Configure the dedicated orchestrator model and reasoning policy here.'
-                                : 'This configured role is currently inactive.'}
-                        </p>
+                  <Card key={role.name} className={ELEVATED_SURFACE_CLASS_NAME}>
+                    <CardHeader className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <CardTitle className="text-base">{role.name}</CardTitle>
+                        {renderRoleStatusBadge(role)}
                       </div>
-                    </TableCell>
-                    <ModelReasoningSelect
-                      modelId={s.modelId}
-                      reasoningConfig={s.reasoningConfig}
-                      enabledModels={enabledModels}
-                      modelError={undefined}
-                      onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
-                      onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
-                    />
-                  </TableRow>
+                      <p className="text-sm leading-6 text-muted">
+                        {role.description?.trim()
+                          ? role.description
+                          : role.source === 'assignment'
+                            ? 'This assignment references a role that is no longer in the active catalog.'
+                            : role.source === 'system'
+                              ? 'Configure the dedicated orchestrator model and reasoning policy here.'
+                              : 'This configured role is currently inactive.'}
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <ModelReasoningSelect
+                        layout="stack"
+                        modelId={s.modelId}
+                        reasoningConfig={s.reasoningConfig}
+                        enabledModels={enabledModels}
+                        modelError={undefined}
+                        onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
+                        onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
+                      />
+                    </CardContent>
+                  </Card>
                 );
               })}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+            <div className="hidden md:block">
+              <Table className="table-fixed">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-1/4">Role</TableHead>
+                    <TableHead className="w-1/4 text-center">Status</TableHead>
+                    <TableHead className="w-1/4 text-center">Provider Selection</TableHead>
+                    <TableHead className="w-1/4 text-center">Reasoning</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {roleRows.map((role) => {
+                    const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+                    return (
+                      <TableRow key={role.name} className="align-middle [&>td]:py-4">
+                        <TableCell className="font-medium align-middle whitespace-nowrap">
+                          {role.name}
+                        </TableCell>
+                        <TableCell className="align-middle whitespace-nowrap">
+                          <div className="flex justify-center">
+                            {renderRoleStatusBadge(role)}
+                          </div>
+                        </TableCell>
+                        <ModelReasoningSelect
+                          modelId={s.modelId}
+                          reasoningConfig={s.reasoningConfig}
+                          enabledModels={enabledModels}
+                          modelError={undefined}
+                          onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
+                          onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
+                        />
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {/* ── Save ──────────────────────────────────────────────────────── */}

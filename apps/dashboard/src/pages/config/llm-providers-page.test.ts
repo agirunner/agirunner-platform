@@ -114,7 +114,36 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('id="llm-model-catalog"');
     expect(source).toContain('md:hidden');
     expect(source).toContain('hidden md:block');
+    expect(source).toContain('Provider Selection');
+    expect(source).toContain('Status');
+    expect(source).toContain('Keep this collapsed to rely on the shared system default.');
+    expect(source).toContain("Badge variant={explicitOverrideCount > 0 ? 'default' : 'outline'}");
+    expect(source).toContain("aria-expanded={isOverridesExpanded}");
+    expect(source).toContain("Show overrides");
+    expect(source).toContain("Hide overrides");
     expect(source).not.toContain('const ROLE_NAMES');
+  });
+
+  it('keeps role descriptions out of the desktop assignment table for scanability', () => {
+    expect(source.split('This assignment references a role that is no longer in the active catalog.')).toHaveLength(2);
+    expect(source.split('Configure the dedicated orchestrator model and reasoning policy here.')).toHaveLength(2);
+    expect(source.split('This configured role is currently inactive.')).toHaveLength(2);
+  });
+
+  it('renders desktop assignment rows as role, status, provider selection, and reasoning columns', () => {
+    expect(source).toContain('<Table className="table-fixed">');
+    expect(source).toContain('<TableHead className="w-1/4">Role</TableHead>');
+    expect(source).toContain('<TableHead className="w-1/4 text-center">Status</TableHead>');
+    expect(source).toContain('<TableHead className="w-1/4 text-center">Provider Selection</TableHead>');
+    expect(source).toContain('<TableHead className="w-1/4 text-center">Reasoning</TableHead>');
+    expect(source).toContain('<TableRow key={role.name} className="align-middle [&>td]:py-4">');
+    expect(source).toContain('<TableCell className="font-medium align-middle whitespace-nowrap">');
+    expect(source).toContain('<TableCell className="align-middle whitespace-nowrap">');
+    expect(source).toContain('<div className="flex justify-center">');
+    expect(source).toContain("const selectClassName = 'h-11 w-full max-w-[180px]';");
+    expect(source).toContain("? 'h-11 w-full max-w-[260px] border-red-300 focus-visible:ring-red-500'");
+    expect(source).toContain("? 'h-11 w-full max-w-[260px]'");
+    expect(source).toContain('className="h-11 w-[120px]"');
   });
 
   it('renders dynamic ReasoningControl based on model schema', () => {

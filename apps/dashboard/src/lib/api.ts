@@ -1838,6 +1838,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
       body?: Record<string, unknown>;
       includeAuth?: boolean;
+      allowNoContent?: boolean;
     } = {},
   ): Promise<T> {
     const activeSession = readSession();
@@ -1860,6 +1861,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
 
     if (!response.ok) {
       throw new Error(`HTTP ${response.status}`);
+    }
+
+    if (options.allowNoContent && response.status === 204) {
+      return undefined as T;
     }
 
     return response.json() as Promise<T>;
@@ -2627,6 +2632,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(async () => {
         await requestJson(`/api/v1/config/llm/providers/${providerId}`, {
           method: 'DELETE',
+          allowNoContent: true,
         });
       }),
     discoverLlmModels: (providerId) =>
