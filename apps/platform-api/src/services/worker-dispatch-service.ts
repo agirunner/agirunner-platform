@@ -44,6 +44,10 @@ export function selectWorkerForDispatch(candidates: DispatchWorkerCandidate[]): 
 }
 
 export async function dispatchReadyTasks(context: WorkerServiceContext, limit?: number): Promise<number> {
+  if (!context.connectionHub.hasConnectedWorkers()) {
+    return 0;
+  }
+
   const readyTasks = await findReadyTasks(context.pool, limit ?? context.config.WORKER_DISPATCH_BATCH_LIMIT);
   let dispatchedTasks = 0;
 

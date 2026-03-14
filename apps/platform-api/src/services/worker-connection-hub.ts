@@ -27,10 +27,19 @@ export class WorkerConnectionHub {
     return this.workers.has(workerId);
   }
 
+  hasConnectedWorkers(): boolean {
+    for (const connection of this.workers.values()) {
+      if (isSocketOpen(connection.socket)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   listConnectedWorkerIds(tenantId: string): string[] {
     const ids: string[] = [];
     for (const [workerId, connection] of this.workers.entries()) {
-      if (connection.tenantId === tenantId && connection.socket.readyState === connection.socket.OPEN) {
+      if (connection.tenantId === tenantId && isSocketOpen(connection.socket)) {
         ids.push(workerId);
       }
     }
@@ -39,7 +48,7 @@ export class WorkerConnectionHub {
 
   sendToWorker(workerId: string, payload: Record<string, unknown>): boolean {
     const connection = this.workers.get(workerId);
-    if (!connection || connection.socket.readyState !== connection.socket.OPEN) {
+    if (!connection || !isSocketOpen(connection.socket)) {
       return false;
     }
 
@@ -69,4 +78,8 @@ export class WorkerConnectionHub {
     }
     return expired;
   }
+}
+
+function isSocketOpen(socket: WebSocket): boolean {
+  return socket.readyState === socket.OPEN;
 }

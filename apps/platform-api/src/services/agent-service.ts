@@ -136,7 +136,10 @@ export class AgentService {
     const staleAgents = await this.pool.query(
       `SELECT id, tenant_id, status, heartbeat_interval_seconds, last_heartbeat_at, current_task_id
        FROM agents
-       WHERE status IN ('active', 'idle', 'busy', 'degraded', 'inactive')
+       WHERE (
+         status IN ('active', 'idle', 'busy', 'degraded')
+         OR (status = 'inactive' AND current_task_id IS NOT NULL)
+       )
          AND last_heartbeat_at IS NOT NULL
          AND last_heartbeat_at < ($1::timestamptz - (heartbeat_interval_seconds * $2::double precision * INTERVAL '1 millisecond'))`,
       [now, this.config.AGENT_HEARTBEAT_TOLERANCE_MS],

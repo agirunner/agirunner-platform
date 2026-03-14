@@ -82,8 +82,33 @@ export async function enforceHeartbeatTimeouts(context: WorkerServiceContext, no
   const workers = await context.pool.query(
     `SELECT id, tenant_id, status, heartbeat_interval_seconds, last_heartbeat_at
      FROM workers
-     WHERE status IN ('online', 'busy', 'draining', 'degraded', 'disconnected', 'offline')
-       AND last_heartbeat_at IS NOT NULL`,
+     WHERE last_heartbeat_at IS NOT NULL
+       AND (
+         (
+           status = 'online'
+           AND last_heartbeat_at < ($1::timestamptz - (heartbeat_interval_seconds * 1000 * $2::double precision * INTERVAL '1 millisecond'))
+         )
+         OR (
+           status IN ('busy', 'draining', 'degraded')
+           AND last_heartbeat_at < ($1::timestamptz - (heartbeat_interval_seconds * 1000 * $3::double precision * INTERVAL '1 millisecond'))
+         )
+         OR (
+           status = 'disconnected'
+           AND last_heartbeat_at < (
+             $1::timestamptz
+             - (
+               (heartbeat_interval_seconds * 1000 * $3::double precision * INTERVAL '1 millisecond')
+               + ($4::double precision * INTERVAL '1 millisecond')
+             )
+           )
+         )
+       )`,
+    [
+      now,
+      context.config.WORKER_DEGRADED_THRESHOLD_MULTIPLIER,
+      context.config.WORKER_OFFLINE_THRESHOLD_MULTIPLIER,
+      context.config.WORKER_OFFLINE_GRACE_PERIOD_MS,
+    ],
   );
 
   let affected = 0;
