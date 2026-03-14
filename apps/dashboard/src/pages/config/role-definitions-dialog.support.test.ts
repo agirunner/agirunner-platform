@@ -55,7 +55,7 @@ describe('role dialog support', () => {
     expect(
       summarizeRoleSetup({
         ...createRoleForm(),
-        capabilities: ['role:architect', 'lang:typescript'],
+        capabilities: ['architecture', 'documentation'],
         allowedTools: ['file_read'],
         modelPreference: 'gpt-5.4',
         fallbackModel: 'gpt-4.1',
@@ -74,7 +74,7 @@ describe('role dialog support', () => {
 
   it('explains blank, duplicate, and malformed custom additions before they silently fail', () => {
     expect(readCustomCapabilityError('', [])).toBe('Enter a custom capability before adding it.');
-    expect(readCustomCapabilityError('role:architect', ['role:architect'])).toBe(
+    expect(readCustomCapabilityError('architecture', ['architecture'])).toBe(
       'This capability is already added.',
     );
     expect(readCustomCapabilityError('role data scientist', [])).toBe(

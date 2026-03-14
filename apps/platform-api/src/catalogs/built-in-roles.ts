@@ -98,8 +98,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push',
         'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch', 'web_search',
       ],
-      verificationStrategy: 'unit_tests',
-      capabilities: ['llm-api', 'role:developer', 'code-execution', 'git-operations'],
+      verificationStrategy: 'peer_review',
+      capabilities: ['coding', 'testing'],
     },
 
     reviewer: {
@@ -152,8 +152,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'shell_exec', 'git_status', 'git_diff', 'git_log',
         'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch', 'web_search',
       ],
-      verificationStrategy: 'structured_review',
-      capabilities: ['llm-api', 'role:reviewer', 'git-operations'],
+      verificationStrategy: 'peer_review',
+      capabilities: ['code-review', 'security-review'],
     },
 
     architect: {
@@ -212,7 +212,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch', 'web_search',
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['llm-api', 'role:architect', 'git-operations', 'web-research'],
+      capabilities: ['architecture', 'research', 'documentation'],
     },
 
     qa: {
@@ -273,8 +273,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push',
         'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch', 'web_search',
       ],
-      verificationStrategy: 'test_coverage_check',
-      capabilities: ['llm-api', 'role:qa', 'code-execution', 'git-operations'],
+      verificationStrategy: 'peer_review',
+      capabilities: ['testing', 'security-review', 'requirements'],
     },
 
     'product-manager': {
@@ -330,8 +330,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push',
         'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch', 'web_search',
       ],
-      verificationStrategy: 'structured_review',
-      capabilities: ['llm-api', 'role:product-manager', 'git-operations'],
+      verificationStrategy: 'peer_review',
+      capabilities: ['requirements', 'documentation', 'research'],
     },
 
     'project-manager': {
@@ -393,8 +393,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push',
         'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch', 'web_search',
       ],
-      verificationStrategy: 'structured_review',
-      capabilities: ['llm-api', 'role:project-manager', 'git-operations'],
+      verificationStrategy: 'peer_review',
+      capabilities: ['project-management', 'requirements'],
     },
   },
 };

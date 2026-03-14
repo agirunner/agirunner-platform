@@ -24,20 +24,20 @@ describe('FR-751 / FR-750: classifyTaskCapability', () => {
     expect(result).toBe('unknown');
   });
 
-  it('returns can-handle for llm-api only tasks', () => {
-    const result = classifyTaskCapability({ capabilities_required: ['llm-api'] });
+  it('returns can-handle for coding only tasks', () => {
+    const result = classifyTaskCapability({ capabilities_required: ['coding'] });
     expect(result).toBe('can-handle');
   });
 
-  it('returns can-handle for role:developer tasks', () => {
-    const result = classifyTaskCapability({ capabilities_required: ['llm-api', 'role:developer'] });
+  it('returns can-handle for coding and testing tasks', () => {
+    const result = classifyTaskCapability({ capabilities_required: ['coding', 'testing'] });
     expect(result).toBe('can-handle');
   });
 
-  it('returns can-handle for all built-in role capabilities', () => {
-    const roles = ['role:developer', 'role:reviewer', 'role:architect', 'role:qa', 'role:project-manager'];
-    for (const role of roles) {
-      const result = classifyTaskCapability({ capabilities_required: ['llm-api', role] });
+  it('returns can-handle for all built-in generic capabilities', () => {
+    const capabilities = ['coding', 'code-review', 'architecture', 'testing', 'security-review', 'documentation', 'requirements', 'research', 'project-management', 'data-analysis'];
+    for (const capability of capabilities) {
+      const result = classifyTaskCapability({ capabilities_required: [capability] });
       expect(result).toBe('can-handle');
     }
   });
@@ -59,19 +59,19 @@ describe('FR-751 / FR-750: classifyTaskCapability', () => {
   });
 
   it('returns cannot-handle when mix includes a prohibited capability', () => {
-    // Even if llm-api is present, docker-exec makes it ineligible.
-    const result = classifyTaskCapability({ capabilities_required: ['llm-api', 'docker-exec'] });
+    // Even if coding is present, docker-exec makes it ineligible.
+    const result = classifyTaskCapability({ capabilities_required: ['coding', 'docker-exec'] });
     expect(result).toBe('cannot-handle');
   });
 
   it('falls back to capabilities field when capabilities_required is absent', () => {
-    const result = classifyTaskCapability({ capabilities: ['llm-api', 'role:qa'] });
+    const result = classifyTaskCapability({ capabilities: ['coding', 'testing'] });
     expect(result).toBe('can-handle');
   });
 
   it('handles non-string entries in capabilities_required gracefully', () => {
     // Mixed array with non-string entries — only string values are considered.
-    const result = classifyTaskCapability({ capabilities_required: [42, null, 'llm-api'] });
+    const result = classifyTaskCapability({ capabilities_required: [42, null, 'coding'] });
     expect(result).toBe('can-handle');
   });
 });

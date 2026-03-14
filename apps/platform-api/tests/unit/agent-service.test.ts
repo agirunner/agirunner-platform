@@ -24,7 +24,7 @@ describe('AgentService secret redaction', () => {
           {
             id: 'agent-1',
             name: 'coder-01',
-            capabilities: ['llm-api'],
+            capabilities: ['coding'],
             status: 'active',
             metadata: {
               api_key: 'sk-secret-value',
@@ -62,7 +62,7 @@ describe('AgentService secret redaction', () => {
       } as never,
       {
         name: 'coder-01',
-        capabilities: ['llm-api'],
+        capabilities: ['coding'],
       },
     );
 

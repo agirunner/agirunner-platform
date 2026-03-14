@@ -151,7 +151,7 @@ describe('TaskWriteService', () => {
       parallelismService: {
         shouldQueueForCapacity: vi.fn(async () => false),
       } as never,
-      resolveRoleCapabilities: vi.fn(async () => ['llm-api', 'role:developer', 'git-operations']),
+      resolveRoleCapabilities: vi.fn(async () => ['coding', 'testing', 'documentation']),
     });
 
     const result = await service.createTask(
@@ -169,8 +169,8 @@ describe('TaskWriteService', () => {
       },
     );
 
-    expect(insertedCapabilities).toEqual(['llm-api', 'role:developer', 'git-operations']);
-    expect(result.capabilities_required).toEqual(['llm-api', 'role:developer', 'git-operations']);
+    expect(insertedCapabilities).toEqual(['coding', 'testing', 'documentation']);
+    expect(result.capabilities_required).toEqual(['coding', 'testing', 'documentation']);
   });
 
   it('rejects workflow specialist tasks that are not linked to a work item', async () => {

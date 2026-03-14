@@ -12,15 +12,16 @@
 
 /** Capabilities the built-in worker supports. FR-750. */
 const BUILT_IN_SUPPORTED_CAPABILITIES = new Set([
-  'llm-api',
-  'role:developer',
-  'role:reviewer',
-  'role:architect',
-  'role:qa',
-  'role:project-manager',
-  'lang:typescript',
-  'lang:python',
-  'lang:go',
+  'coding',
+  'code-review',
+  'architecture',
+  'testing',
+  'security-review',
+  'documentation',
+  'requirements',
+  'research',
+  'project-management',
+  'data-analysis',
 ]);
 
 /** Capabilities that are explicitly NOT supported by the built-in worker. FR-750. */

@@ -46,7 +46,7 @@ describe('V2 escalation round-trip integration', () => {
     await harness.roleDefinitionService.createRole(identity.tenantId, {
       name: 'developer',
       description: 'Escalation-capable developer specialist',
-      capabilities: ['llm-api', 'role:developer'],
+      capabilities: ['coding', 'testing'],
       escalationTarget: 'human',
       maxEscalationDepth: 3,
     });
@@ -77,17 +77,17 @@ describe('V2 escalation round-trip integration', () => {
       name: 'runtime-escalation-harness',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          capabilities: ['llm-api', 'role:developer'],
+          capabilities: ['coding', 'testing'],
         },
       ],
     });
@@ -116,7 +116,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['llm-api', 'orchestrator'],
+        capabilities: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(playbook.id),
       },
@@ -151,7 +151,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['llm-api', 'orchestrator'],
+        capabilities: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(playbook.id),
       },
@@ -193,7 +193,7 @@ describe('V2 escalation round-trip integration', () => {
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'role:developer'],
+      capabilities: ['coding', 'testing'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -225,7 +225,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['llm-api', 'orchestrator'],
+        capabilities: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(playbook.id),
       },
@@ -285,7 +285,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['llm-api', 'orchestrator'],
+        capabilities: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(playbook.id),
       },
@@ -323,7 +323,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(specialistAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['llm-api', 'role:developer'],
+        capabilities: ['coding', 'testing'],
         include_context: true,
         playbook_id: String(playbook.id),
       },

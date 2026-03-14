@@ -41,7 +41,7 @@ describe('runtime config routes', () => {
         rows: [{
           id: 'worker-1',
           name: 'worker-alpha',
-          capabilities: ['llm-api', 'role:developer'],
+          capabilities: ['coding', 'testing'],
         }],
         rowCount: 1,
       })
@@ -51,8 +51,8 @@ describe('runtime config routes', () => {
           description: 'Implements features',
           system_prompt: 'You are a developer.',
           allowed_tools: ['file_read'],
-          capabilities: ['llm-api', 'role:developer'],
-          verification_strategy: 'unit_tests',
+          capabilities: ['coding', 'testing'],
+          verification_strategy: 'peer_review',
           updated_at: new Date('2026-03-12T00:00:00Z'),
         }],
         rowCount: 1,
