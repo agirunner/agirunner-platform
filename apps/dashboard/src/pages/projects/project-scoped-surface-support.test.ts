@@ -7,23 +7,23 @@ describe('project scoped surface support', () => {
     const definition = buildProjectScopedSurfaceDefinition('documents');
 
     expect(definition.title).toBe('Run content');
-    expect(definition.breadcrumbLabel).toBe('Run content');
-    expect(definition.description).toContain('workflow documents and task artifacts');
+    expect(definition.breadcrumbLabel).toBe('Knowledge');
+    expect(definition.description).toContain('same run content available from Knowledge');
   });
 
   it('builds compact framing for focused artifact evidence review', () => {
     const definition = buildProjectScopedSurfaceDefinition('artifacts');
 
-    expect(definition.title).toBe('Artifact evidence');
-    expect(definition.breadcrumbLabel).toBe('Artifact evidence');
-    expect(definition.description).toContain('delivery evidence');
+    expect(definition.title).toBe('Artifacts');
+    expect(definition.breadcrumbLabel).toBe('Knowledge');
+    expect(definition.description).toContain('same artifact evidence available from Knowledge');
   });
 
   it('builds compact framing for project memory review', () => {
     const definition = buildProjectScopedSurfaceDefinition('memory');
 
-    expect(definition.title).toBe('Project memory');
-    expect(definition.breadcrumbLabel).toBe('Project memory');
-    expect(definition.description).toContain('same knowledge workspace');
+    expect(definition.title).toBe('Memory');
+    expect(definition.breadcrumbLabel).toBe('Knowledge');
+    expect(definition.description).toContain('same shared memory available from Knowledge');
   });
 });

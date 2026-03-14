@@ -37,26 +37,23 @@ export function buildProjectScopedSurfaceDefinition(
 ): ProjectScopedSurfaceDefinition {
   if (workspace === 'artifacts') {
     return {
-      title: 'Artifact evidence',
-      breadcrumbLabel: 'Artifact evidence',
-      description:
-        'Focused delivery evidence review for the same project-scoped outputs surfaced from the project knowledge workspace.',
+      title: 'Artifacts',
+      breadcrumbLabel: 'Knowledge',
+      description: 'Project-scoped view of the same artifact evidence available from Knowledge.',
     };
   }
 
   if (workspace === 'memory') {
     return {
-      title: 'Project memory',
-      breadcrumbLabel: 'Project memory',
-      description:
-        'Focused project and work-item memory review for the same knowledge workspace used on the main project page.',
+      title: 'Memory',
+      breadcrumbLabel: 'Knowledge',
+      description: 'Project-scoped view of the same shared memory available from Knowledge.',
     };
   }
 
   return {
     title: 'Run content',
-    breadcrumbLabel: 'Run content',
-    description:
-      'Focused workflow documents and task artifacts for this project. This stays distinct from project reference material in the knowledge workspace.',
+    breadcrumbLabel: 'Knowledge',
+    description: 'Project-scoped view of the same run content available from Knowledge.',
   };
 }

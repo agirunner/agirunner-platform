@@ -128,7 +128,7 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
                 <Badge variant="outline">{surfaceSummary.configuredSecretLabel}</Badge>
                 <Badge variant="outline">{surfaceSummary.modelOverrideLabel}</Badge>
                 {surfaceSummary.stagedSecretChangeCount > 0 ? (
-                  <Badge variant="warning">{surfaceSummary.stagedSecretChangeLabel}</Badge>
+                  <Badge variant="secondary">{surfaceSummary.stagedSecretChangeLabel}</Badge>
                 ) : null}
                 {surfaceSummary.blockingIssueCount > 0 ? (
                   <Badge variant="warning">
@@ -336,17 +336,13 @@ function SettingsDisclosureSection(props: {
         aria-expanded={props.isExpanded}
         onClick={props.onToggle}
       >
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           <div className="text-base font-semibold text-foreground">{props.title}</div>
           <p className="text-sm leading-6 text-muted">{props.description}</p>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
-            {props.summary}
-          </p>
+          <p className="max-w-3xl text-sm leading-5 text-muted">{props.summary}</p>
         </div>
         <div className="flex items-center gap-2 pt-0.5">
-          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
-            {props.actionLabel}
-          </span>
+          <span className="text-xs font-medium text-muted">{props.actionLabel}</span>
           <ChevronDown
             className={cn(
               'h-4 w-4 shrink-0 text-muted transition-transform',
@@ -440,9 +436,7 @@ function SecretDisclosureRow(props: {
           <p className="text-sm leading-6 text-muted">{summary.detail}</p>
         </div>
         <div className="flex items-center gap-2 pt-0.5">
-          <span className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
-            {actionLabel}
-          </span>
+          <span className="text-xs font-medium text-muted">{actionLabel}</span>
           <ChevronDown
             className={cn(
               'h-4 w-4 shrink-0 text-muted transition-transform',

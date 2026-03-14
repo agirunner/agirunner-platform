@@ -7,7 +7,7 @@ export function ProjectMemoryBrowserPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const projectId = params.id ?? '';
   return (
-    <div className="space-y-6 p-4 sm:p-6">
+    <div className="space-y-4 p-4 sm:p-6">
       <ProjectScopedSurfaceHeader projectId={projectId} workspace="memory" />
       <MemoryBrowserSurface scopedProjectId={projectId} showHeader={false} />
     </div>

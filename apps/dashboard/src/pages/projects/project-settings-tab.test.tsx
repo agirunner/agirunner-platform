@@ -27,6 +27,8 @@ describe('project settings tab source', () => {
     expect(tabSource).toContain('ToggleCard');
     expect(tabSource).toContain('SelectTrigger');
     expect(tabSource).toContain('aria-invalid');
+    expect(tabSource).toContain('max-w-3xl text-sm leading-5 text-muted');
+    expect(tabSource).toContain('<Badge variant="secondary">{surfaceSummary.stagedSecretChangeLabel}</Badge>');
     expect(tabSource).not.toContain('Settings overview');
     expect(tabSource).not.toContain('General');
     expect(tabSource).not.toContain('Repository defaults');
@@ -34,6 +36,7 @@ describe('project settings tab source', () => {
     expect(tabSource).not.toContain('Save readiness');
     expect(tabSource).not.toContain('Jump to section');
     expect(tabSource).not.toContain('Project model overrides must be valid JSON');
+    expect(tabSource).not.toContain('uppercase tracking-[0.16em] text-muted');
   });
 
   it('gives operators explicit secret posture choices instead of silent secret loss', () => {
@@ -69,5 +72,6 @@ describe('project settings tab source', () => {
     expect(source).toContain('summarizeProjectBrief');
     expect(source).toContain('No project brief saved yet.');
     expect(source).toContain('Open brief');
+    expect(source).toContain('Keep long-form project context tucked away');
   });
 });

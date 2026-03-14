@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import { dashboardApi } from '../../lib/api.js';
-import { Badge } from '../../components/ui/badge.js';
 import {
   buildProjectScopedSurfaceDefinition,
   resolveProjectScopedIdentity,
@@ -25,6 +24,12 @@ export function ProjectScopedSurfaceHeader(props: {
   const projectIdentity = resolveProjectScopedIdentity(props.projectId, projectQuery.data);
   const projectTitle = projectQuery.data ? projectIdentity.title : 'Project';
   const projectSlug = projectQuery.data ? projectIdentity.slug : null;
+  const projectLabel =
+    projectTitle === 'Project'
+      ? null
+      : projectSlug && projectSlug !== projectTitle
+        ? `${projectTitle} (${projectSlug})`
+        : projectTitle;
 
   useEffect(() => {
     if (!projectQuery.data) {
@@ -58,24 +63,24 @@ export function ProjectScopedSurfaceHeader(props: {
   ]);
 
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2 text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
+    <section className="space-y-2">
+      <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
         <Link
           className="transition-colors hover:text-foreground"
           to={`/projects/${props.projectId}?tab=knowledge`}
         >
-          Project knowledge
+          Back to Knowledge
         </Link>
-        <span>/</span>
-        <span>{definition.breadcrumbLabel}</span>
+        {projectLabel ? (
+          <>
+            <span aria-hidden="true">/</span>
+            <span>{projectLabel}</span>
+          </>
+        ) : null}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex flex-wrap items-center gap-2 text-sm text-muted">
-          <span className="font-medium text-foreground">{projectTitle}</span>
-          {projectSlug ? <Badge variant="outline">{projectSlug}</Badge> : null}
-        </div>
-        <h1 className="text-xl font-semibold tracking-tight">{definition.title}</h1>
+      <div className="space-y-1">
+        <h1 className="text-lg font-semibold tracking-tight">{definition.title}</h1>
         <p className="max-w-3xl text-sm leading-6 text-muted">{definition.description}</p>
       </div>
     </section>
