@@ -16,6 +16,7 @@ import {
   shortId,
   summarizeLogContext,
 } from '../../components/execution-inspector-support.js';
+import { formatLogRelativeTime } from '../../components/log-viewer/log-time.js';
 
 export interface InspectorOverviewCard {
   title: string;
@@ -431,24 +432,5 @@ function sumCost(stats?: LogStatsResponse): number {
 }
 
 function formatRecentActivityAge(createdAt: string, now: number): string {
-  const created = new Date(createdAt).getTime();
-  if (!Number.isFinite(created)) {
-    return 'Unknown time';
-  }
-
-  const elapsedMinutes = Math.max(0, Math.floor((now - created) / 60_000));
-  if (elapsedMinutes < 1) {
-    return 'Just now';
-  }
-  if (elapsedMinutes < 60) {
-    return `${elapsedMinutes}m ago`;
-  }
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) {
-    return `${elapsedHours}h ago`;
-  }
-
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  return `${elapsedDays}d ago`;
+  return formatLogRelativeTime(createdAt, now);
 }

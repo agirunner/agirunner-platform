@@ -15,6 +15,7 @@ import {
   shortId,
   statusVariant,
 } from './execution-inspector-support.js';
+import { formatLogRelativeTime } from './log-viewer/log-time.js';
 
 const INITIAL_VISIBLE_COUNT = 20;
 const VISIBLE_INCREMENT = 20;
@@ -155,25 +156,8 @@ function describeRecordedAt(createdAt: string): {
   relative: string;
   absolute: string;
 } {
-  const timestamp = new Date(createdAt).getTime();
-  const absolute = new Date(createdAt).toLocaleString();
-  if (!Number.isFinite(timestamp)) {
-    return { relative: 'Unknown time', absolute };
-  }
-
-  const elapsedMinutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
-  if (elapsedMinutes < 1) {
-    return { relative: 'Just now', absolute };
-  }
-  if (elapsedMinutes < 60) {
-    return { relative: `${elapsedMinutes}m ago`, absolute };
-  }
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) {
-    return { relative: `${elapsedHours}h ago`, absolute };
-  }
-
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  return { relative: `${elapsedDays}d ago`, absolute };
+  return {
+    relative: formatLogRelativeTime(createdAt),
+    absolute: new Date(createdAt).toLocaleString(),
+  };
 }

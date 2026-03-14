@@ -2,6 +2,7 @@ import { ChevronRight, ChevronDown } from 'lucide-react';
 import type { LogEntry } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import { getCanonicalStageName } from './log-entry-context.js';
+import { formatLogRelativeTime } from './log-time.js';
 
 export interface LogEntryRowProps {
   entry: LogEntry;
@@ -55,24 +56,6 @@ function formatTimestamp(iso: string): string {
   const mm = String(d.getMinutes()).padStart(2, '0');
   const ss = String(d.getSeconds()).padStart(2, '0');
   return `${mon}/${day} ${hh}:${mm}:${ss}`;
-}
-
-function formatRelativeTime(iso: string): string {
-  const deltaSeconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
-  const absSeconds = Math.abs(deltaSeconds);
-  if (absSeconds < 60) {
-    return deltaSeconds >= 0 ? `${absSeconds}s ago` : `in ${absSeconds}s`;
-  }
-  const absMinutes = Math.round(absSeconds / 60);
-  if (absMinutes < 60) {
-    return deltaSeconds >= 0 ? `${absMinutes}m ago` : `in ${absMinutes}m`;
-  }
-  const absHours = Math.round(absMinutes / 60);
-  if (absHours < 24) {
-    return deltaSeconds >= 0 ? `${absHours}h ago` : `in ${absHours}h`;
-  }
-  const absDays = Math.round(absHours / 24);
-  return deltaSeconds >= 0 ? `${absDays}d ago` : `in ${absDays}d`;
 }
 
 function formatDuration(ms: number | null | undefined): string {
@@ -282,7 +265,6 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
   const catStyle = CATEGORY_STYLES[entry.category] ?? 'bg-slate-100 text-slate-700';
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
   const duration = formatDuration(entry.duration_ms);
-  const isError = entry.level === 'error';
   const role = getRole(entry);
 
   return (
@@ -290,7 +272,6 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       className={cn(
         'border-b border-border/40 border-l-2 cursor-pointer hover:bg-muted/40 transition-colors text-[13px]',
         accent,
-        isError && 'bg-red-500/5',
       )}
       onClick={onToggle}
       tabIndex={0}
@@ -335,7 +316,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
         className="px-1.5 py-1 text-muted-foreground tabular-nums whitespace-nowrap"
         title={formatTimestamp(entry.created_at)}
       >
-        {formatRelativeTime(entry.created_at)}
+        {formatLogRelativeTime(entry.created_at)}
       </td>
 
       {/* Category */}
@@ -393,9 +374,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       </td>
 
       {/* Operation */}
-      <td
-        className={cn('px-1.5 py-1 font-medium max-w-[200px] truncate', isError && 'text-red-600')}
-      >
+      <td className="px-1.5 py-1 font-medium max-w-[200px] truncate">
         {entry.operation}
       </td>
 

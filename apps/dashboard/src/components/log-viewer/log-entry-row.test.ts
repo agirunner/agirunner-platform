@@ -7,14 +7,15 @@ function readSource(): string {
 }
 
 describe('log entry row source', () => {
-  it('uses board-first labels and relative timestamps in the compact table', () => {
+  it('uses board-first labels, shared relative timestamps, and no full-row error wash', () => {
     const source = readSource();
 
-    expect(source).toContain('function formatRelativeTime(iso: string)');
+    expect(source).toContain("import { formatLogRelativeTime } from './log-time.js';");
     expect(source).toContain('title={formatTimestamp(entry.created_at)}');
-    expect(source).toContain('{formatRelativeTime(entry.created_at)}');
+    expect(source).toContain('{formatLogRelativeTime(entry.created_at)}');
     expect(source).toContain('>Board</th>');
     expect(source).toContain('>Activity summary</th>');
+    expect(source).not.toContain("bg-red-500/5");
     expect(source).not.toContain('>Workflow</th>');
     expect(source).not.toContain('>Detail</th>');
   });
