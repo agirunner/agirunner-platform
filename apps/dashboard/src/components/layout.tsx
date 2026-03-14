@@ -122,18 +122,24 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Roles & Orchestrator', href: '/config/roles', icon: Users, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture', 'specialist', 'agent roles', 'role definitions'] },
       { label: 'Platform Instructions', href: '/config/instructions', icon: ScrollText },
       { label: 'LLM Providers', href: '/config/llm', icon: Cog },
-      { label: 'Runtimes', href: '/config/runtimes', icon: Server },
-      { label: 'Integrations', href: '/config/integrations', icon: Link2 },
       { label: 'Tools', href: '/config/tools', icon: Wrench },
-      { label: 'Webhooks', href: '/config/webhooks', icon: Webhook },
-      { label: 'Trigger Overview', href: '/config/triggers', icon: Zap },
       { label: 'AI Assistant', href: '/config/assistant', icon: Sparkles },
+    ],
+  },
+  {
+    label: 'Integrations',
+    icon: Link2,
+    items: [
+      { label: 'Integrations', href: '/config/integrations', icon: Link2 },
+      { label: 'Webhooks', href: '/config/webhooks', icon: Webhook },
+      { label: 'Triggers', href: '/config/triggers', icon: Zap },
     ],
   },
   {
     label: 'Fleet',
     icon: Server,
     items: [
+      { label: 'Runtimes', href: '/config/runtimes', icon: Server },
       { label: 'Workers', href: '/fleet/workers', icon: Server },
       { label: 'Agents', href: '/fleet/agents', icon: Users },
       { label: 'Docker', href: '/fleet/docker', icon: Container },
