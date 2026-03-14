@@ -22,7 +22,7 @@ describe('logs page source', () => {
     expect(source).toContain(
       "Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.",
     );
-    expect(source).toContain('Current surface');
+    expect(source).toContain('{!rawFirstSurface ? (');
     expect(source).toContain("rawFirstSurface ? 'Log Stream' : 'Raw Logs'");
     expect(source).toContain("rawFirstSurface ? 'Activity Summary' : 'Summary'");
     expect(source).toContain("rawFirstSurface ? 'Delivery Packets' : 'Delivery'");
@@ -55,19 +55,30 @@ describe('logs page source', () => {
     expect(source).toContain("aria-label=\"Log view\"");
   });
 
-  it('shows raw logs first with activity packets additive below', () => {
+  it('raw tab renders only the log stream without inspector chrome', () => {
+    const source = readPage();
+    const rawTabStart = source.indexOf('TabsContent value="raw"');
+    const rawTabEnd = source.indexOf('</TabsContent>', rawTabStart);
+    const rawTabContent = source.slice(rawTabStart, rawTabEnd);
+
+    expect(rawTabContent).toContain('<LogViewer');
+    expect(rawTabContent).not.toContain('LogsPageActivityPackets');
+    expect(rawTabContent).not.toContain('Current surface');
+  });
+
+  it('keeps activity packets additive on the summary tab', () => {
     const source = readPage();
     const packetsSource = readActivityPackets();
     expect(source).toContain('LogsPageActivityPackets');
     expect(source).toContain('buildRecentLogActivityPackets(entries)');
     expect(source).toContain("updateView('detailed')");
 
-    // LogViewer must render before activity packets so raw events are immediately visible
-    const rawTabContent = source.slice(source.indexOf("TabsContent value=\"raw\""));
-    const logViewerPos = rawTabContent.indexOf('<LogViewer');
-    const activityPacketsPos = rawTabContent.indexOf('<LogsPageActivityPackets');
-    expect(logViewerPos).toBeGreaterThan(-1);
-    expect(activityPacketsPos).toBeGreaterThan(logViewerPos);
+    // Activity packets must be on the summary tab, not the raw tab
+    const summaryTabStart = source.indexOf('TabsContent value="summary"');
+    const summaryTabEnd = source.indexOf('</TabsContent>', summaryTabStart);
+    const summaryTabContent = source.slice(summaryTabStart, summaryTabEnd);
+    expect(summaryTabContent).toContain('LogsPageActivityPackets');
+    expect(summaryTabContent).toContain('operator-log-activity-packets');
 
     expect(packetsSource).toContain('Recent activity packets');
     expect(packetsSource).toContain('packet.actorLabel');
@@ -101,6 +112,5 @@ describe('logs page source', () => {
     expect(source).toContain('isSelectedOutsideSegment');
     expect(source).toContain('loadedCount={entries.length}');
     expect(source).toContain('md:grid-cols-3');
-    expect(source).toContain('operator-log-activity-packets');
   });
 });

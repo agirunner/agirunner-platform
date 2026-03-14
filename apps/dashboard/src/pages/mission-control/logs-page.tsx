@@ -264,7 +264,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
 
   return (
     <div data-testid="operator-log-surface" className="flex flex-col gap-6 p-6">
-      <section className="grid gap-4 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]">
+      <section className={`grid gap-4 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm${!rawFirstSurface ? ' xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]' : ''}`}>
         <div className="grid gap-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">Operator Log</h1>
@@ -305,22 +305,24 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             ) : null}
           </div>
         </div>
-        <Card className="border-border/70 bg-background/80 shadow-none">
-          <CardContent className="grid gap-3 p-4">
-            <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-              Current surface
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-              <SurfaceFact label="Mode" value={surfaceSummary} />
-              <SurfaceFact label="Scope" value={scopeSummary} />
-              <SurfaceFact label="Open tab" value={activeTabLabel} />
-            </div>
-            <p className="text-sm leading-6 text-muted">
-              Stay in the raw stream until one packet clearly explains the current execution story,
-              then move into delivery or trace detail for that single slice.
-            </p>
-          </CardContent>
-        </Card>
+        {!rawFirstSurface ? (
+          <Card className="border-border/70 bg-background/80 shadow-none">
+            <CardContent className="grid gap-3 p-4">
+              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+                Current surface
+              </div>
+              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                <SurfaceFact label="Mode" value={surfaceSummary} />
+                <SurfaceFact label="Scope" value={scopeSummary} />
+                <SurfaceFact label="Open tab" value={activeTabLabel} />
+              </div>
+              <p className="text-sm leading-6 text-muted">
+                Stay in the raw stream until one packet clearly explains the current execution story,
+                then move into delivery or trace detail for that single slice.
+              </p>
+            </CardContent>
+          </Card>
+        ) : null}
       </section>
 
       {scopedWorkflowId ? (
@@ -400,21 +402,10 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
         </div>
 
         <TabsContent value="raw" id="operator-log-raw-stream">
-          <div className="space-y-4">
-            <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />
-            <section id="operator-log-activity-packets">
-              <LogsPageActivityPackets
-                packets={recentActivityPackets}
-                onOpenTrace={(logId) => {
-                  updateSelection(logId);
-                  updateView('detailed');
-                }}
-              />
-            </section>
-          </div>
+          <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />
         </TabsContent>
 
-        <TabsContent value="summary" id="operator-log-summary">
+        <TabsContent value="summary" id="operator-log-summary" className="space-y-4">
           <ExecutionInspectorSummaryView
             stats={statsQuery.data}
             operations={operationsQuery.data?.data ?? []}
@@ -428,6 +419,15 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             }
             hasError={Boolean(statsQuery.error)}
           />
+          <section id="operator-log-activity-packets">
+            <LogsPageActivityPackets
+              packets={recentActivityPackets}
+              onOpenTrace={(logId) => {
+                updateSelection(logId);
+                updateView('detailed');
+              }}
+            />
+          </section>
         </TabsContent>
 
         <TabsContent value="detailed" id="operator-log-delivery" className="space-y-4">
