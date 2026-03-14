@@ -4,7 +4,7 @@ import { Loader2, Plus } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
-import { readSession } from '../../lib/session.js';
+import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import {
   DeleteWebhookDialog,
@@ -24,82 +24,6 @@ import {
 
 type EditorTarget = 'create' | WebhookRecord;
 
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-function getAuthHeaders(): Record<string, string> {
-  const session = readSession();
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return headers;
-}
-
-async function fetchWebhooks(): Promise<WebhookRecord[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/webhooks`, {
-    headers: getAuthHeaders(),
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function createWebhook(payload: {
-  url: string;
-  event_types: string[];
-  secret?: string;
-}): Promise<WebhookRecord> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/webhooks`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function updateWebhook(
-  id: string,
-  payload: { url?: string; event_types?: string[]; is_active?: boolean },
-): Promise<WebhookRecord> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/webhooks/${id}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-    body: JSON.stringify(payload),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function deleteWebhook(id: string): Promise<void> {
-  const session = readSession();
-  const headers: Record<string, string> = {};
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  const response = await fetch(`${API_BASE_URL}/api/v1/webhooks/${id}`, {
-    method: 'DELETE',
-    headers,
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-}
-
 export function WebhooksPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [editorTarget, setEditorTarget] = useState<EditorTarget | null>(null);
@@ -108,11 +32,12 @@ export function WebhooksPage(): JSX.Element {
 
   const webhooksQuery = useQuery({
     queryKey: ['webhooks'],
-    queryFn: fetchWebhooks,
+    queryFn: () => dashboardApi.listWebhooks(),
   });
 
   const createMutation = useMutation({
-    mutationFn: createWebhook,
+    mutationFn: (payload: { url: string; event_types: string[]; secret?: string }) =>
+      dashboardApi.createWebhook(payload),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['webhooks'] });
       setEditorTarget(null);
@@ -130,7 +55,7 @@ export function WebhooksPage(): JSX.Element {
     }: {
       id: string;
       payload: { url?: string; event_types?: string[]; is_active?: boolean };
-    }) => updateWebhook(id, payload),
+    }) => dashboardApi.updateWebhook(id, payload),
     onSuccess: async (_data, variables) => {
       await queryClient.invalidateQueries({ queryKey: ['webhooks'] });
       if (variables.payload.is_active === undefined) {
@@ -150,7 +75,7 @@ export function WebhooksPage(): JSX.Element {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: deleteWebhook,
+    mutationFn: (id: string) => dashboardApi.deleteWebhook(id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['webhooks'] });
       setDeleteTarget(null);

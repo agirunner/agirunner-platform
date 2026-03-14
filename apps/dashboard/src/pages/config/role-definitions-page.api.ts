@@ -1,4 +1,4 @@
-import { readSession } from '../../lib/session.js';
+import { dashboardApi } from '../../lib/api.js';
 import type { RoleAssignmentRecord, SystemDefaultRecord } from './role-definitions-orchestrator.support.js';
 import type {
   LlmModelRecord,
@@ -8,71 +8,39 @@ import type {
 } from './role-definitions-page.support.js';
 import { buildRolePayload } from './role-definitions-page.support.js';
 
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
+export const fetchRoles = (): Promise<RoleDefinition[]> =>
+  dashboardApi.listRoleDefinitions() as Promise<RoleDefinition[]>;
 
-function getAuthHeaders(): Record<string, string> {
-  const session = readSession();
-  return {
-    'Content-Type': 'application/json',
-    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-  };
-}
+export const fetchProviders = (): Promise<LlmProviderRecord[]> =>
+  dashboardApi.listLlmProviders() as Promise<LlmProviderRecord[]>;
 
-async function requestData<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: 'include',
-    headers: getAuthHeaders(),
-    ...init,
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return (body.data ?? body) as T;
-}
+export const fetchModels = (): Promise<LlmModelRecord[]> =>
+  dashboardApi.listLlmModels() as Promise<LlmModelRecord[]>;
 
-export const fetchRoles = () => requestData<RoleDefinition[]>('/api/v1/config/roles');
+export const fetchSystemDefault = (): Promise<SystemDefaultRecord> =>
+  dashboardApi.getLlmSystemDefault();
 
-export const fetchProviders = () =>
-  requestData<LlmProviderRecord[]>('/api/v1/config/llm/providers');
-
-export const fetchModels = () => requestData<LlmModelRecord[]>('/api/v1/config/llm/models');
-
-export const fetchSystemDefault = () =>
-  requestData<SystemDefaultRecord>('/api/v1/config/llm/system-default');
-
-export const fetchAssignments = () =>
-  requestData<RoleAssignmentRecord[]>('/api/v1/config/llm/assignments');
+export const fetchAssignments = (): Promise<RoleAssignmentRecord[]> =>
+  dashboardApi.listLlmAssignments();
 
 export function saveRole(roleId: string | null, form: RoleFormState) {
-  return requestData<RoleDefinition>(
-    roleId ? `/api/v1/config/roles/${roleId}` : '/api/v1/config/roles',
-    {
-      method: roleId ? 'PUT' : 'POST',
-      body: JSON.stringify(buildRolePayload(form)),
-    },
-  );
+  return dashboardApi.saveRoleDefinition(
+    roleId,
+    buildRolePayload(form) as Record<string, unknown>,
+  ) as Promise<RoleDefinition>;
 }
 
 export function deleteRole(roleId: string) {
-  return requestData<Record<string, never>>(`/api/v1/config/roles/${roleId}`, {
-    method: 'DELETE',
-  }).then(() => undefined);
+  return dashboardApi.deleteRoleDefinition(roleId);
 }
 
 export function updateSystemDefault(payload: SystemDefaultRecord) {
-  return requestData<SystemDefaultRecord>('/api/v1/config/llm/system-default', {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
+  return dashboardApi.updateLlmSystemDefault(payload);
 }
 
 export function updateAssignment(
   roleName: string,
   payload: { primaryModelId?: string; reasoningConfig?: Record<string, unknown> | null },
 ) {
-  return requestData<RoleAssignmentRecord>(`/api/v1/config/llm/assignments/${roleName}`, {
-    method: 'PUT',
-    body: JSON.stringify(payload),
-  });
+  return dashboardApi.updateLlmAssignment(roleName, payload);
 }

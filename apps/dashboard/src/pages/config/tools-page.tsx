@@ -19,7 +19,7 @@ import {
   TableHeader,
   TableRow,
 } from '../../components/ui/table.js';
-import { readSession } from '../../lib/session.js';
+import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import {
   buildEditToolForm,
@@ -35,80 +35,14 @@ import {
 import { ToolDialog } from './tools-page.dialog.js';
 import { DeleteToolDialog } from './tools-page.delete-dialog.js';
 
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 const INITIAL_FORM: CreateToolForm = { id: '', name: '', description: '', category: 'runtime' };
-
-function getAuthHeaders(): Record<string, string> {
-  const session = readSession();
-  return {
-    'Content-Type': 'application/json',
-    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
-  };
-}
-
-async function fetchTools(): Promise<ToolTag[]> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/tools`, {
-    headers: getAuthHeaders(),
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function createTool(payload: CreateToolForm): Promise<ToolTag> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/tools`, {
-    method: 'POST',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({
-      id: payload.id.trim(),
-      name: payload.name.trim(),
-      description: payload.description.trim() || undefined,
-      category: payload.category,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function updateTool(toolId: string, payload: EditToolForm): Promise<ToolTag> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/tools/${encodeURIComponent(toolId)}`, {
-    method: 'PATCH',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-    body: JSON.stringify({
-      name: payload.name.trim(),
-      description: payload.description.trim() || undefined,
-      category: payload.category,
-    }),
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function deleteTool(toolId: string): Promise<void> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/tools/${encodeURIComponent(toolId)}`, {
-    method: 'DELETE',
-    headers: getAuthHeaders(),
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-}
 
 export function ToolsPage(): JSX.Element {
   const queryClient = useQueryClient();
-  const { data = [], isLoading, error } = useQuery({ queryKey: ['tools'], queryFn: fetchTools });
+  const { data = [], isLoading, error } = useQuery({
+    queryKey: ['tools'],
+    queryFn: () => dashboardApi.listToolTags(),
+  });
 
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateToolForm>(INITIAL_FORM);
@@ -124,7 +58,13 @@ export function ToolsPage(): JSX.Element {
   const editValidation = useMemo(() => validateEditToolForm(editForm), [editForm]);
 
   const createMutation = useMutation({
-    mutationFn: () => createTool(createForm),
+    mutationFn: () =>
+      dashboardApi.createToolTag({
+        id: createForm.id.trim(),
+        name: createForm.name.trim(),
+        description: createForm.description.trim() || undefined,
+        category: createForm.category,
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['tools'] });
       setCreateForm(INITIAL_FORM);
@@ -138,7 +78,12 @@ export function ToolsPage(): JSX.Element {
   });
 
   const editMutation = useMutation({
-    mutationFn: () => updateTool(editingTool!.id, editForm),
+    mutationFn: () =>
+      dashboardApi.updateToolTag(editingTool!.id, {
+        name: editForm.name.trim(),
+        description: editForm.description.trim() || undefined,
+        category: editForm.category,
+      }),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['tools'] });
       setEditingTool(null);
@@ -150,7 +95,7 @@ export function ToolsPage(): JSX.Element {
   });
 
   const deleteMutation = useMutation({
-    mutationFn: () => deleteTool(deletingTool!.id),
+    mutationFn: () => dashboardApi.deleteToolTag(deletingTool!.id),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['tools'] });
       setDeletingTool(null);

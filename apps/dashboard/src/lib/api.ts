@@ -158,6 +158,91 @@ export interface DashboardToolTagRecord {
   name: string;
   description?: string | null;
   category?: string | null;
+  created_at?: string;
+  is_built_in?: boolean;
+}
+
+export interface DashboardToolTagCreateInput {
+  id: string;
+  name: string;
+  description?: string;
+  category: string;
+}
+
+export interface DashboardToolTagUpdateInput {
+  name: string;
+  description?: string;
+  category: string;
+}
+
+export interface DashboardOutboundWebhookRecord {
+  id: string;
+  url: string;
+  event_types: string[];
+  is_active: boolean;
+  created_at?: string;
+}
+
+export interface DashboardOutboundWebhookCreateInput {
+  url: string;
+  event_types: string[];
+  secret?: string;
+}
+
+export interface DashboardOutboundWebhookUpdateInput {
+  url?: string;
+  event_types?: string[];
+  is_active?: boolean;
+}
+
+export interface DashboardRuntimeDefaultRecord {
+  id: string;
+  config_key: string;
+  config_value: string;
+  config_type: string;
+  description: string | null;
+}
+
+export interface DashboardRuntimeDefaultUpsertInput {
+  configKey: string;
+  configValue: string;
+  configType: 'string' | 'number';
+  description: string;
+}
+
+export interface DashboardLlmSystemDefaultRecord {
+  modelId: string | null;
+  reasoningConfig: Record<string, unknown> | null;
+}
+
+export interface DashboardLlmAssignmentRecord {
+  role_name: string;
+  primary_model_id?: string | null;
+  reasoning_config?: Record<string, unknown> | null;
+}
+
+export interface DashboardLlmProviderCreateInput {
+  name: string;
+  baseUrl: string;
+  apiKeySecretRef: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface DashboardOAuthProfileRecord {
+  profileId: string;
+  displayName: string;
+  description: string;
+  providerType: string;
+  costModel: string;
+}
+
+export interface DashboardOAuthStatusRecord {
+  connected: boolean;
+  email: string | null;
+  authorizedAt: string | null;
+  expiresAt: string | null;
+  authorizedBy: string | null;
+  needsReauth: boolean;
 }
 
 export interface DashboardEffectiveModelResolution {
@@ -1384,6 +1469,36 @@ export interface DashboardApi {
   restorePlaybook(playbookId: string): Promise<DashboardPlaybookRecord>;
   deletePlaybook(playbookId: string): Promise<void>;
   listToolTags(): Promise<DashboardToolTagRecord[]>;
+  createToolTag(payload: DashboardToolTagCreateInput): Promise<DashboardToolTagRecord>;
+  updateToolTag(toolId: string, payload: DashboardToolTagUpdateInput): Promise<DashboardToolTagRecord>;
+  deleteToolTag(toolId: string): Promise<void>;
+  listWebhooks(): Promise<DashboardOutboundWebhookRecord[]>;
+  createWebhook(payload: DashboardOutboundWebhookCreateInput): Promise<DashboardOutboundWebhookRecord>;
+  updateWebhook(id: string, payload: DashboardOutboundWebhookUpdateInput): Promise<DashboardOutboundWebhookRecord>;
+  deleteWebhook(id: string): Promise<void>;
+  listRuntimeDefaults(): Promise<DashboardRuntimeDefaultRecord[]>;
+  upsertRuntimeDefault(input: DashboardRuntimeDefaultUpsertInput): Promise<void>;
+  deleteRuntimeDefault(id: string): Promise<void>;
+  saveRoleDefinition(
+    roleId: string | null,
+    payload: Record<string, unknown>,
+  ): Promise<{ id: string; name: string; description: string | null; is_active: boolean }>;
+  deleteRoleDefinition(roleId: string): Promise<void>;
+  getLlmSystemDefault(): Promise<DashboardLlmSystemDefaultRecord>;
+  updateLlmSystemDefault(payload: DashboardLlmSystemDefaultRecord): Promise<void>;
+  listLlmAssignments(): Promise<DashboardLlmAssignmentRecord[]>;
+  updateLlmAssignment(
+    roleName: string,
+    payload: { primaryModelId?: string; reasoningConfig?: Record<string, unknown> | null },
+  ): Promise<void>;
+  createLlmProvider(payload: DashboardLlmProviderCreateInput): Promise<DashboardLlmProviderRecord>;
+  deleteLlmProvider(providerId: string): Promise<void>;
+  discoverLlmModels(providerId: string): Promise<unknown[]>;
+  updateLlmModel(modelId: string, payload: Record<string, unknown>): Promise<void>;
+  listOAuthProfiles(): Promise<DashboardOAuthProfileRecord[]>;
+  initiateOAuthFlow(profileId: string): Promise<{ authorizeUrl: string }>;
+  getOAuthProviderStatus(providerId: string): Promise<DashboardOAuthStatusRecord>;
+  disconnectOAuthProvider(providerId: string): Promise<void>;
   listLlmProviders(): Promise<DashboardLlmProviderRecord[]>;
   listLlmModels(): Promise<DashboardLlmModelRecord[]>;
   createWorkflow(payload: {
@@ -2353,6 +2468,172 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'GET',
         }),
       ),
+    createToolTag: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardToolTagRecord>('/api/v1/tools', {
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    updateToolTag: (toolId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardToolTagRecord>(
+          `/api/v1/tools/${encodeURIComponent(toolId)}`,
+          {
+            method: 'PATCH',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        ),
+      ),
+    deleteToolTag: (toolId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/tools/${encodeURIComponent(toolId)}`, {
+          method: 'DELETE',
+        });
+      }),
+    listWebhooks: () =>
+      withRefresh(() =>
+        requestData<DashboardOutboundWebhookRecord[]>('/api/v1/webhooks', {
+          method: 'GET',
+        }),
+      ),
+    createWebhook: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardOutboundWebhookRecord>('/api/v1/webhooks', {
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    updateWebhook: (id, payload) =>
+      withRefresh(() =>
+        requestData<DashboardOutboundWebhookRecord>(`/api/v1/webhooks/${id}`, {
+          method: 'PATCH',
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    deleteWebhook: (id) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/webhooks/${id}`, { method: 'DELETE' });
+      }),
+    listRuntimeDefaults: () =>
+      withRefresh(() =>
+        requestData<DashboardRuntimeDefaultRecord[]>(
+          '/api/v1/config/runtime-defaults',
+          { method: 'GET' },
+        ),
+      ),
+    upsertRuntimeDefault: (input) =>
+      withRefresh(async () => {
+        await requestJson('/api/v1/config/runtime-defaults', {
+          body: input as unknown as Record<string, unknown>,
+        });
+      }),
+    deleteRuntimeDefault: (id) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/config/runtime-defaults/${id}`, {
+          method: 'DELETE',
+        });
+      }),
+    saveRoleDefinition: (roleId, payload) =>
+      withRefresh(() =>
+        requestData<{
+          id: string;
+          name: string;
+          description: string | null;
+          is_active: boolean;
+        }>(roleId ? `/api/v1/config/roles/${roleId}` : '/api/v1/config/roles', {
+          method: roleId ? 'PUT' : 'POST',
+          body: payload,
+        }),
+      ),
+    deleteRoleDefinition: (roleId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/config/roles/${roleId}`, {
+          method: 'DELETE',
+        });
+      }),
+    getLlmSystemDefault: () =>
+      withRefresh(() =>
+        requestData<DashboardLlmSystemDefaultRecord>(
+          '/api/v1/config/llm/system-default',
+          { method: 'GET' },
+        ),
+      ),
+    updateLlmSystemDefault: (payload) =>
+      withRefresh(async () => {
+        await requestJson('/api/v1/config/llm/system-default', {
+          method: 'PUT',
+          body: payload as unknown as Record<string, unknown>,
+        });
+      }),
+    listLlmAssignments: () =>
+      withRefresh(() =>
+        requestData<DashboardLlmAssignmentRecord[]>(
+          '/api/v1/config/llm/assignments',
+          { method: 'GET' },
+        ),
+      ),
+    updateLlmAssignment: (roleName, payload) =>
+      withRefresh(async () => {
+        await requestJson(
+          `/api/v1/config/llm/assignments/${encodeURIComponent(roleName)}`,
+          {
+            method: 'PUT',
+            body: payload as unknown as Record<string, unknown>,
+          },
+        );
+      }),
+    createLlmProvider: (payload) =>
+      withRefresh(() =>
+        requestData<DashboardLlmProviderRecord>('/api/v1/config/llm/providers', {
+          body: payload as unknown as Record<string, unknown>,
+        }),
+      ),
+    deleteLlmProvider: (providerId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/config/llm/providers/${providerId}`, {
+          method: 'DELETE',
+        });
+      }),
+    discoverLlmModels: (providerId) =>
+      withRefresh(() =>
+        requestData<unknown[]>(
+          `/api/v1/config/llm/providers/${providerId}/discover`,
+          { method: 'POST' },
+        ),
+      ),
+    updateLlmModel: (modelId, payload) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/config/llm/models/${modelId}`, {
+          method: 'PUT',
+          body: payload,
+        });
+      }),
+    listOAuthProfiles: () =>
+      withRefresh(() =>
+        requestData<DashboardOAuthProfileRecord[]>(
+          '/api/v1/config/oauth/profiles',
+          { method: 'GET' },
+        ),
+      ),
+    initiateOAuthFlow: (profileId) =>
+      withRefresh(() =>
+        requestData<{ authorizeUrl: string }>('/api/v1/config/oauth/authorize', {
+          body: { profileId },
+        }),
+      ),
+    getOAuthProviderStatus: (providerId) =>
+      withRefresh(() =>
+        requestData<DashboardOAuthStatusRecord>(
+          `/api/v1/config/oauth/providers/${providerId}/status`,
+          { method: 'GET' },
+        ),
+      ),
+    disconnectOAuthProvider: (providerId) =>
+      withRefresh(async () => {
+        await requestJson(
+          `/api/v1/config/oauth/providers/${providerId}/disconnect`,
+          { method: 'POST' },
+        );
+      }),
     listIntegrations: () =>
       withRefresh(() =>
         requestData<DashboardIntegrationRecord[]>('/api/v1/integrations', {

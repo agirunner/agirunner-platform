@@ -14,7 +14,7 @@ import {
   Unlink,
   ExternalLink,
 } from 'lucide-react';
-import { readSession } from '../../lib/session.js';
+import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -88,7 +88,7 @@ interface LlmProvider {
   id: string;
   name: string;
   base_url?: string;
-  auth_mode?: string;
+  auth_mode?: string | null;
   metadata?: { providerType?: ProviderType };
   model_count?: number;
   credentials_configured?: boolean;
@@ -97,8 +97,8 @@ interface LlmProvider {
 interface LlmModel {
   id: string;
   model_id: string;
-  provider_id?: string;
-  provider_name?: string;
+  provider_id?: string | null;
+  provider_name?: string | null;
   context_window?: number;
   endpoint_type?: string;
   reasoning_config?: ReasoningConfigSchema | null;
@@ -137,9 +137,6 @@ interface ProviderDeleteTarget {
 
 /* ─── Constants ─────────────────────────────────────────────────────────── */
 
-const API_BASE_URL =
-  import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
 const PROVIDER_TYPE_DEFAULTS: Record<ProviderType, { name: string; baseUrl: string }> = {
   openai: { name: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
   anthropic: { name: 'Anthropic', baseUrl: 'https://api.anthropic.com/v1' },
@@ -156,18 +153,6 @@ const INITIAL_FORM: AddProviderDraft = {
 };
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
-
-function getAuthHeaders(includeContentType = false): Record<string, string> {
-  const session = readSession();
-  const headers: Record<string, string> = {};
-  if (includeContentType) {
-    headers['Content-Type'] = 'application/json';
-  }
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return headers;
-}
 
 export function formatContextWindow(n?: number): string {
   if (n === undefined || n === null) return '-';
@@ -244,198 +229,6 @@ export function buildAssignmentRoleRows(
   return [orchestratorRow, ...activeRoles, ...staleRows];
 }
 
-/* ─── API Functions ─────────────────────────────────────────────────────── */
-
-async function fetchProviders(): Promise<LlmProvider[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/providers`,
-    { headers: getAuthHeaders(), credentials: 'include' },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function fetchModels(): Promise<LlmModel[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/models`,
-    { headers: getAuthHeaders(), credentials: 'include' },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function fetchSystemDefault(): Promise<SystemDefault> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/system-default`,
-    { headers: getAuthHeaders(), credentials: 'include' },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? { modelId: null, reasoningConfig: null };
-}
-
-async function updateSystemDefault(payload: SystemDefault): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/system-default`,
-    {
-      method: 'PUT',
-      headers: getAuthHeaders(true),
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-}
-
-async function fetchAssignments(): Promise<RoleAssignment[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/assignments`,
-    { headers: getAuthHeaders(), credentials: 'include' },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function fetchRoleDefinitions(): Promise<RoleDefinitionSummary[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/roles`,
-    { headers: getAuthHeaders(), credentials: 'include' },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function createProvider(payload: AddProviderDraft): Promise<LlmProvider> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/providers`,
-    {
-      method: 'POST',
-      headers: getAuthHeaders(true),
-      credentials: 'include',
-      body: JSON.stringify({
-        name: payload.name,
-        baseUrl: payload.baseUrl,
-        apiKeySecretRef: payload.apiKey,
-        metadata: { providerType: payload.providerType },
-      }),
-    },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function discoverModels(providerId: string): Promise<unknown[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/providers/${providerId}/discover`,
-    {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function deleteProvider(providerId: string): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/providers/${providerId}`,
-    {
-      method: 'DELETE',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-}
-
-async function updateAssignment(
-  roleName: string,
-  payload: { primaryModelId?: string; reasoningConfig?: Record<string, unknown> | null },
-): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/assignments/${roleName}`,
-    {
-      method: 'PUT',
-      headers: getAuthHeaders(true),
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-}
-
-async function updateModel(
-  modelId: string,
-  payload: Record<string, unknown>,
-): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/llm/models/${modelId}`,
-    {
-      method: 'PUT',
-      headers: getAuthHeaders(true),
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-}
-
-/* ─── OAuth API Functions ──────────────────────────────────────────────── */
-
-async function fetchOAuthProfiles(): Promise<OAuthProfile[]> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/oauth/profiles`,
-    { headers: getAuthHeaders(), credentials: 'include' },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function initiateOAuthFlow(profileId: string): Promise<{ authorizeUrl: string }> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/oauth/authorize`,
-    {
-      method: 'POST',
-      headers: getAuthHeaders(true),
-      credentials: 'include',
-      body: JSON.stringify({ profileId }),
-    },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function fetchOAuthStatus(providerId: string): Promise<OAuthStatus> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/oauth/providers/${providerId}/status`,
-    { headers: getAuthHeaders(), credentials: 'include' },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return body.data ?? body;
-}
-
-async function disconnectOAuth(providerId: string): Promise<void> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/v1/config/oauth/providers/${providerId}/disconnect`,
-    {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      credentials: 'include',
-    },
-  );
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-}
-
 /* ─── Connect OAuth Provider Dialog ────────────────────────────────────── */
 
 function ConnectOAuthDialog(): JSX.Element {
@@ -443,13 +236,13 @@ function ConnectOAuthDialog(): JSX.Element {
 
   const profilesQuery = useQuery({
     queryKey: ['oauth-profiles'],
-    queryFn: fetchOAuthProfiles,
+    queryFn: () => dashboardApi.listOAuthProfiles(),
     enabled: isOpen,
   });
 
   const connectMutation = useMutation({
     mutationFn: async (profileId: string) => {
-      const result = await initiateOAuthFlow(profileId);
+      const result = await dashboardApi.initiateOAuthFlow(profileId);
       window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer');
     },
     onError: (error) => {
@@ -531,11 +324,11 @@ function OAuthProviderCard({
 
   const statusQuery = useQuery({
     queryKey: ['oauth-status', provider.id],
-    queryFn: () => fetchOAuthStatus(provider.id),
+    queryFn: () => dashboardApi.getOAuthProviderStatus(provider.id),
   });
 
   const disconnectMutation = useMutation({
-    mutationFn: () => disconnectOAuth(provider.id),
+    mutationFn: () => dashboardApi.disconnectOAuthProvider(provider.id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['oauth-status', provider.id] });
       toast.success('OAuth disconnected.');
@@ -548,7 +341,7 @@ function OAuthProviderCard({
   const reconnectMutation = useMutation({
     mutationFn: async () => {
       const profileId = 'openai-codex';
-      const result = await initiateOAuthFlow(profileId);
+      const result = await dashboardApi.initiateOAuthFlow(profileId);
       window.open(result.authorizeUrl, '_blank', 'noopener,noreferrer');
     },
     onError: (error) => {
@@ -692,8 +485,13 @@ function AddProviderDialog(props: {
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const provider = await createProvider(form);
-      await discoverModels(provider.id);
+      const provider = await dashboardApi.createLlmProvider({
+        name: form.name,
+        baseUrl: form.baseUrl,
+        apiKeySecretRef: form.apiKey,
+        metadata: { providerType: form.providerType },
+      });
+      await dashboardApi.discoverLlmModels(provider.id);
       return provider;
     },
     onSuccess: (provider) => {
@@ -1266,14 +1064,14 @@ function RoleAssignmentsSection({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      await updateSystemDefault({
+      await dashboardApi.updateLlmSystemDefault({
         modelId: defaultModelId === '__none__' ? null : defaultModelId,
         reasoningConfig: defaultReasoning,
       });
 
       for (const role of roleRows) {
         const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
-        await updateAssignment(role.name, {
+        await dashboardApi.updateLlmAssignment(role.name, {
           primaryModelId: s.modelId === '__none__' ? undefined : s.modelId,
           reasoningConfig: s.reasoningConfig,
         });
@@ -1719,27 +1517,27 @@ export function LlmProvidersPage(): JSX.Element {
 
   const providersQuery = useQuery({
     queryKey: ['llm-providers'],
-    queryFn: fetchProviders,
+    queryFn: () => dashboardApi.listLlmProviders(),
   });
 
   const modelsQuery = useQuery({
     queryKey: ['llm-models'],
-    queryFn: fetchModels,
+    queryFn: () => dashboardApi.listLlmModels(),
   });
 
   const assignmentsQuery = useQuery({
     queryKey: ['llm-assignments'],
-    queryFn: fetchAssignments,
+    queryFn: () => dashboardApi.listLlmAssignments(),
   });
 
   const roleDefinitionsQuery = useQuery({
     queryKey: ['role-definitions', 'llm-assignments'],
-    queryFn: fetchRoleDefinitions,
+    queryFn: () => dashboardApi.listRoleDefinitions(),
   });
 
   const systemDefaultQuery = useQuery({
     queryKey: ['llm-system-default'],
-    queryFn: fetchSystemDefault,
+    queryFn: () => dashboardApi.getLlmSystemDefault(),
   });
 
   const deleteMutation = useMutation({
@@ -1747,7 +1545,7 @@ export function LlmProvidersPage(): JSX.Element {
       if (!deleteTarget) {
         throw new Error('Choose a provider to delete.');
       }
-      return deleteProvider(deleteTarget.provider.id);
+      return dashboardApi.deleteLlmProvider(deleteTarget.provider.id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llm-providers'] });
@@ -1761,7 +1559,7 @@ export function LlmProvidersPage(): JSX.Element {
   });
 
   const discoverMutation = useMutation({
-    mutationFn: discoverModels,
+    mutationFn: (providerId: string) => dashboardApi.discoverLlmModels(providerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llm-providers'] });
       queryClient.invalidateQueries({ queryKey: ['llm-models'] });
@@ -1776,7 +1574,7 @@ export function LlmProvidersPage(): JSX.Element {
 
   const toggleModelEnabled = useMutation({
     mutationFn: ({ modelId, isEnabled }: { modelId: string; isEnabled: boolean }) =>
-      updateModel(modelId, { isEnabled }),
+      dashboardApi.updateLlmModel(modelId, { isEnabled }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['llm-models'] });
     },

@@ -60,11 +60,11 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('ConfigField');
   });
 
-  it('uses the supported runtime-defaults API routes, including delete for clearing values', () => {
+  it('uses the shared dashboard API client for runtime-defaults CRUD', () => {
     const source = readSource('./runtime-defaults.api.ts');
-    expect(source).toContain('/api/v1/config/runtime-defaults');
-    expect(source).toContain("method: 'POST'");
-    expect(source).toContain("method: 'DELETE'");
-    expect(source).not.toContain("method: 'PATCH'");
+    expect(source).toContain('dashboardApi.listRuntimeDefaults');
+    expect(source).toContain('dashboardApi.upsertRuntimeDefault');
+    expect(source).toContain('dashboardApi.deleteRuntimeDefault');
+    expect(source).not.toContain('getAuthHeaders');
   });
 });

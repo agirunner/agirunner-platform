@@ -82,7 +82,7 @@ describe('LlmProvidersPage renders three sections', () => {
   it('renders the Model Assignments section', () => {
     expect(source).toContain('Model Assignments');
     expect(source).toContain('RoleAssignmentsSection');
-    expect(source).toContain('fetchRoleDefinitions');
+    expect(source).toContain('listRoleDefinitions');
     expect(source).toContain('buildAssignmentRoleRows');
     expect(source).toContain('validateAssignmentSetup');
     expect(source).toContain('summarizeAssignmentSurface');

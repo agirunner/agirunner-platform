@@ -35,7 +35,7 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).toContain('Create Role');
     expect(source).toContain('saveRole');
-    expect(source).toContain("method: roleId ? 'PUT' : 'POST'");
+    expect(source).toContain('dashboardApi.saveRoleDefinition');
   });
 
   it('keeps the role editor dialog scrollable and wide enough for large forms', () => {
@@ -98,7 +98,7 @@ describe('role definitions page source', () => {
   it('supports a first-class create role flow and uses the live create and replace routes', () => {
     const source = readCombinedSource();
     expect(source).toContain('Create Role');
-    expect(source).toContain("method: roleId ? 'PUT' : 'POST'");
+    expect(source).toContain('dashboardApi.saveRoleDefinition');
     expect(source).not.toContain("method: 'PATCH'");
   });
 
@@ -132,7 +132,7 @@ describe('role definitions page source', () => {
 
   it('exposes a first-class delete role flow for custom roles with built-in protection', () => {
     const source = readCombinedSource();
-    expect(source).toContain("method: 'DELETE'");
+    expect(source).toContain('dashboardApi.deleteRoleDefinition');
     expect(source).toContain('DeleteRoleDialog');
     expect(source).toContain('Delete Role');
     expect(source).toContain('Built-in roles are protected and can only be deactivated.');

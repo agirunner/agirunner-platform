@@ -18,7 +18,6 @@ import {
   type DashboardCustomizationManifest,
   type DashboardCustomizationStatusResponse,
 } from '../../lib/api.js';
-import { readSession } from '../../lib/session.js';
 import {
   buildRuntimeHistorySummaryCards,
   buildRuntimeRecoveryBrief,
@@ -32,33 +31,10 @@ import {
 } from './runtimes-build-history.support.js';
 import { ActiveRuntimeManifestPacket } from './runtimes-build-history.packet.js';
 
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
-function authHeaders(): Record<string, string> {
-  const session = readSession();
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return headers;
-}
-
-async function fetchRuntimeStatus(): Promise<DashboardCustomizationStatusResponse> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/runtime/customizations/status`, {
-    headers: authHeaders(),
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return body.data ?? body;
-}
-
 export function ActiveRuntimeImageCard(): JSX.Element {
   const { data: status, isLoading, error } = useQuery({
     queryKey: ['runtime-customization-status'],
-    queryFn: fetchRuntimeStatus,
+    queryFn: () => dashboardApi.getCustomizationStatus(),
   });
   const [manifestVisible, setManifestVisible] = useState(false);
   const [manifest, setManifest] = useState<DashboardCustomizationManifest | null>(null);
@@ -154,7 +130,7 @@ export function ActiveRuntimeImageCard(): JSX.Element {
 export function BuildHistoryCard(): JSX.Element {
   const { data: status, isLoading, error } = useQuery({
     queryKey: ['runtime-customization-status'],
-    queryFn: fetchRuntimeStatus,
+    queryFn: () => dashboardApi.getCustomizationStatus(),
   });
   const entries = buildHistoryFromStatus(status);
   const summaryCards = buildRuntimeHistorySummaryCards(status, entries);
