@@ -322,17 +322,44 @@ export class FleetService {
     this.logger = logger ?? SILENT_LOGGER;
   }
 
-  async listWorkers(tenantId: string): Promise<FleetWorkerView[]> {
+  async listWorkers(
+    tenantId: string,
+    options: { enabledOnly?: boolean } = {},
+  ): Promise<FleetWorkerView[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
-    const desired = await repo.findAll<DesiredStateRow>('worker_desired_state', '*');
+    const conditions = options.enabledOnly ? ['enabled = $2'] : [];
+    const values = options.enabledOnly ? [true] : [];
+    const desired = await repo.findAll<DesiredStateRow>(
+      'worker_desired_state',
+      '*',
+      conditions,
+      values,
+    );
+    if (desired.length === 0) {
+      return [];
+    }
+
+    const desiredStateIds = desired.map((row) => row.id);
+    const actualResult = await this.pool.query<ActualStateRow>(
+      'SELECT * FROM worker_actual_state WHERE desired_state_id = ANY($1::uuid[])',
+      [desiredStateIds],
+    );
+    const actualByDesiredState = new Map<string, ActualStateRow[]>();
+    for (const row of actualResult.rows) {
+      const existing = actualByDesiredState.get(row.desired_state_id);
+      if (existing) {
+        existing.push(row);
+      } else {
+        actualByDesiredState.set(row.desired_state_id, [row]);
+      }
+    }
 
     const views: FleetWorkerView[] = [];
     for (const d of desired) {
-      const actual = await this.pool.query<ActualStateRow>(
-        'SELECT * FROM worker_actual_state WHERE desired_state_id = $1',
-        [d.id],
-      );
-      views.push({ ...toPublicDesiredStateRow(d), actual: actual.rows });
+      views.push({
+        ...toPublicDesiredStateRow(d),
+        actual: actualByDesiredState.get(d.id) ?? [],
+      });
     }
     return views;
   }
@@ -644,50 +671,61 @@ export class FleetService {
     const defaults = await this.loadRuntimeDefaults(tenantId);
 
     const result = await this.pool.query<RuntimeTargetRow>(
-      `SELECT
+      `WITH active_workflows AS (
+         SELECT id, tenant_id, playbook_id
+         FROM workflows
+         WHERE tenant_id = $1
+           AND playbook_id IS NOT NULL
+           AND state NOT IN ('cancelled', 'failed', 'completed')
+       ),
+       active_workflow_counts AS (
+         SELECT playbook_id, COUNT(*)::int AS active_workflows
+         FROM active_workflows
+         GROUP BY playbook_id
+       ),
+       task_counts AS (
+         SELECT
+           aw.playbook_id,
+           (COUNT(*) FILTER (WHERE tk.is_orchestrator_task = true))::int AS pending_orchestrator_tasks,
+           (COUNT(*) FILTER (WHERE COALESCE(tk.is_orchestrator_task, false) = false))::int AS pending_tasks,
+           (
+             COUNT(*) FILTER (
+               WHERE COALESCE(tk.is_orchestrator_task, false) = false
+                 AND cardinality(tk.capabilities_required) > 0
+             )
+           )::int AS specialist_tasks_with_capabilities,
+           (
+             COUNT(DISTINCT tk.capabilities_required) FILTER (
+               WHERE COALESCE(tk.is_orchestrator_task, false) = false
+                 AND cardinality(tk.capabilities_required) > 0
+             )
+           )::int AS specialist_distinct_capability_sets,
+           COALESCE(
+             MAX(cardinality(tk.capabilities_required)) FILTER (
+               WHERE COALESCE(tk.is_orchestrator_task, false) = false
+                 AND cardinality(tk.capabilities_required) > 0
+             ),
+             0
+           )::int AS specialist_max_required_capabilities
+         FROM tasks tk
+         JOIN active_workflows aw ON aw.id = tk.workflow_id AND aw.tenant_id = tk.tenant_id
+         WHERE tk.tenant_id = $1
+           AND tk.state = 'ready'
+         GROUP BY playbook_id
+       )
+       SELECT
          p.id AS playbook_id,
          p.name AS playbook_name,
          p.definition AS definition,
-         (SELECT COUNT(*)::int FROM workflows w
-          WHERE w.tenant_id = p.tenant_id AND w.playbook_id = p.id
-            AND w.state NOT IN ('cancelled', 'failed', 'completed')) AS active_workflows,
-         (SELECT COUNT(*)::int FROM tasks tk
-          JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
-          WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
-            AND tk.state = 'ready'
-            AND tk.is_orchestrator_task = true
-            AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS pending_orchestrator_tasks,
-         (SELECT COUNT(*)::int FROM tasks tk
-          JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
-          WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
-            AND tk.state = 'ready'
-            AND COALESCE(tk.is_orchestrator_task, false) = false
-            AND cardinality(tk.capabilities_required) > 0
-            AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS specialist_tasks_with_capabilities,
-         (SELECT COUNT(*)::int FROM (
-            SELECT DISTINCT tk.capabilities_required
-            FROM tasks tk
-            JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
-            WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
-              AND tk.state = 'ready'
-              AND COALESCE(tk.is_orchestrator_task, false) = false
-              AND cardinality(tk.capabilities_required) > 0
-              AND w2.state NOT IN ('cancelled', 'failed', 'completed')
-          ) capability_sets) AS specialist_distinct_capability_sets,
-         (SELECT COALESCE(MAX(cardinality(tk.capabilities_required)), 0)::int FROM tasks tk
-          JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
-          WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
-            AND tk.state = 'ready'
-            AND COALESCE(tk.is_orchestrator_task, false) = false
-            AND cardinality(tk.capabilities_required) > 0
-            AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS specialist_max_required_capabilities,
-         (SELECT COUNT(*)::int FROM tasks tk
-          JOIN workflows w2 ON w2.id = tk.workflow_id AND w2.tenant_id = tk.tenant_id
-          WHERE tk.tenant_id = p.tenant_id AND w2.playbook_id = p.id
-            AND tk.state = 'ready'
-            AND COALESCE(tk.is_orchestrator_task, false) = false
-            AND w2.state NOT IN ('cancelled', 'failed', 'completed')) AS pending_tasks
+         COALESCE(awc.active_workflows, 0) AS active_workflows,
+         COALESCE(tc.pending_orchestrator_tasks, 0) AS pending_orchestrator_tasks,
+         COALESCE(tc.specialist_tasks_with_capabilities, 0) AS specialist_tasks_with_capabilities,
+         COALESCE(tc.specialist_distinct_capability_sets, 0) AS specialist_distinct_capability_sets,
+         COALESCE(tc.specialist_max_required_capabilities, 0) AS specialist_max_required_capabilities,
+         COALESCE(tc.pending_tasks, 0) AS pending_tasks
        FROM playbooks p
+       LEFT JOIN active_workflow_counts awc ON awc.playbook_id = p.id
+       LEFT JOIN task_counts tc ON tc.playbook_id = p.id
        WHERE p.tenant_id = $1
          AND p.is_active = true
          AND p.definition::jsonb ? 'runtime'`,

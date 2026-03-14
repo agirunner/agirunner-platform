@@ -84,7 +84,14 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
   app.get(
     '/api/v1/fleet/workers',
     { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => ({ data: await service.listWorkers(request.auth!.tenantId) }),
+    async (request) => {
+      const query = request.query as { enabled?: string };
+      return {
+        data: await service.listWorkers(request.auth!.tenantId, {
+          enabledOnly: query.enabled === 'true',
+        }),
+      };
+    },
   );
 
   app.post(

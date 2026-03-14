@@ -83,6 +83,20 @@ describe('FleetService', () => {
       expect(result).toHaveLength(1);
       expect(result[0].worker_name).toBe('test-worker');
       expect(result[0].actual).toEqual([sampleActualState]);
+      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect((pool.query.mock.calls[1]?.[0] as string)).toContain('WHERE desired_state_id = ANY($1::uuid[])');
+    });
+
+    it('filters to enabled workers when requested', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [sampleDesiredState], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });
+
+      const result = await service.listWorkers(TENANT_ID, { enabledOnly: true });
+
+      expect(result).toHaveLength(1);
+      expect((pool.query.mock.calls[0]?.[0] as string)).toContain('tenant_id = $1 AND enabled = $2');
+      expect(pool.query.mock.calls[0]?.[1]).toEqual([TENANT_ID, true]);
     });
 
     it('returns empty array when no workers exist', async () => {
@@ -114,6 +128,30 @@ describe('FleetService', () => {
           keep_ref: 'redacted://fleet-environment-secret',
         },
       });
+    });
+
+    it('batches actual-state lookup for multiple workers', async () => {
+      const secondWorker = {
+        ...sampleDesiredState,
+        id: '00000000-0000-0000-0000-000000000100',
+        worker_name: 'test-worker-2',
+      };
+      const secondActualState = {
+        ...sampleActualState,
+        id: '00000000-0000-0000-0000-000000000051',
+        desired_state_id: secondWorker.id,
+        container_id: 'def456',
+      };
+      pool.query
+        .mockResolvedValueOnce({ rows: [sampleDesiredState, secondWorker], rowCount: 2 })
+        .mockResolvedValueOnce({ rows: [sampleActualState, secondActualState], rowCount: 2 });
+
+      const result = await service.listWorkers(TENANT_ID);
+
+      expect(result).toHaveLength(2);
+      expect(result[0].actual).toEqual([sampleActualState]);
+      expect(result[1].actual).toEqual([secondActualState]);
+      expect(pool.query).toHaveBeenCalledTimes(2);
     });
   });
 

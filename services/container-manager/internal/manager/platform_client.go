@@ -43,7 +43,7 @@ type fleetResponse struct {
 
 // FetchDesiredState retrieves all enabled worker desired states.
 func (c *PlatformClient) FetchDesiredState() ([]DesiredState, error) {
-	url := fmt.Sprintf("%s/api/v1/fleet/workers", c.baseURL)
+	url := fmt.Sprintf("%s/api/v1/fleet/workers?enabled=true", c.baseURL)
 
 	req, err := http.NewRequest(http.MethodGet, url, nil)
 	if err != nil {
@@ -67,14 +67,7 @@ func (c *PlatformClient) FetchDesiredState() ([]DesiredState, error) {
 		return nil, fmt.Errorf("decode fleet response: %w", err)
 	}
 
-	// Filter to enabled only
-	var enabled []DesiredState
-	for _, ds := range result.Data {
-		if ds.Enabled {
-			enabled = append(enabled, ds)
-		}
-	}
-	return enabled, nil
+	return result.Data, nil
 }
 
 // ReportActualState sends container state back to the platform.

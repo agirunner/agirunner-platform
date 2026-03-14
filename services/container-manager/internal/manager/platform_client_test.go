@@ -210,6 +210,32 @@ func TestFetchRuntimeTargetsIncludesCapabilityDemandSummary(t *testing.T) {
 	}
 }
 
+func TestFetchDesiredStateRequestsEnabledWorkersOnly(t *testing.T) {
+	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/v1/fleet/workers" {
+			t.Errorf("expected path /api/v1/fleet/workers, got %s", req.URL.Path)
+		}
+		if req.URL.RawQuery != "enabled=true" {
+			t.Errorf("expected enabled=true query, got %s", req.URL.RawQuery)
+		}
+		return jsonResponse(http.StatusOK, `{"data":[{"id":"worker-1","enabled":true}]}`), nil
+	})
+
+	result, err := client.FetchDesiredState()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if capture.authorization != "Bearer test-key" {
+		t.Fatalf("expected Authorization Bearer test-key, got %s", capture.authorization)
+	}
+	if len(result) != 1 {
+		t.Fatalf("expected one worker, got %d", len(result))
+	}
+	if !result[0].Enabled {
+		t.Fatal("expected enabled worker in response")
+	}
+}
+
 type capturedRequest struct {
 	authorization string
 }
