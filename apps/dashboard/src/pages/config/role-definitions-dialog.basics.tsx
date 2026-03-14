@@ -65,9 +65,11 @@ export function RoleBasicsSection(props: {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <Badge variant={props.role?.is_built_in ? 'secondary' : 'outline'}>
-              {props.role?.is_built_in ? 'Built-in' : 'Custom'}
-            </Badge>
+            {props.role ? (
+              <Badge variant={props.role.is_built_in ? 'secondary' : 'outline'}>
+                {props.role.is_built_in ? 'Built-in' : 'Custom'}
+              </Badge>
+            ) : null}
             <Switch
               checked={props.form.isActive}
               onCheckedChange={(checked) =>
@@ -115,9 +117,6 @@ export function RoleBasicsSection(props: {
               <SelectItem value="none">None</SelectItem>
               <SelectItem value="peer_review">Peer review</SelectItem>
               <SelectItem value="human_approval">Human approval</SelectItem>
-              <SelectItem value="automated_test">Automated test</SelectItem>
-              <SelectItem value="unit_tests">Unit tests</SelectItem>
-              <SelectItem value="structured_review">Structured review</SelectItem>
             </SelectContent>
           </Select>
         </label>

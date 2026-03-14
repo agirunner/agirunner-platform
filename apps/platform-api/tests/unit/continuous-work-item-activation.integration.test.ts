@@ -68,17 +68,17 @@ describe('continuous workflow work-item activation integration', () => {
       name: 'activation-serial-worker',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator-a',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
         {
           name: 'workflow-orchestrator-b',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
       ],
     });
@@ -100,7 +100,7 @@ describe('continuous workflow work-item activation integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -134,7 +134,7 @@ describe('continuous workflow work-item activation integration', () => {
     const duplicateClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -151,7 +151,7 @@ describe('continuous workflow work-item activation integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -206,17 +206,17 @@ describe('continuous workflow work-item activation integration', () => {
       name: 'activation-replay-worker',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator-replay-a',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
         {
           name: 'workflow-orchestrator-replay-b',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
       ],
     });
@@ -238,7 +238,7 @@ describe('continuous workflow work-item activation integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -266,7 +266,7 @@ describe('continuous workflow work-item activation integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -304,7 +304,7 @@ describe('continuous workflow work-item activation integration', () => {
     const thirdClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });

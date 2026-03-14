@@ -11,7 +11,7 @@ const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const sampleWorker = {
   id: 'worker-1',
   name: 'built-in-worker',
-  capabilities: ['llm-api', 'role:developer', 'role:reviewer'],
+  capabilities: ['coding', 'testing', 'code-review'],
 };
 
 const sampleRole = {
@@ -19,8 +19,8 @@ const sampleRole = {
   description: 'Implements features',
   system_prompt: 'You are a developer.',
   allowed_tools: ['file_read', 'file_write'],
-  capabilities: ['llm-api', 'role:developer'],
-  verification_strategy: 'unit_tests',
+  capabilities: ['coding', 'testing'],
+  verification_strategy: 'peer_review',
   updated_at: new Date(),
 };
 
@@ -92,6 +92,7 @@ describe('RuntimeConfigService', () => {
   });
 
   it('includes model assignment when available', async () => {
+    const workerWithRole = { ...sampleWorker, capabilities: ['role:developer', 'coding'] };
     const modelRow = {
       model_id: 'claude-sonnet-4-6',
       provider_id: 'p1',
@@ -104,7 +105,7 @@ describe('RuntimeConfigService', () => {
     };
 
     pool.query
-      .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 }) // findWorker
+      .mockResolvedValueOnce({ rows: [workerWithRole], rowCount: 1 }) // findWorker
       .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 }) // fetchRoles
       .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 }) // fetchDefaults
       .mockResolvedValueOnce({ // fetchModelAssignment
@@ -122,7 +123,7 @@ describe('RuntimeConfigService', () => {
   });
 
   it('returns all active roles when worker has no role capabilities', async () => {
-    const workerNoRoles = { ...sampleWorker, capabilities: ['llm-api'] };
+    const workerNoRoles = { ...sampleWorker, capabilities: ['coding'] };
 
     pool.query
       .mockResolvedValueOnce({ rows: [workerNoRoles], rowCount: 1 })

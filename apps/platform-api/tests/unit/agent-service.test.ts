@@ -24,7 +24,7 @@ describe('AgentService secret redaction', () => {
           {
             id: 'agent-1',
             name: 'coder-01',
-            capabilities: ['llm-api'],
+            capabilities: ['coding'],
             status: 'active',
             metadata: {
               api_key: 'sk-secret-value',
@@ -62,7 +62,7 @@ describe('AgentService secret redaction', () => {
       } as never,
       {
         name: 'coder-01',
-        capabilities: ['llm-api'],
+        capabilities: ['coding'],
       },
     );
 
@@ -129,5 +129,52 @@ describe('AgentService secret redaction', () => {
         },
       },
     ]);
+  });
+});
+
+describe('AgentService heartbeat enforcement', () => {
+  it('does not rescan inactive agents that have no task cleanup left', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM agents')) {
+          if (sql.includes("status IN ('active', 'idle', 'busy', 'degraded', 'inactive')")) {
+            return {
+              rowCount: 1,
+              rows: [
+                {
+                  id: 'agent-1',
+                  tenant_id: 'tenant-1',
+                  status: 'inactive',
+                  heartbeat_interval_seconds: 30,
+                  last_heartbeat_at: '2026-03-05T00:00:00.000Z',
+                  current_task_id: null,
+                },
+              ],
+            };
+          }
+
+          return { rowCount: 0, rows: [] };
+        }
+
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
+    const service = new AgentService(
+      pool as never,
+      eventService as never,
+      {
+        AGENT_HEARTBEAT_GRACE_PERIOD_MS: 60_000,
+        AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: 30,
+        AGENT_KEY_EXPIRY_MS: 60_000,
+        AGENT_HEARTBEAT_TOLERANCE_MS: 60_000,
+      } as never,
+    );
+
+    const affected = await service.enforceHeartbeatTimeouts(new Date('2026-03-05T00:10:00.000Z'));
+
+    expect(affected).toBe(0);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(eventService.emit).not.toHaveBeenCalled();
   });
 });

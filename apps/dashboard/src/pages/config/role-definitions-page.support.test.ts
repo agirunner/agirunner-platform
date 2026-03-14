@@ -15,7 +15,7 @@ describe('role definitions support helpers', () => {
         description: ' designs systems ',
         systemPrompt: ' think deeply ',
         allowedTools: ['git_diff', 'git_diff', ' file_read '],
-        capabilities: ['role:architect', ' role:architect ', 'web-research'],
+        capabilities: ['architecture', ' architecture ', 'research'],
         modelPreference: 'gpt-5.4',
         fallbackModel: 'gpt-4.1',
         verificationStrategy: 'peer_review',
@@ -28,7 +28,7 @@ describe('role definitions support helpers', () => {
       description: 'designs systems',
       systemPrompt: 'think deeply',
       allowedTools: ['git_diff', 'file_read'],
-      capabilities: ['role:architect', 'web-research'],
+      capabilities: ['architecture', 'research'],
       modelPreference: 'gpt-5.4',
       fallbackModel: 'gpt-4.1',
       verificationStrategy: 'peer_review',
@@ -58,7 +58,7 @@ describe('role definitions support helpers', () => {
       description: 'System design specialist',
       system_prompt: 'Think about architecture deeply.',
       allowed_tools: ['file_read', 'git_diff'],
-      capabilities: ['role:architect', 'lang:typescript'],
+      capabilities: ['architecture', 'documentation'],
       model_preference: 'gpt-5.4',
       fallback_model: 'gpt-4.1',
       verification_strategy: 'peer_review',
@@ -72,7 +72,7 @@ describe('role definitions support helpers', () => {
     expect(form.description).toBe('System design specialist');
     expect(form.systemPrompt).toBe('Think about architecture deeply.');
     expect(form.allowedTools).toEqual(['file_read', 'git_diff']);
-    expect(form.capabilities).toEqual(['role:architect', 'lang:typescript']);
+    expect(form.capabilities).toEqual(['architecture', 'documentation']);
     expect(form.modelPreference).toBe('gpt-5.4');
     expect(form.fallbackModel).toBe('gpt-4.1');
     expect(form.verificationStrategy).toBe('peer_review');
@@ -106,7 +106,7 @@ describe('role definitions support helpers', () => {
     const capabilities = listAvailableCapabilities({
       id: 'role-1',
       name: 'architect',
-      capabilities: ['role:architect', 'role:data-scientist'],
+      capabilities: ['architecture', 'role:data-scientist'],
     });
 
     expect(capabilities.find((capability) => capability.value === 'role:data-scientist')).toEqual(

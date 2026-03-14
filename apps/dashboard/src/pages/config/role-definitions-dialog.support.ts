@@ -195,15 +195,6 @@ function describeVerificationStrategy(strategy: string): string {
   if (strategy === 'human_approval') {
     return 'Human approval required';
   }
-  if (strategy === 'automated_test') {
-    return 'Automated test verification';
-  }
-  if (strategy === 'unit_tests') {
-    return 'Unit test verification';
-  }
-  if (strategy === 'structured_review') {
-    return 'Structured review required';
-  }
   return 'No verification requirement';
 }
 

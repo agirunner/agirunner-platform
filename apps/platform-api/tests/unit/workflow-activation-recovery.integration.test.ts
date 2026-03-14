@@ -63,17 +63,17 @@ describe('workflow activation recovery integration', () => {
       name: 'activation-recovery-worker',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator-recovery-a',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
         {
           name: 'workflow-orchestrator-recovery-b',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
       ],
     });
@@ -95,7 +95,7 @@ describe('workflow activation recovery integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -142,7 +142,7 @@ describe('workflow activation recovery integration', () => {
     const recoveredClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -203,7 +203,7 @@ describe('workflow activation recovery integration', () => {
     const noFollowOnClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });

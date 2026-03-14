@@ -214,6 +214,21 @@ describe('FleetService DCM', () => {
 
       expect(result).toEqual([]);
     });
+
+    it('uses shared aggregates instead of repeated correlated task scans', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await service.getRuntimeTargets(TENANT_ID);
+
+      const query = pool.query.mock.calls[1]?.[0] as string;
+      expect(query).toContain('WITH active_workflows AS');
+      expect(query).toContain('task_counts AS');
+      expect(query).toContain('COUNT(*) FILTER');
+      expect(query).toContain('COUNT(DISTINCT tk.capabilities_required) FILTER');
+      expect(query.match(/FROM tasks tk/g)).toHaveLength(1);
+      expect(query).not.toContain('(SELECT COUNT(*)::int FROM tasks tk');
+    });
   });
 
   describe('recordHeartbeat', () => {

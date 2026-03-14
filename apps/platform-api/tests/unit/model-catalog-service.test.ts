@@ -339,9 +339,21 @@ describe('ModelCatalogService', () => {
       pool.query.mockResolvedValueOnce({ rows: [assignment], rowCount: 1 });
 
       const result = await service.upsertAssignment(TENANT_ID, 'developer', MODEL_ID, null);
-      expect(result.role_name).toBe('developer');
+      expect(result?.role_name).toBe('developer');
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('ON CONFLICT');
+    });
+
+    it('deletes an assignment when model and reasoning are both cleared', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+
+      const result = await service.upsertAssignment(TENANT_ID, 'developer', null, null);
+
+      expect(result).toBeNull();
+      expect(pool.query).toHaveBeenCalledWith(
+        'DELETE FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
+        [TENANT_ID, 'developer'],
+      );
     });
   });
 

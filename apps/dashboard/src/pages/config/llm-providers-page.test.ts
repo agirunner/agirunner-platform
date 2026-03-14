@@ -104,7 +104,11 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).not.toContain('Needs model source');
     expect(source).toContain('Assignment coverage needs attention');
     expect(source).toContain('Assignments are blocked');
-    expect(source).toContain('Assignments are ready to save');
+    expect(source).toContain('Unsaved assignment changes');
+    expect(source).toContain('Review the updated default and role overrides, then save when ready.');
+    expect(source).toContain('const shouldShowAssignmentGuidance =');
+    expect(source).toContain('assignmentValidation.blockingIssues.length > 0 || hasUnsavedChanges');
+    expect(source).not.toContain('Assignments are ready to save');
     expect(source).toContain('Review providers');
     expect(source).toContain('Review model catalog');
     expect(source).toContain('Default route');
@@ -123,6 +127,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain("Show overrides");
     expect(source).toContain("Hide overrides");
     expect(source).toContain("() => explicitOverrideCount > 0");
+    expect(source).toContain('disabled={saveMutation.isPending || !assignmentValidation.isValid || !hasUnsavedChanges}');
     expect(source).not.toContain('const ROLE_NAMES');
   });
 
@@ -134,6 +139,12 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('<TableHead className="w-1/5">Description</TableHead>');
     expect(source).toContain('<TableCell className="align-middle text-sm text-muted">');
     expect(source).toContain('<span className="block truncate" title={summarizeRoleDescription(role)}>');
+  });
+
+  it('does not frame inactive roles as cleanup debt in the summary surfaces', () => {
+    expect(source).toContain("const staleRoleCount = missingAssignmentCount;");
+    expect(source).toContain("return `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`;");
+    expect(source).not.toContain("inactive role still need cleanup");
   });
 
   it('renders desktop assignment rows as role, description, status, provider selection, and reasoning columns', () => {

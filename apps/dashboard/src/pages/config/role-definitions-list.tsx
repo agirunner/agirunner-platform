@@ -79,9 +79,9 @@ export function RoleRow(props: {
                   aria-label={`Toggle ${props.role.name} active`}
                   className="scale-90"
                 />
-                <span className={cn('text-xs', props.role.is_active === false ? 'text-amber-600 dark:text-amber-400' : 'text-green-600 dark:text-green-400')}>
+                <Badge variant={props.role.is_active === false ? 'secondary' : 'success'}>
                   {props.role.is_active === false ? 'Inactive' : 'Active'}
-                </span>
+                </Badge>
                 <Badge variant={props.role.is_built_in ? 'secondary' : 'outline'}>
                   {props.role.is_built_in ? 'Built-in' : 'Custom'}
                 </Badge>

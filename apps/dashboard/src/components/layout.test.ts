@@ -37,9 +37,9 @@ describe('layout breadcrumbs', () => {
     expect(crumbs[0].label).toBe('Mission Control');
   });
 
-  it('points configuration navigation at the trigger overview route', () => {
+  it('points integrations navigation at the triggers route', () => {
     const source = readLayoutSource();
-    expect(source).toContain("label: 'Trigger Overview'");
+    expect(source).toContain("label: 'Triggers'");
     expect(source).toContain("href: '/config/triggers'");
   });
 

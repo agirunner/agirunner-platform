@@ -264,6 +264,11 @@ export function buildAssignmentRoleRows(
     if (normalizedName.length === 0 || includedNames.has(normalizedName)) {
       continue;
     }
+    const hasExplicitOverride =
+      Boolean(assignment.primary_model_id) || assignment.reasoning_config != null;
+    if (!hasExplicitOverride) {
+      continue;
+    }
     includedNames.add(normalizedName);
     const catalogRole = catalogByName.get(normalizedName);
     staleRows.push({
@@ -1073,22 +1078,19 @@ function truncateRoleDescription(description: string): string {
   return `${description.slice(0, TABLE_ROLE_DESCRIPTION_LIMIT - 1).trimEnd()}…`;
 }
 
+function normalizeReasoningConfig(
+  value: Record<string, unknown> | null | undefined,
+): string {
+  return JSON.stringify(value ?? null);
+}
+
 function summarizeStaleRoleBadgeLabel(input: {
-  inactiveRoleCount: number;
   missingAssignmentCount: number;
 }): string {
-  const parts: string[] = [];
-  if (input.inactiveRoleCount > 0) {
-    parts.push(
-      `${input.inactiveRoleCount} inactive role${input.inactiveRoleCount === 1 ? '' : 's'}`,
-    );
-  }
   if (input.missingAssignmentCount > 0) {
-    parts.push(
-      `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`,
-    );
+    return `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`;
   }
-  return parts.join(' • ');
+  return '';
 }
 
 function RoleAssignmentsSection({
@@ -1105,11 +1107,11 @@ function RoleAssignmentsSection({
   const queryClient = useQueryClient();
   const roleRows = buildAssignmentRoleRows(roleDefinitions, assignments);
   const activeRoleCount = roleRows.filter((role) => role.isActive).length;
-  const staleRoleCount = roleRows.length - activeRoleCount;
   const inactiveRoleCount = roleRows.filter(
     (role) => role.source === 'catalog' && role.isActive === false,
   ).length;
   const missingAssignmentCount = roleRows.filter((role) => role.source === 'assignment').length;
+  const staleRoleCount = missingAssignmentCount;
 
   const [defaultModelId, setDefaultModelId] = useState(systemDefault.modelId ?? '__none__');
   const [defaultReasoning, setDefaultReasoning] = useState<Record<string, unknown> | null>(
@@ -1201,8 +1203,41 @@ function RoleAssignmentsSection({
     roleCount: roleRows.length,
     explicitOverrideCount,
     staleRoleCount,
+    inactiveRoleCount,
+    missingAssignmentCount,
     blockingIssues: assignmentValidation.blockingIssues,
   });
+  const hasUnsavedChanges = (() => {
+    if (defaultModelId !== (systemDefault.modelId ?? '__none__')) {
+      return true;
+    }
+    if (normalizeReasoningConfig(defaultReasoning) !== normalizeReasoningConfig(systemDefault.reasoningConfig)) {
+      return true;
+    }
+
+    return roleRows.some((role) => {
+      const assignment = assignments.find((entry) => entry.role_name === role.name);
+      const currentState = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+      const persistedModelId = assignment?.primary_model_id ?? '__none__';
+      const persistedReasoning = assignment?.reasoning_config ?? null;
+      return (
+        currentState.modelId !== persistedModelId
+        || normalizeReasoningConfig(currentState.reasoningConfig) !== normalizeReasoningConfig(persistedReasoning)
+      );
+    });
+  })();
+  const shouldShowAssignmentGuidance =
+    assignmentValidation.blockingIssues.length > 0 || hasUnsavedChanges;
+  const assignmentGuidance =
+    assignmentValidation.blockingIssues.length > 0
+      ? assignmentSurface.guidance
+      : hasUnsavedChanges
+        ? {
+            tone: 'success' as const,
+            headline: 'Unsaved assignment changes',
+            detail: 'Review the updated default and role overrides, then save when ready.',
+          }
+        : null;
 
   return (
     <div id="llm-model-assignments" className="space-y-6">
@@ -1220,37 +1255,39 @@ function RoleAssignmentsSection({
           </Card>
         ))}
       </div>
-      <div
-        className={
-          DIALOG_ALERT_CLASS_NAME
-        }
-        style={panelToneStyle(assignmentSurface.guidance.tone)}
-      >
-        <div className="font-medium">{assignmentSurface.guidance.headline}</div>
-        <p className="mt-1">{assignmentSurface.guidance.detail}</p>
-        {assignmentValidation.missingRoleNames.length > 0 ? (
-          <div className="mt-3 space-y-2">
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-current/80">
-              Affected roles
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {assignmentValidation.missingRoleNames.map((roleName) => (
-                <span key={roleName} className={WARNING_ROLE_CHIP_CLASS_NAME} style={WARNING_CHIP_STYLE}>
-                  {roleName}
-                </span>
-              ))}
+      {shouldShowAssignmentGuidance && assignmentGuidance ? (
+        <div
+          className={
+            DIALOG_ALERT_CLASS_NAME
+          }
+          style={panelToneStyle(assignmentGuidance.tone)}
+        >
+          <div className="font-medium">{assignmentGuidance.headline}</div>
+          <p className="mt-1">{assignmentGuidance.detail}</p>
+          {assignmentValidation.missingRoleNames.length > 0 ? (
+            <div className="mt-3 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-current/80">
+                Affected roles
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {assignmentValidation.missingRoleNames.map((roleName) => (
+                  <span key={roleName} className={WARNING_ROLE_CHIP_CLASS_NAME} style={WARNING_CHIP_STYLE}>
+                    {roleName}
+                  </span>
+                ))}
+              </div>
             </div>
+          ) : null}
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button asChild size="sm" variant="outline">
+              <a href="#llm-providers-library">Review providers</a>
+            </Button>
+            <Button asChild size="sm" variant="outline">
+              <a href="#llm-model-catalog">Review model catalog</a>
+            </Button>
           </div>
-        ) : null}
-        <div className="mt-3 flex flex-wrap gap-2">
-          <Button asChild size="sm" variant="outline">
-            <a href="#llm-providers-library">Review providers</a>
-          </Button>
-          <Button asChild size="sm" variant="outline">
-            <a href="#llm-model-catalog">Review model catalog</a>
-          </Button>
         </div>
-      </div>
+      ) : null}
 
       {/* ── System Default ────────────────────────────────────────────── */}
       <div className="space-y-3">
@@ -1327,7 +1364,6 @@ function RoleAssignmentsSection({
               {staleRoleCount > 0 ? (
                 <Badge variant="warning">
                   {summarizeStaleRoleBadgeLabel({
-                    inactiveRoleCount,
                     missingAssignmentCount,
                   })}
                 </Badge>
@@ -1431,7 +1467,7 @@ function RoleAssignmentsSection({
       <div className="flex justify-end">
         <Button
           onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending || !assignmentValidation.isValid}
+          disabled={saveMutation.isPending || !assignmentValidation.isValid || !hasUnsavedChanges}
         >
           {saveMutation.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
           Save All

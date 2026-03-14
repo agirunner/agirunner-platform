@@ -809,17 +809,17 @@ describe('playbook workflow integration', () => {
       name: 'runtime-v2-harness',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          capabilities: ['llm-api', 'role:developer'],
+          capabilities: ['coding', 'testing'],
         },
       ],
     });
@@ -846,7 +846,7 @@ describe('playbook workflow integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -884,7 +884,7 @@ describe('playbook workflow integration', () => {
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'role:developer'],
+      capabilities: ['coding', 'testing'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -914,7 +914,7 @@ describe('playbook workflow integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -948,7 +948,7 @@ describe('playbook workflow integration', () => {
     const thirdClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1029,12 +1029,12 @@ describe('playbook workflow integration', () => {
       name: 'triggered-run-specialist',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       agents: [
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          capabilities: ['llm-api', 'role:developer'],
+          capabilities: ['coding', 'testing'],
         },
       ],
     });
@@ -1187,7 +1187,7 @@ describe('playbook workflow integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'role:developer'],
+      capabilities: ['coding', 'testing'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1212,7 +1212,7 @@ describe('playbook workflow integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'role:developer'],
+      capabilities: ['coding', 'testing'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1276,12 +1276,12 @@ describe('playbook workflow integration', () => {
       name: 'runtime-child-linkage',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator',
           execution_mode: 'orchestrator',
-          capabilities: ['llm-api', 'orchestrator'],
+          capabilities: ['coding', 'orchestrator'],
         },
       ],
     });
@@ -1301,7 +1301,7 @@ describe('playbook workflow integration', () => {
     const parentClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(parentPlaybook.id),
     });
@@ -1410,7 +1410,7 @@ describe('playbook workflow integration', () => {
       const resumedParentClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['llm-api', 'orchestrator'],
+        capabilities: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(parentPlaybook.id),
       });

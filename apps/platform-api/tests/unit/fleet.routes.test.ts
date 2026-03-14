@@ -111,6 +111,100 @@ describe('fleet routes', () => {
     ]);
   });
 
+  it('passes the enabled filter through worker list requests', async () => {
+    const { fleetRoutes } = await import('../../src/api/routes/fleet.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    const listWorkers = vi.fn().mockResolvedValue([]);
+    app.decorate('fleetService', {
+      listWorkers,
+      createWorker: vi.fn(),
+      updateWorker: vi.fn(),
+      deleteWorker: vi.fn(),
+      restartWorker: vi.fn(),
+      drainWorker: vi.fn(),
+      listContainers: vi.fn(),
+      getContainerStats: vi.fn(),
+      pruneStaleContainers: vi.fn(),
+      reportActualState: vi.fn(),
+      listImages: vi.fn(),
+      reportImage: vi.fn(),
+      requestImagePull: vi.fn(),
+      getQueueDepth: vi.fn(),
+      getRuntimeTargets: vi.fn(),
+      recordHeartbeat: vi.fn(),
+      listHeartbeats: vi.fn(),
+      getFleetStatus: vi.fn(),
+      recordFleetEvent: vi.fn(),
+      listFleetEvents: vi.fn(),
+      drainRuntime: vi.fn(),
+    });
+
+    await app.register(fleetRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/fleet/workers?enabled=true',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(listWorkers).toHaveBeenCalledWith('tenant-1', { enabledOnly: true });
+  });
+
+  it('returns a reconcile snapshot for worker-scope fleet consumers', async () => {
+    const { fleetRoutes } = await import('../../src/api/routes/fleet.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    const getReconcileSnapshot = vi.fn().mockResolvedValue({
+      desired_states: [{ id: 'worker-1', worker_name: 'worker-a' }],
+      runtime_targets: [{ playbook_id: 'pb-1', pool_kind: 'orchestrator' }],
+      heartbeats: [{ runtime_id: 'rt-1', pool_kind: 'orchestrator', state: 'idle' }],
+    });
+    app.decorate('fleetService', {
+      listWorkers: vi.fn(),
+      getReconcileSnapshot,
+      createWorker: vi.fn(),
+      updateWorker: vi.fn(),
+      deleteWorker: vi.fn(),
+      restartWorker: vi.fn(),
+      drainWorker: vi.fn(),
+      listContainers: vi.fn(),
+      getContainerStats: vi.fn(),
+      pruneStaleContainers: vi.fn(),
+      reportActualState: vi.fn(),
+      listImages: vi.fn(),
+      reportImage: vi.fn(),
+      requestImagePull: vi.fn(),
+      getQueueDepth: vi.fn(),
+      getRuntimeTargets: vi.fn(),
+      recordHeartbeat: vi.fn(),
+      listHeartbeats: vi.fn(),
+      getFleetStatus: vi.fn(),
+      recordFleetEvent: vi.fn(),
+      listFleetEvents: vi.fn(),
+      drainRuntime: vi.fn(),
+    });
+
+    await app.register(fleetRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/fleet/reconcile-snapshot',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(getReconcileSnapshot).toHaveBeenCalledWith('tenant-1');
+    expect(response.json().data).toEqual({
+      desired_states: [{ id: 'worker-1', worker_name: 'worker-a' }],
+      runtime_targets: [{ playbook_id: 'pb-1', pool_kind: 'orchestrator' }],
+      heartbeats: [{ runtime_id: 'rt-1', pool_kind: 'orchestrator', state: 'idle' }],
+    });
+  });
+
   it('does not serialize llm api key secret refs on worker create responses', async () => {
     const { fleetRoutes } = await import('../../src/api/routes/fleet.routes.js');
 

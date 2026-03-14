@@ -72,7 +72,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
     });
 
     const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
@@ -85,7 +85,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api', 'orchestrator'],
+      capabilities: ['coding', 'orchestrator'],
     });
 
     const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
@@ -98,7 +98,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       playbook_id: 'playbook-1',
     });
 
@@ -175,7 +175,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
     });
 
     expect(task?.id).toBe('task-open');
@@ -273,7 +273,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
       workflow_id: 'wf-1',
     });
 
@@ -412,7 +412,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
     });
 
     expect(task?.credentials).toEqual({
@@ -528,7 +528,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
     });
 
     expect(task?.credentials).toEqual({
@@ -604,7 +604,7 @@ describe('TaskClaimService', () => {
               workflow_id: 'wf-1',
               state: 'claimed',
               role: 'developer',
-              capabilities_required: ['llm-api'],
+              capabilities_required: ['coding'],
               priority: 'normal',
               metadata: {},
             }],
@@ -674,7 +674,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
     });
 
     expect(task?.credentials).toEqual(expect.objectContaining({
@@ -755,7 +755,7 @@ describe('TaskClaimService', () => {
               workflow_id: 'wf-1',
               state: 'claimed',
               role: 'developer',
-              capabilities_required: ['llm-api'],
+              capabilities_required: ['coding'],
               priority: 'normal',
               metadata: {},
             }],
@@ -806,7 +806,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
     });
 
     expect(task?.credentials).toEqual({
@@ -925,7 +925,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
     });
 
     const handle = (task?.credentials as Record<string, unknown>).llm_api_key_claim_handle as string;
@@ -1041,7 +1041,7 @@ describe('TaskClaimService', () => {
               workflow_id: 'wf-1',
               state: 'ready',
               role: 'developer',
-              capabilities_required: ['llm-api'],
+              capabilities_required: ['coding'],
               priority: 'normal',
               metadata: {},
             }],
@@ -1058,7 +1058,7 @@ describe('TaskClaimService', () => {
               workflow_id: 'wf-1',
               state: 'claimed',
               role: 'developer',
-              capabilities_required: ['llm-api'],
+              capabilities_required: ['coding'],
               priority: 'normal',
               metadata: {},
             }],
@@ -1106,7 +1106,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['llm-api'],
+      capabilities: ['coding'],
     });
 
     expect(task?.credentials).toEqual({
