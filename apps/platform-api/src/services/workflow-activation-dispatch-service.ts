@@ -4,6 +4,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 
 import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
+import { readProjectRepositorySettings } from './project-settings.js';
 
 const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'pending',
@@ -1498,7 +1499,7 @@ interface WorkflowRepositoryContext {
 
 function resolveWorkflowRepositoryContext(workflow: WorkflowDispatchRow): WorkflowRepositoryContext {
   const parameters = asRecord(workflow.workflow_parameters);
-  const projectSettings = asRecord(workflow.project_settings);
+  const projectRepository = readProjectRepositorySettings(workflow.project_settings);
   return {
     repository_url:
       asNullableString(parameters.repository_url)
@@ -1508,22 +1509,22 @@ function resolveWorkflowRepositoryContext(workflow: WorkflowDispatchRow): Workfl
       asNullableString(workflow.workflow_git_branch)
       ?? asNullableString(parameters.base_branch)
       ?? asNullableString(parameters.branch)
-      ?? asNullableString(projectSettings.default_branch),
+      ?? projectRepository.defaultBranch,
     feature_branch:
       asNullableString(parameters.feature_branch)
       ?? asNullableString(parameters.target_branch),
     git_user_name:
       asNullableString(parameters.git_user_name)
       ?? asNullableString(parameters.gitUserName)
-      ?? asNullableString(projectSettings.git_user_name),
+      ?? projectRepository.gitUserName,
     git_user_email:
       asNullableString(parameters.git_user_email)
       ?? asNullableString(parameters.gitUserEmail)
-      ?? asNullableString(projectSettings.git_user_email),
+      ?? projectRepository.gitUserEmail,
     git_token_secret_ref:
       asNullableString(parameters.git_token_secret_ref)
       ?? asNullableString(parameters.gitTokenSecretRef)
-      ?? asNullableString(projectSettings.git_token_secret_ref),
+      ?? projectRepository.gitTokenSecretRef,
   };
 }
 

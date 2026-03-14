@@ -3,9 +3,14 @@ import type { AppEnv } from '../config/schema.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository, type TenantRow } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
-import { readModelOverride, type ModelOverride } from './config-hierarchy-service.js';
 import { EventService } from './event-service.js';
 import type { ProjectMemoryMutationContext } from './project-memory-scope-service.js';
+import {
+  normalizeProjectSettings,
+  parseProjectSettingsInput,
+  serializeProjectSettings,
+  type StoredProjectSettings,
+} from './project-settings.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import { encryptWebhookSecret, decryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 
@@ -21,7 +26,7 @@ interface CreateProjectInput {
   slug: string;
   description?: string;
   repository_url?: string;
-  settings?: Record<string, unknown>;
+  settings?: Record<string, unknown> | StoredProjectSettings;
   memory?: Record<string, unknown>;
 }
 
@@ -30,7 +35,7 @@ interface UpdateProjectInput {
   slug?: string;
   description?: string;
   repository_url?: string;
-  settings?: Record<string, unknown>;
+  settings?: Record<string, unknown> | StoredProjectSettings;
   is_active?: boolean;
 }
 
@@ -105,8 +110,7 @@ export class ProjectService {
   async createProject(identity: ApiKeyIdentity, input: CreateProjectInput) {
     const memory = normalizeRecord(input.memory);
     const memorySizeBytes = byteLengthJson(memory);
-    const settings = normalizeRecord(input.settings);
-    await this.validateProjectSettings(identity.tenantId, settings);
+    const settings = parseProjectSettingsInput(input.settings);
 
     try {
       const result = await this.pool.query<Record<string, unknown>>(
@@ -199,13 +203,12 @@ export class ProjectService {
   }
 
   async updateProject(identity: ApiKeyIdentity, projectId: string, input: UpdateProjectInput) {
-    const existing = await this.getProject(identity.tenantId, projectId);
-
+    const existing = await this.loadProjectRecord(identity.tenantId, projectId);
+    const existingSettings = normalizeProjectSettings(existing.settings);
     const settings =
       input.settings !== undefined
-        ? normalizeRecord(input.settings)
-        : normalizeRecord(existing.settings);
-    await this.validateProjectSettings(identity.tenantId, settings);
+        ? parseProjectSettingsInput(input.settings, existingSettings)
+        : existingSettings;
 
     try {
       const result = await this.pool.query<Record<string, unknown>>(
@@ -538,32 +541,9 @@ export class ProjectService {
   async getProjectModelOverride(
     tenantId: string,
     projectId: string,
-  ): Promise<ModelOverride | null> {
-    const project = await this.getProject(tenantId, projectId);
-    return readModelOverride(normalizeRecord(project.settings).model_override, 'project model_override');
-  }
-
-  private async validateProjectSettings(tenantId: string, settings: Record<string, unknown>): Promise<void> {
-    const modelOverride = readModelOverride(settings.model_override, 'project model_override');
-    if (!modelOverride?.model_id) {
-      return;
-    }
-
-    const result = await this.pool.query(
-      `SELECT 1
-         FROM llm_models m
-         JOIN llm_providers p
-           ON p.id = m.provider_id
-        WHERE m.tenant_id = $1
-          AND m.id = $2
-          AND m.is_enabled = true
-          AND p.is_enabled = true
-        LIMIT 1`,
-      [tenantId, modelOverride.model_id],
-    );
-    if (!result.rowCount) {
-      throw new ValidationError('project.settings.model_override.model_id must reference an enabled model');
-    }
+  ): Promise<null> {
+    await this.getProject(tenantId, projectId);
+    return null;
   }
 
   private async ensureGitWebhookSecretEncrypted(tenantId: string, project: ProjectRow): Promise<ProjectRow> {
@@ -628,6 +608,15 @@ export class ProjectService {
     }
     return result.rows[0] as ProjectRow;
   }
+
+  private async loadProjectRecord(tenantId: string, projectId: string): Promise<ProjectRow> {
+    const repo = new TenantScopedRepository(this.pool, tenantId);
+    const project = await repo.findById<ProjectRow>('projects', '*', projectId);
+    if (!project) {
+      throw new NotFoundError('Project not found');
+    }
+    return project;
+  }
 }
 
 function redactProjectSecrets(project: ProjectRow): Record<string, unknown> {
@@ -636,19 +625,10 @@ function redactProjectSecrets(project: ProjectRow): Record<string, unknown> {
   const { git_webhook_secret: _removed, settings, memory, ...rest } = record;
   return {
     ...rest,
-    settings: sanitizeProjectSettings(settings),
+    settings: serializeProjectSettings(settings),
     memory: sanitizeProjectMemory(memory),
     git_webhook_secret_configured: hasSecret,
   };
-}
-
-function sanitizeProjectSettings(value: unknown): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(normalizeRecord(value)).map(([key, entry]) => [
-      key,
-      sanitizeProjectRecordValue(key, entry, PROJECT_SETTINGS_SECRET_REDACTION),
-    ]),
-  );
 }
 
 function sanitizeProjectMemory(value: unknown): Record<string, unknown> {

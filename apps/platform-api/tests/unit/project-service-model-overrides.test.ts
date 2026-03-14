@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProjectService } from '../../src/services/project-service.js';
 
 describe('ProjectService model overrides', () => {
-  it('validates project model override references during project updates', async () => {
+  it('stores plural project model overrides during project updates', async () => {
     const pool = {
       query: vi
         .fn()
@@ -19,18 +19,17 @@ describe('ProjectService model overrides', () => {
         })
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: '00000000-0000-0000-0000-000000000020' }],
-        })
-        .mockResolvedValueOnce({
-          rowCount: 1,
           rows: [{
             id: 'project-1',
             tenant_id: 'tenant-1',
             name: 'Project',
             slug: 'project',
             settings: {
-              model_override: {
-                model_id: '00000000-0000-0000-0000-000000000020',
+              model_overrides: {
+                developer: {
+                  provider: 'openai',
+                  model: 'gpt-5',
+                },
               },
             },
           }],
@@ -54,15 +53,21 @@ describe('ProjectService model overrides', () => {
       'project-1',
       {
         settings: {
-          model_override: {
-            model_id: '00000000-0000-0000-0000-000000000020',
+          model_overrides: {
+            developer: {
+              provider: 'openai',
+              model: 'gpt-5',
+            },
           },
         },
       },
     );
 
-    expect((project.settings as Record<string, unknown>).model_override).toEqual({
-      model_id: '00000000-0000-0000-0000-000000000020',
+    expect((project.settings as Record<string, unknown>).model_overrides).toEqual({
+      developer: {
+        provider: 'openai',
+        model: 'gpt-5',
+      },
     });
   });
 });

@@ -37,6 +37,7 @@ describe('project model override routes', () => {
 
     app = fastify();
     registerErrorHandler(app);
+    app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
     app.decorate('workflowService', { getProjectTimeline: vi.fn() });
@@ -92,6 +93,7 @@ describe('project model override routes', () => {
 
     app = fastify();
     registerErrorHandler(app);
+    app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
     app.decorate('workflowService', { getProjectTimeline: vi.fn() });
@@ -156,6 +158,7 @@ describe('project model override routes', () => {
 
     app = fastify();
     registerErrorHandler(app);
+    app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
     app.decorate('workflowService', { getProjectTimeline: vi.fn() });

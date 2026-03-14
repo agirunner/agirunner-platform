@@ -917,14 +917,18 @@ describe('WorkflowActivationDispatchService', () => {
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship code',
               project_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-              project_settings: { default_branch: 'main' },
+              project_settings: {
+                default_branch: 'main',
+                git_user_name: 'Smoke Bot',
+                git_user_email: 'smoke@example.test',
+                credentials: {
+                  git_token: 'secret:GITHUB_PAT',
+                },
+              },
               workflow_git_branch: null,
               workflow_parameters: {
                 branch: 'main',
                 feature_branch: 'smoke/feature-1',
-                git_user_name: 'Smoke Bot',
-                git_user_email: 'smoke@example.test',
-                git_token_secret_ref: 'secret:GITHUB_PAT',
               },
             }],
           };

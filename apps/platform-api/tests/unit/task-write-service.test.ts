@@ -23,13 +23,17 @@ describe('TaskWriteService', () => {
             rowCount: 1,
             rows: [{
               repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-              settings: { default_branch: 'main' },
+              settings: {
+                default_branch: 'main',
+                git_user_name: 'Smoke Bot',
+                git_user_email: 'smoke@example.com',
+                credentials: {
+                  git_token: 'secret:GITHUB_PAT',
+                },
+              },
               git_branch: null,
               parameters: {
                 feature_branch: 'smoke/test/fix',
-                git_user_name: 'Smoke Bot',
-                git_user_email: 'smoke@example.com',
-                git_token_secret_ref: 'secret:GITHUB_PAT',
               },
             }],
           };

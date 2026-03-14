@@ -4,6 +4,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import { readProjectRepositorySettings } from './project-settings.js';
 import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
@@ -290,7 +291,7 @@ export class TaskWriteService {
 
     const workflow = result.rows[0];
     const parameters = asRecord(workflow.parameters);
-    const projectSettings = asRecord(workflow.settings);
+    const projectRepository = readProjectRepositorySettings(workflow.settings);
     const environment = asRecord(input.environment);
     const repositoryURL =
       asNullableString(environment.repository_url)
@@ -304,23 +305,23 @@ export class TaskWriteService {
       ?? asNullableString(workflow.git_branch)
       ?? asNullableString(parameters.base_branch)
       ?? asNullableString(parameters.branch)
-      ?? asNullableString(projectSettings.default_branch);
+      ?? projectRepository.defaultBranch;
     const gitUserName =
       asNullableString(environment.git_user_name)
       ?? asNullableString(environment.gitUserName)
       ?? asNullableString(parameters.git_user_name)
       ?? asNullableString(parameters.gitUserName)
-      ?? asNullableString(projectSettings.git_user_name);
+      ?? projectRepository.gitUserName;
     const gitUserEmail =
       asNullableString(environment.git_user_email)
       ?? asNullableString(environment.gitUserEmail)
       ?? asNullableString(parameters.git_user_email)
       ?? asNullableString(parameters.gitUserEmail)
-      ?? asNullableString(projectSettings.git_user_email);
+      ?? projectRepository.gitUserEmail;
     const gitTokenSecretRef =
       asNullableString(parameters.git_token_secret_ref)
       ?? asNullableString(parameters.gitTokenSecretRef)
-      ?? asNullableString(projectSettings.git_token_secret_ref);
+      ?? projectRepository.gitTokenSecretRef;
 
     const nextEnvironment = {
       ...environment,

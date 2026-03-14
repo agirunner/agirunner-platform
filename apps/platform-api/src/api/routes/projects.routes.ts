@@ -6,6 +6,7 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ProjectPlanningService } from '../../services/project-planning-service.js';
 import { ProjectArtifactExplorerService } from '../../services/project-artifact-explorer-service.js';
+import { parseProjectSettingsInput, projectModelOverridesSchema, readProjectModelOverrides } from '../../services/project-settings.js';
 import { ProjectSpecService } from '../../services/project-spec-service.js';
 
 const projectCreateSchema = z.object({
@@ -30,14 +31,6 @@ const projectUpdateSchema = z
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field is required',
   });
-
-const roleModelOverrideSchema = z.object({
-  provider: z.string().min(1).max(120),
-  model: z.string().min(1).max(200),
-  reasoning_config: z.record(z.unknown()).nullable().optional(),
-});
-
-const modelOverridesSchema = z.record(z.string().min(1).max(120), roleModelOverrideSchema);
 
 const gitWebhookConfigSchema = z.object({
   provider: z.enum(['github', 'gitea', 'gitlab']),
@@ -140,7 +133,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       return {
         data: {
           project_id: params.id,
-          model_overrides: readModelOverrides(asRecord(project.settings).model_overrides),
+          model_overrides: readProjectModelOverrides(project.settings),
         },
       };
     },
@@ -153,7 +146,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const query = request.query as { roles?: string };
       const project = await projectService.getProject(request.auth!.tenantId, params.id);
-      const projectOverrides = readModelOverrides(asRecord(project.settings).model_overrides);
+      const projectOverrides = readProjectModelOverrides(project.settings);
       const roles = parseRoleQuery(query.roles, projectOverrides);
       return {
         data: {
@@ -277,12 +270,13 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
 };
 
 function validateProjectModelOverrides(settings: unknown, ctx: z.RefinementCtx) {
-  const parsed = modelOverridesSchema.safeParse(asRecord(settings).model_overrides ?? {});
-  if (!parsed.success) {
+  try {
+    parseProjectSettingsInput(settings);
+  } catch (error) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: 'settings.model_overrides must be a valid model override map',
-      path: ['settings', 'model_overrides'],
+      message: error instanceof Error ? error.message : 'settings must be valid project settings',
+      path: ['settings'],
     });
   }
 }
@@ -295,7 +289,7 @@ function parseRoleQuery(raw: string | undefined, projectOverrides: Record<string
 }
 
 function readModelOverrides(value: unknown): Record<string, unknown> {
-  const parsed = modelOverridesSchema.safeParse(value ?? {});
+  const parsed = projectModelOverridesSchema.safeParse(value ?? {});
   return parsed.success ? parsed.data : {};
 }
 

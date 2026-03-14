@@ -1,6 +1,7 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
+import type { StoredProjectSettings } from '../../services/project-settings.js';
 
 export const projects = pgTable(
   'projects',
@@ -17,7 +18,10 @@ export const projects = pgTable(
     memorySizeBytes: integer('memory_size_bytes').notNull().default(0),
     memoryMaxBytes: integer('memory_max_bytes').notNull().default(1048576),
     currentSpecVersion: integer('current_spec_version').notNull().default(0),
-    settings: jsonb('settings').notNull().default({}),
+    settings: jsonb('settings')
+      .$type<StoredProjectSettings>()
+      .notNull()
+      .default({ credentials: {}, model_overrides: {} }),
     gitWebhookProvider: text('git_webhook_provider'),
     gitWebhookSecret: text('git_webhook_secret'),
     isActive: boolean('is_active').notNull().default(true),

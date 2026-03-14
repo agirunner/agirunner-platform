@@ -53,13 +53,26 @@ describe('ProjectService secret redaction', () => {
 
     expect(result).not.toHaveProperty('git_webhook_secret');
     expect(result.git_webhook_secret_configured).toBe(true);
-    expect(result.settings).toEqual({
-      deployment: {
-        api_token: 'redacted://project-settings-secret',
-        endpoint: 'https://example.com',
-        ref: 'redacted://project-settings-secret',
-      },
-    });
+    expect(result.settings).toEqual(
+      expect.objectContaining({
+        credentials: {
+          git_token: null,
+          git_token_configured: false,
+          git_ssh_private_key: null,
+          git_ssh_private_key_configured: false,
+          git_ssh_known_hosts: null,
+          git_ssh_known_hosts_configured: false,
+          webhook_secret: null,
+          webhook_secret_configured: false,
+        },
+        model_overrides: {},
+        deployment: {
+          api_token: 'redacted://project-settings-secret',
+          endpoint: 'https://example.com',
+          ref: 'redacted://project-settings-secret',
+        },
+      }),
+    );
     expect(result.memory).toEqual({
       SAFE_LABEL: 'demo',
       apiKey: 'redacted://project-memory-secret',
@@ -88,13 +101,26 @@ describe('ProjectService secret redaction', () => {
     expect(result.data).toHaveLength(1);
     expect(result.data[0]).not.toHaveProperty('git_webhook_secret');
     expect(result.data[0]?.git_webhook_secret_configured).toBe(true);
-    expect(result.data[0]?.settings).toEqual({
-      deployment: {
-        api_token: 'redacted://project-settings-secret',
-        endpoint: 'https://example.com',
-        ref: 'redacted://project-settings-secret',
-      },
-    });
+    expect(result.data[0]?.settings).toEqual(
+      expect.objectContaining({
+        credentials: {
+          git_token: null,
+          git_token_configured: false,
+          git_ssh_private_key: null,
+          git_ssh_private_key_configured: false,
+          git_ssh_known_hosts: null,
+          git_ssh_known_hosts_configured: false,
+          webhook_secret: null,
+          webhook_secret_configured: false,
+        },
+        model_overrides: {},
+        deployment: {
+          api_token: 'redacted://project-settings-secret',
+          endpoint: 'https://example.com',
+          ref: 'redacted://project-settings-secret',
+        },
+      }),
+    );
     expect(result.data[0]?.memory).toEqual({
       SAFE_LABEL: 'demo',
       apiKey: 'redacted://project-memory-secret',
@@ -156,12 +182,25 @@ describe('ProjectService secret redaction', () => {
 
     const result = await service.getProject(TENANT_ID, PROJECT_ID);
 
-    expect(result.settings).toEqual({
-      endpoint: {
-        auth: 'redacted://project-settings-secret',
-        session: 'redacted://project-settings-secret',
-      },
-    });
+    expect(result.settings).toEqual(
+      expect.objectContaining({
+        credentials: {
+          git_token: null,
+          git_token_configured: false,
+          git_ssh_private_key: null,
+          git_ssh_private_key_configured: false,
+          git_ssh_known_hosts: null,
+          git_ssh_known_hosts_configured: false,
+          webhook_secret: null,
+          webhook_secret_configured: false,
+        },
+        model_overrides: {},
+        endpoint: {
+          auth: 'redacted://project-settings-secret',
+          session: 'redacted://project-settings-secret',
+        },
+      }),
+    );
     expect(result.memory).toEqual({
       summary: 'redacted://project-memory-secret',
       session: 'redacted://project-memory-secret',
