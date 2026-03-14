@@ -178,7 +178,7 @@ describe('project detail workspace shell source', () => {
     expect(source).toContain('buildProjectWorkspaceOverview(project, projectSpecQuery.data)');
     expect(source).toContain('buildProjectKnowledgeOverview(project, projectSpecQuery.data)');
     expect(source).toContain('buildProjectSettingsOverview(project)');
-    expect(source).toContain('projectOverview.summary');
+    expect(source).toContain('Open knowledge base');
     expect(supportSource).toContain('Knowledge base');
     expect(source).not.toContain('ProjectWorkspaceTabIcon');
     expect(source).not.toContain('activeTabOption.description');
