@@ -129,4 +129,38 @@ describe('project memory history support', () => {
     expect(stringifyMemoryValue({ summary: 'latest' })).toBe('{\n  "summary": "latest"\n}');
     expect(stringifyMemoryValue('watch release')).toBe('watch release');
   });
+
+  it('handles entries with null actorType without crashing', () => {
+    const nullActorEntry: MemoryEntry = {
+      key: 'orphan_key',
+      value: 'orphan value',
+      scope: 'work_item',
+      eventId: 99,
+      actorType: null,
+      actorId: null,
+      updatedAt: '2026-03-12T10:00:00.000Z',
+      eventType: 'updated',
+    };
+
+    expect(formatMemoryActor(null, null)).toBe('Unknown author');
+    expect(formatMemoryActor(undefined, undefined)).toBe('Unknown author');
+    expect(describeMemoryRevisionLabel(nullActorEntry)).toBe('Unknown author updated this key');
+
+    const review = buildMemoryHistoryReview(
+      [nullActorEntry],
+      'orphan_key',
+      buildMemoryRevisionId(nullActorEntry),
+    );
+    expect(review.selectedEntry).toEqual(nullActorEntry);
+    expect(review.selectedEntry?.actorType).toBeNull();
+  });
+
+  it('returns a safe review when no entries match the selected key', () => {
+    const review = buildMemoryHistoryReview(historyEntries, 'nonexistent_key', '');
+    expect(review.selectedEntry).toBeNull();
+    expect(review.previousEntry).toBeNull();
+    expect(review.versions).toEqual([]);
+    expect(review.selectedText).toBe('');
+    expect(review.previousText).toBe('');
+  });
 });

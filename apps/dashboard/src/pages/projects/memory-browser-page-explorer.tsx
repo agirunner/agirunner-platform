@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react';
+import { Component, useEffect, useState } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import { BrainCircuit, Clock3, FolderKanban, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -191,17 +192,19 @@ export function MemoryExplorerCard(props: {
                   : 'Select a work item'
               }
             />
-            <HistoryPanel
-              entries={props.historyPanel.entries}
-              isLoading={props.historyPanel.isLoading}
-              isScopedSelectionReady={props.selectedWorkItemId.length > 0}
-              selectedActor={props.historyPanel.selectedActor}
-              selectedKey={props.historyPanel.selectedKey}
-              actorOptions={props.historyPanel.actorOptions}
-              keyOptions={props.historyPanel.keyOptions}
-              onActorChange={props.historyPanel.onActorChange}
-              onKeyChange={props.historyPanel.onKeyChange}
-            />
+            <TabErrorBoundary label="History trail">
+              <HistoryPanel
+                entries={props.historyPanel.entries}
+                isLoading={props.historyPanel.isLoading}
+                isScopedSelectionReady={props.selectedWorkItemId.length > 0}
+                selectedActor={props.historyPanel.selectedActor}
+                selectedKey={props.historyPanel.selectedKey}
+                actorOptions={props.historyPanel.actorOptions}
+                keyOptions={props.historyPanel.keyOptions}
+                onActorChange={props.historyPanel.onActorChange}
+                onKeyChange={props.historyPanel.onKeyChange}
+              />
+            </TabErrorBoundary>
           </TabsContent>
         </Tabs>
       </CardContent>
@@ -307,4 +310,51 @@ function MemoryPayloadView(props: { value: unknown }): JSX.Element {
     );
   }
   return <StructuredRecordView data={props.value} emptyMessage="No memory payload recorded." />;
+}
+
+interface TabErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class TabErrorBoundary extends Component<
+  { label: string; children: ReactNode },
+  TabErrorBoundaryState
+> {
+  constructor(props: { label: string; children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): TabErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    console.error(`[TabErrorBoundary:${this.props.label}]`, error, info.componentStack);
+  }
+
+  render(): ReactNode {
+    if (!this.state.hasError) {
+      return this.props.children;
+    }
+
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950/30">
+        <p className="text-sm font-medium text-red-800 dark:text-red-300">
+          {this.props.label} encountered an error
+        </p>
+        <p className="mt-1 text-xs text-red-600 dark:text-red-400">
+          {this.state.error?.message ?? 'An unexpected error occurred.'}
+        </p>
+        <button
+          type="button"
+          className="mt-3 rounded-md bg-red-100 px-3 py-1.5 text-xs font-medium text-red-800 hover:bg-red-200 dark:bg-red-900/50 dark:text-red-300 dark:hover:bg-red-900/70"
+          onClick={() => this.setState({ hasError: false, error: null })}
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 }

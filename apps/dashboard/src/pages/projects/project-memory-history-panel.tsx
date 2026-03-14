@@ -94,7 +94,9 @@ export function ProjectMemoryHistoryPanel(props: {
         <div className="space-y-2">
           {review.versions.map((entry) => {
             const revisionId = buildMemoryRevisionId(entry);
-            const isSelected = revisionId === buildMemoryRevisionId(review.selectedEntry!);
+            const isSelected = review.selectedEntry
+              ? revisionId === buildMemoryRevisionId(review.selectedEntry)
+              : false;
             return (
               <button
                 key={revisionId}
@@ -150,7 +152,7 @@ export function ProjectMemoryHistoryPanel(props: {
                 ? `${formatMemoryActor(review.previousEntry.actorType, review.previousEntry.actorId)} · comparison`
                 : 'No previous version'
             }
-            newLabel={`${formatMemoryActor(review.selectedEntry!.actorType, review.selectedEntry!.actorId)} · selected`}
+            newLabel={`${formatMemoryActor(review.selectedEntry?.actorType, review.selectedEntry?.actorId)} · selected`}
             oldText={review.previousText}
             newText={review.selectedText}
           />

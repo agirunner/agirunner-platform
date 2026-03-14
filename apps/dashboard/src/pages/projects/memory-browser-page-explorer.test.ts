@@ -35,4 +35,13 @@ describe('memory browser explorer source', () => {
     expect(source).toContain('No project memory entries matched the current filter.');
     expect(source).toContain('No work-item memory entries matched the current filter.');
   });
+
+  it('wraps history panel in a tab-level error boundary to preserve the page shell on crashes', () => {
+    const source = readSource();
+
+    expect(source).toContain('TabErrorBoundary');
+    expect(source).toContain('<TabErrorBoundary label="History trail">');
+    expect(source).toContain('encountered an error');
+    expect(source).toContain('Retry');
+  });
 });

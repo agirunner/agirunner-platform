@@ -37,4 +37,9 @@ describe('project memory history panel source', () => {
     expect(source).toContain('Version Diff');
     expect(source).toContain('Payload');
   });
+
+  it('does not use non-null assertions on selectedEntry to prevent null crashes', () => {
+    const source = readSource();
+    expect(source).not.toContain('selectedEntry!.');
+  });
 });
