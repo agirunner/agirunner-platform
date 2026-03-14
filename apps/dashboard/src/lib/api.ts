@@ -725,6 +725,22 @@ export interface DashboardIntegrationRecord {
   updated_at?: string;
 }
 
+export interface DashboardCostSummaryRecord {
+  today: number;
+  this_week: number;
+  this_month: number;
+  budget_total: number;
+  budget_remaining: number;
+  by_workflow: Array<{ name: string; cost: number }>;
+  by_model: Array<{ model: string; cost: number }>;
+  daily_trend: Array<{ date: string; cost: number }>;
+  totalTokensInput: number;
+  totalTokensOutput: number;
+  totalCostUsd: number;
+  totalWallTimeMs: number;
+  eventCount: number;
+}
+
 export interface DashboardGovernanceRetentionPolicy {
   task_archive_after_days: number;
   task_delete_after_days: number;
@@ -1633,6 +1649,7 @@ export interface DashboardApi {
     Array<{ id: string; name: string; description: string | null; is_active: boolean }>
   >;
   listIntegrations(): Promise<DashboardIntegrationRecord[]>;
+  getCostSummary(): Promise<DashboardCostSummaryRecord>;
   createIntegration(payload: {
     kind: DashboardIntegrationRecord['kind'];
     workflow_id?: string;
@@ -2637,6 +2654,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     listIntegrations: () =>
       withRefresh(() =>
         requestData<DashboardIntegrationRecord[]>('/api/v1/integrations', {
+          method: 'GET',
+        }),
+      ),
+    getCostSummary: () =>
+      withRefresh(() =>
+        requestData<DashboardCostSummaryRecord>('/api/v1/metering/summary', {
           method: 'GET',
         }),
       ),

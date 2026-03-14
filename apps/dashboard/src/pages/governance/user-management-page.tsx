@@ -9,6 +9,7 @@ import {
 import { DeactivateDialog } from './user-management-page.deactivate-dialog.js';
 import {
   PermissionDeniedState,
+  LegacyUserManagementNotice,
   UserEmptyState,
   UserManagementHeader,
   UserManagementOverview,
@@ -116,6 +117,7 @@ export function UserManagementPage(): JSX.Element {
   return (
     <div className="space-y-6 p-6">
       <UserManagementHeader onCreate={() => setIsCreateOpen(true)} />
+      <LegacyUserManagementNotice />
       <UserManagementOverview users={users} />
       {users.length === 0 ? (
         <UserEmptyState onCreate={() => setIsCreateOpen(true)} />

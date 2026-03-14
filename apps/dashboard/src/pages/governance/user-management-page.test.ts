@@ -31,4 +31,12 @@ describe('user management page source', () => {
     expect(source).toContain('Confirm by typing {props.user.email}');
     expect(source).toContain('UserManagementOverview');
   });
+
+  it('marks the surface as legacy and points operators back to API keys', () => {
+    const source = readSource();
+    expect(source).toContain('Legacy admin surface');
+    expect(source).toContain('API keys are the supported primary access model today.');
+    expect(source).toContain('Legacy User Access');
+    expect(source).toContain('Add legacy user');
+  });
 });

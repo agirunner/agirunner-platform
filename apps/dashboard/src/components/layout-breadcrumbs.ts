@@ -6,6 +6,7 @@ export interface LayoutBreadcrumb {
 const SEGMENT_LABELS: Record<string, string> = {
   boards: 'Workflow Boards',
   workflows: 'Workflow Boards',
+  users: 'Legacy User Access',
 };
 
 /**

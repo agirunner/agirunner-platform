@@ -110,6 +110,22 @@ export function IntegrationsPage(): JSX.Element {
       ),
     [workflowsQuery.data],
   );
+  const integrations = integrationsQuery.data ?? [];
+  const summaryCards = useMemo(
+    () => summarizeIntegrationLibrary(integrations),
+    [integrations],
+  );
+  const filteredIntegrations = useMemo(
+    () =>
+      filterIntegrations(
+        integrations,
+        search,
+        statusFilter,
+        scopeFilter,
+        workflowNameById,
+      ),
+    [integrations, search, statusFilter, scopeFilter, workflowNameById],
+  );
 
   if (integrationsQuery.isLoading) {
     return (
@@ -128,23 +144,6 @@ export function IntegrationsPage(): JSX.Element {
       </div>
     );
   }
-
-  const integrations = integrationsQuery.data ?? [];
-  const summaryCards = useMemo(
-    () => summarizeIntegrationLibrary(integrations),
-    [integrations],
-  );
-  const filteredIntegrations = useMemo(
-    () =>
-      filterIntegrations(
-        integrations,
-        search,
-        statusFilter,
-        scopeFilter,
-        workflowNameById,
-      ),
-    [integrations, search, statusFilter, scopeFilter, workflowNameById],
-  );
 
   return (
     <div className="space-y-6 p-6">

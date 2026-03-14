@@ -29,17 +29,30 @@ export function UserManagementHeader(props: { onCreate(): void }): JSX.Element {
       <div className="space-y-2">
         <div className="flex items-center gap-2">
           <Users className="h-6 w-6 text-muted-foreground" />
-          <h1 className="text-2xl font-semibold tracking-tight">User Management</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Legacy User Access</h1>
         </div>
         <p className="max-w-3xl text-sm leading-6 text-muted">
-          Keep platform access reviewable with clear roles, visible last-activity context, and explicit deactivation confirmations.
+          This legacy admin surface exists for SSO-backed user records, but the shipped operator model is API-key-first and is managed through API Keys.
         </p>
       </div>
       <Button onClick={props.onCreate} className="w-full sm:w-auto">
         <Plus className="h-4 w-4" />
-        Create user
+        Add legacy user
       </Button>
     </div>
+  );
+}
+
+export function LegacyUserManagementNotice(): JSX.Element {
+  return (
+    <Card className="border-amber-300 bg-amber-50 shadow-sm dark:border-amber-700 dark:bg-amber-950/30">
+      <CardHeader>
+        <CardTitle>Legacy admin surface</CardTitle>
+        <CardDescription className="text-amber-900 dark:text-amber-200">
+          API keys are the supported primary access model today. Keep this page only for existing SSO-backed administrative users, and use Governance → API Keys for normal operator access.
+        </CardDescription>
+      </CardHeader>
+    </Card>
   );
 }
 
@@ -96,16 +109,16 @@ export function UserEmptyState(props: { onCreate(): void }): JSX.Element {
       <CardHeader>
         <CardTitle>No users yet</CardTitle>
         <CardDescription>
-          Create the first user account when the workspace is ready for shared operator access.
+          Create a legacy user only if you still rely on the older SSO-backed admin path.
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="max-w-2xl text-sm leading-6 text-muted">
-          Start with the smallest role, then elevate only when a person truly needs broader lifecycle control.
+          Prefer API keys for normal operator and automation access. Use this only when a real named user account is still required.
         </p>
         <Button onClick={props.onCreate} className="w-full sm:w-auto">
           <Plus className="h-4 w-4" />
-          Create first user
+          Add legacy user
         </Button>
       </CardContent>
     </Card>
@@ -122,7 +135,7 @@ export function UserTableSection(props: {
       <CardHeader>
         <CardTitle>Workspace users</CardTitle>
         <CardDescription>
-          Review role, access status, and last activity before changing or deactivating a user.
+          Review legacy SSO-backed admins, their access status, and their last activity before changing or deactivating an account.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -193,13 +206,13 @@ export function PermissionDeniedState(): JSX.Element {
     <div className="space-y-6 p-6">
       <div className="flex items-center gap-2">
         <Lock className="h-6 w-6 text-muted-foreground" />
-        <h1 className="text-2xl font-semibold tracking-tight">User Management</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Legacy User Access</h1>
       </div>
       <Card className="border-amber-300 bg-amber-50 shadow-sm dark:border-amber-700 dark:bg-amber-950/30">
         <CardHeader>
           <CardTitle>Admin access required</CardTitle>
           <CardDescription className="text-amber-900 dark:text-amber-200">
-            Managing user lifecycle requires an authenticated administrator with org-level access.
+            This legacy surface requires an authenticated org admin. Normal operator access should use API keys instead.
           </CardDescription>
         </CardHeader>
       </Card>

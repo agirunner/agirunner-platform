@@ -29,6 +29,16 @@ describe('integrations page source', () => {
     expect(source).not.toContain('size="icon"');
   });
 
+  it('keeps integration-derived hooks ahead of loading and error branches', () => {
+    const source = readSource('./integrations-page.tsx');
+    expect(source.indexOf('const summaryCards = useMemo')).toBeLessThan(
+      source.indexOf('if (integrationsQuery.isLoading)'),
+    );
+    expect(source.indexOf('const filteredIntegrations = useMemo')).toBeLessThan(
+      source.indexOf('if (integrationsQuery.isLoading)'),
+    );
+  });
+
   it('uses structured supported settings in the integration editor', () => {
     const dialogSource = readSource('./integrations-editor-dialog.tsx');
     const sectionsSource = readSource('./integrations-editor-sections.tsx');

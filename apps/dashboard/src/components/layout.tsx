@@ -148,7 +148,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Retention Policy', href: '/governance/retention', icon: Timer },
       { label: 'API Keys', href: '/governance/api-keys', icon: Key },
       { label: 'Orchestrator Grants', href: '/governance/grants', icon: Link2 },
-      { label: 'User Management', href: '/governance/users', icon: Users },
     ],
   },
 ];

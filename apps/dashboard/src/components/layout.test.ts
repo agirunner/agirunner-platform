@@ -56,6 +56,19 @@ describe('layout breadcrumbs', () => {
     expect(source).not.toContain("label: 'Role Definitions'");
   });
 
+  it('keeps user management out of the primary governance navigation', () => {
+    const source = readLayoutSource();
+    expect(source).toContain("label: 'API Keys'");
+    expect(source).not.toContain("label: 'User Management'");
+  });
+
+  it('labels the deprecated users route truthfully in breadcrumbs', () => {
+    expect(buildBreadcrumbs('/governance/users')).toEqual([
+      { label: 'Governance' },
+      { label: 'Legacy User Access' },
+    ]);
+  });
+
   it('attaches orchestrator keywords to the roles nav item for command palette search', () => {
     const source = readLayoutSource();
     expect(source).toContain("keywords: ['orchestrator'");

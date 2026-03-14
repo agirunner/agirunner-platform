@@ -28,6 +28,9 @@ describe('cost dashboard page source', () => {
     const source = readSource();
     expect(source).toContain("queryKey: ['metering-summary']");
     expect(source).toContain('fetchCostSummary');
+    expect(source).toContain('dashboardApi.getCostSummary');
+    expect(source).not.toContain("fetch(`${API_BASE_URL}/api/v1/metering/summary`");
+    expect(source).not.toContain('authHeaders()');
     expect(source).toContain('Cost by Model Family');
     expect(source).toContain('No model cost data.');
   });

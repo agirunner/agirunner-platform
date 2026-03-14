@@ -815,6 +815,60 @@ describe('dashboard api auth/session behavior', () => {
     expect(options?.credentials).toBe('include');
   });
 
+  it('loads the cost dashboard summary through the shared dashboard client contract', async () => {
+    writeSession({ accessToken: 'cost-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              today: 1,
+              this_week: 2,
+              this_month: 3,
+              budget_total: 4,
+              budget_remaining: 1,
+              by_workflow: [],
+              by_model: [],
+              daily_trend: [],
+              totalTokensInput: 10,
+              totalTokensOutput: 20,
+              totalCostUsd: 3,
+              totalWallTimeMs: 400,
+              eventCount: 2,
+            },
+          }),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+    const summary = await api.getCostSummary();
+
+    expect(summary.totalCostUsd).toBe(3);
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/metering/summary',
+      expect.objectContaining({ method: 'GET' }),
+    );
+  });
+
   it('calls runtime customization endpoints with typed dashboard methods', async () => {
     writeSession({ accessToken: 'runtime-token', tenantId: 'tenant-1' });
 

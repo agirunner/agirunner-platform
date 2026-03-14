@@ -130,21 +130,42 @@ describe('MeteringService', () => {
 
   describe('summarize', () => {
     it('returnsAggregatedSummary', async () => {
-      pool.query.mockResolvedValue({
-        rows: [
-          {
-            total_tokens_input: '1000',
-            total_tokens_output: '500',
-            total_cost_usd: '0.05',
-            total_wall_time_ms: '10000',
-            event_count: '5',
-          },
-        ],
-      });
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              total_tokens_input: '1000',
+              total_tokens_output: '500',
+              total_cost_usd: '0.05',
+              total_wall_time_ms: '10000',
+              event_count: '5',
+              today_cost: '0.01',
+              week_cost: '0.03',
+              month_cost: '0.05',
+            },
+          ],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ name: 'Board Alpha', cost: '0.04' }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ day: '2026-03-13', cost: '0.05' }],
+        })
+        .mockResolvedValueOnce({
+          rows: [{ budget_total: '10.00' }],
+        });
 
       const summary = await service.summarize(tenantId, {});
 
       expect(summary).toEqual({
+        today: 0.01,
+        this_week: 0.03,
+        this_month: 0.05,
+        budget_total: 10,
+        budget_remaining: 9.95,
+        by_workflow: [{ name: 'Board Alpha', cost: 0.04 }],
+        by_model: [],
+        daily_trend: [{ date: '2026-03-13', cost: 0.05 }],
         totalTokensInput: 1000,
         totalTokensOutput: 500,
         totalCostUsd: 0.05,
@@ -154,22 +175,32 @@ describe('MeteringService', () => {
     });
 
     it('returnsZerosWhenNoEvents', async () => {
-      pool.query.mockResolvedValue({
-        rows: [
-          {
-            total_tokens_input: '0',
-            total_tokens_output: '0',
-            total_cost_usd: '0',
-            total_wall_time_ms: '0',
-            event_count: '0',
-          },
-        ],
-      });
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            {
+              total_tokens_input: '0',
+              total_tokens_output: '0',
+              total_cost_usd: '0',
+              total_wall_time_ms: '0',
+              event_count: '0',
+              today_cost: '0',
+              week_cost: '0',
+              month_cost: '0',
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({ rows: [{ budget_total: '0' }] });
 
       const summary = await service.summarize(tenantId, {});
 
       expect(summary.eventCount).toBe(0);
       expect(summary.totalCostUsd).toBe(0);
+      expect(summary.by_workflow).toEqual([]);
+      expect(summary.daily_trend).toEqual([]);
+      expect(summary.budget_total).toBe(0);
     });
   });
 });

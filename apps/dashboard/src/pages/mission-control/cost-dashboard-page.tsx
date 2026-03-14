@@ -17,10 +17,10 @@ import {
   PieChart as RechartsPieChart,
   Legend,
 } from 'recharts';
-import { readSession } from '../../lib/session.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Badge } from '../../components/ui/badge.js';
+import { dashboardApi } from '../../lib/api.js';
 import {
   buildCostPosture,
   budgetPercentUsed,
@@ -28,32 +28,13 @@ import {
 } from './cost-dashboard-page.support.js';
 import { CostDashboardBreakdownCards } from './cost-dashboard-breakdown-cards.js';
 
-const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
-
 const CHART_COLORS = [
   '#6366f1', '#22c55e', '#eab308', '#ef4444', '#06b6d4',
   '#f97316', '#8b5cf6', '#ec4899', '#14b8a6', '#f59e0b',
 ];
 
-function authHeaders(): Record<string, string> {
-  const session = readSession();
-  const headers: Record<string, string> = {};
-  if (session?.accessToken) {
-    headers.Authorization = `Bearer ${session.accessToken}`;
-  }
-  return headers;
-}
-
 async function fetchCostSummary(): Promise<CostSummaryRecord> {
-  const response = await fetch(`${API_BASE_URL}/api/v1/metering/summary`, {
-    headers: authHeaders(),
-    credentials: 'include',
-  });
-  if (!response.ok) {
-    throw new Error(`HTTP ${response.status}`);
-  }
-  const body = await response.json();
-  return (body.data ?? body) as CostSummaryRecord;
+  return dashboardApi.getCostSummary() as Promise<CostSummaryRecord>;
 }
 
 function PostureCard({
