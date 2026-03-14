@@ -1073,6 +1073,24 @@ function truncateRoleDescription(description: string): string {
   return `${description.slice(0, TABLE_ROLE_DESCRIPTION_LIMIT - 1).trimEnd()}…`;
 }
 
+function summarizeStaleRoleBadgeLabel(input: {
+  inactiveRoleCount: number;
+  missingAssignmentCount: number;
+}): string {
+  const parts: string[] = [];
+  if (input.inactiveRoleCount > 0) {
+    parts.push(
+      `${input.inactiveRoleCount} inactive role${input.inactiveRoleCount === 1 ? '' : 's'}`,
+    );
+  }
+  if (input.missingAssignmentCount > 0) {
+    parts.push(
+      `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`,
+    );
+  }
+  return parts.join(' • ');
+}
+
 function RoleAssignmentsSection({
   enabledModels,
   assignments,
@@ -1088,6 +1106,10 @@ function RoleAssignmentsSection({
   const roleRows = buildAssignmentRoleRows(roleDefinitions, assignments);
   const activeRoleCount = roleRows.filter((role) => role.isActive).length;
   const staleRoleCount = roleRows.length - activeRoleCount;
+  const inactiveRoleCount = roleRows.filter(
+    (role) => role.source === 'catalog' && role.isActive === false,
+  ).length;
+  const missingAssignmentCount = roleRows.filter((role) => role.source === 'assignment').length;
 
   const [defaultModelId, setDefaultModelId] = useState(systemDefault.modelId ?? '__none__');
   const [defaultReasoning, setDefaultReasoning] = useState<Record<string, unknown> | null>(
@@ -1276,7 +1298,7 @@ function RoleAssignmentsSection({
       </div>
 
       {/* ── Role Overrides ────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-md border border-border/70 bg-surface shadow-sm">
+      <div className="overflow-hidden rounded-md border border-border/70">
         <button
           type="button"
           className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50"
@@ -1303,7 +1325,12 @@ function RoleAssignmentsSection({
                 {explicitOverrideCount} explicit overrides
               </Badge>
               {staleRoleCount > 0 ? (
-                <Badge variant="warning">{staleRoleCount} inactive or missing assignments</Badge>
+                <Badge variant="warning">
+                  {summarizeStaleRoleBadgeLabel({
+                    inactiveRoleCount,
+                    missingAssignmentCount,
+                  })}
+                </Badge>
               ) : null}
             </div>
           </div>
