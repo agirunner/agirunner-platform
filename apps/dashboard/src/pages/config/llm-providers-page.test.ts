@@ -73,6 +73,11 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('credentials_configured');
   });
 
+  it('uses elevated provider surfaces so cards stay legible in dark theme', () => {
+    expect(source).toContain("className=\"border-border/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80\"");
+    expect(source).toContain("className=\"grid gap-4 rounded-xl border border-border/70 bg-white/95 p-4 dark:border-slate-800 dark:bg-slate-900/80\"");
+  });
+
   it('renders the Model Catalog section with endpoint column', () => {
     expect(source).toContain('Model Catalog');
     expect(source).toContain('formatContextWindow');
@@ -89,9 +94,11 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('Orchestrator and Role Overrides');
     expect(source).toContain('1 orchestrator row');
     expect(source).toContain('Add a shared default or choose explicit models for the affected roles below.');
-    expect(source).toContain('Needs model source');
+    expect(source).toContain('Affected roles');
+    expect(source).toContain('assignmentValidation.missingRoleNames.map((roleName) => (');
     expect(source).not.toContain('No system default is configured. Assign explicit models below or restore a default model before saving.');
     expect(source).not.toContain('Select a model for this role or restore a system default.');
+    expect(source).not.toContain('Needs model source');
     expect(source).toContain('Assignment coverage needs attention');
     expect(source).toContain('Assignments are blocked');
     expect(source).toContain('Assignments are ready to save');

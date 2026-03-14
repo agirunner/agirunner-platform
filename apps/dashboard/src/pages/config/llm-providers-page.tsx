@@ -157,8 +157,8 @@ const DIALOG_ERROR_ALERT_CLASS_NAME =
 const DIALOG_WARNING_ALERT_CLASS_NAME =
   'rounded-xl border border-amber-300/70 bg-white text-amber-900 px-4 py-3 text-sm dark:border-amber-900/60 dark:bg-slate-950/80 dark:text-amber-200';
 const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium text-red-700 dark:text-red-300';
-const ROLE_WARNING_BADGE_CLASS_NAME =
-  'inline-flex items-center rounded-full border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200';
+const WARNING_ROLE_CHIP_CLASS_NAME =
+  'inline-flex items-center rounded-full border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200';
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
@@ -235,13 +235,6 @@ export function buildAssignmentRoleRows(
 
   staleRows.sort((left, right) => left.name.localeCompare(right.name));
   return [orchestratorRow, ...activeRoles, ...staleRows];
-}
-
-function needsExplicitModelSource(
-  roleName: string,
-  missingRoleNames: string[],
-): boolean {
-  return missingRoleNames.includes(roleName);
 }
 
 /* ─── Connect OAuth Provider Dialog ────────────────────────────────────── */
@@ -367,7 +360,7 @@ function OAuthProviderCard({
   const status = statusQuery.data;
 
   return (
-    <Card>
+    <Card className="border-border/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">{provider.name}</CardTitle>
@@ -798,7 +791,7 @@ function DeleteProviderDialog(props: {
             This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-        <div className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4">
+      <div className="grid gap-4 rounded-xl border border-border/70 bg-white/95 p-4 dark:border-slate-800 dark:bg-slate-900/80">
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold text-foreground">{provider.name}</p>
@@ -1127,7 +1120,7 @@ function RoleAssignmentsSection({
       <h2 className="text-lg font-semibold">Model Assignments</h2>
       <div className="grid gap-3 md:grid-cols-3">
         {assignmentSurface.cards.map((card) => (
-          <Card key={card.label} className="border-border/70 shadow-sm">
+          <Card key={card.label} className="border-border/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
             <CardHeader className="space-y-1 pb-3">
               <p className="text-sm font-medium text-muted">{card.label}</p>
               <CardTitle className="text-xl">{card.value}</CardTitle>
@@ -1149,6 +1142,20 @@ function RoleAssignmentsSection({
       >
         <div className="font-medium">{assignmentSurface.guidance.headline}</div>
         <p className="mt-1">{assignmentSurface.guidance.detail}</p>
+        {assignmentValidation.missingRoleNames.length > 0 ? (
+          <div className="mt-3 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-current/80">
+              Affected roles
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {assignmentValidation.missingRoleNames.map((roleName) => (
+                <span key={roleName} className={WARNING_ROLE_CHIP_CLASS_NAME}>
+                  {roleName}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
           <Button asChild size="sm" variant="outline">
             <a href="#llm-providers-library">Review providers</a>
@@ -1224,12 +1231,8 @@ function RoleAssignmentsSection({
         <div className="grid gap-3 md:hidden">
           {roleRows.map((role) => {
             const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
-            const roleNeedsModelSource = needsExplicitModelSource(
-              role.name,
-              assignmentValidation.missingRoleNames,
-            );
             return (
-              <Card key={role.name} className="border-border/70 shadow-sm">
+              <Card key={role.name} className="border-border/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
                 <CardHeader className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="text-base">{role.name}</CardTitle>
@@ -1242,9 +1245,6 @@ function RoleAssignmentsSection({
                     ) : (
                       <Badge variant="warning">Assignment only</Badge>
                     )}
-                    {roleNeedsModelSource ? (
-                      <span className={ROLE_WARNING_BADGE_CLASS_NAME}>Needs model source</span>
-                    ) : null}
                   </div>
                   <p className="text-sm leading-6 text-muted">
                     {role.description?.trim()
@@ -1283,10 +1283,6 @@ function RoleAssignmentsSection({
             <TableBody>
               {roleRows.map((role) => {
                 const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
-                const roleNeedsModelSource = needsExplicitModelSource(
-                  role.name,
-                  assignmentValidation.missingRoleNames,
-                );
                 return (
                   <TableRow key={role.name}>
                     <TableCell>
@@ -1302,9 +1298,6 @@ function RoleAssignmentsSection({
                           ) : (
                             <Badge variant="warning">Assignment only</Badge>
                           )}
-                          {roleNeedsModelSource ? (
-                            <span className={ROLE_WARNING_BADGE_CLASS_NAME}>Needs model source</span>
-                          ) : null}
                         </div>
                         <p className="text-xs text-muted">
                           {role.description?.trim()
