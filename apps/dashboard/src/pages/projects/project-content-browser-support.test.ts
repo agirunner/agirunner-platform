@@ -5,6 +5,8 @@ import {
   buildWorkflowOptions,
   formatContentFileSize,
   formatContentRelativeTimestamp,
+  normalizeArtifactRecords,
+  normalizeDocumentRecords,
   normalizeProjectList,
   normalizeTaskOptions,
   normalizeWorkItemOptions,
@@ -19,6 +21,14 @@ describe('project content browser support', () => {
     expect(
       normalizeProjectList({ data: [{ id: 'project-1', name: 'Alpha', slug: 'alpha' }] }),
     ).toEqual([{ id: 'project-1', name: 'Alpha', slug: 'alpha' }]);
+  });
+
+  it('falls back to safe string project labels when project records contain objects', () => {
+    expect(
+      normalizeProjectList({
+        data: [{ id: 'project-2', name: {} as never, slug: 'beta' }],
+      }),
+    ).toEqual([{ id: 'project-2', name: 'beta', slug: 'beta' }]);
   });
 
   it('deduplicates timeline workflows while preserving first-seen order', () => {
@@ -254,6 +264,98 @@ describe('project content browser support', () => {
         role: null,
         isOrchestratorTask: false,
         createdAt: undefined,
+      },
+    ]);
+  });
+
+  it('normalizes document records before the content browser renders them', () => {
+    expect(
+      normalizeDocumentRecords([
+        {
+          logical_name: 'handoff',
+          scope: 'workflow',
+          source: 'artifact',
+          title: {} as never,
+          description: {} as never,
+          metadata: 'bad-metadata' as never,
+          created_at: {} as never,
+          repository: {} as never,
+          path: {} as never,
+          url: {} as never,
+          task_id: {} as never,
+          artifact: {
+            id: 'artifact-1',
+            task_id: 'task-1',
+            logical_path: 'handoff.md',
+            content_type: {} as never,
+            download_url: '/download/handoff',
+          },
+        },
+      ]),
+    ).toEqual([
+      {
+        logical_name: 'handoff',
+        scope: 'workflow',
+        source: 'artifact',
+        title: undefined,
+        description: undefined,
+        metadata: {},
+        created_at: undefined,
+        repository: undefined,
+        path: undefined,
+        url: undefined,
+        task_id: undefined,
+        artifact: {
+          id: 'artifact-1',
+          task_id: 'task-1',
+          logical_path: 'handoff.md',
+          content_type: undefined,
+          download_url: '/download/handoff',
+        },
+      },
+    ]);
+  });
+
+  it('normalizes artifact records before the content browser renders them', () => {
+    expect(
+      normalizeArtifactRecords([
+        {
+          id: 'artifact-2',
+          task_id: 'task-2',
+          workflow_id: {} as never,
+          project_id: {} as never,
+          logical_path: 'artifacts/output.txt',
+          content_type: {} as never,
+          size_bytes: {} as never,
+          checksum_sha256: {} as never,
+          metadata: [] as never,
+          retention_policy: null as never,
+          expires_at: {} as never,
+          created_at: '2026-03-12T09:00:00.000Z',
+          download_url: '/download/output',
+          access_url: {} as never,
+          access_url_expires_at: {} as never,
+          storage_backend: {} as never,
+        },
+      ]),
+    ).toEqual([
+      {
+        id: 'artifact-2',
+        task_id: 'task-2',
+        workflow_id: undefined,
+        project_id: undefined,
+        logical_path: 'artifacts/output.txt',
+        content_type: 'application/octet-stream',
+        size_bytes: 0,
+        checksum_sha256: 'unknown',
+        metadata: {},
+        retention_policy: {},
+        expires_at: undefined,
+        created_at: '2026-03-12T09:00:00.000Z',
+        download_url: '/download/output',
+        access_url: undefined,
+        access_url_expires_at: undefined,
+        storage_backend: undefined,
       },
     ]);
   });

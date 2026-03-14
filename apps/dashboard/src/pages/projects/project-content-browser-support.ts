@@ -14,6 +14,21 @@ export interface ProjectWorkflowOption {
   createdAt: string;
 }
 
+export interface ProjectScopeOption {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  repository_url?: string | null;
+  is_active?: boolean;
+  memory?: Record<string, unknown>;
+  settings?: Record<string, unknown>;
+  git_webhook_provider?: string | null;
+  git_webhook_secret_configured?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface ProjectTaskOption {
   id: string;
   workflowId: string | null;
@@ -70,14 +85,24 @@ export interface ArtifactUploadPosture {
 
 export function normalizeProjectList(
   response: { data: DashboardProjectRecord[] } | DashboardProjectRecord[] | undefined,
-): DashboardProjectRecord[] {
+): ProjectScopeOption[] {
   if (!response) {
     return [];
   }
-  if (Array.isArray(response)) {
-    return response;
-  }
-  return response.data ?? [];
+  const records = Array.isArray(response) ? response : response.data ?? [];
+  return records
+    .filter((project): project is DashboardProjectRecord => isRecord(project))
+    .map((project) => {
+      const id = readContentString(project.id, '');
+      const slug = readContentString(project.slug, id || 'project');
+      return {
+        ...project,
+        id,
+        slug,
+        name: readContentString(project.name, slug || id || 'Unnamed project'),
+      };
+    })
+    .filter((project) => project.id.length > 0);
 }
 
 export function buildWorkflowOptions(
@@ -162,6 +187,80 @@ export function normalizeWorkItemOptions(
       priority: readContentString(item.priority, 'normal'),
       completedAt: item.completed_at ?? null,
     }));
+}
+
+export function normalizeDocumentRecords(
+  documents: DashboardResolvedDocumentReference[] | undefined,
+): DashboardResolvedDocumentReference[] {
+  if (!Array.isArray(documents)) {
+    return [];
+  }
+
+  const normalized: DashboardResolvedDocumentReference[] = [];
+  for (const document of documents) {
+    const logicalName = readContentString(document.logical_name, '');
+    if (!logicalName) {
+      continue;
+    }
+
+    normalized.push({
+      ...document,
+      logical_name: logicalName,
+      scope: document.scope === 'project' ? 'project' : 'workflow',
+      source: normalizeDocumentSource(document.source),
+      title: readOptionalContentString(document.title),
+      description: readOptionalContentString(document.description),
+      created_at: readOptionalContentString(document.created_at),
+      task_id: readOptionalContentString(document.task_id),
+      repository: readOptionalContentString(document.repository),
+      path: readOptionalContentString(document.path),
+      url: readOptionalContentString(document.url),
+      metadata: normalizeMetadataRecord(document.metadata),
+      artifact: normalizeDocumentArtifact(document.artifact),
+    });
+  }
+
+  return normalized;
+}
+
+export function normalizeArtifactRecords(
+  artifacts: DashboardTaskArtifactRecord[] | undefined,
+): DashboardTaskArtifactRecord[] {
+  if (!Array.isArray(artifacts)) {
+    return [];
+  }
+
+  const normalized: DashboardTaskArtifactRecord[] = [];
+  for (const artifact of artifacts) {
+    const id = readContentString(artifact.id, '');
+    const taskId = readContentString(artifact.task_id, '');
+    const logicalPath = readContentString(artifact.logical_path, '');
+    if (!id || !taskId || !logicalPath) {
+      continue;
+    }
+
+    normalized.push({
+      ...artifact,
+      id,
+      task_id: taskId,
+      workflow_id: readOptionalContentString(artifact.workflow_id),
+      project_id: readOptionalContentString(artifact.project_id),
+      logical_path: logicalPath,
+      content_type: readContentString(artifact.content_type, 'application/octet-stream'),
+      size_bytes: normalizeArtifactSize(artifact.size_bytes),
+      checksum_sha256: readContentString(artifact.checksum_sha256, 'unknown'),
+      metadata: normalizeMetadataRecord(artifact.metadata),
+      retention_policy: normalizeMetadataRecord(artifact.retention_policy),
+      expires_at: readOptionalContentString(artifact.expires_at),
+      created_at: readContentString(artifact.created_at, ''),
+      download_url: readContentString(artifact.download_url, '#'),
+      access_url: readOptionalContentString(artifact.access_url),
+      access_url_expires_at: readOptionalContentString(artifact.access_url_expires_at),
+      storage_backend: readOptionalContentString(artifact.storage_backend),
+    });
+  }
+
+  return normalized;
 }
 
 export function filterTasksByWorkItem(
@@ -403,6 +502,52 @@ function normalizeTaskState(state: string | null | undefined): string {
   return normalizeCanonicalTaskState(state ?? 'unknown');
 }
 
+function normalizeDocumentSource(
+  value: DashboardResolvedDocumentReference['source'] | undefined,
+): DashboardResolvedDocumentReference['source'] {
+  return value === 'artifact' || value === 'external' ? value : 'repository';
+}
+
+function normalizeDocumentArtifact(
+  artifact: DashboardResolvedDocumentReference['artifact'] | undefined,
+): DashboardResolvedDocumentReference['artifact'] {
+  if (!artifact || !isRecord(artifact)) {
+    return undefined;
+  }
+
+  const id = readContentString(artifact.id, '');
+  const taskId = readContentString(artifact.task_id, '');
+  const logicalPath = readContentString(artifact.logical_path, '');
+  const downloadUrl = readContentString(artifact.download_url, '');
+  if (!id || !taskId || !logicalPath || !downloadUrl) {
+    return undefined;
+  }
+
+  return {
+    id,
+    task_id: taskId,
+    logical_path: logicalPath,
+    content_type: readOptionalContentString(artifact.content_type),
+    download_url: downloadUrl,
+  };
+}
+
+function normalizeMetadataRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function normalizeArtifactSize(value: unknown): number {
+  return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : 0;
+}
+
 function readContentString(value: unknown, fallback: string): string {
   return typeof value === 'string' && value.trim().length > 0 ? value : fallback;
+}
+
+function readOptionalContentString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

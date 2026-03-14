@@ -28,6 +28,8 @@ import {
   buildWorkflowOptions,
   filterTasksByWorkItem,
   formatContentRelativeTimestamp,
+  normalizeArtifactRecords,
+  normalizeDocumentRecords,
   normalizeProjectList,
   normalizeTaskOptions,
   normalizeWorkItemOptions,
@@ -127,6 +129,18 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
     [workItemsQuery.data],
   );
   const tasks = useMemo(() => normalizeTaskOptions(tasksQuery.data), [tasksQuery.data]);
+  const documents = useMemo(
+    () => normalizeDocumentRecords(documentsQuery.data),
+    [documentsQuery.data],
+  );
+  const artifacts = useMemo(
+    () => normalizeArtifactRecords(artifactsQuery.data),
+    [artifactsQuery.data],
+  );
+  const documentArtifactOptions = useMemo(
+    () => normalizeArtifactRecords(documentArtifactOptionsQuery.data),
+    [documentArtifactOptionsQuery.data],
+  );
   const filteredTasks = useMemo(
     () => filterTasksByWorkItem(tasks, selectedWorkItemId),
     [tasks, selectedWorkItemId],
@@ -135,7 +149,6 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   const selectedWorkItem = workItems.find((workItem) => workItem.id === selectedWorkItemId) ?? null;
   const selectedTask = filteredTasks.find((task) => task.id === selectedTaskId) ?? null;
   const selectedDocumentTask = tasks.find((task) => task.id === documentDraft.taskId) ?? null;
-  const documentArtifactOptions = documentArtifactOptionsQuery.data ?? [];
   const selectedDocumentArtifact =
     documentArtifactOptions.find((artifact) => artifact.id === documentDraft.artifactId) ?? null;
   const parsedDocumentMetadata = useMemo(
@@ -147,12 +160,12 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
     [artifactMetadataDrafts],
   );
   const documentSummary = useMemo(
-    () => summarizeDocumentInventory(documentsQuery.data ?? []),
-    [documentsQuery.data],
+    () => summarizeDocumentInventory(documents),
+    [documents],
   );
   const artifactSummary = useMemo(
-    () => summarizeArtifactInventory(artifactsQuery.data ?? []),
-    [artifactsQuery.data],
+    () => summarizeArtifactInventory(artifacts),
+    [artifacts],
   );
   const artifactScopeSummary = useMemo(
     () =>
@@ -906,7 +919,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                   </CardContent>
                 </Card>
                 <DocumentsTable
-                  documents={documentsQuery.data ?? []}
+                  documents={documents}
                   isLoading={documentsQuery.isLoading}
                   workflowId={selectedWorkflowId}
                   activeLogicalName={editingLogicalName}
@@ -1310,7 +1323,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
                       </div>
                     </div>
                     <ArtifactsTable
-                      artifacts={artifactsQuery.data ?? []}
+                      artifacts={artifacts}
                       isLoading={artifactsQuery.isLoading}
                       taskId={selectedTaskId}
                       deletingArtifactId={deleteArtifactMutation.variables?.id ?? null}

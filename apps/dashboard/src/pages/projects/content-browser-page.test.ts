@@ -66,4 +66,12 @@ describe('content browser page source', () => {
     expect(source).toContain('Back to Project');
     expect(source).toContain('Select a task to unlock artifact management');
   });
+
+  it('normalizes project, document, and artifact payloads before rendering selector and table content', () => {
+    const source = readSource();
+    expect(source).toContain('normalizeProjectList(projectsQuery.data)');
+    expect(source).toContain('normalizeDocumentRecords(documentsQuery.data)');
+    expect(source).toContain('normalizeArtifactRecords(artifactsQuery.data)');
+    expect(source).toContain('normalizeArtifactRecords(documentArtifactOptionsQuery.data)');
+  });
 });
