@@ -104,6 +104,8 @@ describe('llm providers page support', () => {
       roleCount: 3,
       explicitOverrideCount: 1,
       staleRoleCount: 0,
+      inactiveRoleCount: 0,
+      missingAssignmentCount: 0,
       blockingIssues: [
         'Choose a system default model or assign explicit models for: orchestrator, reviewer.',
       ],
@@ -145,6 +147,8 @@ describe('llm providers page support', () => {
         roleCount: 3,
         explicitOverrideCount: 1,
         staleRoleCount: 1,
+        inactiveRoleCount: 1,
+        missingAssignmentCount: 0,
         blockingIssues: [
           'Choose a system default model or assign explicit models for: orchestrator, reviewer.',
         ],
@@ -164,7 +168,7 @@ describe('llm providers page support', () => {
         {
           label: 'Catalog posture',
           value: 'No enabled models',
-          detail: '1 stale assignment still need cleanup.',
+          detail: '1 inactive role still need cleanup.',
         },
       ],
       guidance: {
@@ -184,6 +188,8 @@ describe('llm providers page support', () => {
         roleCount: 4,
         explicitOverrideCount: 2,
         staleRoleCount: 0,
+        inactiveRoleCount: 0,
+        missingAssignmentCount: 0,
         blockingIssues: [],
       }),
     ).toEqual({
@@ -202,6 +208,45 @@ describe('llm providers page support', () => {
           label: 'Catalog posture',
           value: '5 enabled models',
           detail: 'No stale assignment rows remain.',
+        },
+      ],
+      guidance: {
+        tone: 'success',
+        headline: 'Assignments are ready to save',
+        detail:
+          'System default coverage and role overrides are aligned for the current model catalog.',
+      },
+    });
+  });
+
+  it('spells out missing assignments separately from inactive roles in catalog posture', () => {
+    expect(
+      summarizeAssignmentSurface({
+        enabledModelCount: 2,
+        defaultModelConfigured: true,
+        roleCount: 4,
+        explicitOverrideCount: 1,
+        staleRoleCount: 2,
+        inactiveRoleCount: 1,
+        missingAssignmentCount: 1,
+        blockingIssues: [],
+      }),
+    ).toEqual({
+      cards: [
+        {
+          label: 'Default route',
+          value: 'System default set',
+          detail: 'Roles without overrides inherit the shared model route.',
+        },
+        {
+          label: 'Explicit overrides',
+          value: '1/4',
+          detail: '3 roles inherit the shared default.',
+        },
+        {
+          label: 'Catalog posture',
+          value: '2 enabled models',
+          detail: '1 inactive role still need cleanup. 1 missing assignment still need cleanup.',
         },
       ],
       guidance: {

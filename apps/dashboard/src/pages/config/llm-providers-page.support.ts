@@ -152,6 +152,8 @@ export function summarizeAssignmentSurface(input: {
   roleCount: number;
   explicitOverrideCount: number;
   staleRoleCount: number;
+  inactiveRoleCount: number;
+  missingAssignmentCount: number;
   blockingIssues: string[];
 }): {
   cards: AssignmentSurfaceSummaryCard[];
@@ -182,7 +184,10 @@ export function summarizeAssignmentSurface(input: {
           : 'No enabled models',
       detail:
         input.staleRoleCount > 0
-          ? `${input.staleRoleCount} stale assignment${input.staleRoleCount === 1 ? '' : 's'} still need cleanup.`
+          ? summarizeCatalogPostureDetail({
+              inactiveRoleCount: input.inactiveRoleCount,
+              missingAssignmentCount: input.missingAssignmentCount,
+            })
           : 'No stale assignment rows remain.',
     },
   ];
@@ -219,6 +224,24 @@ export function summarizeAssignmentSurface(input: {
         'System default coverage and role overrides are aligned for the current model catalog.',
     },
   };
+}
+
+function summarizeCatalogPostureDetail(input: {
+  inactiveRoleCount: number;
+  missingAssignmentCount: number;
+}): string {
+  const parts: string[] = [];
+  if (input.inactiveRoleCount > 0) {
+    parts.push(
+      `${input.inactiveRoleCount} inactive role${input.inactiveRoleCount === 1 ? '' : 's'} still need cleanup.`,
+    );
+  }
+  if (input.missingAssignmentCount > 0) {
+    parts.push(
+      `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'} still need cleanup.`,
+    );
+  }
+  return parts.join(' ');
 }
 
 function hasDuplicateProviderName(name: string, existingNames: string[]): boolean {

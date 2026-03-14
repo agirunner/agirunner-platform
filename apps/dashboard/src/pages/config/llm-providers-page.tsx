@@ -1201,6 +1201,8 @@ function RoleAssignmentsSection({
     roleCount: roleRows.length,
     explicitOverrideCount,
     staleRoleCount,
+    inactiveRoleCount,
+    missingAssignmentCount,
     blockingIssues: assignmentValidation.blockingIssues,
   });
 
