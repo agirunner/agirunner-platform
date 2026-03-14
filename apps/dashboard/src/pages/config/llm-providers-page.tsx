@@ -1298,7 +1298,7 @@ function RoleAssignmentsSection({
       </div>
 
       {/* ── Role Overrides ────────────────────────────────────────────── */}
-      <div className="overflow-hidden rounded-md border border-border/70">
+      <div className="overflow-hidden rounded-md border">
         <button
           type="button"
           className="flex w-full items-center justify-between gap-4 px-4 py-3 text-left transition-colors hover:bg-muted/50"
@@ -1339,7 +1339,7 @@ function RoleAssignmentsSection({
           </span>
         </button>
         {isOverridesExpanded ? (
-          <div className="space-y-4 border-t border-border/70 px-4 py-4">
+          <div className="space-y-4 border-t px-4 py-4">
             <p className="text-xs text-muted">
               Choose explicit models only where the default is not enough. Older assignment rows
               stay visible until they are cleaned up.
