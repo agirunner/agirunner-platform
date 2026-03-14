@@ -97,6 +97,30 @@ describe('llm providers page support', () => {
     });
   });
 
+  it('surfaces a single shared coverage blocker when inherited roles have no model source', () => {
+    const summary = summarizeAssignmentSurface({
+      enabledModelCount: 3,
+      defaultModelConfigured: false,
+      roleCount: 3,
+      explicitOverrideCount: 1,
+      staleRoleCount: 0,
+      blockingIssues: [
+        'Choose a system default model or assign explicit models for: orchestrator, reviewer.',
+      ],
+    });
+
+    expect(summary.guidance).toEqual({
+      tone: 'warning',
+      headline: 'Assignment coverage needs attention',
+      detail: 'Choose a system default model or assign explicit models for: orchestrator, reviewer.',
+    });
+    expect(summary.cards[0]).toEqual({
+      label: 'Default route',
+      value: 'No system default',
+      detail: 'Pick a shared default or assign every role explicitly.',
+    });
+  });
+
   it('allows assignment saves when every role keeps an effective model', () => {
     expect(
       validateAssignmentSetup({

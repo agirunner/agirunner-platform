@@ -88,8 +88,10 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('summarizeAssignmentSurface');
     expect(source).toContain('Orchestrator and Role Overrides');
     expect(source).toContain('1 orchestrator row');
-    expect(source).toContain('No system default is configured. Assign explicit models below or restore a default model before saving.');
-    expect(source).toContain('Select a model for this role or restore a system default.');
+    expect(source).toContain('Add a shared default or choose explicit models for the affected roles below.');
+    expect(source).toContain('Needs model source');
+    expect(source).not.toContain('No system default is configured. Assign explicit models below or restore a default model before saving.');
+    expect(source).not.toContain('Select a model for this role or restore a system default.');
     expect(source).toContain('Assignment coverage needs attention');
     expect(source).toContain('Assignments are blocked');
     expect(source).toContain('Assignments are ready to save');
@@ -110,6 +112,15 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('ReasoningControl');
     expect(source).toContain('reasoning_config');
     expect(source).toContain('buildReasoningValue');
+  });
+
+  it('uses neutral alert surfaces for provider validation feedback', () => {
+    expect(source).toContain('border-red-300/70 bg-white text-red-800');
+    expect(source).toContain('dark:border-red-900/60 dark:bg-slate-950/80 dark:text-red-200');
+    expect(source).toContain('border-amber-300/70 bg-white text-amber-900');
+    expect(source).toContain('dark:border-amber-900/60 dark:bg-slate-950/80 dark:text-amber-200');
+    expect(source).not.toContain('text-sm text-red-600 dark:text-red-400');
+    expect(source).not.toContain('text-xs text-red-600 dark:text-red-400');
   });
 });
 

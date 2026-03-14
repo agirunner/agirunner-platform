@@ -152,6 +152,14 @@ const INITIAL_FORM: AddProviderDraft = {
   apiKey: '',
 };
 
+const DIALOG_ERROR_ALERT_CLASS_NAME =
+  'rounded-xl border border-red-300/70 bg-white text-red-800 px-4 py-3 text-sm dark:border-red-900/60 dark:bg-slate-950/80 dark:text-red-200';
+const DIALOG_WARNING_ALERT_CLASS_NAME =
+  'rounded-xl border border-amber-300/70 bg-white text-amber-900 px-4 py-3 text-sm dark:border-amber-900/60 dark:bg-slate-950/80 dark:text-amber-200';
+const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium text-red-700 dark:text-red-300';
+const ROLE_WARNING_BADGE_CLASS_NAME =
+  'inline-flex items-center rounded-full border border-amber-300/80 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200';
+
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
 export function formatContextWindow(n?: number): string {
@@ -229,6 +237,13 @@ export function buildAssignmentRoleRows(
   return [orchestratorRow, ...activeRoles, ...staleRows];
 }
 
+function needsExplicitModelSource(
+  roleName: string,
+  missingRoleNames: string[],
+): boolean {
+  return missingRoleNames.includes(roleName);
+}
+
 /* ─── Connect OAuth Provider Dialog ────────────────────────────────────── */
 
 function ConnectOAuthDialog(): JSX.Element {
@@ -271,7 +286,7 @@ function ConnectOAuthDialog(): JSX.Element {
           </div>
         )}
         {profilesQuery.error && (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+          <div className={DIALOG_ERROR_ALERT_CLASS_NAME}>
             Failed to load profiles: {String(profilesQuery.error)}
           </div>
         )}
@@ -533,7 +548,7 @@ function AddProviderDialog(props: {
             className={
               validation.isValid
                 ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30'
-                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/30'
+                : DIALOG_WARNING_ALERT_CLASS_NAME
             }
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -547,7 +562,7 @@ function AddProviderDialog(props: {
               </div>
             </div>
             {!validation.isValid ? (
-              <ul className="mt-3 space-y-1 text-sm text-amber-950">
+              <ul className="mt-3 space-y-1">
                 {validation.issues.map((issue) => (
                   <li key={issue}>• {issue}</li>
                 ))}
@@ -606,7 +621,7 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.name ? (
-              <p className="text-xs text-red-600 dark:text-red-400">{validation.fieldErrors.name}</p>
+              <p className={FIELD_ERROR_CLASS_NAME}>{validation.fieldErrors.name}</p>
             ) : showsRecommendedName ? (
               <p className="text-xs text-muted">
                 Recommended operator label for this provider type: {providerDefaults.name}
@@ -627,7 +642,7 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.baseUrl ? (
-              <p className="text-xs text-red-600 dark:text-red-400">{validation.fieldErrors.baseUrl}</p>
+              <p className={FIELD_ERROR_CLASS_NAME}>{validation.fieldErrors.baseUrl}</p>
             ) : (
               <p className="text-xs text-muted">
                 {form.providerType === 'openai-compatible'
@@ -654,13 +669,13 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.apiKey ? (
-              <p className="text-xs text-red-600 dark:text-red-400">{validation.fieldErrors.apiKey}</p>
+              <p className={FIELD_ERROR_CLASS_NAME}>{validation.fieldErrors.apiKey}</p>
             ) : (
               <p className="text-xs text-muted">Stored write-only. Existing keys are never shown again.</p>
             )}
           </div>
           {mutation.error && (
-            <p className="text-sm text-red-600 dark:text-red-400">
+            <p className={DIALOG_ERROR_ALERT_CLASS_NAME}>
               {String(mutation.error)}
             </p>
           )}
@@ -963,7 +978,7 @@ function ModelReasoningSelect({
           ))}
         </SelectContent>
       </Select>
-      {modelError ? <p className="text-xs text-red-600 dark:text-red-400">{modelError}</p> : null}
+      {modelError ? <p className={FIELD_ERROR_CLASS_NAME}>{modelError}</p> : null}
     </div>
   );
   const reasoningField = (
@@ -1126,9 +1141,9 @@ function RoleAssignmentsSection({
       <div
         className={
           assignmentSurface.guidance.tone === 'danger'
-            ? 'rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200'
+            ? DIALOG_ERROR_ALERT_CLASS_NAME
             : assignmentSurface.guidance.tone === 'warning'
-              ? 'rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200'
+              ? DIALOG_WARNING_ALERT_CLASS_NAME
               : 'rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
         }
       >
@@ -1179,8 +1194,8 @@ function RoleAssignmentsSection({
           />
         </div>
         {assignmentValidation.blockingIssues.length > 0 ? (
-          <p className="text-xs text-red-600 dark:text-red-400">
-            No system default is configured. Assign explicit models below or restore a default model before saving.
+          <p className="text-xs text-muted">
+            Add a shared default or choose explicit models for the affected roles below.
           </p>
         ) : (
           <p className="text-xs text-muted">
@@ -1206,16 +1221,13 @@ function RoleAssignmentsSection({
             <Badge variant="warning">{staleRoleCount} inactive or missing assignments</Badge>
           )}
         </div>
-        {assignmentValidation.blockingIssues.length > 0 ? (
-          <div className="mb-4 rounded-md border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-            {assignmentValidation.blockingIssues.map((issue) => (
-              <p key={issue}>{issue}</p>
-            ))}
-          </div>
-        ) : null}
         <div className="grid gap-3 md:hidden">
           {roleRows.map((role) => {
             const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+            const roleNeedsModelSource = needsExplicitModelSource(
+              role.name,
+              assignmentValidation.missingRoleNames,
+            );
             return (
               <Card key={role.name} className="border-border/70 shadow-sm">
                 <CardHeader className="space-y-2">
@@ -1230,6 +1242,9 @@ function RoleAssignmentsSection({
                     ) : (
                       <Badge variant="warning">Assignment only</Badge>
                     )}
+                    {roleNeedsModelSource ? (
+                      <span className={ROLE_WARNING_BADGE_CLASS_NAME}>Needs model source</span>
+                    ) : null}
                   </div>
                   <p className="text-sm leading-6 text-muted">
                     {role.description?.trim()
@@ -1247,11 +1262,7 @@ function RoleAssignmentsSection({
                     modelId={s.modelId}
                     reasoningConfig={s.reasoningConfig}
                     enabledModels={enabledModels}
-                    modelError={
-                      assignmentValidation.missingRoleNames.includes(role.name)
-                        ? 'Select a model for this role or restore a system default.'
-                        : undefined
-                    }
+                    modelError={undefined}
                     onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
                     onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
                   />
@@ -1272,6 +1283,10 @@ function RoleAssignmentsSection({
             <TableBody>
               {roleRows.map((role) => {
                 const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+                const roleNeedsModelSource = needsExplicitModelSource(
+                  role.name,
+                  assignmentValidation.missingRoleNames,
+                );
                 return (
                   <TableRow key={role.name}>
                     <TableCell>
@@ -1287,6 +1302,9 @@ function RoleAssignmentsSection({
                           ) : (
                             <Badge variant="warning">Assignment only</Badge>
                           )}
+                          {roleNeedsModelSource ? (
+                            <span className={ROLE_WARNING_BADGE_CLASS_NAME}>Needs model source</span>
+                          ) : null}
                         </div>
                         <p className="text-xs text-muted">
                           {role.description?.trim()
@@ -1303,11 +1321,7 @@ function RoleAssignmentsSection({
                       modelId={s.modelId}
                       reasoningConfig={s.reasoningConfig}
                       enabledModels={enabledModels}
-                      modelError={
-                        assignmentValidation.missingRoleNames.includes(role.name)
-                          ? 'Select a model for this role or restore a system default.'
-                          : undefined
-                      }
+                      modelError={undefined}
                       onModelChange={(id) => updateRole(role.name, { modelId: id, reasoningConfig: null })}
                       onReasoningChange={(cfg) => updateRole(role.name, { reasoningConfig: cfg })}
                     />
