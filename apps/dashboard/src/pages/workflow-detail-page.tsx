@@ -133,7 +133,7 @@ function readActiveWorkflowDetailTargetId(selection: {
   selectedActivationId: string | null;
   selectedChildWorkflowId: string | null;
   selectedGateStageName: string | null;
-  autoSelectedWorkItemId: string | null;
+  implicitWorkItemId: string | null;
 }): string | null {
   const hashTargetId = decodeWorkflowDetailTargetId(selection.hash);
   if (hashTargetId) {
@@ -141,7 +141,7 @@ function readActiveWorkflowDetailTargetId(selection: {
   }
   if (
     selection.selectedWorkItemId &&
-    selection.selectedWorkItemId !== selection.autoSelectedWorkItemId
+    selection.selectedWorkItemId !== selection.implicitWorkItemId
   ) {
     return `work-item-${selection.selectedWorkItemId}`;
   }
@@ -163,7 +163,7 @@ function hasExplicitWorkflowDetailSelection(selection: {
   selectedActivationId: string | null;
   selectedChildWorkflowId: string | null;
   selectedGateStageName: string | null;
-  autoSelectedWorkItemId: string | null;
+  implicitWorkItemId: string | null;
 }): boolean {
   if (decodeWorkflowDetailTargetId(selection.hash)) {
     return true;
@@ -173,7 +173,23 @@ function hasExplicitWorkflowDetailSelection(selection: {
   }
   return (
     Boolean(selection.selectedWorkItemId) &&
-    selection.selectedWorkItemId !== selection.autoSelectedWorkItemId
+    selection.selectedWorkItemId !== selection.implicitWorkItemId
+  );
+}
+
+function hasExplicitWorkflowDetailIntent(selection: {
+  hash: string;
+  selectedWorkItemId: string | null;
+  selectedActivationId: string | null;
+  selectedChildWorkflowId: string | null;
+  selectedGateStageName: string | null;
+}): boolean {
+  return Boolean(
+    decodeWorkflowDetailTargetId(selection.hash) ||
+      selection.selectedWorkItemId ||
+      selection.selectedActivationId ||
+      selection.selectedChildWorkflowId ||
+      selection.selectedGateStageName,
   );
 }
 
@@ -236,6 +252,15 @@ export function WorkflowDetailPage(): JSX.Element {
   const selectedActivationId = searchParams.get('activation');
   const selectedChildWorkflowId = searchParams.get('child');
   const selectedGateStageName = searchParams.get('gate');
+  const initialExplicitSelectionRef = useRef(
+    hasExplicitWorkflowDetailIntent({
+      hash: location.hash,
+      selectedWorkItemId,
+      selectedActivationId,
+      selectedChildWorkflowId,
+      selectedGateStageName,
+    }),
+  );
 
   const workflowQuery = useQuery({
     queryKey: ['workflow', workflowId],
@@ -328,6 +353,13 @@ export function WorkflowDetailPage(): JSX.Element {
   });
 
   useEffect(() => {
+    initialExplicitSelectionRef.current = hasExplicitWorkflowDetailIntent({
+      hash: location.hash,
+      selectedWorkItemId,
+      selectedActivationId,
+      selectedChildWorkflowId,
+      selectedGateStageName,
+    });
     autoSelectedWorkItemIdRef.current = null;
     lastFocusedTargetIdRef.current = null;
   }, [workflowId]);
@@ -484,6 +516,10 @@ export function WorkflowDetailPage(): JSX.Element {
     () => groupWorkflowWorkItems(boardQuery.data?.work_items ?? []),
     [boardQuery.data?.work_items],
   );
+  const defaultSelectedWorkItemId = useMemo(() => {
+    const workItems = flattenGroupedWorkItems(groupedWorkItems);
+    return workItems[0]?.id ?? null;
+  }, [groupedWorkItems]);
   const selectedBoardWorkItem = useMemo(
     () => (selectedWorkItemId ? findWorkItemById(groupedWorkItems, selectedWorkItemId) : null),
     [groupedWorkItems, selectedWorkItemId],
@@ -530,6 +566,12 @@ export function WorkflowDetailPage(): JSX.Element {
     () => validateWorkItemMetadataEntries(workItemMetadataDrafts),
     [workItemMetadataDrafts],
   );
+  const implicitSelectedWorkItemId = useMemo(() => {
+    if (initialExplicitSelectionRef.current) {
+      return autoSelectedWorkItemIdRef.current;
+    }
+    return autoSelectedWorkItemIdRef.current ?? defaultSelectedWorkItemId;
+  }, [defaultSelectedWorkItemId, selectedWorkItemId]);
   const activeFocusTargetId = useMemo(
     () =>
       readActiveWorkflowDetailTargetId({
@@ -538,9 +580,10 @@ export function WorkflowDetailPage(): JSX.Element {
         selectedActivationId,
         selectedChildWorkflowId,
         selectedGateStageName,
-        autoSelectedWorkItemId: autoSelectedWorkItemIdRef.current,
+        implicitWorkItemId: implicitSelectedWorkItemId,
       }),
     [
+      implicitSelectedWorkItemId,
       location.hash,
       selectedActivationId,
       selectedChildWorkflowId,
@@ -556,9 +599,10 @@ export function WorkflowDetailPage(): JSX.Element {
         selectedActivationId,
         selectedChildWorkflowId,
         selectedGateStageName,
-        autoSelectedWorkItemId: autoSelectedWorkItemIdRef.current,
+        implicitWorkItemId: implicitSelectedWorkItemId,
       }),
     [
+      implicitSelectedWorkItemId,
       location.hash,
       selectedActivationId,
       selectedChildWorkflowId,
