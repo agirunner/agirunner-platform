@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
+import { formatCountLabel } from '../workflow-ux-formatting.js';
+
 function readSource() {
   return [
     './live-board-page.tsx',
@@ -42,7 +44,7 @@ describe('live board page source', () => {
   it('uses board and step language and avoids raw task-status comparisons in the operator lane', () => {
     const source = readSource();
     expect(source).toContain('Operator Live Board');
-    expect(source).toContain('Mission control');
+    expect(source).toContain('Mission Control');
     expect(source).toContain('Triage what needs attention first');
     expect(source).toContain('Search boards, work items, stages, gates, steps, or IDs');
     expect(source).toContain('describeAttentionStep');
@@ -136,9 +138,14 @@ describe('live board page source', () => {
     expect(source).toContain('countWorkItemReworks');
     expect(source).toContain('describeWorkItemOperatorSummary');
     expect(source).toContain('rework');
-    expect(source).toContain('stale turns');
+    expect(source).toContain('formatCountLabel(');
     expect(source).toContain('No stale turns');
     expect(source).toContain('No escalations');
+  });
+
+  it('uses plural-aware attention badge copy', () => {
+    expect(formatCountLabel(1, 'stale turn', 'No stale turns')).toBe('1 stale turn');
+    expect(formatCountLabel(3, 'stale turn', 'No stale turns')).toBe('3 stale turns');
   });
 
   it('renders human-readable live activity instead of raw event type rows', () => {

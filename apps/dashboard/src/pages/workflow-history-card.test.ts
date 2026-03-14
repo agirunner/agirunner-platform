@@ -208,6 +208,9 @@ describe('workflow interaction timeline', () => {
     expect(source).toContain('TimelineEventPacket');
     expect(source).toContain('descriptor={descriptor}');
     expect(source).toContain('buildTimelineEntryActions');
+    expect(source).toContain('WorkflowSurfaceRecoveryState');
+    expect(source).toContain('Workflow activity is unavailable');
+    expect(source).toContain('Retry timeline');
     expect(source).not.toContain('Event payload');
   });
 

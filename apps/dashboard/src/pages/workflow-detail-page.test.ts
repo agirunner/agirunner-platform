@@ -123,6 +123,7 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('context="workflow-detail"');
     expect(source).toContain('workItemSummary={workflowQuery.data?.work_item_summary}');
     expect(source).toContain('latestActivitySummary={latestActivitySummary ?? undefined}');
+    expect(source).toContain('formatUsdDisplay(costSummary.totalCostUsd)');
     expect(source).toContain('CopyableIdBadge');
     expect(source).toContain('RelativeTimestamp');
     expect(source).toContain('OperatorStatusBadge');
@@ -177,7 +178,7 @@ describe('workflow detail work-item creation form', () => {
     expect(source).toContain('setIsCreateWorkItemDialogOpen(true)');
     expect(source).toContain('DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"');
     expect(source).toContain('<CardTitle>Quick-create work item</CardTitle>');
-    expect(source).toContain('Collapsed by default');
+    expect(source).toContain('Create and child-board controls open only on demand');
   });
 });
 
@@ -330,7 +331,8 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('PacketFactGrid');
     expect(source).toContain('PacketBadgePanel');
     expect(source).toContain('Board workspace');
-    expect(source).toContain('Triage, run controls, and review lanes');
+    expect(source).toContain('Board triage and review lanes');
+    expect(source).toContain('Focused rail open for one work item');
     expect(source).toContain('TabsTrigger value="board">Board &amp; triage');
     expect(source).toContain('TabsTrigger value="controls">Run controls');
     expect(source).toContain('TabsTrigger value="review">Gates &amp; activations');
@@ -345,9 +347,25 @@ describe('workflow detail deep links', () => {
 
     expect(source).toContain('<WorkflowDocumentsCard');
     expect(source).toContain('workflowId={workflowId}');
+    expect(source).toContain('onRetry={() => {');
     expect(source).toContain('tasks={taskQuery.data?.data ?? []}');
     expect(source).toContain('areTasksLoading={taskQuery.isLoading}');
     expect(source).toContain('hasTasksError={Boolean(taskQuery.error)}');
+  });
+
+  it('replaces secondary-tab load failures with retryable recovery states', () => {
+    const source = readFileSync(
+      resolve(import.meta.dirname, './workflow-detail-page.tsx'),
+      'utf8',
+    );
+
+    expect(source).toContain('WorkflowSurfaceRecoveryState');
+    expect(source).toContain('Board model overrides are unavailable');
+    expect(source).toContain('Effective models could not be resolved');
+    expect(source).toContain('Resolved board configuration is unavailable');
+    expect(source).toContain('Retry overrides');
+    expect(source).toContain('Retry model resolution');
+    expect(source).toContain('Retry config');
   });
 
   it('routes workflow artifact navigation through the project explorer with canonical workflow filters', () => {

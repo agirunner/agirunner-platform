@@ -67,11 +67,13 @@ import {
   type WorkflowDocumentField,
   validateWorkflowDocumentDraft,
 } from './workflow-detail-document-support.js';
+import { WorkflowSurfaceRecoveryState } from './workflow-surface-recovery-state.js';
 
 export function WorkflowDocumentsCard(props: {
   workflowId: string;
   isLoading: boolean;
   hasError: boolean;
+  onRetry?(): void;
   documents: DashboardResolvedDocumentReference[];
   tasks: DashboardWorkflowTaskRow[];
   areTasksLoading: boolean;
@@ -369,9 +371,14 @@ export function WorkflowDocumentsCard(props: {
         <SurfaceMessage tone="default" show={props.isLoading}>
           Loading documents...
         </SurfaceMessage>
-        <SurfaceMessage tone="destructive" show={props.hasError}>
-          Failed to load workflow documents.
-        </SurfaceMessage>
+        {props.hasError ? (
+          <WorkflowSurfaceRecoveryState
+            title="Workflow documents are unavailable"
+            detail="The board may not have published its document index yet, or the workflow-document request failed. Retry this tab before asking specialists to rely on shared reference material."
+            onRetry={props.onRetry}
+            actionLabel="Retry documents"
+          />
+        ) : null}
         {!props.isLoading && !props.hasError ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <SummaryPanel

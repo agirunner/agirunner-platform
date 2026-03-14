@@ -14,6 +14,7 @@ import type {
   DashboardWorkflowWorkItemRecord,
 } from '../lib/api.js';
 import { dashboardApi } from '../lib/api.js';
+import { cn } from '../lib/utils.js';
 import {
   describeTaskGraphPacket,
   type DashboardWorkflowTaskRow,
@@ -24,6 +25,7 @@ import {
   buildWorkflowDetailPermalink,
   isWorkflowDetailTargetHighlighted,
 } from './workflow-detail-permalinks.js';
+import { formatUsdDisplay } from './workflow-ux-formatting.js';
 import {
   buildWorkflowProjectTimelineOverview,
   buildWorkflowProjectTimelinePacket,
@@ -141,7 +143,9 @@ export function MissionControlCard(props: {
               <p className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
                 Cost to Date
               </p>
-              <p className="text-lg font-semibold text-foreground">${props.totalCostUsd.toFixed(4)}</p>
+              <p className="text-lg font-semibold text-foreground">
+                {formatUsdDisplay(props.totalCostUsd)}
+              </p>
             </div>
           </div>
           <div className="grid gap-3 rounded-lg border border-border/60 bg-background/80 p-3 sm:grid-cols-2">
@@ -302,44 +306,53 @@ export function PlaybookBoardCard(props: {
           <div className="space-y-1">
             <CardTitle>Work Board</CardTitle>
             <CardDescription>
-              {boardMode === 'grouped'
-                ? 'Grouped board mode keeps parent milestones first-class and nests child deliverables under them.'
-                : 'Ungrouped board mode shows every work item directly in its current board column.'}
+              Triage directly on the board, then switch display mode when you need milestone
+              grouping or a flat operator scan.
             </CardDescription>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {props.selectedWorkItemId ? (
               <Badge variant="outline">Focused detail open</Badge>
             ) : null}
-            <Button
-              type="button"
-              variant={boardMode === 'grouped' ? 'default' : 'outline'}
-              size="sm"
-              aria-pressed={boardMode === 'grouped'}
-              onClick={() => setBoardMode('grouped')}
-              disabled={milestoneGroups.length === 0}
+            <div
+              aria-label="Board view mode"
+              className="inline-flex rounded-xl border border-border/70 bg-background/80 p-1"
+              role="tablist"
             >
-              Grouped by Milestone
-            </Button>
-            <Button
-              type="button"
-              variant={boardMode === 'ungrouped' ? 'default' : 'outline'}
-              size="sm"
-              aria-pressed={boardMode === 'ungrouped'}
-              onClick={() => setBoardMode('ungrouped')}
-            >
-              Flat Board
-            </Button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={boardMode === 'grouped'}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  boardMode === 'grouped'
+                    ? 'bg-accent text-accent-foreground shadow-sm'
+                    : 'text-muted hover:bg-border/60 hover:text-foreground',
+                )}
+                onClick={() => setBoardMode('grouped')}
+                disabled={milestoneGroups.length === 0}
+              >
+                Grouped by milestone
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={boardMode === 'ungrouped'}
+                className={cn(
+                  'rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+                  boardMode === 'ungrouped'
+                    ? 'bg-accent text-accent-foreground shadow-sm'
+                    : 'text-muted hover:bg-border/60 hover:text-foreground',
+                )}
+                onClick={() => setBoardMode('ungrouped')}
+              >
+                Flat board
+              </button>
+            </div>
           </div>
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">
-        {props.selectedWorkItemId ? (
-          <div className="rounded-xl border border-border/70 bg-border/10 p-4 text-sm leading-6 text-muted">
-            A selected work-item packet is open beside the board. Keep the board in triage mode
-            here, then use the dedicated focus rail for edits, evidence, and step-level review.
-          </div>
-        ) : null}
         {props.isLoading ? (
           <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">
             Loading board...

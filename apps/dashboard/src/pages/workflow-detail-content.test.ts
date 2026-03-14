@@ -39,6 +39,9 @@ describe('workflow detail content source', () => {
     expect(source).toContain('Save Document Changes');
     expect(source).toContain('Delete Reference');
     expect(source).toContain('Confirm Delete');
+    expect(source).toContain('WorkflowSurfaceRecoveryState');
+    expect(source).toContain('Workflow documents are unavailable');
+    expect(source).toContain('Retry documents');
     expect(source).toContain('Reference library empty');
     expect(source).toContain('No shared handoff notes');
     expect(source).toContain('Task linkage');

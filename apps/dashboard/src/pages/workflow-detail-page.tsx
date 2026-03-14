@@ -71,6 +71,8 @@ import {
 import { WorkflowDocumentsCard, ProjectMemoryCard } from './workflow-detail-content.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { deriveWorkflowStageDisplay } from './workflow-detail-stage-presentation.js';
+import { WorkflowSurfaceRecoveryState } from './workflow-surface-recovery-state.js';
+import { formatUsdDisplay } from './workflow-ux-formatting.js';
 import { ChainWorkflowDialog } from '../components/chain-workflow-dialog.js';
 import {
   CopyableIdBadge,
@@ -752,7 +754,7 @@ export function WorkflowDetailPage(): JSX.Element {
                         />
                         <WorkflowSignalTile
                           label="Execution Cost"
-                          value={`$${costSummary.totalCostUsd.toFixed(4)}`}
+                          value={formatUsdDisplay(costSummary.totalCostUsd)}
                           detail="total run cost"
                         />
                       </div>
@@ -842,35 +844,26 @@ export function WorkflowDetailPage(): JSX.Element {
                 </Badge>
                 <div className="space-y-1">
                   <h2 className="text-xl font-semibold text-foreground">
-                    Triage, run controls, and review lanes
+                    Board triage and review lanes
                   </h2>
                   <p className="max-w-3xl text-sm leading-6 text-muted">
-                    Keep the live board as the default surface. Open quick-create and child-board
-                    controls only when needed, then switch to review lanes for stage gates and
-                    orchestrator activity.
+                    Start in board triage, open a focused work-item rail only when you need to
+                    intervene, and move into review lanes for stage gates or activation recovery.
                   </p>
                 </div>
               </div>
-              <div className="grid gap-3 sm:grid-cols-3 xl:min-w-[38rem]">
-                <WorkflowSignalTile
-                  label="Board focus"
-                  value={selectedWorkItemId ? 'Selected item open' : 'Triage mode'}
-                  detail={
-                    selectedWorkItemId
-                      ? 'Operator rail stays dedicated to the active work item'
-                      : 'Select a work item to open its focused operator packet'
-                  }
-                />
-                <WorkflowSignalTile
-                  label="Run controls"
-                  value="Collapsed by default"
-                  detail="Quick-create and child-board launch stay out of the board scroll until needed"
-                />
-                <WorkflowSignalTile
-                  label="Review lanes"
-                  value={`${stagesQuery.data?.length ?? 0} stages`}
-                  detail={`${activationsQuery.data?.length ?? 0} activations available for operator review`}
-                />
+              <div className="flex flex-wrap gap-2 xl:max-w-[42rem] xl:justify-end">
+                <Badge variant="outline">
+                  {selectedWorkItemId
+                    ? 'Focused rail open for one work item'
+                    : 'Board stays in broad triage mode'}
+                </Badge>
+                <Badge variant="outline">
+                  Create and child-board controls open only on demand
+                </Badge>
+                <Badge variant="outline">
+                  {`${stagesQuery.data?.length ?? 0} stages • ${activationsQuery.data?.length ?? 0} activations in review`}
+                </Badge>
               </div>
             </div>
 
@@ -919,16 +912,6 @@ export function WorkflowDetailPage(): JSX.Element {
                       data-testid="selected-work-item-rail"
                       aria-label="Selected work-item focus"
                     >
-                      <div className="grid gap-1 rounded-2xl border border-accent/20 bg-background/80 px-4 py-3">
-                        <div className="text-[11px] font-medium uppercase tracking-[0.22em] text-muted">
-                          Selected work-item focus
-                        </div>
-                        <div className="text-sm text-muted">
-                          The board stays on the left for triage. The right rail is reserved for
-                          one work item at a time so operator review does not sprawl across the
-                          whole page.
-                        </div>
-                      </div>
                       <WorkflowWorkItemDetailPanel
                         workflowId={workflowId}
                         workItemId={selectedWorkItemId}
@@ -1137,9 +1120,14 @@ export function WorkflowDetailPage(): JSX.Element {
                     </p>
                   ) : null}
                   {workflowModelOverridesQuery.error ? (
-                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                      Failed to load board-run model overrides.
-                    </p>
+                    <WorkflowSurfaceRecoveryState
+                      title="Board model overrides are unavailable"
+                      detail="The board override packet did not load. Retry this run-packets lane before you assume specialists are inheriting the wrong models."
+                      onRetry={() => {
+                        void workflowModelOverridesQuery.refetch();
+                      }}
+                      actionLabel="Retry overrides"
+                    />
                   ) : null}
                   {workflowModelOverridesQuery.data ? (
                     <WorkflowModelOverridesPacket
@@ -1167,9 +1155,14 @@ export function WorkflowDetailPage(): JSX.Element {
                     </p>
                   ) : null}
                   {resolvedModelsQuery.error ? (
-                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                      Failed to load effective models.
-                    </p>
+                    <WorkflowSurfaceRecoveryState
+                      title="Effective models could not be resolved"
+                      detail="This board run may still be resolving model defaults, or the resolution request failed. Retry before reviewing role-level model coverage from this tab."
+                      onRetry={() => {
+                        void resolvedModelsQuery.refetch();
+                      }}
+                      actionLabel="Retry model resolution"
+                    />
                   ) : null}
                   {resolvedModelsQuery.data ? (
                     <ResolvedModelResolutionList
@@ -1194,9 +1187,14 @@ export function WorkflowDetailPage(): JSX.Element {
                     </p>
                   ) : null}
                   {configQuery.error ? (
-                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-                      Failed to load resolved config.
-                    </p>
+                    <WorkflowSurfaceRecoveryState
+                      title="Resolved board configuration is unavailable"
+                      detail="The merged playbook, project, and board-run config packet failed to load. Retry before validating launch inputs or escalation settings from this surface."
+                      onRetry={() => {
+                        void configQuery.refetch();
+                      }}
+                      actionLabel="Retry config"
+                    />
                   ) : null}
                   {configQuery.data ? (
                     <WorkflowConfigReviewPacket config={configQuery.data} />
@@ -1230,6 +1228,9 @@ export function WorkflowDetailPage(): JSX.Element {
               workflowId={workflowId}
               isLoading={documentQuery.isLoading}
               hasError={Boolean(documentQuery.error)}
+              onRetry={() => {
+                void documentQuery.refetch();
+              }}
               documents={documentQuery.data ?? []}
               tasks={taskQuery.data?.data ?? []}
               areTasksLoading={taskQuery.isLoading}
@@ -1267,6 +1268,9 @@ export function WorkflowDetailPage(): JSX.Element {
                 hasError={Boolean(historyQuery.error)}
                 isLoadingMore={historyQuery.isFetchingNextPage}
                 hasMore={historyQuery.hasNextPage}
+                onRetry={() => {
+                  void historyQuery.refetch();
+                }}
                 onLoadMore={() => void historyQuery.fetchNextPage()}
                 events={historyEvents}
               />

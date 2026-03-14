@@ -37,6 +37,7 @@ import {
   WorkItemHistoryFilterBar,
   WorkItemHistoryPagination,
 } from './workflow-work-item-history-controls.js';
+import { WorkflowSurfaceRecoveryState } from './workflow-surface-recovery-state.js';
 
 export { buildTimelineContext, describeTimelineEvent } from './workflow-history-card.narrative.js';
 
@@ -48,6 +49,7 @@ export function WorkflowInteractionTimelineCard(props: {
   hasError: boolean;
   hasMore?: boolean;
   onLoadMore?: () => void;
+  onRetry?: () => void;
   events: DashboardEventRecord[];
 }) {
   const storageKey = `timeline:${props.workflowId}`;
@@ -110,9 +112,12 @@ export function WorkflowInteractionTimelineCard(props: {
           </p>
         ) : null}
         {props.hasError ? (
-          <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-            Failed to load workflow activity.
-          </p>
+          <WorkflowSurfaceRecoveryState
+            title="Workflow activity is unavailable"
+            detail="The board timeline request did not complete, or this run has not published activity records yet. Retry the timeline before diagnosing operator or orchestrator behavior from this tab."
+            onRetry={props.onRetry}
+            actionLabel="Retry timeline"
+          />
         ) : null}
         {props.events.length === 0 && !props.isLoading && !props.hasError ? (
           <p className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-3 text-sm text-muted">

@@ -31,11 +31,12 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('onSelectWorkItem');
     expect(source).toContain('selectedWorkItemId');
     expect(source).toContain('Focused detail open');
-    expect(source).toContain('A selected work-item packet is open beside the board.');
-    expect(source).toContain('Grouped by Milestone');
-    expect(source).toContain('Flat Board');
-    expect(source).toContain('Grouped board mode keeps parent milestones first-class');
-    expect(source).toContain('Ungrouped board mode shows every work item directly');
+    expect(source).toContain('aria-label="Board view mode"');
+    expect(source).toContain('role="tab"');
+    expect(source).toContain('Grouped by milestone');
+    expect(source).toContain('Flat board');
+    expect(source).toContain('Triage directly on the board');
+    expect(source).not.toContain('A selected work-item packet is open beside the board.');
     expect(source).toContain('children_completed');
     expect(source).toContain('% complete');
     expect(source).toContain("xl:grid-cols-3 2xl:grid-cols-4");

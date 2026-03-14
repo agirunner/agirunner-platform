@@ -41,6 +41,7 @@ import { buildTimelineContext, describeTimelineEvent } from '../workflow-history
 import { buildTimelineEntryActions } from '../workflow-history-card.actions.js';
 import { WorkflowControlActions } from '../workflow-control-actions.js';
 import type { DashboardWorkflowTaskRow } from '../workflow-detail-support.js';
+import { formatCountLabel, formatUsdDisplay } from '../workflow-ux-formatting.js';
 import { buildAttentionTaskActions } from './live-board-attention-actions.js';
 import {
   countActiveSpecialistSteps,
@@ -685,7 +686,7 @@ export function LiveBoardPage(): JSX.Element {
       <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="space-y-2">
           <Badge variant="outline" className="w-fit">
-            Mission control
+            Mission Control
           </Badge>
           <div className="space-y-1">
             <h1 className="text-3xl font-semibold tracking-tight">Operator Live Board</h1>
@@ -702,9 +703,11 @@ export function LiveBoardPage(): JSX.Element {
               : 'No escalations'}
           </Badge>
           <Badge variant={visibleActivationSummary.stale > 0 ? 'warning' : 'outline'}>
-            {visibleActivationSummary.stale > 0
-              ? `${visibleActivationSummary.stale} stale turns`
-              : 'No stale turns'}
+            {formatCountLabel(
+              visibleActivationSummary.stale,
+              'stale turn',
+              'No stale turns',
+            )}
           </Badge>
           <Badge variant={visibleGateReviews > 0 ? 'warning' : 'outline'}>
             {visibleGateReviews > 0
@@ -925,7 +928,7 @@ function KpiCards(props: KpiCardsProps): JSX.Element {
     },
     {
       label: 'Spend & token coverage',
-      value: props.reportedSpend > 0 ? `$${props.reportedSpend.toFixed(2)}` : 'No spend',
+      value: formatUsdDisplay(props.reportedSpend),
       detail:
         props.spentBoards > 0
           ? `${props.spentBoards} board runs reporting spend • ${props.tokenPosture}`
