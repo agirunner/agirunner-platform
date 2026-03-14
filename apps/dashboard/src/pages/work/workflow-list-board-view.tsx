@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
+import { WorkflowControlActions } from '../workflow-control-actions.js';
 import {
   BOARD_COLUMNS,
   describeGateSummary,
@@ -97,35 +98,48 @@ function BoardColumnView(props: BoardSection): JSX.Element {
       </div>
       <div className="space-y-3">
         {props.workflows.map((workflow) => (
-          <Link key={workflow.id} to={`/work/boards/${workflow.id}`} className="block">
-            <Card className="border-border/70 transition-shadow hover:shadow-md">
-              <CardContent className="grid gap-3 p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0 space-y-1">
-                    <p className="truncate text-sm font-semibold">{workflow.name}</p>
-                    <p className="truncate text-xs text-muted">
-                      {workflow.project_name ?? 'No project'}
-                    </p>
-                  </div>
-                  <Badge variant="outline">{describeWorkflowType(workflow)}</Badge>
+          <Card key={workflow.id} className="border-border/70 transition-shadow hover:shadow-md">
+            <CardContent className="grid gap-3 p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                  <Link
+                    to={`/work/boards/${workflow.id}`}
+                    className="block truncate text-sm font-semibold text-accent hover:underline"
+                  >
+                    {workflow.name}
+                  </Link>
+                  <p className="truncate text-xs text-muted">
+                    {workflow.project_name ?? 'No project'}
+                  </p>
                 </div>
-                <p className="text-xs text-foreground">{describeOperatorSignal(workflow)}</p>
-                <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-xs sm:grid-cols-2">
-                  <WorkflowInfo
-                    label={describeWorkflowStageLabel(workflow)}
-                    value={describeWorkflowStage(workflow)}
-                  />
-                  <WorkflowInfo label="Progress" value={describeWorkflowProgress(workflow)} />
-                  <WorkflowInfo label="Gates" value={describeGateSummary(workflow)} />
-                  <WorkflowInfo label="Spend" value={describeWorkflowCost(workflow)} />
-                </div>
-                <div className="flex items-center justify-between gap-3 text-xs text-muted">
-                  <span>{formatRelativeRunAge(workflow.created_at)}</span>
-                  <span>{describeWorkflowStageFootnote(workflow)}</span>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
+                <Badge variant="outline">{describeWorkflowType(workflow)}</Badge>
+              </div>
+              <p className="text-xs text-foreground">{describeOperatorSignal(workflow)}</p>
+              <div className="grid gap-2 rounded-lg border border-border/60 bg-muted/20 p-3 text-xs sm:grid-cols-2">
+                <WorkflowInfo
+                  label={describeWorkflowStageLabel(workflow)}
+                  value={describeWorkflowStage(workflow)}
+                />
+                <WorkflowInfo label="Progress" value={describeWorkflowProgress(workflow)} />
+                <WorkflowInfo label="Gates" value={describeGateSummary(workflow)} />
+                <WorkflowInfo label="Spend" value={describeWorkflowCost(workflow)} />
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
+                <span>{formatRelativeRunAge(workflow.created_at)}</span>
+                <span>{describeWorkflowStageFootnote(workflow)}</span>
+              </div>
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                <WorkflowControlActions
+                  workflowId={workflow.id}
+                  workflowState={workflow.state ?? workflow.status}
+                  projectId={workflow.project_id}
+                />
+                <Button variant="outline" size="sm" asChild>
+                  <Link to={`/work/boards/${workflow.id}`}>Open board</Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ))}
         {props.workflows.length === 0 ? (
           <div className="rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-center text-xs text-muted">

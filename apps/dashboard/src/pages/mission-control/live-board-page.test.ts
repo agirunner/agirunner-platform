@@ -121,6 +121,15 @@ describe('live board page source', () => {
     );
   });
 
+  it('keeps workflow pause, resume, and cancel controls on the live board cards', () => {
+    const source = readSource();
+    expect(source).toContain('WorkflowControlActions');
+    expect(source).toContain('workflowState={workflow.state ?? workflow.status}');
+    expect(source).toContain('projectId={workflow.project_id}');
+    expect(source).toContain('Most active work');
+    expect(source).toContain('Open board');
+  });
+
   it('shows rework-aware work-item cards and attention signals on the operations board', () => {
     const source = readSource();
     expect(source).toContain('BoardWorkItemCard');

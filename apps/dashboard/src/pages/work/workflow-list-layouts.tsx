@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
+import { WorkflowControlActions } from '../workflow-control-actions.js';
 import {
   Table,
   TableBody,
@@ -49,6 +50,7 @@ export function WorkflowTable(props: { workflows: WorkflowListRecord[] }): JSX.E
               <TableHead>Gates</TableHead>
               <TableHead>Spend</TableHead>
               <TableHead>Age</TableHead>
+              <TableHead className="text-right">Controls</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -102,6 +104,14 @@ export function WorkflowTable(props: { workflows: WorkflowListRecord[] }): JSX.E
                       </p>
                     </div>
                   </TableCell>
+                  <TableCell className="align-top">
+                    <WorkflowControlActions
+                      workflowId={workflow.id}
+                      workflowState={workflow.state ?? workflow.status}
+                      projectId={workflow.project_id}
+                      className="justify-end"
+                    />
+                  </TableCell>
                 </TableRow>
               );
             })}
@@ -148,9 +158,16 @@ function WorkflowListCard(props: { workflow: WorkflowListRecord }): JSX.Element 
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs text-muted">{formatRelativeRunAge(props.workflow.created_at)}</p>
-          <Button size="sm" asChild>
-            <Link to={`/work/boards/${props.workflow.id}`}>Open board</Link>
-          </Button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <WorkflowControlActions
+              workflowId={props.workflow.id}
+              workflowState={props.workflow.state ?? props.workflow.status}
+              projectId={props.workflow.project_id}
+            />
+            <Button size="sm" asChild>
+              <Link to={`/work/boards/${props.workflow.id}`}>Open board</Link>
+            </Button>
+          </div>
         </div>
       </CardContent>
     </Card>

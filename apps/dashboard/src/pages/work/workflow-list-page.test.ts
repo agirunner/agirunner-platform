@@ -50,4 +50,13 @@ describe('workflow board page source', () => {
     expect(source).toContain('hidden gap-4 xl:grid xl:grid-cols-2 2xl:grid-cols-5');
     expect(source).toContain('workflow-posture-');
   });
+
+  it('exposes workflow pause, resume, and cancel controls from both list layouts', () => {
+    const source = readSource();
+    expect(source).toContain('WorkflowControlActions');
+    expect(source).toContain('TableHead className="text-right">Controls</TableHead>');
+    expect(source).toContain('workflowState={workflow.state ?? workflow.status}');
+    expect(source).toContain('projectId={workflow.project_id}');
+    expect(source).toContain('Open board');
+  });
 });

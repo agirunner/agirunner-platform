@@ -136,6 +136,25 @@ describe('FR-032: workflow list view', () => {
   });
 });
 
+describe('FR-035: workflow-level controls', () => {
+  it('exposes workflow pause, resume, and cancel controls on summary surfaces', () => {
+    const source = [
+      readComponent('pages/workflow-detail-sections.tsx'),
+      readComponent('pages/work/workflow-list-layouts.tsx'),
+      readComponent('pages/work/workflow-list-board-view.tsx'),
+      readComponent('pages/mission-control/live-board-page.tsx'),
+      readComponent('pages/workflow-control-actions.tsx'),
+    ].join('\n');
+    expect(source).toContain('WorkflowControlActions');
+    expect(source).toContain('dashboardApi.pauseWorkflow');
+    expect(source).toContain('dashboardApi.resumeWorkflow');
+    expect(source).toContain('dashboardApi.cancelWorkflow');
+    expect(source).toContain('Workflow paused');
+    expect(source).toContain('Workflow resumed');
+    expect(source).toContain('Workflow cancellation requested');
+  });
+});
+
 // ─────────────────────────────────────────────────────────────────────────────
 // FR-033: Approval button for awaiting_approval tasks
 // FR-034: Retry button for failed tasks

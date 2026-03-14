@@ -28,6 +28,7 @@ import {
   buildWorkflowProjectTimelineOverview,
   buildWorkflowProjectTimelinePacket,
 } from './workflow-project-timeline-support.js';
+import { WorkflowControlActions } from './workflow-control-actions.js';
 import {
   CopyableIdBadge,
   OperatorStatusBadge,
@@ -82,6 +83,11 @@ const MANUAL_WORKFLOW_ACTIVATION_EVENT_TYPE = 'operator.manual_enqueue';
 const MANUAL_WORKFLOW_ACTIVATION_SOURCE = 'workflow-detail-activations-card';
 
 export function MissionControlCard(props: {
+  workflow: {
+    id: string;
+    state?: string | null;
+    project_id?: string | null;
+  };
   summary: MissionControlSummary;
   workItemSummary?: {
     open_work_item_count?: number;
@@ -91,9 +97,6 @@ export function MissionControlCard(props: {
   } | null;
   totalCostUsd: number;
   latestActivitySummary?: string;
-  onPause(): void;
-  onResume(): void;
-  onCancel(): void;
 }) {
   const specialistPressure = props.summary.ready + props.summary.in_progress;
   const openWorkItems = props.workItemSummary?.open_work_item_count ?? 0;
@@ -110,17 +113,11 @@ export function MissionControlCard(props: {
               Operator controls and live board health for this board run.
             </CardDescription>
           </div>
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button variant="outline" size="sm" onClick={props.onPause}>
-              Pause
-            </Button>
-            <Button variant="outline" size="sm" onClick={props.onResume}>
-              Resume
-            </Button>
-            <Button variant="destructive" size="sm" onClick={props.onCancel}>
-              Cancel
-            </Button>
-          </div>
+          <WorkflowControlActions
+            workflowId={props.workflow.id}
+            workflowState={props.workflow.state}
+            projectId={props.workflow.project_id}
+          />
         </div>
       </CardHeader>
       <CardContent className="grid gap-4">

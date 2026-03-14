@@ -39,6 +39,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
 import { buildTimelineContext, describeTimelineEvent } from '../workflow-history-card.js';
 import { buildTimelineEntryActions } from '../workflow-history-card.actions.js';
+import { WorkflowControlActions } from '../workflow-control-actions.js';
 import type { DashboardWorkflowTaskRow } from '../workflow-detail-support.js';
 import { buildAttentionTaskActions } from './live-board-attention-actions.js';
 import {
@@ -79,6 +80,7 @@ import {
 interface WorkflowRecord {
   id: string;
   name: string;
+  project_id?: string | null;
   playbook_id?: string | null;
   lifecycle?: 'standard' | 'continuous' | null;
   current_stage?: string | null;
@@ -1412,9 +1414,16 @@ function ActivePlaybookBoards(props: {
                   <div className="mt-3 grid gap-3">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <p className="text-sm font-medium text-foreground">Most active work</p>
-                      <Button size="sm" variant="outline" asChild>
-                        <Link to={`/work/boards/${workflow.id}`}>Open board</Link>
-                      </Button>
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <WorkflowControlActions
+                          workflowId={workflow.id}
+                          workflowState={workflow.state ?? workflow.status}
+                          projectId={workflow.project_id}
+                        />
+                        <Button size="sm" variant="outline" asChild>
+                          <Link to={`/work/boards/${workflow.id}`}>Open board</Link>
+                        </Button>
+                      </div>
                     </div>
                     {visibleActiveItems.map((item) => (
                       <BoardWorkItemCard

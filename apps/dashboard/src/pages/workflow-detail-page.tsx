@@ -774,25 +774,15 @@ export function WorkflowDetailPage(): JSX.Element {
 
           <div className="grid content-start gap-6">
             <MissionControlCard
+              workflow={{
+                id: workflowId,
+                state: workflowQuery.data?.state,
+                project_id: projectId,
+              }}
               summary={summary}
               workItemSummary={workflowQuery.data?.work_item_summary}
               totalCostUsd={costSummary.totalCostUsd}
               latestActivitySummary={latestActivitySummary ?? undefined}
-              onPause={() =>
-                void dashboardApi
-                  .pauseWorkflow(workflowId)
-                  .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
-              }
-              onResume={() =>
-                void dashboardApi
-                  .resumeWorkflow(workflowId)
-                  .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
-              }
-              onCancel={() =>
-                void dashboardApi
-                  .cancelWorkflow(workflowId)
-                  .then(() => invalidateWorkflowQueries(queryClient, workflowId, projectId))
-              }
             />
             <WorkflowBudgetCard
               workflowId={workflowId}
