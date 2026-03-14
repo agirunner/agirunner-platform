@@ -74,8 +74,10 @@ describe('LlmProvidersPage renders three sections', () => {
   });
 
   it('uses elevated provider surfaces so cards stay legible in dark theme', () => {
-    expect(source).toContain("className=\"border-border/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80\"");
-    expect(source).toContain("className=\"grid gap-4 rounded-xl border border-border/70 bg-white/95 p-4 dark:border-slate-800 dark:bg-slate-900/80\"");
+    expect(source).toContain("const ELEVATED_SURFACE_CLASS_NAME = 'border-border/80 bg-surface shadow-sm';");
+    expect(source).toContain("const SUBDUED_SURFACE_CLASS_NAME = 'rounded-xl border border-border/70 bg-surface p-4 shadow-sm';");
+    expect(source).not.toContain('bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80');
+    expect(source).not.toContain('bg-white/95 p-4 dark:border-slate-800 dark:bg-slate-900/80');
   });
 
   it('renders the Model Catalog section with endpoint column', () => {
@@ -122,12 +124,12 @@ describe('LlmProvidersPage renders three sections', () => {
   });
 
   it('uses neutral alert surfaces for provider validation feedback', () => {
-    expect(source).toContain('border-red-300/70 bg-white text-red-800');
-    expect(source).toContain('dark:border-red-900/60 dark:bg-slate-950/80 dark:text-red-200');
-    expect(source).toContain('border-amber-300/70 bg-white text-amber-900');
-    expect(source).toContain('dark:border-amber-900/60 dark:bg-slate-950/80 dark:text-amber-200');
-    expect(source).not.toContain('text-sm text-red-600 dark:text-red-400');
-    expect(source).not.toContain('text-xs text-red-600 dark:text-red-400');
+    expect(source).toContain('const DIALOG_ALERT_CLASS_NAME = \'rounded-xl border px-4 py-3 text-sm shadow-sm\';');
+    expect(source).toContain('backgroundColor: \'color-mix(in srgb, var(--color-surface) 90%, var(--color-warning) 10%)\'');
+    expect(source).toContain('backgroundColor: \'color-mix(in srgb, var(--color-surface) 90%, var(--color-destructive) 10%)\'');
+    expect(source).toContain('const FIELD_ERROR_CLASS_NAME = \'text-xs font-medium\';');
+    expect(source).not.toContain('dark:text-red-300');
+    expect(source).not.toContain('dark:bg-slate-950/80');
   });
 });
 

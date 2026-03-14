@@ -152,13 +152,41 @@ const INITIAL_FORM: AddProviderDraft = {
   apiKey: '',
 };
 
-const DIALOG_ERROR_ALERT_CLASS_NAME =
-  'rounded-xl border border-red-300/70 bg-white text-red-800 px-4 py-3 text-sm dark:border-red-900/60 dark:bg-slate-950/80 dark:text-red-200';
-const DIALOG_WARNING_ALERT_CLASS_NAME =
-  'rounded-xl border border-amber-300/70 bg-white text-amber-900 px-4 py-3 text-sm dark:border-amber-900/60 dark:bg-slate-950/80 dark:text-amber-200';
-const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium text-red-700 dark:text-red-300';
+const ELEVATED_SURFACE_CLASS_NAME = 'border-border/80 bg-surface shadow-sm';
+const SUBDUED_SURFACE_CLASS_NAME = 'rounded-xl border border-border/70 bg-surface p-4 shadow-sm';
+const DIALOG_ALERT_CLASS_NAME = 'rounded-xl border px-4 py-3 text-sm shadow-sm';
+const FIELD_ERROR_CLASS_NAME = 'text-xs font-medium';
 const WARNING_ROLE_CHIP_CLASS_NAME =
-  'inline-flex items-center rounded-full border border-amber-300/80 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/40 dark:text-amber-200';
+  'inline-flex items-center rounded-full border px-2.5 py-1 text-[11px] font-medium';
+const DELETE_ACTION_CLASS_NAME =
+  'text-destructive hover:bg-destructive/10 hover:text-destructive';
+const SUCCESS_PANEL_STYLE = {
+  borderColor: 'color-mix(in srgb, var(--color-success) 38%, var(--color-border))',
+  backgroundColor: 'color-mix(in srgb, var(--color-surface) 90%, var(--color-success) 10%)',
+  color: 'var(--color-foreground)',
+};
+const WARNING_PANEL_STYLE = {
+  borderColor: 'color-mix(in srgb, var(--color-warning) 38%, var(--color-border))',
+  backgroundColor: 'color-mix(in srgb, var(--color-surface) 90%, var(--color-warning) 10%)',
+  color: 'var(--color-foreground)',
+};
+const ERROR_PANEL_STYLE = {
+  borderColor: 'color-mix(in srgb, var(--color-destructive) 38%, var(--color-border))',
+  backgroundColor: 'color-mix(in srgb, var(--color-surface) 90%, var(--color-destructive) 10%)',
+  color: 'var(--color-foreground)',
+};
+const WARNING_CHIP_STYLE = {
+  borderColor: 'color-mix(in srgb, var(--color-warning) 42%, var(--color-border))',
+  backgroundColor: 'color-mix(in srgb, var(--color-surface) 82%, var(--color-warning) 18%)',
+  color: 'var(--color-foreground)',
+};
+const ERROR_TEXT_STYLE = { color: 'var(--color-destructive)' };
+
+function panelToneStyle(tone: 'danger' | 'warning' | 'success') {
+  if (tone === 'danger') return ERROR_PANEL_STYLE;
+  if (tone === 'warning') return WARNING_PANEL_STYLE;
+  return SUCCESS_PANEL_STYLE;
+}
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
@@ -279,7 +307,7 @@ function ConnectOAuthDialog(): JSX.Element {
           </div>
         )}
         {profilesQuery.error && (
-          <div className={DIALOG_ERROR_ALERT_CLASS_NAME}>
+          <div className={DIALOG_ALERT_CLASS_NAME} style={ERROR_PANEL_STYLE}>
             Failed to load profiles: {String(profilesQuery.error)}
           </div>
         )}
@@ -360,7 +388,7 @@ function OAuthProviderCard({
   const status = statusQuery.data;
 
   return (
-    <Card className="border-border/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+    <Card className={ELEVATED_SURFACE_CLASS_NAME}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">{provider.name}</CardTitle>
@@ -442,7 +470,7 @@ function OAuthProviderCard({
           <Button
             variant="ghost"
             size="sm"
-            className="text-red-600 dark:text-red-400 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+            className={DELETE_ACTION_CLASS_NAME}
             onClick={() => onDelete(provider.id)}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -540,9 +568,10 @@ function AddProviderDialog(props: {
           <section
             className={
               validation.isValid
-                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30'
-                : DIALOG_WARNING_ALERT_CLASS_NAME
+                ? `${DIALOG_ALERT_CLASS_NAME} p-4`
+                : `${DIALOG_ALERT_CLASS_NAME} p-4`
             }
+            style={validation.isValid ? SUCCESS_PANEL_STYLE : WARNING_PANEL_STYLE}
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
@@ -614,7 +643,7 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.name ? (
-              <p className={FIELD_ERROR_CLASS_NAME}>{validation.fieldErrors.name}</p>
+              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>{validation.fieldErrors.name}</p>
             ) : showsRecommendedName ? (
               <p className="text-xs text-muted">
                 Recommended operator label for this provider type: {providerDefaults.name}
@@ -635,7 +664,7 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.baseUrl ? (
-              <p className={FIELD_ERROR_CLASS_NAME}>{validation.fieldErrors.baseUrl}</p>
+              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>{validation.fieldErrors.baseUrl}</p>
             ) : (
               <p className="text-xs text-muted">
                 {form.providerType === 'openai-compatible'
@@ -662,13 +691,13 @@ function AddProviderDialog(props: {
               }
             />
             {validation.fieldErrors.apiKey ? (
-              <p className={FIELD_ERROR_CLASS_NAME}>{validation.fieldErrors.apiKey}</p>
+              <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>{validation.fieldErrors.apiKey}</p>
             ) : (
               <p className="text-xs text-muted">Stored write-only. Existing keys are never shown again.</p>
             )}
           </div>
           {mutation.error && (
-            <p className={DIALOG_ERROR_ALERT_CLASS_NAME}>
+            <p className={DIALOG_ALERT_CLASS_NAME} style={ERROR_PANEL_STYLE}>
               {String(mutation.error)}
             </p>
           )}
@@ -711,7 +740,7 @@ function ProviderCard({
   const providerType = provider.metadata?.providerType ?? 'unknown';
 
   return (
-    <Card>
+    <Card className={ELEVATED_SURFACE_CLASS_NAME}>
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">{provider.name}</CardTitle>
@@ -757,7 +786,7 @@ function ProviderCard({
           <Button
             variant="ghost"
             size="sm"
-            className="text-red-600 dark:text-red-400 hover:bg-red-50 hover:text-red-700 dark:hover:bg-red-950/30"
+            className={DELETE_ACTION_CLASS_NAME}
             onClick={() => onDelete(provider.id)}
           >
             <Trash2 className="h-3.5 w-3.5" />
@@ -791,7 +820,7 @@ function DeleteProviderDialog(props: {
             This action cannot be undone.
           </DialogDescription>
         </DialogHeader>
-      <div className="grid gap-4 rounded-xl border border-border/70 bg-white/95 p-4 dark:border-slate-800 dark:bg-slate-900/80">
+      <div className={SUBDUED_SURFACE_CLASS_NAME}>
           <div className="space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-sm font-semibold text-foreground">{provider.name}</p>
@@ -971,7 +1000,7 @@ function ModelReasoningSelect({
           ))}
         </SelectContent>
       </Select>
-      {modelError ? <p className={FIELD_ERROR_CLASS_NAME}>{modelError}</p> : null}
+      {modelError ? <p className={FIELD_ERROR_CLASS_NAME} style={ERROR_TEXT_STYLE}>{modelError}</p> : null}
     </div>
   );
   const reasoningField = (
@@ -1120,7 +1149,7 @@ function RoleAssignmentsSection({
       <h2 className="text-lg font-semibold">Model Assignments</h2>
       <div className="grid gap-3 md:grid-cols-3">
         {assignmentSurface.cards.map((card) => (
-          <Card key={card.label} className="border-border/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+          <Card key={card.label} className={ELEVATED_SURFACE_CLASS_NAME}>
             <CardHeader className="space-y-1 pb-3">
               <p className="text-sm font-medium text-muted">{card.label}</p>
               <CardTitle className="text-xl">{card.value}</CardTitle>
@@ -1133,12 +1162,9 @@ function RoleAssignmentsSection({
       </div>
       <div
         className={
-          assignmentSurface.guidance.tone === 'danger'
-            ? DIALOG_ERROR_ALERT_CLASS_NAME
-            : assignmentSurface.guidance.tone === 'warning'
-              ? DIALOG_WARNING_ALERT_CLASS_NAME
-              : 'rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200'
+          DIALOG_ALERT_CLASS_NAME
         }
+        style={panelToneStyle(assignmentSurface.guidance.tone)}
       >
         <div className="font-medium">{assignmentSurface.guidance.headline}</div>
         <p className="mt-1">{assignmentSurface.guidance.detail}</p>
@@ -1149,7 +1175,7 @@ function RoleAssignmentsSection({
             </p>
             <div className="flex flex-wrap gap-2">
               {assignmentValidation.missingRoleNames.map((roleName) => (
-                <span key={roleName} className={WARNING_ROLE_CHIP_CLASS_NAME}>
+                <span key={roleName} className={WARNING_ROLE_CHIP_CLASS_NAME} style={WARNING_CHIP_STYLE}>
                   {roleName}
                 </span>
               ))}
@@ -1232,7 +1258,7 @@ function RoleAssignmentsSection({
           {roleRows.map((role) => {
             const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
             return (
-              <Card key={role.name} className="border-border/80 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900/80">
+              <Card key={role.name} className={ELEVATED_SURFACE_CLASS_NAME}>
                 <CardHeader className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2">
                     <CardTitle className="text-base">{role.name}</CardTitle>
@@ -1614,12 +1640,12 @@ export function LlmProvidersPage(): JSX.Element {
     || roleDefinitionsQuery.error;
   if (hasError) {
     return (
-      <div className="p-6">
-        <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-          Failed to load LLM configuration:{' '}
-          {String(providersQuery.error ?? modelsQuery.error ?? assignmentsQuery.error ?? roleDefinitionsQuery.error)}
+        <div className="p-6">
+          <div className={DIALOG_ALERT_CLASS_NAME} style={ERROR_PANEL_STYLE}>
+            Failed to load LLM configuration:{' '}
+            {String(providersQuery.error ?? modelsQuery.error ?? assignmentsQuery.error ?? roleDefinitionsQuery.error)}
+          </div>
         </div>
-      </div>
     );
   }
 
