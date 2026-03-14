@@ -234,7 +234,9 @@ describe('workflow interaction timeline', () => {
     );
 
     expect(source).toContain('formatRelativeTimestamp');
-    expect(source).toContain('title={event.created_at}');
+    expect(source).toContain('formatAbsoluteTimestamp');
+    expect(source).toContain('title={formatAbsoluteTimestamp(event.created_at)}');
+    expect(source).toContain('{formatRelativeTimestamp(event.created_at)}');
     expect(source).not.toContain('toLocaleString');
     expect(source).not.toContain('formatTimestamp');
   });

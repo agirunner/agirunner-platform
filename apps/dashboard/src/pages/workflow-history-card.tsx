@@ -29,7 +29,10 @@ import {
   type TimelineLookupContext,
 } from './workflow-history-card.narrative.js';
 import { TimelineEventPacket } from './workflow-history-card.packet.js';
-import { formatRelativeTimestamp } from './workflow-detail-presentation.js';
+import {
+  formatAbsoluteTimestamp,
+  formatRelativeTimestamp,
+} from './workflow-detail-presentation.js';
 import {
   WorkItemHistoryFilterBar,
   WorkItemHistoryPagination,
@@ -227,7 +230,7 @@ function TimelineEntry(props: {
           <strong>{descriptor.narrativeHeadline}</strong>
           <span
             className="text-sm text-muted"
-            title={event.created_at}
+            title={formatAbsoluteTimestamp(event.created_at)}
           >
             {formatRelativeTimestamp(event.created_at)}
           </span>
