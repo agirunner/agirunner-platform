@@ -42,6 +42,12 @@ export interface WebSearchPostureSummary {
   apiKeyStatus: string;
 }
 
+export interface WebSearchFieldSupport {
+  provider: string;
+  endpoint: string;
+  apiKey: string;
+}
+
 export function buildWebSearchRecoveryGuidance(
   values: FormValues,
   errors: Record<string, string>,
@@ -73,6 +79,35 @@ export function buildWebSearchRecoveryGuidance(
   }
 
   return [...guidance];
+}
+
+export function buildWebSearchFieldSupport(
+  values: FormValues,
+  errors: Record<string, string>,
+): WebSearchFieldSupport {
+  const provider = resolveWebSearchProvider(values);
+  const details = PROVIDER_DETAILS[provider];
+  const endpointValue = values['tools.web_search_base_url']?.trim();
+  const apiKeyValue = values['tools.web_search_api_key_secret_ref']?.trim();
+  const apiKeyError = errors['tools.web_search_api_key_secret_ref'];
+
+  return {
+    provider: details.requiresApiKey
+      ? apiKeyError
+        ? `If ${details.label} credentials are not ready yet, switch back to DuckDuckGo so web search stays available while you recover the secret reference.`
+        : `${details.label} needs a secret:NAME reference. Switch back to DuckDuckGo if you need a no-key fallback.`
+      : 'DuckDuckGo works without a secret reference and remains the safest fallback when other search providers are unavailable.',
+    endpoint: endpointValue
+      ? `A custom endpoint override is active. Use the reset action to restore the ${details.label} default if this override fails.`
+      : `Leave this blank to use the ${details.label} default endpoint.`,
+    apiKey: details.requiresApiKey
+      ? apiKeyValue
+        ? `Keep this as a secret:NAME reference. Clear it only when you intentionally switch to a provider that does not require an API key.`
+        : `Enter a secret:NAME reference for ${details.label}, or switch back to DuckDuckGo if you need a zero-credential fallback.`
+      : apiKeyValue
+        ? 'This provider ignores API keys. Clear the stale secret reference to avoid confusing operators and runtime recovery.'
+        : 'No API key is needed for this provider.',
+  };
 }
 
 export function resolveWebSearchProvider(values: FormValues): WebSearchProvider {

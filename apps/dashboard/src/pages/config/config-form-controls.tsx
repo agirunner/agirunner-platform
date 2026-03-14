@@ -29,6 +29,7 @@ export function ConfigField(props: {
   fieldId?: string;
   label: string;
   description?: ReactNode;
+  support?: ReactNode;
   error?: string;
   action?: ReactNode;
   className?: string;
@@ -37,8 +38,9 @@ export function ConfigField(props: {
   const generatedId = useId();
   const fieldId = props.fieldId ?? `config-field-${generatedId.replace(/:/g, '')}`;
   const descriptionId = props.description ? `${fieldId}-description` : undefined;
+  const supportId = props.support ? `${fieldId}-support` : undefined;
   const errorId = props.error ? `${fieldId}-error` : undefined;
-  const describedBy = [descriptionId, errorId].filter(Boolean).join(' ') || undefined;
+  const describedBy = [descriptionId, supportId, errorId].filter(Boolean).join(' ') || undefined;
 
   return (
     <div className={cn('grid gap-2 text-sm', props.className)}>
@@ -59,6 +61,11 @@ export function ConfigField(props: {
           {props.description}
         </p>
       ) : null}
+      {props.support ? (
+        <p id={supportId} className="text-xs leading-5 text-muted">
+          {props.support}
+        </p>
+      ) : null}
       {props.error ? (
         <p id={errorId} className="flex items-start gap-2 text-xs leading-5 text-red-600 dark:text-red-400">
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -73,8 +80,11 @@ export function ConfigInputField(props: {
   fieldId: string;
   label: string;
   description?: ReactNode;
+  support?: ReactNode;
   error?: string;
+  action?: ReactNode;
   className?: string;
+  inputTestId?: string;
   inputProps: Omit<ComponentPropsWithoutRef<typeof Input>, 'id' | 'aria-describedby' | 'aria-invalid'>;
 }): JSX.Element {
   return (
@@ -82,7 +92,9 @@ export function ConfigInputField(props: {
       fieldId={props.fieldId}
       label={props.label}
       description={props.description}
+      support={props.support}
       error={props.error}
+      action={props.action}
       className={props.className}
     >
       {({ describedBy, isInvalid }) => (
@@ -90,6 +102,7 @@ export function ConfigInputField(props: {
           id={props.fieldId}
           aria-describedby={describedBy}
           aria-invalid={isInvalid}
+          data-testid={props.inputTestId}
           {...props.inputProps}
         />
       )}
@@ -101,8 +114,11 @@ export function ConfigTextAreaField(props: {
   fieldId: string;
   label: string;
   description?: ReactNode;
+  support?: ReactNode;
   error?: string;
+  action?: ReactNode;
   className?: string;
+  textAreaTestId?: string;
   textAreaProps: Omit<
     ComponentPropsWithoutRef<typeof Textarea>,
     'id' | 'aria-describedby' | 'aria-invalid'
@@ -113,7 +129,9 @@ export function ConfigTextAreaField(props: {
       fieldId={props.fieldId}
       label={props.label}
       description={props.description}
+      support={props.support}
       error={props.error}
+      action={props.action}
       className={props.className}
     >
       {({ describedBy, isInvalid }) => (
@@ -121,6 +139,7 @@ export function ConfigTextAreaField(props: {
           id={props.fieldId}
           aria-describedby={describedBy}
           aria-invalid={isInvalid}
+          data-testid={props.textAreaTestId}
           {...props.textAreaProps}
         />
       )}
@@ -133,7 +152,9 @@ export function ConfigSelectField(props: {
   label: string;
   value: string;
   description?: ReactNode;
+  support?: ReactNode;
   error?: string;
+  action?: ReactNode;
   className?: string;
   disabled?: boolean;
   placeholder?: string;
@@ -147,7 +168,9 @@ export function ConfigSelectField(props: {
       fieldId={props.fieldId}
       label={props.label}
       description={props.description}
+      support={props.support}
       error={props.error}
+      action={props.action}
       className={props.className}
     >
       {({ describedBy, isInvalid }) => (

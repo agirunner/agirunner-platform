@@ -1,15 +1,12 @@
-import { AlertCircle, RotateCcw } from 'lucide-react';
+import { RotateCcw } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
-import { Input } from '../../components/ui/input.js';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../../components/ui/select.js';
+  ConfigInputField,
+  ConfigSelectField,
+} from './config-form-controls.js';
 import {
+  buildWebSearchFieldSupport,
   buildWebSearchRecoveryGuidance,
   getWebSearchProviderDetails,
   listWebSearchProviderDetails,
@@ -40,112 +37,117 @@ export function RuntimeDefaultsSearchSection({
   const providerDetails = getWebSearchProviderDetails(provider);
   const posture = summarizeWebSearchPosture(values);
   const recoveryGuidance = buildWebSearchRecoveryGuidance(values, errors);
+  const fieldSupport = buildWebSearchFieldSupport(values, errors);
   const showApiKey = shouldShowWebSearchApiKey(values);
 
   return (
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_280px]">
       <div className="space-y-5">
-        <SearchFieldBlock
-          field={providerField}
+        <ConfigSelectField
+          fieldId={providerField.key}
+          label={providerField.label}
+          value={values[providerField.key] || PLATFORM_DEFAULT_SELECT_VALUE}
+          description={
+            <>
+              <span>{providerField.description}</span>{' '}
+              <span>{providerDetails.description}</span>
+            </>
+          }
+          support={fieldSupport.provider}
           error={errors[providerField.key]}
-          extraDescription={providerDetails.description}
-        >
-          <Select
-            value={values[providerField.key] || PLATFORM_DEFAULT_SELECT_VALUE}
-            onValueChange={(nextValue) =>
-              onChange(
-                providerField.key,
-                nextValue === PLATFORM_DEFAULT_SELECT_VALUE ? '' : nextValue,
-              )
-            }
-          >
-            <SelectTrigger
-              id={providerField.key}
-              className="h-10"
-              aria-invalid={Boolean(errors[providerField.key])}
-              data-testid={`field-${providerField.key}`}
-            >
-              <SelectValue placeholder={providerField.placeholder} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={PLATFORM_DEFAULT_SELECT_VALUE}>Use platform default</SelectItem>
-              {listWebSearchProviderDetails().map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </SearchFieldBlock>
+          className="rounded-xl border border-border/70 bg-card/80 p-4"
+          placeholder={providerField.placeholder}
+          options={[
+            {
+              value: PLATFORM_DEFAULT_SELECT_VALUE,
+              label: 'Use platform default',
+            },
+            ...listWebSearchProviderDetails().map((option) => ({
+              value: option.value,
+              label: option.label,
+            })),
+          ]}
+          onValueChange={(nextValue) =>
+            onChange(
+              providerField.key,
+              nextValue === PLATFORM_DEFAULT_SELECT_VALUE ? '' : nextValue,
+            )
+          }
+          triggerClassName="h-10"
+          triggerTestId={`field-${providerField.key}`}
+        />
 
-        <SearchFieldBlock
-          field={endpointField}
+        <ConfigInputField
+          fieldId={endpointField.key}
+          label={endpointField.label}
+          description={
+            <>
+              <span>{endpointField.description}</span>{' '}
+              <span>
+                Override only when {providerDetails.label} needs a non-default endpoint.
+              </span>
+            </>
+          }
+          support={fieldSupport.endpoint}
           error={errors[endpointField.key]}
-          extraDescription={`Override only when ${providerDetails.label} needs a non-default endpoint.`}
-        >
-          <div className="space-y-2">
-            <Input
-              id={endpointField.key}
-              value={values[endpointField.key] ?? ''}
-              onChange={(event) => onChange(endpointField.key, event.target.value)}
-              placeholder={providerDetails.endpointPlaceholder}
-              aria-invalid={Boolean(errors[endpointField.key])}
-              className="h-10"
-              data-testid={`field-${endpointField.key}`}
-            />
-            {values[endpointField.key]?.trim() ? (
-              <div className="flex justify-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onChange(endpointField.key, '')}
-                  data-testid="clear-web-search-endpoint"
-                >
-                  <RotateCcw className="h-4 w-4" />
-                  Use provider default endpoint
-                </Button>
-              </div>
-            ) : null}
-          </div>
-        </SearchFieldBlock>
+          className="rounded-xl border border-border/70 bg-card/80 p-4"
+          inputTestId={`field-${endpointField.key}`}
+          action={
+            values[endpointField.key]?.trim() ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => onChange(endpointField.key, '')}
+                data-testid="clear-web-search-endpoint"
+              >
+                <RotateCcw className="h-4 w-4" />
+                Use provider default endpoint
+              </Button>
+            ) : undefined
+          }
+          inputProps={{
+            value: values[endpointField.key] ?? '',
+            onChange: (event) => onChange(endpointField.key, event.target.value),
+            placeholder: providerDetails.endpointPlaceholder,
+            className: 'h-10',
+          }}
+        />
 
         {showApiKey ? (
-          <SearchFieldBlock
-            field={apiKeyField}
-            error={errors[apiKeyField.key]}
-            extraDescription={
+          <ConfigInputField
+            fieldId={apiKeyField.key}
+            label={apiKeyField.label}
+            description={
               providerDetails.requiresApiKey
                 ? `${providerDetails.label} requires a secret: reference before the runtime can call it directly.`
                 : `${providerDetails.label} does not use an API key. Clear the stale secret reference to fall back cleanly.`
             }
-          >
-            <div className="space-y-2">
-              <Input
-                id={apiKeyField.key}
-                value={values[apiKeyField.key] ?? ''}
-                onChange={(event) => onChange(apiKeyField.key, event.target.value)}
-                placeholder={apiKeyField.placeholder}
-                aria-invalid={Boolean(errors[apiKeyField.key])}
-                className="h-10"
-                data-testid={`field-${apiKeyField.key}`}
-              />
-              {values[apiKeyField.key]?.trim() ? (
-                <div className="flex justify-end">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => onChange(apiKeyField.key, '')}
-                    data-testid="clear-web-search-api-key"
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                    Clear secret reference
-                  </Button>
-                </div>
-              ) : null}
-            </div>
-          </SearchFieldBlock>
+            support={fieldSupport.apiKey}
+            error={errors[apiKeyField.key]}
+            className="rounded-xl border border-border/70 bg-card/80 p-4"
+            inputTestId={`field-${apiKeyField.key}`}
+            action={
+              values[apiKeyField.key]?.trim() ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onChange(apiKeyField.key, '')}
+                  data-testid="clear-web-search-api-key"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                  Clear secret reference
+                </Button>
+              ) : undefined
+            }
+            inputProps={{
+              value: values[apiKeyField.key] ?? '',
+              onChange: (event) => onChange(apiKeyField.key, event.target.value),
+              placeholder: apiKeyField.placeholder,
+              className: 'h-10',
+            }}
+          />
         ) : null}
       </div>
 
@@ -172,37 +174,6 @@ export function RuntimeDefaultsSearchSection({
           </ul>
         </div>
       </aside>
-    </div>
-  );
-}
-
-function SearchFieldBlock({
-  field,
-  error,
-  extraDescription,
-  children,
-}: {
-  field: FieldDefinition;
-  error?: string;
-  extraDescription: string;
-  children: JSX.Element;
-}) {
-  return (
-    <div className="space-y-2 rounded-xl border border-border/70 bg-card/80 p-4">
-      <div className="space-y-1">
-        <label className="text-sm font-medium" htmlFor={field.key}>
-          {field.label}
-        </label>
-        <p className="text-xs leading-5 text-muted">{field.description}</p>
-        <p className="text-xs leading-5 text-muted">{extraDescription}</p>
-      </div>
-      {children}
-      {error ? (
-        <p className="flex items-start gap-2 text-xs leading-5 text-red-600 dark:text-red-400">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>{error}</span>
-        </p>
-      ) : null}
     </div>
   );
 }

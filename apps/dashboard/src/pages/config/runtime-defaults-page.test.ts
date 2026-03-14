@@ -60,6 +60,14 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('ConfigField');
   });
 
+  it('routes web search fields through the shared config control primitives with field-level support text', () => {
+    const source = readSource('./runtime-defaults-search.tsx');
+    expect(source).toContain('ConfigSelectField');
+    expect(source).toContain('ConfigInputField');
+    expect(source).toContain('buildWebSearchFieldSupport');
+    expect(source).not.toContain('function SearchFieldBlock');
+  });
+
   it('uses the shared dashboard API client for runtime-defaults CRUD', () => {
     const source = readSource('./runtime-defaults.api.ts');
     expect(source).toContain('dashboardApi.listRuntimeDefaults');

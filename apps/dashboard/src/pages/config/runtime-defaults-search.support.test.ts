@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildWebSearchFieldSupport,
   buildWebSearchRecoveryGuidance,
   getWebSearchProviderDetails,
   listWebSearchProviderDetails,
@@ -115,5 +116,43 @@ describe('runtime defaults search support', () => {
     ).toEqual([
       'Clear the stale secret reference because DuckDuckGo does not use an API key.',
     ]);
+  });
+
+  it('builds field-level support text for recovery actions and provider fallbacks', () => {
+    expect(
+      buildWebSearchFieldSupport(
+        {
+          'tools.web_search_provider': 'serper',
+          'tools.web_search_base_url': 'https://google.serper.dev/search',
+        },
+        {
+          'tools.web_search_api_key_secret_ref':
+            'Serper requires a secret reference. Add one or switch the provider back to DuckDuckGo.',
+        },
+      ),
+    ).toEqual({
+      provider:
+        'If Serper credentials are not ready yet, switch back to DuckDuckGo so web search stays available while you recover the secret reference.',
+      endpoint:
+        'A custom endpoint override is active. Use the reset action to restore the Serper default if this override fails.',
+      apiKey:
+        'Enter a secret:NAME reference for Serper, or switch back to DuckDuckGo if you need a zero-credential fallback.',
+    });
+
+    expect(
+      buildWebSearchFieldSupport(
+        {
+          'tools.web_search_provider': 'duckduckgo',
+          'tools.web_search_api_key_secret_ref': 'secret:LEGACY_KEY',
+        },
+        {},
+      ),
+    ).toEqual({
+      provider:
+        'DuckDuckGo works without a secret reference and remains the safest fallback when other search providers are unavailable.',
+      endpoint: 'Leave this blank to use the DuckDuckGo default endpoint.',
+      apiKey:
+        'This provider ignores API keys. Clear the stale secret reference to avoid confusing operators and runtime recovery.',
+    });
   });
 });
