@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp, Search, RotateCcw } from 'lucide-react';
 
 import { Button } from './ui/button.js';
@@ -15,6 +15,7 @@ import {
   DEFAULT_INSPECTOR_FILTERS,
   type InspectorFilters,
 } from './execution-inspector-support.js';
+import { useDebounced, DEBOUNCE_MS } from './log-viewer/log-filters.support.js';
 
 interface ExecutionInspectorFilterBarProps {
   filters: InspectorFilters;
@@ -44,6 +45,11 @@ export function ExecutionInspectorFilterBar(
 ): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
   const activeFilterCount = countActiveFilters(props.filters);
+
+  const [searchDraft, setSearchDraft] = useDebouncedDraft(
+    props.filters.search,
+    (value) => props.onChange({ ...props.filters, search: value }),
+  );
 
   return (
     <Card>
@@ -85,10 +91,8 @@ export function ExecutionInspectorFilterBar(
                   <Search className="pointer-events-none absolute left-3 top-2.5 h-4 w-4 text-muted" />
                   <Input
                     className="pl-9"
-                    value={props.filters.search}
-                    onChange={(event) =>
-                      props.onChange({ ...props.filters, search: event.target.value })
-                    }
+                    value={searchDraft}
+                    onChange={(event) => setSearchDraft(event.target.value)}
                     placeholder="operation, board, step, error, or payload text"
                   />
                 </div>
@@ -191,17 +195,34 @@ function countActiveFilters(filters: InspectorFilters): number {
   return count;
 }
 
+function useDebouncedDraft(
+  externalValue: string,
+  commit: (value: string) => void,
+): [string, (next: string) => void] {
+  const [draft, setDraft] = useState(externalValue);
+  const commitRef = useRef(commit);
+  commitRef.current = commit;
+
+  const stableCommit = useCallback((v: string) => commitRef.current(v), []);
+  useDebounced(draft, DEBOUNCE_MS, stableCommit);
+  useEffect(() => setDraft(externalValue), [externalValue]);
+
+  return [draft, setDraft];
+}
+
 function FilterInput(props: {
   label: string;
   value: string;
   onChange(value: string): void;
 }): JSX.Element {
+  const [draft, setDraft] = useDebouncedDraft(props.value, props.onChange);
+
   return (
     <label className="space-y-1">
       <span className="text-xs font-medium uppercase tracking-wide text-muted">
         {props.label}
       </span>
-      <Input value={props.value} onChange={(event) => props.onChange(event.target.value)} />
+      <Input value={draft} onChange={(event) => setDraft(event.target.value)} />
     </label>
   );
 }

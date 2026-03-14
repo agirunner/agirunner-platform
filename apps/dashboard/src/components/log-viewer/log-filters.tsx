@@ -1,4 +1,4 @@
-import { useCallback, useState, useMemo, type ChangeEvent } from 'react';
+import { useCallback, useState, useMemo, useEffect, type ChangeEvent } from 'react';
 import { RotateCcw, Search, X } from 'lucide-react';
 import { LogEntityScope } from './log-entity-scope.js';
 import { LogClassificationTabs } from './log-classification-tabs.js';
@@ -61,6 +61,23 @@ export function LogFilters({
     [],
   );
 
+  const [workItemDraft, setWorkItemDraft] = useState(filters.workItem ?? '');
+  const [stageDraft, setStageDraft] = useState(filters.stage ?? '');
+  const [activationDraft, setActivationDraft] = useState(filters.activation ?? '');
+
+  const commitWorkItem = useCallback((v: string) => setFilter('workItem', v), [setFilter]);
+  const commitStage = useCallback((v: string) => setFilter('stage', v), [setFilter]);
+  const commitActivation = useCallback((v: string) => setFilter('activation', v), [setFilter]);
+
+  useDebounced(workItemDraft, DEBOUNCE_MS, commitWorkItem);
+  useDebounced(stageDraft, DEBOUNCE_MS, commitStage);
+  useDebounced(activationDraft, DEBOUNCE_MS, commitActivation);
+
+  useEffect(() => setSearchDraft(filters.search), [filters.search]);
+  useEffect(() => setWorkItemDraft(filters.workItem ?? ''), [filters.workItem]);
+  useEffect(() => setStageDraft(filters.stage ?? ''), [filters.stage]);
+  useEffect(() => setActivationDraft(filters.activation ?? ''), [filters.activation]);
+
   const toggleOperation = useArrayToggle(filters.operations, setFilter, 'operations');
   const clearOperations = useCallback(() => setFilter('operations', []), [setFilter]);
   const selectedOperationIds = useMemo(() => new Set(filters.operations), [filters.operations]);
@@ -119,6 +136,9 @@ export function LogFilters({
     (saved: SavedViewFilters) => {
       replaceAllParams(mapSavedViewToUrlParams(saved));
       setSearchDraft(saved.search ?? '');
+      setWorkItemDraft(saved.work_item_id ?? '');
+      setStageDraft(saved.stage_name ?? '');
+      setActivationDraft(saved.activation_id ?? '');
       if (saved.viewMode) onViewModeChange?.(saved.viewMode);
     },
     [replaceAllParams, onViewModeChange],
@@ -242,20 +262,20 @@ export function LogFilters({
       {/* Row 2b: Workflow execution context */}
       <div className="grid gap-2 md:grid-cols-3">
         <Input
-          value={filters.workItem ?? ''}
-          onChange={(event) => setFilter('workItem', event.target.value)}
+          value={workItemDraft}
+          onChange={(event) => setWorkItemDraft(event.target.value)}
           placeholder="Work item ID"
           className="h-8 text-xs"
         />
         <Input
-          value={filters.stage ?? ''}
-          onChange={(event) => setFilter('stage', event.target.value)}
+          value={stageDraft}
+          onChange={(event) => setStageDraft(event.target.value)}
           placeholder="Stage name"
           className="h-8 text-xs"
         />
         <Input
-          value={filters.activation ?? ''}
-          onChange={(event) => setFilter('activation', event.target.value)}
+          value={activationDraft}
+          onChange={(event) => setActivationDraft(event.target.value)}
           placeholder="Activation ID"
           className="h-8 text-xs"
         />

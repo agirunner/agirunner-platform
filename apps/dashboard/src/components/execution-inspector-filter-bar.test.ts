@@ -24,6 +24,21 @@ describe('execution inspector filter bar source', () => {
     expect(source).toContain('label="Emitter"');
   });
 
+  it('debounces text inputs to avoid per-keystroke refetches', () => {
+    const source = readSource();
+
+    expect(source).toContain('useDebouncedDraft');
+    expect(source).toContain('searchDraft');
+    expect(source).toContain('useDebounced');
+    expect(source).toContain('DEBOUNCE_MS');
+
+    // FilterInput uses debounced drafts internally
+    expect(source).toContain('useDebouncedDraft(props.value, props.onChange)');
+
+    // Select controls remain immediate — no debounce wrapper
+    expect(source).toContain('onValueChange={props.onChange}');
+  });
+
   it('MCL-006: supports collapse/expand behavior to reduce mobile vertical space', () => {
     const source = readSource();
 

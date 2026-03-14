@@ -16,6 +16,27 @@ describe('log filters source', () => {
     expect(source).toContain('allGroupLabel="Statuses"');
   });
 
+  it('debounces text filter inputs to avoid per-keystroke refetches', () => {
+    const source = readSource('./log-filters.tsx');
+
+    // Search is debounced
+    expect(source).toContain('searchDraft');
+    expect(source).toContain('useDebounced(searchDraft');
+
+    // Workflow context inputs are debounced
+    expect(source).toContain('workItemDraft');
+    expect(source).toContain('stageDraft');
+    expect(source).toContain('activationDraft');
+    expect(source).toContain('useDebounced(workItemDraft');
+    expect(source).toContain('useDebounced(stageDraft');
+    expect(source).toContain('useDebounced(activationDraft');
+
+    // Combobox/select controls remain immediate
+    expect(source).toContain('onChange={toggleRole}');
+    expect(source).toContain('onChange={toggleActor}');
+    expect(source).toContain('onChange={toggleOperation}');
+  });
+
   it('serializes source and status filters into log query params', () => {
     const source = readSource('./hooks/use-log-filters.ts');
     expect(source).toContain("statuses: parseList(searchParams.get('status'))");
