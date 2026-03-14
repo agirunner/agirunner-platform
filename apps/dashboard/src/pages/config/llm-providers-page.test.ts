@@ -95,7 +95,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('validateAssignmentSetup');
     expect(source).toContain('summarizeAssignmentSurface');
     expect(source).toContain('Orchestrator and Role Overrides');
-    expect(source).toContain('1 orchestrator row');
+    expect(source).toContain('1 orchestrator');
     expect(source).toContain('Add a shared default or choose explicit models for the affected roles below.');
     expect(source).toContain('Affected roles');
     expect(source).toContain('assignmentValidation.missingRoleNames.map((roleName) => (');

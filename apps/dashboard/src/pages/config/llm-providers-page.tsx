@@ -1319,7 +1319,7 @@ function RoleAssignmentsSection({
               different model or reasoning policy.
             </p>
             <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="secondary">1 orchestrator row</Badge>
+              <Badge variant="secondary">1 orchestrator</Badge>
               <Badge variant="outline">{activeRoleCount} active roles</Badge>
               <Badge variant={explicitOverrideCount > 0 ? 'default' : 'outline'}>
                 {explicitOverrideCount} explicit overrides
