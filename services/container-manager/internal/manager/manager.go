@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"slices"
 	"strings"
 	"time"
 
@@ -52,12 +53,12 @@ type ContainerSpec struct {
 
 // Config holds container manager configuration.
 type Config struct {
-	PlatformAPIURL      string
-	PlatformAPIKey      string
-	PlatformAdminAPIKey string
-	DockerHost          string
-	ReconcileInterval   time.Duration
-	StopTimeout         time.Duration
+	PlatformAPIURL         string
+	PlatformAPIKey         string
+	PlatformAdminAPIKey    string
+	DockerHost             string
+	ReconcileInterval      time.Duration
+	StopTimeout            time.Duration
 	GlobalMaxRuntimes      int
 	RuntimeNetwork         string
 	RuntimeInternalNetwork string
@@ -88,6 +89,7 @@ type Manager struct {
 	pullFailCache        map[string]time.Time // tracks when an image pull last failed, keyed by image ref
 	idleSince            map[string]time.Time // tracks when each runtime first became idle
 	processedOrphans     map[string]struct{}  // runtime IDs already handled as orphans (prevents log spam)
+	lastReportedImages   string               // canonical image inventory fingerprint last reported to platform
 	nowFunc              func() time.Time
 	cycleCount           uint64 // monotonic reconcile cycle counter
 }
@@ -107,6 +109,7 @@ func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
 		pullFailCache:        make(map[string]time.Time),
 		idleSince:            make(map[string]time.Time),
 		processedOrphans:     make(map[string]struct{}),
+		lastReportedImages:   "",
 		nowFunc:              time.Now,
 	}
 }
@@ -125,6 +128,7 @@ func NewWithPlatform(cfg Config, docker DockerClient, platform PlatformAPI, logg
 		pullFailCache:        make(map[string]time.Time),
 		idleSince:            make(map[string]time.Time),
 		processedOrphans:     make(map[string]struct{}),
+		lastReportedImages:   "",
 		nowFunc:              time.Now,
 	}
 }
@@ -199,7 +203,7 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 			"dcm_ok", dcmErr == nil,
 		)
 		m.emitLogTimed("container", "reconcile.cycle", "debug", "completed", map[string]any{
-			"action":  "heartbeat",
+			"action": "heartbeat",
 			"cycle":  m.cycleCount,
 			"wds_ok": wdsErr == nil,
 			"dcm_ok": dcmErr == nil,
@@ -477,9 +481,43 @@ func (m *Manager) reportImages(ctx context.Context) {
 		m.logger.Error("failed to list images", "error", err)
 		return
 	}
+	fingerprint := fingerprintImages(images)
+	if fingerprint == m.lastReportedImages {
+		return
+	}
+	allReported := true
 	for _, img := range images {
 		if err := m.platform.ReportImage(img); err != nil {
+			allReported = false
 			m.logger.Error("failed to report image", "repository", img.Repository, "error", err)
 		}
 	}
+	if allReported {
+		m.lastReportedImages = fingerprint
+	}
+}
+
+func fingerprintImages(images []ContainerImage) string {
+	if len(images) == 0 {
+		return ""
+	}
+
+	parts := make([]string, 0, len(images))
+	for _, img := range images {
+		tag := ""
+		if img.Tag != nil {
+			tag = *img.Tag
+		}
+		digest := ""
+		if img.Digest != nil {
+			digest = *img.Digest
+		}
+		size := ""
+		if img.SizeBytes != nil {
+			size = fmt.Sprintf("%d", *img.SizeBytes)
+		}
+		parts = append(parts, fmt.Sprintf("%s|%s|%s|%s", img.Repository, tag, digest, size))
+	}
+	slices.Sort(parts)
+	return strings.Join(parts, "\n")
 }

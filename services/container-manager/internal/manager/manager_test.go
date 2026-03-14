@@ -610,6 +610,69 @@ func TestReportImagesContinuesOnReportImageError(t *testing.T) {
 	}
 }
 
+func TestReportImagesSkipsUnchangedInventoryAfterSuccessfulReport(t *testing.T) {
+	docker := newMockDockerClient()
+	tag := "v1"
+	size := int64(100)
+	docker.images = []ContainerImage{
+		{Repository: "myimage", Tag: &tag, SizeBytes: &size},
+	}
+	platform := &mockPlatformClient{}
+	r := newTestManager(docker, platform)
+
+	r.reportImages(context.Background())
+	r.reportImages(context.Background())
+
+	if got := len(platform.reportedImages); got != 1 {
+		t.Fatalf("expected one image report for unchanged inventory, got %d", got)
+	}
+}
+
+func TestReportImagesRetriesAfterFailedReport(t *testing.T) {
+	docker := newMockDockerClient()
+	tag := "v1"
+	size := int64(100)
+	docker.images = []ContainerImage{
+		{Repository: "myimage", Tag: &tag, SizeBytes: &size},
+	}
+	platform := &mockPlatformClient{
+		reportImageErr: fmt.Errorf("report failed"),
+	}
+	r := newTestManager(docker, platform)
+
+	r.reportImages(context.Background())
+	platform.reportImageErr = nil
+	r.reportImages(context.Background())
+
+	if got := len(platform.reportedImages); got != 1 {
+		t.Fatalf("expected retry to report image after failure, got %d recorded reports", got)
+	}
+}
+
+func TestReportImagesReportsInventoryWhenItChanges(t *testing.T) {
+	docker := newMockDockerClient()
+	tagV1 := "v1"
+	tagV2 := "v2"
+	size1 := int64(100)
+	size2 := int64(200)
+	docker.images = []ContainerImage{
+		{Repository: "myimage", Tag: &tagV1, SizeBytes: &size1},
+	}
+	platform := &mockPlatformClient{}
+	r := newTestManager(docker, platform)
+
+	r.reportImages(context.Background())
+	docker.images = []ContainerImage{
+		{Repository: "myimage", Tag: &tagV1, SizeBytes: &size1},
+		{Repository: "myimage", Tag: &tagV2, SizeBytes: &size2},
+	}
+	r.reportImages(context.Background())
+
+	if got := len(platform.reportedImages); got != 3 {
+		t.Fatalf("expected initial and changed inventories to be reported, got %d image reports", got)
+	}
+}
+
 func TestRunReconcileCycleCallsBothReconcilers(t *testing.T) {
 	docker := newMockDockerClient()
 	platform := &mockPlatformClient{}
