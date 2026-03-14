@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 
 import type { DashboardProjectRecord } from '../../lib/api.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { Badge } from '../../components/ui/badge.js';
 import type { ProjectWorkspaceOverview } from './project-detail-support.js';
 import { WorkspaceMetricCard } from './project-detail-shared.js';
 
@@ -19,8 +20,8 @@ const WORKSPACE_ACTIONS = [
     icon: Settings2,
   },
   {
-    label: 'Knowledge base',
-    description: 'Structured spec, memory, and artifacts in one place.',
+    label: 'Knowledge',
+    description: 'Structured spec, memory, and run content in one place.',
     tab: 'knowledge',
     icon: BrainCircuit,
   },
@@ -37,6 +38,11 @@ const WORKSPACE_ACTIONS = [
     icon: FolderKanban,
   },
 ] as const;
+
+const CALM_ATTENTION_BADGE_CLASS_NAME =
+  'border-amber-300/60 bg-amber-50/70 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100';
+const CALM_ATTENTION_PANEL_CLASS_NAME =
+  'rounded-xl border border-amber-300/60 bg-amber-50/70 p-3 text-sm leading-6 text-amber-950 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-100';
 
 export function ProjectOverviewShell(props: ProjectOverviewShellProps): JSX.Element {
   const projectLinkState = { projectLabel: props.project.name };
@@ -55,15 +61,16 @@ export function ProjectOverviewShell(props: ProjectOverviewShellProps): JSX.Elem
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(20rem,0.9fr)]">
-        <Card className="border-border/70 shadow-none">
-          <CardHeader className="space-y-2">
-            <CardTitle className="text-base">Where to work next</CardTitle>
-            <CardDescription>
-              Use the main workspaces below instead of scanning duplicate summaries.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-3 lg:grid-cols-2">
+      <Card className="border-border/70 shadow-none">
+        <CardHeader className="space-y-2">
+          <CardTitle className="text-base">Where to work next</CardTitle>
+          <CardDescription>
+            Start in the main workspaces first, then drop into the explorers only when you need
+            raw evidence.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {WORKSPACE_ACTIONS.map((action) => {
               const Icon = action.icon;
               return (
@@ -83,17 +90,15 @@ export function ProjectOverviewShell(props: ProjectOverviewShellProps): JSX.Elem
                 </Link>
               );
             })}
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="border-border/70 shadow-none">
-          <CardHeader className="space-y-2">
-            <CardTitle className="text-base">Focused explorers</CardTitle>
-            <CardDescription>
-              Use these only when the Knowledge base is too high-level and you need raw evidence.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
+          <section className="space-y-3 rounded-xl bg-muted/20 p-4">
+            <div className="space-y-1">
+              <p className="text-sm font-medium text-foreground">Focused explorers</p>
+              <p className="text-sm leading-6 text-muted">
+                Use these only when Knowledge needs direct inspection of memory or artifacts.
+              </p>
+            </div>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               <Link
                 to={`/projects/${props.project.id}/memory`}
@@ -113,19 +118,26 @@ export function ProjectOverviewShell(props: ProjectOverviewShellProps): JSX.Elem
               </Link>
             </div>
             {props.project.repository_url ? (
-              <p className="leading-6 text-muted">
+              <p className="text-sm leading-6 text-muted">
                 Delivery can trace back to the linked repository when a run or artifact needs
                 source-level follow-up.
               </p>
             ) : (
-              <p className="leading-6 text-muted">
-                Add a repository in Settings before you expect delivery or automation to map back
-                to source control.
-              </p>
+              <div className={CALM_ATTENTION_PANEL_CLASS_NAME}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className={CALM_ATTENTION_BADGE_CLASS_NAME}>
+                    Needs attention
+                  </Badge>
+                </div>
+                <p className="mt-2">
+                  Add a repository in Settings before you expect delivery or automation to map back
+                  to source control.
+                </p>
+              </div>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </section>
+        </CardContent>
+      </Card>
     </div>
   );
 }

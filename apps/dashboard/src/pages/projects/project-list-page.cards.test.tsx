@@ -17,7 +17,7 @@ vi.mock('./project-list-page.dialogs.js', () => ({
 }));
 
 describe('project list page cards', () => {
-  it('renders simplified project cards with direct routes and quiet links', () => {
+  it('renders project cards with grouped workspace actions and quieter management controls', () => {
     const markup = renderCards([
       {
         id: 'project-1',
@@ -45,6 +45,7 @@ describe('project list page cards', () => {
     expect(markup).toContain('href="/projects/project-1?tab=automation"');
     expect(markup).toContain('href="/projects/project-1?tab=delivery"');
     expect(markup).toContain('2 active workflows · 5 completed');
+    expect(markup).toContain('Open workspace');
     expect(markup).toContain('Settings');
     expect(markup).toContain('Knowledge');
     expect(markup).toContain('Automation');
@@ -62,7 +63,7 @@ describe('project list page cards', () => {
     expect(markup).not.toContain('Repository posture');
   });
 
-  it('renders only the simplified status labels for attention and inactive states', () => {
+  it('renders calmer attention styling while keeping inactive cards neutral', () => {
     const markup = renderCards([
       {
         id: 'project-2',
@@ -97,11 +98,13 @@ describe('project list page cards', () => {
     ]);
 
     expect(markup).toContain('Needs attention');
+    expect(markup).toContain('bg-amber-50/70');
     expect(markup).toContain('Active');
     expect(markup).toContain('Inactive');
     expect(markup).toContain('Add a short description so this project is scannable from the list.');
     expect(markup).toContain('3 workflows total');
     expect(markup).toContain('3 completed');
+    expect(markup).not.toContain('bg-yellow-100');
     expect(markup).not.toContain('Ready');
     expect(markup).not.toContain('Needs repository and brief');
     expect(markup).not.toContain('Ready for triage');

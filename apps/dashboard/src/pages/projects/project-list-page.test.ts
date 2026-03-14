@@ -44,10 +44,13 @@ describe('project list page source', () => {
     expect(source).toContain('const projectLinkState = { projectLabel: props.project.name };');
     expect(source).toContain('to={`/projects/${props.project.id}`}');
     expect(source).toContain('state={projectLinkState}');
-    expect(source).toContain('?tab=settings');
-    expect(source).toContain('?tab=knowledge');
-    expect(source).toContain('?tab=automation');
-    expect(source).toContain('?tab=delivery');
+    expect(source).toContain("const PROJECT_WORKSPACE_LINKS = [");
+    expect(source).toContain("{ label: 'Settings', tab: 'settings' }");
+    expect(source).toContain("{ label: 'Knowledge', tab: 'knowledge' }");
+    expect(source).toContain("{ label: 'Automation', tab: 'automation' }");
+    expect(source).toContain("{ label: 'Delivery', tab: 'delivery' }");
+    expect(source).toContain('to={`/projects/${props.project.id}?tab=${workspace.tab}`}');
+    expect(source).toContain('Open workspace');
     expect(source).toContain('Edit basics');
     expect(source).toContain('Delete');
     expect(source).not.toContain('text-foreground/80');
