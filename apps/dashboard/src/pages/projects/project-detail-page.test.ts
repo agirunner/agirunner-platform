@@ -160,13 +160,13 @@ describe('project detail workspace shell source', () => {
     expect(contentSource).toContain('Artifact Operator Controls');
   });
 
-  it('replaces the old artifacts tab with overview and run-content actions inside knowledge', () => {
+  it('replaces the old artifacts tab with overview and knowledge-only run-content actions', () => {
     const source = readSource('./project-detail-page.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     const overviewSource = readSource('./project-overview-shell.tsx');
     expect(source).toContain('<ProjectOverviewShell');
     expect(knowledgeSource).toContain("label: 'Run content'");
-    expect(overviewSource).toContain('Artifact explorer');
+    expect(overviewSource).not.toContain('Artifact explorer');
     expect(source).toContain(
       '<ContentBrowserSurface scopedProjectId={project.id} preferredTab="documents" showHeader={false} />',
     );

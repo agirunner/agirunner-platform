@@ -17,18 +17,21 @@ describe('app trigger routes source', () => {
   it('keeps the browser auth callback free of token query parsing', () => {
     const source = readSource();
     expect(source).toContain('completeSsoBrowserSession');
-    expect(source).toContain('/api/v1/auth/me');
+    expect(source).toContain('resolveAuthCallbackSession');
+    expect(source).toContain('apiBaseUrl: API_BASE_URL');
     expect(source).not.toContain("searchParams.get('access_token')");
     expect(source).not.toContain("searchParams.get('refresh_token')");
     expect(source).not.toContain("searchParams.get('tenant_id')");
     expect(source).not.toContain("localStorage.setItem('refresh_token'");
   });
 
-  it('registers scoped explorer and inspector routes', () => {
+  it('keeps legacy project-scoped explorer routes as redirects back to knowledge and preserves inspector routes', () => {
     const source = readSource();
     expect(source).toContain('path="/projects/:id/memory"');
     expect(source).toContain('path="/projects/:id/content"');
     expect(source).toContain('path="/projects/:id/artifacts"');
+    expect(source).toContain('function LegacyProjectKnowledgeRedirect()');
+    expect(source).toContain('Navigate to={`/projects/${id}?tab=knowledge`} replace');
     expect(source).toContain('path="/work/boards/:id/inspector"');
     expect(source).toContain('path="/work/workflows/*"');
     expect(source).toContain("replace('/work/workflows', '/work/boards')");

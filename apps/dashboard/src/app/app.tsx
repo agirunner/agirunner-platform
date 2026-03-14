@@ -1,6 +1,6 @@
 import { Component, lazy, Suspense, useEffect } from 'react';
 import type { ComponentType, ErrorInfo, ReactNode } from 'react';
-import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { DashboardLayout } from '../components/layout.js';
 import { resolveAuthCallbackSession } from '../lib/auth-callback.js';
@@ -70,9 +70,6 @@ const ProjectListPage = lazyWithRetry(() => import('../pages/projects/project-li
 const ProjectDetailPage = lazyWithRetry(() => import('../pages/projects/project-detail-page.js').then((m) => ({ default: m.ProjectDetailPage })));
 const MemoryBrowserPage = lazyWithRetry(() => import('../pages/projects/memory-browser-page.js').then((m) => ({ default: m.MemoryBrowserPage })));
 const ContentBrowserPage = lazyWithRetry(() => import('../pages/projects/content-browser-page.js').then((m) => ({ default: m.ContentBrowserPage })));
-const ProjectMemoryBrowserPage = lazyWithRetry(() => import('../pages/projects/project-memory-browser-page.js').then((m) => ({ default: m.ProjectMemoryBrowserPage })));
-const ProjectContentBrowserPage = lazyWithRetry(() => import('../pages/projects/project-content-browser-page.js').then((m) => ({ default: m.ProjectContentBrowserPage })));
-const ProjectArtifactBrowserPage = lazyWithRetry(() => import('../pages/projects/project-artifact-browser-page.js').then((m) => ({ default: m.ProjectArtifactBrowserPage })));
 
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
 const LlmProvidersPage = lazyWithRetry(() => import('../pages/config/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
@@ -210,9 +207,9 @@ export function App(): JSX.Element {
             {/* Projects */}
             <Route path="/projects" element={<ProjectListPage />} />
             <Route path="/projects/:id" element={<ProjectDetailPage />} />
-            <Route path="/projects/:id/memory" element={<ProjectMemoryBrowserPage />} />
-            <Route path="/projects/:id/content" element={<ProjectContentBrowserPage />} />
-            <Route path="/projects/:id/artifacts" element={<ProjectArtifactBrowserPage />} />
+            <Route path="/projects/:id/memory" element={<LegacyProjectKnowledgeRedirect />} />
+            <Route path="/projects/:id/content" element={<LegacyProjectKnowledgeRedirect />} />
+            <Route path="/projects/:id/artifacts" element={<LegacyProjectKnowledgeRedirect />} />
             <Route path="/projects/memory" element={<MemoryBrowserPage />} />
             <Route path="/projects/content" element={<ContentBrowserPage />} />
 
@@ -281,6 +278,14 @@ function LegacyWorkflowBoardRedirect(): JSX.Element {
       replace
     />
   );
+}
+
+function LegacyProjectKnowledgeRedirect(): JSX.Element {
+  const { id } = useParams<{ id: string }>();
+  if (!id) {
+    return <Navigate to="/projects" replace />;
+  }
+  return <Navigate to={`/projects/${id}?tab=knowledge`} replace />;
 }
 
 function SSOCallbackPage(): JSX.Element {

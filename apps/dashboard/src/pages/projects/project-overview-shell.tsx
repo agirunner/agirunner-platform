@@ -1,4 +1,4 @@
-import { BrainCircuit, FolderKanban, PackageSearch, Settings2, Webhook } from 'lucide-react';
+import { BrainCircuit, FolderKanban, Settings2, Webhook } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import type { DashboardProjectRecord } from '../../lib/api.js';
@@ -91,51 +91,24 @@ export function ProjectOverviewShell(props: ProjectOverviewShellProps): JSX.Elem
               );
             })}
           </div>
-
-          <section className="space-y-3 rounded-xl bg-muted/20 p-4">
-            <div className="space-y-1">
-              <p className="text-sm font-medium text-foreground">Focused explorers</p>
-              <p className="text-sm leading-6 text-muted">
-                Use these only when Knowledge needs direct inspection of memory or artifacts.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-2">
-              <Link
-                to={`/projects/${props.project.id}/memory`}
-                state={projectLinkState}
-                className="inline-flex items-center gap-2 rounded-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <BrainCircuit className="h-4 w-4 text-muted" />
-                Memory explorer
-              </Link>
-              <Link
-                to={`/projects/${props.project.id}/artifacts`}
-                state={projectLinkState}
-                className="inline-flex items-center gap-2 rounded-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                <PackageSearch className="h-4 w-4 text-muted" />
-                Artifact explorer
-              </Link>
-            </div>
-            {props.project.repository_url ? (
-              <p className="text-sm leading-6 text-muted">
-                Delivery can trace back to the linked repository when a run or artifact needs
-                source-level follow-up.
-              </p>
-            ) : (
-              <div className={CALM_ATTENTION_PANEL_CLASS_NAME}>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="outline" className={CALM_ATTENTION_BADGE_CLASS_NAME}>
-                    Needs attention
-                  </Badge>
-                </div>
-                <p className="mt-2">
-                  Add a repository in Settings before you expect delivery or automation to map back
-                  to source control.
-                </p>
+          {props.project.repository_url ? (
+            <p className="text-sm leading-6 text-muted">
+              Delivery can trace back to the linked repository when a run or artifact needs
+              source-level follow-up.
+            </p>
+          ) : (
+            <div className={CALM_ATTENTION_PANEL_CLASS_NAME}>
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline" className={CALM_ATTENTION_BADGE_CLASS_NAME}>
+                  Needs attention
+                </Badge>
               </div>
-            )}
-          </section>
+              <p className="mt-2">
+                Add a repository in Settings before you expect delivery or automation to map back
+                to source control.
+              </p>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

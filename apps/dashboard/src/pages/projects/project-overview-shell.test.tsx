@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProjectOverviewShell } from './project-overview-shell.js';
 
 describe('project overview shell', () => {
-  it('keeps the main workspace actions grouped ahead of the focused explorers', () => {
+  it('keeps the main workspace actions focused on the primary project surfaces', () => {
     const markup = renderOverview({
       id: 'project-1',
       name: 'Release automation',
@@ -21,14 +21,13 @@ describe('project overview shell', () => {
     expect(markup).toContain('Knowledge');
     expect(markup).toContain('Automation');
     expect(markup).toContain('Delivery');
-    expect(markup).toContain('Focused explorers');
-    expect(markup).toContain('Memory explorer');
-    expect(markup).toContain('Artifact explorer');
     expect(markup).toContain('href="/projects/project-1?tab=settings"');
     expect(markup).toContain('href="/projects/project-1?tab=knowledge"');
     expect(markup).toContain('href="/projects/project-1?tab=automation"');
     expect(markup).toContain('href="/projects/project-1?tab=delivery"');
-    expect(markup.indexOf('Delivery')).toBeLessThan(markup.indexOf('Focused explorers'));
+    expect(markup).not.toContain('Focused explorers');
+    expect(markup).not.toContain('Memory explorer');
+    expect(markup).not.toContain('Artifact explorer');
   });
 
   it('uses the calmer needs-attention treatment for missing repository guidance', () => {

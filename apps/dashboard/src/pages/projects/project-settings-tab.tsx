@@ -317,10 +317,10 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
           />
         </div>
       </SettingsDisclosureSection>
-      <Card className="border-red-200/70 bg-red-50/40 shadow-none dark:border-red-500/30 dark:bg-red-500/5">
+      <Card className="border-border/70 bg-card/80 shadow-none">
         <CardContent className="space-y-3 p-4">
           <div className="space-y-1">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-red-700 dark:text-red-200">
+            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground">
               Danger
             </h3>
             <p className="text-sm leading-6 text-muted">
