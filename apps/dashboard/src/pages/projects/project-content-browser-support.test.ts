@@ -76,7 +76,7 @@ describe('project content browser support', () => {
           workflow_id: 'workflow-3',
           name: {} as never,
           state: {} as never,
-          created_at: '2026-03-12T09:00:00.000Z',
+          created_at: {} as never,
         },
       ]),
     ).toEqual([
@@ -84,7 +84,7 @@ describe('project content browser support', () => {
         id: 'workflow-3',
         name: 'workflow-3',
         state: 'unknown',
-        createdAt: '2026-03-12T09:00:00.000Z',
+        createdAt: undefined,
       },
     ]);
   });
@@ -266,6 +266,121 @@ describe('project content browser support', () => {
         createdAt: undefined,
       },
     ]);
+  });
+
+  it('drops object-valued timestamps from tasks, work items, documents, and artifacts', () => {
+    expect(
+      normalizeTaskOptions({
+        data: [
+          {
+            id: 'task-5',
+            title: 'Timestamp repro',
+            state: 'ready',
+            created_at: {} as never,
+            is_orchestrator_task: false,
+          },
+        ],
+      }),
+    ).toEqual([
+      {
+        id: 'task-5',
+        workflowId: null,
+        title: 'Timestamp repro',
+        state: 'ready',
+        stageName: null,
+        workItemId: null,
+        activationId: null,
+        role: null,
+        isOrchestratorTask: false,
+        createdAt: undefined,
+      },
+    ]);
+
+    expect(
+      normalizeWorkItemOptions([
+        {
+          id: 'wi-3',
+          workflow_id: 'wf-3',
+          stage_name: 'requirements',
+          title: 'Timestamp work item',
+          column_id: 'planned',
+          priority: 'normal',
+          completed_at: {} as never,
+        } as never,
+      ]),
+    ).toEqual([
+      {
+        id: 'wi-3',
+        workflowId: 'wf-3',
+        title: 'Timestamp work item',
+        stageName: 'requirements',
+        columnId: 'planned',
+        priority: 'normal',
+        completedAt: null,
+      },
+    ]);
+
+    expect(
+      normalizeDocumentRecords([
+        {
+          logical_name: 'timestamp-brief',
+          scope: 'workflow',
+          source: 'repository',
+          metadata: {},
+          created_at: {} as never,
+        } as never,
+      ]),
+    ).toEqual([
+      {
+        logical_name: 'timestamp-brief',
+        scope: 'workflow',
+        source: 'repository',
+        metadata: {},
+        created_at: undefined,
+      },
+    ]);
+
+    expect(
+      normalizeArtifactRecords([
+        {
+          id: 'artifact-2',
+          task_id: 'task-5',
+          logical_path: 'docs/timestamp.md',
+          content_type: 'text/markdown',
+          size_bytes: 42,
+          checksum_sha256: 'deadbeef',
+          metadata: {},
+          retention_policy: {},
+          created_at: {} as never,
+          expires_at: {} as never,
+          access_url_expires_at: {} as never,
+          download_url: '/download/timestamp',
+        } as never,
+      ]),
+    ).toEqual([
+      {
+        id: 'artifact-2',
+        task_id: 'task-5',
+        workflow_id: undefined,
+        project_id: undefined,
+        logical_path: 'docs/timestamp.md',
+        content_type: 'text/markdown',
+        size_bytes: 42,
+        checksum_sha256: 'deadbeef',
+        metadata: {},
+        retention_policy: {},
+        expires_at: undefined,
+        created_at: '',
+        download_url: '/download/timestamp',
+        access_url: undefined,
+        access_url_expires_at: undefined,
+        storage_backend: undefined,
+      },
+    ]);
+  });
+
+  it('treats non-string timestamps as missing when formatting relative time', () => {
+    expect(formatContentRelativeTimestamp({} as never)).toBe('No timestamp recorded');
   });
 
   it('normalizes document records before the content browser renders them', () => {

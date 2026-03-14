@@ -6,7 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ContentBrowserSurface } from './content-browser-page.js';
 
 describe('content browser page rendering', () => {
-  it('renders malformed project and document payloads without crashing the page', () => {
+  it('renders malformed payloads and object-valued timestamps without crashing the page', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
     const client = new QueryClient({
       defaultOptions: {
@@ -25,7 +25,7 @@ describe('content browser page rendering', () => {
         workflow_id: 'workflow-1',
         name: {} as never,
         state: {} as never,
-        created_at: '2026-03-12T09:00:00.000Z',
+        created_at: {} as never,
       },
     ]);
     client.setQueryData(['content-documents', 'workflow-1'], [
@@ -36,7 +36,7 @@ describe('content browser page rendering', () => {
         title: {} as never,
         description: {} as never,
         metadata: [] as never,
-        created_at: '2026-03-12T09:00:00.000Z',
+        created_at: {} as never,
         artifact: {
           id: 'artifact-1',
           task_id: 'task-1',
@@ -56,6 +56,7 @@ describe('content browser page rendering', () => {
           role: {} as never,
           work_item_id: 'wi-1',
           activation_id: 'act-1',
+          created_at: {} as never,
           is_orchestrator_task: false,
         },
       ],
@@ -68,6 +69,21 @@ describe('content browser page rendering', () => {
         title: {} as never,
         column_id: {} as never,
         priority: {} as never,
+        completed_at: {} as never,
+      },
+    ]);
+    client.setQueryData(['content-artifacts', 'task-1'], [
+      {
+        id: 'artifact-1',
+        task_id: 'task-1',
+        logical_path: 'docs/brief.md',
+        content_type: 'text/markdown',
+        size_bytes: 10,
+        checksum_sha256: 'abc',
+        metadata: {},
+        retention_policy: {},
+        created_at: {} as never,
+        download_url: '/download/brief',
       },
     ]);
 
@@ -84,5 +100,6 @@ describe('content browser page rendering', () => {
     expect(markup).toContain('workflow-1');
     expect(markup).toContain('brief');
     expect(markup).not.toContain('[object Object]');
+    expect(markup).toContain('No timestamp recorded');
   });
 });

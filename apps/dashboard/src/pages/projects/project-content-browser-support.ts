@@ -11,7 +11,7 @@ export interface ProjectWorkflowOption {
   id: string;
   name: string;
   state: string;
-  createdAt: string;
+  createdAt?: string;
 }
 
 export interface ProjectScopeOption {
@@ -125,7 +125,7 @@ export function buildWorkflowOptions(
       id: entry.workflow_id,
       name: readContentString(entry.name, entry.workflow_id),
       state: normalizeWorkflowState(entry.state),
-      createdAt: entry.created_at,
+      createdAt: readOptionalTimestampString(entry.created_at),
     });
   }
 
@@ -162,7 +162,7 @@ export function normalizeTaskOptions(response: unknown): ProjectTaskOption[] {
       activationId: typeof task.activation_id === 'string' ? task.activation_id : null,
       role: typeof task.role === 'string' ? task.role : null,
       isOrchestratorTask: Boolean(task.is_orchestrator_task),
-      createdAt: typeof task.created_at === 'string' ? task.created_at : undefined,
+      createdAt: readOptionalTimestampString(task.created_at),
     });
   }
 
@@ -185,7 +185,7 @@ export function normalizeWorkItemOptions(
       stageName: readContentString(item.stage_name, 'No stage'),
       columnId: readContentString(item.column_id, 'planned'),
       priority: readContentString(item.priority, 'normal'),
-      completedAt: item.completed_at ?? null,
+      completedAt: readOptionalTimestampString(item.completed_at) ?? null,
     }));
 }
 
@@ -210,7 +210,7 @@ export function normalizeDocumentRecords(
       source: normalizeDocumentSource(document.source),
       title: readOptionalContentString(document.title),
       description: readOptionalContentString(document.description),
-      created_at: readOptionalContentString(document.created_at),
+      created_at: readOptionalTimestampString(document.created_at),
       task_id: readOptionalContentString(document.task_id),
       repository: readOptionalContentString(document.repository),
       path: readOptionalContentString(document.path),
@@ -251,11 +251,11 @@ export function normalizeArtifactRecords(
       checksum_sha256: readContentString(artifact.checksum_sha256, 'unknown'),
       metadata: normalizeMetadataRecord(artifact.metadata),
       retention_policy: normalizeMetadataRecord(artifact.retention_policy),
-      expires_at: readOptionalContentString(artifact.expires_at),
-      created_at: readContentString(artifact.created_at, ''),
+      expires_at: readOptionalTimestampString(artifact.expires_at),
+      created_at: readTimestampString(artifact.created_at),
       download_url: readContentString(artifact.download_url, '#'),
       access_url: readOptionalContentString(artifact.access_url),
-      access_url_expires_at: readOptionalContentString(artifact.access_url_expires_at),
+      access_url_expires_at: readOptionalTimestampString(artifact.access_url_expires_at),
       storage_backend: readOptionalContentString(artifact.storage_backend),
     });
   }
@@ -450,10 +450,10 @@ export function summarizeArtifactUploadPosture(input: {
 }
 
 export function formatContentRelativeTimestamp(
-  value: string | null | undefined,
+  value: unknown,
   now = Date.now(),
 ): string {
-  if (!value) {
+  if (typeof value !== 'string' || value.trim().length === 0) {
     return 'No timestamp recorded';
   }
 
@@ -546,6 +546,14 @@ function readContentString(value: unknown, fallback: string): string {
 
 function readOptionalContentString(value: unknown): string | undefined {
   return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
+}
+
+function readTimestampString(value: unknown): string {
+  return readOptionalTimestampString(value) ?? '';
+}
+
+function readOptionalTimestampString(value: unknown): string | undefined {
+  return readOptionalContentString(value);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
