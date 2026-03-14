@@ -17,6 +17,8 @@ import { randomBytes } from 'node:crypto';
 import bcrypt from 'bcryptjs';
 import type pg from 'pg';
 
+import { deriveApiKeyLookupHash } from '../auth/api-key-derivation.js';
+
 export const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 /**
@@ -41,6 +43,7 @@ const DEFAULT_ADMIN_API_KEY_ENV = 'DEFAULT_ADMIN_API_KEY';
 interface ExistingDefaultKeyRow {
   id: string;
   key_hash: string;
+  key_lookup_hash: string | null;
 }
 
 export async function seedDefaultTenant(pool: pg.Pool, source: NodeJS.ProcessEnv = process.env): Promise<void> {
@@ -64,27 +67,37 @@ async function seedDefaultAdminKey(pool: pg.Pool, source: NodeJS.ProcessEnv = pr
   const configuredKey = getConfiguredDefaultAdminKey(source);
 
   const existing = await pool.query<ExistingDefaultKeyRow>(
-    `SELECT id, key_hash FROM api_keys WHERE tenant_id = $1 AND key_prefix = $2 LIMIT 1`,
+    `SELECT id, key_hash, key_lookup_hash FROM api_keys WHERE tenant_id = $1 AND key_prefix = $2 LIMIT 1`,
     [DEFAULT_TENANT_ID, DEFAULT_ADMIN_KEY_PREFIX],
   );
 
   if (existing.rowCount) {
     if (configuredKey) {
       const matches = await bcrypt.compare(configuredKey, existing.rows[0].key_hash);
+      const configuredLookupHash = deriveApiKeyLookupHash(configuredKey);
       if (!matches) {
         await pool.query(
           `UPDATE api_keys
            SET key_hash = $1,
-               expires_at = $2,
+               key_lookup_hash = $2,
+               expires_at = $3,
                is_revoked = false
-           WHERE id = $3`,
+           WHERE id = $4`,
           [
             await bcrypt.hash(configuredKey, 12),
+            configuredLookupHash,
             DEFAULT_API_KEY_EXPIRY,
             existing.rows[0].id,
           ],
         );
         console.info(`[seed] Default admin key rotated from ${DEFAULT_ADMIN_API_KEY_ENV}.`);
+      } else if (existing.rows[0].key_lookup_hash !== configuredLookupHash) {
+        await pool.query(
+          `UPDATE api_keys
+           SET key_lookup_hash = $1
+           WHERE id = $2`,
+          [configuredLookupHash, existing.rows[0].id],
+        );
       }
     }
 
@@ -99,13 +112,14 @@ async function seedDefaultAdminKey(pool: pg.Pool, source: NodeJS.ProcessEnv = pr
   const apiKey = configuredKey ?? generatedApiKey;
 
   const keyHash = await bcrypt.hash(apiKey, 12);
+  const keyLookupHash = deriveApiKeyLookupHash(apiKey);
   const expiresAt = DEFAULT_API_KEY_EXPIRY;
 
   await pool.query(
-    `INSERT INTO api_keys (tenant_id, key_hash, key_prefix, scope, owner_type, label, expires_at)
-     VALUES ($1, $2, $3, 'admin', 'system', 'default-admin-key', $4)
+    `INSERT INTO api_keys (tenant_id, key_hash, key_lookup_hash, key_prefix, scope, owner_type, label, expires_at)
+     VALUES ($1, $2, $3, $4, 'admin', 'system', 'default-admin-key', $5)
      ON CONFLICT DO NOTHING`,
-    [DEFAULT_TENANT_ID, keyHash, DEFAULT_ADMIN_KEY_PREFIX, expiresAt],
+    [DEFAULT_TENANT_ID, keyHash, keyLookupHash, DEFAULT_ADMIN_KEY_PREFIX, expiresAt],
   );
 
   if (configuredKey) {

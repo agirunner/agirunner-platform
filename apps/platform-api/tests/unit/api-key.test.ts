@@ -1,13 +1,19 @@
 import bcrypt from 'bcryptjs';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createApiKey, verifyApiKey } from '../../src/auth/api-key.js';
+import { deriveApiKeyLookupHash } from '../../src/auth/api-key-derivation.js';
+import { resetPersistedApiKeyLastUsedForTests } from '../../src/auth/api-key-last-used-cache.js';
 
 function makePool(queryImpl: ReturnType<typeof vi.fn>) {
   return {
     query: queryImpl,
   };
 }
+
+afterEach(() => {
+  resetPersistedApiKeyLastUsedForTests();
+});
 
 describe('createApiKey', () => {
   it('generates API keys in canonical ar_{scope}_{random} format with entropy-preserving key_prefix', async () => {
@@ -29,6 +35,7 @@ describe('createApiKey', () => {
     expect(keyPrefix).toMatch(/^k[A-Za-z0-9_-]{11}$/);
     expect(keyPrefix).not.toBe(apiKey.slice(0, 12));
     expect(query).toHaveBeenCalledTimes(1);
+    expect(query.mock.calls[0][1][2]).toHaveLength(64);
   });
 
   it('retries key generation when key_prefix unique constraint collides', async () => {
@@ -79,82 +86,130 @@ describe('verifyApiKey', () => {
     const canonical = 'ar_admin_ABCDEFGHIJKLMNOPQRSTUV';
     const canonicalHash = await bcrypt.hash(canonical, 4);
 
-    const queryNewPrefix = vi.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
-      const prefixes = params[0] as string[];
-      return {
-        rowCount: 1,
-        rows: [
-          {
-            id: 'key-id-new',
-            tenant_id: 'tenant-id',
-            scope: 'admin',
-            owner_type: 'user',
-            owner_id: null,
-            key_prefix: prefixes[0],
-            key_hash: canonicalHash,
-            is_revoked: false,
-            expires_at: new Date(Date.now() + 60_000),
-            tenant_is_active: true,
-          },
-        ],
-      };
-    });
+    const queryNewPrefix = vi
+      .fn()
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockImplementationOnce(async (_sql: string, params: unknown[]) => {
+        const prefixes = params[0] as string[];
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'key-id-new',
+              tenant_id: 'tenant-id',
+              scope: 'admin',
+              owner_type: 'user',
+              owner_id: null,
+              key_prefix: prefixes[0],
+              key_lookup_hash: null,
+              key_hash: canonicalHash,
+              is_revoked: false,
+              expires_at: new Date(Date.now() + 60_000),
+              tenant_is_active: true,
+            },
+          ],
+        };
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
 
     await expect(verifyApiKey(makePool(queryNewPrefix) as never, canonical)).resolves.toMatchObject({
       keyPrefix: expect.any(String),
     });
 
-    const queryLegacyPrefix = vi.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
-      const prefixes = params[0] as string[];
-      return {
-        rowCount: 1,
-        rows: [
-          {
-            id: 'key-id-legacy',
-            tenant_id: 'tenant-id',
-            scope: 'admin',
-            owner_type: 'user',
-            owner_id: null,
-            key_prefix: prefixes[1],
-            key_hash: canonicalHash,
-            is_revoked: false,
-            expires_at: new Date(Date.now() + 60_000),
-            tenant_is_active: true,
-          },
-        ],
-      };
-    });
+    const queryLegacyPrefix = vi
+      .fn()
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockImplementationOnce(async (_sql: string, params: unknown[]) => {
+        const prefixes = params[0] as string[];
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'key-id-legacy',
+              tenant_id: 'tenant-id',
+              scope: 'admin',
+              owner_type: 'user',
+              owner_id: null,
+              key_prefix: prefixes[1],
+              key_lookup_hash: null,
+              key_hash: canonicalHash,
+              is_revoked: false,
+              expires_at: new Date(Date.now() + 60_000),
+              tenant_is_active: true,
+            },
+          ],
+        };
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
 
     await expect(verifyApiKey(makePool(queryLegacyPrefix) as never, canonical)).resolves.toMatchObject({
       keyPrefix: canonical.slice(0, 12),
     });
   });
 
-  it('accepts legacy API key format', async () => {
-    const legacy = 'ab_prefixxx_worker_ABCDEFGHIJKLMNOPQRSTUV';
-    const legacyHash = await bcrypt.hash(legacy, 4);
-
-    const query = vi.fn().mockImplementation(async (_sql: string, params: unknown[]) => {
-      const prefixes = params[0] as string[];
-
-      return {
+  it('accepts lookup-hash matches without falling back to bcrypt prefix scans', async () => {
+    const canonical = 'ar_admin_ABCDEFGHIJKLMNOPQRSTUV';
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
         rowCount: 1,
         rows: [
           {
-            id: 'legacy-id',
+            id: 'lookup-id',
             tenant_id: 'tenant-id',
-            scope: 'worker',
-            owner_type: 'worker',
+            scope: 'admin',
+            owner_type: 'user',
             owner_id: null,
-            key_prefix: prefixes[0],
-            key_hash: legacyHash,
+            key_prefix: 'k12345678901',
+            key_lookup_hash: deriveApiKeyLookupHash(canonical),
+            key_hash: 'not-used',
             is_revoked: false,
             expires_at: new Date(Date.now() + 60_000),
             tenant_is_active: true,
           },
         ],
-      };
+      })
+      .mockResolvedValue({ rowCount: 1, rows: [] });
+
+    await expect(verifyApiKey(makePool(query) as never, canonical)).resolves.toMatchObject({
+      id: 'lookup-id',
+      keyPrefix: 'k12345678901',
     });
+    expect(query).toHaveBeenCalledTimes(2);
+    expect(String(query.mock.calls[0][0])).toContain('key_lookup_hash = $1');
+    expect(String(query.mock.calls[1][0])).toContain('UPDATE api_keys SET last_used_at = now()');
+  });
+
+  it('accepts legacy API key format', async () => {
+    const legacy = 'ab_prefixxx_worker_ABCDEFGHIJKLMNOPQRSTUV';
+    const legacyHash = await bcrypt.hash(legacy, 4);
+
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
+      .mockImplementationOnce(async (_sql: string, params: unknown[]) => {
+        const prefixes = params[0] as string[];
+
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'legacy-id',
+              tenant_id: 'tenant-id',
+              scope: 'worker',
+              owner_type: 'worker',
+              owner_id: null,
+              key_prefix: prefixes[0],
+              key_lookup_hash: null,
+              key_hash: legacyHash,
+              is_revoked: false,
+              expires_at: new Date(Date.now() + 60_000),
+              tenant_is_active: true,
+            },
+          ],
+        };
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
 
     await expect(verifyApiKey(makePool(query) as never, legacy)).resolves.toMatchObject({
       keyPrefix: legacy.slice(0, 12),
@@ -171,8 +226,8 @@ describe('verifyApiKey', () => {
     await expect(verifyApiKey(makePool(queryA) as never, keyA)).rejects.toThrow('Invalid API key');
     await expect(verifyApiKey(makePool(queryB) as never, keyB)).rejects.toThrow('Invalid API key');
 
-    const prefixesA = queryA.mock.calls[0][1][0] as string[];
-    const prefixesB = queryB.mock.calls[0][1][0] as string[];
+    const prefixesA = queryA.mock.calls[1][1][0] as string[];
+    const prefixesB = queryB.mock.calls[1][1][0] as string[];
 
     expect(prefixesA[1]).toBe(keyA.slice(0, 12));
     expect(prefixesB[1]).toBe(keyB.slice(0, 12));
@@ -183,5 +238,86 @@ describe('verifyApiKey', () => {
   it('rejects invalid API key format', async () => {
     const query = vi.fn().mockResolvedValue({ rowCount: 0, rows: [] });
     await expect(verifyApiKey(makePool(query) as never, 'ab_invalid')).rejects.toThrow('Invalid API key format');
+  });
+
+  it('throttles repeated last_used_at writes for the same verified key', async () => {
+    const canonical = 'ar_worker_ABCDEFGHIJKLMNOPQRSTUV';
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'throttle-id',
+            tenant_id: 'tenant-id',
+            scope: 'worker',
+            owner_type: 'worker',
+            owner_id: null,
+            key_prefix: 'kthrottle01',
+            key_lookup_hash: deriveApiKeyLookupHash(canonical),
+            key_hash: 'unused',
+            is_revoked: false,
+            expires_at: new Date(Date.now() + 60_000),
+            tenant_is_active: true,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] })
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'throttle-id',
+            tenant_id: 'tenant-id',
+            scope: 'worker',
+            owner_type: 'worker',
+            owner_id: null,
+            key_prefix: 'kthrottle01',
+            key_lookup_hash: deriveApiKeyLookupHash(canonical),
+            key_hash: 'unused',
+            is_revoked: false,
+            expires_at: new Date(Date.now() + 60_000),
+            tenant_is_active: true,
+          },
+        ],
+      });
+
+    await verifyApiKey(makePool(query) as never, canonical);
+    await verifyApiKey(makePool(query) as never, canonical);
+
+    const lastUsedUpdates = query.mock.calls.filter((call) =>
+      String(call[0]).includes('UPDATE api_keys SET last_used_at = now()'),
+    );
+    expect(lastUsedUpdates).toHaveLength(1);
+  });
+
+  it('accepts configured bootstrap keys through lookup-hash matching', async () => {
+    const bootstrap = 'ab_admin_def_local_dev_123456789012345';
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'bootstrap-id',
+            tenant_id: 'tenant-id',
+            scope: 'admin',
+            owner_type: 'system',
+            owner_id: null,
+            key_prefix: 'ar_admin_def',
+            key_lookup_hash: deriveApiKeyLookupHash(bootstrap),
+            key_hash: 'unused',
+            is_revoked: false,
+            expires_at: new Date(Date.now() + 60_000),
+            tenant_is_active: true,
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+    await expect(verifyApiKey(makePool(query) as never, bootstrap)).resolves.toMatchObject({
+      id: 'bootstrap-id',
+      keyPrefix: 'ar_admin_def',
+    });
   });
 });

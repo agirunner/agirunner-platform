@@ -11,6 +11,7 @@ export const apiKeys = pgTable(
       .notNull()
       .references(() => tenants.id),
     keyHash: text('key_hash').notNull(),
+    keyLookupHash: varchar('key_lookup_hash', { length: 64 }),
     keyPrefix: varchar('key_prefix', { length: 12 }).notNull(),
     scope: apiKeyScopeEnum('scope').notNull(),
     ownerType: text('owner_type').notNull(),
@@ -22,6 +23,7 @@ export const apiKeys = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    uniqueIndex('idx_api_keys_lookup_hash').on(table.keyLookupHash),
     uniqueIndex('idx_api_keys_prefix').on(table.keyPrefix),
     index('idx_api_keys_tenant').on(table.tenantId),
     index('idx_api_keys_owner').on(table.ownerType, table.ownerId),

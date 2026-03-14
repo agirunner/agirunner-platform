@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 
 import bcrypt from 'bcryptjs';
 
@@ -6,6 +6,13 @@ import type { DatabaseQueryable } from '../db/database.js';
 import { DEFAULT_ADMIN_KEY_PREFIX } from '../db/seed.js';
 import { UnauthorizedError } from '../errors/domain-errors.js';
 import { createLogger } from '../observability/logger.js';
+import {
+  deriveApiKeyLookupHash,
+  deriveApiKeyLookupPrefixes,
+  deriveCanonicalKeyPrefix,
+  isSupportedApiKeyFormat,
+} from './api-key-derivation.js';
+import { clearPersistedApiKeyLastUsed, shouldPersistApiKeyLastUsed } from './api-key-last-used-cache.js';
 import type { ApiKeyScope } from './scope.js';
 
 const DUMMY_API_KEY_HASH = '$2a$12$C6UzMDM.H6dfI/f/IKcEeO5m8j6jVWeItPxX2VINeodIZ6Tn6PvxW';
@@ -42,6 +49,7 @@ interface ApiKeyRow {
   owner_type: string;
   owner_id: string | null;
   key_prefix: string;
+  key_lookup_hash: string | null;
   key_hash: string;
   expires_at: Date;
   is_revoked: boolean;
@@ -71,36 +79,6 @@ function isExpired(expiresAt: Date): boolean {
   return new Date(expiresAt) <= new Date();
 }
 
-const CANONICAL_API_KEY_PATTERN = /^ar_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
-const LEGACY_API_KEY_PATTERN = /^(?:ar|ab)_[A-Za-z0-9_-]{6,}_(admin|agent|worker)_[A-Za-z0-9_-]{16,}$/;
-
-function isCanonicalApiKeyFormat(apiKeyRaw: string): boolean {
-  return CANONICAL_API_KEY_PATTERN.test(apiKeyRaw);
-}
-
-function isLegacyApiKeyFormat(apiKeyRaw: string): boolean {
-  return LEGACY_API_KEY_PATTERN.test(apiKeyRaw);
-}
-
-function isSupportedApiKeyFormat(apiKeyRaw: string): boolean {
-  return isCanonicalApiKeyFormat(apiKeyRaw) || isLegacyApiKeyFormat(apiKeyRaw);
-}
-
-function deriveCanonicalKeyPrefix(apiKeyRaw: string): string {
-  const digest = createHash('sha256').update(apiKeyRaw).digest('base64url');
-  return `k${digest.slice(0, 11)}`;
-}
-
-function deriveApiKeyLookupPrefixes(apiKeyRaw: string): string[] {
-  const legacyPrefix = apiKeyRaw.slice(0, 12);
-
-  if (isCanonicalApiKeyFormat(apiKeyRaw)) {
-    return [deriveCanonicalKeyPrefix(apiKeyRaw), legacyPrefix];
-  }
-
-  return [legacyPrefix];
-}
-
 export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): Promise<ApiKeyIdentity> {
   if (!isSupportedApiKeyFormat(apiKeyRaw)) {
     const bootstrapIdentity = await verifyBootstrapApiKey(pool, apiKeyRaw);
@@ -110,9 +88,29 @@ export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): 
     throw new UnauthorizedError('Invalid API key format');
   }
 
+  const lookupHash = deriveApiKeyLookupHash(apiKeyRaw);
+  const hashResult = await pool.query<ApiKeyRow>(
+    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_lookup_hash, k.key_hash, k.expires_at, k.is_revoked,
+            t.is_active AS tenant_is_active
+     FROM api_keys k
+     JOIN tenants t ON t.id = k.tenant_id
+     WHERE k.key_lookup_hash = $1
+     LIMIT 1`,
+    [lookupHash],
+  );
+
+  if (hashResult.rowCount) {
+    const key = hashResult.rows[0];
+    if (key.is_revoked || isExpired(key.expires_at) || !key.tenant_is_active) {
+      throw new UnauthorizedError('Invalid API key');
+    }
+    persistLastUsedAt(pool, key.id);
+    return toIdentity(key);
+  }
+
   const keyPrefixes = deriveApiKeyLookupPrefixes(apiKeyRaw);
   const result = await pool.query<ApiKeyRow>(
-    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_hash, k.expires_at, k.is_revoked,
+    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_lookup_hash, k.key_hash, k.expires_at, k.is_revoked,
             t.is_active AS tenant_is_active
      FROM api_keys k
      JOIN tenants t ON t.id = k.tenant_id
@@ -141,10 +139,12 @@ export async function verifyApiKey(pool: DatabaseQueryable, apiKeyRaw: string): 
       continue;
     }
 
-    void pool
-      .query('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [key.id])
-      .catch((error) => logger.error({ err: error, keyId: key.id }, 'api_key_last_used_at_update_failed'));
+    if (!key.key_lookup_hash) {
+      persistLookupHashAndLastUsedAt(pool, key.id, lookupHash);
+      return toIdentity(key);
+    }
 
+    persistLastUsedAt(pool, key.id);
     return toIdentity(key);
   }
 
@@ -155,8 +155,28 @@ async function verifyBootstrapApiKey(
   pool: DatabaseQueryable,
   apiKeyRaw: string,
 ): Promise<ApiKeyIdentity | null> {
+  const lookupHash = deriveApiKeyLookupHash(apiKeyRaw);
+  const hashResult = await pool.query<ApiKeyRow>(
+    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_lookup_hash, k.key_hash, k.expires_at, k.is_revoked,
+            t.is_active AS tenant_is_active
+     FROM api_keys k
+     JOIN tenants t ON t.id = k.tenant_id
+     WHERE k.key_lookup_hash = $1
+     LIMIT 1`,
+    [lookupHash],
+  );
+
+  if (hashResult.rowCount) {
+    const key = hashResult.rows[0];
+    if (!key.is_revoked && !isExpired(key.expires_at) && key.tenant_is_active) {
+      persistLastUsedAt(pool, key.id);
+      return toIdentity(key);
+    }
+    return null;
+  }
+
   const result = await pool.query<ApiKeyRow>(
-    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_hash, k.expires_at, k.is_revoked,
+    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_lookup_hash, k.key_hash, k.expires_at, k.is_revoked,
             t.is_active AS tenant_is_active
      FROM api_keys k
      JOIN tenants t ON t.id = k.tenant_id
@@ -177,16 +197,18 @@ async function verifyBootstrapApiKey(
     return null;
   }
 
-  void pool
-    .query('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [key.id])
-    .catch((error) => logger.error({ err: error, keyId: key.id }, 'api_key_last_used_at_update_failed'));
+  if (!key.key_lookup_hash) {
+    persistLookupHashAndLastUsedAt(pool, key.id, lookupHash);
+    return toIdentity(key);
+  }
 
+  persistLastUsedAt(pool, key.id);
   return toIdentity(key);
 }
 
 export async function verifyApiKeyById(pool: DatabaseQueryable, keyId: string): Promise<ApiKeyIdentity> {
   const result = await pool.query<ApiKeyRow>(
-    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_hash, k.expires_at, k.is_revoked,
+    `SELECT k.id, k.tenant_id, k.scope, k.owner_type, k.owner_id, k.key_prefix, k.key_lookup_hash, k.key_hash, k.expires_at, k.is_revoked,
             t.is_active AS tenant_is_active
      FROM api_keys k
      JOIN tenants t ON t.id = k.tenant_id
@@ -257,15 +279,17 @@ export async function createApiKey(
   for (let attempt = 1; attempt <= API_KEY_INSERT_RETRY_LIMIT; attempt += 1) {
     const apiKey = generateApiKeyValue(input.scope);
     const keyPrefix = deriveCanonicalKeyPrefix(apiKey);
+    const keyLookupHash = deriveApiKeyLookupHash(apiKey);
     const keyHash = await bcrypt.hash(apiKey, 12);
 
     try {
       await pool.query(
-        `INSERT INTO api_keys (tenant_id, key_hash, key_prefix, scope, owner_type, owner_id, label, expires_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO api_keys (tenant_id, key_hash, key_lookup_hash, key_prefix, scope, owner_type, owner_id, label, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           input.tenantId,
           keyHash,
+          keyLookupHash,
           keyPrefix,
           input.scope,
           input.ownerType,
@@ -284,4 +308,33 @@ export async function createApiKey(
   }
 
   throw new Error('createApiKey exhausted prefix collision retries');
+}
+
+function persistLastUsedAt(pool: DatabaseQueryable, keyId: string): void {
+  if (!shouldPersistApiKeyLastUsed(keyId)) {
+    return;
+  }
+
+  void pool
+    .query('UPDATE api_keys SET last_used_at = now() WHERE id = $1', [keyId])
+    .catch((error) => {
+      clearPersistedApiKeyLastUsed(keyId);
+      logger.error({ err: error, keyId }, 'api_key_last_used_at_update_failed');
+    });
+}
+
+function persistLookupHashAndLastUsedAt(
+  pool: DatabaseQueryable,
+  keyId: string,
+  lookupHash: string,
+): void {
+  void pool
+    .query(
+      `UPDATE api_keys
+       SET key_lookup_hash = COALESCE(key_lookup_hash, $2),
+           last_used_at = now()
+       WHERE id = $1`,
+      [keyId, lookupHash],
+    )
+    .catch((error) => logger.error({ err: error, keyId }, 'api_key_lookup_hash_update_failed'));
 }
