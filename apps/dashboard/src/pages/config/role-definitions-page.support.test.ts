@@ -81,6 +81,27 @@ describe('role definitions support helpers', () => {
     expect(form.isActive).toBe(false);
   });
 
+  it('default capability catalog contains generic high-level capabilities', () => {
+    const capabilities = listAvailableCapabilities(null);
+    const values = capabilities.map((c) => c.value);
+    expect(capabilities).toHaveLength(10);
+    expect(values).toContain('coding');
+    expect(values).toContain('code-review');
+    expect(values).toContain('architecture');
+    expect(values).toContain('testing');
+    expect(values).toContain('security-review');
+    expect(values).toContain('documentation');
+    expect(values).toContain('requirements');
+    expect(values).toContain('research');
+    expect(values).toContain('project-management');
+    expect(values).toContain('data-analysis');
+    expect(values).not.toContain('llm-api');
+    expect(values).not.toContain('lang:typescript');
+    expect(values).not.toContain('role:developer');
+    expect(values).not.toContain('bare-metal-exec');
+    expect(values).not.toContain('gpu');
+  });
+
   it('merges stored custom capabilities into the structured capability catalog', () => {
     const capabilities = listAvailableCapabilities({
       id: 'role-1',
