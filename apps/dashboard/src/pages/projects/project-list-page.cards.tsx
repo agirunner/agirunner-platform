@@ -1,45 +1,27 @@
 import { useState } from 'react';
-import { FolderOpen, GitBranch, Pencil, Trash2 } from 'lucide-react';
+import { FolderOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import type { DashboardProjectRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '../../components/ui/card.js';
-import { DeleteProjectDialog, EditProjectDialog } from './project-list-page.dialogs.js';
+  CreateProjectDialog,
+  DeleteProjectDialog,
+  EditProjectDialog,
+} from './project-list-page.dialogs.js';
 import {
-  formatProjectCreatedAt,
-  statusVariant,
-  type ProjectListPacket,
+  buildProjectAttentionLabel,
+  buildProjectDescription,
+  buildProjectMetrics,
+  buildProjectReadiness,
 } from './project-list-page.support.js';
 
-export function ProjectListPackets(props: {
-  packets: ProjectListPacket[];
-}): JSX.Element {
-  return (
-    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-      {props.packets.map((packet) => (
-        <Card key={packet.label} className="border-border/70 bg-card/80 shadow-none">
-          <CardHeader className="space-y-1 pb-3">
-            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-              {packet.label}
-            </div>
-            <CardTitle className="text-lg">{packet.value}</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0 text-sm leading-6 text-muted">
-            {packet.detail}
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
+const QUIET_LINK_CLASS_NAME =
+  'rounded-sm text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
+const QUIET_BUTTON_CLASS_NAME =
+  'rounded-sm text-sm font-medium text-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 export function ProjectListGrid(props: {
   projects: DashboardProjectRecord[];
@@ -56,15 +38,37 @@ export function ProjectListGrid(props: {
 export function ProjectListEmptyState(): JSX.Element {
   return (
     <Card className="border-border/70 bg-card/80 shadow-none">
-      <CardContent className="flex flex-col items-center justify-center gap-3 py-12 text-center">
+      <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
         <FolderOpen className="h-12 w-12 text-muted" />
         <div className="space-y-1">
           <p className="font-medium text-foreground">No projects yet</p>
-          <p className="text-sm leading-6 text-muted">
-            Create the first workspace, connect its repository, and then launch board work from the
-            project detail page.
+          <p className="max-w-2xl text-sm leading-6 text-muted">
+            Create the first project, add a short description, and then use the project links to
+            continue deeper work in settings, delivery, or knowledge.
           </p>
         </div>
+        <CreateProjectDialog buttonLabel="Create first project" buttonClassName="w-full sm:w-auto" />
+      </CardContent>
+    </Card>
+  );
+}
+
+export function ProjectListFilteredEmptyState(props: {
+  onShowInactive: () => void;
+}): JSX.Element {
+  return (
+    <Card className="border-border/70 bg-card/80 shadow-none">
+      <CardContent className="flex flex-col items-center justify-center gap-4 py-12 text-center">
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">No active projects to show</p>
+          <p className="max-w-2xl text-sm leading-6 text-muted">
+            Every project in this list is inactive right now. Use the filter to review paused
+            workspaces.
+          </p>
+        </div>
+        <Button variant="outline" onClick={props.onShowInactive}>
+          Show inactive
+        </Button>
       </CardContent>
     </Card>
   );
@@ -75,63 +79,80 @@ function ProjectCard(props: {
 }): JSX.Element {
   const [showDelete, setShowDelete] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
+  const projectLinkState = { projectLabel: props.project.name };
+  const readiness = buildProjectReadiness(props.project);
+  const attentionLabel = buildProjectAttentionLabel(props.project);
+  const projectMetrics = buildProjectMetrics(props.project);
 
   return (
     <>
-      <Card className="border-border/70 bg-card/80 shadow-none">
-        <CardHeader className="space-y-3">
-          <div className="flex flex-wrap items-start justify-between gap-2">
-            <div className="space-y-1">
-              <CardTitle className="text-base">{props.project.name}</CardTitle>
-              <p className="text-xs text-muted">{props.project.slug}</p>
-            </div>
-            <Badge variant={statusVariant(props.project.is_active)}>
-              {props.project.is_active ? 'Active' : 'Inactive'}
-            </Badge>
-          </div>
-          <p className="text-sm leading-6 text-muted">
-            {props.project.description?.trim()
-              ? props.project.description
-              : 'Add a short project brief so operators know what belongs in this workspace.'}
-          </p>
+      <Card className="overflow-hidden border-border/70 bg-card/80 shadow-none">
+        <CardHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
+          <CardTitle className="text-base leading-6">
+            <Link
+              to={`/projects/${props.project.id}`}
+              state={projectLinkState}
+              className="rounded-sm underline-offset-4 transition hover:text-foreground hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {props.project.name}
+            </Link>
+          </CardTitle>
+          <Badge variant={readiness.variant}>{readiness.label}</Badge>
         </CardHeader>
-        <CardContent className="grid gap-3 text-sm">
-          <div className="rounded-xl border border-border/70 bg-background/70 p-3">
-            <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-              Repository posture
+        <CardContent className="space-y-4">
+          <p className="text-sm leading-6 text-muted">{buildProjectDescription(props.project)}</p>
+          {projectMetrics ? (
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-xs">
+              <p className="font-medium text-muted">{projectMetrics}</p>
+              {attentionLabel ? <Badge variant="warning">{attentionLabel}</Badge> : null}
             </div>
-            <div className="mt-1 flex items-center gap-2 font-medium text-foreground">
-              <GitBranch className="h-4 w-4" />
-              {props.project.repository_url ? 'Repository linked' : 'Repository not linked yet'}
-            </div>
-            <p className="mt-1 text-sm leading-6 text-muted">
-              {props.project.repository_url
-                ? props.project.repository_url
-                : 'Connect the repository so specialists can clone, edit, and push from this project.'}
-            </p>
-          </div>
-          <div className="text-xs text-muted">
-            Created {formatProjectCreatedAt(props.project.created_at)}
+          ) : null}
+          <div className="flex flex-wrap gap-x-4 gap-y-2">
+            <Link
+              className={QUIET_LINK_CLASS_NAME}
+              to={`/projects/${props.project.id}?tab=settings`}
+              state={projectLinkState}
+            >
+              Settings
+            </Link>
+            <Link
+              className={QUIET_LINK_CLASS_NAME}
+              to={`/projects/${props.project.id}?tab=knowledge`}
+              state={projectLinkState}
+            >
+              Knowledge
+            </Link>
+            <Link
+              className={QUIET_LINK_CLASS_NAME}
+              to={`/projects/${props.project.id}?tab=automation`}
+              state={projectLinkState}
+            >
+              Automation
+            </Link>
+            <Link
+              className={QUIET_LINK_CLASS_NAME}
+              to={`/projects/${props.project.id}?tab=delivery`}
+              state={projectLinkState}
+            >
+              Delivery
+            </Link>
+            <button
+              type="button"
+              className={QUIET_BUTTON_CLASS_NAME}
+              onClick={() => setShowEdit(true)}
+            >
+              Edit basics
+            </button>
+            <button
+              type="button"
+              className={QUIET_BUTTON_CLASS_NAME}
+              onClick={() => setShowDelete(true)}
+              data-testid={`delete-project-${props.project.id}`}
+            >
+              Delete
+            </button>
           </div>
         </CardContent>
-        <CardFooter className="flex flex-wrap gap-2">
-          <Button asChild className="gap-2">
-            <Link to={`/projects/${props.project.id}`}>Open project</Link>
-          </Button>
-          <Button variant="outline" onClick={() => setShowEdit(true)} className="gap-2">
-            <Pencil className="h-4 w-4" />
-            Edit details
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => setShowDelete(true)}
-            className="gap-2"
-            data-testid={`delete-project-${props.project.slug}`}
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete project
-          </Button>
-        </CardFooter>
       </Card>
       {showDelete ? (
         <DeleteProjectDialog project={props.project} onClose={() => setShowDelete(false)} />

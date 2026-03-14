@@ -12,11 +12,11 @@ interface ProjectSettingsShellProps {
 
 export function ProjectSettingsShell(props: ProjectSettingsShellProps): JSX.Element {
   return (
-    <section className="space-y-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div className="space-y-1">
+    <section className="space-y-3">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div>
           <h2 className="text-sm font-semibold text-foreground">Settings control plane</h2>
-          <p className="max-w-3xl text-sm leading-6 text-muted">{props.overview.summary}</p>
+          <p className="sr-only">{props.overview.summary}</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={props.project.is_active ? 'success' : 'secondary'}>

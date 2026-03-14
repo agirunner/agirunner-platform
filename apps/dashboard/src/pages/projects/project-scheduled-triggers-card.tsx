@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
-import { CalendarClock, Pencil, Trash2, Zap } from 'lucide-react';
+import { CalendarClock, Pencil, Plus, Trash2, Zap } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -38,6 +37,7 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
   const queryClient = useQueryClient();
   const [form, setForm] = useState<ScheduledTriggerFormState>(createScheduledTriggerFormState());
   const [editingTriggerId, setEditingTriggerId] = useState<string | null>(null);
+  const [showComposer, setShowComposer] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<DashboardScheduledWorkItemTriggerRecord | null>(null);
 
   const triggersQuery = useQuery({
@@ -107,49 +107,51 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
   function resetEditor(): void {
     setEditingTriggerId(null);
     setForm(createScheduledTriggerFormState());
+    setShowComposer(false);
   }
 
   function startEdit(trigger: DashboardScheduledWorkItemTriggerRecord): void {
     setEditingTriggerId(trigger.id);
     setForm(hydrateScheduledTriggerForm(trigger));
+    setShowComposer(true);
+  }
+
+  function startCreate(): void {
+    setEditingTriggerId(null);
+    setForm(createScheduledTriggerFormState());
+    setShowComposer(true);
   }
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Zap className="h-4 w-4" />
-          Scheduled Work Item Triggers
-        </CardTitle>
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <CardTitle className="flex items-center gap-2">
+            <Zap className="h-4 w-4" />
+            Schedules
+          </CardTitle>
+          <Button size="sm" onClick={startCreate}>
+            <Plus className="h-4 w-4" />
+            Add schedule
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="rounded-md border bg-border/10 p-3 text-sm text-muted">
-          Scheduled triggers belong to the project they automate. They create work items on a
-          cadence, target a project run, and wake the orchestrator through the normal activation path.
-        </div>
-
         <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
-          <div className="space-y-2">
-            <h3 className="text-sm font-semibold">{triggerOverview.heading}</h3>
-            <p className="text-sm leading-6 text-muted">{triggerOverview.summary}</p>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+            <div className="space-y-2">
+              <h3 className="text-sm font-semibold">{triggerOverview.heading}</h3>
+              <p className="text-sm leading-6 text-muted">{triggerOverview.summary}</p>
+            </div>
+            <div className="flex flex-wrap gap-2 xl:max-w-sm xl:justify-end">
+              {triggerOverview.packets.map((packet) => (
+                <OverviewPill key={packet.label} label={packet.label} value={packet.value} />
+              ))}
+            </div>
           </div>
           <div className="rounded-xl border border-border/70 bg-card/80 p-3 text-sm leading-6 text-muted">
             <span className="font-medium text-foreground">Best next step:</span>{' '}
             {triggerOverview.nextAction}
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-            {triggerOverview.packets.map((packet) => (
-              <div
-                key={packet.label}
-                className="rounded-xl border border-border/70 bg-card/80 p-3"
-              >
-                <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                  {packet.label}
-                </div>
-                <div className="mt-1 text-sm font-semibold text-foreground">{packet.value}</div>
-                <p className="mt-1 text-sm leading-6 text-muted">{packet.detail}</p>
-              </div>
-            ))}
           </div>
         </section>
 
@@ -157,17 +159,18 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-medium">Current schedules</h3>
-              <p className="text-sm text-muted">Inspect, edit, pause, or remove recurring project work.</p>
+              <p className="text-sm text-muted">
+                Inspect, pause, or revise the schedules already feeding this project.
+              </p>
             </div>
-            <Link to="/config/triggers" className="text-sm text-accent hover:underline">
-              Open trigger overview
-            </Link>
           </div>
 
           {triggersQuery.isLoading ? (
             <LoadingCard />
           ) : scheduledTriggers.length === 0 ? (
-            <p className="text-sm text-muted">No scheduled work item triggers for this project.</p>
+            <div className="rounded-xl border border-dashed border-border/70 bg-background/70 p-4 text-sm text-muted">
+              No scheduled work item triggers for this project yet.
+            </div>
           ) : (
             <div className="grid gap-3">
               {scheduledTriggers.map((trigger) => (
@@ -186,20 +189,38 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
           )}
         </div>
 
-        <ProjectScheduledTriggerForm
-          form={form}
-          workflows={workflows}
-          stages={selectedWorkflowQuery.data?.workflow_stages ?? []}
-          columns={selectedBoardQuery.data?.columns ?? []}
-          roles={roles}
-          isEditing={editingTriggerId !== null}
-          isPending={saveMutation.isPending}
-          isLoadingWorkflowDetails={selectedWorkflowQuery.isLoading || selectedBoardQuery.isLoading}
-          errorMessage={saveMutation.isError ? 'Failed to save scheduled trigger.' : null}
-          onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
-          onSubmit={() => saveMutation.mutate()}
-          onCancel={resetEditor}
-        />
+        {showComposer ? (
+          <ProjectScheduledTriggerForm
+            form={form}
+            workflows={workflows}
+            stages={selectedWorkflowQuery.data?.workflow_stages ?? []}
+            columns={selectedBoardQuery.data?.columns ?? []}
+            roles={roles}
+            isEditing={editingTriggerId !== null}
+            isPending={saveMutation.isPending}
+            isLoadingWorkflowDetails={selectedWorkflowQuery.isLoading || selectedBoardQuery.isLoading}
+            errorMessage={saveMutation.isError ? 'Failed to save scheduled trigger.' : null}
+            onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
+            onSubmit={() => saveMutation.mutate()}
+            onCancel={resetEditor}
+          />
+        ) : (
+          <section className="rounded-xl border border-border/70 bg-background/70 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">Create or revise schedules</h3>
+                <p className="text-sm leading-6 text-muted">
+                  Open the composer only when cadence, routing, or generated work-item copy needs to
+                  change.
+                </p>
+              </div>
+              <Button variant="outline" size="sm" onClick={startCreate}>
+                <Plus className="h-4 w-4" />
+                Add schedule
+              </Button>
+            </div>
+          </section>
+        )}
 
         <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
           <DialogContent className="max-w-lg">
@@ -227,6 +248,18 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
         </Dialog>
       </CardContent>
     </Card>
+  );
+}
+
+function OverviewPill(props: {
+  label: string;
+  value: string;
+}): JSX.Element {
+  return (
+    <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-xs">
+      <span className="font-medium uppercase tracking-[0.16em] text-muted">{props.label}</span>
+      <span className="font-semibold text-foreground">{props.value}</span>
+    </div>
   );
 }
 

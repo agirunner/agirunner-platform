@@ -88,7 +88,8 @@ describe('ProjectService secret redaction', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rowCount: 1, rows: [{ total: '1' }] })
-        .mockResolvedValueOnce({ rowCount: 1, rows: [projectRow] }),
+        .mockResolvedValueOnce({ rowCount: 1, rows: [projectRow] })
+        .mockResolvedValueOnce({ rowCount: 0, rows: [] }),
     };
 
     const service = new ProjectService(pool as never, createEventService() as never);
@@ -97,11 +98,12 @@ describe('ProjectService secret redaction', () => {
       page: 1,
       per_page: 20,
     });
+    const listedProject = result.data[0] as Record<string, unknown>;
 
     expect(result.data).toHaveLength(1);
-    expect(result.data[0]).not.toHaveProperty('git_webhook_secret');
-    expect(result.data[0]?.git_webhook_secret_configured).toBe(true);
-    expect(result.data[0]?.settings).toEqual(
+    expect(listedProject).not.toHaveProperty('git_webhook_secret');
+    expect(listedProject.git_webhook_secret_configured).toBe(true);
+    expect(listedProject.settings).toEqual(
       expect.objectContaining({
         credentials: {
           git_token: null,
@@ -121,7 +123,7 @@ describe('ProjectService secret redaction', () => {
         },
       }),
     );
-    expect(result.data[0]?.memory).toEqual({
+    expect(listedProject.memory).toEqual({
       SAFE_LABEL: 'demo',
       apiKey: 'redacted://project-memory-secret',
       nested: {

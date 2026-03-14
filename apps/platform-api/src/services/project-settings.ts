@@ -92,6 +92,10 @@ export function readProjectModelOverrides(value: unknown): Record<string, Projec
   return normalizeProjectSettings(value).model_overrides;
 }
 
+export function readProjectSettingsExtras(value: unknown): Record<string, unknown> {
+  return stripKnownProjectSettingKeys(normalizeProjectSettings(value));
+}
+
 export function readProjectRepositorySettings(value: unknown): ProjectRepositorySettings {
   const settings = normalizeProjectSettings(value);
   return {

@@ -3,20 +3,32 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './project-delivery-history.tsx'), 'utf8');
+  return ['./project-delivery-history.tsx', './project-delivery-history-support.ts']
+    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
+    .join('\n');
 }
 
 describe('project delivery history source', () => {
-  it('renders overview packets, responsive run cards, and direct operator actions', () => {
+  it('renders question-driven overview packets, compact run cards, and direct operator actions', () => {
     const source = readSource();
 
     expect(source).toContain('Delivery overview');
-    expect(source).toContain('buildProjectDeliveryOverview(entries)');
+    expect(source).toContain('buildProjectDeliveryAttentionOverview(entries)');
+    expect(source).toContain('buildProjectDeliveryAttentionState(entry)');
     expect(source).toContain('buildProjectDeliveryPacket(entry)');
+    expect(source).toContain('What ran');
+    expect(source).toContain('What failed');
+    expect(source).toContain('Needs attention');
+    expect(source).toContain('Inspect next');
+    expect(source).toContain('Next move');
+    expect(source).toContain('Recent signals');
+    expect(source).toContain('packet.signals.length > 0');
+    expect(source).toContain('packet.signals.map');
     expect(source).toContain('Open board');
-    expect(source).toContain('Open inspector');
-    expect(source).toContain('sm:grid-cols-2 xl:grid-cols-5');
-    expect(source).toContain('sm:grid-cols-2 xl:grid-cols-4');
-    expect(source).toContain('Judge active run pressure, gate load, and reported spend');
+    expect(source).toContain('Open automation');
+    expect(source).not.toContain('Operator readout');
+    expect(source).not.toContain('Answer the operator questions first');
+    expect(source).not.toContain('packet.summary');
+    expect(source).toContain('w-full flex-col gap-2 sm:flex-row');
   });
 });

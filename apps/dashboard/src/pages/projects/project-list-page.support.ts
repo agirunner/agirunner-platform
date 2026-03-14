@@ -1,10 +1,21 @@
 import type { DashboardProjectRecord } from '../../lib/api.js';
 
-export interface ProjectListPacket {
-  label: string;
-  value: string;
-  detail: string;
+const PROJECT_DESCRIPTION_MAX_LENGTH = 116;
+const PROJECT_DESCRIPTION_FALLBACK =
+  'Add a short description so this project is scannable from the list.';
+
+export interface ProjectListReadiness {
+  label: 'Active' | 'Inactive';
+  variant: 'success' | 'secondary';
 }
+
+export interface ProjectListSortState {
+  key: 'recent_activity' | 'project_name' | 'workflow_volume';
+  direction: 'asc' | 'desc';
+}
+
+export type ProjectListSortField = ProjectListSortState['key'];
+export type ProjectListSortDirection = ProjectListSortState['direction'];
 
 export function normalizeProjects(
   response: { data: DashboardProjectRecord[] } | DashboardProjectRecord[],
@@ -12,66 +23,178 @@ export function normalizeProjects(
   if (Array.isArray(response)) {
     return response;
   }
+
   return response?.data ?? [];
 }
 
-export function statusVariant(isActive?: boolean) {
-  if (isActive === true) return 'success' as const;
-  if (isActive === false) return 'secondary' as const;
-  return 'outline' as const;
-}
-
-export function buildProjectListPackets(
+export function filterProjects(
   projects: DashboardProjectRecord[],
-): ProjectListPacket[] {
-  const activeCount = projects.filter((project) => project.is_active).length;
-  const repositoryLinkedCount = projects.filter((project) => project.repository_url).length;
-  const describedCount = projects.filter((project) => project.description?.trim()).length;
+  showInactive: boolean,
+): DashboardProjectRecord[] {
+  if (showInactive) {
+    return projects;
+  }
 
-  return [
-    {
-      label: 'Workspace coverage',
-      value: `${projects.length} projects`,
-      detail:
-        projects.length > 0
-          ? `${activeCount} active workspaces currently accept new execution and board work.`
-          : 'Create the first project to start onboarding repositories, memory, and workflow boards.',
-    },
-    {
-      label: 'Repository posture',
-      value: `${repositoryLinkedCount} linked`,
-      detail:
-        projects.length > 0
-          ? `${Math.max(projects.length - repositoryLinkedCount, 0)} still need a repository connection for git-backed execution.`
-          : 'Repository coverage appears after your first project is created.',
-    },
-    {
-      label: 'Operator next step',
-      value:
-        projects.length === 0
-          ? 'Create a project'
-          : projects.length === describedCount
-            ? 'Open an active project'
-            : 'Fill missing project briefs',
-      detail:
-        projects.length === 0
-          ? 'Add the workspace, then connect its repository and memory surfaces from the project detail page.'
-          : describedCount === projects.length
-            ? 'Use the list below to open the project that needs the next board, memory, or artifact review.'
-            : 'Complete the missing descriptions so operators can scan project intent before they drill into a workspace.',
-    },
-  ];
+  return projects.filter((project) => project.is_active !== false);
 }
 
-export function formatProjectCreatedAt(value?: string | null): string {
+export function sortProjects(
+  projects: DashboardProjectRecord[],
+  sort: ProjectListSortState,
+): DashboardProjectRecord[] {
+  return [...projects].sort((left, right) => {
+    const direction = sort.direction === 'asc' ? 1 : -1;
+
+    if (sort.key === 'project_name') {
+      return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' }) * direction;
+    }
+
+    if (sort.key === 'workflow_volume') {
+      const byVolume = (readTotalWorkflowCount(left) - readTotalWorkflowCount(right)) * direction;
+      if (byVolume !== 0) {
+        return byVolume;
+      }
+      return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+    }
+
+    const byActivity = compareNullableNumber(
+      readLastWorkflowActivity(left),
+      readLastWorkflowActivity(right),
+      direction,
+    );
+    if (byActivity !== 0) {
+      return byActivity;
+    }
+    return left.name.localeCompare(right.name, undefined, { sensitivity: 'base' });
+  });
+}
+
+export function buildProjectReadiness(
+  project: DashboardProjectRecord,
+): ProjectListReadiness {
+  if (project.is_active === false) {
+    return {
+      label: 'Inactive',
+      variant: 'secondary',
+    };
+  }
+
+  return {
+    label: 'Active',
+    variant: 'success',
+  };
+}
+
+export function buildProjectAttentionLabel(
+  project: DashboardProjectRecord,
+): 'Needs attention' | null {
+  if (project.is_active === false) {
+    return null;
+  }
+
+  if ((project.summary?.attention_workflow_count ?? 0) > 0) {
+    return 'Needs attention';
+  }
+
+  return null;
+}
+
+export function buildProjectMetrics(
+  project: DashboardProjectRecord,
+): string {
+  const activeWorkflowCount = project.summary?.active_workflow_count ?? 0;
+  const completedWorkflowCount = project.summary?.completed_workflow_count ?? 0;
+  const totalWorkflowCount = readTotalWorkflowCount(project);
+  const parts: string[] = [];
+
+  if (activeWorkflowCount > 0) {
+    parts.push(`${activeWorkflowCount} active workflow${activeWorkflowCount === 1 ? '' : 's'}`);
+  }
+
+  if (completedWorkflowCount > 0) {
+    parts.push(`${completedWorkflowCount} completed`);
+  }
+
+  if (parts.length === 0) {
+    if (totalWorkflowCount > 0) {
+      return `${totalWorkflowCount} workflow${totalWorkflowCount === 1 ? '' : 's'} total`;
+    }
+    return 'No workflows yet';
+  }
+
+  return parts.join(' · ');
+}
+
+export function buildProjectSortDirectionLabel(
+  field: ProjectListSortField,
+  direction: ProjectListSortDirection,
+): string {
+  if (field === 'project_name') {
+    return direction === 'asc' ? 'A → Z' : 'Z → A';
+  }
+
+  if (field === 'workflow_volume') {
+    return direction === 'asc' ? 'Fewest workflows' : 'Most workflows';
+  }
+
+  return direction === 'asc' ? 'Oldest first' : 'Newest first';
+}
+
+export function buildProjectDescription(
+  project: DashboardProjectRecord,
+): string {
+  const description = normalizeDescription(project.description);
+  if (description.length === 0) {
+    return PROJECT_DESCRIPTION_FALLBACK;
+  }
+
+  if (description.length <= PROJECT_DESCRIPTION_MAX_LENGTH) {
+    return description;
+  }
+
+  return `${description.slice(0, PROJECT_DESCRIPTION_MAX_LENGTH - 1).trimEnd()}…`;
+}
+function normalizeDescription(description?: string | null): string {
+  return description?.replace(/\s+/g, ' ').trim() ?? '';
+}
+
+function readTotalWorkflowCount(project: DashboardProjectRecord): number {
+  const summary = project.summary as
+    | (typeof project.summary & {
+        total_workflow_count?: number;
+      })
+    | undefined;
+  return summary?.total_workflow_count
+    ?? (project.summary?.active_workflow_count ?? 0) + (project.summary?.completed_workflow_count ?? 0);
+}
+
+function readLastWorkflowActivity(project: DashboardProjectRecord): number | null {
+  const summary = project.summary as
+    | (typeof project.summary & {
+        last_workflow_activity_at?: string | null;
+      })
+    | undefined;
+  const value = summary?.last_workflow_activity_at;
   if (!value) {
-    return 'Created date unavailable';
+    return null;
   }
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? null : timestamp;
+}
 
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) {
-    return 'Created date unavailable';
+function compareNullableNumber(
+  left: number | null,
+  right: number | null,
+  direction: 1 | -1,
+): number {
+  if (left === right) {
+    return 0;
   }
-
-  return parsed.toLocaleDateString();
+  if (left === null) {
+    return 1;
+  }
+  if (right === null) {
+    return -1;
+  }
+  return (left - right) * direction;
 }

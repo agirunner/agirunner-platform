@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
@@ -11,6 +11,10 @@ function readLayoutSource() {
 function readDialogSource() {
   return readFileSync(resolve(import.meta.dirname, './ui/dialog.tsx'), 'utf8');
 }
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('layout breadcrumbs', () => {
   it('maps root path to Home breadcrumb', () => {
@@ -66,6 +70,47 @@ describe('layout breadcrumbs', () => {
     expect(buildBreadcrumbs('/governance/users')).toEqual([
       { label: 'Governance' },
       { label: 'Legacy User Access' },
+    ]);
+  });
+
+  it('keeps project scoped explorer breadcrumbs clickable without exposing raw UUID labels', () => {
+    expect(
+      buildBreadcrumbs(
+        '/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3/memory',
+        { projectLabel: 'Release Automation' },
+      ),
+    ).toEqual([
+      { label: 'Projects', href: '/projects' },
+      { label: 'Release Automation', href: '/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3' },
+      { label: 'Memory' },
+    ]);
+  });
+
+  it('uses project labels from history state when the current route already knows the name', () => {
+    stubBreadcrumbWindow({
+      usr: {
+        projectLabel: 'Release Automation',
+      },
+    });
+
+    expect(buildBreadcrumbs('/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3')).toEqual([
+      { label: 'Projects', href: '/projects' },
+      { label: 'Release Automation' },
+    ]);
+  });
+
+  it('uses cached project labels for direct project loads when history state is empty', () => {
+    stubBreadcrumbWindow(
+      null,
+      {
+        'agirunner.projectLabel.321ddb16-0ac7-4af4-b008-94afe2592ee3': 'Release Automation',
+      },
+    );
+
+    expect(buildBreadcrumbs('/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3/artifacts')).toEqual([
+      { label: 'Projects', href: '/projects' },
+      { label: 'Release Automation', href: '/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3' },
+      { label: 'Artifacts' },
     ]);
   });
 
@@ -131,3 +176,29 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('focus-visible:ring-2');
   });
 });
+
+function stubBreadcrumbWindow(
+  historyState: unknown,
+  storageEntries: Record<string, string> = {},
+): void {
+  const storage = createStorage(storageEntries);
+  vi.stubGlobal('window', {
+    history: { state: historyState },
+    sessionStorage: storage,
+    localStorage: storage,
+  });
+}
+
+function createStorage(entries: Record<string, string>) {
+  return {
+    getItem(key: string) {
+      return entries[key] ?? null;
+    },
+    setItem(key: string, value: string) {
+      entries[key] = value;
+    },
+    removeItem(key: string) {
+      delete entries[key];
+    },
+  };
+}

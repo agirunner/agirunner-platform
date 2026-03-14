@@ -45,6 +45,23 @@ interface ProjectMemoryPatch {
   context?: ProjectMemoryMutationContext;
 }
 
+interface ProjectListSummary {
+  active_workflow_count: number;
+  completed_workflow_count: number;
+  attention_workflow_count: number;
+  total_workflow_count: number;
+  last_workflow_activity_at: string | null;
+}
+
+interface ProjectWorkflowSummaryRow {
+  project_id: string;
+  active_workflow_count: number;
+  completed_workflow_count: number;
+  attention_workflow_count: number;
+  total_workflow_count: number;
+  last_workflow_activity_at: string | null;
+}
+
 type ProjectRow = TenantRow & Record<string, unknown>;
 const PROJECT_MEMORY_SECRET_REDACTION = 'redacted://project-memory-secret';
 const PROJECT_SETTINGS_SECRET_REDACTION = 'redacted://project-settings-secret';
@@ -181,9 +198,16 @@ export class ProjectService {
     ]);
 
     const migratedRows = await Promise.all(rows.map((row) => this.ensureGitWebhookSecretEncrypted(tenantId, row)));
+    const workflowSummaryByProjectId = await this.loadProjectWorkflowSummaries(
+      tenantId,
+      migratedRows.map((row) => String(row.id)),
+    );
 
     return {
-      data: migratedRows.map((row) => redactProjectSecrets(row)),
+      data: migratedRows.map((row) => ({
+        ...redactProjectSecrets(row),
+        summary: workflowSummaryByProjectId.get(String(row.id)) ?? emptyProjectListSummary(),
+      })),
       meta: {
         total,
         page: query.page,
@@ -617,6 +641,45 @@ export class ProjectService {
     }
     return project;
   }
+
+  private async loadProjectWorkflowSummaries(
+    tenantId: string,
+    projectIds: string[],
+  ): Promise<Map<string, ProjectListSummary>> {
+    if (projectIds.length === 0) {
+      return new Map();
+    }
+
+    const result = await this.pool.query<ProjectWorkflowSummaryRow>(
+      `SELECT project_id::text AS project_id,
+              COUNT(*) FILTER (WHERE state = 'active')::int AS active_workflow_count,
+              COUNT(*) FILTER (WHERE state = 'completed')::int AS completed_workflow_count,
+              COUNT(*) FILTER (WHERE state IN ('failed', 'paused'))::int AS attention_workflow_count,
+              COUNT(*)::int AS total_workflow_count,
+              MAX(COALESCE(completed_at, started_at, updated_at, created_at))::text AS last_workflow_activity_at
+         FROM workflows
+        WHERE tenant_id = $1
+          AND project_id = ANY($2::uuid[])
+        GROUP BY project_id`,
+      [tenantId, projectIds],
+    );
+
+    return new Map(
+      result.rows.map((row) => [
+        row.project_id,
+        {
+          active_workflow_count: Number(row.active_workflow_count ?? 0),
+          completed_workflow_count: Number(row.completed_workflow_count ?? 0),
+          attention_workflow_count: Number(row.attention_workflow_count ?? 0),
+          total_workflow_count: Number(row.total_workflow_count ?? 0),
+          last_workflow_activity_at:
+            typeof row.last_workflow_activity_at === 'string'
+              ? row.last_workflow_activity_at
+              : null,
+        },
+      ]),
+    );
+  }
 }
 
 function redactProjectSecrets(project: ProjectRow): Record<string, unknown> {
@@ -638,6 +701,16 @@ function sanitizeProjectMemory(value: unknown): Record<string, unknown> {
       sanitizeProjectRecordValue(key, entry, PROJECT_MEMORY_SECRET_REDACTION),
     ]),
   );
+}
+
+function emptyProjectListSummary(): ProjectListSummary {
+  return {
+    active_workflow_count: 0,
+    completed_workflow_count: 0,
+    attention_workflow_count: 0,
+    total_workflow_count: 0,
+    last_workflow_activity_at: null,
+  };
 }
 
 function normalizeRepoUrl(url: string): string {

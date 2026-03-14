@@ -143,6 +143,11 @@ interface SqlFilters {
   values: unknown[];
 }
 
+interface SqlFilterBuildOptions {
+  firstFilterParameterIndex: number;
+  previewMaxBytesIndex?: number;
+}
+
 export class ProjectArtifactExplorerService {
   constructor(
     private readonly pool: DatabasePool,
@@ -154,31 +159,47 @@ export class ProjectArtifactExplorerService {
     projectId: string,
     input: ProjectArtifactExplorerListInput,
   ): Promise<ProjectArtifactExplorerListResult> {
-    const filters = buildFilterSql(input, this.previewMaxBytes);
+    const usesPreviewFilter = input.preview_mode === 'inline' || input.preview_mode === 'download';
+    const summaryFilters = buildFilterSql(input, {
+      firstFilterParameterIndex: 4,
+      previewMaxBytesIndex: 3,
+    });
+    const pageFilters = buildFilterSql(input, {
+      firstFilterParameterIndex: usesPreviewFilter ? 4 : 3,
+      ...(usesPreviewFilter ? { previewMaxBytesIndex: 3 } : {}),
+    });
     const summaryParams = [
       tenantId,
       projectId,
       this.previewMaxBytes,
-      ...filters.values,
+      ...summaryFilters.values,
       MAX_FILTER_OPTIONS,
     ];
-    const pageParams = [
-      tenantId,
-      projectId,
-      this.previewMaxBytes,
-      ...filters.values,
-      input.per_page,
-      (input.page - 1) * input.per_page,
-    ];
+    const pageParams = usesPreviewFilter
+      ? [
+          tenantId,
+          projectId,
+          this.previewMaxBytes,
+          ...pageFilters.values,
+          input.per_page,
+          (input.page - 1) * input.per_page,
+        ]
+      : [
+          tenantId,
+          projectId,
+          ...pageFilters.values,
+          input.per_page,
+          (input.page - 1) * input.per_page,
+        ];
 
     const [summaryResult, pageResult] = await Promise.all([
       this.pool.query<ProjectArtifactExplorerSummaryRow>(
-        buildSummaryQuery(filters.sql, summaryParams.length),
+        buildSummaryQuery(summaryFilters.sql, summaryParams.length),
         summaryParams,
       ),
       this.pool.query<ProjectArtifactExplorerRow>(
         buildPageQuery(
-          filters.sql,
+          pageFilters.sql,
           buildOrderBySql(input.sort ?? 'newest'),
           pageParams.length - 1,
           pageParams.length,
@@ -360,14 +381,14 @@ function buildFilteredArtifactsQuery(filterSql: string): string {
       fa.size_bytes,
       fa.metadata,
       fa.created_at,
-      COALESCE(NULLIF(BTRIM(w.name), ''), fa.workflow_id, 'Unscoped workflow') AS workflow_name,
-      NULLIF(BTRIM(w.state), '') AS workflow_state,
+      COALESCE(NULLIF(BTRIM(w.name), ''), fa.workflow_id::text, 'Unscoped workflow') AS workflow_name,
+      NULLIF(BTRIM(w.state::text), '') AS workflow_state,
       t.work_item_id,
       NULLIF(BTRIM(wi.title), '') AS work_item_title,
       NULLIF(BTRIM(COALESCE(t.stage_name, wi.stage_name)), '') AS stage_name,
       NULLIF(BTRIM(t.role), '') AS role,
-      COALESCE(NULLIF(BTRIM(t.title), ''), t.id) AS task_title,
-      COALESCE(NULLIF(BTRIM(t.state), ''), 'unknown') AS task_state
+      COALESCE(NULLIF(BTRIM(t.title), ''), t.id::text) AS task_title,
+      COALESCE(NULLIF(BTRIM(t.state::text), ''), 'unknown') AS task_state
     FROM workflow_artifacts fa
     JOIN tasks t
       ON t.tenant_id = fa.tenant_id
@@ -386,7 +407,7 @@ function buildFilteredArtifactsQuery(filterSql: string): string {
 
 function buildFilterSql(
   input: ProjectArtifactExplorerListInput,
-  previewMaxBytes: number,
+  options: SqlFilterBuildOptions,
 ): SqlFilters {
   const values: unknown[] = [];
   const conditions: string[] = [];
@@ -400,40 +421,82 @@ function buildFilterSql(
 
   if (input.q?.trim()) {
     const pattern = `%${escapeLikePattern(input.q.trim())}%`;
-    const parameter = pushSqlValue(values, pattern);
+    const parameter = pushSqlValue(values, pattern, options.firstFilterParameterIndex);
     conditions.push(`(
       fa.logical_path ILIKE $${parameter} ESCAPE '\\'
       OR COALESCE(fa.content_type, '') ILIKE $${parameter} ESCAPE '\\'
       OR COALESCE(w.name, '') ILIKE $${parameter} ESCAPE '\\'
-      OR COALESCE(w.state, '') ILIKE $${parameter} ESCAPE '\\'
+      OR COALESCE(w.state::text, '') ILIKE $${parameter} ESCAPE '\\'
       OR COALESCE(t.title, '') ILIKE $${parameter} ESCAPE '\\'
-      OR COALESCE(t.state, '') ILIKE $${parameter} ESCAPE '\\'
+      OR COALESCE(t.state::text, '') ILIKE $${parameter} ESCAPE '\\'
       OR COALESCE(t.role, '') ILIKE $${parameter} ESCAPE '\\'
       OR COALESCE(t.stage_name, wi.stage_name, '') ILIKE $${parameter} ESCAPE '\\'
       OR COALESCE(wi.title, '') ILIKE $${parameter} ESCAPE '\\'
     )`);
   }
 
-  addEqualityCondition(conditions, values, 'fa.workflow_id', input.workflow_id);
-  addEqualityCondition(conditions, values, 't.work_item_id', input.work_item_id);
-  addEqualityCondition(conditions, values, 'fa.task_id', input.task_id);
-  addEqualityCondition(conditions, values, 'COALESCE(t.stage_name, wi.stage_name)', input.stage_name);
-  addEqualityCondition(conditions, values, 't.role', input.role);
-  addEqualityCondition(conditions, values, 'fa.content_type', input.content_type);
+  addEqualityCondition(
+    conditions,
+    values,
+    'fa.workflow_id',
+    input.workflow_id,
+    options.firstFilterParameterIndex,
+  );
+  addEqualityCondition(
+    conditions,
+    values,
+    't.work_item_id',
+    input.work_item_id,
+    options.firstFilterParameterIndex,
+  );
+  addEqualityCondition(
+    conditions,
+    values,
+    'fa.task_id',
+    input.task_id,
+    options.firstFilterParameterIndex,
+  );
+  addEqualityCondition(
+    conditions,
+    values,
+    'COALESCE(t.stage_name, wi.stage_name)',
+    input.stage_name,
+    options.firstFilterParameterIndex,
+  );
+  addEqualityCondition(
+    conditions,
+    values,
+    't.role',
+    input.role,
+    options.firstFilterParameterIndex,
+  );
+  addEqualityCondition(
+    conditions,
+    values,
+    'fa.content_type',
+    input.content_type,
+    options.firstFilterParameterIndex,
+  );
 
   if (input.preview_mode === 'inline') {
-    conditions.push(buildPreviewEligibilitySql('fa', 3));
+    if (!options.previewMaxBytesIndex) {
+      throw new ValidationError('preview_mode requires a preview byte limit parameter');
+    }
+    conditions.push(buildPreviewEligibilitySql('fa', options.previewMaxBytesIndex));
   }
   if (input.preview_mode === 'download') {
-    conditions.push(`NOT (${buildPreviewEligibilitySql('fa', 3)})`);
+    if (!options.previewMaxBytesIndex) {
+      throw new ValidationError('preview_mode requires a preview byte limit parameter');
+    }
+    conditions.push(`NOT (${buildPreviewEligibilitySql('fa', options.previewMaxBytesIndex)})`);
   }
 
   if (createdFrom) {
-    const parameter = pushSqlValue(values, createdFrom.toISOString());
+    const parameter = pushSqlValue(values, createdFrom.toISOString(), options.firstFilterParameterIndex);
     conditions.push(`fa.created_at >= $${parameter}::timestamptz`);
   }
   if (createdTo) {
-    const parameter = pushSqlValue(values, createdTo.toISOString());
+    const parameter = pushSqlValue(values, createdTo.toISOString(), options.firstFilterParameterIndex);
     conditions.push(`fa.created_at < $${parameter}::timestamptz`);
   }
 
@@ -483,17 +546,18 @@ function addEqualityCondition(
   values: unknown[],
   column: string,
   value: string | undefined,
+  firstFilterParameterIndex = 3,
 ): void {
   if (!value?.trim()) {
     return;
   }
-  const parameter = pushSqlValue(values, value.trim());
+  const parameter = pushSqlValue(values, value.trim(), firstFilterParameterIndex);
   conditions.push(`${column} = $${parameter}`);
 }
 
-function pushSqlValue(values: unknown[], value: unknown): number {
+function pushSqlValue(values: unknown[], value: unknown, firstFilterParameterIndex: number): number {
   values.push(value);
-  return values.length + 3;
+  return values.length + firstFilterParameterIndex - 1;
 }
 
 function parseDateBoundary(

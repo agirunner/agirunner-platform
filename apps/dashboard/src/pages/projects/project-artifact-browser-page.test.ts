@@ -16,12 +16,8 @@ describe('project artifact browser page source', () => {
 
   it('adds an operator-focused wrapper with clear next actions', () => {
     const source = readSource();
-    expect(source).toContain('Project operator surface');
-    expect(source).toContain('Review scope');
-    expect(source).toContain('Best next step');
-    expect(source).toContain('Cross-check provenance');
-    expect(source).toContain('Open Documents');
-    expect(source).toContain('Cross-check Memory');
+    expect(source).toContain('ProjectScopedSurfaceHeader');
+    expect(source).toContain('workspace="artifacts"');
   });
 
   it('hydrates the explorer from artifact route params so workflow-scoped links land on the right slice', () => {

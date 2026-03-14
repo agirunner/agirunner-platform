@@ -54,7 +54,11 @@ interface ContentBrowserPageProps {
   scopedProjectId?: string;
   scopedWorkflowId?: string;
   preferredTab?: 'documents' | 'artifacts';
+  showHeader?: boolean;
 }
+
+const PROJECT_DOCUMENTS_TITLE = 'Project Documents';
+const PROJECT_DOCUMENTS_BREADCRUMB = 'Project documents';
 
 export function ContentBrowserPage(): JSX.Element {
   return <ContentBrowserSurface />;
@@ -474,31 +478,36 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Content Browser</h1>
-        <p className="text-sm text-muted-foreground">
-          Browse workflow documents and work-item scoped artifacts with deep-linkable project,
-          workflow, work item, and task filters.
-        </p>
-        {scopedProjectId ? (
-          <div className="mt-2 flex flex-wrap gap-2 text-sm">
-            <Link
-              className="underline-offset-4 hover:underline"
-              to={`/projects/${scopedProjectId}`}
-            >
-              Back to Project
-            </Link>
-            {selectedWorkflowId ? (
+      {props.showHeader === false ? null : (
+        <div>
+          <h1 className="text-2xl font-semibold">
+            {scopedProjectId ? PROJECT_DOCUMENTS_TITLE : 'Content Browser'}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {scopedProjectId
+              ? `${PROJECT_DOCUMENTS_BREADCRUMB} keep workflow documents, artifacts, and execution filters inside the parent project scope.`
+              : 'Browse workflow documents and work-item scoped artifacts with deep-linkable project, workflow, work item, and task filters.'}
+          </p>
+          {scopedProjectId ? (
+            <div className="mt-2 flex flex-wrap gap-2 text-sm">
               <Link
                 className="underline-offset-4 hover:underline"
-                to={`/work/boards/${selectedWorkflowId}`}
+                to={`/projects/${scopedProjectId}`}
               >
-                Open Workflow Board
+                Back to Project
               </Link>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+              {selectedWorkflowId ? (
+                <Link
+                  className="underline-offset-4 hover:underline"
+                  to={`/work/boards/${selectedWorkflowId}`}
+                >
+                  Open Workflow Board
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      )}
 
       <Card>
         <CardHeader>

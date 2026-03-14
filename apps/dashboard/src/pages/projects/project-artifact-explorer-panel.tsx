@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { ChevronDown } from 'lucide-react';
 
 import {
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
@@ -13,6 +14,7 @@ import {
 } from '../../lib/artifact-navigation.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
+import { cn } from '../../lib/utils.js';
 import {
   ProjectArtifactBulkActionBar,
   ProjectArtifactFilterCard,
@@ -56,6 +58,7 @@ export function ProjectArtifactExplorerPanel(props: {
   const [selectedArtifactId, setSelectedArtifactId] = useState(initialRouteState.artifactId);
   const [selectedArtifactIds, setSelectedArtifactIds] = useState<string[]>([]);
   const [isBulkDownloading, setIsBulkDownloading] = useState(false);
+  const [isFilterPanelOpen, setIsFilterPanelOpen] = useState(false);
 
   const artifactQuery = useQuery({
     queryKey: [
@@ -189,6 +192,10 @@ export function ProjectArtifactExplorerPanel(props: {
       }),
     [scopeChips.length, selectedArtifact?.fileName, selectedArtifactIds.length, totalArtifacts],
   );
+  const filterPanelSummary = useMemo(
+    () => buildArtifactFilterSummary(scopeChips, totalArtifacts),
+    [scopeChips, totalArtifacts],
+  );
   const previewDescriptor = selectedArtifact
     ? describeArtifactPreview(selectedArtifact.contentType, selectedArtifact.logicalPath)
     : null;
@@ -286,60 +293,68 @@ export function ProjectArtifactExplorerPanel(props: {
       summary={summary}
       loadError={artifactQuery.error}
       filterCard={
-        <ProjectArtifactFilterCard
-          loadedArtifactCount={artifacts.length}
-          totalArtifactCount={summary.totalArtifacts}
-          selectedArtifactCount={selectedArtifactIds.length}
-          previewableArtifactCount={summary.previewableArtifacts}
-          roleCount={summary.roleCount}
-          nextAction={nextAction}
-          scopeChips={scopeChips}
-          query={query}
-          selectedWorkflowId={selectedWorkflowId}
-          selectedStageName={selectedStageName}
-          selectedWorkItemId={selectedWorkItemId}
-          selectedTaskId={selectedTaskId}
-          selectedRole={selectedRole}
-          selectedContentType={selectedContentType}
-          previewMode={previewMode === 'all' ? '' : previewMode}
-          createdFrom={createdFrom}
-          createdTo={createdTo}
-          sort={sort}
-          workflows={workflows}
-          stageOptions={stageOptions}
-          workItems={workItems}
-          tasks={tasks}
-          roleOptions={roleOptions}
-          contentTypeOptions={contentTypeOptions}
-          onQueryChange={(value) => updateFilters(() => setQuery(value))}
-          onWorkflowChange={(value) => updateFilters(() => setSelectedWorkflowId(value))}
-          onStageChange={(value) => updateFilters(() => setSelectedStageName(value))}
-          onWorkItemChange={(value) => updateFilters(() => setSelectedWorkItemId(value))}
-          onTaskChange={(value) => updateFilters(() => setSelectedTaskId(value))}
-          onRoleChange={(value) => updateFilters(() => setSelectedRole(value))}
-          onContentTypeChange={(value) => updateFilters(() => setSelectedContentType(value))}
-          onPreviewModeChange={(value) =>
-            updateFilters(() => setPreviewMode((value || 'all') as ProjectArtifactPreviewMode))
-          }
-          onCreatedFromChange={(value) => updateFilters(() => setCreatedFrom(value))}
-          onCreatedToChange={(value) => updateFilters(() => setCreatedTo(value))}
-          onSortChange={(value) => updateFilters(() => setSort(value))}
-          onReset={() =>
-            updateFilters(() => {
-              setQuery('');
-              setSelectedWorkflowId('');
-              setSelectedWorkItemId('');
-              setSelectedTaskId('');
-              setSelectedStageName('');
-              setSelectedRole('');
-              setSelectedContentType('');
-              setPreviewMode('all');
-              setCreatedFrom('');
-              setCreatedTo('');
-              setSort('newest');
-            })
-          }
-        />
+        <ArtifactExplorerSection
+          title="Review scope"
+          summary={filterPanelSummary}
+          description="Start with the artifact list. Expand review scope only when you need to narrow or sort the result set."
+          isExpanded={isFilterPanelOpen}
+          onToggle={() => setIsFilterPanelOpen((current) => !current)}
+        >
+          <ProjectArtifactFilterCard
+            loadedArtifactCount={artifacts.length}
+            totalArtifactCount={summary.totalArtifacts}
+            selectedArtifactCount={selectedArtifactIds.length}
+            previewableArtifactCount={summary.previewableArtifacts}
+            roleCount={summary.roleCount}
+            nextAction={nextAction}
+            scopeChips={scopeChips}
+            query={query}
+            selectedWorkflowId={selectedWorkflowId}
+            selectedStageName={selectedStageName}
+            selectedWorkItemId={selectedWorkItemId}
+            selectedTaskId={selectedTaskId}
+            selectedRole={selectedRole}
+            selectedContentType={selectedContentType}
+            previewMode={previewMode === 'all' ? '' : previewMode}
+            createdFrom={createdFrom}
+            createdTo={createdTo}
+            sort={sort}
+            workflows={workflows}
+            stageOptions={stageOptions}
+            workItems={workItems}
+            tasks={tasks}
+            roleOptions={roleOptions}
+            contentTypeOptions={contentTypeOptions}
+            onQueryChange={(value) => updateFilters(() => setQuery(value))}
+            onWorkflowChange={(value) => updateFilters(() => setSelectedWorkflowId(value))}
+            onStageChange={(value) => updateFilters(() => setSelectedStageName(value))}
+            onWorkItemChange={(value) => updateFilters(() => setSelectedWorkItemId(value))}
+            onTaskChange={(value) => updateFilters(() => setSelectedTaskId(value))}
+            onRoleChange={(value) => updateFilters(() => setSelectedRole(value))}
+            onContentTypeChange={(value) => updateFilters(() => setSelectedContentType(value))}
+            onPreviewModeChange={(value) =>
+              updateFilters(() => setPreviewMode((value || 'all') as ProjectArtifactPreviewMode))
+            }
+            onCreatedFromChange={(value) => updateFilters(() => setCreatedFrom(value))}
+            onCreatedToChange={(value) => updateFilters(() => setCreatedTo(value))}
+            onSortChange={(value) => updateFilters(() => setSort(value))}
+            onReset={() =>
+              updateFilters(() => {
+                setQuery('');
+                setSelectedWorkflowId('');
+                setSelectedWorkItemId('');
+                setSelectedTaskId('');
+                setSelectedStageName('');
+                setSelectedRole('');
+                setSelectedContentType('');
+                setPreviewMode('all');
+                setCreatedFrom('');
+                setCreatedTo('');
+                setSort('newest');
+              })
+            }
+          />
+        </ArtifactExplorerSection>
       }
       bulkActionBar={
         <ProjectArtifactBulkActionBar
@@ -394,4 +409,52 @@ export function ProjectArtifactExplorerPanel(props: {
       }
     />
   );
+}
+
+function ArtifactExplorerSection(props: {
+  title: string;
+  summary: string;
+  description: string;
+  isExpanded: boolean;
+  onToggle(): void;
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <section className="rounded-2xl border border-border/70 bg-card/70 shadow-none">
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
+        aria-expanded={props.isExpanded}
+        onClick={props.onToggle}
+      >
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-foreground">{props.title}</p>
+          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
+            {props.summary}
+          </p>
+          <p className="text-sm leading-6 text-muted">{props.description}</p>
+        </div>
+        <ChevronDown
+          className={cn('mt-1 h-4 w-4 shrink-0 text-muted transition-transform', props.isExpanded && 'rotate-180')}
+        />
+      </button>
+      {props.isExpanded ? <div className="border-t border-border/70 p-1">{props.children}</div> : null}
+    </section>
+  );
+}
+
+function buildArtifactFilterSummary(
+  scopeChips: Array<{ label: string; value: string }>,
+  totalArtifacts: number,
+): string {
+  if (scopeChips.length === 0) {
+    return `${totalArtifacts} artifacts • Project-wide review scope`;
+  }
+
+  const visibleChips = scopeChips.slice(0, 3).map((chip) => `${chip.label}: ${chip.value}`);
+  const remainingCount = scopeChips.length - visibleChips.length;
+
+  return remainingCount > 0
+    ? `${visibleChips.join(' • ')} • +${remainingCount} more`
+    : visibleChips.join(' • ');
 }

@@ -111,6 +111,30 @@ describe('dashboard api auth/session behavior', () => {
     expect(approvalTaskBlock).toContain('state: DashboardTaskState;');
   });
 
+  it('exposes typed project settings posture in the dashboard api contract', () => {
+    const source = readApiSource();
+    const projectSettingsBlock = readExportBlock(source, 'DashboardProjectSettingsRecord');
+    const projectSettingsInputBlock = readExportBlock(source, 'DashboardProjectSettingsInput');
+    const projectSummaryBlock = readExportBlock(source, 'DashboardProjectListSummary');
+    const projectRecordBlock = readExportBlock(source, 'DashboardProjectRecord');
+    const patchProjectBlock = readExportBlock(source, 'DashboardProjectPatchInput');
+
+    expect(projectSettingsBlock).toContain('default_branch?: string | null;');
+    expect(projectSettingsBlock).toContain('git_user_name?: string | null;');
+    expect(projectSettingsBlock).toContain('git_user_email?: string | null;');
+    expect(projectSettingsBlock).toContain('credentials?: DashboardProjectCredentialPosture;');
+    expect(projectSettingsBlock).toContain('model_overrides?: Record<string, DashboardRoleModelOverride>;');
+    expect(projectSettingsBlock).toContain('project_brief?: string | null;');
+    expect(projectSettingsInputBlock).toContain('credentials?: DashboardProjectCredentialInput;');
+    expect(projectSettingsInputBlock).toContain('model_overrides?: Record<string, DashboardRoleModelOverride>;');
+    expect(projectSummaryBlock).toContain('active_workflow_count: number;');
+    expect(projectSummaryBlock).toContain('completed_workflow_count: number;');
+    expect(projectSummaryBlock).toContain('attention_workflow_count: number;');
+    expect(projectRecordBlock).toContain('settings?: DashboardProjectSettingsRecord;');
+    expect(projectRecordBlock).toContain('summary?: DashboardProjectListSummary;');
+    expect(patchProjectBlock).toContain('settings?: DashboardProjectSettingsInput;');
+  });
+
   it('refreshes token and retries request when access token is expired', async () => {
     writeSession({ accessToken: 'expired-token', tenantId: 'tenant-1' });
 
@@ -1357,7 +1381,18 @@ describe('dashboard api auth/session behavior', () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            data: [{ id: 'project-1', name: 'Alpha', slug: 'alpha' }],
+            data: [
+              {
+                id: 'project-1',
+                name: 'Alpha',
+                slug: 'alpha',
+                summary: {
+                  active_workflow_count: 1,
+                  completed_workflow_count: 3,
+                  attention_workflow_count: 2,
+                },
+              },
+            ],
             meta: { total: 1 },
           }),
           { status: 200 },
@@ -1394,6 +1429,11 @@ describe('dashboard api auth/session behavior', () => {
     });
 
     expect(projects.data[0].id).toBe('project-1');
+    expect(projects.data[0].summary).toEqual({
+      active_workflow_count: 1,
+      completed_workflow_count: 3,
+      attention_workflow_count: 2,
+    });
     expect((planning as { data?: { id?: string } }).data?.id).toBe('pipe-9');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
       'http://localhost:8080/api/v1/projects?per_page=50',
@@ -2259,7 +2299,9 @@ describe('dashboard api auth/session behavior', () => {
             data: {
               project_id: 'project-1',
               version: 4,
-              config: { repository: 'agisnap/agirunner-test-fixtures' },
+              spec: {
+                config: { repository: 'agisnap/agirunner-test-fixtures' },
+              },
             },
           }),
           { status: 200 },
@@ -2297,6 +2339,61 @@ describe('dashboard api auth/session behavior', () => {
         credentials: 'include',
       }),
     );
+  });
+
+  it('unwraps project spec envelopes when reading the dashboard api surface', async () => {
+    writeSession({ accessToken: 'spec-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({
+            data: {
+              project_id: 'project-1',
+              version: 5,
+              created_at: '2026-03-14T19:00:00.000Z',
+              spec: {
+                config: { repository: 'agisnap/agirunner-test-fixtures' },
+                instructions: { summary: 'Keep the checkout steady.' },
+              },
+            },
+          }),
+          { status: 200 },
+        ),
+      ) as unknown as typeof fetch;
+
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await expect(api.getProjectSpec('project-1')).resolves.toEqual({
+      project_id: 'project-1',
+      version: 5,
+      created_at: '2026-03-14T19:00:00.000Z',
+      created_by_id: undefined,
+      created_by_type: undefined,
+      config: { repository: 'agisnap/agirunner-test-fixtures' },
+      instructions: { summary: 'Keep the checkout steady.' },
+      resources: undefined,
+      documents: undefined,
+      tools: undefined,
+    });
   });
 });
 

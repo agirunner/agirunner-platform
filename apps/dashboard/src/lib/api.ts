@@ -115,6 +115,63 @@ export interface DashboardRoleModelOverride {
   reasoning_config?: Record<string, unknown> | null;
 }
 
+export interface DashboardProjectCredentialPosture {
+  git_token?: string | null;
+  git_token_configured?: boolean;
+  git_ssh_private_key?: string | null;
+  git_ssh_private_key_configured?: boolean;
+  git_ssh_known_hosts?: string | null;
+  git_ssh_known_hosts_configured?: boolean;
+  webhook_secret?: string | null;
+  webhook_secret_configured?: boolean;
+}
+
+export interface DashboardProjectCredentialInput {
+  git_token?: string | null;
+  git_token_configured?: boolean;
+  git_ssh_private_key?: string | null;
+  git_ssh_private_key_configured?: boolean;
+  git_ssh_known_hosts?: string | null;
+  git_ssh_known_hosts_configured?: boolean;
+  webhook_secret?: string | null;
+  webhook_secret_configured?: boolean;
+}
+
+export type DashboardProjectSettingsRecord = Record<string, unknown> & {
+  default_branch?: string | null;
+  git_user_name?: string | null;
+  git_user_email?: string | null;
+  credentials?: DashboardProjectCredentialPosture;
+  model_overrides?: Record<string, DashboardRoleModelOverride>;
+  project_brief?: string | null;
+};
+
+export type DashboardProjectSettingsInput = Record<string, unknown> & {
+  default_branch?: string | null;
+  git_user_name?: string | null;
+  git_user_email?: string | null;
+  credentials?: DashboardProjectCredentialInput;
+  model_overrides?: Record<string, DashboardRoleModelOverride>;
+  project_brief?: string | null;
+};
+
+export interface DashboardProjectCreateInput {
+  name: string;
+  slug: string;
+  description?: string;
+  repository_url?: string;
+  settings?: DashboardProjectSettingsInput;
+}
+
+export interface DashboardProjectPatchInput {
+  name?: string;
+  slug?: string;
+  description?: string;
+  repository_url?: string;
+  settings?: DashboardProjectSettingsInput;
+  is_active?: boolean;
+}
+
 export interface DashboardWorkflowBudgetInput {
   token_budget?: number;
   cost_cap_usd?: number;
@@ -603,6 +660,14 @@ export interface DashboardProjectTimelineEntry {
   workflow_relations?: DashboardWorkflowRelations;
 }
 
+export interface DashboardProjectListSummary {
+  active_workflow_count: number;
+  completed_workflow_count: number;
+  attention_workflow_count: number;
+  total_workflow_count: number;
+  last_workflow_activity_at: string | null;
+}
+
 export interface DashboardProjectRecord {
   id: string;
   name: string;
@@ -611,11 +676,29 @@ export interface DashboardProjectRecord {
   repository_url?: string | null;
   is_active?: boolean;
   memory?: Record<string, unknown>;
-  settings?: Record<string, unknown>;
+  settings?: DashboardProjectSettingsRecord;
+  summary?: DashboardProjectListSummary;
   git_webhook_provider?: string | null;
   git_webhook_secret_configured?: boolean;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface DashboardProjectCreateInput {
+  name: string;
+  slug: string;
+  description?: string;
+  repository_url?: string;
+  settings?: DashboardProjectSettingsInput;
+}
+
+export interface DashboardProjectPatchInput {
+  name?: string;
+  slug?: string;
+  description?: string;
+  repository_url?: string;
+  settings?: DashboardProjectSettingsInput;
+  is_active?: boolean;
 }
 
 export interface DashboardProjectSpecRecord {
@@ -627,12 +710,47 @@ export interface DashboardProjectSpecRecord {
   config?: Record<string, unknown>;
   instructions?: Record<string, unknown>;
   updated_at?: string;
+  created_at?: string | null;
+  created_by_type?: string | null;
+  created_by_id?: string | null;
+}
+
+interface DashboardProjectSpecEnvelope {
+  project_id: string;
+  version?: number;
+  spec?: {
+    resources?: Record<string, unknown>;
+    documents?: Record<string, unknown>;
+    tools?: Record<string, unknown>;
+    config?: Record<string, unknown>;
+    instructions?: Record<string, unknown>;
+  };
+  created_at?: string | null;
+  created_by_type?: string | null;
+  created_by_id?: string | null;
 }
 
 export interface DashboardTaskWorkflowRef {
   id: string;
   name?: string | null;
   project_id?: string | null;
+}
+
+function normalizeProjectSpecRecord(
+  envelope: DashboardProjectSpecEnvelope,
+): DashboardProjectSpecRecord {
+  return {
+    project_id: envelope.project_id,
+    version: envelope.version,
+    config: envelope.spec?.config,
+    instructions: envelope.spec?.instructions,
+    resources: envelope.spec?.resources,
+    documents: envelope.spec?.documents,
+    tools: envelope.spec?.tools,
+    created_at: envelope.created_at,
+    created_by_type: envelope.created_by_type,
+    created_by_id: envelope.created_by_id,
+  };
 }
 
 export interface DashboardTaskRecord extends Task {
@@ -1307,24 +1425,8 @@ export interface DashboardApi {
     filters?: Record<string, string>,
   ): Promise<{ data: DashboardWorkflowRecord[]; meta?: Record<string, unknown> }>;
   listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
-  createProject(payload: {
-    name: string;
-    slug: string;
-    description?: string;
-    repository_url?: string;
-    settings?: Record<string, unknown>;
-  }): Promise<DashboardProjectRecord>;
-  patchProject(
-    projectId: string,
-    payload: {
-      name?: string;
-      slug?: string;
-      description?: string;
-      repository_url?: string;
-      settings?: Record<string, unknown>;
-      is_active?: boolean;
-    },
-  ): Promise<DashboardProjectRecord>;
+  createProject(payload: DashboardProjectCreateInput): Promise<DashboardProjectRecord>;
+  patchProject(projectId: string, payload: DashboardProjectPatchInput): Promise<DashboardProjectRecord>;
   getProject(projectId: string): Promise<DashboardProjectRecord>;
   getProjectModelOverrides(projectId: string): Promise<DashboardProjectModelOverridesResponse>;
   getResolvedProjectModels(
@@ -1976,7 +2078,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     createProject: (payload) =>
       withRefresh(() =>
         requestData<DashboardProjectRecord>('/api/v1/projects', {
-          body: payload as Record<string, unknown>,
+          body: payload as unknown as Record<string, unknown>,
         }),
       ),
     patchProject: (projectId, payload) =>
@@ -2044,17 +2146,21 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         ),
       ),
     getProjectSpec: (projectId) =>
-      withRefresh(() =>
-        requestData<DashboardProjectSpecRecord>(`/api/v1/projects/${projectId}/spec`, {
-          method: 'GET',
-        }),
+      withRefresh(async () =>
+        normalizeProjectSpecRecord(
+          await requestData<DashboardProjectSpecEnvelope>(`/api/v1/projects/${projectId}/spec`, {
+            method: 'GET',
+          }),
+        ),
       ),
     updateProjectSpec: (projectId, payload) =>
-      withRefresh(() =>
-        requestData<DashboardProjectSpecRecord>(`/api/v1/projects/${projectId}/spec`, {
-          method: 'PUT',
-          body: payload,
-        }),
+      withRefresh(async () =>
+        normalizeProjectSpecRecord(
+          await requestData<DashboardProjectSpecEnvelope>(`/api/v1/projects/${projectId}/spec`, {
+            method: 'PUT',
+            body: payload,
+          }),
+        ),
       ),
     listProjectResources: (projectId) =>
       withRefresh(() =>

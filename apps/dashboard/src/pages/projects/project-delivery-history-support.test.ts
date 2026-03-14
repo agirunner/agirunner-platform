@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import {
-  buildProjectDeliveryOverview,
+  buildProjectDeliveryAttentionOverview,
+  buildProjectDeliveryAttentionState,
   buildProjectDeliveryPacket,
 } from './project-delivery-history-support.js';
 
@@ -10,7 +11,7 @@ describe('project delivery history support', () => {
     vi.useRealTimers();
   });
 
-  it('builds operator packets with stage, gate, artifact, and spend posture', () => {
+  it('builds operator packets with compact delivery signals instead of the old metric grid', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-03-12T21:00:00Z'));
 
@@ -20,10 +21,7 @@ describe('project delivery history support', () => {
       state: 'active',
       created_at: '2026-03-12T20:30:00Z',
       duration_seconds: 1800,
-      stage_progression: [
-        { status: 'completed' },
-        { status: 'running' },
-      ],
+      stage_progression: [{ status: 'completed' }, { status: 'running' }],
       stage_metrics: [
         { work_item_counts: { total: 5, open: 2 }, gate_status: 'awaiting_approval' },
       ],
@@ -58,24 +56,21 @@ describe('project delivery history support', () => {
       createdLabel: '30m ago',
       createdTitle: new Date('2026-03-12T20:30:00Z').toLocaleString(),
       durationLabel: '30m 0s',
-      summary:
-        'This run is still active. Check stage progress, gate pressure, and recent spend before intervening.',
-      metrics: [
-        { label: 'Stages', value: '1/2' },
-        { label: 'Work items', value: '3/5 closed' },
-        { label: 'Waiting gates', value: '1' },
-        { label: 'Activations', value: '4' },
-        { label: 'Reworked steps', value: '1' },
-        { label: 'Stale recoveries', value: '2' },
-        { label: 'Artifacts', value: '2' },
-        { label: 'Child workflows', value: '1/2 complete' },
-        { label: 'Reported spend', value: '$5.25' },
+      signals: [
+        '1 gate waiting',
+        '2 open work items',
+        '1/2 stages done',
+        '4 activations',
+        '1 reworked step',
       ],
     });
   });
 
-  it('builds delivery overview packets for the project history surface', () => {
-    const overview = buildProjectDeliveryOverview([
+  it('builds delivery overview packets around operator questions and the next inspection target', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-12T21:00:00Z'));
+
+    const overview = buildProjectDeliveryAttentionOverview([
       {
         workflow_id: 'workflow-1',
         name: 'Run 1',
@@ -92,17 +87,56 @@ describe('project delivery history support', () => {
         stage_metrics: [],
         orchestrator_analytics: { total_cost_usd: 1.25 },
       },
-    ]);
+    ] as never);
 
     expect(overview).toEqual({
-      metrics: [
-        { label: 'Runs', value: '2' },
-        { label: 'Active', value: '1' },
-        { label: 'Failed', value: '1' },
-        { label: 'Waiting gates', value: '1' },
-        { label: 'Reported spend', value: '$3.75' },
+      summary: 'Run 1 ran most recently. Run 2 is the next inspection target because it failed.',
+      nextActionHref: '/work/boards/workflow-2/inspector',
+      packets: [
+        { label: 'What ran', value: 'Run 1', detail: 'Active, started 30m ago.' },
+        { label: 'What failed', value: 'Run 2', detail: '1 failed run needs review.' },
+        {
+          label: 'Needs attention',
+          value: 'Run 2 + 1 more',
+          detail: '2 runs still need operator follow-up.',
+        },
+        {
+          label: 'Inspect next',
+          value: 'Run 2',
+          detail: 'Failed runs take priority over active work.',
+        },
       ],
-      summary: '1 run still needs operator monitoring.',
+    });
+  });
+
+  it('builds attention guidance that keeps failed and paused runs action-forward', () => {
+    const failedState = buildProjectDeliveryAttentionState({
+      workflow_id: 'workflow-2',
+      name: 'Run 2',
+      state: 'failed',
+      created_at: '2026-03-12T19:30:00Z',
+      stage_metrics: [],
+    } as never);
+    const pausedState = buildProjectDeliveryAttentionState({
+      workflow_id: 'workflow-3',
+      name: 'Run 3',
+      state: 'paused',
+      created_at: '2026-03-12T18:30:00Z',
+      stage_metrics: [],
+      link: '/work/boards/workflow-3',
+    } as never);
+
+    expect(failedState).toEqual({
+      statusLabel: 'Failed',
+      attentionLabel: 'Needs immediate review',
+      nextAction: 'Start with inspector: confirm the failing activation and affected work items.',
+      primaryActionHref: '/work/boards/workflow-2/inspector',
+    });
+    expect(pausedState).toEqual({
+      statusLabel: 'Paused',
+      attentionLabel: 'Review blocked progress',
+      nextAction: 'Open board: resolve the blocked gate or work item before resuming.',
+      primaryActionHref: '/work/boards/workflow-3',
     });
   });
 });

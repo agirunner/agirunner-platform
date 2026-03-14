@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   normalizeProjectSettings,
+  readProjectSettingsExtras,
   readProjectRepositorySettings,
   validateProjectSettingsShape,
 } from '../../src/services/project-settings.js';
@@ -57,6 +58,42 @@ describe('project settings', () => {
       gitSshPrivateKeyRef: 'secret:GIT_SSH',
       gitSshKnownHosts: 'github.com ssh-ed25519 AAAA',
       webhookSecretRef: null,
+    });
+  });
+
+  it('separates typed project settings from extra config payloads', () => {
+    expect(
+      readProjectSettingsExtras({
+        default_branch: 'main',
+        git_user_name: 'Smoke Bot',
+        project_brief: 'Ship it',
+        model_override: {
+          model_id: '00000000-0000-0000-0000-000000000021',
+        },
+        model_overrides: {
+          developer: {
+            provider: 'openai',
+            model: 'gpt-5',
+          },
+        },
+        config: {
+          runtime: {
+            timeout: 45,
+          },
+        },
+        delivery: {
+          board: 'default',
+        },
+      }),
+    ).toEqual({
+      config: {
+        runtime: {
+          timeout: 45,
+        },
+      },
+      delivery: {
+        board: 'default',
+      },
     });
   });
 

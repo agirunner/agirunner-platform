@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import { dashboardApi, type DashboardProjectRecord } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
@@ -29,7 +30,25 @@ const INITIAL_FORM: ProjectFormData = {
   repository_url: '',
 };
 
-export function CreateProjectDialog(): JSX.Element {
+export function formatProjectDialogError(error: unknown): string {
+  const message = String(error ?? '').trim();
+  const normalizedMessage = message.toLowerCase();
+  if (
+    normalizedMessage.includes('http 409')
+    || normalizedMessage.includes('project slug already exists')
+    || normalizedMessage.includes('slug already exists')
+  ) {
+    return 'That project slug already exists. Choose a different slug.';
+  }
+
+  return message;
+}
+
+export function CreateProjectDialog(props?: {
+  buttonLabel?: string;
+  buttonClassName?: string;
+}): JSX.Element {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [form, setForm] = useState<ProjectFormData>(INITIAL_FORM);
@@ -42,28 +61,33 @@ export function CreateProjectDialog(): JSX.Element {
         description: form.description || undefined,
         repository_url: form.repository_url || undefined,
       }),
-    onSuccess: () => {
+    onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
       setForm(INITIAL_FORM);
       setIsOpen(false);
+      toast.success('Project created. Continue setup in project settings.');
+      navigate(`/projects/${created.id}?tab=settings`);
     },
   });
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Button className="gap-2">
+        <Button className={props?.buttonClassName ? `gap-2 ${props.buttonClassName}` : 'gap-2'}>
           <Plus className="h-4 w-4" />
-          Create Project
+          {props?.buttonLabel ?? 'Create Project'}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[calc(100vh-4rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create Project</DialogTitle>
         </DialogHeader>
+        <p className="text-sm leading-6 text-muted">
+          Create the workspace here, then hand the main setup flow to the project detail tabs.
+        </p>
         <ProjectEditorForm
           form={form}
-          error={mutation.error ? String(mutation.error) : null}
+          error={mutation.error ? formatProjectDialogError(mutation.error) : null}
           submitLabel="Create project"
           isPending={mutation.isPending}
           onCancel={() => setIsOpen(false)}
@@ -156,7 +180,7 @@ export function EditProjectDialog(props: {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
       props.onClose();
-      toast.success('Project updated');
+      toast.success('Project identity updated. Continue setup in the project workspace.');
     },
     onError: () => {
       toast.error('Failed to update project');
@@ -167,12 +191,12 @@ export function EditProjectDialog(props: {
     <Dialog open onOpenChange={(open) => !open && props.onClose()}>
       <DialogContent className="max-h-[calc(100vh-4rem)] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Project</DialogTitle>
+          <DialogTitle>Edit basics</DialogTitle>
         </DialogHeader>
         <ProjectEditorForm
           form={form}
-          error={mutation.error ? String(mutation.error) : null}
-          submitLabel="Save project"
+          error={mutation.error ? formatProjectDialogError(mutation.error) : null}
+          submitLabel="Save basics"
           isPending={mutation.isPending}
           onCancel={props.onClose}
           onNameChange={(value) => setForm((previous) => ({ ...previous, name: value }))}

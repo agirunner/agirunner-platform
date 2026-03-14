@@ -22,7 +22,7 @@ describe('project detail workspace shell source', () => {
     expect(deliverySource).toContain('Needs attention');
     expect(deliverySource).toContain('Inspect next');
     expect(deliverySource).toContain('Failed to load delivery history.');
-    expect(deliverySource).toContain('No delivery history for this project yet.');
+    expect(deliverySource).toContain('No delivery history yet');
     expect(deliverySource).toContain('Open board');
     expect(deliverySource).toContain('Open inspector');
   });
@@ -37,8 +37,8 @@ describe('project detail workspace shell source', () => {
     expect(supportSource).toContain("value: 'automation'");
     expect(source).toContain('<ProjectAutomationTab project={project} />');
     expect(automationSource).toContain('<ScheduledTriggersCard project={project} />');
-    expect(automationSource).toContain('Automation control center');
     expect(automationSource).toContain('buildProjectAutomationOverview');
+    expect(automationSource).toContain('Repository signatures are optional until this project uses source-driven automation.');
     expect(automationSource).toContain('Active now');
     expect(automationSource).toContain('Broken');
     expect(automationSource).toContain('Setup needed');
@@ -62,6 +62,7 @@ describe('project detail workspace shell source', () => {
 
   it('rebuilds the top-level taxonomy around overview, settings, knowledge, automation, and delivery', () => {
     const source = readSource('./project-detail-page.tsx');
+    const shellSource = readSource('./project-detail-shell.tsx');
     const supportSource = readSource('./project-detail-support.ts');
     expect(source).toContain("normalizeProjectDetailTab(searchParams.get('tab'))");
     expect(supportSource).toContain("value: 'overview'");
@@ -69,11 +70,11 @@ describe('project detail workspace shell source', () => {
     expect(supportSource).toContain("value: 'knowledge'");
     expect(supportSource).toContain("value: 'automation'");
     expect(supportSource).toContain("value: 'delivery'");
-    expect(source).toContain('<TabsContent value="overview">');
-    expect(source).toContain('<TabsContent value="settings">');
-    expect(source).toContain('<TabsContent value="knowledge">');
-    expect(source).toContain('<TabsContent value="automation">');
-    expect(source).toContain('<TabsContent value="delivery">');
+    expect(shellSource).toContain('<TabsContent value="overview">');
+    expect(shellSource).toContain('<TabsContent value="settings">');
+    expect(shellSource).toContain('<TabsContent value="knowledge">');
+    expect(shellSource).toContain('<TabsContent value="automation">');
+    expect(shellSource).toContain('<TabsContent value="delivery">');
     expect(source).not.toContain('<TabsContent value="spec">');
     expect(source).not.toContain('<TabsContent value="resources">');
     expect(source).not.toContain('<TabsContent value="tools">');
@@ -86,8 +87,6 @@ describe('project detail workspace shell source', () => {
     const source = readSource('./project-detail-page.tsx');
     const supportSource = readSource('./project-detail-support.ts');
     const settingsShellSource = readSource('./project-settings-shell.tsx');
-    const settingsTabSource = readSource('./project-settings-tab.tsx');
-    const modelsSource = readSource('./project-model-overrides-tab.tsx');
     expect(source).toContain('<ProjectSettingsShell');
     expect(source).toContain('buildProjectSettingsOverview(project)');
     expect(source).toContain('<ProjectSettingsTab project={project} />');
@@ -95,11 +94,6 @@ describe('project detail workspace shell source', () => {
     expect(settingsShellSource).toContain('props.overview.summary');
     expect(settingsShellSource).not.toContain('WorkspaceMetricCard');
     expect(settingsShellSource).not.toContain('props.overview.packets.map');
-    expect(settingsTabSource).toContain('Credentials posture');
-    expect(settingsTabSource).toContain('Planning brief');
-    expect(settingsTabSource).toContain('Lifecycle');
-    expect(modelsSource).toContain('Project Model Overrides');
-    expect(modelsSource).not.toContain('Project model overrides must be valid JSON');
     expect(supportSource).toContain('Stored settings');
     expect(supportSource).toContain('Repository trust');
   });
@@ -110,10 +104,10 @@ describe('project detail workspace shell source', () => {
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     const structuredEditorSource = readSource('./project-structured-entry-editor.tsx');
     expect(source).toContain('<ProjectKnowledgeShell');
-    expect(source).toContain('workspaceContent={<ProjectSpecTab projectId={project.id} />}');
+    expect(source).toContain('referenceContent={<ProjectSpecTab projectId={project.id} />}');
     expect(source).not.toContain('resourcesContent={<ProjectResourcesTab');
     expect(source).not.toContain('toolsContent={<ProjectToolsTab');
-    expect(knowledgeSource).toContain("value: 'workspace'");
+    expect(knowledgeSource).toContain("value: 'reference'");
     expect(specSource).toContain(
       "import { StructuredEntryEditor } from './project-structured-entry-editor.js';",
     );
@@ -146,44 +140,71 @@ describe('project detail workspace shell source', () => {
     const source = readSource('./project-detail-page.tsx');
     const memorySource = readSource('./project-detail-memory-tab.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
+    const contentSource = readSource('./content-browser-page.tsx');
     expect(source).toContain('<ProjectDetailMemoryTab projectId={project.id} />');
-    expect(source).toContain('<ProjectArtifactExplorerPanel projectId={project.id} />');
-    expect(knowledgeSource).toContain('Open documents');
+    expect(source).toContain(
+      '<ContentBrowserSurface scopedProjectId={project.id} preferredTab="documents" showHeader={false} />',
+    );
+    expect(source).not.toContain('<ProjectArtifactExplorerPanel projectId={project.id} />');
+    expect(knowledgeSource).not.toContain('Open documents');
     expect(knowledgeSource).not.toContain('Open memory explorer');
     expect(knowledgeSource).not.toContain('Open artifact explorer');
+    expect(knowledgeSource).toContain("label: 'Run content'");
     expect(knowledgeSource).toContain("value: 'memory'");
-    expect(knowledgeSource).toContain("value: 'artifacts'");
+    expect(knowledgeSource).toContain("value: 'runContent'");
     expect(memorySource).toContain('ProjectMemoryTable');
     expect(memorySource).toContain('MemoryEditor');
     expect(memorySource).toContain('Choose a different key.');
     expect(memorySource).not.toContain('<select');
+    expect(contentSource).toContain('Document Operator Controls');
+    expect(contentSource).toContain('Artifact Operator Controls');
   });
 
-  it('replaces the old artifacts tab with overview and knowledge shell actions', () => {
+  it('replaces the old artifacts tab with overview and run-content actions inside knowledge', () => {
     const source = readSource('./project-detail-page.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     const overviewSource = readSource('./project-overview-shell.tsx');
     expect(source).toContain('<ProjectOverviewShell');
-    expect(knowledgeSource).toContain('Open documents');
-    expect(overviewSource).toContain('Open artifact explorer');
-    expect(source).toContain('<ProjectArtifactExplorerPanel projectId={project.id} />');
+    expect(knowledgeSource).toContain("label: 'Run content'");
+    expect(overviewSource).toContain('Artifact explorer');
+    expect(source).toContain(
+      '<ContentBrowserSurface scopedProjectId={project.id} preferredTab="documents" showHeader={false} />',
+    );
+  });
+
+  it('trims knowledge quick actions so mobile headers stop competing with the embedded management surfaces', () => {
+    const source = readSource('./project-detail-page.tsx');
+
+    expect(source).toContain('const baseHeaderState = buildProjectDetailHeaderState(project, activeTab);');
+    expect(source).toContain("activeTab === 'knowledge'");
+    expect(source).toContain('quickActions: []');
   });
 
   it('adds overview, settings, and knowledge shell components to reorganize the workspace', () => {
     const source = readSource('./project-detail-page.tsx');
+    const shellSource = readSource('./project-detail-shell.tsx');
     const supportSource = readSource('./project-detail-support.ts');
+    expect(source).toContain("import { ProjectDetailShell } from './project-detail-shell.js';");
+    expect(source).toContain('<ProjectDetailShell');
     expect(source).toContain("import { ProjectSpecTab } from './project-spec-tab.js';");
     expect(source).toContain("import { ProjectSettingsTab } from './project-settings-tab.js';");
     expect(source).toContain("import { ProjectAutomationTab } from './project-automation-tab.js';");
+    expect(source).toContain('buildProjectDetailHeaderState(project, activeTab)');
     expect(source).toContain('buildProjectWorkspaceOverview(project, projectSpecQuery.data)');
     expect(source).toContain('buildProjectKnowledgeOverview(project, projectSpecQuery.data)');
     expect(source).toContain('buildProjectSettingsOverview(project)');
-    expect(source).toContain('Open knowledge base');
+    expect(source).not.toContain("headerState.mode === 'expanded'");
+    expect(source).not.toContain('headerState.activeTab.label');
+    expect(source).not.toContain('headerState.quickActions.map((action)');
+    expect(source).not.toContain('<TabsContent value="overview">');
+    expect(shellSource).toContain("headerState.mode === 'expanded'");
+    expect(shellSource).toContain('headerState.activeTab.label');
+    expect(shellSource).toContain('headerState.quickActions.map((action)');
     expect(supportSource).toContain('Knowledge base');
     expect(source).not.toContain('ProjectWorkspaceTabIcon');
     expect(source).not.toContain('activeTabOption.description');
     expect(source).not.toContain('Open memory workspace');
     expect(source).not.toContain('Open artifact workspace');
-    expect(source).toContain('sm:hidden');
+    expect(shellSource).toContain('sm:hidden');
   });
 });

@@ -129,6 +129,27 @@ describe('ProjectArtifactExplorerService', () => {
       preview_eligible: true,
       preview_mode: 'text',
     }]);
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("COALESCE(NULLIF(BTRIM(w.name), ''), fa.workflow_id::text, 'Unscoped workflow')"),
+      expect.any(Array),
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("COALESCE(NULLIF(BTRIM(t.title), ''), t.id::text) AS task_title"),
+      expect.any(Array),
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("NULLIF(BTRIM(w.state::text), '') AS workflow_state"),
+      expect.any(Array),
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("COALESCE(NULLIF(BTRIM(t.state::text), ''), 'unknown') AS task_state"),
+      expect.any(Array),
+    );
   });
 
   it('rejects inverted created date bounds', async () => {
@@ -142,5 +163,48 @@ describe('ProjectArtifactExplorerService', () => {
         per_page: 20,
       }),
     ).rejects.toThrow('created_from must be on or before created_to');
+  });
+
+  it('does not send an unused preview byte parameter when preview filtering is inactive', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            total_artifacts: 0,
+            previewable_artifacts: 0,
+            total_bytes: 0,
+            workflow_count: 0,
+            work_item_count: 0,
+            task_count: 0,
+            role_count: 0,
+            workflows: [],
+            work_items: [],
+            tasks: [],
+            stages: [],
+            roles: [],
+            content_types: [],
+          }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 0,
+          rows: [],
+        }),
+    };
+
+    const service = new ProjectArtifactExplorerService(pool as never, 1024 * 1024);
+
+    await service.listProjectArtifacts('tenant-1', 'project-1', {
+      sort: 'newest',
+      page: 1,
+      per_page: 50,
+    });
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      2,
+      expect.any(String),
+      ['tenant-1', 'project-1', 50, 0],
+    );
   });
 });

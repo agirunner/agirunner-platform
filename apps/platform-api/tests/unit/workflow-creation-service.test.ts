@@ -3,7 +3,8 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowCreationService } from '../../src/services/workflow-creation-service.js';
 
 describe('WorkflowCreationService', () => {
-  it('persists resolved model override config layers when creating a workflow', async () => {
+  it('keeps typed project settings out of workflow config layers when creating a workflow', async () => {
+    const validateModelOverride = vi.fn(async () => undefined);
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -35,9 +36,19 @@ describe('WorkflowCreationService', () => {
             rowCount: 1,
             rows: [{
               settings: {
-                model_override: {
-                  model_id: '00000000-0000-0000-0000-000000000021',
-                  reasoning_config: { effort: 'medium' },
+                default_branch: 'main',
+                git_user_name: 'Smoke Bot',
+                project_brief: 'Ship tested code',
+                model_overrides: {
+                  developer: {
+                    provider: 'openai',
+                    model: 'gpt-5',
+                  },
+                },
+                config: {
+                  runtime: {
+                    timeout: 45,
+                  },
                 },
               },
             }],
@@ -45,7 +56,7 @@ describe('WorkflowCreationService', () => {
         }
         if (sql.includes('INSERT INTO workflows')) {
           expect(params?.[9]).toEqual({
-            runtime: { timeout: 30 },
+            runtime: { timeout: 45 },
             model_override: {
               model_id: '00000000-0000-0000-0000-000000000022',
               reasoning_config: { effort: 'high' },
@@ -54,9 +65,8 @@ describe('WorkflowCreationService', () => {
           expect(params?.[10]).toEqual({
             playbook: { runtime: { timeout: 30 } },
             project: {
-              model_override: {
-                model_id: '00000000-0000-0000-0000-000000000021',
-                reasoning_config: { effort: 'medium' },
+              runtime: {
+                timeout: 45,
               },
             },
             run: {
@@ -98,7 +108,7 @@ describe('WorkflowCreationService', () => {
         createStages: vi.fn(async () => []),
       } as never,
       modelCatalogService: {
-        validateModelOverride: vi.fn(async () => undefined),
+        validateModelOverride,
       } as never,
     });
 
@@ -130,6 +140,15 @@ describe('WorkflowCreationService', () => {
     );
 
     expect(result.id).toBe('workflow-1');
+    expect(validateModelOverride).toHaveBeenCalledTimes(1);
+    expect(validateModelOverride).toHaveBeenCalledWith(
+      'tenant-1',
+      {
+        model_id: '00000000-0000-0000-0000-000000000022',
+        reasoning_config: { effort: 'high' },
+      },
+      'workflow model_override',
+    );
   });
 
   it('omits workflow-global current_stage from continuous workflow reads', async () => {

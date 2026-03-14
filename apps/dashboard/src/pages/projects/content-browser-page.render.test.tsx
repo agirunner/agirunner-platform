@@ -96,7 +96,7 @@ describe('content browser page rendering', () => {
     );
     consoleError.mockRestore();
 
-    expect(markup).toContain('Content Browser');
+    expect(markup).toContain('Project Documents');
     expect(markup).toContain('workflow-1');
     expect(markup).toContain('brief');
     expect(markup).not.toContain('[object Object]');

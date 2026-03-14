@@ -7,49 +7,37 @@ import type {
 
 export const PROJECT_DETAIL_TAB_OPTIONS = [
   {
-    value: 'spec',
-    label: 'Spec',
+    value: 'overview',
+    label: 'Overview',
     description:
-      'Edit project config, instructions, resources, documents, and tools as structured entries.',
+      'Start with project posture, knowledge depth, automation readiness, and delivery access.',
   },
   {
-    value: 'resources',
-    label: 'Resources',
-    description: 'Review project-scoped resources and metadata with a phone-safe layout.',
+    value: 'settings',
+    label: 'Settings',
+    description:
+      'Adjust project-specific control plane settings, especially model override posture.',
   },
   {
-    value: 'tools',
-    label: 'Tools',
-    description: 'Check which tools are available or blocked for this project.',
-  },
-  {
-    value: 'timeline',
-    label: 'Delivery',
-    description: 'Inspect project run history, board posture, and operator drill-ins.',
-  },
-  {
-    value: 'memory',
-    label: 'Memory',
-    description: 'Manage shared project memory with typed entries and responsive review.',
-  },
-  {
-    value: 'artifacts',
-    label: 'Artifacts',
-    description: 'Browse project-scoped artifacts without leaving the workspace.',
-  },
-  {
-    value: 'models',
-    label: 'Models',
-    description: 'Set project model overrides and verify the resolved effective models.',
+    value: 'knowledge',
+    label: 'Knowledge',
+    description:
+      'Group structured spec, resources, tool policy, memory, and artifacts in one surface.',
   },
   {
     value: 'automation',
     label: 'Automation',
-    description: 'Manage schedules, inbound webhooks, and repository signature posture.',
+    description: 'Use one control center for schedules, inbound hooks, and repository signatures.',
+  },
+  {
+    value: 'delivery',
+    label: 'Delivery',
+    description: 'Answer what ran, what failed, what needs attention, and what to inspect next.',
   },
 ] as const;
 
 export type ProjectDetailTabValue = (typeof PROJECT_DETAIL_TAB_OPTIONS)[number]['value'];
+export type ProjectDetailTabOption = (typeof PROJECT_DETAIL_TAB_OPTIONS)[number];
 
 export interface ProjectWorkspaceOverviewPacket {
   label: string;
@@ -65,6 +53,21 @@ export interface ProjectWorkspaceOverview {
 export interface ProjectModelOverview {
   summary: string;
   packets: ProjectWorkspaceOverviewPacket[];
+}
+
+export interface ProjectDetailHeaderAction {
+  label: string;
+  href: string;
+  variant: 'secondary' | 'outline' | 'ghost';
+}
+
+export interface ProjectDetailHeaderState {
+  mode: 'expanded' | 'compact';
+  title: string;
+  description: string;
+  activeTab: ProjectDetailTabOption;
+  contextPills: string[];
+  quickActions: ProjectDetailHeaderAction[];
 }
 
 export type StructuredValueType = 'string' | 'number' | 'boolean' | 'json';
@@ -90,7 +93,7 @@ export function normalizeProjectDetailTab(value: string | null | undefined): Pro
   const normalized = value?.trim() ?? '';
   return PROJECT_DETAIL_TAB_OPTIONS.some((option) => option.value === normalized)
     ? (normalized as ProjectDetailTabValue)
-    : 'spec';
+    : 'overview';
 }
 
 export function buildProjectWorkspaceOverview(
@@ -100,18 +103,20 @@ export function buildProjectWorkspaceOverview(
   const memoryCount = countObjectEntries(project.memory);
   const configCount = countObjectEntries(spec?.config);
   const instructionCount = countObjectEntries(spec?.instructions);
-  const linkedAssetCount =
-    countObjectEntries(spec?.resources) +
-    countObjectEntries(spec?.documents) +
-    countObjectEntries(spec?.tools);
+  const resourceCount = countObjectEntries(spec?.resources);
+  const documentCount = countObjectEntries(spec?.documents);
+  const toolCount = countObjectEntries(spec?.tools);
+  const knowledgeCount =
+    configCount + instructionCount + resourceCount + documentCount + toolCount + memoryCount;
   const updatedLabel = formatProjectDateTime(project.updated_at ?? spec?.updated_at);
+  const deliveryOverview = buildProjectDeliveryOverview(project);
 
   return {
     summary:
-      'Keep project spec, live context, artifacts, delivery history, models, and automation reachable from one workspace instead of bouncing between secondary screens.',
+      'Use this snapshot to confirm lifecycle, knowledge coverage, automation setup, and delivery activity before switching workspaces.',
     packets: [
       {
-        label: 'Project status',
+        label: 'Lifecycle',
         value: project.is_active ? 'Active' : 'Inactive',
         detail:
           updatedLabel === '-'
@@ -119,29 +124,162 @@ export function buildProjectWorkspaceOverview(
             : `Last updated ${updatedLabel}.`,
       },
       {
+        label: 'Knowledge base',
+        value: `${knowledgeCount} entries`,
+        detail: `${configCount} config • ${instructionCount} instructions • ${resourceCount + documentCount + toolCount} knowledge assets • ${memoryCount} memory`,
+      },
+      {
+        label: 'Automation',
+        value: project.git_webhook_provider ? 'Verified repo' : 'Needs setup',
+        detail: project.git_webhook_provider
+          ? `${project.git_webhook_provider} signatures are ready for inbound automation.`
+          : 'Set repository trust before operators depend on inbound automation.',
+      },
+      {
+        label: 'Repository',
+        value: project.repository_url ? 'Linked' : 'Unlinked',
+        detail: project.repository_url
+          ? 'A repository URL is already attached to this project.'
+          : 'Add a repository URL if delivery and automation should map back to source control.',
+      },
+      {
+        label: 'Delivery',
+        value: deliveryOverview.value,
+        detail: deliveryOverview.detail,
+      },
+    ],
+  };
+}
+
+export function buildProjectDetailHeaderState(
+  project: DashboardProjectRecord,
+  activeTab: ProjectDetailTabValue,
+): ProjectDetailHeaderState {
+  const activeTabOption = getProjectDetailTabOption(activeTab);
+  if (activeTab === 'overview') {
+    return {
+      mode: 'expanded',
+      title: project.name,
+      description:
+        normalizeProjectDescription(project.description)
+        ?? 'Use this workspace to move between settings, knowledge, automation, and delivery without losing context.',
+      activeTab: activeTabOption,
+      contextPills: [],
+      quickActions: [
+        {
+          label: 'Settings',
+          href: `/projects/${project.id}?tab=settings`,
+          variant: 'secondary',
+        },
+        {
+          label: 'Knowledge base',
+          href: `/projects/${project.id}?tab=knowledge`,
+          variant: 'ghost',
+        },
+      ],
+    };
+  }
+
+  return {
+    mode: 'compact',
+    title: project.name,
+    description: activeTabOption.description,
+    activeTab: activeTabOption,
+    contextPills: [],
+    quickActions: [
+      {
+        label: 'Back to overview',
+        href: `/projects/${project.id}`,
+        variant: 'ghost',
+      },
+    ],
+  };
+}
+
+export function buildProjectSettingsOverview(
+  project: DashboardProjectRecord,
+): ProjectWorkspaceOverview {
+  const settings = asRecord(project.settings);
+  const modelOverrides = asRecord(settings.model_overrides);
+
+  return {
+    summary:
+      'Settings is the project control plane: keep model overrides, stored settings, and repository trust posture together so operators can verify changes before launch.',
+    packets: [
+      {
+        label: 'Stored settings',
+        value: `${countObjectEntries(settings)} entries`,
+        detail:
+          'Project-scoped settings saved on the record, including model override configuration.',
+      },
+      {
+        label: 'Model overrides',
+        value: `${countObjectEntries(modelOverrides)} role${countObjectEntries(modelOverrides) === 1 ? '' : 's'}`,
+        detail:
+          countObjectEntries(modelOverrides) > 0
+            ? 'Project-only role model overrides are already defined.'
+            : 'No project-only role overrides are defined yet.',
+      },
+      {
+        label: 'Repository trust',
+        value: project.git_webhook_secret_configured ? 'Configured' : 'Needs setup',
+        detail: project.git_webhook_secret_configured
+          ? 'Inbound repository signatures can be verified.'
+          : 'Finish webhook secret setup before trusting repository-driven automation.',
+      },
+      {
+        label: 'Repository link',
+        value: project.repository_url ? 'Linked' : 'Unlinked',
+        detail: project.repository_url
+          ? 'The project record points back to a repository.'
+          : 'No repository link is saved on this project yet.',
+      },
+    ],
+  };
+}
+
+export function buildProjectKnowledgeOverview(
+  project: DashboardProjectRecord,
+  spec?: DashboardProjectSpecRecord | null,
+): ProjectWorkspaceOverview {
+  const configCount = countObjectEntries(spec?.config);
+  const instructionCount = countObjectEntries(spec?.instructions);
+  const resourceCount = countObjectEntries(spec?.resources);
+  const documentCount = countObjectEntries(spec?.documents);
+  const toolCount = countObjectEntries(spec?.tools);
+  const memoryCount = countObjectEntries(project.memory);
+
+  return {
+    summary:
+      'Knowledge brings structured spec, resource descriptors, tool policy, shared memory, and artifact inspection into one operator-facing surface.',
+    packets: [
+      {
         label: 'Structured spec',
         value: `${configCount + instructionCount} entries`,
         detail: `${configCount} config • ${instructionCount} instructions`,
       },
       {
-        label: 'Linked assets',
-        value: `${linkedAssetCount} items`,
-        detail: 'Counts project resources, documents, and tool policy entries.',
+        label: 'Reference assets',
+        value: `${resourceCount + documentCount} items`,
+        detail: `${resourceCount} resources • ${documentCount} documents`,
+      },
+      {
+        label: 'Tool policy',
+        value: `${toolCount} entr${toolCount === 1 ? 'y' : 'ies'}`,
+        detail: 'Structured tool allow/block policy stays beside the rest of project knowledge.',
       },
       {
         label: 'Shared memory',
         value: `${memoryCount} entries`,
         detail:
           memoryCount > 0
-            ? 'Shared project context is already available for runs and operators.'
-            : 'Add reusable project context so future runs start with the right baseline.',
+            ? 'Shared project memory is available without leaving the workspace.'
+            : 'No shared memory entries are saved yet.',
       },
       {
-        label: 'Repo signature',
-        value: project.git_webhook_provider ? 'Configured' : 'Needs setup',
-        detail: project.git_webhook_provider
-          ? `${project.git_webhook_provider} signature verification is configured for this project.`
-          : 'Set a repository webhook secret if this project accepts signed inbound repository events.',
+        label: 'Artifacts',
+        value: 'Inline workspace',
+        detail: 'Artifact inspection stays nested here instead of taking another top-level tab.',
       },
     ],
   };
@@ -390,8 +528,62 @@ function nextDraftId(prefix: string): string {
   return `${prefix}-${draftCounter}`;
 }
 
+function getProjectDetailTabOption(value: ProjectDetailTabValue): ProjectDetailTabOption {
+  return (
+    PROJECT_DETAIL_TAB_OPTIONS.find((option) => option.value === value) ??
+    PROJECT_DETAIL_TAB_OPTIONS[0]
+  );
+}
+
 function countObjectEntries(value: Record<string, unknown> | null | undefined): number {
   return Object.keys(value ?? {}).length;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function buildProjectDeliveryOverview(project: DashboardProjectRecord): ProjectWorkspaceOverviewPacket {
+  const totalWorkflowCount = project.summary?.total_workflow_count ?? 0;
+  const activeWorkflowCount = project.summary?.active_workflow_count ?? 0;
+  const completedWorkflowCount = project.summary?.completed_workflow_count ?? 0;
+  const attentionWorkflowCount = project.summary?.attention_workflow_count ?? 0;
+  const detailParts: string[] = [];
+
+  if (activeWorkflowCount > 0) {
+    detailParts.push(`${activeWorkflowCount} active`);
+  }
+  if (completedWorkflowCount > 0) {
+    detailParts.push(`${completedWorkflowCount} completed`);
+  }
+  if (attentionWorkflowCount > 0) {
+    detailParts.push(`${attentionWorkflowCount} need attention`);
+  }
+
+  if (totalWorkflowCount === 0) {
+    return {
+      label: 'Delivery',
+      value: 'No workflows yet',
+      detail:
+        'Delivery stays empty until the first workflow lands, then this tab becomes the run timeline and hand-off view.',
+    };
+  }
+
+  return {
+    label: 'Delivery',
+    value: `${totalWorkflowCount} workflow${totalWorkflowCount === 1 ? '' : 's'}`,
+    detail:
+      detailParts.length > 0
+        ? `${detailParts.join(' • ')}. Open Delivery for the full timeline.`
+        : 'Open Delivery for the full timeline.',
+  };
+}
+
+function normalizeProjectDescription(description?: string | null): string | null {
+  const normalized = description?.trim();
+  return normalized ? normalized : null;
 }
 
 function formatProjectDateTime(value?: string | null): string {

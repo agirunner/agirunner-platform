@@ -10,6 +10,7 @@ import { EventService } from './event-service.js';
 import type { ModelCatalogService } from './model-catalog-service.js';
 import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
+import { readProjectSettingsExtras } from './project-settings.js';
 
 interface WorkflowCreationDeps {
   pool: DatabasePool;
@@ -68,12 +69,7 @@ export class WorkflowCreationService {
 
       const playbook = playbookResult.rows[0] as Record<string, unknown>;
       const definition = parsePlaybookDefinition(playbook.definition);
-      const projectSettings = await this.loadProjectSettings(identity.tenantId, input.project_id ?? null, client);
-      await this.deps.modelCatalogService.validateModelOverride(
-        identity.tenantId,
-        projectSettings.model_override,
-        'project model_override',
-      );
+      const projectConfig = await this.loadProjectConfig(identity.tenantId, input.project_id ?? null, client);
       await this.deps.modelCatalogService.validateModelOverride(
         identity.tenantId,
         input.config_overrides ? input.config_overrides.model_override : undefined,
@@ -81,7 +77,7 @@ export class WorkflowCreationService {
       );
       const resolvedConfig = resolveWorkflowConfig(
         playbook.definition as Record<string, unknown>,
-        projectSettings,
+        projectConfig,
         input.config_overrides ?? {},
       );
       const initialStageName = initialWorkflowStageName(definition);
@@ -187,7 +183,7 @@ export class WorkflowCreationService {
     }
   }
 
-  private async loadProjectSettings(
+  private async loadProjectConfig(
     tenantId: string,
     projectId: string | null,
     client: { query: DatabasePool['query'] },
@@ -203,7 +199,7 @@ export class WorkflowCreationService {
     if (!result.rowCount) {
       throw new NotFoundError('Project not found');
     }
-    return (result.rows[0].settings ?? {}) as Record<string, unknown>;
+    return readProjectSettingsExtras(result.rows[0].settings);
   }
 }
 

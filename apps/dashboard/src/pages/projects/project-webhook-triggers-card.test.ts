@@ -62,9 +62,12 @@ describe('project webhook triggers card source', () => {
     expect(source).toContain('Create first trigger');
   });
 
-  it('links to the global trigger overview for cross-project context', () => {
+  it('keeps the trigger list focused on project-scoped actions instead of cross-page link clutter', () => {
     const source = readSource();
-    expect(source).toContain('Open trigger overview');
-    expect(source).toContain('/config/triggers');
+    expect(source).toContain('Current triggers');
+    expect(source).toContain('Add trigger');
+    expect(source).not.toContain('Inspect, edit, toggle, or remove inbound webhook rules for this project.');
+    expect(source).not.toContain('Open trigger overview');
+    expect(source).not.toContain('/config/triggers');
   });
 });

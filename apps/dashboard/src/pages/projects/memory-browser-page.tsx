@@ -40,6 +40,7 @@ interface MemoryBrowserPageProps {
   scopedProjectId?: string;
   scopedWorkflowId?: string;
   scopedWorkItemId?: string;
+  showHeader?: boolean;
 }
 
 export function MemoryBrowserPage(): JSX.Element {
@@ -153,11 +154,13 @@ export function MemoryBrowserSurface(props: MemoryBrowserPageProps = {}): JSX.El
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <MemoryBrowserHeader
-        scopedProjectId={scopedProjectId}
-        selectedWorkflowId={selectedWorkflowId}
-        projectBackLabel="Back to Project"
-      />
+      {props.showHeader === false ? null : (
+        <MemoryBrowserHeader
+          scopedProjectId={scopedProjectId}
+          selectedWorkflowId={selectedWorkflowId}
+          projectBackLabel="Back to Project"
+        />
+      )}
       <ProjectScopeCard
         selectedProjectId={selectedProjectId}
         projects={projects}
