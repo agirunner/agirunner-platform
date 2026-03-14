@@ -171,6 +171,20 @@ describe('workflow work item detail support', () => {
       fileName: 'brief.md',
       displayPath: null,
     });
+    expect(describeWorkItemArtifactIdentity('')).toEqual({
+      fileName: 'artifact',
+      displayPath: null,
+    });
+    expect(describeWorkItemArtifactIdentity('standalone.csv')).toEqual({
+      fileName: 'standalone.csv',
+      displayPath: null,
+    });
+    expect(
+      describeWorkItemArtifactIdentity('abc123-def456-789/deep/nested/summary.json'),
+    ).toEqual({
+      fileName: 'summary.json',
+      displayPath: 'abc123-def456-789/deep/nested/summary.json',
+    });
   });
 
   it('groups parent milestone work items, finds them by id, and selects child tasks with the parent', () => {
