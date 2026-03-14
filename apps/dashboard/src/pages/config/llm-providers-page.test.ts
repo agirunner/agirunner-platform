@@ -65,6 +65,7 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).toContain('variant="destructive"');
     expect(source).toContain('requestProviderDelete');
     expect(source).toContain('sm:flex-row sm:flex-wrap sm:justify-end');
+    expect(source).toContain("Deleting this provider removes its {modelCount} discovered {modelCount === 1 ? 'model' : 'models'} from the catalog and clears any saved model assignments that point at them.");
     expect(source).not.toContain('onDelete={(id) => deleteMutation.mutate(id)}');
   });
 
@@ -124,18 +125,22 @@ describe('LlmProvidersPage renders three sections', () => {
     expect(source).not.toContain('const ROLE_NAMES');
   });
 
-  it('keeps role descriptions out of the desktop assignment table for scanability', () => {
-    expect(source.split('This assignment references a role that is no longer in the active catalog.')).toHaveLength(2);
-    expect(source.split('Configure the dedicated orchestrator model and reasoning policy here.')).toHaveLength(2);
-    expect(source.split('This configured role is currently inactive.')).toHaveLength(2);
+  it('uses a truncated description column in the desktop assignment table for scanability', () => {
+    expect(source).toContain('const TABLE_ROLE_DESCRIPTION_LIMIT = 56;');
+    expect(source).toContain('function summarizeRoleDescription(role: AssignmentRoleRow): string {');
+    expect(source).toContain('function truncateRoleDescription(description: string): string {');
+    expect(source).toContain('<TableHead className="w-1/5">Description</TableHead>');
+    expect(source).toContain('<TableCell className="align-middle text-sm text-muted">');
+    expect(source).toContain('<span title={summarizeRoleDescription(role)}>{description}</span>');
   });
 
-  it('renders desktop assignment rows as role, status, provider selection, and reasoning columns', () => {
+  it('renders desktop assignment rows as role, description, status, provider selection, and reasoning columns', () => {
     expect(source).toContain('<Table className="table-fixed">');
-    expect(source).toContain('<TableHead className="w-1/4">Role</TableHead>');
-    expect(source).toContain('<TableHead className="w-1/4 text-center">Status</TableHead>');
-    expect(source).toContain('<TableHead className="w-1/4 text-center">Provider Selection</TableHead>');
-    expect(source).toContain('<TableHead className="w-1/4 text-center">Reasoning</TableHead>');
+    expect(source).toContain('<TableHead className="w-1/5">Role</TableHead>');
+    expect(source).toContain('<TableHead className="w-1/5">Description</TableHead>');
+    expect(source).toContain('<TableHead className="w-1/5 text-center">Status</TableHead>');
+    expect(source).toContain('<TableHead className="w-1/5 text-center">Provider Selection</TableHead>');
+    expect(source).toContain('<TableHead className="w-1/5 text-center">Reasoning</TableHead>');
     expect(source).toContain('<TableRow key={role.name} className="align-middle [&>td]:py-4">');
     expect(source).toContain('<TableCell className="font-medium align-middle whitespace-nowrap">');
     expect(source).toContain('<TableCell className="align-middle whitespace-nowrap">');

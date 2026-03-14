@@ -3,7 +3,7 @@ import { z } from 'zod';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
-import { normalizeStoredProviderSecret } from '../lib/oauth-crypto.js';
+import { normalizeStoredProviderSecret, readProviderSecret } from '../lib/oauth-crypto.js';
 import {
   overlayModelOverride,
   readModelOverride,
@@ -681,7 +681,9 @@ export class ModelCatalogService {
     const provider = await this.getStoredProvider(tenantId, id);
     return {
       ...provider,
-      api_key_secret_ref: serializeProviderSecret(provider.api_key_secret_ref),
+      api_key_secret_ref: provider.api_key_secret_ref
+        ? readProviderSecret(provider.api_key_secret_ref)
+        : null,
     };
   }
 

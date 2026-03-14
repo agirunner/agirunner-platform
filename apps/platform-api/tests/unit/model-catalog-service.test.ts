@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-import { configureProviderSecretEncryptionKey } from '../../src/lib/oauth-crypto.js';
+import { configureProviderSecretEncryptionKey, storeProviderSecret } from '../../src/lib/oauth-crypto.js';
 import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
 
 function createMockPool() {
@@ -226,15 +226,27 @@ describe('ModelCatalogService', () => {
       expect(params[3]).toBe('secret:OPENAI_API_KEY');
     });
 
-    it('does not decrypt provider secrets in operations reads', async () => {
+    it('decrypts provider secrets in operations reads', async () => {
+      const storedSecret = storeProviderSecret('sk-live-secret');
       pool.query.mockResolvedValueOnce({
-        rows: [{ ...sampleProvider, api_key_secret_ref: 'enc:v1:test:test:test' }],
+        rows: [{ ...sampleProvider, api_key_secret_ref: storedSecret }],
         rowCount: 1,
       });
 
       const result = await service.getProviderForOperations(TENANT_ID, PROVIDER_ID);
 
-      expect(result.api_key_secret_ref).toBe('enc:v1:test:test:test');
+      expect(result.api_key_secret_ref).toBe('sk-live-secret');
+    });
+
+    it('preserves external secret references in operations reads', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [{ ...sampleProvider, api_key_secret_ref: 'secret:OPENAI_API_KEY' }],
+        rowCount: 1,
+      });
+
+      const result = await service.getProviderForOperations(TENANT_ID, PROVIDER_ID);
+
+      expect(result.api_key_secret_ref).toBe('secret:OPENAI_API_KEY');
     });
 
     it('deletes a provider and cascades to models and assignments', async () => {

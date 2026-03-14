@@ -846,19 +846,10 @@ function DeleteProviderDialog(props: {
               <p className="font-mono text-xs text-muted">{provider.base_url}</p>
             ) : null}
           </div>
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="rounded-lg border border-border/60 bg-background/80 px-3 py-2">
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                Discovered models
-              </p>
-              <p className="text-base font-semibold text-foreground">{modelCount}</p>
-            </div>
-            <div className="rounded-lg border border-border/60 bg-background/80 px-3 py-2">
-              <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                Removal effect
-              </p>
-              <p className="text-sm text-foreground">Provider disappears from assignments and discovery.</p>
-            </div>
+          <div className="rounded-lg border border-border/60 bg-background/80 px-3 py-3">
+            <p className="text-sm text-foreground">
+              Deleting this provider removes its {modelCount} discovered {modelCount === 1 ? 'model' : 'models'} from the catalog and clears any saved model assignments that point at them.
+            </p>
           </div>
         </div>
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -1058,6 +1049,28 @@ function ModelReasoningSelect({
 interface RoleState {
   modelId: string;
   reasoningConfig: Record<string, unknown> | null;
+}
+
+const TABLE_ROLE_DESCRIPTION_LIMIT = 56;
+
+function summarizeRoleDescription(role: AssignmentRoleRow): string {
+  if (role.description?.trim()) {
+    return role.description.trim();
+  }
+  if (role.source === 'assignment') {
+    return 'Assignment references a role that is no longer in the active catalog.';
+  }
+  if (role.source === 'system') {
+    return 'Dedicated orchestrator model and reasoning policy.';
+  }
+  return 'Configured role is currently inactive.';
+}
+
+function truncateRoleDescription(description: string): string {
+  if (description.length <= TABLE_ROLE_DESCRIPTION_LIMIT) {
+    return description;
+  }
+  return `${description.slice(0, TABLE_ROLE_DESCRIPTION_LIMIT - 1).trimEnd()}…`;
 }
 
 function RoleAssignmentsSection({
@@ -1351,19 +1364,24 @@ function RoleAssignmentsSection({
               <Table className="table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-1/4">Role</TableHead>
-                    <TableHead className="w-1/4 text-center">Status</TableHead>
-                    <TableHead className="w-1/4 text-center">Provider Selection</TableHead>
-                    <TableHead className="w-1/4 text-center">Reasoning</TableHead>
+                    <TableHead className="w-1/5">Role</TableHead>
+                    <TableHead className="w-1/5">Description</TableHead>
+                    <TableHead className="w-1/5 text-center">Status</TableHead>
+                    <TableHead className="w-1/5 text-center">Provider Selection</TableHead>
+                    <TableHead className="w-1/5 text-center">Reasoning</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {roleRows.map((role) => {
                     const s = roleStates[role.name] ?? { modelId: '__none__', reasoningConfig: null };
+                    const description = truncateRoleDescription(summarizeRoleDescription(role));
                     return (
                       <TableRow key={role.name} className="align-middle [&>td]:py-4">
                         <TableCell className="font-medium align-middle whitespace-nowrap">
                           {role.name}
+                        </TableCell>
+                        <TableCell className="align-middle text-sm text-muted">
+                          <span title={summarizeRoleDescription(role)}>{description}</span>
                         </TableCell>
                         <TableCell className="align-middle whitespace-nowrap">
                           <div className="flex justify-center">
