@@ -13,8 +13,10 @@ describe('log entry row source', () => {
     expect(source).toContain("import { formatLogRelativeTime } from './log-time.js';");
     expect(source).toContain('title={formatTimestamp(entry.created_at)}');
     expect(source).toContain('{formatLogRelativeTime(entry.created_at)}');
-    expect(source).toContain('>Board</th>');
-    expect(source).toContain('>Activity summary</th>');
+    expect(source).toContain('>Scope</th>');
+    expect(source).toContain('>Activity</th>');
+    expect(source).toContain('formatActorLabel(entry)');
+    expect(source).toContain('buildScopeItems(entry, role)');
     expect(source).not.toContain("bg-red-500/5");
     expect(source).not.toContain('>Workflow</th>');
     expect(source).not.toContain('>Detail</th>');

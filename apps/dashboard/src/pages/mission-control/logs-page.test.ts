@@ -17,12 +17,12 @@ describe('logs page source', () => {
     expect(source).toContain("const surfaceMode = props.mode ?? (scopedWorkflowId ? 'inspector' : 'logs');");
     expect(source).toContain('const [logsSurfaceView, setLogsSurfaceView] = useState<InspectorView>(() =>');
     expect(source).toContain('readLogsSurfaceView(searchParams)');
+    expect(source).toContain('setLogsSurfaceView(readLogsSurfaceView(searchParams));');
     expect(source).toContain("const selectedView = rawFirstSurface");
     expect(source).toContain('Operator Log</h1>');
     expect(source).toContain(
       "Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.",
     );
-    expect(source).toContain('{!rawFirstSurface ? (');
     expect(source).toContain("rawFirstSurface ? 'Log Stream' : 'Raw Logs'");
     expect(source).toContain("rawFirstSurface ? 'Activity Summary' : 'Summary'");
     expect(source).toContain("rawFirstSurface ? 'Delivery Packets' : 'Delivery'");
@@ -32,7 +32,7 @@ describe('logs page source', () => {
 
   it('MCL-004: uses shorter mobile tab labels to prevent truncation', () => {
     const source = readPage();
-    expect(source).toContain('overflow-x-auto');
+    expect(source).toContain('grid h-auto w-full grid-cols-2');
     expect(source).toContain('sm:hidden');
     expect(source).toContain('hidden sm:inline');
     expect(source).toContain("rawFirstSurface ? 'Logs' : 'Raw'");
@@ -49,7 +49,6 @@ describe('logs page source', () => {
     expect(source).toContain('WorkflowBudgetCard');
     expect(source).toContain('describeExecutionOperationOption');
     expect(source).toContain('context="inspector"');
-    expect(source).toContain("surfaceMode === 'inspector' || selectedView !== 'raw'");
     expect(source).toContain('LogViewer compact');
     expect(source).toContain('data-testid="operator-log-surface"');
     expect(source).toContain("aria-label=\"Log view\"");
@@ -63,7 +62,9 @@ describe('logs page source', () => {
 
     expect(rawTabContent).toContain('<LogViewer');
     expect(rawTabContent).not.toContain('LogsPageActivityPackets');
-    expect(rawTabContent).not.toContain('Current surface');
+    expect(rawTabContent).toContain('<LogsSurfacePanel');
+    expect(source).toContain("eyebrow: rawFirstSurface ? 'Raw log truth' : 'Inspector baseline'");
+    expect(source).toContain('chronological source-of-truth stream');
   });
 
   it('keeps activity packets additive on the summary tab', () => {
@@ -77,8 +78,11 @@ describe('logs page source', () => {
     const summaryTabStart = source.indexOf('TabsContent value="summary"');
     const summaryTabEnd = source.indexOf('</TabsContent>', summaryTabStart);
     const summaryTabContent = source.slice(summaryTabStart, summaryTabEnd);
+    expect(summaryTabContent).toContain('<LogsSurfacePanel');
     expect(summaryTabContent).toContain('LogsPageActivityPackets');
     expect(summaryTabContent).toContain('operator-log-activity-packets');
+    expect(summaryTabContent).toContain('ExecutionInspectorSummaryView');
+    expect(source).toContain("eyebrow: 'Curated summary'");
 
     expect(packetsSource).toContain('Recent activity packets');
     expect(packetsSource).toContain('packet.actorLabel');
@@ -111,6 +115,8 @@ describe('logs page source', () => {
     expect(source).toContain('Loading selected trace detail…');
     expect(source).toContain('isSelectedOutsideSegment');
     expect(source).toContain('loadedCount={entries.length}');
-    expect(source).toContain('md:grid-cols-3');
+    expect(source).toContain('Action queue');
+    expect(source).toContain('Trace diagnostics');
+    expect(source).toContain('InspectorFiltersCard');
   });
 });

@@ -68,6 +68,9 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
         </div>
 
         <div className="space-y-2">
+          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            {entry.operation}
+          </div>
           <div className="font-medium leading-6 text-foreground">
             {describeExecutionHeadline(entry)}
           </div>
@@ -76,15 +79,32 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <time dateTime={entry.created_at} title={formatAbsoluteTimestamp(entry.created_at)}>
-            {formatLogRelativeTime(entry.created_at)}
-          </time>
-          <span>{formatDuration(entry.duration_ms)}</span>
-          {context.map((item) => (
-            <span key={item}>{item}</span>
-          ))}
+        <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+          <div className="grid gap-1">
+            <span className="font-medium uppercase tracking-wide text-muted-foreground">
+              Recorded
+            </span>
+            <time dateTime={entry.created_at} title={formatAbsoluteTimestamp(entry.created_at)}>
+              {formatLogRelativeTime(entry.created_at)}
+            </time>
+          </div>
+          <div className="grid gap-1">
+            <span className="font-medium uppercase tracking-wide text-muted-foreground">
+              Duration
+            </span>
+            <span>{formatDuration(entry.duration_ms)}</span>
+          </div>
         </div>
+
+        {context.length > 0 ? (
+          <div className="flex flex-wrap gap-2">
+            {context.map((item) => (
+              <Badge key={item} variant="outline" className="text-[11px]">
+                {item}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
 
         {signals.length > 0 ? (
           <div className="flex flex-wrap gap-2">

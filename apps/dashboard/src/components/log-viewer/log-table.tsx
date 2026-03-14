@@ -20,24 +20,19 @@ export interface LogTableProps {
 }
 
 const SKELETON_COUNT = 12;
-const COL_COUNT = 11;
+const COL_COUNT = 6;
 
 function SkeletonRows(): JSX.Element {
   return (
     <>
       {Array.from({ length: SKELETON_COUNT }, (_, i) => (
         <tr key={i} className="border-b border-border/40">
-          <td className="px-1 py-1.5"><Skeleton className="h-3 w-3" /></td>
-          <td className="px-0.5 py-1.5"><Skeleton className="h-3 w-3 rounded-full" /></td>
-          <td className="px-1.5 py-1.5"><Skeleton className="h-3 w-10 rounded" /></td>
-          <td className="px-1.5 py-1.5"><Skeleton className="h-3 w-20" /></td>
-          <td className="px-1.5 py-1.5"><Skeleton className="h-3 w-16 rounded" /></td>
-          <td className="hidden lg:table-cell px-1.5 py-1.5"><Skeleton className="h-3 w-16 rounded" /></td>
-          <td className="hidden lg:table-cell px-1.5 py-1.5"><Skeleton className="h-3 w-16 rounded" /></td>
-          <td className="hidden lg:table-cell px-1.5 py-1.5"><Skeleton className="h-3 w-12 rounded" /></td>
-          <td className="px-1.5 py-1.5"><Skeleton className="h-3 w-32" /></td>
-          <td className="hidden md:table-cell px-1.5 py-1.5"><Skeleton className="h-3 w-24" /></td>
-          <td className="px-1.5 py-1.5 text-right"><Skeleton className="h-3 w-10 ml-auto" /></td>
+          <td className="px-2 py-2.5"><Skeleton className="h-3 w-3" /></td>
+          <td className="px-3 py-2.5"><Skeleton className="h-4 w-28 rounded" /></td>
+          <td className="px-3 py-2.5"><Skeleton className="h-4 w-20 rounded" /></td>
+          <td className="hidden lg:table-cell px-3 py-2.5"><Skeleton className="h-4 w-28 rounded" /></td>
+          <td className="px-3 py-2.5"><Skeleton className="h-4 w-48 rounded" /></td>
+          <td className="px-3 py-2.5 text-right"><Skeleton className="ml-auto h-4 w-10 rounded" /></td>
         </tr>
       ))}
     </>
@@ -80,7 +75,7 @@ export function LogTable({
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="space-y-3 md:hidden">
+      <div className="grid gap-3 md:hidden">
         {isLoading ? <MobileSkeletonCards /> : null}
 
         {!isLoading && isEmpty ? (
@@ -102,8 +97,8 @@ export function LogTable({
           : null}
       </div>
 
-      <div className="hidden overflow-x-auto rounded-md border border-border md:block">
-        <table className="w-full border-collapse">
+      <div className="hidden overflow-x-auto rounded-2xl border border-border/70 bg-card/90 shadow-sm md:block">
+        <table className="min-w-full border-collapse">
           <LogTableHeader />
           <tbody>
             {isLoading && <SkeletonRows />}
@@ -141,7 +136,7 @@ export function LogTable({
       </div>
 
       {!isLoading && !isEmpty && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+        <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-card/80 p-3 sm:flex-row sm:items-center sm:justify-between">
           <Button
             variant="outline"
             size="sm"

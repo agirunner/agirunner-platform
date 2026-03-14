@@ -243,16 +243,11 @@ export function LogTableHeader(): JSX.Element {
     <thead>
       <tr className="border-b border-border bg-muted/30 text-[11px] uppercase tracking-wider text-muted-foreground">
         <th className="w-6 px-1 py-1.5" />
-        <th className="w-5 px-0.5 py-1.5" />
-        <th className="px-1.5 py-1.5 text-left font-medium">Level</th>
-        <th className="px-1.5 py-1.5 text-left font-medium">Time</th>
-        <th className="px-1.5 py-1.5 text-left font-medium">Category</th>
-        <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Project</th>
-        <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Board</th>
-        <th className="px-1.5 py-1.5 text-left font-medium hidden lg:table-cell">Role</th>
-        <th className="px-1.5 py-1.5 text-left font-medium">Operation</th>
-        <th className="px-1.5 py-1.5 text-left font-medium hidden md:table-cell">Activity summary</th>
-        <th className="px-1.5 py-1.5 text-right font-medium w-16">Duration</th>
+        <th className="px-3 py-2 text-left font-medium">Signal</th>
+        <th className="px-3 py-2 text-left font-medium">Recorded</th>
+        <th className="px-3 py-2 text-left font-medium hidden lg:table-cell">Scope</th>
+        <th className="px-3 py-2 text-left font-medium">Activity</th>
+        <th className="px-3 py-2 text-right font-medium w-20">Duration</th>
       </tr>
     </thead>
   );
@@ -266,11 +261,12 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
   const duration = formatDuration(entry.duration_ms);
   const role = getRole(entry);
+  const scopeItems = buildScopeItems(entry, role);
 
   return (
     <tr
       className={cn(
-        'border-b border-border/40 border-l-2 cursor-pointer hover:bg-muted/40 transition-colors text-[13px]',
+        'border-b border-border/40 border-l-2 cursor-pointer align-top text-[13px] transition-colors hover:bg-muted/40',
         accent,
       )}
       onClick={onToggle}
@@ -283,110 +279,137 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
       }}
     >
       {/* Expand chevron */}
-      <td className="px-1 py-1">
+      <td className="px-2 py-2 align-top">
         <Chevron className="h-3 w-3 text-muted-foreground" />
       </td>
 
-      {/* Status indicator */}
-      <td className="px-0.5 py-1">
-        <span
-          className={cn(
-            'text-[11px] leading-none',
-            STATUS_COLOR[entry.status] ?? 'text-muted-foreground',
-          )}
-        >
-          {STATUS_INDICATOR[entry.status] ?? '○'}
-        </span>
+      {/* Signal */}
+      <td className="px-3 py-2.5 align-top">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span
+            className={cn(
+              'text-[11px] leading-none',
+              STATUS_COLOR[entry.status] ?? 'text-muted-foreground',
+            )}
+          >
+            {STATUS_INDICATOR[entry.status] ?? '○'}
+          </span>
+          <span
+            className={cn(
+              'inline-block rounded px-1.5 py-0.5 text-[11px] font-mono uppercase leading-tight',
+              levelBadge,
+            )}
+          >
+            {entry.level}
+          </span>
+          <span
+            className={cn(
+              'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium leading-tight whitespace-nowrap',
+              catStyle,
+            )}
+          >
+            {CATEGORY_LABELS[entry.category] ?? entry.category}
+          </span>
+          <span className="inline-block rounded border border-border/70 bg-background px-1.5 py-0.5 text-[11px] font-medium leading-tight text-muted-foreground">
+            {entry.status}
+          </span>
+        </div>
+        <div className="mt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          {formatActorLabel(entry)}
+        </div>
+        <div className="mt-1 break-words text-sm font-medium text-foreground">{entry.operation}</div>
       </td>
 
-      {/* Level badge */}
-      <td className="px-1.5 py-1">
-        <span
-          className={cn(
-            'inline-block rounded px-1 py-px text-[11px] leading-tight uppercase font-mono',
-            levelBadge,
-          )}
-        >
-          {entry.level}
-        </span>
-      </td>
-
-      {/* Time */}
+      {/* Recorded */}
       <td
-        className="px-1.5 py-1 text-muted-foreground tabular-nums whitespace-nowrap"
+        className="px-3 py-2.5 align-top text-muted-foreground tabular-nums whitespace-nowrap"
         title={formatTimestamp(entry.created_at)}
       >
-        {formatLogRelativeTime(entry.created_at)}
+        <div className="text-sm font-medium text-foreground">
+          {formatLogRelativeTime(entry.created_at)}
+        </div>
+        <div className="mt-1 text-xs text-muted-foreground">{formatTimestamp(entry.created_at)}</div>
       </td>
 
-      {/* Category */}
-      <td className="px-1.5 py-1">
-        <span
-          className={cn(
-            'inline-block rounded px-1 py-px text-[11px] leading-tight font-medium whitespace-nowrap',
-            catStyle,
-          )}
-        >
-          {CATEGORY_LABELS[entry.category] ?? entry.category}
-        </span>
-      </td>
-
-      {/* Project */}
-      <td className="hidden lg:table-cell px-1.5 py-1">
-        {entry.project_name || entry.project_id ? (
-          <span
-            className="inline-block rounded bg-cyan-50 px-1.5 py-px text-[11px] leading-tight text-cyan-700 font-medium whitespace-nowrap max-w-[120px] truncate"
-            title={entry.project_name ?? entry.project_id ?? undefined}
-          >
-            {entry.project_name ?? entry.project_id!.slice(0, 8)}
-          </span>
+      {/* Scope */}
+      <td className="hidden lg:table-cell px-3 py-2.5 align-top">
+        {scopeItems.length > 0 ? (
+          <div className="flex max-w-[16rem] flex-wrap gap-1.5">
+            {scopeItems.map((item) => (
+              <span
+                key={item.value}
+                className={cn(
+                  'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium leading-tight whitespace-nowrap',
+                  item.tone,
+                )}
+                title={item.title}
+              >
+                {item.value}
+              </span>
+            ))}
+          </div>
         ) : (
-          <span className="text-muted-foreground/30">—</span>
+          <span className="text-xs text-muted-foreground/70">No scoped entity</span>
         )}
       </td>
 
-      {/* Workflow */}
-      <td className="hidden lg:table-cell px-1.5 py-1">
-        {entry.workflow_name || entry.workflow_id ? (
-          <span
-            className="inline-block rounded bg-purple-50 px-1.5 py-px text-[11px] leading-tight text-purple-700 font-medium whitespace-nowrap max-w-[120px] truncate"
-            title={entry.workflow_name ?? entry.workflow_id ?? undefined}
-          >
-            {entry.workflow_name ?? entry.workflow_id!.slice(0, 8)}
-          </span>
-        ) : (
-          <span className="text-muted-foreground/30">—</span>
-        )}
-      </td>
-
-      {/* Role */}
-      <td className="hidden lg:table-cell px-1.5 py-1">
-        {role ? (
-          <span
-            className="inline-block rounded bg-rose-50 px-1.5 py-px text-[11px] leading-tight text-rose-600 font-medium whitespace-nowrap"
-            title={role}
-          >
-            {truncate(role, 16)}
-          </span>
-        ) : (
-          <span className="text-muted-foreground/30">—</span>
-        )}
-      </td>
-
-      {/* Operation */}
-      <td className="px-1.5 py-1 font-medium max-w-[200px] truncate">
-        {entry.operation}
-      </td>
-
-      {/* Detail */}
-      <td className="hidden md:table-cell px-1.5 py-1 text-muted-foreground max-w-[300px] truncate">
-        {preview ? truncate(preview, 80) : ''}
+      {/* Activity */}
+      <td className="px-3 py-2.5 align-top">
+        <div className="grid gap-1">
+          <div className="break-words text-sm font-medium text-foreground">
+            {preview ? truncate(preview, 120) : 'Recorded activity with no derived summary'}
+          </div>
+          {entry.error?.message ? (
+            <div className="rounded-md border border-red-300/60 bg-red-50/70 px-2 py-1 text-xs leading-5 text-red-700 dark:border-red-700/60 dark:bg-red-950/25 dark:text-red-200">
+              {truncate(entry.error.message, 160)}
+            </div>
+          ) : null}
+        </div>
       </td>
 
       {/* Duration */}
-      <td className="px-1.5 py-1 text-right tabular-nums text-muted-foreground font-mono whitespace-nowrap">
+      <td className="px-3 py-2.5 align-top text-right font-mono tabular-nums text-muted-foreground whitespace-nowrap">
         {duration}
       </td>
     </tr>
   );
+}
+
+function buildScopeItems(
+  entry: LogEntry,
+  role: string | null,
+): Array<{ value: string; title: string; tone: string }> {
+  const scopeItems: Array<{ value: string; title: string; tone: string }> = [];
+  const stageName = getCanonicalStageName(entry);
+
+  if (entry.project_name || entry.project_id) {
+    scopeItems.push({
+      value: entry.project_name ?? entry.project_id!.slice(0, 8),
+      title: entry.project_name ?? entry.project_id ?? '',
+      tone: 'bg-cyan-50 text-cyan-700',
+    });
+  }
+  if (entry.workflow_name || entry.workflow_id) {
+    scopeItems.push({
+      value: entry.workflow_name ?? entry.workflow_id!.slice(0, 8),
+      title: entry.workflow_name ?? entry.workflow_id ?? '',
+      tone: 'bg-purple-50 text-purple-700',
+    });
+  }
+  if (stageName) {
+    scopeItems.push({
+      value: stageName,
+      title: stageName,
+      tone: 'bg-amber-50 text-amber-700',
+    });
+  }
+  if (role) {
+    scopeItems.push({
+      value: truncate(role, 16),
+      title: role,
+      tone: 'bg-rose-50 text-rose-600',
+    });
+  }
+
+  return scopeItems;
 }

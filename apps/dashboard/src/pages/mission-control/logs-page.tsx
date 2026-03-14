@@ -25,8 +25,9 @@ import {
   type InspectorFilters,
 } from '../../components/execution-inspector-support.js';
 import { LogViewer } from '../../components/log-viewer/log-viewer.js';
+import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import { Card, CardContent } from '../../components/ui/card.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { LogsPageActivityPackets } from './logs-page-activity-packets.js';
 import {
@@ -121,6 +122,13 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     setCursor(null);
     setPagedEntries([]);
   }, [filterStateKey]);
+
+  useEffect(() => {
+    if (!rawFirstSurface) {
+      return;
+    }
+    setLogsSurfaceView(readLogsSurfaceView(searchParams));
+  }, [rawFirstSurface, searchParams]);
 
   useEffect(() => {
     if (!logsQuery.data) {
@@ -231,24 +239,18 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     () => buildRecentLogActivityPackets(entries),
     [entries],
   );
-  const surfaceSummary = rawFirstSurface ? 'Raw-first operator surface' : 'Workflow inspector surface';
-  const scopeSummary = scopedWorkflowId ? 'Single workflow board' : 'Cross-workflow execution';
-  const activeTabLabel =
-    selectedView === 'raw'
-      ? rawFirstSurface
-        ? 'Log stream'
-        : 'Raw logs'
-      : selectedView === 'summary'
-        ? rawFirstSurface
-          ? 'Activity summary'
-          : 'Summary'
-        : selectedView === 'detailed'
-          ? rawFirstSurface
-            ? 'Delivery packets'
-            : 'Delivery'
-          : rawFirstSurface
-            ? 'Trace detail'
-            : 'Debug';
+  const tabLabels = describeLogTab(selectedView, rawFirstSurface);
+  const tabFacts = buildTabFacts({
+    selectedView,
+    rawFirstSurface,
+    scopedWorkflowId,
+    visibleEntryCount: entries.length,
+    hasMoreEntries: Boolean(
+      logsQuery.data?.pagination.has_more && logsQuery.data.pagination.next_cursor,
+    ),
+    selectedEntry,
+    packetCount: recentActivityPackets.length,
+  });
 
   async function handleExport(): Promise<void> {
     const blob = await dashboardApi.exportLogs(baseFilters);
@@ -263,8 +265,8 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   }
 
   return (
-    <div data-testid="operator-log-surface" className="flex flex-col gap-6 p-6">
-      <section className={`grid gap-4 rounded-3xl border border-border/70 bg-card/80 p-6 shadow-sm${!rawFirstSurface ? ' xl:grid-cols-[minmax(0,1fr)_minmax(18rem,22rem)]' : ''}`}>
+    <div data-testid="operator-log-surface" className="flex flex-col gap-6 p-4 sm:p-6">
+      <section className="grid gap-4 rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm sm:p-6">
         <div className="grid gap-4">
           <div className="space-y-1">
             <h1 className="text-2xl font-bold tracking-tight">Operator Log</h1>
@@ -282,47 +284,27 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             ) : null}
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            {rawFirstSurface || selectedView !== 'raw' ? (
-              <Button variant="outline" onClick={() => void handleExport()}>
-                <Download className="h-4 w-4" />
-                Export
-              </Button>
-            ) : null}
-            {workflowContextLink ? (
+            <Button variant="outline" onClick={() => void handleExport()}>
+              <Download className="h-4 w-4" />
+              Export
+            </Button>
+            {selectedView !== 'raw' && workflowContextLink ? (
               <Button variant="outline" asChild>
                 <Link to={workflowContextLink}>Board context</Link>
               </Button>
             ) : null}
-            {taskRecordLink ? (
+            {selectedView !== 'raw' && taskRecordLink ? (
               <Button variant="outline" asChild>
                 <Link to={taskRecordLink}>Step record</Link>
               </Button>
             ) : null}
-            {selectedEntryPermalink ? (
+            {selectedView !== 'raw' && selectedEntryPermalink ? (
               <Button variant="outline" asChild>
                 <a href={selectedEntryPermalink}>Permalink</a>
               </Button>
             ) : null}
           </div>
         </div>
-        {!rawFirstSurface ? (
-          <Card className="border-border/70 bg-background/80 shadow-none">
-            <CardContent className="grid gap-3 p-4">
-              <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-                Current surface
-              </div>
-              <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                <SurfaceFact label="Mode" value={surfaceSummary} />
-                <SurfaceFact label="Scope" value={scopeSummary} />
-                <SurfaceFact label="Open tab" value={activeTabLabel} />
-              </div>
-              <p className="text-sm leading-6 text-muted">
-                Stay in the raw stream until one packet clearly explains the current execution story,
-                then move into delivery or trace detail for that single slice.
-              </p>
-            </CardContent>
-          </Card>
-        ) : null}
       </section>
 
       {scopedWorkflowId ? (
@@ -335,38 +317,50 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
         />
       ) : null}
 
-      {surfaceMode === 'inspector' || selectedView !== 'raw' ? (
-        <section className="grid gap-4 md:grid-cols-3">
-          {overviewCards.map((card) => (
-            <Card key={card.title} className="border-border/70 bg-card/75 shadow-sm">
-              <CardContent className="space-y-2 p-5">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted">
-                  {card.title}
-                </p>
-                <p className="text-xl font-semibold tracking-tight">{card.value}</p>
-                <p className="text-sm leading-6 text-muted">{card.detail}</p>
-              </CardContent>
-            </Card>
-          ))}
-        </section>
-      ) : null}
+      <Tabs value={selectedView} onValueChange={(value) => updateView(value as InspectorView)} className="space-y-4" aria-label="Log view">
+        <div className="-mx-1 px-1">
+          <TabsList className="grid h-auto w-full grid-cols-2 gap-2 overflow-visible bg-transparent p-0 sm:inline-flex sm:w-auto sm:grid-cols-none sm:gap-0 sm:overflow-x-auto sm:rounded-lg sm:bg-border/30 sm:p-1">
+            <TabsTrigger value="raw" className="h-auto min-h-11 px-3 py-2">
+              <span className="sm:hidden">{rawFirstSurface ? 'Logs' : 'Raw'}</span>
+              <span className="hidden sm:inline">{rawFirstSurface ? 'Log Stream' : 'Raw Logs'}</span>
+            </TabsTrigger>
+            <TabsTrigger value="summary" className="h-auto min-h-11 px-3 py-2">
+              <span className="sm:hidden">Summary</span>
+              <span className="hidden sm:inline">{rawFirstSurface ? 'Activity Summary' : 'Summary'}</span>
+            </TabsTrigger>
+            <TabsTrigger value="detailed" className="h-auto min-h-11 px-3 py-2">
+              <span className="sm:hidden">Delivery</span>
+              <span className="hidden sm:inline">{rawFirstSurface ? 'Delivery Packets' : 'Delivery'}</span>
+            </TabsTrigger>
+            <TabsTrigger value="debug" className="h-auto min-h-11 px-3 py-2">
+              <span className="sm:hidden">Trace</span>
+              <span className="hidden sm:inline">{rawFirstSurface ? 'Trace Detail' : 'Debug'}</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
-      {selectedView !== 'raw' ? (
-        <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
-          <ExecutionInspectorFilterBar
+        <TabsContent value="raw" id="operator-log-raw-stream" className="space-y-4">
+          <LogsSurfacePanel
+            eyebrow={tabLabels.eyebrow}
+            title={tabLabels.title}
+            description={tabLabels.description}
+            facts={tabFacts}
+          />
+          <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />
+        </TabsContent>
+
+        <TabsContent value="summary" id="operator-log-summary" className="space-y-4">
+          <LogsSurfacePanel
+            eyebrow={tabLabels.eyebrow}
+            title={tabLabels.title}
+            description={tabLabels.description}
+            facts={tabFacts}
+          />
+          <InspectorFiltersCard
             filters={filters}
-            operationOptions={(operationsQuery.data?.data ?? []).map((item) => ({
-              value: item.operation,
-              label: describeExecutionOperationOption(item.operation),
-            }))}
-            roleOptions={(rolesQuery.data?.data ?? []).map((item) => ({
-              value: item.role,
-              label: item.role,
-            }))}
-            actorOptions={(actorsQuery.data?.data ?? []).map((item) => ({
-              value: item.actor_id,
-              label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
-            }))}
+            operations={operationsQuery.data?.data ?? []}
+            roles={rolesQuery.data?.data ?? []}
+            actors={actorsQuery.data?.data ?? []}
             onChange={(next) => {
               updateFilters(next);
               updateSelection(null);
@@ -376,36 +370,19 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
               updateSelection(null);
             }}
           />
-        </section>
-      ) : null}
-
-      <Tabs value={selectedView} onValueChange={(value) => updateView(value as InspectorView)} className="space-y-4" aria-label="Log view">
-        <div className="overflow-x-auto -mx-1 px-1">
-          <TabsList>
-            <TabsTrigger value="raw">
-              <span className="sm:hidden">{rawFirstSurface ? 'Logs' : 'Raw'}</span>
-              <span className="hidden sm:inline">{rawFirstSurface ? 'Log Stream' : 'Raw Logs'}</span>
-            </TabsTrigger>
-            <TabsTrigger value="summary">
-              <span className="sm:hidden">Summary</span>
-              <span className="hidden sm:inline">{rawFirstSurface ? 'Activity Summary' : 'Summary'}</span>
-            </TabsTrigger>
-            <TabsTrigger value="detailed">
-              <span className="sm:hidden">Delivery</span>
-              <span className="hidden sm:inline">{rawFirstSurface ? 'Delivery Packets' : 'Delivery'}</span>
-            </TabsTrigger>
-            <TabsTrigger value="debug">
-              <span className="sm:hidden">Trace</span>
-              <span className="hidden sm:inline">{rawFirstSurface ? 'Trace Detail' : 'Debug'}</span>
-            </TabsTrigger>
-          </TabsList>
-        </div>
-
-        <TabsContent value="raw" id="operator-log-raw-stream">
-          <LogViewer compact scope={scopedWorkflowId ? { workflowId: scopedWorkflowId } : undefined} />
-        </TabsContent>
-
-        <TabsContent value="summary" id="operator-log-summary" className="space-y-4">
+          <section className="grid gap-4 md:grid-cols-3">
+            {overviewCards.map((card) => (
+              <Card key={card.title} className="border-border/70 bg-card/75 shadow-sm">
+                <CardContent className="space-y-2 p-5">
+                  <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                    {card.title}
+                  </p>
+                  <p className="text-xl font-semibold tracking-tight">{card.value}</p>
+                  <p className="text-sm leading-6 text-muted">{card.detail}</p>
+                </CardContent>
+              </Card>
+            ))}
+          </section>
           <ExecutionInspectorSummaryView
             stats={statsQuery.data}
             operations={operationsQuery.data?.data ?? []}
@@ -431,6 +408,26 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
         </TabsContent>
 
         <TabsContent value="detailed" id="operator-log-delivery" className="space-y-4">
+          <LogsSurfacePanel
+            eyebrow={tabLabels.eyebrow}
+            title={tabLabels.title}
+            description={tabLabels.description}
+            facts={tabFacts}
+          />
+          <InspectorFiltersCard
+            filters={filters}
+            operations={operationsQuery.data?.data ?? []}
+            roles={rolesQuery.data?.data ?? []}
+            actors={actorsQuery.data?.data ?? []}
+            onChange={(next) => {
+              updateFilters(next);
+              updateSelection(null);
+            }}
+            onReset={() => {
+              updateFilters(DEFAULT_INSPECTOR_FILTERS);
+              updateSelection(null);
+            }}
+          />
           {logsQuery.error ? (
             <Card>
               <CardContent className="p-5 text-sm text-red-600">
@@ -451,7 +448,27 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
           />
         </TabsContent>
 
-        <TabsContent value="debug" id="operator-log-trace-detail">
+        <TabsContent value="debug" id="operator-log-trace-detail" className="space-y-4">
+          <LogsSurfacePanel
+            eyebrow={tabLabels.eyebrow}
+            title={tabLabels.title}
+            description={tabLabels.description}
+            facts={tabFacts}
+          />
+          <InspectorFiltersCard
+            filters={filters}
+            operations={operationsQuery.data?.data ?? []}
+            roles={rolesQuery.data?.data ?? []}
+            actors={actorsQuery.data?.data ?? []}
+            onChange={(next) => {
+              updateFilters(next);
+              updateSelection(null);
+            }}
+            onReset={() => {
+              updateFilters(DEFAULT_INSPECTOR_FILTERS);
+              updateSelection(null);
+            }}
+          />
           {selectedEntryQuery.isLoading && !selectedEntrySummary ? (
             <Card>
               <CardContent className="p-5 text-sm text-muted">
@@ -485,6 +502,65 @@ function buildWorkflowContextLink(entry: LogEntry): string {
   return buildLogWorkflowContextLink(entry) ?? `/work/boards/${entry.workflow_id}`;
 }
 
+function InspectorFiltersCard(props: {
+  filters: InspectorFilters;
+  operations: Array<{ operation: string }>;
+  roles: Array<{ role: string }>;
+  actors: Array<{ actor_id: string; actor_name: string | null; actor_type: string }>;
+  onChange(next: InspectorFilters): void;
+  onReset(): void;
+}): JSX.Element {
+  return (
+    <section className="rounded-3xl border border-border/70 bg-card/70 p-5 shadow-sm">
+      <ExecutionInspectorFilterBar
+        filters={props.filters}
+        operationOptions={props.operations.map((item) => ({
+          value: item.operation,
+          label: describeExecutionOperationOption(item.operation),
+        }))}
+        roleOptions={props.roles.map((item) => ({
+          value: item.role,
+          label: item.role,
+        }))}
+        actorOptions={props.actors.map((item) => ({
+          value: item.actor_id,
+          label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
+        }))}
+        onChange={props.onChange}
+        onReset={props.onReset}
+      />
+    </section>
+  );
+}
+
+function LogsSurfacePanel(props: {
+  eyebrow: string;
+  title: string;
+  description: string;
+  facts: Array<{ label: string; value: string }>;
+}): JSX.Element {
+  return (
+    <Card className="border-border/70 bg-card/80 shadow-sm">
+      <CardHeader className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-2">
+            <Badge variant="outline">{props.eyebrow}</Badge>
+            <div className="space-y-1">
+              <CardTitle>{props.title}</CardTitle>
+              <p className="max-w-3xl text-sm leading-6 text-muted">{props.description}</p>
+            </div>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {props.facts.map((fact) => (
+          <SurfaceFact key={`${fact.label}:${fact.value}`} label={fact.label} value={fact.value} />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function SurfaceFact(props: {
   label: string;
   value: string;
@@ -497,4 +573,107 @@ function SurfaceFact(props: {
       <div className="mt-2 text-sm font-medium text-foreground">{props.value}</div>
     </div>
   );
+}
+
+function describeLogTab(view: InspectorView, rawFirstSurface: boolean): {
+  eyebrow: string;
+  title: string;
+  description: string;
+} {
+  if (view === 'raw') {
+    return {
+      eyebrow: rawFirstSurface ? 'Raw log truth' : 'Inspector baseline',
+      title: rawFirstSurface ? 'Log stream' : 'Raw logs',
+      description:
+        'Stay here when you need the chronological source-of-truth stream. Expand a row for the full payload and recorded context, then move into summary, delivery, or trace only when you need a curated operator view.',
+    };
+  }
+  if (view === 'summary') {
+    return {
+      eyebrow: 'Curated summary',
+      title: rawFirstSurface ? 'Activity summary' : 'Summary',
+      description:
+        'Use this lane to understand where attention is clustering before drilling into a single packet. The cards and packets below should explain the current slice without replacing the raw events.',
+    };
+  }
+  if (view === 'detailed') {
+    return {
+      eyebrow: 'Action queue',
+      title: rawFirstSurface ? 'Delivery packets' : 'Delivery',
+      description:
+        'This list is for picking the next packet to inspect. Select the row that best represents the incident or delivery you are following, then open trace detail for the full payload.',
+    };
+  }
+  return {
+    eyebrow: 'Trace diagnostics',
+    title: rawFirstSurface ? 'Trace detail' : 'Debug',
+    description:
+      'Trace detail is for the selected packet only. Use it when the summary is no longer enough and you need recorded payloads, error structure, and diagnostic handles for one execution slice.',
+  };
+}
+
+function buildTabFacts(input: {
+  selectedView: InspectorView;
+  rawFirstSurface: boolean;
+  scopedWorkflowId: string;
+  visibleEntryCount: number;
+  hasMoreEntries: boolean;
+  selectedEntry: LogEntry | null;
+  packetCount: number;
+}): Array<{ label: string; value: string }> {
+  const scope = input.scopedWorkflowId
+    ? `Board ${input.scopedWorkflowId.slice(0, 8)}`
+    : 'Cross-workflow execution';
+
+  if (input.selectedView === 'raw') {
+    return [
+      { label: 'Scope', value: scope },
+      { label: 'Visible entries', value: String(input.visibleEntryCount) },
+      {
+        label: 'Slice status',
+        value: input.hasMoreEntries ? 'More history available' : 'Current slice loaded',
+      },
+      {
+        label: 'Path',
+        value: input.rawFirstSurface ? 'Raw-first operator surface' : 'Inspector baseline',
+      },
+    ];
+  }
+
+  if (input.selectedView === 'summary') {
+    return [
+      { label: 'Scope', value: scope },
+      { label: 'Recent packets', value: String(input.packetCount) },
+      { label: 'Visible entries', value: String(input.visibleEntryCount) },
+      { label: 'Operator path', value: 'Review cards, then open one packet' },
+    ];
+  }
+
+  if (input.selectedView === 'detailed') {
+    return [
+      { label: 'Scope', value: scope },
+      { label: 'Visible packets', value: String(input.visibleEntryCount) },
+      {
+        label: 'Selected packet',
+        value: input.selectedEntry ? `#${input.selectedEntry.id}` : 'Choose from the list',
+      },
+      {
+        label: 'Queue status',
+        value: input.hasMoreEntries ? 'More packets available' : 'Current segment fully loaded',
+      },
+    ];
+  }
+
+  return [
+    { label: 'Scope', value: scope },
+    {
+      label: 'Selected packet',
+      value: input.selectedEntry ? `#${input.selectedEntry.id}` : 'Choose a packet first',
+    },
+    {
+      label: 'Trace handle',
+      value: input.selectedEntry ? input.selectedEntry.trace_id : 'Unavailable until selection',
+    },
+    { label: 'Debug path', value: 'Payload, error detail, and handles' },
+  ];
 }
