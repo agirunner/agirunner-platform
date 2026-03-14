@@ -133,16 +133,12 @@ function readActiveWorkflowDetailTargetId(selection: {
   selectedActivationId: string | null;
   selectedChildWorkflowId: string | null;
   selectedGateStageName: string | null;
-  implicitWorkItemId: string | null;
 }): string | null {
   const hashTargetId = decodeWorkflowDetailTargetId(selection.hash);
   if (hashTargetId) {
     return hashTargetId;
   }
-  if (
-    selection.selectedWorkItemId &&
-    selection.selectedWorkItemId !== selection.implicitWorkItemId
-  ) {
+  if (selection.selectedWorkItemId) {
     return `work-item-${selection.selectedWorkItemId}`;
   }
   if (selection.selectedActivationId) {
@@ -158,26 +154,6 @@ function readActiveWorkflowDetailTargetId(selection: {
 }
 
 function hasExplicitWorkflowDetailSelection(selection: {
-  hash: string;
-  selectedWorkItemId: string | null;
-  selectedActivationId: string | null;
-  selectedChildWorkflowId: string | null;
-  selectedGateStageName: string | null;
-  implicitWorkItemId: string | null;
-}): boolean {
-  if (decodeWorkflowDetailTargetId(selection.hash)) {
-    return true;
-  }
-  if (selection.selectedActivationId || selection.selectedChildWorkflowId || selection.selectedGateStageName) {
-    return true;
-  }
-  return (
-    Boolean(selection.selectedWorkItemId) &&
-    selection.selectedWorkItemId !== selection.implicitWorkItemId
-  );
-}
-
-function hasExplicitWorkflowDetailIntent(selection: {
   hash: string;
   selectedWorkItemId: string | null;
   selectedActivationId: string | null;
@@ -247,20 +223,10 @@ export function WorkflowDetailPage(): JSX.Element {
     'context' | 'knowledge' | 'activity'
   >('context');
   const lastFocusedTargetIdRef = useRef<string | null>(null);
-  const autoSelectedWorkItemIdRef = useRef<string | null>(null);
   const selectedWorkItemId = searchParams.get('work_item');
   const selectedActivationId = searchParams.get('activation');
   const selectedChildWorkflowId = searchParams.get('child');
   const selectedGateStageName = searchParams.get('gate');
-  const initialExplicitSelectionRef = useRef(
-    hasExplicitWorkflowDetailIntent({
-      hash: location.hash,
-      selectedWorkItemId,
-      selectedActivationId,
-      selectedChildWorkflowId,
-      selectedGateStageName,
-    }),
-  );
 
   const workflowQuery = useQuery({
     queryKey: ['workflow', workflowId],
@@ -353,14 +319,6 @@ export function WorkflowDetailPage(): JSX.Element {
   });
 
   useEffect(() => {
-    initialExplicitSelectionRef.current = hasExplicitWorkflowDetailIntent({
-      hash: location.hash,
-      selectedWorkItemId,
-      selectedActivationId,
-      selectedChildWorkflowId,
-      selectedGateStageName,
-    });
-    autoSelectedWorkItemIdRef.current = null;
     lastFocusedTargetIdRef.current = null;
   }, [workflowId]);
 
@@ -375,8 +333,6 @@ export function WorkflowDetailPage(): JSX.Element {
       return;
     }
     const workItems = flattenGroupedWorkItems(groupWorkflowWorkItems(boardQuery.data?.work_items ?? []));
-    const hasExplicitNonWorkItemSelection =
-      selectedActivationId !== null || selectedChildWorkflowId !== null || selectedGateStageName !== null;
     if (workItems.length === 0) {
       if (selectedWorkItemId !== null) {
         clearWorkflowSelection('work_item');
@@ -386,18 +342,10 @@ export function WorkflowDetailPage(): JSX.Element {
     if (selectedWorkItemId && workItems.some((item) => item.id === selectedWorkItemId)) {
       return;
     }
-    if (hasExplicitNonWorkItemSelection) {
-      return;
+    if (selectedWorkItemId !== null) {
+      clearWorkflowSelection('work_item');
     }
-    autoSelectedWorkItemIdRef.current = workItems[0].id;
-    updateWorkflowSelection('work_item', workItems[0].id);
-  }, [
-    boardQuery.data,
-    selectedActivationId,
-    selectedChildWorkflowId,
-    selectedGateStageName,
-    selectedWorkItemId,
-  ]);
+  }, [boardQuery.data, selectedWorkItemId]);
 
   useEffect(() => {
     if (!workflowId) {
@@ -516,10 +464,6 @@ export function WorkflowDetailPage(): JSX.Element {
     () => groupWorkflowWorkItems(boardQuery.data?.work_items ?? []),
     [boardQuery.data?.work_items],
   );
-  const defaultSelectedWorkItemId = useMemo(() => {
-    const workItems = flattenGroupedWorkItems(groupedWorkItems);
-    return workItems[0]?.id ?? null;
-  }, [groupedWorkItems]);
   const selectedBoardWorkItem = useMemo(
     () => (selectedWorkItemId ? findWorkItemById(groupedWorkItems, selectedWorkItemId) : null),
     [groupedWorkItems, selectedWorkItemId],
@@ -566,12 +510,6 @@ export function WorkflowDetailPage(): JSX.Element {
     () => validateWorkItemMetadataEntries(workItemMetadataDrafts),
     [workItemMetadataDrafts],
   );
-  const implicitSelectedWorkItemId = useMemo(() => {
-    if (initialExplicitSelectionRef.current) {
-      return autoSelectedWorkItemIdRef.current;
-    }
-    return autoSelectedWorkItemIdRef.current ?? defaultSelectedWorkItemId;
-  }, [defaultSelectedWorkItemId, selectedWorkItemId]);
   const activeFocusTargetId = useMemo(
     () =>
       readActiveWorkflowDetailTargetId({
@@ -580,10 +518,8 @@ export function WorkflowDetailPage(): JSX.Element {
         selectedActivationId,
         selectedChildWorkflowId,
         selectedGateStageName,
-        implicitWorkItemId: implicitSelectedWorkItemId,
       }),
     [
-      implicitSelectedWorkItemId,
       location.hash,
       selectedActivationId,
       selectedChildWorkflowId,
@@ -599,10 +535,8 @@ export function WorkflowDetailPage(): JSX.Element {
         selectedActivationId,
         selectedChildWorkflowId,
         selectedGateStageName,
-        implicitWorkItemId: implicitSelectedWorkItemId,
       }),
     [
-      implicitSelectedWorkItemId,
       location.hash,
       selectedActivationId,
       selectedChildWorkflowId,
@@ -642,7 +576,7 @@ export function WorkflowDetailPage(): JSX.Element {
       scrollWorkflowDetailToTop();
     });
     return () => window.cancelAnimationFrame(frame);
-  }, [location.key, location.pathname, shouldPreserveWorkflowDetailScroll, workflowId]);
+  }, [location.key, location.pathname, location.search, shouldPreserveWorkflowDetailScroll, workflowId]);
 
   if (workflowQuery.data && !workflowQuery.data.playbook_id) {
     return (
@@ -705,7 +639,7 @@ export function WorkflowDetailPage(): JSX.Element {
         metadata,
       });
     },
-    onSuccess: async () => {
+    onSuccess: async (createdWorkItem) => {
       setWorkItemTitle('');
       setWorkItemGoal('');
       setWorkItemAcceptanceCriteria('');
@@ -714,6 +648,8 @@ export function WorkflowDetailPage(): JSX.Element {
       setWorkItemMetadataDrafts([]);
       setWorkItemError(null);
       setIsCreateWorkItemDialogOpen(false);
+      setPrimarySurface('board');
+      updateWorkflowSelection('work_item', createdWorkItem.id);
       await invalidateWorkflowQueries(queryClient, workflowId, projectId);
     },
     onError: (error) => {
@@ -725,9 +661,6 @@ export function WorkflowDetailPage(): JSX.Element {
     key: 'work_item' | 'activation' | 'child' | 'gate',
     value: string,
   ): void {
-    if (key !== 'work_item') {
-      autoSelectedWorkItemIdRef.current = null;
-    }
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
@@ -751,9 +684,6 @@ export function WorkflowDetailPage(): JSX.Element {
   }
 
   function clearWorkflowSelection(key: 'work_item' | 'activation' | 'child' | 'gate'): void {
-    if (key === 'work_item') {
-      autoSelectedWorkItemIdRef.current = null;
-    }
     setSearchParams(
       (current) => {
         const next = new URLSearchParams(current);
@@ -967,20 +897,21 @@ export function WorkflowDetailPage(): JSX.Element {
                 </Badge>
                 <div className="space-y-1">
                   <h2 className="text-xl font-semibold text-foreground">
-                    Board triage and review lanes
+                    Triage the board first
                   </h2>
                   <p className="max-w-3xl text-sm leading-6 text-muted">
-                    Start in board triage, open a focused work-item rail only when you need to
-                    intervene, and move into review lanes for stage gates or activation recovery.
+                    Scan the board for blocked work, waiting gates, and ownership gaps. Open a
+                    focused work-item rail only when you need routing, review, or evidence.
                   </p>
                 </div>
               </div>
-              <div className="flex flex-wrap gap-2 xl:max-w-[42rem] xl:justify-end">
+              <div className="flex flex-wrap gap-2 xl:max-w-[34rem] xl:justify-end">
                 <Badge variant="outline">
-                  {selectedWorkItemId ? 'Focused rail open' : 'Broad triage mode'}
+                  {selectedWorkItemId ? 'Focused work-item rail' : 'Broad triage mode'}
                 </Badge>
-                <Badge variant="outline">Controls open on demand</Badge>
-                <Badge variant="outline">{`${stagesQuery.data?.length ?? 0} stages • ${activationsQuery.data?.length ?? 0} activations`}</Badge>
+                <Badge variant="outline">
+                  {`${workItemSummary?.open_work_item_count ?? 0} open • ${workItemSummary?.awaiting_gate_count ?? 0} waiting gates`}
+                </Badge>
               </div>
             </div>
 
@@ -1013,10 +944,7 @@ export function WorkflowDetailPage(): JSX.Element {
                       isLoading={boardQuery.isLoading}
                       hasError={Boolean(boardQuery.error)}
                       selectedWorkItemId={selectedWorkItemId}
-                      onSelectWorkItem={(workItemId) => {
-                        autoSelectedWorkItemIdRef.current = null;
-                        updateWorkflowSelection('work_item', workItemId);
-                      }}
+                      onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
                       onBoardChanged={() =>
                         invalidateWorkflowQueries(queryClient, workflowId, projectId)
                       }
@@ -1039,10 +967,7 @@ export function WorkflowDetailPage(): JSX.Element {
                         stages={stagesQuery.data ?? []}
                         ownerRoleOptions={ownerRoleOptions}
                         tasks={selectedWorkItemTasks}
-                        onSelectWorkItem={(workItemId) => {
-                          autoSelectedWorkItemIdRef.current = null;
-                          updateWorkflowSelection('work_item', workItemId);
-                        }}
+                        onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
                         onWorkItemChanged={() =>
                           invalidateWorkflowQueries(queryClient, workflowId, projectId)
                         }
@@ -1050,14 +975,22 @@ export function WorkflowDetailPage(): JSX.Element {
                       />
                     </aside>
                   ) : (
-                    <Card className="border-dashed border-border/70 bg-border/5 shadow-none">
-                      <CardHeader>
-                        <CardTitle>Open a focused work-item packet</CardTitle>
+                    <Card
+                      className="border-dashed border-border/70 bg-border/5 shadow-none"
+                      data-testid="workflow-board-guide-state"
+                    >
+                      <CardHeader className="gap-2 py-4">
+                        <CardTitle>Board triage mode</CardTitle>
                         <CardDescription>
-                          Select any work item on the board to review its brief, operator controls,
-                          execution evidence, and history in a dedicated side rail.
+                          Keep the board wide while you scan flow across stages. Select a card only
+                          when you need its focused packet for routing, review, or evidence.
                         </CardDescription>
                       </CardHeader>
+                      <CardContent className="flex flex-wrap gap-2 pt-0">
+                        <Badge variant="secondary">Select a card to open the rail</Badge>
+                        <Badge variant="outline">Review gates in the review tab</Badge>
+                        <Badge variant="outline">Create new work from run controls</Badge>
+                      </CardContent>
                     </Card>
                   )}
                 </div>

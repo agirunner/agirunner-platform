@@ -180,7 +180,8 @@ describe('workflow detail work-item creation form', () => {
     expect(source).toContain('setIsCreateWorkItemDialogOpen(true)');
     expect(source).toContain('DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"');
     expect(source).toContain('<CardTitle>Quick-create work item</CardTitle>');
-    expect(source).toContain('Controls open on demand');
+    expect(source).toContain("updateWorkflowSelection('work_item', createdWorkItem.id)");
+    expect(source).toContain('Create new work from run controls');
     expect(source).not.toContain('Default stage');
     expect(source).not.toContain('Priority posture');
     expect(source).not.toContain('Metadata mode');
@@ -231,16 +232,17 @@ describe('workflow detail deep links', () => {
     expect(source).toContain("updateWorkflowSelection('gate'");
   });
 
-  it('does not replace explicit child, gate, or activation deep links with a default work-item selection', () => {
+  it('never auto-selects the first board work item while resolving board data', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-detail-page.tsx'),
       'utf8',
     );
 
     expect(source).toContain('if (!boardQuery.data) {');
-    expect(source).toContain('hasExplicitNonWorkItemSelection');
-    expect(source).toContain('selectedActivationId !== null || selectedChildWorkflowId !== null || selectedGateStageName !== null');
-    expect(source).toContain('if (hasExplicitNonWorkItemSelection) {');
+    expect(source).toContain('if (selectedWorkItemId && workItems.some((item) => item.id === selectedWorkItemId)) {');
+    expect(source).toContain('if (selectedWorkItemId !== null) {');
+    expect(source).toContain("clearWorkflowSelection('work_item');");
+    expect(source).not.toContain("updateWorkflowSelection('work_item', workItems[0].id);");
   });
 
   it('scrolls targeted deep-link sections into view after the board data resolves', () => {
@@ -264,16 +266,15 @@ describe('workflow detail deep links', () => {
       'utf8',
     );
 
-    expect(source).toContain('autoSelectedWorkItemIdRef');
     expect(source).toContain('hasExplicitWorkflowDetailSelection');
-    expect(source).toContain('hasExplicitWorkflowDetailIntent');
-    expect(source).toContain('initialExplicitSelectionRef');
     expect(source).toContain('readWorkflowDetailScrollContainer');
     expect(source).toContain("document.querySelector('main')");
     expect(source).toContain('scrollWorkflowDetailToTop()');
-    expect(source).toContain('selectedWorkItemId !== selection.implicitWorkItemId');
-    expect(source).toContain('return autoSelectedWorkItemIdRef.current ?? defaultSelectedWorkItemId;');
     expect(source).toContain('if (!workflowId || shouldPreserveWorkflowDetailScroll) {');
+    expect(source).toContain('location.search');
+    expect(source).not.toContain('autoSelectedWorkItemIdRef');
+    expect(source).not.toContain('defaultSelectedWorkItemId');
+    expect(source).not.toContain('selectedWorkItemId !== selection.implicitWorkItemId');
   });
 
   it('hydrates child workflow lineage from workflow relations when project timeline is lagging', () => {
@@ -354,12 +355,14 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('PacketFactGrid');
     expect(source).toContain('PacketBadgePanel');
     expect(source).toContain('Board workspace');
-    expect(source).toContain('Board triage and review lanes');
-    expect(source).toContain('Focused rail open');
+    expect(source).toContain('Triage the board first');
+    expect(source).toContain('Focused work-item rail');
     expect(source).toContain('TabsTrigger value="board">Board &amp; triage');
     expect(source).toContain('TabsTrigger value="controls">Run controls');
     expect(source).toContain('TabsTrigger value="review">Gates &amp; activations');
-    expect(source).toContain('Open a focused work-item packet');
+    expect(source).toContain('data-testid="workflow-board-guide-state"');
+    expect(source).toContain('Board triage mode');
+    expect(source).toContain('Select a card to open the rail');
   });
 
   it('passes workflow document operator context into the knowledge tab surface', () => {
