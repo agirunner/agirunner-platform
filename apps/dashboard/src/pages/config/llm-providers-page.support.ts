@@ -157,7 +157,7 @@ export function summarizeAssignmentSurface(input: {
   blockingIssues: string[];
 }): {
   cards: AssignmentSurfaceSummaryCard[];
-  guidance: AssignmentSurfaceGuidance;
+  guidance: AssignmentSurfaceGuidance | null;
 } {
   const inheritedRoleCount = Math.max(0, input.roleCount - input.explicitOverrideCount);
   const cards: AssignmentSurfaceSummaryCard[] = [
@@ -185,7 +185,6 @@ export function summarizeAssignmentSurface(input: {
       detail:
         input.staleRoleCount > 0
           ? summarizeCatalogPostureDetail({
-              inactiveRoleCount: input.inactiveRoleCount,
               missingAssignmentCount: input.missingAssignmentCount,
             })
           : 'No stale assignment rows remain.',
@@ -217,31 +216,17 @@ export function summarizeAssignmentSurface(input: {
 
   return {
     cards,
-    guidance: {
-      tone: 'success',
-      headline: 'Assignments are ready to save',
-      detail:
-        'System default coverage and role overrides are aligned for the current model catalog.',
-    },
+    guidance: null,
   };
 }
 
 function summarizeCatalogPostureDetail(input: {
-  inactiveRoleCount: number;
   missingAssignmentCount: number;
 }): string {
-  const parts: string[] = [];
-  if (input.inactiveRoleCount > 0) {
-    parts.push(
-      `${input.inactiveRoleCount} inactive role${input.inactiveRoleCount === 1 ? '' : 's'} still need cleanup.`,
-    );
-  }
   if (input.missingAssignmentCount > 0) {
-    parts.push(
-      `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'} still need cleanup.`,
-    );
+    return `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'} still need cleanup.`;
   }
-  return parts.join(' ');
+  return 'No stale assignment rows remain.';
 }
 
 function hasDuplicateProviderName(name: string, existingNames: string[]): boolean {

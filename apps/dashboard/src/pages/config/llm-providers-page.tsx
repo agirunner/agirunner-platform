@@ -1085,21 +1085,12 @@ function normalizeReasoningConfig(
 }
 
 function summarizeStaleRoleBadgeLabel(input: {
-  inactiveRoleCount: number;
   missingAssignmentCount: number;
 }): string {
-  const parts: string[] = [];
-  if (input.inactiveRoleCount > 0) {
-    parts.push(
-      `${input.inactiveRoleCount} inactive role${input.inactiveRoleCount === 1 ? '' : 's'}`,
-    );
-  }
   if (input.missingAssignmentCount > 0) {
-    parts.push(
-      `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`,
-    );
+    return `${input.missingAssignmentCount} missing assignment${input.missingAssignmentCount === 1 ? '' : 's'}`;
   }
-  return parts.join(' • ');
+  return '';
 }
 
 function RoleAssignmentsSection({
@@ -1120,7 +1111,7 @@ function RoleAssignmentsSection({
     (role) => role.source === 'catalog' && role.isActive === false,
   ).length;
   const missingAssignmentCount = roleRows.filter((role) => role.source === 'assignment').length;
-  const staleRoleCount = inactiveRoleCount + missingAssignmentCount;
+  const staleRoleCount = missingAssignmentCount;
 
   const [defaultModelId, setDefaultModelId] = useState(systemDefault.modelId ?? '__none__');
   const [defaultReasoning, setDefaultReasoning] = useState<Record<string, unknown> | null>(
@@ -1237,6 +1228,16 @@ function RoleAssignmentsSection({
   })();
   const shouldShowAssignmentGuidance =
     assignmentValidation.blockingIssues.length > 0 || hasUnsavedChanges;
+  const assignmentGuidance =
+    assignmentValidation.blockingIssues.length > 0
+      ? assignmentSurface.guidance
+      : hasUnsavedChanges
+        ? {
+            tone: 'success' as const,
+            headline: 'Unsaved assignment changes',
+            detail: 'Review the updated default and role overrides, then save when ready.',
+          }
+        : null;
 
   return (
     <div id="llm-model-assignments" className="space-y-6">
@@ -1254,15 +1255,15 @@ function RoleAssignmentsSection({
           </Card>
         ))}
       </div>
-      {shouldShowAssignmentGuidance ? (
+      {shouldShowAssignmentGuidance && assignmentGuidance ? (
         <div
           className={
             DIALOG_ALERT_CLASS_NAME
           }
-          style={panelToneStyle(assignmentSurface.guidance.tone)}
+          style={panelToneStyle(assignmentGuidance.tone)}
         >
-          <div className="font-medium">{assignmentSurface.guidance.headline}</div>
-          <p className="mt-1">{assignmentSurface.guidance.detail}</p>
+          <div className="font-medium">{assignmentGuidance.headline}</div>
+          <p className="mt-1">{assignmentGuidance.detail}</p>
           {assignmentValidation.missingRoleNames.length > 0 ? (
             <div className="mt-3 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-[0.12em] text-current/80">
@@ -1363,7 +1364,6 @@ function RoleAssignmentsSection({
               {staleRoleCount > 0 ? (
                 <Badge variant="warning">
                   {summarizeStaleRoleBadgeLabel({
-                    inactiveRoleCount,
                     missingAssignmentCount,
                   })}
                 </Badge>

@@ -168,7 +168,7 @@ describe('llm providers page support', () => {
         {
           label: 'Catalog posture',
           value: 'No enabled models',
-          detail: '1 inactive role still need cleanup.',
+          detail: 'No stale assignment rows remain.',
         },
       ],
       guidance: {
@@ -210,12 +210,7 @@ describe('llm providers page support', () => {
           detail: 'No stale assignment rows remain.',
         },
       ],
-      guidance: {
-        tone: 'success',
-        headline: 'Assignments are ready to save',
-        detail:
-          'System default coverage and role overrides are aligned for the current model catalog.',
-      },
+      guidance: null,
     });
   });
 
@@ -249,16 +244,11 @@ describe('llm providers page support', () => {
           detail: 'No stale assignment rows remain.',
         },
       ],
-      guidance: {
-        tone: 'success',
-        headline: 'Assignments are ready to save',
-        detail:
-          'System default coverage and role overrides are aligned for the current model catalog.',
-      },
+      guidance: null,
     });
   });
 
-  it('spells out missing assignments separately from inactive roles in catalog posture', () => {
+  it('surfaces only missing assignments in catalog posture cleanup copy', () => {
     expect(
       summarizeAssignmentSurface({
         enabledModelCount: 2,
@@ -285,15 +275,10 @@ describe('llm providers page support', () => {
         {
           label: 'Catalog posture',
           value: '2 enabled models',
-          detail: '1 inactive role still need cleanup. 1 missing assignment still need cleanup.',
+          detail: '1 missing assignment still need cleanup.',
         },
       ],
-      guidance: {
-        tone: 'success',
-        headline: 'Assignments are ready to save',
-        detail:
-          'System default coverage and role overrides are aligned for the current model catalog.',
-      },
+      guidance: null,
     });
   });
 });
