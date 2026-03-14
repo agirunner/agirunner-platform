@@ -251,5 +251,6 @@ describe('workflow interaction timeline', () => {
     expect(source).toContain('SEARCH_DEBOUNCE_MS');
     expect(source).toContain('setTimeout');
     expect(source).toContain('clearTimeout');
+    expect(source).not.toContain('toLocaleString');
   });
 });
