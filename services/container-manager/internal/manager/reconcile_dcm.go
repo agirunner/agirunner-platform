@@ -21,9 +21,10 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 		return fmt.Errorf("list DCM containers: %w", err)
 	}
 
-	heartbeatMap, err := m.fetchHeartbeatMap()
+	heartbeats, heartbeatMap, err := m.fetchHeartbeatSnapshot()
 	if err != nil {
 		m.logger.Warn("heartbeat fetch failed, using fallback idle tracking", "error", err)
+		heartbeats = nil
 		heartbeatMap = m.buildFallbackHeartbeatMap(containers)
 	} else {
 		m.clearHeartbeatFallbackTracking(containers)
@@ -45,7 +46,7 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 	}
 
 	m.cleanupOrphanTaskContainers(ctx)
-	m.detectHungRuntimes(ctx)
+	m.detectHungRuntimesWithHeartbeats(ctx, heartbeats)
 
 	updatedContainers, listErr := m.listDCMRuntimeContainers(ctx)
 	if listErr == nil {
@@ -350,12 +351,12 @@ func gracePeriodDuration(gracePeriodSec int, fallback time.Duration) time.Durati
 }
 
 // fetchHeartbeatMap retrieves heartbeat data and indexes it by runtime ID.
-func (m *Manager) fetchHeartbeatMap() (map[string]RuntimeHeartbeat, error) {
+func (m *Manager) fetchHeartbeatSnapshot() ([]RuntimeHeartbeat, map[string]RuntimeHeartbeat, error) {
 	heartbeats, err := m.platform.FetchHeartbeats()
 	if err != nil {
-		return nil, fmt.Errorf("fetch heartbeats: %w", err)
+		return nil, nil, fmt.Errorf("fetch heartbeats: %w", err)
 	}
-	return buildHeartbeatMap(heartbeats), nil
+	return heartbeats, buildHeartbeatMap(heartbeats), nil
 }
 
 // buildHeartbeatMap creates a lookup from runtime ID to heartbeat.

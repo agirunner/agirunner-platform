@@ -21,7 +21,10 @@ func (m *Manager) detectHungRuntimes(ctx context.Context) {
 		m.logger.Error("hung detection: failed to fetch heartbeats", "error", err)
 		return
 	}
+	m.detectHungRuntimesWithHeartbeats(ctx, heartbeats)
+}
 
+func (m *Manager) detectHungRuntimesWithHeartbeats(ctx context.Context, heartbeats []RuntimeHeartbeat) {
 	containers, err := m.listDCMRuntimeContainers(ctx)
 	if err != nil {
 		m.logger.Error("hung detection: failed to list containers", "error", err)

@@ -145,6 +145,7 @@ type mockPlatformClient struct {
 	fetchErr        error
 	fetchTargetsErr error
 	fetchHBErr      error
+	fetchHBCalls    int
 	reportedStates  []ActualState
 	reportedImages  []ContainerImage
 	reportedEvents  []FleetEvent
@@ -192,6 +193,7 @@ func (m *mockPlatformClient) FetchRuntimeTargets() ([]RuntimeTarget, error) {
 }
 
 func (m *mockPlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
+	m.fetchHBCalls++
 	if m.fetchHBErr != nil {
 		return nil, m.fetchHBErr
 	}
@@ -691,5 +693,32 @@ func TestRunReconcileCycleCallsBothReconcilers(t *testing.T) {
 	}
 	if len(platform.reportedImages) != 0 {
 		t.Errorf("expected no images reported with empty setup, got %d", len(platform.reportedImages))
+	}
+}
+
+func TestReconcileCycleFetchesHeartbeatsOncePerCycle(t *testing.T) {
+	docker := newMockDockerClient()
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			{
+				PlaybookID:         "pb-1",
+				PlaybookName:       "Test",
+				Image:              "agirunner-runtime:latest",
+				MaxRuntimes:        0,
+				PendingTasks:       0,
+				Priority:           1,
+				PoolKind:           "specialist",
+				PoolMode:           "warm",
+				IdleTimeoutSeconds: 300,
+				GracePeriodSeconds: 30,
+			},
+		},
+	}
+	r := newTestManager(docker, platform)
+
+	r.runReconcileCycle(context.Background())
+
+	if got := platform.fetchHBCalls; got != 1 {
+		t.Fatalf("expected exactly one heartbeat fetch per reconcile cycle, got %d", got)
 	}
 }
