@@ -206,6 +206,7 @@ describe('workflow interaction timeline', () => {
     expect(source).toContain('descriptor.scopeSummary');
     expect(source).toContain('descriptor.signalBadges');
     expect(source).toContain('TimelineEventPacket');
+    expect(source).toContain('descriptor={descriptor}');
     expect(source).toContain('buildTimelineEntryActions');
     expect(source).not.toContain('Event payload');
   });

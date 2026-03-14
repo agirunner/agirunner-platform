@@ -1,15 +1,15 @@
 import type { DashboardEventRecord } from '../lib/api.js';
 import { Badge } from '../components/ui/badge.js';
 import { StructuredRecordView } from '../components/structured-data.js';
-import {
-  describeReviewPacket,
-  toStructuredDetailViewData,
-} from './workflow-detail-presentation.js';
-import { curatePacketFacts } from './workflow-history-card.packet.support.js';
+import type { TimelineDescriptor } from './workflow-history-card.narrative.js';
+import { describeTimelineEventPacket } from './workflow-history-card.packet.support.js';
+import { toStructuredDetailViewData } from './workflow-detail-presentation.js';
 
-export function TimelineEventPacket(props: { event: DashboardEventRecord }): JSX.Element {
-  const reviewPacket = describeReviewPacket(props.event.data, 'interaction packet');
-  const scalarFacts = curatePacketFacts(props.event.type, props.event.data, 4);
+export function TimelineEventPacket(props: {
+  event: DashboardEventRecord;
+  descriptor: TimelineDescriptor;
+}): JSX.Element {
+  const reviewPacket = describeTimelineEventPacket(props.event, props.descriptor);
 
   return (
     <div className="grid gap-3 rounded-lg border border-border/70 bg-surface/80 p-3">
@@ -23,9 +23,9 @@ export function TimelineEventPacket(props: { event: DashboardEventRecord }): JSX
         </div>
         <Badge variant="outline">{reviewPacket.typeLabel}</Badge>
       </div>
-      {scalarFacts.length > 0 ? (
+      {reviewPacket.facts.length > 0 ? (
         <dl className="grid gap-2 sm:grid-cols-2">
-          {scalarFacts.map((fact) => (
+          {reviewPacket.facts.map((fact) => (
             <div
               key={`${props.event.id}:${fact.label}`}
               className="grid gap-1 rounded-lg border border-border/70 bg-background/90 px-3 py-2"
@@ -50,7 +50,7 @@ export function TimelineEventPacket(props: { event: DashboardEventRecord }): JSX
       {reviewPacket.hasStructuredDetail ? (
         <details className="rounded-lg border border-border/60 bg-background/90 p-3">
           <summary className="cursor-pointer text-sm font-medium text-foreground">
-            Open event packet
+            {reviewPacket.disclosureLabel}
           </summary>
           <div className="mt-3">
             <StructuredRecordView

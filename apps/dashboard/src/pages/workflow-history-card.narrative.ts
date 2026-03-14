@@ -45,6 +45,7 @@ export interface TimelineDescriptor {
   summary: string | null;
   taskId: string | null;
   workItemId: string | null;
+  workItemLabel: string | null;
 }
 
 const emptyContext: TimelineLookupContext = {
@@ -133,6 +134,7 @@ export function describeTimelineEvent(
     summary: descriptorBase.summary,
     taskId,
     workItemId,
+    workItemLabel: workItem?.title ?? readString(event.data?.work_item_title) ?? null,
   };
 }
 

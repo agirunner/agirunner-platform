@@ -256,7 +256,7 @@ function TimelineEntry(props: {
           </Link>
         ))}
       </div>
-      <TimelineEventPacket event={event} />
+      <TimelineEventPacket event={event} descriptor={descriptor} />
     </li>
   );
 }

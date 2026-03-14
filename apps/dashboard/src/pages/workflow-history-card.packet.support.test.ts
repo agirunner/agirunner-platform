@@ -200,14 +200,14 @@ describe('curatePacketFacts', () => {
 });
 
 describe('workflow-history-card.packet.tsx integration', () => {
-  it('uses curatePacketFacts instead of generic readPacketScalarFacts', () => {
+  it('uses the timeline packet descriptor helper instead of generic scalar extraction', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-history-card.packet.tsx'),
       'utf8',
     );
 
-    expect(source).toContain('curatePacketFacts');
-    expect(source).toContain('props.event.type');
+    expect(source).toContain('describeTimelineEventPacket');
+    expect(source).toContain('props.descriptor');
     expect(source).not.toContain('readPacketScalarFacts');
   });
 });
