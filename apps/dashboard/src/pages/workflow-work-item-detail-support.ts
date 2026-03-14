@@ -30,6 +30,11 @@ export interface DashboardGroupedWorkItemRecord extends DashboardWorkflowWorkIte
   children?: DashboardGroupedWorkItemRecord[];
 }
 
+export interface WorkItemArtifactIdentity {
+  fileName: string;
+  displayPath: string | null;
+}
+
 export interface MilestoneOperatorSummary {
   totalChildren: number;
   completedChildren: number;
@@ -628,6 +633,19 @@ export function sortMemoryHistoryNewestFirst(
   });
 }
 
+export function describeCountLabel(count: number, noun: string): string {
+  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+}
+
+export function describeWorkItemArtifactIdentity(logicalPath: string): WorkItemArtifactIdentity {
+  const normalizedPath = normalizeArtifactLogicalPath(logicalPath);
+  const fileName = extractArtifactFileName(normalizedPath);
+  return {
+    fileName,
+    displayPath: normalizedPath.length > 0 && normalizedPath !== fileName ? normalizedPath : null,
+  };
+}
+
 function readTaskUrgencyRank(state: DashboardWorkItemTaskRecord['state']): number {
   switch (normalizeTaskState(state)) {
     case 'awaiting_approval':
@@ -691,7 +709,7 @@ function buildRecoveryFacts(
 }
 
 function describeCount(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`;
+  return describeCountLabel(count, noun);
 }
 
 function formatRoutingValue(value: string | null | undefined, fallback: string): string {
@@ -758,6 +776,27 @@ function isScalarValue(value: unknown): boolean {
     typeof value === 'boolean' ||
     value === null
   );
+}
+
+function extractArtifactFileName(logicalPath: string): string {
+  const trimmed = logicalPath.trim();
+  if (!trimmed) {
+    return 'artifact';
+  }
+  const segments = trimmed.split('/').filter(Boolean);
+  return segments[segments.length - 1] ?? trimmed;
+}
+
+function normalizeArtifactLogicalPath(logicalPath: string): string {
+  const trimmed = logicalPath.trim();
+  if (!trimmed.startsWith('artifact:')) {
+    return trimmed;
+  }
+  const firstSlash = trimmed.indexOf('/');
+  if (firstSlash < 0 || firstSlash === trimmed.length - 1) {
+    return trimmed;
+  }
+  return trimmed.slice(firstSlash + 1);
 }
 
 function normalizeTimestamp(value: unknown): string {

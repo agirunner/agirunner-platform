@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildWorkItemRecoveryBrief,
   buildWorkItemBreadcrumbs,
+  describeCountLabel,
   describeTaskOperatorPosture,
+  describeWorkItemArtifactIdentity,
   findWorkItemById,
   flattenArtifactsByTask,
   flattenGroupedWorkItems,
@@ -135,6 +137,40 @@ describe('workflow work item detail support', () => {
         task_title: 'Draft design',
       }),
     ]);
+  });
+
+  it('formats singular and plural operator count labels correctly', () => {
+    expect(describeCountLabel(1, 'linked step')).toBe('1 linked step');
+    expect(describeCountLabel(2, 'linked step')).toBe('2 linked steps');
+    expect(describeCountLabel(0, 'linked step')).toBe('0 linked steps');
+    expect(describeCountLabel(1, 'artifact')).toBe('1 artifact');
+    expect(describeCountLabel(1, 'child item')).toBe('1 child item');
+    expect(describeCountLabel(3, 'child item')).toBe('3 child items');
+    expect(describeCountLabel(1, 'step review')).toBe('1 step review');
+    expect(describeCountLabel(4, 'step review')).toBe('4 step reviews');
+    expect(describeCountLabel(1, 'failed step')).toBe('1 failed step');
+    expect(describeCountLabel(2, 'failed step')).toBe('2 failed steps');
+    expect(describeCountLabel(1, 'item')).toBe('1 item');
+    expect(describeCountLabel(1, 'previewable output')).toBe('1 previewable output');
+  });
+
+  it('describes artifacts with filename-first identity and trimmed logical paths', () => {
+    expect(
+      describeWorkItemArtifactIdentity(
+        'artifact:550e8400-e29b-41d4-a716-446655440000/docs/release-notes.md',
+      ),
+    ).toEqual({
+      fileName: 'release-notes.md',
+      displayPath: 'docs/release-notes.md',
+    });
+    expect(describeWorkItemArtifactIdentity('docs/brief.md')).toEqual({
+      fileName: 'brief.md',
+      displayPath: 'docs/brief.md',
+    });
+    expect(describeWorkItemArtifactIdentity('artifact:artifact-1/brief.md')).toEqual({
+      fileName: 'brief.md',
+      displayPath: null,
+    });
   });
 
   it('groups parent milestone work items, finds them by id, and selects child tasks with the parent', () => {

@@ -43,6 +43,8 @@ describe('workflow work item detail panel source', () => {
     const source = readSource();
     expect(source).toContain('grid h-auto w-full grid-cols-2');
     expect(source).toContain('xl:grid-cols-4');
+    expect(source).toContain('describeCountLabel(props.tasks.length, \'linked step\')');
+    expect(source).toContain('describeCountLabel(artifactQuery.data.length, \'artifact\')');
     expect(source).toContain('TabsTrigger value="steps"');
     expect(source).toContain('TabsTrigger value="memory"');
     expect(source).toContain('TabsTrigger value="artifacts"');
@@ -56,6 +58,10 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('getWorkflowWorkItemMemoryHistory');
     expect(source).toContain('Current memory');
     expect(source).toContain('Memory history');
+    expect(source).toContain('No scoped memory yet');
+    expect(source).toContain('Waiting for first write');
+    expect(source).toContain('No memory changes yet');
+    expect(source).toContain('What shows up here');
     expect(source).toContain('Memory packet');
     expect(source).toContain('Memory change packet');
     expect(source).toContain('<RelativeTimestamp value={entry.updated_at} prefix="Updated" />');
@@ -155,6 +161,8 @@ describe('workflow work item detail panel source', () => {
     const source = readSource();
     expect(source).toContain('buildArtifactPermalink');
     expect(source).toContain('Preview artifact');
+    expect(source).toContain('describeWorkItemArtifactIdentity');
+    expect(source).toContain('<CopyableIdBadge value={artifact.id} label="Artifact" />');
     expect(source).not.toContain('access_url ?? artifact.download_url');
   });
 

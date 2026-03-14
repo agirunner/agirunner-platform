@@ -65,7 +65,9 @@ import {
 import {
   buildWorkItemRecoveryBrief,
   buildWorkItemBreadcrumbs,
+  describeCountLabel,
   describeTaskOperatorPosture,
+  describeWorkItemArtifactIdentity,
   flattenArtifactsByTask,
   findWorkItemById,
   isMilestoneWorkItem,
@@ -383,11 +385,13 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
       <CardHeader className="gap-4 border-b border-border/70 bg-gradient-to-br from-surface via-surface to-border/10">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div className="grid gap-3">
-            <div className={metaRowClass}>
+          <div className={metaRowClass}>
               <Badge variant="secondary">Selected work item</Badge>
-              <Badge variant="outline">{props.tasks.length} linked steps</Badge>
+              <Badge variant="outline">{describeCountLabel(props.tasks.length, 'linked step')}</Badge>
               {artifactQuery.data ? (
-                <Badge variant="outline">{artifactQuery.data.length} artifacts</Badge>
+                <Badge variant="outline">
+                  {describeCountLabel(artifactQuery.data.length, 'artifact')}
+                </Badge>
               ) : null}
             </div>
             <div className="grid gap-2">
@@ -893,10 +897,15 @@ function WorkItemMemorySection(props: {
       <section className="grid gap-3 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <strong className="text-base">Current memory</strong>
-          <Badge variant="outline">{props.entries.length} entries</Badge>
+          <Badge variant="outline">{describeCountLabel(props.entries.length, 'entry')}</Badge>
         </div>
         {props.entries.length === 0 ? (
-          <p className={mutedBodyClass}>No work-item memory entries recorded yet.</p>
+          <MemoryEmptyState
+            title="No scoped memory yet"
+            badge="Waiting for first write"
+            summary="This work item has not stored any scoped memory packets yet."
+            detail="Current memory shows the latest saved value for each key after the orchestrator or linked steps write scoped context."
+          />
         ) : (
           props.entries.map((entry) => (
             <article
@@ -926,7 +935,7 @@ function WorkItemMemorySection(props: {
       <section className="grid gap-3 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3">
           <strong className="text-base">Memory history</strong>
-          <Badge variant="outline">{props.history.length} events</Badge>
+          <Badge variant="outline">{describeCountLabel(props.history.length, 'event')}</Badge>
         </div>
         {props.isHistoryLoading ? (
           <p className={loadingTextClass}>Loading memory history...</p>
@@ -935,7 +944,12 @@ function WorkItemMemorySection(props: {
           <p className={errorTextClass}>Failed to load work-item memory history.</p>
         ) : null}
         {!props.isHistoryLoading && !props.hasHistoryError && props.history.length === 0 ? (
-          <p className={mutedBodyClass}>No work-item memory history recorded yet.</p>
+          <MemoryEmptyState
+            title="No memory changes yet"
+            badge="No history events"
+            summary="There are no recorded create, update, or delete events for work-item memory yet."
+            detail="History preserves each write in order so operators can reconstruct how the memory packet changed over time."
+          />
         ) : null}
         {!props.isHistoryLoading && !props.hasHistoryError
           ? props.history.map((entry) => (
@@ -1045,7 +1059,7 @@ function WorkItemHeader(props: {
       <div className={metaRowClass}>
         {workItem.owner_role ? <Badge variant="outline">{workItem.owner_role}</Badge> : null}
         {workItem.task_count !== undefined ? (
-          <Badge variant="outline">{workItem.task_count} linked steps</Badge>
+          <Badge variant="outline">{describeCountLabel(workItem.task_count, 'linked step')}</Badge>
         ) : null}
         {workItem.parent_work_item_id ? (
           <Button
@@ -1184,7 +1198,7 @@ function MilestoneOperatorSummarySection(props: {
           Milestone group summary
         </div>
         <div className={metaRowClass}>
-          <Badge variant="outline">{props.summary.totalChildren} child items</Badge>
+          <Badge variant="outline">{describeCountLabel(props.summary.totalChildren, 'child item')}</Badge>
           <Badge variant="outline">{props.summary.completedChildren} complete</Badge>
           <Badge variant="outline">{props.summary.openChildren} open</Badge>
         </div>
@@ -1194,8 +1208,8 @@ function MilestoneOperatorSummarySection(props: {
           Operator attention
         </div>
         <div className={metaRowClass}>
-          <Badge variant="warning">{props.summary.awaitingStepReviews} step reviews</Badge>
-          <Badge variant="destructive">{props.summary.failedSteps} failed steps</Badge>
+          <Badge variant="warning">{describeCountLabel(props.summary.awaitingStepReviews, 'step review')}</Badge>
+          <Badge variant="destructive">{describeCountLabel(props.summary.failedSteps, 'failed step')}</Badge>
           <Badge variant="outline">{props.summary.inFlightSteps} in flight</Badge>
         </div>
       </article>
@@ -1726,7 +1740,7 @@ function MilestoneChildrenSection(props: {
     <section className="grid gap-4 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <strong className="text-base">Milestone children</strong>
-        <Badge variant="outline">{props.children.length} items</Badge>
+        <Badge variant="outline">{describeCountLabel(props.children.length, 'item')}</Badge>
       </div>
       <p className={mutedBodyClass}>
         Child work items inherit this milestone’s operator context but can move independently across
@@ -1742,7 +1756,7 @@ function MilestoneChildrenSection(props: {
             <div className={metaRowClass}>
               <Badge variant="outline">Stage group</Badge>
               <strong>{stageName}</strong>
-              <span className="text-sm text-muted">{children.length} child items</span>
+              <span className="text-sm text-muted">{describeCountLabel(children.length, 'child item')}</span>
             </div>
             {children.map((child) => (
               <article
@@ -1807,7 +1821,9 @@ function WorkItemArtifactsSection(props: {
     <section className="grid gap-3 rounded-xl border border-border/70 bg-surface p-4 shadow-sm">
       <div className="flex items-center justify-between gap-3">
         <strong className="text-base">Artifacts</strong>
-        <Badge variant="outline">{props.artifacts.length} previewable outputs</Badge>
+        <Badge variant="outline">
+          {describeCountLabel(props.artifacts.length, 'previewable output')}
+        </Badge>
       </div>
       {props.artifacts.map((artifact) => (
         <article
@@ -1815,12 +1831,13 @@ function WorkItemArtifactsSection(props: {
           className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4"
         >
           <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <strong>{artifact.logical_path}</strong>
+            <ArtifactIdentity artifact={artifact} />
             <Badge variant="outline">{artifact.content_type}</Badge>
           </div>
           <div className={metaRowClass}>
             <Badge variant="outline">{artifact.task_title}</Badge>
             <Badge variant="outline">{artifact.size_bytes} bytes</Badge>
+            <CopyableIdBadge value={artifact.id} label="Artifact" />
           </div>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <RelativeTimestamp value={artifact.created_at} prefix="Created" />
@@ -1829,6 +1846,43 @@ function WorkItemArtifactsSection(props: {
         </article>
       ))}
     </section>
+  );
+}
+
+function MemoryEmptyState(props: {
+  title: string;
+  badge: string;
+  summary: string;
+  detail: string;
+}): JSX.Element {
+  return (
+    <div className="grid gap-3 rounded-xl border border-dashed border-border/70 bg-border/5 p-4">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <div className="grid gap-1">
+          <strong className="text-sm">{props.title}</strong>
+          <p className={mutedBodyClass}>{props.summary}</p>
+        </div>
+        <Badge variant="outline">{props.badge}</Badge>
+      </div>
+      <div className="rounded-lg border border-border/70 bg-surface/80 p-3">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-muted">
+          What shows up here
+        </p>
+        <p className="mt-2 text-sm leading-6 text-muted">{props.detail}</p>
+      </div>
+    </div>
+  );
+}
+
+function ArtifactIdentity(props: { artifact: DashboardWorkItemArtifactRecord }): JSX.Element {
+  const identity = describeWorkItemArtifactIdentity(props.artifact.logical_path);
+  return (
+    <div className="grid gap-1">
+      <strong className="break-all">{identity.fileName}</strong>
+      {identity.displayPath ? (
+        <CopyableIdBadge value={identity.displayPath} label="Path" />
+      ) : null}
+    </div>
   );
 }
 
