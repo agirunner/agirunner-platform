@@ -236,6 +236,29 @@ func TestFetchDesiredStateRequestsEnabledWorkersOnly(t *testing.T) {
 	}
 }
 
+func TestFetchReconcileSnapshotUsesSharedFleetEndpoint(t *testing.T) {
+	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/v1/fleet/reconcile-snapshot" {
+			t.Errorf("expected path /api/v1/fleet/reconcile-snapshot, got %s", req.URL.Path)
+		}
+		if req.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", req.Method)
+		}
+		return jsonResponse(http.StatusOK, `{"data":{"desired_states":[{"id":"worker-1","enabled":true}],"runtime_targets":[{"playbook_id":"pb-1","playbook_name":"Build","pool_kind":"orchestrator","pool_mode":"warm","max_runtimes":1,"priority":0,"idle_timeout_seconds":300,"grace_period_seconds":180,"image":"runtime:v1","pull_policy":"if-not-present","cpu":"1","memory":"512m","pending_tasks":1,"tasks_with_capabilities":0,"distinct_capability_sets":0,"max_required_capabilities":0,"capability_demand_units":0,"active_workflows":1}],"heartbeats":[{"runtime_id":"rt-1","playbook_id":"pb-1","pool_kind":"orchestrator","state":"idle","last_heartbeat_at":"2026-03-12T00:00:00Z","active_task_id":"task-1"}]}}`), nil
+	})
+
+	result, err := client.FetchReconcileSnapshot()
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if capture.authorization != "Bearer test-key" {
+		t.Fatalf("expected Authorization Bearer test-key, got %s", capture.authorization)
+	}
+	if len(result.DesiredStates) != 1 || len(result.RuntimeTargets) != 1 || len(result.Heartbeats) != 1 {
+		t.Fatalf("unexpected snapshot payload sizes: %+v", result)
+	}
+}
+
 type capturedRequest struct {
 	authorization string
 }

@@ -252,6 +252,14 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.get(
+    '/api/v1/fleet/reconcile-snapshot',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request) => {
+      return { data: await service.getReconcileSnapshot(request.auth!.tenantId) };
+    },
+  );
+
   app.post(
     '/api/v1/fleet/heartbeat',
     { preHandler: [authenticateApiKey, withScope('worker')] },

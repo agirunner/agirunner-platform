@@ -15,7 +15,6 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("fetch runtime targets: %w", err)
 	}
-
 	containers, err := m.listDCMRuntimeContainers(ctx)
 	if err != nil {
 		return fmt.Errorf("list DCM containers: %w", err)
@@ -30,6 +29,32 @@ func (m *Manager) reconcileDCM(ctx context.Context) error {
 		m.clearHeartbeatFallbackTracking(containers)
 	}
 
+	return m.reconcileDCMWithResolvedInputs(ctx, targets, heartbeats, containers, heartbeatMap)
+}
+
+func (m *Manager) reconcileDCMWithSnapshot(
+	ctx context.Context,
+	targets []RuntimeTarget,
+	heartbeats []RuntimeHeartbeat,
+) error {
+	containers, err := m.listDCMRuntimeContainers(ctx)
+	if err != nil {
+		return fmt.Errorf("list DCM containers: %w", err)
+	}
+
+	heartbeatMap := buildHeartbeatMap(heartbeats)
+	m.clearHeartbeatFallbackTracking(containers)
+
+	return m.reconcileDCMWithResolvedInputs(ctx, targets, heartbeats, containers, heartbeatMap)
+}
+
+func (m *Manager) reconcileDCMWithResolvedInputs(
+	ctx context.Context,
+	targets []RuntimeTarget,
+	heartbeats []RuntimeHeartbeat,
+	containers []ContainerInfo,
+	heartbeatMap map[string]RuntimeHeartbeat,
+) error {
 	grouped := groupContainersByTarget(containers)
 	drainingCount := countDrainingContainers(containers)
 	totalRunning := len(containers)

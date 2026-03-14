@@ -774,6 +774,24 @@ export class FleetService {
     });
   }
 
+  async getReconcileSnapshot(tenantId: string): Promise<{
+    desired_states: FleetWorkerView[];
+    runtime_targets: RuntimeTarget[];
+    heartbeats: HeartbeatListRow[];
+  }> {
+    const [desiredStates, runtimeTargets, heartbeats] = await Promise.all([
+      this.listWorkers(tenantId, { enabledOnly: true }),
+      this.getRuntimeTargets(tenantId),
+      this.listHeartbeats(tenantId),
+    ]);
+
+    return {
+      desired_states: desiredStates,
+      runtime_targets: runtimeTargets,
+      heartbeats,
+    };
+  }
+
   private async loadDesiredStateRow(tenantId: string, id: string): Promise<DesiredStateRow> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const row = await repo.findById<DesiredStateRow>('worker_desired_state', '*', id);

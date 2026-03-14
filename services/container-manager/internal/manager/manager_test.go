@@ -142,10 +142,13 @@ type mockPlatformClient struct {
 	desiredStates   []DesiredState
 	runtimeTargets  []RuntimeTarget
 	heartbeats      []RuntimeHeartbeat
+	snapshot        *ReconcileSnapshot
 	fetchErr        error
 	fetchTargetsErr error
 	fetchHBErr      error
+	fetchSnapErr    error
 	fetchHBCalls    int
+	fetchSnapCalls  int
 	reportedStates  []ActualState
 	reportedImages  []ContainerImage
 	reportedEvents  []FleetEvent
@@ -167,6 +170,21 @@ func (m *mockPlatformClient) FetchDesiredState() ([]DesiredState, error) {
 		return nil, m.fetchErr
 	}
 	return m.desiredStates, nil
+}
+
+func (m *mockPlatformClient) FetchReconcileSnapshot() (*ReconcileSnapshot, error) {
+	m.fetchSnapCalls++
+	if m.fetchSnapErr != nil {
+		return nil, m.fetchSnapErr
+	}
+	if m.snapshot != nil {
+		return m.snapshot, nil
+	}
+	return &ReconcileSnapshot{
+		DesiredStates:  m.desiredStates,
+		RuntimeTargets: m.runtimeTargets,
+		Heartbeats:     m.heartbeats,
+	}, nil
 }
 
 func (m *mockPlatformClient) ReportActualState(state ActualState) error {
@@ -270,6 +288,27 @@ func TestReconcileOnceNoDesiredNoContainers(t *testing.T) {
 	}
 	if len(docker.removedIDs) != 0 {
 		t.Errorf("expected no containers removed, got %d", len(docker.removedIDs))
+	}
+}
+
+func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
+	docker := newMockDockerClient()
+	platform := &mockPlatformClient{
+		snapshot: &ReconcileSnapshot{
+			DesiredStates:  []DesiredState{},
+			RuntimeTargets: []RuntimeTarget{},
+			Heartbeats:     []RuntimeHeartbeat{},
+		},
+	}
+	manager := newTestManager(docker, platform)
+
+	manager.runReconcileCycle(context.Background())
+
+	if platform.fetchSnapCalls != 1 {
+		t.Fatalf("expected one reconcile snapshot fetch, got %d", platform.fetchSnapCalls)
+	}
+	if platform.fetchHBCalls != 0 {
+		t.Fatalf("expected no direct heartbeat fetches during shared snapshot reconcile, got %d", platform.fetchHBCalls)
 	}
 }
 
@@ -696,29 +735,36 @@ func TestRunReconcileCycleCallsBothReconcilers(t *testing.T) {
 	}
 }
 
-func TestReconcileCycleFetchesHeartbeatsOncePerCycle(t *testing.T) {
+func TestReconcileCycleUsesSnapshotInsteadOfPerEndpointHeartbeatFetches(t *testing.T) {
 	docker := newMockDockerClient()
 	platform := &mockPlatformClient{
-		runtimeTargets: []RuntimeTarget{
-			{
-				PlaybookID:         "pb-1",
-				PlaybookName:       "Test",
-				Image:              "agirunner-runtime:latest",
-				MaxRuntimes:        0,
-				PendingTasks:       0,
-				Priority:           1,
-				PoolKind:           "specialist",
-				PoolMode:           "warm",
-				IdleTimeoutSeconds: 300,
-				GracePeriodSeconds: 30,
+		snapshot: &ReconcileSnapshot{
+			DesiredStates: []DesiredState{},
+			RuntimeTargets: []RuntimeTarget{
+				{
+					PlaybookID:         "pb-1",
+					PlaybookName:       "Test",
+					Image:              "agirunner-runtime:latest",
+					MaxRuntimes:        0,
+					PendingTasks:       0,
+					Priority:           1,
+					PoolKind:           "specialist",
+					PoolMode:           "warm",
+					IdleTimeoutSeconds: 300,
+					GracePeriodSeconds: 30,
+				},
 			},
+			Heartbeats: []RuntimeHeartbeat{},
 		},
 	}
 	r := newTestManager(docker, platform)
 
 	r.runReconcileCycle(context.Background())
 
-	if got := platform.fetchHBCalls; got != 1 {
-		t.Fatalf("expected exactly one heartbeat fetch per reconcile cycle, got %d", got)
+	if got := platform.fetchSnapCalls; got != 1 {
+		t.Fatalf("expected exactly one reconcile snapshot fetch per reconcile cycle, got %d", got)
+	}
+	if got := platform.fetchHBCalls; got != 0 {
+		t.Fatalf("expected no direct heartbeat fetches during shared snapshot reconcile, got %d", got)
 	}
 }

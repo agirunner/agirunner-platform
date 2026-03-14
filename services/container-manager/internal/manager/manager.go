@@ -67,6 +67,7 @@ type Config struct {
 // PlatformAPI abstracts communication with the platform API.
 type PlatformAPI interface {
 	FetchDesiredState() ([]DesiredState, error)
+	FetchReconcileSnapshot() (*ReconcileSnapshot, error)
 	ReportActualState(state ActualState) error
 	ReportImage(image ContainerImage) error
 	FetchRuntimeTargets() ([]RuntimeTarget, error)
@@ -186,11 +187,19 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 	start := time.Now()
 
 	var wdsErr, dcmErr error
-	if wdsErr = m.reconcileOnce(ctx); wdsErr != nil {
+	snapshot, snapshotErr := m.platform.FetchReconcileSnapshot()
+	if snapshotErr != nil {
+		wdsErr = fmt.Errorf("fetch reconcile snapshot: %w", snapshotErr)
+		dcmErr = wdsErr
 		m.logger.Error("WDS reconcile cycle failed", "error", wdsErr)
-	}
-	if dcmErr = m.reconcileDCM(ctx); dcmErr != nil {
 		m.logger.Error("DCM reconcile cycle failed", "error", dcmErr)
+	} else {
+		if wdsErr = m.reconcileOnceWithDesired(ctx, snapshot.DesiredStates); wdsErr != nil {
+			m.logger.Error("WDS reconcile cycle failed", "error", wdsErr)
+		}
+		if dcmErr = m.reconcileDCMWithSnapshot(ctx, snapshot.RuntimeTargets, snapshot.Heartbeats); dcmErr != nil {
+			m.logger.Error("DCM reconcile cycle failed", "error", dcmErr)
+		}
 	}
 
 	elapsed := time.Since(start)
@@ -227,7 +236,10 @@ func (m *Manager) reconcileOnce(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("fetch desired state: %w", err)
 	}
+	return m.reconcileOnceWithDesired(ctx, desired)
+}
 
+func (m *Manager) reconcileOnceWithDesired(ctx context.Context, desired []DesiredState) error {
 	actual, err := m.docker.ListContainers(ctx)
 	if err != nil {
 		return fmt.Errorf("list containers: %w", err)

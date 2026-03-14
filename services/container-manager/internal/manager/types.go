@@ -114,6 +114,14 @@ type RuntimeHeartbeat struct {
 	ActiveTaskID    string `json:"active_task_id,omitempty"`
 }
 
+// ReconcileSnapshot bundles the worker desired state and DCM inputs needed for
+// a single reconcile cycle so the manager can fetch them with one API call.
+type ReconcileSnapshot struct {
+	DesiredStates  []DesiredState     `json:"desired_states"`
+	RuntimeTargets []RuntimeTarget    `json:"runtime_targets"`
+	Heartbeats     []RuntimeHeartbeat `json:"heartbeats"`
+}
+
 // ContainerHealthStatus holds health inspection data from Docker.
 type ContainerHealthStatus struct {
 	Status string

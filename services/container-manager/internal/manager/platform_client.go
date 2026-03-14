@@ -41,6 +41,10 @@ type fleetResponse struct {
 	Data []DesiredState `json:"data"`
 }
 
+type reconcileSnapshotResponse struct {
+	Data ReconcileSnapshot `json:"data"`
+}
+
 // FetchDesiredState retrieves all enabled worker desired states.
 func (c *PlatformClient) FetchDesiredState() ([]DesiredState, error) {
 	url := fmt.Sprintf("%s/api/v1/fleet/workers?enabled=true", c.baseURL)
@@ -68,6 +72,35 @@ func (c *PlatformClient) FetchDesiredState() ([]DesiredState, error) {
 	}
 
 	return result.Data, nil
+}
+
+// FetchReconcileSnapshot retrieves the desired state, runtime targets, and
+// heartbeat snapshot for a single reconcile cycle.
+func (c *PlatformClient) FetchReconcileSnapshot() (*ReconcileSnapshot, error) {
+	url := fmt.Sprintf("%s/api/v1/fleet/reconcile-snapshot", c.baseURL)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("create reconcile snapshot request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("reconcile snapshot request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("reconcile snapshot API returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result reconcileSnapshotResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("decode reconcile snapshot response: %w", err)
+	}
+	return &result.Data, nil
 }
 
 // ReportActualState sends container state back to the platform.
