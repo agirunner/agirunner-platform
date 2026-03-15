@@ -2695,6 +2695,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(async () => {
         await requestJson(`/api/v1/config/roles/${roleId}`, {
           method: 'DELETE',
+          allowNoContent: true,
         });
       }),
     getLlmSystemDefault: () =>
