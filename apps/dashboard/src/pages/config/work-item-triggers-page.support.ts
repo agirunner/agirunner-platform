@@ -289,7 +289,7 @@ export function describeScheduledTriggerHealth(trigger: DashboardScheduledWorkIt
 
 export function describeScheduledTriggerPacket(trigger: DashboardScheduledWorkItemTriggerRecord) {
   return {
-    cadence: formatCadence(trigger.cadence_minutes),
+    cadence: formatScheduledTrigger(trigger),
     nextRun: formatDateTime(trigger.next_fire_at),
     source: trigger.source || 'project.schedule',
     nextAction: describeScheduledTriggerNextAction(trigger),
@@ -340,6 +340,16 @@ export function formatCadence(minutes: number): string {
   const hours = Math.floor(minutes / 60);
   const remainder = minutes % 60;
   return `Every ${hours} hr ${remainder} min`;
+}
+
+function formatScheduledTrigger(trigger: DashboardScheduledWorkItemTriggerRecord): string {
+  if (trigger.schedule_type === 'daily_time') {
+    const time = trigger.daily_time ?? '00:00';
+    const timezone = trigger.timezone ?? 'UTC';
+    return `Daily at ${time} (${timezone})`;
+  }
+
+  return formatCadence(trigger.cadence_minutes ?? 0);
 }
 
 export function formatDateTime(value: string): string {

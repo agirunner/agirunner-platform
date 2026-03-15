@@ -59,7 +59,7 @@ describe('project automation tab support', () => {
     expect(overview.nextAction).toContain('overdue schedule');
     expect(
       overview.packets.find((packet) => packet.label === 'Setup needed')?.detail,
-    ).toContain('Repository signatures');
+    ).toContain('Repository webhook signatures');
   });
 
   it('reports live automation when schedules, hooks, and repository trust are all configured', () => {
@@ -108,7 +108,7 @@ describe('project automation tab support', () => {
       { label: 'Attention', value: 'Clear', tone: 'success' },
       { label: 'Setup', value: 'Ready', tone: 'success' },
     ]);
-    expect(overview.summary).toContain('repository signatures');
+    expect(overview.summary).toContain('repository trust');
     expect(
       overview.packets.find((packet) => packet.label === 'Broken')?.value,
     ).toBe('No active breakage');

@@ -1,20 +1,20 @@
 -- Tools overhaul: new tools, remove web_search, recategorize.
 
 -- Add new tools
-INSERT INTO tool_tags (tenant_id, id, name, description, category, is_built_in)
-SELECT t.id, 'grep', 'Grep', 'Search file contents using regex patterns', 'search', true
+INSERT INTO tool_tags (tenant_id, id, name, description, category)
+SELECT t.id, 'grep', 'Grep', 'Search file contents using regex patterns', 'search'
 FROM tenants t ON CONFLICT DO NOTHING;
 
-INSERT INTO tool_tags (tenant_id, id, name, description, category, is_built_in)
-SELECT t.id, 'glob', 'Glob', 'Find files by glob pattern', 'search', true
+INSERT INTO tool_tags (tenant_id, id, name, description, category)
+SELECT t.id, 'glob', 'Glob', 'Find files by glob pattern', 'search'
 FROM tenants t ON CONFLICT DO NOTHING;
 
-INSERT INTO tool_tags (tenant_id, id, name, description, category, is_built_in)
-SELECT t.id, 'tool_search', 'Tool Search', 'Search for available tools by name or description', 'search', true
+INSERT INTO tool_tags (tenant_id, id, name, description, category)
+SELECT t.id, 'tool_search', 'Tool Search', 'Search for available tools by name or description', 'search'
 FROM tenants t ON CONFLICT DO NOTHING;
 
 -- Remove web_search
-DELETE FROM tool_tags WHERE id = 'web_search' AND is_built_in = true;
+DELETE FROM tool_tags WHERE id = 'web_search';
 
 -- Recategorize all tools
 UPDATE tool_tags SET category = 'files' WHERE id IN ('file_read', 'file_write', 'file_edit', 'file_list');

@@ -4,6 +4,8 @@ import type {
   DashboardWebhookWorkItemTriggerRecord,
 } from '../../lib/api.js';
 
+const GIT_PROVIDER_SOURCES = new Set(['github', 'gitea', 'gitlab']);
+
 export interface ProjectAutomationOverviewPacket {
   label: string;
   value: string;
@@ -41,10 +43,13 @@ export function buildProjectAutomationOverview(
   );
   const activeLaneCount = activeSchedules.length + activeWebhookTriggers.length;
   const brokenCount = overdueSchedules.length + webhookSecretsMissing.length;
+  const hasGitInboundHooks = webhookTriggers.some((trigger) =>
+    GIT_PROVIDER_SOURCES.has(trigger.source),
+  );
   const setupItems = [
     scheduledTriggers.length === 0 ? 'Schedules' : null,
     webhookTriggers.length === 0 ? 'Inbound hooks' : null,
-    needsRepositorySignatureSetup(project) ? 'Repository signatures' : null,
+    needsRepositorySignatureSetup(project, hasGitInboundHooks) ? 'Repository webhook signatures' : null,
   ].filter((value): value is string => value !== null);
 
   const statusLabel =
@@ -62,15 +67,15 @@ export function buildProjectAutomationOverview(
       brokenCount > 0
         ? buildBrokenSummary(overdueSchedules.length, webhookSecretsMissing.length)
         : setupItems.length > 0
-          ? `Finish ${joinLabels(setupItems)} so schedules, inbound hooks, and repository signatures behave like one control center.`
-          : `Schedules, inbound hooks, and repository signatures are aligned for this project with ${formatCount(activeLaneCount, 'live lane')}.`,
+          ? `Finish ${joinLabels(setupItems)} so schedules, inbound hooks, and optional git trust all stay aligned from one control center.`
+          : `Schedules, inbound hooks, and repository trust are aligned for this project with ${formatCount(activeLaneCount, 'live lane')}.`,
     nextAction:
       overdueSchedules.length > 0
         ? 'Start with the overdue schedule, then confirm inbound hooks and repository signatures still point at the intended run.'
         : webhookSecretsMissing.length > 0
           ? 'Set the missing inbound-hook secret before the next external event arrives.'
-          : setupItems.includes('Repository signatures')
-            ? 'Configure repository signatures before operators rely on source-driven automation.'
+          : setupItems.includes('Repository webhook signatures')
+            ? 'Configure repository webhook signatures before operators rely on git-provider inbound hooks.'
             : setupItems.length > 0
             ? `Finish ${joinLabels(setupItems)} next, then keep edits in place from this control center.`
               : 'Automation is healthy. Only change cadence, defaults, or hook mappings when the project workflow changes.',
@@ -119,13 +124,19 @@ export function buildProjectAutomationOverview(
         detail:
           setupItems.length > 0
             ? `${joinLabels(setupItems)} still ${setupItems.length === 1 ? 'needs' : 'need'} setup before this control center is fully ready.`
-            : 'Schedules, inbound hooks, and repository signatures are configured for normal operator use.',
+            : 'Schedules, inbound hooks, and optional repository trust are configured for normal operator use.',
       },
     ],
   };
 }
 
-function needsRepositorySignatureSetup(project: DashboardProjectRecord): boolean {
+function needsRepositorySignatureSetup(
+  project: DashboardProjectRecord,
+  hasGitInboundHooks: boolean,
+): boolean {
+  if (!hasGitInboundHooks) {
+    return false;
+  }
   if (!project.repository_url) {
     return true;
   }
