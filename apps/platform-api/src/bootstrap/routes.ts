@@ -14,6 +14,7 @@ import { integrationRoutes } from '../api/routes/integrations.routes.js';
 import { orchestratorGrantRoutes } from '../api/routes/orchestrator-grants.routes.js';
 import { workflowRoutes } from '../api/routes/workflows.routes.js';
 import { workflowActivationRoutes } from '../api/routes/workflow-activations.routes.js';
+import { orchestratorConfigRoutes } from '../api/routes/orchestrator-config.routes.js';
 import { platformInstructionRoutes } from '../api/routes/platform-instructions.routes.js';
 import { taskRoutes } from '../api/routes/tasks.routes.js';
 import { taskArtifactRoutes } from '../api/routes/task-artifacts.routes.js';
@@ -57,6 +58,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(webhookRoutes);
   await app.register(integrationRoutes);
   await app.register(orchestratorGrantRoutes);
+  await app.register(orchestratorConfigRoutes);
   await app.register(platformInstructionRoutes);
   await app.register(playbookRoutes);
   await app.register(orchestratorControlRoutes);

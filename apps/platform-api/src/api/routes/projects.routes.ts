@@ -236,6 +236,20 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.delete(
+    '/api/v1/projects/:id/memory/:key',
+    { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'admin'])] },
+    async (request) => {
+      const params = request.params as { id: string; key: string };
+      const project = await projectService.removeProjectMemory(
+        request.auth!,
+        params.id,
+        params.key,
+      );
+      return { data: project };
+    },
+  );
+
   app.post(
     '/api/v1/projects/:id/planning-workflow',
     { preHandler: [authenticateApiKey, withScope('admin')] },

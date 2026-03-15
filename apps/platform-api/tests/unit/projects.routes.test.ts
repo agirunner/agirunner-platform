@@ -152,4 +152,45 @@ describe('project routes', () => {
       },
     });
   });
+
+  it('deletes project memory entries through the project admin routes', async () => {
+    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+
+    const removeProjectMemory = vi.fn().mockResolvedValue({
+      id: 'project-1',
+      memory: {},
+    });
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
+    app.decorate('pgPool', {});
+    app.decorate('eventService', {});
+    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
+    app.decorate('projectService', {
+      createProject: vi.fn(),
+      getProject: vi.fn(),
+      updateProject: vi.fn(),
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory,
+      setGitWebhookConfig: vi.fn(),
+      deleteProject: vi.fn(),
+      listProjects: vi.fn(),
+    });
+
+    await app.register(projectRoutes);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/projects/project-1/memory/operator_note',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(removeProjectMemory).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'project-1',
+      'operator_note',
+    );
+  });
 });

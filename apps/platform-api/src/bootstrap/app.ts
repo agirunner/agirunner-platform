@@ -26,6 +26,7 @@ import { IntegrationAdapterService } from '../services/integration-adapter-servi
 import { startIntegrationDispatcher } from '../services/integration-dispatcher.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { OAuthService } from '../services/oauth-service.js';
+import { OrchestratorConfigService } from '../services/orchestrator-config-service.js';
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
 import { ToolTagService } from '../services/tool-tag-service.js';
 import { WebhookWorkItemTriggerService } from '../services/webhook-work-item-trigger-service.js';
@@ -139,6 +140,7 @@ export async function buildApp() {
   });
   const userService = new UserService(pool);
   const apiKeyService = new ApiKeyService(pool);
+  const orchestratorConfigService = new OrchestratorConfigService(pool);
   const roleDefinitionService = new RoleDefinitionService(pool);
   const runtimeDefaultsService = new RuntimeDefaultsService(pool);
   const fleetService = new FleetService(pool);
@@ -180,6 +182,7 @@ export async function buildApp() {
   app.decorate('taskService', createLoggedService(taskService, 'TaskService', logService));
   app.decorate('userService', createLoggedService(userService, 'UserService', logService));
   app.decorate('apiKeyService', createLoggedService(apiKeyService, 'ApiKeyService', logService));
+  app.decorate('orchestratorConfigService', createLoggedService(orchestratorConfigService, 'OrchestratorConfigService', logService));
   app.decorate('roleDefinitionService', createLoggedService(roleDefinitionService, 'RoleDefinitionService', logService));
   app.decorate('runtimeDefaultsService', createLoggedService(runtimeDefaultsService, 'RuntimeDefaultsService', logService));
   app.decorate('fleetService', createLoggedService(fleetService, 'FleetService', logService));

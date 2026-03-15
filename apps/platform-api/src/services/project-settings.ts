@@ -120,6 +120,10 @@ function parseProjectSettings(
 ): StoredProjectSettings {
   const record = asRecord(value);
 
+  if (record.model_override !== undefined) {
+    throw new ValidationError('settings.model_override is no longer supported');
+  }
+
   const existing = options.existing ? normalizeProjectSettings(options.existing) : emptyProjectSettings();
 
   const defaultBranch = readOptionalString(record.default_branch, 'settings.default_branch');

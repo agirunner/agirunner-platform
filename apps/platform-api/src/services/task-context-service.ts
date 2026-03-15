@@ -94,8 +94,13 @@ export async function buildTaskContext(
     : null;
   const projectInstructions = await loadProjectInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
+  const orchestratorPrompt = task.is_orchestrator_task
+    ? await loadOrchestratorPrompt(db, tenantId)
+    : undefined;
   const instructionLayers = buildInstructionLayers({
     platformInstructions,
+    orchestratorPrompt,
+    isOrchestratorTask: Boolean(task.is_orchestrator_task),
     projectInstructions,
     roleConfig: asRecord(task.role_config),
     taskInput: asRecord(task.input),
@@ -402,6 +407,15 @@ async function loadParentWorkflowContext(
   };
 }
 
+async function loadOrchestratorPrompt(db: DatabaseQueryable, tenantId: string): Promise<string | undefined> {
+  const result = await db.query<{ prompt: string }>(
+    'SELECT prompt FROM orchestrator_config WHERE tenant_id = $1',
+    [tenantId],
+  );
+  const prompt = result.rows[0]?.prompt?.trim();
+  return prompt || undefined;
+}
+
 async function loadPlatformInstructions(db: DatabaseQueryable, tenantId: string) {
   const result = await db.query(
     `SELECT tenant_id, version, content, format
@@ -435,6 +449,8 @@ async function loadProjectInstructions(
 
 function buildInstructionLayers(params: {
   platformInstructions?: Record<string, unknown>;
+  orchestratorPrompt?: string;
+  isOrchestratorTask: boolean;
   projectInstructions?: Record<string, unknown>;
   roleConfig: Record<string, unknown>;
   taskInput: Record<string, unknown>;
@@ -467,6 +483,20 @@ function buildInstructionLayers(params: {
     };
   }
 
+  if (params.isOrchestratorTask && params.orchestratorPrompt && !suppressed.has('orchestrator')) {
+    const orchestratorDocument = normalizeInstructionDocument(
+      params.orchestratorPrompt,
+      'orchestrator prompt',
+      10_000,
+    );
+    if (orchestratorDocument) {
+      layers.orchestrator = {
+        ...orchestratorDocument,
+        source: { type: 'orchestrator_config' },
+      };
+    }
+  }
+
   const projectDocument = normalizeInstructionDocument(
     params.projectInstructions?.instructions,
     'project instructions',
@@ -482,19 +512,21 @@ function buildInstructionLayers(params: {
     };
   }
 
-  const roleDocument = normalizeInstructionDocument(
-    params.roleConfig.system_prompt ?? params.roleConfig.instructions,
-    'role instructions',
-    10_000,
-  );
-  if (roleDocument && !suppressed.has('role')) {
-    layers.role = {
-      ...roleDocument,
-      source: {
-        role: params.role ?? null,
-        task_id: params.taskId,
-      },
-    };
+  if (!params.isOrchestratorTask) {
+    const roleDocument = normalizeInstructionDocument(
+      params.roleConfig.system_prompt ?? params.roleConfig.instructions,
+      'role instructions',
+      10_000,
+    );
+    if (roleDocument && !suppressed.has('role')) {
+      layers.role = {
+        ...roleDocument,
+        source: {
+          role: params.role ?? null,
+          task_id: params.taskId,
+        },
+      };
+    }
   }
 
   const taskDocument = normalizeInstructionDocument(
@@ -514,10 +546,11 @@ function buildInstructionLayers(params: {
   return layers;
 }
 
-const LAYER_ORDER = ['platform', 'project', 'role'] as const;
+const LAYER_ORDER = ['platform', 'orchestrator', 'project', 'role'] as const;
 
 const LAYER_HEADERS: Record<string, string> = {
   platform: '=== Platform Instructions ===',
+  orchestrator: '=== Orchestrator Prompt ===',
   project: '=== Project Instructions ===',
   role: '=== Role Instructions ===',
 };
