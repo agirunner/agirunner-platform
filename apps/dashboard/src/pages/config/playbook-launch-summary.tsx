@@ -81,7 +81,7 @@ function PlaybookSummaryBody(props: {
       <div className="space-y-1">
         <div className="text-lg font-medium">{props.playbook.name}</div>
         <p className="text-sm text-muted">
-          {props.playbook.description ?? 'No description provided.'}
+          {props.playbook.description ?? 'No operator description provided.'}
         </p>
       </div>
       <div className="flex flex-wrap gap-2">

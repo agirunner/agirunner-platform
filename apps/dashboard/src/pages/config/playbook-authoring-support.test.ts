@@ -30,7 +30,6 @@ describe('playbook authoring support', () => {
       label: 'Workflow Goal',
       help_text: 'Describe what the workflow should accomplish',
       allowed_values: '',
-      input_style: 'textarea',
     }];
     draft.runtime.specialist_pool = createRuntimePoolDraft(true);
     draft.runtime.specialist_pool.pool_mode = 'warm';
@@ -70,7 +69,7 @@ describe('playbook authoring support', () => {
           orchestrator: expect.objectContaining({
             check_interval: '5m',
             stale_threshold: '30m',
-            max_rework_iterations: 3,
+            max_rework_iterations: 5,
             max_active_tasks: 4,
             max_active_tasks_per_work_item: 2,
             allow_parallel_work_items: true,
@@ -92,7 +91,6 @@ describe('playbook authoring support', () => {
               description: 'What to build',
               label: 'Workflow Goal',
               help_text: 'Describe what the workflow should accomplish',
-              input_style: 'textarea',
             }),
           ]),
         }),
@@ -143,7 +141,6 @@ describe('playbook authoring support', () => {
         label: '',
         help_text: '',
         allowed_values: '',
-        input_style: '',
       },
     ];
 
@@ -166,7 +163,6 @@ describe('playbook authoring support', () => {
         label: '',
         help_text: '',
         allowed_values: '',
-        input_style: '',
       },
     ];
 
@@ -217,7 +213,6 @@ describe('playbook authoring support', () => {
           label: '',
           help_text: '',
           allowed_values: '',
-          input_style: '',
         },
         {
           name: 'default_branch',
@@ -231,7 +226,6 @@ describe('playbook authoring support', () => {
           label: '',
           help_text: '',
           allowed_values: '',
-          input_style: '',
         },
       ]),
     ).toEqual({
@@ -270,7 +264,6 @@ describe('playbook authoring support', () => {
           label: '',
           help_text: '',
           allowed_values: '',
-          input_style: '',
         },
         {
           name: 'git_token',
@@ -284,7 +277,6 @@ describe('playbook authoring support', () => {
           label: '',
           help_text: '',
           allowed_values: '',
-          input_style: '',
         },
       ]),
     ).toEqual({
@@ -367,7 +359,6 @@ describe('playbook authoring support', () => {
         label: '',
         help_text: '',
         allowed_values: '',
-        input_style: '',
       }),
     );
     expect(draft.orchestrator.max_active_tasks).toBe('6');
@@ -397,7 +388,6 @@ describe('playbook authoring support', () => {
         label: '',
         help_text: '',
         allowed_values: '',
-        input_style: '',
       },
       {
         name: 'api_token',
@@ -411,7 +401,6 @@ describe('playbook authoring support', () => {
         label: '',
         help_text: '',
         allowed_values: '',
-        input_style: '',
       },
     ];
 

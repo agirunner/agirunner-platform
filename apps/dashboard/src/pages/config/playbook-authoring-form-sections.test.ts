@@ -49,20 +49,24 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Add list item');
     expect(source).toContain('Resolve parameter mapping blockers before save.');
     expect(source).toContain(
-      'Match repository auto-fill to repository metadata and secure values to the credential category.',
+      'Use categories only when mapping repository metadata or secure',
     );
     expect(source).toContain('Secret parameters can only map to secret-backed project values.');
     expect(source).toContain('Repository parameters should map to non-secret project metadata.');
     expect(source).toContain('project.settings.knowledge.<key>');
-    expect(source).toContain('Display label');
+    expect(source).toContain('Operator description');
+    expect(source).toContain('Launch label');
     expect(source).toContain('Human-readable label shown to operators at launch time.');
-    expect(source).toContain('Input style');
-    expect(source).toContain('Controls how operators interact with this parameter at launch.');
     expect(source).toContain('Help text');
     expect(source).toContain('Contextual guidance displayed below the input field for operators.');
     expect(source).toContain('Allowed values');
     expect(source).toContain('Comma-separated list of accepted values. Leave empty for free-form input.');
-    expect(source).toContain('PARAMETER_INPUT_STYLE_OPTIONS');
+    expect(source).toContain(
+      'Shown to operators at launch. Use stage guidance or orchestrator instructions',
+    );
+    expect(source).toContain('Category stays hidden until this parameter maps to project data');
+    expect(source).toContain('Cap how many full rework loops the orchestrator can request');
+    expect(source).toContain('Limits specialist fan-out for one work item');
     expect(source).toContain('spliceDraftItem');
     expect(source).toContain('GripVertical');
     expect(source).toContain('Drag to reorder');
@@ -75,6 +79,8 @@ describe('playbook authoring form sections source', () => {
     expect(source).not.toContain('Shared runtime defaults');
     expect(source).not.toContain('Orchestrator pool override');
     expect(source).not.toContain('Pull policy');
+    expect(source).not.toContain('Input style');
+    expect(source).not.toContain('PARAMETER_INPUT_STYLE_OPTIONS');
     expect(source).not.toContain('type="checkbox"');
   });
 });

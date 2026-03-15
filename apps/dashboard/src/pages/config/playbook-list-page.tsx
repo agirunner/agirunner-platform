@@ -267,6 +267,10 @@ export function PlaybookListPage(): JSX.Element {
                     }}
                     className="min-h-[96px]"
                   />
+                  <p className="text-xs text-muted">
+                    Operator-facing catalog copy only. It is not passed to the orchestrator at
+                    runtime.
+                  </p>
                 </label>
                 <label className="grid gap-2 text-sm md:max-w-xs">
                   <span className="font-medium">Lifecycle</span>

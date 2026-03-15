@@ -410,6 +410,10 @@ export function PlaybookDetailPage(): JSX.Element {
                 onChange={(event) => { setDescription(event.target.value); setIsDirty(true); }}
                 className="min-h-[96px]"
               />
+              <p className="text-xs text-muted">
+                Operator-facing catalog copy only. It is not used as orchestrator guidance during
+                execution.
+              </p>
             </label>
           </div>
 

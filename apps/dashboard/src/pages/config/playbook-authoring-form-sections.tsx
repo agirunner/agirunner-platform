@@ -655,15 +655,20 @@ export function OrchestratorSection(props: SectionProps): JSX.Element {
             />
           </LabeledField>
           <LabeledField label="Max rework iterations">
-            <Input
-              type="number"
-              inputMode="numeric"
-              value={props.draft.orchestrator.max_rework_iterations}
-              onChange={(event) =>
-                updateOrchestrator(props.onChange, 'max_rework_iterations', event.target.value)
-              }
-              placeholder="3"
-            />
+            <div className="space-y-1">
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={props.draft.orchestrator.max_rework_iterations}
+                onChange={(event) =>
+                  updateOrchestrator(props.onChange, 'max_rework_iterations', event.target.value)
+                }
+                placeholder="5"
+              />
+              <p className="text-xs text-muted">
+                Cap how many full rework loops the orchestrator can request before escalating.
+              </p>
+            </div>
           </LabeledField>
           <LabeledField label="Max active tasks">
             <Input
@@ -677,19 +682,25 @@ export function OrchestratorSection(props: SectionProps): JSX.Element {
             />
           </LabeledField>
           <LabeledField label="Max active tasks per work item">
-            <Input
-              type="number"
-              inputMode="numeric"
-              value={props.draft.orchestrator.max_active_tasks_per_work_item}
-              onChange={(event) =>
-                updateOrchestrator(
-                  props.onChange,
-                  'max_active_tasks_per_work_item',
-                  event.target.value,
-                )
-              }
-              placeholder="2"
-            />
+            <div className="space-y-1">
+              <Input
+                type="number"
+                inputMode="numeric"
+                value={props.draft.orchestrator.max_active_tasks_per_work_item}
+                onChange={(event) =>
+                  updateOrchestrator(
+                    props.onChange,
+                    'max_active_tasks_per_work_item',
+                    event.target.value,
+                  )
+                }
+                placeholder="2"
+              />
+              <p className="text-xs text-muted">
+                Limits specialist fan-out for one work item so a single feature cannot monopolize
+                workflow concurrency.
+              </p>
+            </div>
           </LabeledField>
           <div className="flex items-end">
             <ToggleField
@@ -811,27 +822,6 @@ export function RuntimeAndParametersSection(
                       </SelectContent>
                     </Select>
                   </LabeledField>
-                  <LabeledField label="Category">
-                    <div className="space-y-1">
-                      <SelectWithCustomControl
-                        value={parameter.category}
-                        options={PARAMETER_CATEGORY_OPTIONS}
-                        placeholder="Select a category"
-                        unsetLabel="No category"
-                        customPlaceholder="Custom category"
-                        onChange={(value) =>
-                          updateParameter(props.onChange, index, 'category', value)
-                        }
-                      />
-                      {parameterErrors.category ? (
-                        <p className="text-xs text-red-600 dark:text-red-400">{parameterErrors.category}</p>
-                      ) : (
-                        <p className="text-xs text-muted">
-                          Match repository auto-fill to repository metadata and secure values to the credential category.
-                        </p>
-                      )}
-                    </div>
-                  </LabeledField>
                   <LabeledField label="Maps to">
                     <div className="space-y-1">
                       <SelectWithCustomControl
@@ -851,18 +841,55 @@ export function RuntimeAndParametersSection(
                       )}
                     </div>
                   </LabeledField>
+                  {showParameterCategoryField(parameter) ? (
+                    <LabeledField label="Category">
+                      <div className="space-y-1">
+                        <SelectWithCustomControl
+                          value={parameter.category}
+                          options={PARAMETER_CATEGORY_OPTIONS}
+                          placeholder="Select a category"
+                          unsetLabel="No category"
+                          customPlaceholder="Custom category"
+                          onChange={(value) =>
+                            updateParameter(props.onChange, index, 'category', value)
+                          }
+                        />
+                        {parameterErrors.category ? (
+                          <p className="text-xs text-red-600 dark:text-red-400">
+                            {parameterErrors.category}
+                          </p>
+                        ) : (
+                          <p className="text-xs text-muted">
+                            Use categories only when mapping repository metadata or secure
+                            credential-backed inputs from a project.
+                          </p>
+                        )}
+                      </div>
+                    </LabeledField>
+                  ) : (
+                    <div className="rounded-md border border-dashed border-border/70 bg-muted/10 px-3 py-2 text-xs text-muted md:col-span-2">
+                      Category stays hidden until this parameter maps to project data or is marked
+                      as secret.
+                    </div>
+                  )}
                 </div>
-                <LabeledField label="Description" className="mt-3">
-                  <Textarea
-                    value={parameter.description}
-                    onChange={(event) =>
-                      updateParameter(props.onChange, index, 'description', event.target.value)
-                    }
-                    className="min-h-[72px]"
-                  />
+                <LabeledField label="Operator description" className="mt-3">
+                  <div className="space-y-1">
+                    <Textarea
+                      value={parameter.description}
+                      onChange={(event) =>
+                        updateParameter(props.onChange, index, 'description', event.target.value)
+                      }
+                      className="min-h-[72px]"
+                    />
+                    <p className="text-xs text-muted">
+                      Shown to operators at launch. Use stage guidance or orchestrator instructions
+                      for execution behavior.
+                    </p>
+                  </div>
                 </LabeledField>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <LabeledField label="Display label">
+                <div className="mt-3">
+                  <LabeledField label="Launch label">
                     <div className="space-y-1">
                       <Input
                         value={parameter.label}
@@ -873,38 +900,6 @@ export function RuntimeAndParametersSection(
                       />
                       <p className="text-xs text-muted">
                         Human-readable label shown to operators at launch time.
-                      </p>
-                    </div>
-                  </LabeledField>
-                  <LabeledField label="Input style">
-                    <div className="space-y-1">
-                      <Select
-                        value={parameter.input_style || PARAMETER_INPUT_STYLE_UNSET}
-                        onValueChange={(value) =>
-                          updateParameter(
-                            props.onChange,
-                            index,
-                            'input_style',
-                            value === PARAMETER_INPUT_STYLE_UNSET ? '' : value,
-                          )
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Auto-detect from type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={PARAMETER_INPUT_STYLE_UNSET}>
-                            Auto-detect from type
-                          </SelectItem>
-                          {PARAMETER_INPUT_STYLE_OPTIONS.map((option) => (
-                            <SelectItem key={option.value} value={option.value}>
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted">
-                        Controls how operators interact with this parameter at launch.
                       </p>
                     </div>
                   </LabeledField>
@@ -1143,17 +1138,8 @@ function resolveStageTitle(
   return stage.name.trim() || stage.goal.trim() || `Stage ${index + 1}`;
 }
 
-const PARAMETER_INPUT_STYLE_UNSET = '__unset__';
 const ENTRY_COLUMN_UNSET = '__unset__';
 const ROLE_SELECT_UNSET = '__unset__';
-
-const PARAMETER_INPUT_STYLE_OPTIONS: StructuredChoiceOption[] = [
-  { value: 'text', label: 'Text field', description: 'Single-line text input.' },
-  { value: 'textarea', label: 'Text area', description: 'Multi-line text input for longer content.' },
-  { value: 'select', label: 'Dropdown', description: 'Dropdown selection from allowed values.' },
-  { value: 'radio', label: 'Radio group', description: 'Inline radio buttons for a small set of choices.' },
-  { value: 'toggle', label: 'Toggle', description: 'On/off toggle for boolean parameters.' },
-];
 
 const ORCHESTRATOR_CHECK_INTERVAL_OPTIONS: StructuredChoiceOption[] = [
   { value: '1m', label: 'Every 1 minute' },
@@ -1235,6 +1221,12 @@ function describeParameterMappingHint(
     return 'Repository parameters should map to non-secret project metadata.';
   }
   return 'Choose a known project value when possible. Use a custom path such as project.settings.knowledge.<key> when the standard mappings are not enough.';
+}
+
+function showParameterCategoryField(
+  parameter: PlaybookAuthoringDraft['parameters'][number],
+): boolean {
+  return parameter.secret || parameter.maps_to.trim().length > 0;
 }
 
 function buildEntryColumnOptions(

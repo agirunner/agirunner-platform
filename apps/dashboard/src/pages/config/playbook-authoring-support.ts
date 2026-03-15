@@ -34,7 +34,6 @@ export interface ParameterDraft {
   label: string;
   help_text: string;
   allowed_values: string;
-  input_style: string;
 }
 
 export interface RuntimePoolDraft {
@@ -156,7 +155,7 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
       instructions: '',
       check_interval: '5m',
       stale_threshold: '30m',
-      max_rework_iterations: '3',
+      max_rework_iterations: '5',
       max_active_tasks: '4',
       max_active_tasks_per_work_item: '2',
       allow_parallel_work_items: true,
@@ -192,7 +191,6 @@ export function createEmptyParameterDraft(): ParameterDraft {
     label: '',
     help_text: '',
     allowed_values: '',
-    input_style: '',
   };
 }
 
@@ -275,7 +273,6 @@ export function buildPlaybookDefinition(
       label: parameter.label.trim(),
       help_text: parameter.help_text.trim(),
       allowed_values: parameter.allowed_values.trim(),
-      input_style: parameter.input_style.trim(),
     }))
     .filter((parameter) =>
       parameter.name ||
@@ -286,7 +283,6 @@ export function buildPlaybookDefinition(
       parameter.label ||
       parameter.help_text ||
       parameter.allowed_values ||
-      parameter.input_style ||
       parameter.required ||
       parameter.secret,
     );
@@ -578,7 +574,6 @@ function readParameterDraftErrors(parameter: ParameterDraft): {
     parameter.label.trim().length > 0 ||
     parameter.help_text.trim().length > 0 ||
     parameter.allowed_values.trim().length > 0 ||
-    parameter.input_style.trim().length > 0 ||
     parameter.required ||
     parameter.secret;
 
@@ -703,7 +698,6 @@ function readParameters(value: unknown): ParameterDraft[] {
             label: readString(record.label),
             help_text: readString(record.help_text),
             allowed_values: readString(record.allowed_values),
-            input_style: readString(record.input_style),
           };
         })
         .filter(
@@ -713,6 +707,9 @@ function readParameters(value: unknown): ParameterDraft[] {
             entry.maps_to ||
             entry.description ||
             entry.default_value ||
+            entry.label ||
+            entry.help_text ||
+            entry.allowed_values ||
             entry.required ||
             entry.secret,
         )
@@ -765,7 +762,6 @@ export function summarizePlaybookAuthoringDraft(
       parameter.label.trim().length > 0 ||
       parameter.help_text.trim().length > 0 ||
       parameter.allowed_values.trim().length > 0 ||
-      parameter.input_style.trim().length > 0 ||
       parameter.required ||
       parameter.secret,
   );

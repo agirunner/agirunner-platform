@@ -97,7 +97,7 @@ function createPlaybook(
     orchestrator: {
       check_interval: '5m',
       stale_threshold: '30m',
-      max_rework_iterations: 3,
+      max_rework_iterations: 5,
       max_active_tasks: 4,
       max_active_tasks_per_work_item: 2,
       allow_parallel_work_items: true,

@@ -11,6 +11,7 @@ export interface LaunchParameterSpec {
   key: string;
   label: string;
   description: string;
+  helpText: string;
   inputType: StructuredValueType | 'select';
   defaultValue?: unknown;
   options: string[];
@@ -559,6 +560,7 @@ function readParameterSpec(value: unknown): LaunchParameterSpec | null {
     key,
     label: readNonEmptyString(record.label) ?? readNonEmptyString(record.title) ?? key,
     description: readNonEmptyString(record.description) ?? readNonEmptyString(record.help) ?? '',
+    helpText: readNonEmptyString(record.help_text) ?? readNonEmptyString(record.helpText) ?? '',
     inputType,
     defaultValue,
     options,

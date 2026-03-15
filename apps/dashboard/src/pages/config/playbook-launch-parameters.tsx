@@ -73,6 +73,7 @@ export function ParameterField(props: {
         options={props.spec.options}
         onChange={props.onChange}
       />
+      {props.spec.helpText ? <p className="text-xs text-muted">{props.spec.helpText}</p> : null}
     </div>
   );
 }
