@@ -83,13 +83,7 @@ function ProjectDetailHeader(props: {
               {!isExpanded ? <Badge variant="outline">{headerState.activeTab.label}</Badge> : null}
             </div>
             <div className="space-y-1">
-              <h1
-                className={
-                  isExpanded
-                    ? 'text-2xl font-semibold tracking-tight'
-                    : 'text-lg font-semibold tracking-tight'
-                }
-              >
+              <h1 className="text-lg font-semibold tracking-tight">
                 {headerState.title}
               </h1>
               <p className="text-sm leading-6 text-muted">{headerState.description}</p>

@@ -20,6 +20,13 @@ describe('project detail shell source', () => {
     expect(source).not.toContain('Project workspace');
   });
 
+  it('keeps the project title size consistent between overview and the other tabs', () => {
+    const source = readSource();
+
+    expect(source).not.toContain("'text-2xl font-semibold tracking-tight'");
+    expect(source).toContain('className="text-lg font-semibold tracking-tight"');
+  });
+
   it('keeps all five project tab panels together in one shell component', () => {
     const source = readSource();
 
