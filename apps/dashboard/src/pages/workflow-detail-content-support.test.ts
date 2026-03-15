@@ -11,14 +11,14 @@ describe('workflow detail content support', () => {
         source: 'repository',
         description: 'Architecture brief for the active stage.',
         metadata: { owner: 'architect' },
-        repository: 'github.com/agisnap/agirunner',
+        repository: 'github.com/agirunner/agirunner',
         path: 'docs/design.md',
       }),
     ).toEqual({
       summary: 'docs/design.md',
       detail: 'Architecture brief for the active stage.',
       badges: ['Repository', 'Workflow'],
-      locationLabel: 'github.com/agisnap/agirunner:docs/design.md',
+      locationLabel: 'github.com/agirunner/agirunner:docs/design.md',
       hasMetadata: true,
     });
   });

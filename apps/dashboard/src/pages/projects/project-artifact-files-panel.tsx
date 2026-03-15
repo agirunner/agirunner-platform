@@ -71,11 +71,12 @@ export function ProjectArtifactFilesPanel(props: { projectId: string }): JSX.Ele
   });
 
   function handleFilesSelected(fileList: FileList | null): void {
-    if (!fileList || fileList.length === 0) {
+    const selectedFiles = snapshotSelectedFiles(fileList);
+    if (selectedFiles.length === 0) {
       return;
     }
     setUploadError(null);
-    setDrafts((current) => appendDrafts(current, Array.from(fileList), filesQuery.data ?? []));
+    setDrafts((current) => appendDrafts(current, selectedFiles, filesQuery.data ?? []));
   }
 
   return (
@@ -294,6 +295,21 @@ function appendDrafts(
   }
 
   return nextDrafts;
+}
+
+export function snapshotSelectedFiles(fileList: FileList | null): File[] {
+  if (!fileList || fileList.length === 0) {
+    return [];
+  }
+
+  const files: File[] = [];
+  for (let index = 0; index < fileList.length; index += 1) {
+    const file = fileList.item(index);
+    if (file) {
+      files.push(file);
+    }
+  }
+  return files;
 }
 
 function buildUniqueArtifactKey(fileName: string, reservedKeys: Set<string>): string {

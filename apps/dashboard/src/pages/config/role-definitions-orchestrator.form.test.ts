@@ -59,7 +59,7 @@ describe('role definitions orchestrator form', () => {
     expect(buildOrchestratorPoolDraft(workers, models)).toEqual({
       workerId: 'worker-primary',
       workerName: 'orch-primary',
-      runtimeImage: 'ghcr.io/agisnap/agirunner-runtime:latest',
+      runtimeImage: 'agirunner-runtime:local',
       replicas: '3',
       enabled: true,
       modelId: 'model-gpt54',
@@ -105,7 +105,7 @@ function createWorker(overrides: Partial<FleetWorkerRecord>): FleetWorkerRecord 
     worker_name: 'orch-default',
     role: 'orchestrator',
     pool_kind: 'orchestrator',
-    runtime_image: 'ghcr.io/agisnap/agirunner-runtime:latest',
+    runtime_image: 'agirunner-runtime:local',
     cpu_limit: '1',
     memory_limit: '2Gi',
     network_policy: 'default',

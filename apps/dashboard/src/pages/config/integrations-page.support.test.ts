@@ -51,7 +51,7 @@ describe('integrations page support', () => {
       ...createIntegrationFormState('github_issues'),
       subscriptions: ['workflow.failed'],
       config: {
-        owner: 'agisnap',
+        owner: 'agirunner',
         repo: 'agirunner',
         api_base_url: 'https://github.example/api',
         token: 'secret-token',
@@ -63,7 +63,7 @@ describe('integrations page support', () => {
       kind: 'github_issues',
       subscriptions: ['workflow.failed'],
       config: {
-        owner: 'agisnap',
+        owner: 'agirunner',
         repo: 'agirunner',
         api_base_url: 'https://github.example/api',
         token: 'secret-token',
@@ -141,7 +141,7 @@ describe('integrations page support', () => {
       key: 'owner',
       label: 'Repository owner',
       type: 'text',
-      placeholder: 'agisnap',
+      placeholder: 'agirunner',
     });
   });
 
@@ -154,7 +154,7 @@ describe('integrations page support', () => {
         subscriptions: [],
         is_active: true,
         config: {
-          owner: 'agisnap',
+          owner: 'agirunner',
           repo: 'agirunner',
           api_base_url: 'https://api.github.com',
           labels: ['bug'],
@@ -162,7 +162,7 @@ describe('integrations page support', () => {
         },
       }),
     ).toEqual([
-      { label: 'Repository', value: 'agisnap/agirunner' },
+      { label: 'Repository', value: 'agirunner/agirunner' },
       { label: 'API base URL', value: 'https://api.github.com' },
       { label: 'Labels', value: 'bug' },
       { label: 'Token', value: 'Configured' },

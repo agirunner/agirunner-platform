@@ -122,7 +122,7 @@ const FIELDS_BY_KIND: Record<IntegrationKind, IntegrationFieldDefinition[]> = {
     { key: 'service_name', label: 'Service name', type: 'text', placeholder: 'agirunner.platform' },
   ],
   github_issues: [
-    { key: 'owner', label: 'Repository owner', type: 'text', placeholder: 'agisnap' },
+    { key: 'owner', label: 'Repository owner', type: 'text', placeholder: 'agirunner' },
     { key: 'repo', label: 'Repository', type: 'text', placeholder: 'agirunner' },
     { key: 'api_base_url', label: 'API base URL', type: 'url', placeholder: 'https://api.github.com' },
     { key: 'token', label: 'Access token', type: 'password', placeholder: 'Leave blank to keep the stored token' },

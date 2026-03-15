@@ -176,7 +176,7 @@ export function renderIntegrationFieldHint(
     if (key === 'owner') {
       return (
         <p className="text-xs text-muted">
-          GitHub owner or organization, for example <span className="font-mono">agisnap</span>.
+          GitHub owner or organization, for example <span className="font-mono">agirunner</span>.
         </p>
       );
     }

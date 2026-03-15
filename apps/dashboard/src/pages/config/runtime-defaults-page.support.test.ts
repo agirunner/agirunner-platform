@@ -50,7 +50,7 @@ describe('runtime defaults page support', () => {
 
   it('validates risky container-default overrides with recovery guidance before save', () => {
     const errors = buildValidationErrors({
-      default_runtime_image: 'https://ghcr.io/agisnap/agirunner runtime:latest',
+      default_runtime_image: 'https://ghcr.io/agirunner/agirunner runtime:latest',
       default_cpu: '0',
       default_memory: 'banana',
     });

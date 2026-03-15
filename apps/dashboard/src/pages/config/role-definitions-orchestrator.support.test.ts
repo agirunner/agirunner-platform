@@ -83,7 +83,7 @@ describe('role definitions orchestrator support', () => {
             worker_name: 'orchestrator-a',
             role: 'orchestrator',
             pool_kind: 'orchestrator',
-            runtime_image: 'ghcr.io/agisnap/orchestrator:latest',
+            runtime_image: 'ghcr.io/agirunner/orchestrator:latest',
             cpu_limit: '1',
             memory_limit: '2Gi',
             network_policy: 'default',
@@ -107,7 +107,7 @@ describe('role definitions orchestrator support', () => {
       desiredReplicas: 4,
       enabledWorkers: 2,
       runningContainers: 3,
-      runtimeLabel: 'ghcr.io/agisnap/orchestrator:latest',
+      runtimeLabel: 'ghcr.io/agirunner/orchestrator:latest',
       modelLabel: 'gpt-5.4',
     });
   });

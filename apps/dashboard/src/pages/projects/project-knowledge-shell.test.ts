@@ -38,7 +38,7 @@ describe('project knowledge surface source', () => {
     const source = readSource('./project-knowledge-shell.tsx');
 
     expect(source).toContain('Curated project context, policies, and reusable facts stay here.');
-    expect(source).toContain('Generated outputs, delivery evidence, and uploaded artifacts stay here.');
+    expect(source).toContain('Project-owned files stay here for upload, review, and removal.');
     expect(source).toContain('Evolving notes and learned state stay here as work progresses.');
     expect(source).toContain('max-w-3xl text-sm leading-5 text-muted');
     expect(source).not.toContain('guidance:');

@@ -155,7 +155,7 @@ export function OrchestratorPoolDialog(props: {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, runtimeImage: event.target.value }))
                 }
-                placeholder="ghcr.io/agisnap/agirunner-runtime:latest"
+                placeholder="agirunner-runtime:local"
               />
               <datalist id="orchestrator-runtime-image-suggestions">
                 {runtimeImages.map((image) => (

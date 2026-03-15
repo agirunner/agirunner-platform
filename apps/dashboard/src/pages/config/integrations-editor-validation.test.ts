@@ -65,7 +65,7 @@ describe('integration editor validation', () => {
       {
         ...createIntegrationFormState('github_issues'),
         config: {
-          owner: 'agisnap/agirunner',
+          owner: 'agirunner/agirunner',
           repo: 'agirunner.git',
           token: 'secret',
         },

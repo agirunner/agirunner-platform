@@ -9,7 +9,7 @@ describe('runtime manifest support', () => {
   it('builds operator-readable manifest packets from runtime customization data', () => {
     const packets = buildRuntimeManifestPackets({
       template: 'python',
-      base_image: 'ghcr.io/agisnap/runtime:2026.03',
+      base_image: 'ghcr.io/agirunner/runtime:2026.03',
       customizations: {
         apt: ['git', 'ripgrep'],
         npm_global: ['pnpm'],
@@ -26,7 +26,7 @@ describe('runtime manifest support', () => {
     expect(packets).toEqual([
       {
         label: 'Base image',
-        value: 'ghcr.io/agisnap/runtime:2026.03',
+        value: 'ghcr.io/agirunner/runtime:2026.03',
         detail: 'Runtime preset python anchors the current runtime manifest.',
       },
       {

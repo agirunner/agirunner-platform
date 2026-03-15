@@ -194,7 +194,7 @@ describe('playbook launch support', () => {
         id: 'project-1',
         name: 'Demo',
         slug: 'demo',
-        repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
         settings: { default_branch: 'main' },
       },
     );
@@ -211,7 +211,7 @@ describe('playbook launch support', () => {
         id: 'project-1',
         name: 'Demo',
         slug: 'demo',
-        repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
         settings: { default_branch: 'main' },
       },
     );
@@ -228,7 +228,7 @@ describe('playbook launch support', () => {
         id: 'project-1',
         name: 'Demo',
         slug: 'demo',
-        repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
         settings: {
           default_branch: 'main',
           knowledge: { release_window: 'Friday 16:00 Pacific' },
@@ -236,7 +236,7 @@ describe('playbook launch support', () => {
       },
     );
 
-    expect(repositoryDraft).toBe('https://github.com/agisnap/agirunner-test-fixtures');
+    expect(repositoryDraft).toBe('https://github.com/agirunner/agirunner-test-fixtures');
     expect(branchDraft).toBe('main');
     expect(knowledgeDraft).toBe('Friday 16:00 Pacific');
   });
@@ -259,14 +259,14 @@ describe('playbook launch support', () => {
           id: 'project-1',
           name: 'Demo',
           slug: 'demo',
-          repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+          repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
         },
-        currentValue: 'https://github.com/agisnap/agirunner-test-fixtures',
+        currentValue: 'https://github.com/agirunner/agirunner-test-fixtures',
       }),
     ).toEqual({
       badgeLabel: 'Using project value',
       detail: 'Autofilled from Demo → repository url.',
-      mappedValue: 'https://github.com/agisnap/agirunner-test-fixtures',
+      mappedValue: 'https://github.com/agirunner/agirunner-test-fixtures',
       canRestoreMappedValue: false,
     });
     expect(
@@ -283,14 +283,14 @@ describe('playbook launch support', () => {
           id: 'project-1',
           name: 'Demo',
           slug: 'demo',
-          repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+          repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
         },
         currentValue: 'https://github.com/example/custom',
       }),
     ).toEqual({
       badgeLabel: 'Custom launch override',
       detail: 'Project value from Demo → repository url is available if you want to restore it.',
-      mappedValue: 'https://github.com/agisnap/agirunner-test-fixtures',
+      mappedValue: 'https://github.com/agirunner/agirunner-test-fixtures',
       canRestoreMappedValue: true,
     });
   });
@@ -357,7 +357,7 @@ describe('playbook launch support', () => {
           id: 'project-1',
           name: 'Demo',
           slug: 'demo',
-          repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+          repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
         },
         launchDefinition,
         extraParameterCount: 2,

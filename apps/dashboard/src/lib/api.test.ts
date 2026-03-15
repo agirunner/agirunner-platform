@@ -2431,7 +2431,7 @@ describe('dashboard api auth/session behavior', () => {
               project_id: 'project-1',
               version: 4,
               spec: {
-                config: { repository: 'agisnap/agirunner-test-fixtures' },
+                config: { repository: 'agirunner/agirunner-test-fixtures' },
               },
             },
           }),
@@ -2459,7 +2459,7 @@ describe('dashboard api auth/session behavior', () => {
 
     await expect(
       api.updateProjectSpec('project-1', {
-        config: { repository: 'agisnap/agirunner-test-fixtures' },
+        config: { repository: 'agirunner/agirunner-test-fixtures' },
       }),
     ).resolves.toMatchObject({ version: 4 });
 
@@ -2485,7 +2485,7 @@ describe('dashboard api auth/session behavior', () => {
               version: 5,
               created_at: '2026-03-14T19:00:00.000Z',
               spec: {
-                config: { repository: 'agisnap/agirunner-test-fixtures' },
+                config: { repository: 'agirunner/agirunner-test-fixtures' },
                 instructions: { summary: 'Keep the checkout steady.' },
               },
             },
@@ -2519,7 +2519,7 @@ describe('dashboard api auth/session behavior', () => {
       created_at: '2026-03-14T19:00:00.000Z',
       created_by_id: undefined,
       created_by_type: undefined,
-      config: { repository: 'agisnap/agirunner-test-fixtures' },
+      config: { repository: 'agirunner/agirunner-test-fixtures' },
       instructions: { summary: 'Keep the checkout steady.' },
       resources: undefined,
       documents: undefined,
