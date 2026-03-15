@@ -193,8 +193,8 @@ export function PlaybookListPage(): JSX.Element {
             <CardHeader className="space-y-2">
               <CardTitle>Playbook Basics</CardTitle>
               <p className="text-sm text-muted">
-                Start with the identity and expected outcome, then shape the board, stages, runtime,
-                and launch inputs below.
+                  Start with the identity, outcome, and process instructions, then add the
+                  workflow rules and launch inputs below.
               </p>
             </CardHeader>
             <CardContent className="grid gap-6">
@@ -294,7 +294,8 @@ export function PlaybookListPage(): JSX.Element {
                   </div>
                 ) : (
                   <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-700 dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-200">
-                    Playbook basics are ready. Continue shaping the board, stages, runtime, and launch posture below.
+                    Playbook basics are ready. Continue shaping the process, rules, and launch
+                    inputs below.
                   </div>
                 )}
                 <ReadinessRow
@@ -314,13 +315,13 @@ export function PlaybookListPage(): JSX.Element {
                 />
                 <ReadinessRow label="Lifecycle" value={describePlaybookLifecycle(lifecycle)} ready />
                 <ReadinessRow
-                  label="Flow design"
-                  value={`${summary.columnCount} columns • ${summary.stageCount} stages`}
-                  ready={summary.columnCount > 0 && summary.stageCount > 0}
+                  label="Workflow rules"
+                  value={`${summary.roleCount} roles • ${summary.checkpointCount} checkpoints`}
+                  ready={summary.hasProcessInstructions && summary.roleCount > 0}
                 />
                 <ReadinessRow
                   label="Launch inputs"
-                  value={`${summary.parameterCount} parameters • ${summary.secretParameterCount} secret`}
+                  value={`${summary.parameterCount} inputs • ${summary.secretParameterCount} secret`}
                   ready={authoringValidationIssues.length === 0}
                 />
               </CardContent>
@@ -335,16 +336,16 @@ export function PlaybookListPage(): JSX.Element {
               </CardHeader>
               <CardContent className="grid gap-3 text-sm text-muted">
                 <div>
-                  <div className="font-medium text-foreground">Flow Design</div>
-                  Team roles, board columns, and stage handoffs.
+                  <div className="font-medium text-foreground">Process</div>
+                  Process instructions, team roles, checkpoints, and mandatory workflow rules.
                 </div>
                 <div>
-                  <div className="font-medium text-foreground">Automation Policy</div>
-                  Orchestrator instructions, cadence, and concurrency posture.
+                  <div className="font-medium text-foreground">Inputs</div>
+                  Launch parameters and project-linked workflow inputs.
                 </div>
                 <div>
-                  <div className="font-medium text-foreground">Launch and Runtime</div>
-                  Runtime pools and typed launch parameters.
+                  <div className="font-medium text-foreground">Advanced</div>
+                  Board overrides, specialist runtime posture, and orchestration limits.
                 </div>
               </CardContent>
             </Card>

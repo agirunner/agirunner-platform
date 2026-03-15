@@ -14,12 +14,30 @@ export interface BoardColumnDraft {
   is_terminal: boolean;
 }
 
-export interface StageDraft {
+export interface CheckpointDraft {
   name: string;
   goal: string;
-  involves: string;
   human_gate: boolean;
-  guidance: string;
+  entry_criteria: string;
+}
+
+export interface ReviewRuleDraft {
+  from_role: string;
+  reviewed_by: string;
+  required: boolean;
+  reject_role: string;
+}
+
+export interface ApprovalRuleDraft {
+  on: 'checkpoint' | 'completion';
+  checkpoint: string;
+  required: boolean;
+}
+
+export interface HandoffRuleDraft {
+  from_role: string;
+  to_role: string;
+  required: boolean;
 }
 
 export interface ParameterDraft {
@@ -49,13 +67,16 @@ export interface RuntimePoolDraft {
 }
 
 export interface PlaybookAuthoringDraft {
+  process_instructions: string;
   roles: RoleDraft[];
   columns: BoardColumnDraft[];
   entry_column_id: string;
-  stages: StageDraft[];
+  checkpoints: CheckpointDraft[];
+  review_rules: ReviewRuleDraft[];
+  approval_rules: ApprovalRuleDraft[];
+  handoff_rules: HandoffRuleDraft[];
   parameters: ParameterDraft[];
   orchestrator: {
-    instructions: string;
     check_interval: string;
     stale_threshold: string;
     max_rework_iterations: string;
@@ -69,12 +90,17 @@ export interface PlaybookAuthoringDraft {
 }
 
 export interface PlaybookAuthoringSummary {
+  hasProcessInstructions: boolean;
   roleCount: number;
+  checkpointCount: number;
+  gatedCheckpointCount: number;
+  reviewRuleCount: number;
+  requiredReviewRuleCount: number;
+  approvalRuleCount: number;
+  handoffRuleCount: number;
   columnCount: number;
   blockedColumnCount: number;
   terminalColumnCount: number;
-  stageCount: number;
-  gatedStageCount: number;
   parameterCount: number;
   requiredParameterCount: number;
   secretParameterCount: number;
@@ -87,6 +113,18 @@ export interface BoardColumnValidationResult {
     label?: string;
   }>;
   entryColumnError?: string;
+  blockingIssues: string[];
+  isValid: boolean;
+}
+
+export interface WorkflowRuleValidationResult {
+  checkpointErrors: Array<{
+    name?: string;
+    goal?: string;
+  }>;
+  reviewRuleErrors: Array<string | undefined>;
+  approvalRuleErrors: Array<string | undefined>;
+  handoffRuleErrors: Array<string | undefined>;
   blockingIssues: string[];
   isValid: boolean;
 }
@@ -109,50 +147,57 @@ export interface RoleDraftValidationResult {
 
 export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): PlaybookAuthoringDraft {
   return {
+    process_instructions:
+      lifecycle === 'ongoing'
+        ? 'Keep this workflow open, clarify new work as it arrives, require the expected reviews and handoffs, and always leave the next actor with a clear next step.'
+        : 'Run this workflow as a bounded plan, move each work item through the required checkpoints, require the expected reviews and approvals, and finish only after the outcome is delivered.',
     roles: [{ value: 'developer' }],
     columns: [
       { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
-      { id: 'doing', label: 'Doing', description: '', is_blocked: false, is_terminal: false },
+      { id: 'active', label: 'Active', description: '', is_blocked: false, is_terminal: false },
+      { id: 'review', label: 'In Review', description: '', is_blocked: false, is_terminal: false },
+      { id: 'blocked', label: 'Blocked', description: '', is_blocked: true, is_terminal: false },
       { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
     ],
     entry_column_id: 'inbox',
-    stages:
+    checkpoints:
       lifecycle === 'ongoing'
         ? [
             {
               name: 'triage',
-              goal: 'Clarify and route new work',
-              involves: 'developer',
+              goal: 'Clarify new work and decide the next actor.',
               human_gate: false,
-              guidance: '',
+              entry_criteria: 'A work item has been created or updated.',
             },
             {
               name: 'delivery',
-              goal: 'Complete the work item',
-              involves: 'developer',
+              goal: 'Deliver the requested outcome with the required review path.',
               human_gate: false,
-              guidance: '',
+              entry_criteria: 'The work item has enough context to begin execution.',
             },
           ]
         : [
             {
               name: 'plan',
-              goal: 'Plan the workflow',
-              involves: 'developer',
+              goal: 'Clarify the objective and produce an execution plan.',
               human_gate: false,
-              guidance: '',
+              entry_criteria: 'The workflow objective and source context are available.',
             },
             {
               name: 'deliver',
-              goal: 'Ship the outcome',
-              involves: 'developer',
+              goal: 'Deliver and approve the bounded outcome.',
               human_gate: true,
-              guidance: '',
+              entry_criteria: 'The plan is clear enough to execute.',
             },
           ],
+    review_rules: [],
+    approval_rules:
+      lifecycle === 'planned'
+        ? [{ on: 'completion', checkpoint: '', required: true }]
+        : [],
+    handoff_rules: [],
     parameters: [],
     orchestrator: {
-      instructions: '',
       check_interval: '5m',
       stale_threshold: '30m',
       max_rework_iterations: '5',
@@ -174,8 +219,24 @@ export function createEmptyColumnDraft(): BoardColumnDraft {
   return { id: '', label: '', description: '', is_blocked: false, is_terminal: false };
 }
 
-export function createEmptyStageDraft(): StageDraft {
-  return { name: '', goal: '', involves: '', human_gate: false, guidance: '' };
+export function createEmptyCheckpointDraft(): CheckpointDraft {
+  return { name: '', goal: '', human_gate: false, entry_criteria: '' };
+}
+
+export function createEmptyStageDraft(): CheckpointDraft {
+  return createEmptyCheckpointDraft();
+}
+
+export function createEmptyReviewRuleDraft(): ReviewRuleDraft {
+  return { from_role: '', reviewed_by: '', required: true, reject_role: '' };
+}
+
+export function createEmptyApprovalRuleDraft(): ApprovalRuleDraft {
+  return { on: 'checkpoint', checkpoint: '', required: true };
+}
+
+export function createEmptyHandoffRuleDraft(): HandoffRuleDraft {
+  return { from_role: '', to_role: '', required: true };
 }
 
 export function createEmptyParameterDraft(): ParameterDraft {
@@ -213,25 +274,32 @@ export function hydratePlaybookAuthoringDraft(
   definition: unknown,
 ): PlaybookAuthoringDraft {
   const record = asRecord(definition);
+  const fallback = createDefaultAuthoringDraft(lifecycle);
   const roles = readStringArray(record.roles).map((value) => ({ value }));
   const columns = readBoardColumns(record.board);
-  const stages = readStages(record.stages);
-  const parameters = readParameters(record.parameters);
-  const orchestrator = readOrchestrator(record.orchestrator);
-  const runtime = readRuntime(record.runtime);
+  const checkpoints = readCheckpoints(record);
+  const reviewRules = readReviewRules(record.review_rules);
+  const approvalRules = readApprovalRules(record.approval_rules);
+  const handoffRules = readHandoffRules(record.handoff_rules);
 
-  const fallback = createDefaultAuthoringDraft(lifecycle);
   return {
+    process_instructions:
+      readString(record.process_instructions) ||
+      readString(asRecord(record.orchestrator).instructions) ||
+      fallback.process_instructions,
     roles: roles.length > 0 ? roles : fallback.roles,
     columns: columns.length > 0 ? columns : fallback.columns,
     entry_column_id: readBoardEntryColumnId(record.board, columns, fallback.entry_column_id),
-    stages: stages.length > 0 ? stages : fallback.stages,
-    parameters,
-    orchestrator: { ...fallback.orchestrator, ...orchestrator },
+    checkpoints: checkpoints.length > 0 ? checkpoints : fallback.checkpoints,
+    review_rules: reviewRules.length > 0 ? reviewRules : fallback.review_rules,
+    approval_rules: approvalRules.length > 0 ? approvalRules : fallback.approval_rules,
+    handoff_rules: handoffRules.length > 0 ? handoffRules : fallback.handoff_rules,
+    parameters: readParameters(record.parameters),
+    orchestrator: { ...fallback.orchestrator, ...readOrchestrator(record.orchestrator) },
     runtime: {
       specialist_pool: {
         ...fallback.runtime.specialist_pool,
-        ...runtime.specialist_pool,
+        ...readRuntime(record.runtime).specialist_pool,
       },
     },
   };
@@ -241,66 +309,25 @@ export function buildPlaybookDefinition(
   lifecycle: PlaybookLifecycle,
   draft: PlaybookAuthoringDraft,
 ): { ok: true; value: Record<string, unknown> } | { ok: false; error: string } {
+  const processInstructions = draft.process_instructions.trim();
   const roles = draft.roles.map((entry) => entry.value.trim()).filter(Boolean);
-  const columns = draft.columns
-    .map((column) => ({
-      id: column.id.trim(),
-      label: column.label.trim(),
-      description: column.description.trim(),
-      is_blocked: column.is_blocked,
-      is_terminal: column.is_terminal,
-    }))
-    .filter((column) => column.id || column.label || column.description || column.is_blocked || column.is_terminal);
-  const stages = draft.stages
-    .map((stage) => ({
-      name: stage.name.trim(),
-      goal: stage.goal.trim(),
-      involves: splitCsv(stage.involves),
-      human_gate: stage.human_gate,
-      guidance: stage.guidance.trim(),
-    }))
-    .filter((stage) => stage.name || stage.goal || stage.involves.length > 0 || stage.human_gate || stage.guidance);
-  const parameters = draft.parameters
-    .map((parameter) => ({
-      name: parameter.name.trim(),
-      type: parameter.type.trim() || 'string',
-      required: parameter.required,
-      secret: parameter.secret,
-      category: parameter.category.trim(),
-      maps_to: parameter.maps_to.trim(),
-      description: parameter.description.trim(),
-      default: parameter.default_value.trim(),
-      label: parameter.label.trim(),
-      help_text: parameter.help_text.trim(),
-      allowed_values: parameter.allowed_values.trim(),
-    }))
-    .filter((parameter) =>
-      parameter.name ||
-      parameter.category ||
-      parameter.maps_to ||
-      parameter.description ||
-      parameter.default ||
-      parameter.label ||
-      parameter.help_text ||
-      parameter.allowed_values ||
-      parameter.required ||
-      parameter.secret,
-    );
+  const columns = buildBoardColumns(draft.columns);
+  const checkpoints = buildCheckpoints(draft.checkpoints);
+  const reviewRules = buildReviewRules(draft.review_rules);
+  const approvalRules = buildApprovalRules(draft.approval_rules);
+  const handoffRules = buildHandoffRules(draft.handoff_rules);
+  const parameters = buildParameters(draft.parameters);
+  const boardValidation = validateBoardColumnsDraft(draft.columns, draft.entry_column_id);
+  const ruleValidation = validateWorkflowRulesDraft(draft);
 
-  const resolvedEntryColumnId = resolveEntryColumnId(draft.entry_column_id, columns);
-  const boardValidationWithEntry = validateBoardColumnsDraft(draft.columns, draft.entry_column_id);
-
-  if (boardValidationWithEntry.blockingIssues[0]) {
-    return { ok: false, error: boardValidationWithEntry.blockingIssues[0] };
+  if (!processInstructions) {
+    return { ok: false, error: 'Add process instructions for the orchestrator.' };
   }
-  if (columns.length === 0) {
-    return { ok: false, error: 'At least one board column is required.' };
+  if (!boardValidation.isValid) {
+    return { ok: false, error: boardValidation.blockingIssues[0] };
   }
-  if (stages.some((stage) => !stage.name || !stage.goal)) {
-    return { ok: false, error: 'Every stage needs a name and goal.' };
-  }
-  if (hasDuplicates(stages.map((stage) => stage.name))) {
-    return { ok: false, error: 'Stage names must be unique.' };
+  if (!ruleValidation.isValid) {
+    return { ok: false, error: ruleValidation.blockingIssues[0] };
   }
   if (parameters.some((parameter) => !parameter.name)) {
     return { ok: false, error: 'Every playbook parameter needs a name.' };
@@ -308,14 +335,14 @@ export function buildPlaybookDefinition(
   if (hasDuplicates(parameters.map((parameter) => parameter.name))) {
     return { ok: false, error: 'Playbook parameter names must be unique.' };
   }
+
   const parameterValidation = validateParameterDrafts(draft.parameters);
   if (!parameterValidation.isValid) {
     return { ok: false, error: parameterValidation.blockingIssues[0] };
   }
+
   const defaultValueIssue = parameters
-    .map((parameter) =>
-      validateStructuredParameterDefaultValue(parameter.type, parameter.default),
-    )
+    .map((parameter) => validateStructuredParameterDefaultValue(parameter.type, parameter.default))
     .find((issue): issue is string => Boolean(issue));
   if (defaultValueIssue) {
     return { ok: false, error: defaultValueIssue };
@@ -323,21 +350,43 @@ export function buildPlaybookDefinition(
 
   const definition: Record<string, unknown> = {
     lifecycle,
+    process_instructions: processInstructions,
     roles,
     board: {
-      entry_column_id: resolvedEntryColumnId,
-      columns: columns.map((column) => compactRecord(column)),
+      entry_column_id: resolveEntryColumnId(draft.entry_column_id, columns),
+      columns: columns.map((column) =>
+        compactRecord(column as unknown as Record<string, unknown>),
+      ),
     },
-    stages: stages.map((stage) => compactRecord(stage)),
+    checkpoints: checkpoints.map((checkpoint) =>
+      compactRecord(checkpoint as unknown as Record<string, unknown>),
+    ),
   };
 
+  if (reviewRules.length > 0) {
+    definition.review_rules = reviewRules.map((rule) =>
+      compactRecord(rule as unknown as Record<string, unknown>),
+    );
+  }
+  if (approvalRules.length > 0) {
+    definition.approval_rules = approvalRules.map((rule) =>
+      compactRecord(rule as unknown as Record<string, unknown>),
+    );
+  }
+  if (handoffRules.length > 0) {
+    definition.handoff_rules = handoffRules.map((rule) =>
+      compactRecord(rule as unknown as Record<string, unknown>),
+    );
+  }
+
   const orchestrator = compactRecord({
-    instructions: draft.orchestrator.instructions.trim(),
     check_interval: draft.orchestrator.check_interval.trim(),
     stale_threshold: draft.orchestrator.stale_threshold.trim(),
     max_rework_iterations: parseOptionalInt(draft.orchestrator.max_rework_iterations),
     max_active_tasks: parseOptionalInt(draft.orchestrator.max_active_tasks),
-    max_active_tasks_per_work_item: parseOptionalInt(draft.orchestrator.max_active_tasks_per_work_item),
+    max_active_tasks_per_work_item: parseOptionalInt(
+      draft.orchestrator.max_active_tasks_per_work_item,
+    ),
     allow_parallel_work_items: draft.orchestrator.allow_parallel_work_items,
   });
   if (Object.keys(orchestrator).length > 0) {
@@ -345,7 +394,7 @@ export function buildPlaybookDefinition(
   }
 
   const runtime = compactRecord({
-    specialist_pool: buildRuntimePoolRecord(draft.runtime.specialist_pool, true),
+    specialist_pool: buildRuntimePoolRecord(draft.runtime.specialist_pool),
   });
   if (Object.keys(runtime).length > 0) {
     definition.runtime = runtime;
@@ -371,25 +420,27 @@ export function validateBoardColumnsDraft(
     };
   }
 
-  const normalizedIds = columns.map((column) => column.id.trim().toLowerCase());
   const duplicateIds = new Set(
-    normalizedIds.filter((value, index) => value && normalizedIds.indexOf(value) !== index),
+    columns
+      .map((column) => column.id.trim().toLowerCase())
+      .filter((value, index, values) => value && values.indexOf(value) !== index),
   );
+
   const columnErrors = columns.map((column) => ({
     id: readBoardColumnIdError(column, duplicateIds),
     label: readBoardColumnLabelError(column),
   }));
+  const entryColumnError = readEntryColumnError(columns, entryColumnId);
   const blockingIssues = Array.from(
     new Set(
       [
         ...columnErrors.flatMap((column) =>
           [column.id, column.label].filter((value): value is string => Boolean(value)),
         ),
-        readEntryColumnError(columns, entryColumnId),
+        entryColumnError,
       ].filter((value): value is string => Boolean(value)),
     ),
   );
-  const entryColumnError = readEntryColumnError(columns, entryColumnId);
 
   return {
     columnErrors,
@@ -399,34 +450,53 @@ export function validateBoardColumnsDraft(
   };
 }
 
-function readEntryColumnError(columns: BoardColumnDraft[], entryColumnId: string): string | undefined {
-  const resolved = resolveEntryColumnId(entryColumnId, columns);
-  return resolved ? undefined : 'Choose a valid intake column from this board.';
-}
-
-function resolveEntryColumnId(
-  entryColumnId: string,
-  columns: Array<{ id: string }>,
-): string | undefined {
-  const trimmed = entryColumnId.trim();
-  if (trimmed && columns.some((column) => column.id.trim() === trimmed)) {
-    return trimmed;
-  }
-  return trimmed ? undefined : columns[0]?.id.trim() || undefined;
-}
-
-function readBoardEntryColumnId(
-  value: unknown,
-  columns: BoardColumnDraft[],
-  fallbackEntryColumnId: string,
-): string {
-  const board = asRecord(value);
-  const explicit = readString(board.entry_column_id);
-  return (
-    resolveEntryColumnId(explicit, columns) ??
-    resolveEntryColumnId(fallbackEntryColumnId, columns) ??
-    ''
+export function validateWorkflowRulesDraft(
+  draft: Pick<
+    PlaybookAuthoringDraft,
+    'roles' | 'checkpoints' | 'review_rules' | 'approval_rules' | 'handoff_rules'
+  >,
+): WorkflowRuleValidationResult {
+  const roleNames = new Set(draft.roles.map((entry) => entry.value.trim()).filter(Boolean));
+  const checkpointNames = new Set(
+    draft.checkpoints.map((entry) => entry.name.trim()).filter(Boolean),
   );
+  const duplicateCheckpointNames = new Set(
+    draft.checkpoints
+      .map((entry) => entry.name.trim().toLowerCase())
+      .filter((value, index, values) => value && values.indexOf(value) !== index),
+  );
+
+  const checkpointErrors = draft.checkpoints.map((checkpoint) => ({
+    name: readCheckpointNameError(checkpoint, duplicateCheckpointNames),
+    goal: readCheckpointGoalError(checkpoint),
+  }));
+  const reviewRuleErrors = draft.review_rules.map((rule) => readReviewRuleError(rule, roleNames));
+  const approvalRuleErrors = draft.approval_rules.map((rule) =>
+    readApprovalRuleError(rule, checkpointNames),
+  );
+  const handoffRuleErrors = draft.handoff_rules.map((rule) => readHandoffRuleError(rule, roleNames));
+
+  const blockingIssues = Array.from(
+    new Set(
+      [
+        ...checkpointErrors.flatMap((entry) =>
+          [entry.name, entry.goal].filter((value): value is string => Boolean(value)),
+        ),
+        ...reviewRuleErrors.filter((value): value is string => Boolean(value)),
+        ...approvalRuleErrors.filter((value): value is string => Boolean(value)),
+        ...handoffRuleErrors.filter((value): value is string => Boolean(value)),
+      ],
+    ),
+  );
+
+  return {
+    checkpointErrors,
+    reviewRuleErrors,
+    approvalRuleErrors,
+    handoffRuleErrors,
+    blockingIssues,
+    isValid: blockingIssues.length === 0,
+  };
 }
 
 export function validateParameterDrafts(
@@ -454,9 +524,7 @@ export function validateRoleDrafts(
   roles: RoleDraft[],
   availableRoleNames: string[],
 ): RoleDraftValidationResult {
-  const available = new Set(
-    availableRoleNames.map((value) => value.trim()).filter(Boolean),
-  );
+  const available = new Set(availableRoleNames.map((value) => value.trim()).filter(Boolean));
   const roleErrors = roles.map((role) => {
     const name = role.value.trim();
     if (!name) {
@@ -466,16 +534,7 @@ export function validateRoleDrafts(
       ? undefined
       : 'Select an active role definition from the shared catalog.';
   });
-  const blockingIssues = Array.from(
-    new Set(
-      roleErrors.reduce<string[]>((issues, issue) => {
-        if (issue) {
-          issues.push(issue);
-        }
-        return issues;
-      }, []),
-    ),
-  );
+  const blockingIssues = Array.from(new Set(roleErrors.filter(Boolean) as string[]));
 
   return {
     roleErrors,
@@ -484,8 +543,141 @@ export function validateRoleDrafts(
   };
 }
 
-function buildRuntimePoolRecord(pool: RuntimePoolDraft, gated = false): Record<string, unknown> | undefined {
-  if (gated && !pool.enabled) {
+export function summarizePlaybookAuthoringDraft(
+  draft: PlaybookAuthoringDraft,
+): PlaybookAuthoringSummary {
+  const roles = draft.roles.map((entry) => entry.value.trim()).filter(Boolean);
+  const checkpoints = buildCheckpoints(draft.checkpoints);
+  const reviewRules = draft.review_rules.filter(hasReviewRuleValue);
+  const approvalRules = draft.approval_rules.filter(hasApprovalRuleValue);
+  const handoffRules = draft.handoff_rules.filter(hasHandoffRuleValue);
+  const columns = buildBoardColumns(draft.columns);
+  const parameters = buildParameters(draft.parameters);
+
+  return {
+    hasProcessInstructions: draft.process_instructions.trim().length > 0,
+    roleCount: roles.length,
+    checkpointCount: checkpoints.length,
+    gatedCheckpointCount: checkpoints.filter((checkpoint) => checkpoint.human_gate).length,
+    reviewRuleCount: reviewRules.length,
+    requiredReviewRuleCount: reviewRules.filter((rule) => rule.required !== false).length,
+    approvalRuleCount: approvalRules.length,
+    handoffRuleCount: handoffRules.length,
+    columnCount: columns.length,
+    blockedColumnCount: columns.filter((column) => column.is_blocked).length,
+    terminalColumnCount: columns.filter((column) => column.is_terminal).length,
+    parameterCount: parameters.length,
+    requiredParameterCount: parameters.filter((parameter) => parameter.required).length,
+    secretParameterCount: parameters.filter((parameter) => parameter.secret).length,
+    runtimeOverrideCount: draft.runtime.specialist_pool.enabled === false ? 0 : 1,
+  };
+}
+
+function buildBoardColumns(columns: BoardColumnDraft[]): BoardColumnDraft[] {
+  return columns
+    .map((column) => ({
+      id: column.id.trim(),
+      label: column.label.trim(),
+      description: column.description.trim(),
+      is_blocked: column.is_blocked,
+      is_terminal: column.is_terminal,
+    }))
+    .filter(
+      (column) =>
+        column.id ||
+        column.label ||
+        column.description ||
+        column.is_blocked ||
+        column.is_terminal,
+    );
+}
+
+function buildCheckpoints(checkpoints: CheckpointDraft[]): CheckpointDraft[] {
+  return checkpoints
+    .map((checkpoint) => ({
+      name: checkpoint.name.trim(),
+      goal: checkpoint.goal.trim(),
+      human_gate: checkpoint.human_gate,
+      entry_criteria: checkpoint.entry_criteria.trim(),
+    }))
+    .filter(
+      (checkpoint) =>
+        checkpoint.name ||
+        checkpoint.goal ||
+        checkpoint.human_gate ||
+        checkpoint.entry_criteria,
+    );
+}
+
+function buildReviewRules(reviewRules: ReviewRuleDraft[]) {
+  return reviewRules
+    .map((rule) => ({
+      from_role: rule.from_role.trim(),
+      reviewed_by: rule.reviewed_by.trim(),
+      required: rule.required,
+      on_reject:
+        readReviewRejectRole(rule).length > 0
+          ? { action: 'return_to_role' as const, role: readReviewRejectRole(rule) }
+          : undefined,
+    }))
+    .filter(
+      (rule) => rule.from_role || rule.reviewed_by || rule.required !== true || rule.on_reject,
+    );
+}
+
+function buildApprovalRules(approvalRules: ApprovalRuleDraft[]) {
+  return approvalRules
+    .map((rule) => ({
+      on: rule.on as 'checkpoint' | 'completion',
+      checkpoint: rule.checkpoint.trim(),
+      approved_by: 'human' as const,
+      required: rule.required,
+    }))
+    .filter((rule) => rule.on === 'completion' || rule.checkpoint || rule.required !== true);
+}
+
+function buildHandoffRules(handoffRules: HandoffRuleDraft[]) {
+  return handoffRules
+    .map((rule) => ({
+      from_role: rule.from_role.trim(),
+      to_role: rule.to_role.trim(),
+      required: rule.required,
+    }))
+    .filter((rule) => rule.from_role || rule.to_role || rule.required !== true);
+}
+
+function buildParameters(parameters: ParameterDraft[]) {
+  return parameters
+    .map((parameter) => ({
+      name: parameter.name.trim(),
+      type: parameter.type.trim() || 'string',
+      required: parameter.required,
+      secret: parameter.secret,
+      category: parameter.category.trim(),
+      maps_to: parameter.maps_to.trim(),
+      description: parameter.description.trim(),
+      default: parameter.default_value.trim(),
+      label: parameter.label.trim(),
+      help_text: parameter.help_text.trim(),
+      allowed_values: parameter.allowed_values.trim(),
+    }))
+    .filter(
+      (parameter) =>
+        parameter.name ||
+        parameter.category ||
+        parameter.maps_to ||
+        parameter.description ||
+        parameter.default ||
+        parameter.label ||
+        parameter.help_text ||
+        parameter.allowed_values ||
+        parameter.required ||
+        parameter.secret,
+    );
+}
+
+function buildRuntimePoolRecord(pool: RuntimePoolDraft): Record<string, unknown> | undefined {
+  if (pool.enabled === false) {
     return undefined;
   }
   const runtimePool = compactRecord({
@@ -501,21 +693,32 @@ function buildRuntimePoolRecord(pool: RuntimePoolDraft, gated = false): Record<s
   return Object.keys(runtimePool).length > 0 ? runtimePool : undefined;
 }
 
-function compactRecord(input: Record<string, unknown>): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(input).filter(([, value]) =>
-      value !== '' &&
-      value !== undefined &&
-      !(Array.isArray(value) && value.length === 0),
-    ),
-  );
+function readEntryColumnError(columns: BoardColumnDraft[], entryColumnId: string): string | undefined {
+  return resolveEntryColumnId(entryColumnId, columns)
+    ? undefined
+    : 'Choose a valid intake column from this board.';
 }
 
-function splitCsv(value: string): string[] {
-  return value
-    .split(',')
-    .map((item) => item.trim())
-    .filter(Boolean);
+function resolveEntryColumnId(entryColumnId: string, columns: Array<{ id: string }>): string | undefined {
+  const trimmed = entryColumnId.trim();
+  if (trimmed && columns.some((column) => column.id.trim() === trimmed)) {
+    return trimmed;
+  }
+  return trimmed ? undefined : columns[0]?.id.trim() || undefined;
+}
+
+function readBoardEntryColumnId(
+  value: unknown,
+  columns: BoardColumnDraft[],
+  fallbackEntryColumnId: string,
+): string {
+  const board = asRecord(value);
+  const explicit = readString(board.entry_column_id);
+  return (
+    resolveEntryColumnId(explicit, columns) ??
+    resolveEntryColumnId(fallbackEntryColumnId, columns) ??
+    ''
+  );
 }
 
 function readBoardColumnIdError(
@@ -533,10 +736,107 @@ function readBoardColumnIdError(
 }
 
 function readBoardColumnLabelError(column: BoardColumnDraft): string | undefined {
-  if (!column.label.trim()) {
-    return 'Add a column label.';
+  return column.label.trim() ? undefined : 'Add a column label.';
+}
+
+function readCheckpointNameError(
+  checkpoint: CheckpointDraft,
+  duplicateNames: Set<string>,
+): string | undefined {
+  if (!hasCheckpointValue(checkpoint)) {
+    return undefined;
+  }
+  const name = checkpoint.name.trim();
+  if (!name) {
+    return 'Add a checkpoint name.';
+  }
+  if (duplicateNames.has(name.toLowerCase())) {
+    return 'Checkpoint names must be unique.';
   }
   return undefined;
+}
+
+function readCheckpointGoalError(checkpoint: CheckpointDraft): string | undefined {
+  if (!hasCheckpointValue(checkpoint)) {
+    return undefined;
+  }
+  return checkpoint.goal.trim() ? undefined : 'Add a checkpoint goal.';
+}
+
+function hasCheckpointValue(checkpoint: CheckpointDraft): boolean {
+  return (
+    checkpoint.name.trim().length > 0 ||
+    checkpoint.goal.trim().length > 0 ||
+    checkpoint.entry_criteria.trim().length > 0 ||
+    checkpoint.human_gate
+  );
+}
+
+function readReviewRuleError(rule: ReviewRuleDraft, roleNames: Set<string>): string | undefined {
+  const rejectRole = readString(rule.reject_role).trim();
+  if (!hasReviewRuleValue(rule)) {
+    return undefined;
+  }
+  if (!rule.from_role.trim() || !rule.reviewed_by.trim()) {
+    return 'Review rules must define both the source role and the reviewer.';
+  }
+  if (!roleNames.has(rule.from_role.trim()) || !roleNames.has(rule.reviewed_by.trim())) {
+    return 'Review rules must use roles selected in the team section.';
+  }
+  if (rejectRole && !roleNames.has(rejectRole)) {
+    return 'Rejected review work must route back to a selected team role.';
+  }
+  return undefined;
+}
+
+function hasReviewRuleValue(rule: ReviewRuleDraft): boolean {
+  return (
+    rule.from_role.trim().length > 0 ||
+    rule.reviewed_by.trim().length > 0 ||
+    readString(rule.reject_role).trim().length > 0 ||
+    rule.required === false
+  );
+}
+
+function readApprovalRuleError(
+  rule: ApprovalRuleDraft,
+  checkpointNames: Set<string>,
+): string | undefined {
+  if (!hasApprovalRuleValue(rule)) {
+    return undefined;
+  }
+  if (rule.on === 'checkpoint' && !rule.checkpoint.trim()) {
+    return 'Checkpoint approvals must target a checkpoint.';
+  }
+  if (rule.on === 'checkpoint' && !checkpointNames.has(rule.checkpoint.trim())) {
+    return 'Checkpoint approvals must reference an existing checkpoint.';
+  }
+  return undefined;
+}
+
+function hasApprovalRuleValue(rule: ApprovalRuleDraft): boolean {
+  return rule.on === 'completion' || rule.checkpoint.trim().length > 0 || rule.required === false;
+}
+
+function readHandoffRuleError(rule: HandoffRuleDraft, roleNames: Set<string>): string | undefined {
+  if (!hasHandoffRuleValue(rule)) {
+    return undefined;
+  }
+  if (!rule.from_role.trim() || !rule.to_role.trim()) {
+    return 'Handoff rules must define both the source and destination roles.';
+  }
+  if (!roleNames.has(rule.from_role.trim()) || !roleNames.has(rule.to_role.trim())) {
+    return 'Handoff rules must use roles selected in the team section.';
+  }
+  return undefined;
+}
+
+function hasHandoffRuleValue(rule: HandoffRuleDraft): boolean {
+  return (
+    rule.from_role.trim().length > 0 ||
+    rule.to_role.trim().length > 0 ||
+    rule.required === false
+  );
 }
 
 function parseOptionalInt(value: string): number | undefined {
@@ -608,7 +908,6 @@ function readParameterDraftErrors(parameter: ParameterDraft): {
   if (category === 'credential' && !isSecret) {
     errors.secret = 'Credential parameters must be marked secret.';
   }
-
   if (category === 'repository' && isSecret) {
     errors.secret = 'Repository parameters should stay non-secret.';
   }
@@ -655,7 +954,12 @@ function readBoardColumns(value: unknown): BoardColumnDraft[] {
     );
 }
 
-function readStages(value: unknown): StageDraft[] {
+function readCheckpoints(record: Record<string, unknown>): CheckpointDraft[] {
+  const checkpoints = readCheckpointList(record.checkpoints);
+  return checkpoints.length > 0 ? checkpoints : readCheckpointList(record.stages);
+}
+
+function readCheckpointList(value: unknown): CheckpointDraft[] {
   return Array.isArray(value)
     ? value
         .map((entry) => {
@@ -663,19 +967,63 @@ function readStages(value: unknown): StageDraft[] {
           return {
             name: readString(record.name),
             goal: readString(record.goal),
-            involves: readStringArray(record.involves).join(', '),
             human_gate: Boolean(record.human_gate),
-            guidance: readString(record.guidance),
+            entry_criteria: readString(record.entry_criteria),
           };
         })
         .filter(
           (entry) =>
-            entry.name ||
-            entry.goal ||
-            entry.involves ||
-            entry.human_gate ||
-            entry.guidance,
+            entry.name || entry.goal || entry.human_gate || entry.entry_criteria,
         )
+    : [];
+}
+
+function readReviewRules(value: unknown): ReviewRuleDraft[] {
+  return Array.isArray(value)
+    ? value
+        .map((entry) => {
+          const record = asRecord(entry);
+          const onReject = asRecord(record.on_reject);
+          return {
+            from_role: readString(record.from_role),
+            reviewed_by: readString(record.reviewed_by),
+            required: typeof record.required === 'boolean' ? record.required : true,
+            reject_role: readString(onReject.role),
+          };
+        })
+        .filter(hasReviewRuleValue)
+    : [];
+}
+
+function readApprovalRules(value: unknown): ApprovalRuleDraft[] {
+  return Array.isArray(value)
+    ? value
+        .map((entry) => {
+          const record = asRecord(entry);
+          return {
+            on: (record.on === 'completion' ? 'completion' : 'checkpoint') as
+              | 'checkpoint'
+              | 'completion',
+            checkpoint: readString(record.checkpoint),
+            required: typeof record.required === 'boolean' ? record.required : true,
+          };
+        })
+        .filter(hasApprovalRuleValue)
+    : [];
+}
+
+function readHandoffRules(value: unknown): HandoffRuleDraft[] {
+  return Array.isArray(value)
+    ? value
+        .map((entry) => {
+          const record = asRecord(entry);
+          return {
+            from_role: readString(record.from_role),
+            to_role: readString(record.to_role),
+            required: typeof record.required === 'boolean' ? record.required : true,
+          };
+        })
+        .filter(hasHandoffRuleValue)
     : [];
 }
 
@@ -719,7 +1067,6 @@ function readParameters(value: unknown): ParameterDraft[] {
 function readOrchestrator(value: unknown): PlaybookAuthoringDraft['orchestrator'] {
   const record = asRecord(value);
   return {
-    instructions: readString(record.instructions),
     check_interval: readString(record.check_interval),
     stale_threshold: readString(record.stale_threshold),
     max_rework_iterations: readNumberish(record.max_rework_iterations),
@@ -729,57 +1076,6 @@ function readOrchestrator(value: unknown): PlaybookAuthoringDraft['orchestrator'
       typeof record.allow_parallel_work_items === 'boolean'
         ? record.allow_parallel_work_items
         : createDefaultAuthoringDraft('ongoing').orchestrator.allow_parallel_work_items,
-  };
-}
-
-export function summarizePlaybookAuthoringDraft(
-  draft: PlaybookAuthoringDraft,
-): PlaybookAuthoringSummary {
-  const roles = draft.roles.map((entry) => entry.value.trim()).filter(Boolean);
-  const columns = draft.columns.filter(
-    (column) =>
-      column.id.trim().length > 0 ||
-      column.label.trim().length > 0 ||
-      column.description.trim().length > 0 ||
-      column.is_blocked ||
-      column.is_terminal,
-  );
-  const stages = draft.stages.filter(
-    (stage) =>
-      stage.name.trim().length > 0 ||
-      stage.goal.trim().length > 0 ||
-      stage.involves.trim().length > 0 ||
-      stage.guidance.trim().length > 0 ||
-      stage.human_gate,
-  );
-  const parameters = draft.parameters.filter(
-    (parameter) =>
-      parameter.name.trim().length > 0 ||
-      parameter.category.trim().length > 0 ||
-      parameter.maps_to.trim().length > 0 ||
-      parameter.description.trim().length > 0 ||
-      parameter.default_value.trim().length > 0 ||
-      parameter.label.trim().length > 0 ||
-      parameter.help_text.trim().length > 0 ||
-      parameter.allowed_values.trim().length > 0 ||
-      parameter.required ||
-      parameter.secret,
-  );
-  const runtimeOverrideCount = [
-    draft.runtime.specialist_pool.enabled !== false,
-  ].filter(Boolean).length;
-
-  return {
-    roleCount: roles.length,
-    columnCount: columns.length,
-    blockedColumnCount: columns.filter((column) => column.is_blocked).length,
-    terminalColumnCount: columns.filter((column) => column.is_terminal).length,
-    stageCount: stages.length,
-    gatedStageCount: stages.filter((stage) => stage.human_gate).length,
-    parameterCount: parameters.length,
-    requiredParameterCount: parameters.filter((parameter) => parameter.required).length,
-    secretParameterCount: parameters.filter((parameter) => parameter.secret).length,
-    runtimeOverrideCount,
   };
 }
 
@@ -793,10 +1089,7 @@ function readRuntime(value: unknown): PlaybookAuthoringDraft['runtime'] {
 function readRuntimePool(value: unknown, enabledByDefault: boolean): RuntimePoolDraft {
   const record = asRecord(value);
   return {
-    enabled:
-      enabledByDefault || Object.keys(record).length > 0
-        ? true
-        : false,
+    enabled: enabledByDefault || Object.keys(record).length > 0 ? true : false,
     pool_mode: readString(record.pool_mode),
     max_runtimes: readNumberish(record.max_runtimes),
     priority: readNumberish(record.priority),
@@ -806,6 +1099,16 @@ function readRuntimePool(value: unknown, enabledByDefault: boolean): RuntimePool
     cpu: readString(record.cpu),
     memory: readString(record.memory),
   };
+}
+
+function compactRecord(input: Record<string, unknown>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(input).filter(([, value]) =>
+      value !== '' &&
+      value !== undefined &&
+      !(Array.isArray(value) && value.length === 0),
+    ),
+  );
 }
 
 function readString(value: unknown): string {

@@ -80,9 +80,9 @@ export function PlaybookControlCenterCard(
             href="#playbook-runtime-controls"
           />
           <SignalCard
-            title="Stages and gates"
-            value={summary.stages}
-            href="#playbook-workflow-stages"
+            title="Checkpoints and rules"
+            value={summary.checkpoints}
+            href="#playbook-checkpoints"
           />
           <SignalCard
             title="Launch parameters"

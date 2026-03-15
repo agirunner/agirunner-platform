@@ -7,14 +7,15 @@ import { dashboardApi } from '../../lib/api.js';
 import {
   summarizePlaybookAuthoringDraft,
   validateRoleDrafts,
+  validateWorkflowRulesDraft,
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
 import {
-  BoardColumnsSection,
-  OrchestratorSection,
-  RuntimeAndParametersSection,
+  AdvancedWorkflowSection,
+  LaunchInputsSection,
+  ProcessInstructionsSection,
   TeamRolesSection,
-  WorkflowStagesSection,
+  WorkflowRulesSection,
 } from './playbook-authoring-form-sections.js';
 
 interface PlaybookAuthoringFormProps {
@@ -37,6 +38,7 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
     .filter((value, index, all) => value.trim().length > 0 && all.indexOf(value) === index)
     .sort((left, right) => left.localeCompare(right));
   const roleValidation = validateRoleDrafts(props.draft.roles, availableRoleNames);
+  const workflowRuleValidation = validateWorkflowRulesDraft(props.draft);
 
   function updateDraft(updater: (current: PlaybookAuthoringDraft) => PlaybookAuthoringDraft): void {
     props.onClearError();
@@ -56,9 +58,15 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
   useEffect(() => {
     props.onValidationChange?.([
       ...roleValidation.blockingIssues,
+      ...workflowRuleValidation.blockingIssues,
       ...Object.values(parameterIssues).filter(Boolean),
     ]);
-  }, [parameterIssues, props.onValidationChange, roleValidation.blockingIssues]);
+  }, [
+    parameterIssues,
+    props.onValidationChange,
+    roleValidation.blockingIssues,
+    workflowRuleValidation.blockingIssues,
+  ]);
 
   function updateParameterIssue(
     index: number,
@@ -88,92 +96,94 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
         <CardHeader className="space-y-2">
           <CardTitle>Authoring Overview</CardTitle>
           <p className="text-sm text-muted">
-            Review the current board shape, stage gates, launch inputs, and runtime posture before
-            editing the detailed sections below.
+            Start with the process the orchestrator must follow, then add only the rules and inputs
+            needed to keep execution deterministic.
           </p>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
           <OverviewCard
-            title="Board"
+            title="Process"
             lines={[
-              `${summary.columnCount} columns`,
-              `${summary.blockedColumnCount} blocked lanes`,
-              `${summary.terminalColumnCount} terminal lanes`,
+              summary.hasProcessInstructions ? 'Instructions ready' : 'Add process instructions',
+              `${summary.reviewRuleCount} review rules`,
+              `${summary.approvalRuleCount} approval rules`,
             ]}
           />
           <OverviewCard
-            title="Stages"
+            title="Team and Handoffs"
             lines={[
-              `${summary.stageCount} stages`,
-              `${summary.gatedStageCount} human gates`,
               `${summary.roleCount} team roles`,
+              `${summary.handoffRuleCount} handoff rules`,
+              `${summary.checkpointCount} checkpoints`,
             ]}
           />
           <OverviewCard
-            title="Launch Inputs"
+            title="Inputs"
             lines={[
-              `${summary.parameterCount} parameters`,
+              `${summary.parameterCount} inputs`,
               `${summary.requiredParameterCount} required`,
               `${summary.secretParameterCount} secret`,
             ]}
           />
           <OverviewCard
-            title="Runtime"
+            title="Advanced"
             lines={[
+              `${summary.columnCount} board columns`,
+              `${summary.gatedCheckpointCount} gated checkpoints`,
               `${summary.runtimeOverrideCount} pool overrides`,
-              props.draft.orchestrator.allow_parallel_work_items
-                ? 'Parallel work items enabled'
-                : 'Parallel work items disabled',
-              `Max active tasks ${props.draft.orchestrator.max_active_tasks || 'inherit'}`,
             ]}
           />
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="flow-design" className="space-y-4" data-testid="playbook-authoring-tabs">
+      <Tabs defaultValue="process" className="space-y-4" data-testid="playbook-authoring-tabs">
         <div className="sticky top-4 z-10 -mx-1 rounded-2xl bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <TabsList className="grid h-auto w-full gap-2 rounded-xl bg-border/20 p-2 sm:grid-cols-3">
             <TabsTrigger
-              value="flow-design"
+              value="process"
               className="h-auto min-h-11 w-full justify-start px-4 py-3 text-left"
             >
-              <span className="font-medium">Flow Design</span>
+              <span className="font-medium">Process</span>
             </TabsTrigger>
             <TabsTrigger
-              value="automation-policy"
+              value="inputs"
               className="h-auto min-h-11 w-full justify-start px-4 py-3 text-left"
             >
-              <span className="font-medium">Automation Policy</span>
+              <span className="font-medium">Inputs</span>
             </TabsTrigger>
             <TabsTrigger
-              value="launch-and-runtime"
+              value="advanced"
               className="h-auto min-h-11 w-full justify-start px-4 py-3 text-left"
             >
-              <span className="font-medium">Launch and Runtime</span>
+              <span className="font-medium">Advanced</span>
             </TabsTrigger>
           </TabsList>
         </div>
 
-        <TabsContent value="flow-design" className="space-y-4">
+        <TabsContent value="process" className="space-y-4">
+          <ProcessInstructionsSection draft={props.draft} onChange={updateDraft} />
           <TeamRolesSection
             draft={props.draft}
             onChange={updateDraft}
             availableRoleNames={availableRoleNames}
           />
-          <BoardColumnsSection draft={props.draft} onChange={updateDraft} />
-          <WorkflowStagesSection draft={props.draft} onChange={updateDraft} />
+          <WorkflowRulesSection
+            draft={props.draft}
+            onChange={updateDraft}
+            availableRoleNames={availableRoleNames}
+          />
         </TabsContent>
 
-        <TabsContent value="automation-policy" className="space-y-4">
-          <OrchestratorSection draft={props.draft} onChange={updateDraft} />
-        </TabsContent>
-
-        <TabsContent value="launch-and-runtime" className="space-y-4">
-          <RuntimeAndParametersSection
+        <TabsContent value="inputs" className="space-y-4">
+          <LaunchInputsSection
             draft={props.draft}
             onChange={updateDraft}
             onParameterIssueChange={updateParameterIssue}
           />
+        </TabsContent>
+
+        <TabsContent value="advanced" className="space-y-4">
+          <AdvancedWorkflowSection draft={props.draft} onChange={updateDraft} />
         </TabsContent>
       </Tabs>
     </div>

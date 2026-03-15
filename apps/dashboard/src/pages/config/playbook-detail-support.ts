@@ -14,10 +14,12 @@ export interface PlaybookRevisionDiffRow {
 
 export interface PlaybookControlSummary {
   roles: string;
+  process: string;
+  rules: string;
   cadence: string;
   parallelism: string;
   runtime: string;
-  stages: string;
+  checkpoints: string;
   parameters: string;
 }
 
@@ -48,9 +50,15 @@ export function buildPlaybookRevisionDiff(
       compared.is_active === false ? 'inactive' : 'active',
     ),
     diffRow('Roles', formatRoles(currentDraft), formatRoles(comparedDraft)),
+    diffRow(
+      'Process instructions',
+      formatProcessInstructions(currentDraft),
+      formatProcessInstructions(comparedDraft),
+    ),
+    diffRow('Rules', formatRules(currentDraft), formatRules(comparedDraft)),
     diffRow('Entry column', formatEntryColumn(currentDraft), formatEntryColumn(comparedDraft)),
     diffRow('Board columns', formatColumns(currentDraft), formatColumns(comparedDraft)),
-    diffRow('Stages', formatStages(currentDraft), formatStages(comparedDraft)),
+    diffRow('Checkpoints', formatCheckpoints(currentDraft), formatCheckpoints(comparedDraft)),
     diffRow('Parameters', formatParameters(currentDraft), formatParameters(comparedDraft)),
     diffRow(
       'Orchestrator cadence',
@@ -72,10 +80,12 @@ export function summarizePlaybookControls(
   const draft = readPlaybookDraft(playbook);
   return {
     roles: formatRoles(draft),
+    process: formatProcessInstructions(draft),
+    rules: formatRules(draft),
     cadence: formatOrchestratorCadence(draft),
     parallelism: formatParallelism(draft),
     runtime: formatRuntimePools(draft),
-    stages: formatStages(draft),
+    checkpoints: formatCheckpoints(draft),
     parameters: formatParameters(draft),
   };
 }
@@ -142,20 +152,33 @@ function formatEntryColumn(draft: PlaybookAuthoringDraft): string {
   return matchingColumn.label.trim() || entryColumnId;
 }
 
-function formatStages(draft: PlaybookAuthoringDraft): string {
-  const stages = draft.stages
-    .map((stage) => {
-      const name = stage.name.trim();
+function formatProcessInstructions(draft: PlaybookAuthoringDraft): string {
+  const instructions = draft.process_instructions.trim();
+  return instructions ? instructions : 'none';
+}
+
+function formatRules(draft: PlaybookAuthoringDraft): string {
+  return [
+    `${draft.review_rules.filter((rule) => rule.from_role.trim() && rule.reviewed_by.trim()).length} reviews`,
+    `${draft.approval_rules.filter((rule) => rule.on === 'completion' || rule.checkpoint.trim()).length} approvals`,
+    `${draft.handoff_rules.filter((rule) => rule.from_role.trim() && rule.to_role.trim()).length} handoffs`,
+  ].join(' • ');
+}
+
+function formatCheckpoints(draft: PlaybookAuthoringDraft): string {
+  const checkpoints = draft.checkpoints
+    .map((checkpoint) => {
+      const name = checkpoint.name.trim();
       if (!name) {
         return '';
       }
-      const flags = [stage.human_gate ? 'gate' : '', stage.guidance.trim() ? 'guided' : '']
+      const flags = [checkpoint.human_gate ? 'gate' : '', checkpoint.entry_criteria.trim() ? 'criteria' : '']
         .filter(Boolean)
         .join(', ');
       return flags ? `${name} (${flags})` : name;
     })
     .filter(Boolean);
-  return stages.length > 0 ? stages.join(', ') : 'none';
+  return checkpoints.length > 0 ? checkpoints.join(', ') : 'none';
 }
 
 function formatParameters(draft: PlaybookAuthoringDraft): string {
