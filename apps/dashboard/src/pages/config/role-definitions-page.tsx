@@ -150,7 +150,7 @@ export function RoleDefinitionsPage(): JSX.Element {
                   <TableHead>Role</TableHead>
                   <TableHead>Tools</TableHead>
                   <TableHead>Model</TableHead>
-                  <TableHead className="w-[180px] text-right">Actions</TableHead>
+                  <TableHead className="w-[120px] text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

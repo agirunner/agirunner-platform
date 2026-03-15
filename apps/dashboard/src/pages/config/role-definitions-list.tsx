@@ -98,48 +98,45 @@ export function RoleRow(props: {
           <div className="font-mono">{modelPolicy.primary}</div>
         </TableCell>
         <TableCell className="text-right">
-          <div className="flex flex-wrap justify-end gap-2">
+          <div className="flex items-center justify-end gap-1">
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
+              className="h-8 w-8"
               aria-label={`Duplicate ${props.role.name}`}
               onClick={(event) => {
                 event.stopPropagation();
                 props.onDuplicate(props.role);
               }}
             >
-              <Copy className="h-4 w-4" />
-              Duplicate
+              <Copy className="h-3.5 w-3.5" />
             </Button>
             <Button
-              size="sm"
+              size="icon"
               variant="ghost"
+              className="h-8 w-8"
               aria-label={`Edit ${props.role.name}`}
               onClick={(event) => {
                 event.stopPropagation();
                 props.onEdit(props.role);
               }}
             >
-              <Pencil className="h-4 w-4" />
-              Edit
+              <Pencil className="h-3.5 w-3.5" />
             </Button>
             {isDeletable ? (
               <Button
-                size="sm"
+                size="icon"
                 variant="ghost"
-                className="text-red-600 hover:text-red-700"
+                className="h-8 w-8 text-red-600 hover:text-red-700"
                 aria-label={`Delete ${props.role.name}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   props.onDelete(props.role);
                 }}
               >
-                <Trash2 className="h-4 w-4" />
-                Delete
+                <Trash2 className="h-3.5 w-3.5" />
               </Button>
-            ) : (
-              <Badge variant="secondary">Built-in</Badge>
-            )}
+            ) : null}
           </div>
         </TableCell>
       </TableRow>
