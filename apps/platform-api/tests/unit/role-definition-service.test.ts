@@ -265,10 +265,11 @@ describe('RoleDefinitionService', () => {
   });
 
   describe('deleteRole', () => {
-    it('deletes a non-built-in role', async () => {
+    it('deletes a non-built-in role not used by any playbook', async () => {
       const nonBuiltIn = { ...sampleRole, is_built_in: false };
       pool.query
         .mockResolvedValueOnce({ rows: [nonBuiltIn], rowCount: 1 }) // getRoleById
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // findPlaybooksUsingRole
         .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // DELETE
 
       await expect(service.deleteRole(TENANT_ID, ROLE_ID)).resolves.toBeUndefined();
@@ -278,6 +279,15 @@ describe('RoleDefinitionService', () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 });
 
       await expect(service.deleteRole(TENANT_ID, ROLE_ID)).rejects.toThrow('Cannot delete built-in role');
+    });
+
+    it('rejectsDeleteWhenRoleIsUsedByPlaybook', async () => {
+      const nonBuiltIn = { ...sampleRole, is_built_in: false };
+      pool.query
+        .mockResolvedValueOnce({ rows: [nonBuiltIn], rowCount: 1 }) // getRoleById
+        .mockResolvedValueOnce({ rows: [{ name: 'SDLC' }], rowCount: 1 }); // findPlaybooksUsingRole
+
+      await expect(service.deleteRole(TENANT_ID, ROLE_ID)).rejects.toThrow('used by playbook');
     });
 
     it('throws NotFoundError when role does not exist', async () => {

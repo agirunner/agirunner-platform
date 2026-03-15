@@ -159,11 +159,25 @@ export class RoleDefinitionService {
     const role = await this.getRoleById(tenantId, id);
     if (role.is_built_in) throw new ConflictError('Cannot delete built-in role');
 
+    const playbooks = await this.findPlaybooksUsingRole(tenantId, role.name);
+    if (playbooks.length > 0) {
+      const names = playbooks.map((p) => p.name).join(', ');
+      throw new ConflictError(`Cannot delete role "${role.name}" — used by playbook${playbooks.length > 1 ? 's' : ''}: ${names}`);
+    }
+
     const result = await this.pool.query(
       'DELETE FROM role_definitions WHERE tenant_id = $1 AND id = $2',
       [tenantId, id],
     );
     if (!result.rowCount) throw new NotFoundError('Role definition not found');
+  }
+
+  private async findPlaybooksUsingRole(tenantId: string, roleName: string): Promise<Array<{ name: string }>> {
+    const result = await this.pool.query<{ name: string }>(
+      `SELECT name FROM playbooks WHERE tenant_id = $1 AND is_active = true AND definition->'roles' ? $2`,
+      [tenantId, roleName],
+    );
+    return result.rows;
   }
 }
 
