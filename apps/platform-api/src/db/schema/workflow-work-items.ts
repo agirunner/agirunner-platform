@@ -1,5 +1,15 @@
 import { sql } from 'drizzle-orm';
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid, type AnyPgColumn } from 'drizzle-orm/pg-core';
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+  type AnyPgColumn,
+} from 'drizzle-orm/pg-core';
 
 import { taskPriorityEnum } from './enums.js';
 import { tenants } from './tenants.js';
@@ -17,11 +27,15 @@ export const workflowWorkItems = pgTable(
       .references(() => workflows.id),
     parentWorkItemId: uuid('parent_work_item_id').references((): AnyPgColumn => workflowWorkItems.id),
     stageName: text('stage_name').notNull(),
+    currentCheckpoint: text('current_checkpoint'),
     title: text('title').notNull(),
     goal: text('goal'),
     acceptanceCriteria: text('acceptance_criteria'),
     columnId: text('column_id').notNull(),
     ownerRole: text('owner_role'),
+    nextExpectedActor: text('next_expected_actor'),
+    nextExpectedAction: text('next_expected_action'),
+    reworkCount: integer('rework_count').notNull().default(0),
     priority: taskPriorityEnum('priority').notNull().default('normal'),
     requestId: text('request_id'),
     notes: text('notes'),

@@ -96,10 +96,42 @@ describe('buildOrchestratorTaskContext', () => {
         if (sql.includes('FROM workflow_work_items')) {
           return {
             rows: [
-              { id: 'wi-1', stage_name: 'implementation', completed_at: null },
-              { id: 'wi-2', stage_name: 'triage', completed_at: null },
-              { id: 'wi-3', stage_name: 'triage', completed_at: null },
-              { id: 'wi-4', stage_name: 'done', completed_at: '2026-03-11T00:00:00.000Z' },
+              {
+                id: 'wi-1',
+                stage_name: 'implementation',
+                current_checkpoint: 'implementation',
+                next_expected_actor: 'reviewer',
+                next_expected_action: 'review',
+                rework_count: 1,
+                completed_at: null,
+              },
+              {
+                id: 'wi-2',
+                stage_name: 'triage',
+                current_checkpoint: 'triage',
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                completed_at: null,
+              },
+              {
+                id: 'wi-3',
+                stage_name: 'triage',
+                current_checkpoint: 'triage',
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                completed_at: null,
+              },
+              {
+                id: 'wi-4',
+                stage_name: 'done',
+                current_checkpoint: 'done',
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                completed_at: '2026-03-11T00:00:00.000Z',
+              },
             ],
           };
         }
@@ -143,6 +175,17 @@ describe('buildOrchestratorTaskContext', () => {
         dispatch_attempt: 2,
         dispatch_token: 'dispatch-token-1',
       }),
+    );
+    expect(context?.board.work_items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'wi-1',
+          current_checkpoint: 'implementation',
+          next_expected_actor: 'reviewer',
+          next_expected_action: 'review',
+          rework_count: 1,
+        }),
+      ]),
     );
   });
 });

@@ -33,13 +33,20 @@ describe('WorkItemService', () => {
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
-          expect(params?.[12]).toBe('webhook');
+          expect(params?.[5]).toBe('triage');
+          expect(params?.[13]).toBe(0);
+          expect(params?.[16]).toBe('webhook');
           return {
             rows: [
               {
                 id: 'work-item-1',
+                workflow_id: 'workflow-1',
                 stage_name: 'triage',
+                current_checkpoint: 'triage',
                 column_id: 'planned',
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
               },
             ],
             rowCount: 1,
@@ -140,11 +147,15 @@ describe('WorkItemService', () => {
                 request_id: 'req-1',
                 parent_work_item_id: null,
                 stage_name: 'triage',
+                current_checkpoint: 'triage',
                 title: 'Incoming webhook item',
                 goal: null,
                 acceptance_criteria: null,
                 column_id: 'planned',
                 owner_role: null,
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
                 priority: 'normal',
                 notes: null,
                 metadata: {},
@@ -315,11 +326,15 @@ describe('WorkItemService', () => {
                 request_id: 'req-1',
                 parent_work_item_id: null,
                 stage_name: 'triage',
+                current_checkpoint: 'triage',
                 title: 'Existing title',
                 goal: null,
                 acceptance_criteria: null,
                 column_id: 'planned',
                 owner_role: null,
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
                 priority: 'normal',
                 notes: null,
                 metadata: {
@@ -401,7 +416,11 @@ describe('WorkItemService', () => {
               id: 'work-item-1',
               workflow_id: 'workflow-1',
               stage_name: 'triage',
+              current_checkpoint: 'triage',
               column_id: 'planned',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
               metadata: {
                 webhook_secret: 'plaintext-secret',
                 secret_ref: 'secret:WORK_ITEM_SECRET',
@@ -559,7 +578,11 @@ describe('WorkItemService', () => {
                 workflow_id: 'workflow-1',
                 parent_work_item_id: null,
                 stage_name: 'triage',
+                current_checkpoint: 'triage',
                 column_id: 'planned',
+                next_expected_actor: 'reviewer',
+                next_expected_action: 'review',
+                rework_count: 2,
                 metadata: {
                   webhook_secret: 'plaintext-secret',
                   secret_ref: 'secret:WORK_ITEM_SECRET',
@@ -604,6 +627,10 @@ describe('WorkItemService', () => {
 
     expect((workItem as Record<string, any>).metadata.webhook_secret).toBe('redacted://work-item-secret');
     expect((workItem as Record<string, any>).metadata.secret_ref).toBe('redacted://work-item-secret');
+    expect((workItem as Record<string, any>).current_checkpoint).toBe('triage');
+    expect((workItem as Record<string, any>).next_expected_actor).toBe('reviewer');
+    expect((workItem as Record<string, any>).next_expected_action).toBe('review');
+    expect((workItem as Record<string, any>).rework_count).toBe(2);
     expect((event as Record<string, any>).data.api_key).toBe('redacted://work-item-secret');
     expect((event as Record<string, any>).data.secret_ref).toBe('redacted://work-item-secret');
   });

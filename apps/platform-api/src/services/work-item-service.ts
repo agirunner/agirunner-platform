@@ -49,7 +49,11 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   workflow_id: string;
   parent_work_item_id: string | null;
   stage_name: string | null;
+  current_checkpoint: string | null;
   column_id: string | null;
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
+  rework_count: number;
   completed_at: string | Date | null;
   task_count: number;
   children_count: number;
@@ -255,9 +259,10 @@ export class WorkItemService {
 
       const result = await client.query(
         `INSERT INTO workflow_work_items (
-           tenant_id, workflow_id, parent_work_item_id, request_id, stage_name, title, goal,
-           acceptance_criteria, column_id, owner_role, priority, notes, created_by, metadata
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+           tenant_id, workflow_id, parent_work_item_id, request_id, stage_name, current_checkpoint, title, goal,
+           acceptance_criteria, column_id, owner_role, next_expected_actor, next_expected_action, rework_count,
+           priority, notes, created_by, metadata
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL
          DO NOTHING
@@ -268,11 +273,15 @@ export class WorkItemService {
           input.parent_work_item_id ?? null,
           input.request_id ?? null,
           stageName,
+          stageName,
           input.title.trim(),
           input.goal?.trim() ?? null,
           input.acceptance_criteria?.trim() ?? null,
           columnId,
           input.owner_role ?? null,
+          null,
+          null,
+          0,
           input.priority ?? 'normal',
           input.notes?.trim() ?? null,
           createdByForIdentity(identity),
@@ -518,7 +527,14 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     workflow_id: String(sanitizedRow.workflow_id ?? ''),
     parent_work_item_id: typeof sanitizedRow.parent_work_item_id === 'string' ? sanitizedRow.parent_work_item_id : null,
     stage_name: typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null,
+    current_checkpoint:
+      typeof sanitizedRow.current_checkpoint === 'string' ? sanitizedRow.current_checkpoint : null,
     column_id: typeof sanitizedRow.column_id === 'string' ? sanitizedRow.column_id : null,
+    next_expected_actor:
+      typeof sanitizedRow.next_expected_actor === 'string' ? sanitizedRow.next_expected_actor : null,
+    next_expected_action:
+      typeof sanitizedRow.next_expected_action === 'string' ? sanitizedRow.next_expected_action : null,
+    rework_count: readCount(sanitizedRow.rework_count),
     completed_at:
       typeof sanitizedRow.completed_at === 'string' || sanitizedRow.completed_at instanceof Date
         ? sanitizedRow.completed_at

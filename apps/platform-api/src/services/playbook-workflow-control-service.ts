@@ -29,11 +29,15 @@ interface WorkflowWorkItemRow {
   id: string;
   parent_work_item_id: string | null;
   stage_name: string;
+  current_checkpoint: string | null;
   title: string;
   goal: string | null;
   acceptance_criteria: string | null;
   column_id: string;
   owner_role: string | null;
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
+  rework_count: number;
   priority: 'critical' | 'high' | 'normal' | 'low';
   notes: string | null;
   completed_at: Date | null;
@@ -684,8 +688,23 @@ export class PlaybookWorkflowControlService {
     db: DatabaseClient | DatabasePool,
   ) {
     const result = await db.query<WorkflowWorkItemRow>(
-      `SELECT id, parent_work_item_id, stage_name, title, goal, acceptance_criteria, column_id, owner_role, priority,
-              notes, completed_at, metadata, updated_at
+      `SELECT id,
+              parent_work_item_id,
+              stage_name,
+              current_checkpoint,
+              title,
+              goal,
+              acceptance_criteria,
+              column_id,
+              owner_role,
+              next_expected_actor,
+              next_expected_action,
+              rework_count,
+              priority,
+              notes,
+              completed_at,
+              metadata,
+              updated_at
          FROM workflow_work_items
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -742,6 +761,7 @@ export class PlaybookWorkflowControlService {
               goal = $6,
               acceptance_criteria = $7,
               stage_name = $8,
+              current_checkpoint = $8,
               column_id = $9,
               owner_role = $10,
               priority = $11,
@@ -752,8 +772,23 @@ export class PlaybookWorkflowControlService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND id = $3
-      RETURNING id, parent_work_item_id, stage_name, title, goal, acceptance_criteria, column_id, owner_role, priority,
-                notes, completed_at, metadata, updated_at`,
+      RETURNING id,
+                parent_work_item_id,
+                stage_name,
+                current_checkpoint,
+                title,
+                goal,
+                acceptance_criteria,
+                column_id,
+                owner_role,
+                next_expected_actor,
+                next_expected_action,
+                rework_count,
+                priority,
+                notes,
+                completed_at,
+                metadata,
+                updated_at`,
       [
         identity.tenantId,
         workflowId,

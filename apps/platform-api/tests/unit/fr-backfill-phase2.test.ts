@@ -63,7 +63,7 @@ describe('FR-192: context versioning', () => {
           rows: [{
             id: 'wf-1',
             name: 'Ship feature',
-            lifecycle: 'continuous',
+            lifecycle: 'ongoing',
             current_stage: 'build',
             playbook_id: 'pb-1',
             playbook_name: 'SDLC',
@@ -74,7 +74,7 @@ describe('FR-192: context versioning', () => {
                 { name: 'build', goal: 'Build the change' },
                 { name: 'review', goal: 'Review the change' },
               ],
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
             },
             metadata: {
               parent_workflow_id: 'wf-parent',
@@ -144,9 +144,13 @@ describe('FR-192: context versioning', () => {
           rows: [{
             id: 'wi-1',
             stage_name: 'build',
+            current_checkpoint: 'build',
             column_id: 'todo',
             title: 'Implement feature',
             goal: 'Deliver the feature',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            rework_count: 1,
           }],
         });
       }
@@ -182,6 +186,14 @@ describe('FR-192: context versioning', () => {
         context: { summary: 'Parent context' },
         variables: { milestone: 'alpha' },
         run_summary: { status: 'done' },
+      }),
+    );
+    expect((context.task as Record<string, unknown>).work_item).toEqual(
+      expect.objectContaining({
+        current_checkpoint: 'build',
+        next_expected_actor: 'reviewer',
+        next_expected_action: 'review',
+        rework_count: 1,
       }),
     );
   });

@@ -320,7 +320,19 @@ async function loadWorkItemContext(
   }
 
   const result = await db.query(
-    `SELECT id, stage_name, column_id, title, goal, acceptance_criteria, owner_role, priority, notes
+    `SELECT id,
+            stage_name,
+            current_checkpoint,
+            column_id,
+            title,
+            goal,
+            acceptance_criteria,
+            owner_role,
+            next_expected_actor,
+            next_expected_action,
+            rework_count,
+            priority,
+            notes
        FROM workflow_work_items
       WHERE tenant_id = $1
         AND id = $2`,
