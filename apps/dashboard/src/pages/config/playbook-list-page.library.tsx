@@ -105,7 +105,7 @@ export function PlaybookFamilyCard(props: {
     family.process.processInstructions || 'Open the playbook to define process instructions.';
 
   return (
-    <Card className="flex h-[340px] flex-col border-border/70 shadow-sm">
+    <Card className="flex min-h-[420px] flex-col border-border/70 shadow-sm">
       <CardHeader className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
