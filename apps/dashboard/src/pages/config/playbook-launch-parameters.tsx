@@ -11,8 +11,9 @@ import {
 import { Textarea } from '../../components/ui/textarea.js';
 import type { DashboardProjectRecord } from '../../lib/api.js';
 import {
-  describeLaunchParameterMapping,
+  describeLaunchParameterResolution,
   type LaunchParameterSpec,
+  type LaunchParameterResolutionStep,
   type StructuredValueType,
 } from './playbook-launch-support.js';
 
@@ -22,58 +23,105 @@ export function ParameterField(props: {
   value: string;
   onChange(value: string): void;
 }): JSX.Element {
-  const mapping = describeLaunchParameterMapping({
+  const resolution = describeLaunchParameterResolution({
     spec: props.spec,
     project: props.project,
     currentValue: props.value,
   });
+  const projectStep = resolution.steps.find((step) => step.key === 'project-autofill');
+  const defaultStep = resolution.steps.find((step) => step.key === 'playbook-default');
 
   return (
-    <div className="grid gap-3 text-sm rounded-xl border border-border/70 bg-muted/10 p-4">
+    <div className="grid gap-4 rounded-2xl border border-border/70 bg-muted/10 p-4 text-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
-          <span className="font-medium">{props.spec.label}</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{props.spec.label}</span>
+            <Badge variant={resolution.activeSource === 'unset' ? 'outline' : 'secondary'}>
+              {resolution.badgeLabel}
+            </Badge>
+          </div>
           {props.spec.description ? (
             <p className="text-xs text-muted">{props.spec.description}</p>
           ) : null}
+          <p className="text-xs text-muted">{resolution.detail}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          {mapping ? <Badge variant="secondary">{mapping.badgeLabel}</Badge> : null}
           {props.spec.options.length > 0 ? (
             <Badge variant="outline">{props.spec.options.length} options</Badge>
           ) : null}
           <Badge variant="secondary">{props.spec.key}</Badge>
         </div>
       </div>
-      {mapping ? (
-        <div className="rounded-lg border border-border/70 bg-background/80 p-3">
-          <p className="text-xs text-muted">{mapping.detail}</p>
-          {mapping.mappedValue !== undefined ? (
-            <p className="mt-2 text-sm text-foreground break-all">
-              Project value: <span className="font-medium">{mapping.mappedValue}</span>
-            </p>
+      <div className={resolution.steps.length > 2 ? 'grid gap-3 md:grid-cols-3' : 'grid gap-3 md:grid-cols-2'}>
+        {resolution.steps.map((step) => (
+          <ResolutionStepCard key={step.key} step={step} />
+        ))}
+      </div>
+
+      <div className="grid gap-2">
+        <div className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
+          Launch value
+        </div>
+        <ValueInput
+          valueType={props.spec.inputType === 'select' ? 'string' : props.spec.inputType}
+          value={props.value}
+          options={props.spec.options}
+          onChange={props.onChange}
+        />
+      </div>
+
+      {resolution.canRestoreProjectValue || resolution.canRestoreDefaultValue ? (
+        <div className="flex flex-wrap gap-2">
+          {resolution.canRestoreProjectValue && projectStep?.value !== undefined ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => props.onChange(projectStep.value ?? '')}
+            >
+              Use project autofill
+            </Button>
           ) : null}
-          {mapping.canRestoreMappedValue && mapping.mappedValue !== undefined ? (
-            <div className="mt-3">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => props.onChange(mapping.mappedValue ?? '')}
-              >
-                Use project value
-              </Button>
-            </div>
+          {resolution.canRestoreDefaultValue && defaultStep?.value !== undefined ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => props.onChange(defaultStep.value ?? '')}
+            >
+              Restore playbook default
+            </Button>
           ) : null}
         </div>
       ) : null}
-      <ValueInput
-        valueType={props.spec.inputType === 'select' ? 'string' : props.spec.inputType}
-        value={props.value}
-        options={props.spec.options}
-        onChange={props.onChange}
-      />
+
       {props.spec.helpText ? <p className="text-xs text-muted">{props.spec.helpText}</p> : null}
+    </div>
+  );
+}
+
+function ResolutionStepCard(props: { step: LaunchParameterResolutionStep }): JSX.Element {
+  return (
+    <div
+      className={`rounded-xl border p-3 ${
+        props.step.isActive
+          ? 'border-border bg-background shadow-sm'
+          : 'border-border/70 bg-background/60'
+      }`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="font-medium text-foreground">{props.step.label}</div>
+        <Badge variant={props.step.isActive ? 'secondary' : 'outline'}>
+          {props.step.isActive ? 'Active' : 'Available'}
+        </Badge>
+      </div>
+      {props.step.value !== undefined ? (
+        <p className="mt-3 break-all text-sm text-foreground">{props.step.value}</p>
+      ) : (
+        <p className="mt-3 text-sm text-muted">No value</p>
+      )}
+      <p className="mt-2 text-xs text-muted">{props.step.detail}</p>
     </div>
   );
 }

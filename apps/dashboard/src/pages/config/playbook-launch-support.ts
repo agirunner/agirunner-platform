@@ -64,11 +64,21 @@ export interface LaunchValidationResult {
   isValid: boolean;
 }
 
-export interface LaunchParameterMappingState {
+export interface LaunchParameterResolutionStep {
+  key: 'playbook-default' | 'project-autofill' | 'launch-override';
+  label: string;
+  detail: string;
+  value?: string;
+  isActive: boolean;
+}
+
+export interface LaunchParameterResolutionState {
   badgeLabel: string;
   detail: string;
-  mappedValue: string | undefined;
-  canRestoreMappedValue: boolean;
+  activeSource: LaunchParameterResolutionStep['key'] | 'unset';
+  steps: LaunchParameterResolutionStep[];
+  canRestoreProjectValue: boolean;
+  canRestoreDefaultValue: boolean;
 }
 
 let draftCounter = 0;
@@ -261,45 +271,86 @@ export function describeMappedProjectPath(mapsTo: string | undefined): string {
     .join(' → ');
 }
 
-export function describeLaunchParameterMapping(input: {
+export function describeLaunchParameterResolution(input: {
   spec: LaunchParameterSpec;
   project: DashboardProjectRecord | null;
   currentValue: string;
-}): LaunchParameterMappingState | null {
-  if (!input.spec.mapsTo) {
-    return null;
-  }
+}): LaunchParameterResolutionState {
+  const hasProjectMapping = Boolean(input.spec.mapsTo);
   const sourceLabel = describeMappedProjectPath(input.spec.mapsTo);
+  const defaultValue = readParameterSourceValue(input.spec.defaultValue, input.spec.inputType);
   const mappedValue = readMappedProjectParameterDraft(input.spec, input.project);
-  if (!input.project) {
-    return {
-      badgeLabel: 'Project autofill available',
-      detail: `Select a project to autofill this parameter from ${sourceLabel}.`,
-      mappedValue: undefined,
-      canRestoreMappedValue: false,
-    };
+  const hasInheritedValue = Boolean(defaultValue) || mappedValue !== undefined;
+  const hasCurrentValue = input.currentValue.trim().length > 0;
+
+  let activeSource: LaunchParameterResolutionState['activeSource'] = 'unset';
+  if (!hasCurrentValue && hasInheritedValue) {
+    activeSource = 'launch-override';
+  } else if (mappedValue !== undefined && input.currentValue === mappedValue) {
+    activeSource = 'project-autofill';
+  } else if (defaultValue !== undefined && input.currentValue === defaultValue) {
+    activeSource = 'playbook-default';
+  } else if (hasCurrentValue) {
+    activeSource = 'launch-override';
   }
-  if (mappedValue === undefined) {
-    return {
-      badgeLabel: 'Project value missing',
-      detail: `${input.project.name} does not currently provide a value for ${sourceLabel}.`,
-      mappedValue: undefined,
-      canRestoreMappedValue: false,
-    };
+
+  const steps: LaunchParameterResolutionStep[] = [
+    {
+      key: 'playbook-default',
+      label: 'Playbook default',
+      detail: defaultValue
+        ? 'Base value declared on the playbook.'
+        : 'No playbook default is declared for this parameter.',
+      value: defaultValue,
+      isActive: activeSource === 'playbook-default',
+    },
+  ];
+
+  if (input.spec.mapsTo) {
+    steps.push({
+      key: 'project-autofill',
+      label: 'Project autofill',
+      detail: readProjectAutofillDetail({
+        project: input.project,
+        sourceLabel,
+        mappedValue,
+      }),
+      value: mappedValue,
+      isActive: activeSource === 'project-autofill',
+    });
   }
-  if (input.currentValue === mappedValue) {
-    return {
-      badgeLabel: 'Using project value',
-      detail: `Autofilled from ${input.project.name} → ${sourceLabel}.`,
-      mappedValue,
-      canRestoreMappedValue: false,
-    };
-  }
+
+  steps.push({
+    key: 'launch-override',
+    label: 'Launch override',
+    detail: readLaunchOverrideDetail({
+      activeSource,
+      hasCurrentValue,
+      hasInheritedValue,
+      hasProjectMapping,
+      project: input.project,
+      sourceLabel,
+      hasPlaybookDefault: defaultValue !== undefined,
+    }),
+    value: activeSource === 'launch-override' && hasCurrentValue ? input.currentValue : undefined,
+    isActive: activeSource === 'launch-override',
+  });
+
   return {
-    badgeLabel: 'Custom launch override',
-    detail: `Project value from ${input.project.name} → ${sourceLabel} is available if you want to restore it.`,
-    mappedValue,
-    canRestoreMappedValue: true,
+    badgeLabel: readResolutionBadgeLabel(activeSource, hasCurrentValue),
+    detail: readResolutionDetail({
+      activeSource,
+      project: input.project,
+      sourceLabel,
+      mappedValue,
+      hasProjectMapping,
+      hasPlaybookDefault: defaultValue !== undefined,
+      hasCurrentValue,
+    }),
+    activeSource,
+    steps,
+    canRestoreProjectValue: mappedValue !== undefined && input.currentValue !== mappedValue,
+    canRestoreDefaultValue: defaultValue !== undefined && input.currentValue !== defaultValue,
   };
 }
 
@@ -519,6 +570,104 @@ function readOptions(value: unknown): string[] {
       );
     })
     .filter((entry) => entry.length > 0);
+}
+
+function readParameterSourceValue(
+  value: unknown,
+  inputType: LaunchParameterSpec['inputType'],
+): string | undefined {
+  const draftValue = defaultParameterDraftValue(value, inputType);
+  return draftValue === '' ? undefined : draftValue;
+}
+
+function readProjectAutofillDetail(input: {
+  project: DashboardProjectRecord | null;
+  sourceLabel: string;
+  mappedValue: string | undefined;
+}): string {
+  if (!input.project) {
+    return `Select a project to autofill from ${input.sourceLabel}.`;
+  }
+  if (input.mappedValue === undefined) {
+    return `${input.project.name} does not currently provide ${input.sourceLabel}.`;
+  }
+  return `Mapped from ${input.project.name} → ${input.sourceLabel}.`;
+}
+
+function readLaunchOverrideDetail(input: {
+  activeSource: LaunchParameterResolutionState['activeSource'];
+  hasCurrentValue: boolean;
+  hasInheritedValue: boolean;
+  hasProjectMapping: boolean;
+  project: DashboardProjectRecord | null;
+  sourceLabel: string;
+  hasPlaybookDefault: boolean;
+}): string {
+  if (input.activeSource !== 'launch-override') {
+    return 'No launch override entered.';
+  }
+  if (!input.hasCurrentValue && input.hasInheritedValue) {
+    return 'This run clears the inherited value until you restore a source below.';
+  }
+  if (input.project && input.hasProjectMapping) {
+    return `This run overrides ${input.project.name} → ${input.sourceLabel}.`;
+  }
+  if (input.hasPlaybookDefault) {
+    return 'This run overrides the playbook default for this parameter.';
+  }
+  return 'This run supplies a launch-only value.';
+}
+
+function readResolutionBadgeLabel(
+  activeSource: LaunchParameterResolutionState['activeSource'],
+  hasCurrentValue: boolean,
+): string {
+  if (activeSource === 'playbook-default') {
+    return 'Using playbook default';
+  }
+  if (activeSource === 'project-autofill') {
+    return 'Using project autofill';
+  }
+  if (activeSource === 'launch-override') {
+    return hasCurrentValue ? 'Launch override active' : 'Launch override clears inherited value';
+  }
+  return 'Awaiting launch value';
+}
+
+function readResolutionDetail(input: {
+  activeSource: LaunchParameterResolutionState['activeSource'];
+  project: DashboardProjectRecord | null;
+  sourceLabel: string;
+  mappedValue: string | undefined;
+  hasProjectMapping: boolean;
+  hasPlaybookDefault: boolean;
+  hasCurrentValue: boolean;
+}): string {
+  if (input.activeSource === 'playbook-default') {
+    if (input.project && input.hasProjectMapping && input.mappedValue !== undefined) {
+      return `This run stays pinned to the playbook default instead of ${input.project.name} autofill.`;
+    }
+    if (input.project && input.hasProjectMapping && input.mappedValue === undefined) {
+      return `${input.project.name} does not currently supply ${input.sourceLabel}, so the playbook default stays in effect.`;
+    }
+    return 'This run uses the playbook default until you attach project context or override it.';
+  }
+  if (input.activeSource === 'project-autofill' && input.project && input.hasProjectMapping) {
+    return `${input.project.name} supplies ${input.sourceLabel}, so this run inherits that value unless you override it at launch.`;
+  }
+  if (input.activeSource === 'launch-override') {
+    if (!input.hasCurrentValue) {
+      return 'This run clears the inherited value and will send nothing unless you restore a source.';
+    }
+    if (input.project && input.hasProjectMapping && input.mappedValue !== undefined) {
+      return `This run overrides the ${input.project.name} autofill for this parameter.`;
+    }
+    if (input.hasPlaybookDefault) {
+      return 'This run overrides the playbook default for this parameter.';
+    }
+    return 'This run provides a launch-only value for this parameter.';
+  }
+  return 'No playbook default, project autofill, or launch override is active yet.';
 }
 
 function parseDraftValue(

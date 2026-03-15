@@ -7,7 +7,7 @@ import {
   buildWorkflowBudgetInput,
   clearWorkflowBudgetDraft,
   createWorkflowBudgetDraft,
-  describeLaunchParameterMapping,
+  describeLaunchParameterResolution,
   describeMappedProjectPath,
   defaultParameterDraftValue,
   readWorkflowBudgetMode,
@@ -262,59 +262,134 @@ describe('playbook launch support', () => {
     expect(knowledgeDraft).toBe('Friday 16:00 Pacific');
   });
 
-  it('describes project-mapped launch parameter posture for the UI', () => {
+  it('describes launch parameter resolution through playbook default, project autofill, and launch override', () => {
     expect(describeMappedProjectPath('project.settings.default_branch')).toBe(
       'settings → default branch',
     );
     expect(
-      describeLaunchParameterMapping({
+      describeLaunchParameterResolution({
         spec: {
-          key: 'repository_url',
-          label: 'Repository URL',
+          key: 'default_branch',
+          label: 'Default Branch',
           description: '',
           helpText: '',
           inputType: 'string',
           options: [],
-          mapsTo: 'project.repository_url',
+          defaultValue: 'main',
+          mapsTo: 'project.settings.default_branch',
         },
         project: {
           id: 'project-1',
           name: 'Demo',
           slug: 'demo',
-          repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
+          settings: {
+            default_branch: 'release/2026',
+          },
         },
-        currentValue: 'https://github.com/agirunner/agirunner-test-fixtures',
+        currentValue: 'release/2026',
       }),
-    ).toEqual({
-      badgeLabel: 'Using project value',
-      detail: 'Autofilled from Demo → repository url.',
-      mappedValue: 'https://github.com/agirunner/agirunner-test-fixtures',
-      canRestoreMappedValue: false,
+    ).toMatchObject({
+      badgeLabel: 'Using project autofill',
+      activeSource: 'project-autofill',
+      canRestoreProjectValue: false,
+      canRestoreDefaultValue: true,
+      steps: [
+        {
+          key: 'playbook-default',
+          label: 'Playbook default',
+          value: 'main',
+          isActive: false,
+        },
+        {
+          key: 'project-autofill',
+          label: 'Project autofill',
+          value: 'release/2026',
+          isActive: true,
+        },
+        {
+          key: 'launch-override',
+          label: 'Launch override',
+          value: undefined,
+          isActive: false,
+          detail: 'No launch override entered.',
+        },
+      ],
     });
     expect(
-      describeLaunchParameterMapping({
+      describeLaunchParameterResolution({
         spec: {
-          key: 'repository_url',
-          label: 'Repository URL',
+          key: 'default_branch',
+          label: 'Default Branch',
           description: '',
           helpText: '',
           inputType: 'string',
           options: [],
-          mapsTo: 'project.repository_url',
+          defaultValue: 'main',
+          mapsTo: 'project.settings.default_branch',
         },
         project: {
           id: 'project-1',
           name: 'Demo',
           slug: 'demo',
-          repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
+          settings: {
+            default_branch: 'release/2026',
+          },
         },
-        currentValue: 'https://github.com/example/custom',
+        currentValue: 'hotfix/urgent',
       }),
-    ).toEqual({
-      badgeLabel: 'Custom launch override',
-      detail: 'Project value from Demo → repository url is available if you want to restore it.',
-      mappedValue: 'https://github.com/agirunner/agirunner-test-fixtures',
-      canRestoreMappedValue: true,
+    ).toMatchObject({
+      badgeLabel: 'Launch override active',
+      activeSource: 'launch-override',
+      canRestoreProjectValue: true,
+      canRestoreDefaultValue: true,
+      steps: [
+        {
+          key: 'playbook-default',
+          label: 'Playbook default',
+          value: 'main',
+          isActive: false,
+        },
+        {
+          key: 'project-autofill',
+          label: 'Project autofill',
+          value: 'release/2026',
+          isActive: false,
+        },
+        {
+          key: 'launch-override',
+          label: 'Launch override',
+          value: 'hotfix/urgent',
+          isActive: true,
+        },
+      ],
+    });
+    expect(
+      describeLaunchParameterResolution({
+        spec: {
+          key: 'default_branch',
+          label: 'Default Branch',
+          description: '',
+          helpText: '',
+          inputType: 'string',
+          options: [],
+          defaultValue: 'main',
+          mapsTo: 'project.settings.default_branch',
+        },
+        project: {
+          id: 'project-1',
+          name: 'Demo',
+          slug: 'demo',
+          settings: {
+            default_branch: 'release/2026',
+          },
+        },
+        currentValue: '',
+      }),
+    ).toMatchObject({
+      badgeLabel: 'Launch override clears inherited value',
+      activeSource: 'launch-override',
+      canRestoreProjectValue: true,
+      canRestoreDefaultValue: true,
     });
   });
 
