@@ -154,6 +154,23 @@ describe('FR-192: context versioning', () => {
           }],
         });
       }
+      if (sql.includes('FROM task_handoffs')) {
+        return Promise.resolve({
+          rows: [{
+            id: 'handoff-1',
+            task_id: 'task-prev',
+            role: 'developer',
+            stage_name: 'build',
+            summary: 'Implemented the feature and left one review note.',
+            completion: 'full',
+            review_focus: ['error handling'],
+            known_risks: ['refresh token expiry edge case'],
+            successor_context: 'Review the auth failure path closely.',
+            role_data: { verdict: 'ready_for_review' },
+            created_at: '2026-03-15T12:00:00.000Z',
+          }],
+        });
+      }
       return Promise.resolve({ rows: [] });
     });
 
@@ -194,6 +211,13 @@ describe('FR-192: context versioning', () => {
         next_expected_actor: 'reviewer',
         next_expected_action: 'review',
         rework_count: 1,
+      }),
+    );
+    expect((context.task as Record<string, unknown>).predecessor_handoff).toEqual(
+      expect.objectContaining({
+        id: 'handoff-1',
+        role: 'developer',
+        review_focus: ['error handling'],
       }),
     );
   });

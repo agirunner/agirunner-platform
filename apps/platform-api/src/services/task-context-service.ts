@@ -29,7 +29,7 @@ export async function buildTaskContext(
     agent = assignedAgentRes.rows[0] ?? null;
   }
 
-  const [projectRes, workflowRes, depsRes, documents] = await Promise.all([
+  const [projectRes, workflowRes, depsRes, documents, predecessorHandoff] = await Promise.all([
     task.project_id
       ? db.query(
           `SELECT id,
@@ -64,6 +64,7 @@ export async function buildTaskContext(
         )
       : Promise.resolve({ rows: [] }),
     listTaskDocuments(db, tenantId, task),
+    loadPredecessorHandoff(db, tenantId, task),
   ]);
 
   const upstreamOutputs = Object.fromEntries(
@@ -143,6 +144,7 @@ export async function buildTaskContext(
       input: sanitizeTaskContextValue(task.input),
       context: sanitizeTaskContextValue(task.context),
       work_item: sanitizeTaskContextValue(workItem),
+      predecessor_handoff: sanitizeTaskContextValue(predecessorHandoff),
       failure_mode:
         task.context && typeof task.context === 'object' && !Array.isArray(task.context)
           ? ((task.context as Record<string, unknown>).failure_mode ?? null)
@@ -337,6 +339,42 @@ async function loadWorkItemContext(
       WHERE tenant_id = $1
         AND id = $2`,
     [tenantId, workItemId],
+  );
+  return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+}
+
+async function loadPredecessorHandoff(
+  db: DatabaseQueryable,
+  tenantId: string,
+  task: Record<string, unknown>,
+) {
+  const taskId = asOptionalString(task.id);
+  const workItemId = asOptionalString(task.work_item_id);
+  const workflowId = asOptionalString(task.workflow_id);
+  if (!taskId || !workItemId || !workflowId) {
+    return null;
+  }
+
+  const result = await db.query(
+    `SELECT id,
+            task_id,
+            role,
+            stage_name,
+            summary,
+            completion,
+            review_focus,
+            known_risks,
+            successor_context,
+            role_data,
+            created_at
+       FROM task_handoffs
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND work_item_id = $3
+        AND task_id <> $4
+      ORDER BY sequence DESC, created_at DESC
+      LIMIT 1`,
+    [tenantId, workflowId, workItemId, taskId],
   );
   return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
 }
