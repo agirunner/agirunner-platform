@@ -18,5 +18,5 @@ export const workerActualState = pgTable(
     startedAt: timestamp('started_at', { withTimezone: true }),
     lastUpdated: timestamp('last_updated', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [uniqueIndex('idx_worker_actual_state_desired').on(table.desiredStateId)],
+  (table) => [uniqueIndex('idx_worker_actual_state_desired_container').on(table.desiredStateId, table.containerId)],
 );

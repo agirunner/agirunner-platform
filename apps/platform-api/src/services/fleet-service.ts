@@ -527,8 +527,8 @@ export class FleetService {
     await this.pool.query(
       `INSERT INTO worker_actual_state (desired_state_id, container_id, container_status, cpu_usage_percent, memory_usage_bytes, network_rx_bytes, network_tx_bytes, last_updated)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
-       ON CONFLICT (desired_state_id) DO UPDATE SET
-         container_id = $2, container_status = $3, cpu_usage_percent = $4,
+       ON CONFLICT (desired_state_id, container_id) DO UPDATE SET
+         container_status = $3, cpu_usage_percent = $4,
          memory_usage_bytes = $5, network_rx_bytes = $6, network_tx_bytes = $7, last_updated = NOW()`,
       [
         desiredStateId,
