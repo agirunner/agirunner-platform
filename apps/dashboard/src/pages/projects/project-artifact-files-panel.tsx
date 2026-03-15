@@ -37,13 +37,13 @@ export function ProjectArtifactFilesPanel(props: { projectId: string }): JSX.Ele
 
   const uploadMutation = useMutation({
     mutationFn: async () => {
-      const normalizedDrafts = drafts.map((draft) => ({
+      const normalizedDrafts = await Promise.all(drafts.map(async (draft) => ({
         key: draft.key.trim(),
         description: draft.description.trim(),
         file_name: draft.file.name,
         content_base64: await fileToBase64(draft.file),
         content_type: draft.file.type || undefined,
-      }));
+      })));
       return dashboardApi.uploadProjectArtifactFiles(props.projectId, normalizedDrafts);
     },
     onSuccess: async () => {
