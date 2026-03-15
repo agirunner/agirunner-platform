@@ -127,12 +127,16 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Create Child Work Item');
     expect(source).toContain('Milestone plan');
     expect(source).toContain('WorkItemFocusPacket');
+    expect(source).toContain('WorkItemHandoffHistorySection');
     expect(source).toContain('WorkItemReviewClosure');
     expect(source).toContain('Summary complete');
     expect(source).toContain('Evidence packet complete');
     expect(source).toContain('Review the summary first. Open controls only when routing or metadata needs to change.');
     expect(source).toContain('need review');
     expect(source).toContain('history events');
+    expect(source).toContain('Handoff history');
+    expect(source).toContain('Full execution chain for this work item');
+    expect(source).toContain('No handoff history recorded yet.');
     expect(source).toContain('Child acceptance criteria');
     expect(source).toContain('Child notes');
     expect(source).toContain('Add Child Metadata Entry');

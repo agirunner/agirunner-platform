@@ -479,6 +479,10 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
                 latestHandoff={latestHandoff ?? null}
                 isLoading={handoffQuery.isLoading || latestHandoffQuery.isLoading}
               />
+              <WorkItemHandoffHistorySection
+                handoffs={handoffQuery.data ?? []}
+                isLoading={handoffQuery.isLoading}
+              />
               {milestoneOperatorSummary ? (
                 <MilestoneOperatorSummarySection summary={milestoneOperatorSummary} />
               ) : null}
@@ -1511,6 +1515,68 @@ function WorkItemReviewClosure(props: {
       </div>
       <strong className="text-sm text-foreground">{props.title}</strong>
       <p className={mutedBodyClass}>{props.detail}</p>
+    </section>
+  );
+}
+
+function WorkItemHandoffHistorySection(props: {
+  handoffs: DashboardTaskHandoffRecord[];
+  isLoading: boolean;
+}): JSX.Element {
+  return (
+    <section className={sectionFrameClass}>
+      <div className="grid gap-1">
+        <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+          Handoff history
+        </div>
+        <strong className="text-base text-foreground">Full execution chain for this work item</strong>
+        <p className={mutedBodyClass}>
+          Review the complete handoff trail when you need to see how work moved between specialists,
+          what changed, and what still needs attention.
+        </p>
+      </div>
+      {props.isLoading ? (
+        <p className="mt-4 text-sm text-muted">Loading handoff history…</p>
+      ) : props.handoffs.length > 0 ? (
+        <div className="mt-4 grid gap-3">
+          {props.handoffs.map((handoff, index) => (
+            <article
+              key={handoff.id}
+              className="rounded-lg border border-border/70 bg-background/80 p-4"
+            >
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">Step {index + 1}</Badge>
+                <Badge variant="outline">{handoff.role}</Badge>
+                {handoff.stage_name ? <Badge variant="outline">{handoff.stage_name}</Badge> : null}
+                <Badge variant="secondary">{handoff.completion}</Badge>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-foreground">{handoff.summary}</p>
+              {handoff.successor_context ? (
+                <div className="mt-3 rounded-lg border border-border/70 bg-muted/20 p-3 text-sm text-muted">
+                  <div className="font-medium text-foreground">Successor context</div>
+                  <p className="mt-1 leading-6">{handoff.successor_context}</p>
+                </div>
+              ) : null}
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
+                <Badge variant="outline">
+                  {describeCountLabel(handoff.review_focus.length, 'review focus item')}
+                </Badge>
+                <Badge variant="outline">
+                  {describeCountLabel(handoff.remaining_items.length, 'remaining item')}
+                </Badge>
+                <Badge variant="outline">
+                  {describeCountLabel(handoff.blockers.length, 'blocker')}
+                </Badge>
+                <RelativeTimestamp value={handoff.created_at} prefix="Submitted" />
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <div className="mt-4 rounded-lg border border-dashed border-border/70 bg-background/80 px-4 py-5 text-sm text-muted">
+          No handoff history recorded yet.
+        </div>
+      )}
     </section>
   );
 }

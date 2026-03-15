@@ -84,7 +84,7 @@ function PlaybookSummaryBody(props: {
       <div className="flex flex-wrap gap-2">
         <Badge variant="secondary">{props.playbook.lifecycle}</Badge>
         <Badge variant="outline">{props.launchDefinition.boardColumns.length} columns</Badge>
-        <Badge variant="outline">{props.launchDefinition.stageNames.length} stages</Badge>
+        <Badge variant="outline">{props.launchDefinition.checkpointNames.length} checkpoints</Badge>
         <Badge variant="outline">{props.launchDefinition.roles.length} roles</Badge>
         {props.playbook.is_active === false ? <Badge variant="destructive">Inactive</Badge> : null}
       </div>
@@ -94,11 +94,11 @@ function PlaybookSummaryBody(props: {
           detail page before starting a new workflow.
         </div>
       ) : null}
-      {props.launchDefinition.stageNames.length > 0 ? (
+      {props.launchDefinition.checkpointNames.length > 0 ? (
         <SummaryList
-          title="Workflow stages"
-          values={props.launchDefinition.stageNames}
-          emptyMessage="No stages defined."
+          title="Workflow checkpoints"
+          values={props.launchDefinition.checkpointNames}
+          emptyMessage="No checkpoints defined."
         />
       ) : null}
       {props.launchDefinition.boardColumns.length > 0 ? (

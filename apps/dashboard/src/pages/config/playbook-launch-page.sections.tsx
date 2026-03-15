@@ -44,9 +44,9 @@ export function LaunchDefinitionSnapshot(props: {
         emptyMessage="No board columns defined."
       />
       <SnapshotList
-        title="Live Stages"
-        values={props.launchDefinition.stageNames}
-        emptyMessage="No stages defined."
+        title="Workflow checkpoints"
+        values={props.launchDefinition.checkpointNames}
+        emptyMessage="No checkpoints defined."
       />
       <SnapshotList
         title="Playbook Roles"

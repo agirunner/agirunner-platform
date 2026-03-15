@@ -1177,9 +1177,9 @@ function InlineRuleRow(props: {
 }): JSX.Element {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-background/40 p-3">
-      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr),auto] xl:items-end">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr),auto] lg:items-end">
         <div className={`grid gap-3 ${props.fieldsClassName ?? ''}`.trim()}>{props.children}</div>
-        <div className="xl:justify-self-end">{props.actions}</div>
+        <div className="lg:justify-self-end">{props.actions}</div>
       </div>
       {props.error ? (
         <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p>
@@ -1196,8 +1196,8 @@ function InlineRuleActions(props: {
   onRemove?: () => void;
 }): JSX.Element {
   return (
-    <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap">
-      <label className="inline-flex h-8 items-center gap-2 rounded-md border border-border/70 px-2.5 text-xs font-medium text-foreground">
+    <div className="flex flex-nowrap items-center gap-1.5">
+      <label className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 px-2 text-[11px] font-medium text-foreground">
         <Switch checked={props.required} onCheckedChange={props.onRequiredChange} />
         <span>Required</span>
       </label>
