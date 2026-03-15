@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Minus, Plus } from 'lucide-react';
+import { ChevronDown, ChevronUp, Minus, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -10,6 +10,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import {
   createEmptyApprovalRuleDraft,
@@ -202,65 +203,14 @@ export function ReviewRulesSection(
     >
       <div className="space-y-4">
         {props.draft.review_rules.map((rule, index) => (
-          <RuleCard
+          <InlineRuleRow
             key={`review-rule-${index}`}
-            title={`Review rule ${index + 1}`}
-            onMoveEarlier={
-              canMoveDraftItem(index, props.draft.review_rules.length, 'earlier')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      review_rules: moveDraftItem(current.review_rules, index, 'earlier'),
-                    }))
-                : undefined
-            }
-            onMoveLater={
-              canMoveDraftItem(index, props.draft.review_rules.length, 'later')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      review_rules: moveDraftItem(current.review_rules, index, 'later'),
-                    }))
-                : undefined
-            }
-            onRemove={() =>
-              props.onChange((current) => ({
-                ...current,
-                review_rules: current.review_rules.filter((_, entryIndex) => entryIndex !== index),
-              }))
-            }
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              <RoleSelectField
-                label="Review output from"
-                value={rule.from_role}
-                availableRoleNames={availableRoleNames}
-                onValueChange={(value) =>
-                  updateReviewRule(props.onChange, index, 'from_role', value)
-                }
-              />
-              <RoleSelectField
-                label="Reviewed by"
-                value={rule.reviewed_by}
-                availableRoleNames={availableRoleNames}
-                onValueChange={(value) =>
-                  updateReviewRule(props.onChange, index, 'reviewed_by', value)
-                }
-              />
-              <RoleSelectField
-                label="Reject back to"
-                value={rule.reject_role}
-                availableRoleNames={availableRoleNames}
-                placeholder="Optional rework role"
-                allowUnset
-                onValueChange={(value) =>
-                  updateReviewRule(props.onChange, index, 'reject_role', value)
-                }
-              />
-              <ToggleField
-                label="Required review"
-                checked={rule.required}
-                onCheckedChange={(checked) =>
+            fieldsClassName="md:grid-cols-2 xl:grid-cols-3"
+            error={ruleValidation.reviewRuleErrors[index]}
+            actions={
+              <InlineRuleActions
+                required={rule.required}
+                onRequiredChange={(checked) =>
                   props.onChange((current) => ({
                     ...current,
                     review_rules: current.review_rules.map((entry, entryIndex) =>
@@ -268,14 +218,68 @@ export function ReviewRulesSection(
                     ),
                   }))
                 }
+                onMoveEarlier={
+                  canMoveDraftItem(index, props.draft.review_rules.length, 'earlier')
+                    ? () =>
+                        props.onChange((current) => ({
+                          ...current,
+                          review_rules: moveDraftItem(current.review_rules, index, 'earlier'),
+                        }))
+                    : undefined
+                }
+                onMoveLater={
+                  canMoveDraftItem(index, props.draft.review_rules.length, 'later')
+                    ? () =>
+                        props.onChange((current) => ({
+                          ...current,
+                          review_rules: moveDraftItem(current.review_rules, index, 'later'),
+                        }))
+                    : undefined
+                }
+                onRemove={() =>
+                  props.onChange((current) => ({
+                    ...current,
+                    review_rules: current.review_rules.filter(
+                      (_, entryIndex) => entryIndex !== index,
+                    ),
+                  }))
+                }
               />
-            </div>
-            {ruleValidation.reviewRuleErrors[index] ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {ruleValidation.reviewRuleErrors[index]}
-              </p>
-            ) : null}
-          </RuleCard>
+            }
+          >
+            <RoleSelectField
+              label="From"
+              value={rule.from_role}
+              availableRoleNames={availableRoleNames}
+              className="min-w-0"
+              triggerClassName="min-w-0"
+              onValueChange={(value) =>
+                updateReviewRule(props.onChange, index, 'from_role', value)
+              }
+            />
+            <RoleSelectField
+              label="Reviewer"
+              value={rule.reviewed_by}
+              availableRoleNames={availableRoleNames}
+              className="min-w-0"
+              triggerClassName="min-w-0"
+              onValueChange={(value) =>
+                updateReviewRule(props.onChange, index, 'reviewed_by', value)
+              }
+            />
+            <RoleSelectField
+              label="Reject to"
+              value={rule.reject_role}
+              availableRoleNames={availableRoleNames}
+              placeholder="Optional rework role"
+              allowUnset
+              className="min-w-0"
+              triggerClassName="min-w-0"
+              onValueChange={(value) =>
+                updateReviewRule(props.onChange, index, 'reject_role', value)
+              }
+            />
+          </InlineRuleRow>
         ))}
         <Button
           type="button"
@@ -309,102 +313,14 @@ export function ApprovalRulesSection(props: SectionProps): JSX.Element {
     >
       <div className="space-y-4">
         {props.draft.approval_rules.map((rule, index) => (
-          <RuleCard
+          <InlineRuleRow
             key={`approval-rule-${index}`}
-            title={`Approval rule ${index + 1}`}
-            onMoveEarlier={
-              canMoveDraftItem(index, props.draft.approval_rules.length, 'earlier')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      approval_rules: moveDraftItem(current.approval_rules, index, 'earlier'),
-                    }))
-                : undefined
-            }
-            onMoveLater={
-              canMoveDraftItem(index, props.draft.approval_rules.length, 'later')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      approval_rules: moveDraftItem(current.approval_rules, index, 'later'),
-                    }))
-                : undefined
-            }
-            onRemove={() =>
-              props.onChange((current) => ({
-                ...current,
-                approval_rules: current.approval_rules.filter((_, entryIndex) => entryIndex !== index),
-              }))
-            }
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              <LabeledField label="Approval timing">
-                <Select
-                  value={rule.on}
-                  onValueChange={(value) =>
-                    props.onChange((current) => ({
-                      ...current,
-                      approval_rules: current.approval_rules.map((entry, entryIndex) =>
-                        entryIndex === index
-                          ? {
-                              ...entry,
-                              on: value as 'checkpoint' | 'completion',
-                              checkpoint: value === 'completion' ? '' : entry.checkpoint,
-                            }
-                          : entry,
-                      ),
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="checkpoint">At a checkpoint</SelectItem>
-                    <SelectItem value="completion">Before completion</SelectItem>
-                  </SelectContent>
-                </Select>
-              </LabeledField>
-              {rule.on === 'checkpoint' ? (
-                <LabeledField label="Checkpoint">
-                  <Select
-                    value={rule.checkpoint || ENTRY_COLUMN_UNSET}
-                    onValueChange={(value) =>
-                      props.onChange((current) => ({
-                        ...current,
-                        approval_rules: current.approval_rules.map((entry, entryIndex) =>
-                          entryIndex === index
-                            ? {
-                                ...entry,
-                                checkpoint: value === ENTRY_COLUMN_UNSET ? '' : value,
-                              }
-                            : entry,
-                        ),
-                      }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select checkpoint" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ENTRY_COLUMN_UNSET}>Select checkpoint</SelectItem>
-                      {checkpoints.map((checkpoint) => (
-                        <SelectItem key={checkpoint} value={checkpoint}>
-                          {checkpoint}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </LabeledField>
-              ) : (
-                <div className="rounded-md border border-border/70 bg-muted/20 px-3 py-2 text-sm text-muted">
-                  Human approval is required before the work item can complete.
-                </div>
-              )}
-              <ToggleField
-                label="Required approval"
-                checked={rule.required}
-                onCheckedChange={(checked) =>
+            fieldsClassName="md:grid-cols-2"
+            error={ruleValidation.approvalRuleErrors[index]}
+            actions={
+              <InlineRuleActions
+                required={rule.required}
+                onRequiredChange={(checked) =>
                   props.onChange((current) => ({
                     ...current,
                     approval_rules: current.approval_rules.map((entry, entryIndex) =>
@@ -412,14 +328,99 @@ export function ApprovalRulesSection(props: SectionProps): JSX.Element {
                     ),
                   }))
                 }
+                onMoveEarlier={
+                  canMoveDraftItem(index, props.draft.approval_rules.length, 'earlier')
+                    ? () =>
+                        props.onChange((current) => ({
+                          ...current,
+                          approval_rules: moveDraftItem(current.approval_rules, index, 'earlier'),
+                        }))
+                    : undefined
+                }
+                onMoveLater={
+                  canMoveDraftItem(index, props.draft.approval_rules.length, 'later')
+                    ? () =>
+                        props.onChange((current) => ({
+                          ...current,
+                          approval_rules: moveDraftItem(current.approval_rules, index, 'later'),
+                        }))
+                    : undefined
+                }
+                onRemove={() =>
+                  props.onChange((current) => ({
+                    ...current,
+                    approval_rules: current.approval_rules.filter(
+                      (_, entryIndex) => entryIndex !== index,
+                    ),
+                  }))
+                }
               />
-            </div>
-            {ruleValidation.approvalRuleErrors[index] ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {ruleValidation.approvalRuleErrors[index]}
-              </p>
-            ) : null}
-          </RuleCard>
+            }
+          >
+            <LabeledField label="When" className="min-w-0">
+              <Select
+                value={rule.on}
+                onValueChange={(value) =>
+                  props.onChange((current) => ({
+                    ...current,
+                    approval_rules: current.approval_rules.map((entry, entryIndex) =>
+                      entryIndex === index
+                        ? {
+                            ...entry,
+                            on: value as 'checkpoint' | 'completion',
+                            checkpoint: value === 'completion' ? '' : entry.checkpoint,
+                          }
+                        : entry,
+                    ),
+                  }))
+                }
+              >
+                <SelectTrigger className="min-w-0">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="checkpoint">At a checkpoint</SelectItem>
+                  <SelectItem value="completion">Before completion</SelectItem>
+                </SelectContent>
+              </Select>
+            </LabeledField>
+            {rule.on === 'checkpoint' ? (
+              <LabeledField label="Checkpoint" className="min-w-0">
+                <Select
+                  value={rule.checkpoint || ENTRY_COLUMN_UNSET}
+                  onValueChange={(value) =>
+                    props.onChange((current) => ({
+                      ...current,
+                      approval_rules: current.approval_rules.map((entry, entryIndex) =>
+                        entryIndex === index
+                          ? {
+                              ...entry,
+                              checkpoint: value === ENTRY_COLUMN_UNSET ? '' : value,
+                            }
+                          : entry,
+                      ),
+                    }))
+                  }
+                >
+                  <SelectTrigger className="min-w-0">
+                    <SelectValue placeholder="Select checkpoint" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ENTRY_COLUMN_UNSET}>Select checkpoint</SelectItem>
+                    {checkpoints.map((checkpoint) => (
+                      <SelectItem key={checkpoint} value={checkpoint}>
+                        {checkpoint}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </LabeledField>
+            ) : (
+              <div className="flex min-h-9 items-center rounded-md border border-border/70 bg-muted/20 px-3 text-xs text-muted">
+                Before completion
+              </div>
+            )}
+          </InlineRuleRow>
         ))}
         <Button
           type="button"
@@ -449,59 +450,18 @@ export function HandoffRulesSection(
     <SectionCard
       id="playbook-handoff-rules"
       title="Handoff Rules"
-      description="Declare the required role-to-role transitions so the next specialist always receives the right predecessor context."
+      description="Declare the required role-to-role transitions so the next specialist always receives the right predecessor context. Completed task handoffs are stored on the task and surfaced back into work-item continuity."
     >
       <div className="space-y-4">
         {props.draft.handoff_rules.map((rule, index) => (
-          <RuleCard
+          <InlineRuleRow
             key={`handoff-rule-${index}`}
-            title={`Handoff rule ${index + 1}`}
-            onMoveEarlier={
-              canMoveDraftItem(index, props.draft.handoff_rules.length, 'earlier')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      handoff_rules: moveDraftItem(current.handoff_rules, index, 'earlier'),
-                    }))
-                : undefined
-            }
-            onMoveLater={
-              canMoveDraftItem(index, props.draft.handoff_rules.length, 'later')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      handoff_rules: moveDraftItem(current.handoff_rules, index, 'later'),
-                    }))
-                : undefined
-            }
-            onRemove={() =>
-              props.onChange((current) => ({
-                ...current,
-                handoff_rules: current.handoff_rules.filter((_, entryIndex) => entryIndex !== index),
-              }))
-            }
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              <RoleSelectField
-                label="From role"
-                value={rule.from_role}
-                availableRoleNames={availableRoleNames}
-                onValueChange={(value) =>
-                  updateHandoffRule(props.onChange, index, 'from_role', value)
-                }
-              />
-              <RoleSelectField
-                label="To role"
-                value={rule.to_role}
-                availableRoleNames={availableRoleNames}
-                onValueChange={(value) =>
-                  updateHandoffRule(props.onChange, index, 'to_role', value)
-                }
-              />
-              <ToggleField
-                label="Required handoff"
-                checked={rule.required}
-                onCheckedChange={(checked) =>
+            fieldsClassName="md:grid-cols-2"
+            error={ruleValidation.handoffRuleErrors[index]}
+            actions={
+              <InlineRuleActions
+                required={rule.required}
+                onRequiredChange={(checked) =>
                   props.onChange((current) => ({
                     ...current,
                     handoff_rules: current.handoff_rules.map((entry, entryIndex) =>
@@ -509,14 +469,56 @@ export function HandoffRulesSection(
                     ),
                   }))
                 }
+                onMoveEarlier={
+                  canMoveDraftItem(index, props.draft.handoff_rules.length, 'earlier')
+                    ? () =>
+                        props.onChange((current) => ({
+                          ...current,
+                          handoff_rules: moveDraftItem(current.handoff_rules, index, 'earlier'),
+                        }))
+                    : undefined
+                }
+                onMoveLater={
+                  canMoveDraftItem(index, props.draft.handoff_rules.length, 'later')
+                    ? () =>
+                        props.onChange((current) => ({
+                          ...current,
+                          handoff_rules: moveDraftItem(current.handoff_rules, index, 'later'),
+                        }))
+                    : undefined
+                }
+                onRemove={() =>
+                  props.onChange((current) => ({
+                    ...current,
+                    handoff_rules: current.handoff_rules.filter(
+                      (_, entryIndex) => entryIndex !== index,
+                    ),
+                  }))
+                }
               />
-            </div>
-            {ruleValidation.handoffRuleErrors[index] ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {ruleValidation.handoffRuleErrors[index]}
-              </p>
-            ) : null}
-          </RuleCard>
+            }
+          >
+            <RoleSelectField
+              label="From"
+              value={rule.from_role}
+              availableRoleNames={availableRoleNames}
+              className="min-w-0"
+              triggerClassName="min-w-0"
+              onValueChange={(value) =>
+                updateHandoffRule(props.onChange, index, 'from_role', value)
+              }
+            />
+            <RoleSelectField
+              label="To"
+              value={rule.to_role}
+              availableRoleNames={availableRoleNames}
+              className="min-w-0"
+              triggerClassName="min-w-0"
+              onValueChange={(value) =>
+                updateHandoffRule(props.onChange, index, 'to_role', value)
+              }
+            />
+          </InlineRuleRow>
         ))}
         <Button
           type="button"
@@ -1138,16 +1140,18 @@ function RoleSelectField(props: {
   onValueChange(value: string): void;
   placeholder?: string;
   allowUnset?: boolean;
+  className?: string;
+  triggerClassName?: string;
 }): JSX.Element {
   return (
-    <LabeledField label={props.label}>
+    <LabeledField label={props.label} className={props.className}>
       <Select
         value={props.value || ROLE_SELECT_UNSET}
         onValueChange={(value) =>
           props.onValueChange(value === ROLE_SELECT_UNSET ? '' : value)
         }
       >
-        <SelectTrigger>
+        <SelectTrigger className={props.triggerClassName}>
           <SelectValue placeholder={props.placeholder ?? 'Select role'} />
         </SelectTrigger>
         <SelectContent>
@@ -1162,6 +1166,81 @@ function RoleSelectField(props: {
         </SelectContent>
       </Select>
     </LabeledField>
+  );
+}
+
+function InlineRuleRow(props: {
+  children: ReactNode;
+  actions: ReactNode;
+  error?: string;
+  fieldsClassName?: string;
+}): JSX.Element {
+  return (
+    <div className="space-y-2 rounded-md border border-border/70 bg-background/40 p-3">
+      <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr),auto] xl:items-end">
+        <div className={`grid gap-3 ${props.fieldsClassName ?? ''}`.trim()}>{props.children}</div>
+        <div className="xl:justify-self-end">{props.actions}</div>
+      </div>
+      {props.error ? (
+        <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function InlineRuleActions(props: {
+  required: boolean;
+  onRequiredChange(checked: boolean): void;
+  onMoveEarlier?: () => void;
+  onMoveLater?: () => void;
+  onRemove?: () => void;
+}): JSX.Element {
+  return (
+    <div className="flex flex-wrap items-center gap-2 xl:flex-nowrap">
+      <label className="inline-flex h-8 items-center gap-2 rounded-md border border-border/70 px-2.5 text-xs font-medium text-foreground">
+        <Switch checked={props.required} onCheckedChange={props.onRequiredChange} />
+        <span>Required</span>
+      </label>
+      {props.onMoveEarlier ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          aria-label="Move rule earlier"
+          title="Move earlier"
+          onClick={props.onMoveEarlier}
+        >
+          <ChevronUp className="h-4 w-4" />
+        </Button>
+      ) : null}
+      {props.onMoveLater ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          aria-label="Move rule later"
+          title="Move later"
+          onClick={props.onMoveLater}
+        >
+          <ChevronDown className="h-4 w-4" />
+        </Button>
+      ) : null}
+      {props.onRemove ? (
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-8 w-8"
+          aria-label="Remove rule"
+          title="Remove rule"
+          onClick={props.onRemove}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      ) : null}
+    </div>
   );
 }
 

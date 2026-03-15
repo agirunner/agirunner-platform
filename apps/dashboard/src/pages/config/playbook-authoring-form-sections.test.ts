@@ -33,7 +33,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Blocked lane');
     expect(source).toContain('Terminal lane');
     expect(source).toContain('Playbooks use active role definitions from the shared role catalog.');
-    expect(source).toContain('Human approval is required before the work item can complete.');
+    expect(source).toContain('Before completion');
     expect(source).toContain('the next specialist always receives the right predecessor context');
     expect(source).toContain('project.repository_url');
     expect(source).toContain('project.settings.default_branch');
@@ -56,5 +56,14 @@ describe('playbook authoring form sections source', () => {
     expect(source).not.toContain('Input style');
     expect(source).not.toContain('PARAMETER_INPUT_STYLE_OPTIONS');
     expect(source).not.toContain('type="checkbox"');
+  });
+
+  it('renders review, approval, and handoff rules through a compact inline row shell', () => {
+    const source = readSource();
+    expect(source).toContain('function InlineRuleRow(');
+    expect(source).toContain('InlineRuleActions');
+    expect(source).not.toContain('title={`Review rule ${index + 1}`}');
+    expect(source).not.toContain('title={`Approval rule ${index + 1}`}');
+    expect(source).not.toContain('title={`Handoff rule ${index + 1}`}');
   });
 });
