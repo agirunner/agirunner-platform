@@ -1,0 +1,131 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { WorkItemContinuityService } from '../../src/services/work-item-continuity-service.js';
+
+describe('WorkItemContinuityService', () => {
+  it('records next expected review actor after a task completion', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            current_checkpoint: 'implementation',
+            owner_role: 'developer',
+            definition: {
+              process_instructions: 'Developer implements and reviewer reviews.',
+              roles: ['developer', 'reviewer'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              checkpoints: [{ name: 'implementation', goal: 'Implement work', human_gate: false }],
+              review_rules: [{ from_role: 'developer', reviewed_by: 'reviewer', required: true }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordTaskCompleted('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'developer',
+      stage_name: 'implementation',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'review',
+      nextExpectedActor: 'reviewer',
+      nextExpectedAction: 'review',
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'implementation', 'reviewer', 'review', 0],
+    );
+  });
+
+  it('increments work-item rework count and routes review rejection back to the source role', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            current_checkpoint: 'implementation',
+            owner_role: 'developer',
+            definition: {
+              process_instructions: 'Developer implements and reviewer reviews.',
+              roles: ['developer', 'reviewer'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              checkpoints: [{ name: 'implementation', goal: 'Implement work', human_gate: false }],
+              review_rules: [{
+                from_role: 'developer',
+                reviewed_by: 'reviewer',
+                required: true,
+                on_reject: { action: 'return_to_role', role: 'developer' },
+              }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordReviewRejected('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'developer',
+      stage_name: 'implementation',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'review',
+      nextExpectedActor: 'developer',
+      nextExpectedAction: 'rework',
+      reworkDelta: 1,
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'implementation', 'developer', 'rework', 1],
+    );
+  });
+
+  it('clears continuity expectations after an approval path completes', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            current_checkpoint: 'implementation',
+            owner_role: 'developer',
+            definition: { process_instructions: 'Developer implements.' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    await service.clearReviewExpectation('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      stage_name: 'implementation',
+    });
+
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('next_expected_actor = NULL'),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'implementation'],
+    );
+  });
+});

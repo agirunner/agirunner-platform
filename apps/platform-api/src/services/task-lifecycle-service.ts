@@ -16,6 +16,7 @@ import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { applyOutputStateDeclarations } from './task-output-storage.js';
+import type { WorkItemContinuityService } from './work-item-continuity-service.js';
 import {
   calculateRetryBackoffSeconds,
   readPersistedLifecyclePolicy,
@@ -84,6 +85,10 @@ interface TaskLifecycleDependencies {
     client: DatabaseClient,
   ) => Promise<void>;
   parallelismService?: PlaybookTaskParallelismService;
+  workItemContinuityService?: Pick<
+    WorkItemContinuityService,
+    'clearReviewExpectation' | 'recordReviewRejected' | 'recordTaskCompleted'
+  >;
 }
 
 const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
@@ -453,6 +458,7 @@ export class TaskLifecycleService {
         await applyTaskCompletionSideEffects(
           this.deps.eventService,
           this.deps.parallelismService,
+          this.deps.workItemContinuityService,
           identity,
           updatedTask,
           client,
@@ -833,6 +839,13 @@ export class TaskLifecycleService {
         review_action: 'approve',
         review_updated_at: new Date().toISOString(),
       },
+      afterUpdate: async (updatedTask, client) => {
+        await this.deps.workItemContinuityService?.clearReviewExpectation(
+          identity.tenantId,
+          updatedTask,
+          client,
+        );
+      },
       reason: 'approved',
     }, client);
   }
@@ -858,6 +871,11 @@ export class TaskLifecycleService {
       },
       afterUpdate: async (updatedTask, client) => {
         await registerTaskOutputDocuments(client, identity.tenantId, updatedTask, updatedTask.output);
+        await this.deps.workItemContinuityService?.clearReviewExpectation(
+          identity.tenantId,
+          updatedTask,
+          client,
+        );
       },
       reason: 'output_review_approved',
     }, client);
@@ -966,6 +984,13 @@ export class TaskLifecycleService {
         review_feedback: payload.feedback,
         review_action: 'reject',
         review_updated_at: new Date().toISOString(),
+      },
+      afterUpdate: async (updatedTask, client) => {
+        await this.deps.workItemContinuityService?.recordReviewRejected(
+          identity.tenantId,
+          updatedTask,
+          client,
+        );
       },
       reason: 'review_rejected',
     });
@@ -1086,6 +1111,13 @@ export class TaskLifecycleService {
         ...(payload.preferred_worker_id
           ? { preferred_worker_id: payload.preferred_worker_id }
           : {}),
+      },
+      afterUpdate: async (updatedTask, client) => {
+        await this.deps.workItemContinuityService?.recordReviewRejected(
+          identity.tenantId,
+          updatedTask,
+          client,
+        );
       },
       reason: 'review_requested_changes',
     }, client);

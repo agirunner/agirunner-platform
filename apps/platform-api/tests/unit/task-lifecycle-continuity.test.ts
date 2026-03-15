@@ -1,0 +1,151 @@
+import { describe, expect, it, vi } from 'vitest';
+
+import { TaskLifecycleService } from '../../src/services/task-lifecycle-service.js';
+
+describe('TaskLifecycleService continuity hooks', () => {
+  it('records continuity when requesting changes on a linked work item', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-review-loop',
+              state: 'ready',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              role: 'developer',
+              input: { review_feedback: 'Fix the failing assertions' },
+              metadata: { review_action: 'request_changes' },
+            }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const workItemContinuityService = {
+      recordReviewRejected: vi.fn(async () => null),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-review-loop',
+        state: 'output_pending_review',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+        role: 'developer',
+        input: { summary: 'old output' },
+        rework_count: 0,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: workItemContinuityService as never,
+    });
+
+    await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-review-loop',
+      {
+        feedback: 'Fix the failing assertions',
+      },
+    );
+
+    expect(workItemContinuityService.recordReviewRejected).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        id: 'task-review-loop',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+        role: 'developer',
+      }),
+      client,
+    );
+  });
+
+  it('clears continuity expectations when task output is approved', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-output-approval',
+              state: 'completed',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              role: 'developer',
+              output: { summary: 'done' },
+              metadata: { review_action: 'approve_output' },
+            }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const workItemContinuityService = {
+      clearReviewExpectation: vi.fn(async () => null),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-output-approval',
+        state: 'output_pending_review',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+        role: 'developer',
+        output: { summary: 'done' },
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: workItemContinuityService as never,
+    });
+
+    await service.approveTaskOutput(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-output-approval',
+    );
+
+    expect(workItemContinuityService.clearReviewExpectation).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        id: 'task-output-approval',
+        work_item_id: 'work-item-1',
+      }),
+      client,
+    );
+  });
+});

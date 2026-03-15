@@ -19,6 +19,7 @@ import { TaskWriteService } from './task-write-service.js';
 import { OrchestratorGrantService } from './orchestrator-grant-service.js';
 import { RoleDefinitionService } from './role-definition-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import { WorkItemContinuityService } from './work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
 const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
@@ -163,6 +164,7 @@ export class TaskService {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: workflowActivationStaleAfterMs,
       },
     });
+    const workItemContinuityService = new WorkItemContinuityService(pool);
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,
@@ -188,6 +190,7 @@ export class TaskService {
         await workflowBudgetService.evaluatePolicy(tenantId, workflowId, client);
       },
       parallelismService,
+      workItemContinuityService,
     });
 
     const modelCatalog = new ModelCatalogService(pool);

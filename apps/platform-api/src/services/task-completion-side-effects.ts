@@ -3,6 +3,7 @@ import type { DatabaseClient } from '../db/database.js';
 import type { TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import type { WorkItemContinuityService } from './work-item-continuity-service.js';
 import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
 
 export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
@@ -55,6 +56,7 @@ export function validateOutputSchema(output: unknown, schema: Record<string, unk
 export async function applyTaskCompletionSideEffects(
   eventService: EventService,
   parallelismService: PlaybookTaskParallelismService | undefined,
+  workItemContinuityService: Pick<WorkItemContinuityService, 'recordTaskCompleted'> | undefined,
   identity: ApiKeyIdentity,
   task: Record<string, unknown>,
   client: DatabaseClient,
@@ -137,6 +139,7 @@ export async function applyTaskCompletionSideEffects(
     [identity.tenantId, task.workflow_id],
   );
   if (workflowResult.rows[0]?.playbook_id) {
+    await workItemContinuityService?.recordTaskCompleted(identity.tenantId, task, client);
     await enqueueWorkflowActivationRecord(client, eventService, {
       tenantId: identity.tenantId,
       workflowId: String(task.workflow_id),
