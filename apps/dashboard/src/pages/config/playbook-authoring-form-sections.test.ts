@@ -61,7 +61,11 @@ describe('playbook authoring form sections source', () => {
   it('renders review, approval, and handoff rules through a compact inline row shell', () => {
     const source = readSource();
     expect(source).toContain('function InlineRuleRow(');
+    expect(source).toContain('function InlineRuleField(');
     expect(source).toContain('InlineRuleActions');
+    expect(source).toContain('lg:grid-cols-[minmax(0,1fr),auto] lg:items-center');
+    expect(source).toContain('className="lg:justify-self-end"');
+    expect(source).toContain('flex flex-col gap-1 lg:flex-row lg:items-center');
     expect(source).not.toContain('title={`Review rule ${index + 1}`}');
     expect(source).not.toContain('title={`Approval rule ${index + 1}`}');
     expect(source).not.toContain('title={`Handoff rule ${index + 1}`}');

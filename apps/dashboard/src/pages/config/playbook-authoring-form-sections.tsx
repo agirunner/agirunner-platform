@@ -251,6 +251,7 @@ export function ReviewRulesSection(
               label="From"
               value={rule.from_role}
               availableRoleNames={availableRoleNames}
+              inline
               className="min-w-0"
               triggerClassName="min-w-0"
               onValueChange={(value) =>
@@ -261,6 +262,7 @@ export function ReviewRulesSection(
               label="Reviewer"
               value={rule.reviewed_by}
               availableRoleNames={availableRoleNames}
+              inline
               className="min-w-0"
               triggerClassName="min-w-0"
               onValueChange={(value) =>
@@ -273,6 +275,7 @@ export function ReviewRulesSection(
               availableRoleNames={availableRoleNames}
               placeholder="Optional rework role"
               allowUnset
+              inline
               className="min-w-0"
               triggerClassName="min-w-0"
               onValueChange={(value) =>
@@ -357,7 +360,7 @@ export function ApprovalRulesSection(props: SectionProps): JSX.Element {
               />
             }
           >
-            <LabeledField label="When" className="min-w-0">
+            <InlineRuleField label="When" className="min-w-0">
               <Select
                 value={rule.on}
                 onValueChange={(value) =>
@@ -383,9 +386,9 @@ export function ApprovalRulesSection(props: SectionProps): JSX.Element {
                   <SelectItem value="completion">Before completion</SelectItem>
                 </SelectContent>
               </Select>
-            </LabeledField>
+            </InlineRuleField>
             {rule.on === 'checkpoint' ? (
-              <LabeledField label="Checkpoint" className="min-w-0">
+              <InlineRuleField label="Checkpoint" className="min-w-0">
                 <Select
                   value={rule.checkpoint || ENTRY_COLUMN_UNSET}
                   onValueChange={(value) =>
@@ -414,11 +417,13 @@ export function ApprovalRulesSection(props: SectionProps): JSX.Element {
                     ))}
                   </SelectContent>
                 </Select>
-              </LabeledField>
+              </InlineRuleField>
             ) : (
-              <div className="flex min-h-9 items-center rounded-md border border-border/70 bg-muted/20 px-3 text-xs text-muted">
-                Before completion
-              </div>
+              <InlineRuleField label="Checkpoint" className="min-w-0">
+                <div className="flex min-h-9 items-center rounded-md border border-border/70 bg-muted/20 px-3 text-xs text-muted">
+                  Before completion
+                </div>
+              </InlineRuleField>
             )}
           </InlineRuleRow>
         ))}
@@ -502,6 +507,7 @@ export function HandoffRulesSection(
               label="From"
               value={rule.from_role}
               availableRoleNames={availableRoleNames}
+              inline
               className="min-w-0"
               triggerClassName="min-w-0"
               onValueChange={(value) =>
@@ -512,6 +518,7 @@ export function HandoffRulesSection(
               label="To"
               value={rule.to_role}
               availableRoleNames={availableRoleNames}
+              inline
               className="min-w-0"
               triggerClassName="min-w-0"
               onValueChange={(value) =>
@@ -1140,32 +1147,62 @@ function RoleSelectField(props: {
   onValueChange(value: string): void;
   placeholder?: string;
   allowUnset?: boolean;
+  inline?: boolean;
   className?: string;
   triggerClassName?: string;
 }): JSX.Element {
+  const control = (
+    <Select
+      value={props.value || ROLE_SELECT_UNSET}
+      onValueChange={(value) =>
+        props.onValueChange(value === ROLE_SELECT_UNSET ? '' : value)
+      }
+    >
+      <SelectTrigger className={props.triggerClassName}>
+        <SelectValue placeholder={props.placeholder ?? 'Select role'} />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value={ROLE_SELECT_UNSET}>
+          {props.allowUnset ? 'No role selected' : 'Select role'}
+        </SelectItem>
+        {props.availableRoleNames.map((name) => (
+          <SelectItem key={name} value={name}>
+            {name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  if (props.inline) {
+    return (
+      <InlineRuleField label={props.label} className={props.className}>
+        {control}
+      </InlineRuleField>
+    );
+  }
+
   return (
     <LabeledField label={props.label} className={props.className}>
-      <Select
-        value={props.value || ROLE_SELECT_UNSET}
-        onValueChange={(value) =>
-          props.onValueChange(value === ROLE_SELECT_UNSET ? '' : value)
-        }
-      >
-        <SelectTrigger className={props.triggerClassName}>
-          <SelectValue placeholder={props.placeholder ?? 'Select role'} />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value={ROLE_SELECT_UNSET}>
-            {props.allowUnset ? 'No role selected' : 'Select role'}
-          </SelectItem>
-          {props.availableRoleNames.map((name) => (
-            <SelectItem key={name} value={name}>
-              {name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {control}
     </LabeledField>
+  );
+}
+
+function InlineRuleField(props: {
+  label: string;
+  children: ReactNode;
+  className?: string;
+}): JSX.Element {
+  return (
+    <div className={`flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-2 ${props.className ?? ''}`.trim()}>
+      <span className="text-xs font-medium text-foreground lg:w-20 lg:shrink-0">
+        {props.label}
+      </span>
+      <div className="min-w-0 flex-1">
+        {props.children}
+      </div>
+    </div>
   );
 }
 
@@ -1177,7 +1214,7 @@ function InlineRuleRow(props: {
 }): JSX.Element {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-background/40 p-3">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr),auto] lg:items-end">
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr),auto] lg:items-center">
         <div className={`grid gap-3 ${props.fieldsClassName ?? ''}`.trim()}>{props.children}</div>
         <div className="lg:justify-self-end">{props.actions}</div>
       </div>
