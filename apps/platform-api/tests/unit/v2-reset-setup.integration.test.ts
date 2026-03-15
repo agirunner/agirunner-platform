@@ -62,13 +62,13 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     await seedConfigTables(pool);
 
     await pool.query(
-      `INSERT INTO llm_providers (id, tenant_id, name, provider_type, auth_mode, created_at, updated_at)
-       VALUES ('10000000-0000-0000-0000-000000000001', $1, 'Test Provider', 'openai', 'api_key', now(), now())`,
+      `INSERT INTO llm_providers (id, tenant_id, name, base_url, api_key_secret_ref, auth_mode, created_at, updated_at)
+       VALUES ('10000000-0000-0000-0000-000000000001', $1, 'Test Provider', 'https://api.openai.com/v1', 'secret://test-provider', 'api_key', now(), now())`,
       ['00000000-0000-0000-0000-000000000001'],
     );
     await pool.query(
-      `INSERT INTO llm_models (id, tenant_id, provider_id, model_id, created_at, updated_at)
-       VALUES ('20000000-0000-0000-0000-000000000001', $1, '10000000-0000-0000-0000-000000000001', 'gpt-test', now(), now())`,
+      `INSERT INTO llm_models (id, tenant_id, provider_id, model_id, created_at)
+       VALUES ('20000000-0000-0000-0000-000000000001', $1, '10000000-0000-0000-0000-000000000001', 'gpt-test', now())`,
       ['00000000-0000-0000-0000-000000000001'],
     );
     await pool.query(
