@@ -1099,19 +1099,31 @@ export class FleetService {
 
   private async getWorkerPoolStatus(tenantId: string): Promise<WorkerPoolSummary[]> {
     const result = await this.pool.query<WorkerPoolSummaryRow>(
-      `SELECT wds.pool_kind,
-              COUNT(*)::int AS desired_workers,
-              COALESCE(SUM(wds.replicas), 0)::int AS desired_replicas,
-              COUNT(*) FILTER (WHERE wds.enabled)::int AS enabled_workers,
-              COUNT(*) FILTER (WHERE wds.draining)::int AS draining_workers,
-              COUNT(was.id)::int AS running_containers
-         FROM worker_desired_state wds
-         LEFT JOIN worker_actual_state was
-           ON was.desired_state_id = wds.id
-          AND COALESCE(was.container_status, 'unknown') NOT IN ('exited', 'dead')
-        WHERE wds.tenant_id = $1
-        GROUP BY wds.pool_kind
-        ORDER BY wds.pool_kind ASC`,
+      `WITH worker_summary AS (
+          SELECT pool_kind,
+                 COUNT(*)::int AS desired_workers,
+                 COALESCE(SUM(replicas), 0)::int AS desired_replicas,
+                 COUNT(*) FILTER (WHERE enabled)::int AS enabled_workers,
+                 COUNT(*) FILTER (WHERE draining)::int AS draining_workers
+            FROM worker_desired_state
+           WHERE tenant_id = $1
+           GROUP BY pool_kind
+        ), container_counts AS (
+          SELECT wds.pool_kind,
+                 COUNT(was.id)::int AS running_containers
+            FROM worker_desired_state wds
+            LEFT JOIN worker_actual_state was
+              ON was.desired_state_id = wds.id
+             AND COALESCE(was.container_status, 'unknown') NOT IN ('exited', 'dead')
+           WHERE wds.tenant_id = $1
+           GROUP BY wds.pool_kind
+        )
+        SELECT ws.pool_kind, ws.desired_workers, ws.desired_replicas,
+               ws.enabled_workers, ws.draining_workers,
+               COALESCE(cc.running_containers, 0)::int AS running_containers
+          FROM worker_summary ws
+          LEFT JOIN container_counts cc ON cc.pool_kind = ws.pool_kind
+         ORDER BY ws.pool_kind ASC`,
       [tenantId],
     );
 
