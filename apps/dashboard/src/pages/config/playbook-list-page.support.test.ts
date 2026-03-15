@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPlaybookFamilies,
   filterPlaybookFamilies,
+  summarizePlaybookProcess,
   summarizePlaybookStructure,
   summarizePlaybookFamilyCounts,
   validatePlaybookCreateDraft,
@@ -106,6 +107,31 @@ describe('playbook list support', () => {
     expect(summarizePlaybookStructure(PLAYBOOKS[0])).toEqual({
       boardColumns: 2,
       stages: 2,
+    });
+  });
+
+  it('reads the process-first summary from the stored definition', () => {
+    expect(
+      summarizePlaybookProcess({
+        ...PLAYBOOKS[0],
+        definition: {
+          process_instructions: 'Developer implements. Reviewer checks. Human approves.',
+          roles: ['developer', 'reviewer'],
+          review_rules: [{}],
+          approval_rules: [{}],
+          handoff_rules: [{}],
+          checkpoints: [{}, {}],
+          parameters: [{}, {}],
+        },
+      }),
+    ).toEqual({
+      processInstructions: 'Developer implements. Reviewer checks. Human approves.',
+      roleCount: 2,
+      reviewRuleCount: 1,
+      approvalRuleCount: 1,
+      handoffRuleCount: 1,
+      checkpointCount: 2,
+      inputCount: 2,
     });
   });
 

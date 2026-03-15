@@ -32,6 +32,11 @@ describe('playbook list page source', () => {
     expect(source).toContain('PlaybookFamilyCard');
     expect(source).toContain('buildPlaybookFamilies');
     expect(source).toContain('filterPlaybookFamilies');
+    expect(source).toContain('summarizePlaybookProcess');
+    expect(source).toContain('Process');
+    expect(source).toContain('roles');
+    expect(source).toContain('reviews');
+    expect(source).toContain('handoffs /');
     expect(source).toContain('Most revisions');
     expect(source).toContain('families,');
     expect(source).toContain('statusFilter');
@@ -41,6 +46,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('Resolve these blockers before creating the playbook.');
     expect(source).toContain('Slug preview:');
     expect(source).toContain('onValidationChange={setAuthoringValidationIssues}');
+    expect(source).toContain('Start with the outcome, process instructions, team roles, and required workflow');
     expect(source).not.toContain('col-span-2 w-full');
     expect(source).not.toContain('Description</span>');
     expect(source).not.toContain('PlaybookLibrarySummaryCards');

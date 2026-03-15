@@ -30,7 +30,11 @@ describe('playbook detail page source', () => {
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
     expect(source).toContain('Playbook lifecycle');
     expect(source).toContain('sm:grid-cols-2');
+    expect(source).toContain('Playbook Setup');
     expect(source).toContain('Shared prompts, role prompts, and runtime defaults are configured elsewhere.');
+    expect(source).toContain('Created');
+    expect(source).toContain('Updated');
+    expect(source).toContain('process instructions, mandatory workflow rules');
     expect(source).toContain('Compare every saved playbook setting against an earlier revision.');
     expect(source).toContain('SelectTrigger aria-label="Playbook lifecycle"');
     expect(source).toContain('rounded-xl border border-red-300 bg-red-50/80');

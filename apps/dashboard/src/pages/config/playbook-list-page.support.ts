@@ -15,6 +15,7 @@ export interface PlaybookFamilyRecord {
   activeRevisionCount: number;
   primaryRevision: DashboardPlaybookRecord;
   structure: ReturnType<typeof summarizePlaybookStructure>;
+  process: ReturnType<typeof summarizePlaybookProcess>;
   updatedAt: string;
   searchText: string;
 }
@@ -60,9 +61,16 @@ export function buildPlaybookFamilies(
       activeRevisionCount: activeRevisions.length,
       primaryRevision,
       structure: summarizePlaybookStructure(primaryRevision),
+      process: summarizePlaybookProcess(primaryRevision),
       updatedAt: readPlaybookUpdatedAt(primaryRevision),
       searchText: orderedRevisions
-        .flatMap((playbook) => [playbook.name, playbook.slug, playbook.description ?? '', playbook.outcome])
+        .flatMap((playbook) => [
+          playbook.name,
+          playbook.slug,
+          playbook.description ?? '',
+          playbook.outcome,
+          readDefinitionString(playbook.definition, 'process_instructions'),
+        ])
         .join(' ')
         .toLowerCase(),
     };
@@ -215,15 +223,31 @@ export function summarizePlaybookStructure(playbook: DashboardPlaybookRecord): {
   boardColumns: number;
   stages: number;
 } {
-  const boardColumns = Array.isArray(
-    (playbook.definition as { board?: { columns?: unknown[] } }).board?.columns,
-  )
-    ? ((playbook.definition as { board?: { columns?: unknown[] } }).board?.columns?.length ?? 0)
-    : 0;
-  const stages = Array.isArray((playbook.definition as { stages?: unknown[] }).stages)
-    ? ((playbook.definition as { stages?: unknown[] }).stages?.length ?? 0)
-    : 0;
+  const boardColumns = readDefinitionArray(playbook.definition, 'board', 'columns').length;
+  const checkpoints = readDefinitionArray(playbook.definition, 'checkpoints');
+  const stages = checkpoints.length > 0 ? checkpoints.length : readDefinitionArray(playbook.definition, 'stages').length;
   return { boardColumns, stages };
+}
+
+export function summarizePlaybookProcess(playbook: DashboardPlaybookRecord): {
+  processInstructions: string;
+  roleCount: number;
+  reviewRuleCount: number;
+  approvalRuleCount: number;
+  handoffRuleCount: number;
+  checkpointCount: number;
+  inputCount: number;
+} {
+  const definition = playbook.definition;
+  return {
+    processInstructions: readDefinitionString(definition, 'process_instructions'),
+    roleCount: readDefinitionArray(definition, 'roles').length,
+    reviewRuleCount: readDefinitionArray(definition, 'review_rules').length,
+    approvalRuleCount: readDefinitionArray(definition, 'approval_rules').length,
+    handoffRuleCount: readDefinitionArray(definition, 'handoff_rules').length,
+    checkpointCount: readDefinitionArray(definition, 'checkpoints').length,
+    inputCount: readDefinitionArray(definition, 'parameters').length,
+  };
 }
 
 function normalizePlaybookSlug(value: string): string {
@@ -233,4 +257,25 @@ function normalizePlaybookSlug(value: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 80);
+}
+
+function readDefinitionArray(
+  definition: Record<string, unknown>,
+  key: string,
+  nestedKey?: string,
+): unknown[] {
+  const base = definition[key];
+  if (nestedKey) {
+    if (!base || typeof base !== 'object') {
+      return [];
+    }
+    const nested = (base as Record<string, unknown>)[nestedKey];
+    return Array.isArray(nested) ? nested : [];
+  }
+  return Array.isArray(base) ? base : [];
+}
+
+function readDefinitionString(definition: Record<string, unknown>, key: string): string {
+  const value = definition[key];
+  return typeof value === 'string' ? value.trim() : '';
 }

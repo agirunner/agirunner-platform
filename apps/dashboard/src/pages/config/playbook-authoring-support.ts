@@ -773,7 +773,7 @@ function hasCheckpointValue(checkpoint: CheckpointDraft): boolean {
 }
 
 function readReviewRuleError(rule: ReviewRuleDraft, roleNames: Set<string>): string | undefined {
-  const rejectRole = readString(rule.reject_role).trim();
+  const rejectRole = readReviewRejectRole(rule);
   if (!hasReviewRuleValue(rule)) {
     return undefined;
   }
@@ -793,9 +793,13 @@ function hasReviewRuleValue(rule: ReviewRuleDraft): boolean {
   return (
     rule.from_role.trim().length > 0 ||
     rule.reviewed_by.trim().length > 0 ||
-    readString(rule.reject_role).trim().length > 0 ||
+    readReviewRejectRole(rule).length > 0 ||
     rule.required === false
   );
+}
+
+function readReviewRejectRole(rule: ReviewRuleDraft): string {
+  return readString((rule as ReviewRuleDraft & { reject_role?: string }).reject_role).trim();
 }
 
 function readApprovalRuleError(
@@ -988,7 +992,10 @@ function readReviewRules(value: unknown): ReviewRuleDraft[] {
             from_role: readString(record.from_role),
             reviewed_by: readString(record.reviewed_by),
             required: typeof record.required === 'boolean' ? record.required : true,
-            reject_role: readString(onReject.role),
+            reject_role:
+              readString(record.reject_role) ||
+              readString((record as { on_reject_role?: unknown }).on_reject_role) ||
+              readString(onReject.role),
           };
         })
         .filter(hasReviewRuleValue)

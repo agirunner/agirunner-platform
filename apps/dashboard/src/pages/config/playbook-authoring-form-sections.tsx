@@ -249,12 +249,12 @@ export function ReviewRulesSection(
               />
               <RoleSelectField
                 label="Reject back to"
-                value={rule.on_reject_role}
+                value={rule.reject_role}
                 availableRoleNames={availableRoleNames}
                 placeholder="Optional rework role"
                 allowUnset
                 onValueChange={(value) =>
-                  updateReviewRule(props.onChange, index, 'on_reject_role', value)
+                  updateReviewRule(props.onChange, index, 'reject_role', value)
                 }
               />
               <ToggleField
@@ -1217,7 +1217,7 @@ function updateCheckpoint(
 function updateReviewRule(
   onChange: SectionProps['onChange'],
   index: number,
-  field: 'from_role' | 'reviewed_by' | 'on_reject_role',
+  field: 'from_role' | 'reviewed_by' | 'reject_role',
   value: string,
 ): void {
   onChange((current) => ({

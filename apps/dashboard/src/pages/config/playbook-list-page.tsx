@@ -171,9 +171,8 @@ export function PlaybookListPage(): JSX.Element {
               <div>
                 <h1 className="text-2xl font-semibold">Create Playbook</h1>
                 <p className="text-sm text-muted">
-                  Define the workflow operating model in a dedicated workspace instead of a modal,
-                  with progressive disclosure for flow design, automation policy, and launch/runtime
-                  controls.
+                  Start with the outcome, process instructions, team roles, and required workflow
+                  rules, then open advanced overrides only when this playbook truly needs them.
                 </p>
               </div>
             </div>
@@ -193,8 +192,8 @@ export function PlaybookListPage(): JSX.Element {
             <CardHeader className="space-y-2">
               <CardTitle>Playbook Basics</CardTitle>
               <p className="text-sm text-muted">
-                  Start with the identity, outcome, and process instructions, then add the
-                  workflow rules and launch inputs below.
+                Define the playbook identity first, then author the process, team, required rules,
+                and launch inputs below.
               </p>
             </CardHeader>
             <CardContent className="grid gap-6">

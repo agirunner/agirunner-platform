@@ -235,9 +235,19 @@ export function PlaybookDetailPage(): JSX.Element {
             <Badge variant="secondary">{describePlaybookLifecycle(playbook.lifecycle)}</Badge>
             {!playbook.is_active ? <Badge variant="secondary">Inactive</Badge> : null}
           </div>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted">
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-foreground">Created</span>
+              <span>{formatDate(playbook.created_at)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-foreground">Updated</span>
+              <span>{formatDate(playbook.updated_at)}</span>
+            </div>
+          </div>
           <p className="max-w-3xl text-sm text-muted">
-            Edit workflow structure, automation policy, and launch inputs in one place without
-            dropping to raw JSON. Stage guidance and orchestrator instructions drive execution.
+            Keep the outcome, process instructions, team rules, and launch inputs together in one
+            place without dropping to raw JSON.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -255,9 +265,9 @@ export function PlaybookDetailPage(): JSX.Element {
 
       <Card id="playbook-identity">
         <CardHeader className="space-y-2">
-          <CardTitle>Playbook Details</CardTitle>
+          <CardTitle>Playbook Setup</CardTitle>
           <p className="text-sm text-muted">
-            Keep the playbook identity and operating model visible while you edit the structured
+            Keep the identity and operating model visible while you edit the process-first
             authoring sections below.
           </p>
         </CardHeader>
@@ -318,20 +328,10 @@ export function PlaybookDetailPage(): JSX.Element {
                 {lifecycleOptions.find((option) => option.value === lifecycle)?.description}
               </p>
             </div>
-            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted xl:col-span-2">
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-foreground">Created</span>
-                <span>{formatDate(playbook.created_at)}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="font-medium text-foreground">Updated</span>
-                <span>{formatDate(playbook.updated_at)}</span>
-              </div>
-            </div>
             <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted md:col-span-2 xl:col-span-2">
               Shared prompts, role prompts, and runtime defaults are configured elsewhere. This
-              page owns workflow structure, orchestration policy, specialist exceptions, and launch
-              inputs only.
+              page owns the playbook outcome, process instructions, mandatory workflow rules, and
+              any advanced overrides for this family.
             </div>
           </div>
         </CardContent>
