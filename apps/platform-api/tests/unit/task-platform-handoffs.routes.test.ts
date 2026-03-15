@@ -1,0 +1,224 @@
+import fastify from 'fastify';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { taskPlatformRoutes } from '../../src/api/routes/task-platform.routes.js';
+
+vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
+  authenticateApiKey: async (request: { auth?: unknown }) => {
+    request.auth = {
+      id: 'key-1',
+      tenantId: 'tenant-1',
+      scope: 'agent',
+      ownerType: 'agent',
+      ownerId: 'agent-1',
+      keyPrefix: 'agent-key',
+    };
+  },
+  withScope: () => async () => {},
+}));
+
+describe('task platform handoff routes', () => {
+  let app: ReturnType<typeof fastify> | undefined;
+
+  afterEach(async () => {
+    vi.clearAllMocks();
+    if (app) {
+      await app.close();
+      app = undefined;
+    }
+  });
+
+  it('submits a structured handoff for the active task owner', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              activation_id: null,
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: false,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              role: 'developer',
+              stage_name: 'implementation',
+              metadata: { team_name: 'delivery' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT COALESCE(MAX(sequence)')) {
+          return { rowCount: 1, rows: [{ next_sequence: 0 }] };
+        }
+        if (sql.includes('INSERT INTO task_handoffs')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'handoff-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              task_id: 'task-1',
+              request_id: 'req-1',
+              role: 'developer',
+              team_name: 'delivery',
+              stage_name: 'implementation',
+              sequence: 0,
+              summary: 'Implemented auth flow.',
+              completion: 'full',
+              changes: [],
+              decisions: [],
+              remaining_items: [],
+              blockers: [],
+              review_focus: ['error handling'],
+              known_risks: [],
+              successor_context: null,
+              role_data: {},
+              artifact_ids: [],
+              created_at: new Date('2026-03-15T12:00:00Z'),
+            }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as never);
+    app.decorate('projectService', {} as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-1/handoff',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'req-1',
+        summary: 'Implemented auth flow.',
+        review_focus: ['error handling'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        id: 'handoff-1',
+        role: 'developer',
+        review_focus: ['error handling'],
+      }),
+    );
+  });
+
+  it('returns the predecessor handoff for the active task owner', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-2',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'review',
+              activation_id: null,
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: false,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-2',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              role: 'reviewer',
+              stage_name: 'review',
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'handoff-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              task_id: 'task-1',
+              request_id: 'req-1',
+              role: 'developer',
+              team_name: 'delivery',
+              stage_name: 'implementation',
+              sequence: 0,
+              summary: 'Implemented auth flow.',
+              completion: 'full',
+              changes: [],
+              decisions: [],
+              remaining_items: [],
+              blockers: [],
+              review_focus: ['error handling'],
+              known_risks: [],
+              successor_context: null,
+              role_data: {},
+              artifact_ids: [],
+              created_at: new Date('2026-03-15T12:00:00Z'),
+            }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as never);
+    app.decorate('projectService', {} as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tasks/task-2/predecessor-handoff',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        id: 'handoff-1',
+        role: 'developer',
+      }),
+    );
+  });
+});

@@ -8,6 +8,7 @@ import { buildArtifactStorageConfig } from '../../content/storage-config.js';
 import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ArtifactCatalogService } from '../../services/artifact-catalog-service.js';
+import { HandoffService } from '../../services/handoff-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 import { runIdempotentTaskRouteAction } from './task-route-idempotency.js';
@@ -30,6 +31,21 @@ const memoryPatchSchema = z.union([
   }),
 ]);
 
+const taskHandoffSchema = z.object({
+  request_id: z.string().min(1).max(255).optional(),
+  summary: z.string().min(1).max(4000),
+  completion: z.enum(['full', 'partial', 'blocked']).optional(),
+  changes: z.array(z.unknown()).max(200).optional(),
+  decisions: z.array(z.unknown()).max(200).optional(),
+  remaining_items: z.array(z.unknown()).max(200).optional(),
+  blockers: z.array(z.unknown()).max(200).optional(),
+  review_focus: z.array(z.string().min(1).max(4000)).max(100).optional(),
+  known_risks: z.array(z.string().min(1).max(4000)).max(100).optional(),
+  successor_context: z.string().max(8000).optional(),
+  role_data: z.record(z.unknown()).optional(),
+  artifact_ids: z.array(z.string().uuid()).max(100).optional(),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -40,6 +56,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
   const toolResultService = new WorkflowToolResultService(app.pgPool);
+  const handoffService = new HandoffService(app.pgPool);
   const artifactCatalogService = new ArtifactCatalogService(
     app.pgPool,
     createArtifactStorage(buildArtifactStorageConfig(app.config)),
@@ -63,6 +80,36 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
         return { data: { key: query.key, value: (memory as Record<string, unknown>)[query.key] } };
       }
       return { data: { memory } };
+    },
+  );
+
+  app.post(
+    '/api/v1/tasks/:id/handoff',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(taskHandoffSchema.safeParse(request.body));
+      await taskScopeService.loadAgentOwnedActiveTask(request.auth!, params.id);
+      const data = await handoffService.submitTaskHandoff(
+        request.auth!.tenantId,
+        params.id,
+        body,
+      );
+      return { data };
+    },
+  );
+
+  app.get(
+    '/api/v1/tasks/:id/predecessor-handoff',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      await taskScopeService.loadAgentOwnedActiveTask(request.auth!, params.id);
+      const data = await handoffService.getPredecessorHandoff(
+        request.auth!.tenantId,
+        params.id,
+      );
+      return { data };
     },
   );
 
