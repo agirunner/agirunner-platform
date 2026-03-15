@@ -3,6 +3,7 @@ import type {
   DashboardWorkflowActivationRecord,
   DashboardWorkflowRecord,
   DashboardWorkflowStageRecord,
+  DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
 import { readWorkflowRunSummary } from '../workflow-detail-support.js';
 import {
@@ -28,6 +29,13 @@ export interface WorkflowInspectorFocusWorkItem {
   id: string;
   title: string;
   stageName: string;
+  currentCheckpoint: string | null;
+  nextExpectedActor: string | null;
+  nextExpectedAction: string | null;
+  unresolvedFindingsCount: number;
+  reviewFocusCount: number;
+  knownRiskCount: number;
+  latestHandoffCompletion: string | null;
 }
 
 export interface WorkflowInspectorTraceModel {
@@ -70,6 +78,11 @@ export function buildWorkflowInspectorTraceModel(input: {
         detail: describeWorkItemMetric(workItemSummary),
       },
       {
+        label: 'Continuity',
+        value: describeContinuityValue(focusWorkItem),
+        detail: describeContinuityDetail(focusWorkItem),
+      },
+      {
         label: 'Gate checkpoints',
         value: formatCount(readAttentionGateCount(stages, workItemSummary?.awaiting_gate_count ?? 0)),
         detail: describeGateMetric(stages, workItemSummary?.awaiting_gate_count ?? 0),
@@ -96,6 +109,13 @@ export function buildWorkflowInspectorTraceModel(input: {
           id: focusWorkItem.id,
           title: focusWorkItem.title,
           stageName: focusWorkItem.stage_name,
+          currentCheckpoint: focusWorkItem.current_checkpoint ?? null,
+          nextExpectedActor: focusWorkItem.next_expected_actor ?? null,
+          nextExpectedAction: focusWorkItem.next_expected_action ?? null,
+          unresolvedFindingsCount: focusWorkItem.unresolved_findings?.length ?? 0,
+          reviewFocusCount: focusWorkItem.review_focus?.length ?? 0,
+          knownRiskCount: focusWorkItem.known_risks?.length ?? 0,
+          latestHandoffCompletion: focusWorkItem.latest_handoff_completion ?? null,
         }
       : null,
   };
@@ -120,13 +140,15 @@ export function buildWorkflowInspectorFocusSummary(input: {
   }
 
   if (input.traceModel.focusWorkItem) {
+    const focusItem = input.traceModel.focusWorkItem;
+    const continuityDetail = describeFocusContinuityDetail(focusItem);
     return {
-      title: `Focus on ${input.traceModel.focusWorkItem.title}`,
-      detail: `${input.traceModel.focusWorkItem.stageName} is the most relevant live work-item context in this trace.`,
+      title: `Focus on ${focusItem.title}`,
+      detail: continuityDetail,
       nextAction:
-        'Inspect the focus work item first, then use telemetry and memory history to decide whether follow-up belongs in rework, stage advancement, or another orchestrator turn.',
+        'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',
-      actionHref: `/work/boards/${input.workflowId}?work_item=${encodeURIComponent(input.traceModel.focusWorkItem.id)}`,
+      actionHref: `/work/boards/${input.workflowId}?work_item=${encodeURIComponent(focusItem.id)}`,
     };
   }
 
@@ -168,6 +190,48 @@ function describeWorkItemMetric(summary: DashboardWorkflowRecord['work_item_summ
     return 'No work items are attached to this workflow yet.';
   }
   return `${summary.open_work_item_count} open • ${summary.completed_work_item_count} completed`;
+}
+
+function describeContinuityValue(focusWorkItem: DashboardWorkflowWorkItemRecord | null) {
+  if (!focusWorkItem) {
+    return 'No focus item';
+  }
+  const actor = focusWorkItem.next_expected_actor?.trim();
+  const action = focusWorkItem.next_expected_action?.trim();
+  if (actor && action) {
+    return `${actor} -> ${action}`;
+  }
+  if (actor) {
+    return actor;
+  }
+  if (action) {
+    return action;
+  }
+  return 'No pending routing';
+}
+
+function describeContinuityDetail(focusWorkItem: DashboardWorkflowWorkItemRecord | null) {
+  if (!focusWorkItem) {
+    return 'No focus work item is carrying continuity pressure yet.';
+  }
+  const unresolvedCount = focusWorkItem.unresolved_findings?.length ?? 0;
+  if (unresolvedCount > 0) {
+    return `${unresolvedCount} unresolved finding${unresolvedCount === 1 ? ' is' : 's are'} still attached to the focus work item.`;
+  }
+  return 'No unresolved findings are recorded on the focus work item right now.';
+}
+
+function describeFocusContinuityDetail(focusWorkItem: WorkflowInspectorFocusWorkItem) {
+  const actor = focusWorkItem.nextExpectedActor;
+  const action = focusWorkItem.nextExpectedAction;
+  const unresolvedCount = focusWorkItem.unresolvedFindingsCount;
+  if (actor && action && unresolvedCount > 0) {
+    return `${focusWorkItem.stageName} is live, ${actor} should ${action} next, and ${unresolvedCount} unresolved finding${unresolvedCount === 1 ? ' is' : 's are'} still open.`;
+  }
+  if (actor && action) {
+    return `${focusWorkItem.stageName} is live, and ${actor} should ${action} next.`;
+  }
+  return `${focusWorkItem.stageName} is the most relevant live work-item context in this trace.`;
 }
 
 function describeGateMetric(

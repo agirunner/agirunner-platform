@@ -80,6 +80,13 @@ describe('workflow inspector telemetry', () => {
         id: 'work-item-1',
         title: 'Review release notes',
         stageName: 'review',
+        currentCheckpoint: 'review',
+        nextExpectedActor: null,
+        nextExpectedAction: null,
+        unresolvedFindingsCount: 0,
+        reviewFocusCount: 0,
+        knownRiskCount: 0,
+        latestHandoffCompletion: null,
       },
       memoryHistory: [
         {

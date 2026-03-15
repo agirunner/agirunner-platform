@@ -9,6 +9,13 @@ describe('workflow inspector memory packet', () => {
         id: 'work-item-1',
         title: 'Review release notes',
         stageName: 'review',
+        currentCheckpoint: 'review',
+        nextExpectedActor: null,
+        nextExpectedAction: null,
+        unresolvedFindingsCount: 0,
+        reviewFocusCount: 0,
+        knownRiskCount: 0,
+        latestHandoffCompletion: null,
       },
       memoryHistory: [
         {
@@ -59,6 +66,13 @@ describe('workflow inspector memory packet', () => {
         id: 'work-item-2',
         title: 'QA handoff',
         stageName: 'qa',
+        currentCheckpoint: 'qa',
+        nextExpectedActor: null,
+        nextExpectedAction: null,
+        unresolvedFindingsCount: 0,
+        reviewFocusCount: 0,
+        knownRiskCount: 0,
+        latestHandoffCompletion: null,
       },
       memoryHistory: [
         {

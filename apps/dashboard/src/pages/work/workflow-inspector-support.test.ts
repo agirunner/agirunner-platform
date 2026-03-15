@@ -42,8 +42,15 @@ describe('workflow inspector support', () => {
             id: 'work-item-1',
             workflow_id: 'workflow-1',
             stage_name: 'review',
+            current_checkpoint: 'review',
             title: 'Review release notes',
             column_id: 'review',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            unresolved_findings: ['Verify the rollback notes.'],
+            review_focus: ['Rollback notes'],
+            known_risks: ['Release timing'],
+            latest_handoff_completion: 'partial',
             priority: 'high',
           },
         ],
@@ -95,6 +102,11 @@ describe('workflow inspector support', () => {
         label: 'Work items',
         value: '5',
         detail: '2 open • 3 completed',
+      },
+      {
+        label: 'Continuity',
+        value: 'reviewer -> review',
+        detail: '1 unresolved finding is still attached to the focus work item.',
       },
       {
         label: 'Gate checkpoints',
@@ -154,6 +166,13 @@ describe('workflow inspector support', () => {
       id: 'work-item-1',
       title: 'Review release notes',
       stageName: 'review',
+      currentCheckpoint: 'review',
+      nextExpectedActor: 'reviewer',
+      nextExpectedAction: 'review',
+      unresolvedFindingsCount: 1,
+      reviewFocusCount: 1,
+      knownRiskCount: 1,
+      latestHandoffCompletion: 'partial',
     });
   });
 
@@ -172,7 +191,7 @@ describe('workflow inspector support', () => {
       value: '0',
       detail: 'No activation batches are recorded on this workflow yet.',
     });
-    expect(model.metrics[4]).toEqual({
+    expect(model.metrics[5]).toEqual({
       label: 'Memory handoff',
       value: 'Not recorded',
       detail: 'No project memory handoff packets are available for this workflow yet.',
@@ -244,6 +263,71 @@ describe('workflow inspector support', () => {
         'Start with the board stage that is waiting for approval, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
       actionLabel: 'Open board stage',
       actionHref: '/work/boards/workflow-3',
+    });
+  });
+
+  it('uses continuity posture when the focus work item is the best starting point', () => {
+    const traceModel = buildWorkflowInspectorTraceModel({
+      workflow: {
+        id: 'workflow-5',
+        name: 'Release board',
+        state: 'active',
+        created_at: '2026-03-10T00:00:00Z',
+        work_item_summary: {
+          total_work_items: 1,
+          open_work_item_count: 1,
+          completed_work_item_count: 0,
+          active_stage_count: 1,
+          awaiting_gate_count: 0,
+          active_stage_names: ['review'],
+        },
+        work_items: [
+          {
+            id: 'work-item-5',
+            workflow_id: 'workflow-5',
+            stage_name: 'review',
+            current_checkpoint: 'review',
+            title: 'Review release notes',
+            column_id: 'review',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            unresolved_findings: ['Verify rollback notes'],
+            review_focus: ['Rollback notes'],
+            known_risks: ['Release timing'],
+            latest_handoff_completion: 'partial',
+            priority: 'high',
+          },
+        ],
+      },
+    });
+
+    expect(
+      buildWorkflowInspectorFocusSummary({
+        workflowId: 'workflow-5',
+        workflow: {
+          id: 'workflow-5',
+          name: 'Release board',
+          state: 'active',
+          created_at: '2026-03-10T00:00:00Z',
+          work_item_summary: {
+            total_work_items: 1,
+            open_work_item_count: 1,
+            completed_work_item_count: 0,
+            active_stage_count: 1,
+            awaiting_gate_count: 0,
+            active_stage_names: ['review'],
+          },
+        },
+        liveStageLabel: 'review',
+        traceModel,
+      }),
+    ).toEqual({
+      title: 'Focus on Review release notes',
+      detail: 'review is live, reviewer should review next, and 1 unresolved finding is still open.',
+      nextAction:
+        'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
+      actionLabel: 'Open focus work item',
+      actionHref: '/work/boards/workflow-5?work_item=work-item-5',
     });
   });
 });

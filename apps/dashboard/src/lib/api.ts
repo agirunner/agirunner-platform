@@ -455,6 +455,10 @@ export interface DashboardWorkflowWorkItemRecord {
   next_expected_actor?: string | null;
   next_expected_action?: string | null;
   rework_count?: number | null;
+  latest_handoff_completion?: string | null;
+  unresolved_findings?: string[];
+  review_focus?: string[];
+  known_risks?: string[];
   priority: string;
   notes?: string | null;
   metadata?: Record<string, unknown> | null;
