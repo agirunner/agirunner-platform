@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  filterPlaybooks,
-  summarizePlaybookLibrary,
+  buildPlaybookFamilies,
+  filterPlaybookFamilies,
   summarizePlaybookStructure,
+  summarizePlaybookFamilyCounts,
   validatePlaybookCreateDraft,
 } from './playbook-list-page.support.js';
 
@@ -17,6 +18,19 @@ const PLAYBOOKS = [
     lifecycle: 'continuous' as const,
     version: 4,
     is_active: true,
+    updated_at: '2026-03-15T12:00:00Z',
+    definition: { board: { columns: [{}, {}] }, stages: [{}, {}] },
+  },
+  {
+    id: 'playbook-1-v3',
+    name: 'SDLC Continuous',
+    slug: 'sdlc-continuous',
+    description: 'Older active revision',
+    outcome: 'Ship changes continuously',
+    lifecycle: 'continuous' as const,
+    version: 3,
+    is_active: false,
+    updated_at: '2026-03-12T12:00:00Z',
     definition: { board: { columns: [{}, {}] }, stages: [{}, {}] },
   },
   {
@@ -28,35 +42,52 @@ const PLAYBOOKS = [
     lifecycle: 'standard' as const,
     version: 2,
     is_active: false,
+    updated_at: '2026-03-14T12:00:00Z',
     definition: { board: { columns: [{}] }, stages: [{}] },
   },
 ];
 
 describe('playbook list support', () => {
-  it('filters playbooks by search, status, and lifecycle', () => {
-    expect(filterPlaybooks(PLAYBOOKS, 'release', 'all', 'all')).toEqual([PLAYBOOKS[1]]);
-    expect(filterPlaybooks(PLAYBOOKS, '', 'active', 'continuous')).toEqual([PLAYBOOKS[0]]);
-    expect(filterPlaybooks(PLAYBOOKS, '', 'archived', 'standard')).toEqual([PLAYBOOKS[1]]);
+  it('groups revisions into family-first library records', () => {
+    expect(buildPlaybookFamilies(PLAYBOOKS)).toEqual([
+      expect.objectContaining({
+        slug: 'sdlc-continuous',
+        revisionCount: 2,
+        activeRevisionCount: 1,
+        primaryRevision: expect.objectContaining({ id: 'playbook-1' }),
+      }),
+      expect.objectContaining({
+        slug: 'release-checklist',
+        revisionCount: 1,
+        activeRevisionCount: 0,
+        primaryRevision: expect.objectContaining({ id: 'playbook-2' }),
+      }),
+    ]);
   });
 
-  it('summarizes library posture for the operator surface', () => {
-    expect(summarizePlaybookLibrary(PLAYBOOKS)).toEqual([
-      {
-        label: 'Active revisions',
-        value: '1 active',
-        detail: '1 launchable playbook revision currently available.',
-      },
-      {
-        label: 'Archived revisions',
-        value: '1 archived',
-        detail: 'Archived playbooks stay available for review and restore, but cannot launch until reactivated.',
-      },
-      {
-        label: 'Lifecycle mix',
-        value: '1 continuous / 1 standard',
-        detail: 'Use lifecycle mix to confirm whether the library is skewed toward repeatable or milestone-based work.',
-      },
+  it('filters and sorts family-first library records', () => {
+    const families = buildPlaybookFamilies(PLAYBOOKS);
+    expect(filterPlaybookFamilies(families, 'release', 'all', 'all', 'updated-desc')).toEqual([
+      expect.objectContaining({ slug: 'release-checklist' }),
     ]);
+    expect(filterPlaybookFamilies(families, '', 'active', 'continuous', 'updated-desc')).toEqual([
+      expect.objectContaining({ slug: 'sdlc-continuous' }),
+    ]);
+    expect(filterPlaybookFamilies(families, '', 'archived', 'standard', 'updated-desc')).toEqual([
+      expect.objectContaining({ slug: 'release-checklist' }),
+    ]);
+    expect(filterPlaybookFamilies(families, '', 'all', 'all', 'name-asc').map((family) => family.slug)).toEqual([
+      'release-checklist',
+      'sdlc-continuous',
+    ]);
+  });
+
+  it('summarizes family posture for the compact library toolbar', () => {
+    expect(summarizePlaybookFamilyCounts(buildPlaybookFamilies(PLAYBOOKS))).toEqual({
+      familyCount: 2,
+      activeFamilyCount: 1,
+      archivedFamilyCount: 1,
+    });
   });
 
   it('reads the board structure summary from the stored definition', () => {

@@ -24,16 +24,18 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import {
+  buildPlaybookFamilies,
   filterPlaybooks,
-  summarizePlaybookLibrary,
+  filterPlaybookFamilies,
+  summarizePlaybookFamilyCounts,
   validatePlaybookCreateDraft,
+  type PlaybookSortOption,
   type PlaybookLifecycleFilter,
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
 import {
-  PlaybookCard,
-  PlaybookLibraryFilters,
-  PlaybookLibrarySummaryCards,
+  PlaybookFamilyCard,
+  PlaybookLibraryToolbar,
 } from './playbook-list-page.library.js';
 
 const DEFAULT_LIFECYCLE = 'continuous';
@@ -50,6 +52,7 @@ export function PlaybookListPage(): JSX.Element {
   const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
   const [statusFilter, setStatusFilter] = useState<PlaybookStatusFilter>('all');
   const [lifecycleFilter, setLifecycleFilter] = useState<PlaybookLifecycleFilter>('all');
+  const [sort, setSort] = useState<PlaybookSortOption>('updated-desc');
   const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
     createDefaultAuthoringDraft(DEFAULT_LIFECYCLE),
   );
@@ -112,11 +115,16 @@ export function PlaybookListPage(): JSX.Element {
   });
 
   const allPlaybooks = playbooksQuery.data?.data ?? [];
-  const filtered = useMemo(
-    () => filterPlaybooks(allPlaybooks, search, statusFilter, lifecycleFilter),
-    [allPlaybooks, search, statusFilter, lifecycleFilter],
+  const playbookFamilies = useMemo(() => buildPlaybookFamilies(allPlaybooks), [allPlaybooks]);
+  const filteredFamilies = useMemo(
+    () =>
+      filterPlaybookFamilies(playbookFamilies, search, statusFilter, lifecycleFilter, sort),
+    [lifecycleFilter, playbookFamilies, search, sort, statusFilter],
   );
-  const summaryCards = useMemo(() => summarizePlaybookLibrary(allPlaybooks), [allPlaybooks]);
+  const libraryCounts = useMemo(
+    () => summarizePlaybookFamilyCounts(playbookFamilies),
+    [playbookFamilies],
+  );
   const createValidation = useMemo(
     () =>
       validatePlaybookCreateDraft({
@@ -417,14 +425,18 @@ export function PlaybookListPage(): JSX.Element {
         </Button>
       </div>
 
-      <PlaybookLibrarySummaryCards cards={summaryCards} />
-      <PlaybookLibraryFilters
+      <PlaybookLibraryToolbar
         search={search}
         statusFilter={statusFilter}
         lifecycleFilter={lifecycleFilter}
+        sort={sort}
+        familyCount={libraryCounts.familyCount}
+        activeFamilyCount={libraryCounts.activeFamilyCount}
+        archivedFamilyCount={libraryCounts.archivedFamilyCount}
         onSearchChange={setSearch}
         onStatusFilterChange={setStatusFilter}
         onLifecycleFilterChange={setLifecycleFilter}
+        onSortChange={setSort}
       />
 
       {playbooksQuery.isLoading ? <p className="text-sm text-muted">Loading playbooks...</p> : null}
@@ -433,10 +445,12 @@ export function PlaybookListPage(): JSX.Element {
       ) : null}
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {filtered.map((playbook) => (
-          <PlaybookCard
-            key={playbook.id}
-            playbook={playbook}
+        {filteredFamilies.map((family) => {
+          const playbook = family.primaryRevision;
+          return (
+          <PlaybookFamilyCard
+            key={family.slug}
+            family={family}
             confirmDelete={confirmDeleteId === playbook.id}
             isArchiving={
               archiveMutation.isPending && archiveMutation.variables?.playbookId === playbook.id
@@ -450,8 +464,9 @@ export function PlaybookListPage(): JSX.Element {
               setConfirmDeleteId((current) => (current === playbook.id ? null : playbook.id))
             }
           />
-        ))}
-        {!playbooksQuery.isLoading && filtered.length === 0 ? (
+          );
+        })}
+        {!playbooksQuery.isLoading && filteredFamilies.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-sm text-muted">
               No playbooks match the current search.

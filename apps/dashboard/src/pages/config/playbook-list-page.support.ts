@@ -2,11 +2,21 @@ import type { DashboardPlaybookRecord } from '../../lib/api.js';
 
 export type PlaybookStatusFilter = 'all' | 'active' | 'archived';
 export type PlaybookLifecycleFilter = 'all' | 'standard' | 'continuous';
+export type PlaybookSortOption = 'updated-desc' | 'name-asc' | 'revision-count-desc';
 
-export interface PlaybookLibrarySummaryCard {
-  label: string;
-  value: string;
-  detail: string;
+export interface PlaybookFamilyRecord {
+  slug: string;
+  name: string;
+  description?: string | null;
+  outcome: string;
+  lifecycle: 'standard' | 'continuous';
+  revisions: DashboardPlaybookRecord[];
+  revisionCount: number;
+  activeRevisionCount: number;
+  primaryRevision: DashboardPlaybookRecord;
+  structure: ReturnType<typeof summarizePlaybookStructure>;
+  updatedAt: string;
+  searchText: string;
 }
 
 export interface PlaybookCreateValidationResult {
@@ -21,20 +31,122 @@ export interface PlaybookCreateValidationResult {
   isValid: boolean;
 }
 
+export function buildPlaybookFamilies(
+  playbooks: DashboardPlaybookRecord[],
+): PlaybookFamilyRecord[] {
+  const families = new Map<string, DashboardPlaybookRecord[]>();
+  for (const playbook of playbooks) {
+    const key = playbook.slug || playbook.id;
+    const current = families.get(key) ?? [];
+    current.push(playbook);
+    families.set(key, current);
+  }
+
+  return Array.from(families.entries()).map(([slug, revisions]) => {
+    const orderedRevisions = [...revisions].sort(comparePlaybookRecency);
+    const activeRevisions = orderedRevisions.filter((entry) => entry.is_active !== false);
+    const primaryRevision = activeRevisions[0] ?? orderedRevisions[0];
+
+    return {
+      slug,
+      name: primaryRevision.name,
+      description: primaryRevision.description ?? null,
+      outcome: primaryRevision.outcome,
+      lifecycle: primaryRevision.lifecycle,
+      revisions: orderedRevisions,
+      revisionCount: orderedRevisions.length,
+      activeRevisionCount: activeRevisions.length,
+      primaryRevision,
+      structure: summarizePlaybookStructure(primaryRevision),
+      updatedAt: readPlaybookUpdatedAt(primaryRevision),
+      searchText: orderedRevisions
+        .flatMap((playbook) => [playbook.name, playbook.slug, playbook.description ?? '', playbook.outcome])
+        .join(' ')
+        .toLowerCase(),
+    };
+  });
+}
+
+export function filterPlaybookFamilies(
+  families: PlaybookFamilyRecord[],
+  search: string,
+  statusFilter: PlaybookStatusFilter,
+  lifecycleFilter: PlaybookLifecycleFilter,
+  sort: PlaybookSortOption,
+): PlaybookFamilyRecord[] {
+  const normalized = search.trim().toLowerCase();
+  return families
+    .filter((family) => {
+      if (normalized && !family.searchText.includes(normalized)) {
+        return false;
+      }
+      if (statusFilter === 'active' && family.activeRevisionCount === 0) {
+        return false;
+      }
+      if (statusFilter === 'archived' && family.activeRevisionCount > 0) {
+        return false;
+      }
+      if (lifecycleFilter !== 'all' && family.lifecycle !== lifecycleFilter) {
+        return false;
+      }
+      return true;
+    })
+    .sort((left, right) => comparePlaybookFamilies(left, right, sort));
+}
+
+export function summarizePlaybookFamilyCounts(
+  families: PlaybookFamilyRecord[],
+): {
+  familyCount: number;
+  activeFamilyCount: number;
+  archivedFamilyCount: number;
+} {
+  const activeFamilyCount = families.filter((family) => family.activeRevisionCount > 0).length;
+  return {
+    familyCount: families.length,
+    activeFamilyCount,
+    archivedFamilyCount: families.length - activeFamilyCount,
+  };
+}
+
+function comparePlaybookFamilies(
+  left: PlaybookFamilyRecord,
+  right: PlaybookFamilyRecord,
+  sort: PlaybookSortOption,
+): number {
+  if (sort === 'name-asc') {
+    return left.name.localeCompare(right.name);
+  }
+  if (sort === 'revision-count-desc') {
+    return (
+      right.revisionCount - left.revisionCount ||
+      comparePlaybookRecency(right.primaryRevision, left.primaryRevision)
+    );
+  }
+  return comparePlaybookRecency(right.primaryRevision, left.primaryRevision);
+}
+
+function comparePlaybookRecency(left: DashboardPlaybookRecord, right: DashboardPlaybookRecord): number {
+  return readPlaybookUpdatedAt(left).localeCompare(readPlaybookUpdatedAt(right));
+}
+
+function readPlaybookUpdatedAt(playbook: DashboardPlaybookRecord): string {
+  return playbook.updated_at ?? playbook.created_at ?? '';
+}
+
 export function filterPlaybooks(
   playbooks: DashboardPlaybookRecord[],
   search: string,
   statusFilter: PlaybookStatusFilter,
   lifecycleFilter: PlaybookLifecycleFilter,
 ): DashboardPlaybookRecord[] {
-  const normalized = search.trim().toLowerCase();
   return playbooks.filter((playbook) => {
     if (
-      normalized &&
+      search.trim().length > 0 &&
       ![playbook.name, playbook.slug, playbook.description ?? '', playbook.outcome]
         .join(' ')
         .toLowerCase()
-        .includes(normalized)
+        .includes(search.trim().toLowerCase())
     ) {
       return false;
     }
@@ -49,44 +161,6 @@ export function filterPlaybooks(
     }
     return true;
   });
-}
-
-export function summarizePlaybookLibrary(
-  playbooks: DashboardPlaybookRecord[],
-): PlaybookLibrarySummaryCard[] {
-  const activeCount = playbooks.filter((playbook) => playbook.is_active !== false).length;
-  const archivedCount = playbooks.length - activeCount;
-  const continuousCount = playbooks.filter((playbook) => playbook.lifecycle === 'continuous').length;
-
-  return [
-    {
-      label: 'Active revisions',
-      value: activeCount === 0 ? 'None active' : `${activeCount} active`,
-      detail:
-        activeCount === 0
-          ? 'Restore or create a playbook before launch is available.'
-          : `${activeCount} launchable playbook revision${activeCount === 1 ? '' : 's'} currently available.`,
-    },
-    {
-      label: 'Archived revisions',
-      value: archivedCount === 0 ? 'No archived' : `${archivedCount} archived`,
-      detail:
-        archivedCount === 0
-          ? 'No archived revisions need review right now.'
-          : 'Archived playbooks stay available for review and restore, but cannot launch until reactivated.',
-    },
-    {
-      label: 'Lifecycle mix',
-      value:
-        playbooks.length === 0
-          ? 'No playbooks'
-          : `${continuousCount} continuous / ${playbooks.length - continuousCount} standard`,
-      detail:
-        playbooks.length === 0
-          ? 'Create the first playbook to define your workflow operating model.'
-          : 'Use lifecycle mix to confirm whether the library is skewed toward repeatable or milestone-based work.',
-    },
-  ];
 }
 
 export function validatePlaybookCreateDraft(input: {
