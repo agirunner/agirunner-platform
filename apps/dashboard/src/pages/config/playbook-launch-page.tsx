@@ -3,9 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { dashboardApi } from '../../lib/api.js';
 import {
-  buildLaunchSectionLinks,
   buildWorkflowBudgetInput,
-  summarizeLaunchOverviewCards,
   createWorkflowBudgetDraft,
   readLaunchDefinition,
   validateLaunchDraft,
@@ -17,7 +15,6 @@ import {
   validateRoleOverrideDrafts,
   validateStructuredEntries,
 } from './playbook-launch-entry-validation.js';
-import { LaunchOverviewCards } from './playbook-launch-page.sections.js';
 import { usePlaybookLaunchPageEffects } from './playbook-launch-page.effects.js';
 import { usePlaybookLaunchMutation } from './playbook-launch-page.mutation.js';
 import { PlaybookLaunchForm } from './playbook-launch-form.js';
@@ -211,52 +208,6 @@ export function PlaybookLaunchPage(): JSX.Element {
     }
     return buildWorkflowBudgetInput(workflowBudgetDraft);
   }, [launchValidation.fieldErrors, workflowBudgetDraft]);
-  const overviewCards = useMemo(
-    () =>
-      summarizeLaunchOverviewCards({
-        selectedPlaybook,
-        selectedProject,
-        launchDefinition,
-        extraParameterCount: extraParameterDrafts.length,
-        metadataCount: metadataDrafts.length,
-        overrideCount: configuredWorkflowOverrideCount,
-        configOverrideCount: configuredWorkflowConfigOverrideCount,
-        instructionPolicySummary: instructionConfigSummary,
-        hasInstructionConfigOverride,
-        workflowBudgetDraft,
-      }),
-    [
-      selectedPlaybook,
-      selectedProject,
-      launchDefinition,
-      extraParameterDrafts.length,
-      metadataDrafts.length,
-      configuredWorkflowOverrideCount,
-      configuredWorkflowConfigOverrideCount,
-      instructionConfigSummary,
-      hasInstructionConfigOverride,
-      workflowBudgetDraft,
-    ],
-  );
-  const sectionLinks = useMemo(
-    () =>
-      buildLaunchSectionLinks({
-        launchDefinition,
-        extraParameterCount: extraParameterDrafts.length,
-        metadataCount: metadataDrafts.length,
-        overrideCount: configuredWorkflowOverrideCount,
-        configOverrideCount: configuredWorkflowConfigOverrideCount,
-        instructionPolicySummary: instructionConfigSummary,
-      }),
-    [
-      launchDefinition,
-      extraParameterDrafts.length,
-      metadataDrafts.length,
-      configuredWorkflowOverrideCount,
-      configuredWorkflowConfigOverrideCount,
-      instructionConfigSummary,
-    ],
-  );
   useEffect(() => {
     setSuppressedInstructionLayers(workflowPolicyDefinition.defaultSuppressedLayers);
   }, [selectedPlaybookId, workflowPolicyDefinition.defaultSuppressedLayers.join(',')]);
@@ -307,9 +258,8 @@ export function PlaybookLaunchPage(): JSX.Element {
   return (
     <div
       data-testid="playbook-launch-surface"
-      className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8"
+      className="mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8"
     >
-      <LaunchOverviewCards cards={overviewCards} />
       <PlaybookLaunchForm
         selectedPlaybookId={selectedPlaybookId}
         isSelectedPlaybookArchived={isSelectedPlaybookArchived}
@@ -345,7 +295,6 @@ export function PlaybookLaunchPage(): JSX.Element {
         workflowOverrides={workflowOverrides.value ?? {}}
         workflowConfigBlockingError={workflowConfigBlockingError}
         workflowOverrideBlockingError={workflowOverrideBlockingError}
-        sectionLinks={sectionLinks}
         projectResolvedModels={projectResolvedModelsQuery.data}
         previewData={previewQuery.data}
         previewError={previewQuery.error}

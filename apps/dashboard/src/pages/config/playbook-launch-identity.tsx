@@ -1,6 +1,5 @@
 import { Link } from 'react-router-dom';
 
-import { Badge } from '../../components/ui/badge.js';
 import { Input } from '../../components/ui/input.js';
 import {
   Select,
@@ -28,15 +27,11 @@ export function LaunchPageHeader(props: { selectedPlaybookId: string }): JSX.Ele
         ) : null}
       </div>
       <div>
-        <h1 className="text-2xl font-semibold">Launch Playbook</h1>
+        <h1 className="text-2xl font-semibold">Launch Workflow</h1>
         <p className="text-sm text-muted">
-          Create a new workflow run from a playbook with structured run inputs, board-aware context, and role-based model overrides.
+          Start a workflow from a playbook with structured launch inputs, project autofill, and
+          workflow-scoped policy overrides.
         </p>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary">Structured launch flow</Badge>
-        <Badge variant="outline">Board-aware context</Badge>
-        <Badge variant="outline">Role-based model policy</Badge>
       </div>
     </div>
   );
@@ -57,9 +52,9 @@ export function RunIdentitySection(props: {
   return (
     <div className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4">
       <div className="grid gap-1">
-        <div className="text-sm font-medium text-foreground">Run Identity</div>
+        <div className="text-sm font-medium text-foreground">Workflow Basics</div>
         <p className="text-sm text-muted">
-          Choose the playbook, name the run, and decide whether it belongs to a project before
+          Choose the playbook, name the workflow, and decide whether it belongs to a project before
           launch.
         </p>
       </div>
@@ -110,7 +105,7 @@ export function RunIdentitySection(props: {
           </p>
         ) : (
           <p className="text-xs text-muted">
-            Use the run name operators will search for in the workflow board and audit trail.
+            Use the workflow name operators will search for in the board and audit trail.
           </p>
         )}
       </label>

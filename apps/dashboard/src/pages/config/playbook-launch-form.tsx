@@ -20,14 +20,12 @@ import { StructuredEntryEditor } from './playbook-launch-entries.js';
 import { LaunchPageHeader, RunIdentitySection } from './playbook-launch-identity.js';
 import {
   LaunchDefinitionSnapshot,
-  LaunchOutlineCard,
   StructuredSection,
 } from './playbook-launch-page.sections.js';
 import { ParameterField } from './playbook-launch-parameters.js';
 import { LaunchReadinessPanel } from './playbook-launch-readiness.js';
 import {
   type LaunchDefinitionSummary,
-  type LaunchSectionLink,
   type LaunchValidationResult,
   type RoleOverrideDraft,
   type StructuredEntryDraft,
@@ -78,7 +76,6 @@ export function PlaybookLaunchForm(props: {
   workflowOverrides: Record<string, DashboardRoleModelOverride>;
   workflowConfigBlockingError?: string;
   workflowOverrideBlockingError?: string;
-  sectionLinks: LaunchSectionLink[];
   projectResolvedModels?: DashboardProjectResolvedModelsResponse;
   previewData?: {
     roles: string[];
@@ -113,10 +110,24 @@ export function PlaybookLaunchForm(props: {
     <>
       <LaunchPageHeader selectedPlaybookId={props.selectedPlaybookId} />
 
-      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.2fr),minmax(0,22rem)]">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr),minmax(18rem,24rem)]">
         <Card>
-          <CardHeader>
-            <CardTitle>Run Configuration</CardTitle>
+          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="space-y-1">
+              <CardTitle>Workflow Launch</CardTitle>
+              <p className="text-sm text-muted">
+                Choose a playbook, resolve project autofill, and add only the workflow overrides
+                this launch actually needs.
+              </p>
+            </div>
+            <Button onClick={props.onLaunch} disabled={!props.canLaunch}>
+              {props.isLaunching ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Rocket className="h-4 w-4" />
+              )}
+              Launch Workflow
+            </Button>
           </CardHeader>
           <CardContent className="grid gap-6">
             <RunIdentitySection
@@ -133,32 +144,9 @@ export function PlaybookLaunchForm(props: {
             />
 
             <StructuredSection
-              id="launch-readiness"
-              title="Launch Readiness"
-              description="Review the launch essentials before starting the run."
-            >
-              <LaunchReadinessPanel
-                selectedPlaybook={props.selectedPlaybook}
-                selectedProject={props.selectedProject}
-                workflowName={props.workflowName}
-                hasStructuredParameters={
-                  props.launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters
-                }
-                hasMetadataEntries={hasMetadataEntries}
-                hasWorkflowConfigOverrides={
-                  props.configuredWorkflowConfigOverrideCount > 0 ||
-                  props.hasInstructionConfigOverride
-                }
-                hasWorkflowOverrides={hasWorkflowOverrides}
-                budgetDraft={props.workflowBudgetDraft}
-                validation={props.launchValidation}
-              />
-            </StructuredSection>
-
-            <StructuredSection
               id="playbook-snapshot"
-              title="Playbook Snapshot"
-              description="Preview the board shape, stages, and declared roles that will frame this run."
+              title="Workflow Structure"
+              description="Preview the board shape, workflow stages, and declared roles that will guide this workflow."
             >
               <LaunchDefinitionSnapshot launchDefinition={props.launchDefinition} />
             </StructuredSection>
@@ -282,10 +270,10 @@ export function PlaybookLaunchForm(props: {
 
             <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
               <div className="space-y-1">
-                <div className="text-sm font-medium text-foreground">Ready to launch</div>
+                <div className="text-sm font-medium text-foreground">Workflow launch status</div>
                 <p className="text-sm text-muted">
-                  Start the run from the pinned launch bar after reviewing the structured inputs
-                  above.
+                  Review any highlighted issues above, then launch this workflow when the form is
+                  ready.
                 </p>
               </div>
               <Badge variant={props.canLaunch ? 'secondary' : 'destructive'}>
@@ -296,7 +284,22 @@ export function PlaybookLaunchForm(props: {
         </Card>
 
         <div className="space-y-4 xl:sticky xl:top-6">
-          <LaunchOutlineCard sections={props.sectionLinks} />
+          <LaunchReadinessPanel
+            selectedPlaybook={props.selectedPlaybook}
+            selectedProject={props.selectedProject}
+            workflowName={props.workflowName}
+            hasStructuredParameters={
+              props.launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters
+            }
+            hasMetadataEntries={hasMetadataEntries}
+            hasWorkflowConfigOverrides={
+              props.configuredWorkflowConfigOverrideCount > 0 ||
+              props.hasInstructionConfigOverride
+            }
+            hasWorkflowOverrides={hasWorkflowOverrides}
+            budgetDraft={props.workflowBudgetDraft}
+            validation={props.launchValidation}
+          />
           <PlaybookSummaryCard
             playbook={props.selectedPlaybook}
             projects={props.projects}
@@ -311,26 +314,6 @@ export function PlaybookLaunchForm(props: {
             launchDefinition={props.launchDefinition}
             isLoading={props.isLoadingSummary}
           />
-        </div>
-      </div>
-
-      <div className="sticky bottom-4 z-10">
-        <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <div className="text-sm font-medium">Launch stays within reach while you scroll</div>
-            <p className="text-sm text-muted">
-              The launch bar remains pinned so long parameter, metadata, and override sections stay
-              usable on desktop and phone-sized layouts.
-            </p>
-          </div>
-          <Button onClick={props.onLaunch} disabled={!props.canLaunch}>
-            {props.isLaunching ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Rocket className="h-4 w-4" />
-            )}
-            Launch Run
-          </Button>
         </div>
       </div>
     </>

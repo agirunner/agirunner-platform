@@ -28,23 +28,18 @@ describe('playbook launch model override source', () => {
   it('describes playbook launch in v2 workflow terms', () => {
     const source = readSource();
     expect(source).toContain(
-      'Create a new workflow run from a playbook with structured run inputs, board-aware context,',
+      'Start a workflow from a playbook with structured launch inputs, project autofill, and',
     );
   });
 
   it('builds structured launch controls instead of raw JSON textareas', () => {
     const source = readSource();
-    expect(source).toContain('Structured launch flow');
-    expect(source).toContain('max-w-7xl');
-    expect(source).toContain('sticky bottom-4');
-    expect(source).toContain('Launch Readiness');
-    expect(source).toContain('Playbook Snapshot');
-    expect(source).toContain('Launch overview');
-    expect(source).toContain('Jump to section');
+    expect(source).toContain('max-w-[88rem]');
+    expect(source).toContain('Workflow Launch');
+    expect(source).toContain('Workflow Basics');
+    expect(source).toContain('Workflow Structure');
     expect(source).toContain('LaunchReadinessPanel');
     expect(source).toContain('LaunchDefinitionSnapshot');
-    expect(source).toContain('LaunchOverviewCards');
-    expect(source).toContain('LaunchOutlineCard');
     expect(source).toContain('launchablePlaybooks');
     expect(source).toContain('Archived revision selected - restore first');
     expect(source).toContain(
@@ -92,7 +87,15 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('metadataError');
     expect(source).toContain('launchValidation.fieldErrors.workflowName');
     expect(source).toContain('All required launch inputs are present.');
+    expect(source).toContain('Description is operator-facing catalog copy only.');
+    expect(source).toContain('Launch Workflow');
     expect(source).not.toContain('Reasoning Config JSON');
+    expect(source).not.toContain('Launch overview');
+    expect(source).not.toContain('Jump to section');
+    expect(source).not.toContain('sticky bottom-4');
+    expect(source).not.toContain('Launch Run');
+    expect(source).not.toContain('Run Configuration');
+    expect(source).not.toContain('Run Identity');
   });
 
   it('assembles the existing workflow create contract from structured launch state', () => {

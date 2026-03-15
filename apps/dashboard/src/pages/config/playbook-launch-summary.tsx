@@ -34,13 +34,13 @@ export function PlaybookSummaryCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Launch Summary</CardTitle>
+        <CardTitle>Selected Playbook</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {props.isLoading ? <p className="text-sm text-muted">Loading playbook details...</p> : null}
         {!props.isLoading && !props.playbook ? (
           <p className="text-sm text-muted">
-            Select a playbook to review its lifecycle and board shape.
+            Select a playbook to review its workflow shape before launch.
           </p>
         ) : null}
         {props.playbook ? (
@@ -83,6 +83,10 @@ function PlaybookSummaryBody(props: {
         <p className="text-sm text-muted">
           {props.playbook.description ?? 'No operator description provided.'}
         </p>
+        <p className="text-xs text-muted">
+          Description is operator-facing catalog copy only. Execution guidance comes from the
+          playbook definition.
+        </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Badge variant="secondary">{props.playbook.lifecycle}</Badge>
@@ -99,14 +103,14 @@ function PlaybookSummaryBody(props: {
       ) : null}
       {props.launchDefinition.stageNames.length > 0 ? (
         <SummaryList
-          title="Live Stages"
+          title="Workflow stages"
           values={props.launchDefinition.stageNames}
           emptyMessage="No stages defined."
         />
       ) : null}
       {props.launchDefinition.boardColumns.length > 0 ? (
         <SummaryList
-          title="Board Columns"
+          title="Board columns"
           values={props.launchDefinition.boardColumns.map((column) => column.label)}
           emptyMessage="No board columns defined."
         />
