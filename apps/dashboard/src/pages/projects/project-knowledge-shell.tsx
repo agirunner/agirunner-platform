@@ -75,7 +75,7 @@ export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.El
 
   return (
     <div className="space-y-4">
-      <section className="space-y-3 rounded-xl border border-border/70 bg-background/70 p-4">
+      <section className="space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="space-y-1">
             <h2 className="text-sm font-semibold text-foreground">Knowledge</h2>

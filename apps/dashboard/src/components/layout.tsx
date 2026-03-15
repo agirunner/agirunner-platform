@@ -508,7 +508,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     return (
       <>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-lg font-semibold">Agirunner</span>
+          <span className="text-lg font-semibold">AGI Runner</span>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -563,9 +563,6 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         </nav>
 
         <div className="border-t border-border p-3">
-          <div className="mb-2 text-xs text-muted">
-            {session?.tenantId ? `Tenant ${session.tenantId.slice(0, 8)}...` : ''}
-          </div>
           <button
             type="button"
             className={cn(
@@ -596,7 +593,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         >
           <Menu size={20} />
         </button>
-        <span className="text-sm font-semibold">Agirunner</span>
+        <span className="text-sm font-semibold">AGI Runner</span>
         <button
           ref={mobileSearchButtonRef}
           type="button"

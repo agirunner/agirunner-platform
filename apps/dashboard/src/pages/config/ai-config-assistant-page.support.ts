@@ -229,7 +229,7 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
     normalized.startsWith('model.') ||
     normalized.startsWith('provider.')
   ) {
-    return { href: '/config/llm', label: 'Open LLM settings' };
+    return { href: '/config/llm', label: 'Open LLM Providers' };
   }
   if (normalized.startsWith('playbook.') || normalized.startsWith('workflow.')) {
     return { href: '/config/playbooks', label: 'Open playbooks' };

@@ -171,7 +171,7 @@ export function RoleModelAssignmentSection(props: {
         <p className="text-xs text-muted">
           {props.error
             ? `Model catalog unavailable: ${props.error}.`
-            : 'Syncs with LLM Providers page. Workflow and project overrides can supersede.'}
+            : 'Syncs with LLM Providers. Workflow and project overrides can supersede.'}
         </p>
       </CardContent>
     </Card>

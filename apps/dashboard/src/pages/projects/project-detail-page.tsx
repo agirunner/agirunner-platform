@@ -17,7 +17,6 @@ import { ProjectDeliveryHistory } from './project-delivery-history.js';
 import { ProjectDetailShell } from './project-detail-shell.js';
 import { ProjectKnowledgeTab } from './project-knowledge-tab.js';
 import { ProjectOverviewShell } from './project-overview-shell.js';
-import { ProjectSettingsShell } from './project-settings-shell.js';
 import { ProjectSettingsTab } from './project-settings-tab.js';
 
 export function ProjectDetailPage(): JSX.Element {
@@ -75,9 +74,7 @@ export function ProjectDetailPage(): JSX.Element {
       onTabChange={handleTabChange}
       overviewContent={<ProjectOverviewShell project={project} overview={projectOverview} />}
       settingsContent={
-        <ProjectSettingsShell project={project} overview={settingsOverview}>
-          <ProjectSettingsTab project={project} />
-        </ProjectSettingsShell>
+        <ProjectSettingsTab project={project} overview={settingsOverview} />
       }
       knowledgeContent={<ProjectKnowledgeTab projectId={project.id} overview={knowledgeOverview} />}
       automationContent={<ProjectAutomationTab project={project} />}

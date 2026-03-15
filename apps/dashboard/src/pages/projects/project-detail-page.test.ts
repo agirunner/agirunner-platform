@@ -87,17 +87,22 @@ describe('project detail workspace shell source', () => {
     const source = readSource('./project-detail-page.tsx');
     const supportSource = readSource('./project-detail-support.ts');
     const settingsShellSource = readSource('./project-settings-shell.tsx');
-    expect(source).toContain('<ProjectSettingsShell');
+    const settingsTabSource = readSource('./project-settings-tab.tsx');
     expect(source).toContain('buildProjectSettingsOverview(project)');
-    expect(source).toContain('<ProjectSettingsTab project={project} />');
+    expect(source).toContain('<ProjectSettingsTab project={project} overview={settingsOverview} />');
+    expect(source).not.toContain('<ProjectSettingsShell');
     expect(settingsShellSource).toContain('Settings Control Plane');
     expect(settingsShellSource).toContain('props.overview.summary');
+    expect(settingsShellSource).toContain('props.headerAction');
     expect(settingsShellSource).not.toContain('WorkspaceMetricCard');
     expect(settingsShellSource).not.toContain('props.overview.packets.map');
     expect(supportSource).toContain('Stored settings');
     expect(supportSource).toContain('Repository link');
     expect(supportSource).not.toContain('Repository trust');
     expect(settingsShellSource).not.toContain('Project Context');
+    expect(settingsTabSource).toContain('<ProjectSettingsShell');
+    expect(settingsTabSource).toContain('headerAction=');
+    expect(settingsTabSource).toContain('<Save className="h-4 w-4" />');
   });
 
   it('nests project context and simplified knowledge editing under the knowledge shell instead of a top-level spec tab', () => {

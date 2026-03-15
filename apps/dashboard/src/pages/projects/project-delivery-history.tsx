@@ -1,7 +1,7 @@
 import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent } from '../../components/ui/card.js';
 
-export function ProjectDeliveryHistory({ projectId }: { projectId: string }): JSX.Element {
+export function ProjectDeliveryHistory({ projectId: _projectId }: { projectId: string }): JSX.Element {
   return (
     <Card className="border-border/70 bg-card/80 shadow-none">
       <CardContent className="grid gap-5 p-6 sm:p-8">
@@ -19,9 +19,6 @@ export function ProjectDeliveryHistory({ projectId }: { projectId: string }): JS
               board delivery experience is rebuilt around the V2 operating model.
             </p>
           </div>
-        </div>
-        <div className="rounded-2xl border border-border/70 bg-background/60 p-4 text-sm leading-7 text-muted">
-          Project ID: <span className="font-medium text-foreground">{projectId}</span>
         </div>
       </CardContent>
     </Card>

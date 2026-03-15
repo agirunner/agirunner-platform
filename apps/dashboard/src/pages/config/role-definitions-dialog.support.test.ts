@@ -37,7 +37,7 @@ describe('role dialog support', () => {
       }),
     ).toEqual({
       toolSummary: '1 tool enabled',
-      modelSummary: 'Model assigned via LLM Providers page',
+      modelSummary: 'Model assigned via LLM Providers',
     });
   });
 });

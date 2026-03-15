@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Save } from 'lucide-react';
 
 import type { DashboardProjectRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -20,6 +20,8 @@ import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
 import { DeleteProjectDialog } from './project-list-page.dialogs.js';
+import type { ProjectWorkspaceOverview } from './project-detail-support.js';
+import { ProjectSettingsShell } from './project-settings-shell.js';
 import {
   buildProjectSecretPostureSummary,
   buildProjectSettingsPatch,
@@ -39,21 +41,25 @@ const SECRET_MODE_OPTIONS: Array<{ value: ProjectSecretMode; label: string }> = 
 
 type SettingsSectionKey = 'basics' | 'repository' | 'danger';
 
-export function ProjectSettingsTab({ project }: { project: DashboardProjectRecord }): JSX.Element {
+export function ProjectSettingsTab(props: {
+  project: DashboardProjectRecord;
+  overview: ProjectWorkspaceOverview;
+}): JSX.Element {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState(() => createProjectSettingsDraft(project));
+  const [draft, setDraft] = useState(() => createProjectSettingsDraft(props.project));
   const [showDelete, setShowDelete] = useState(false);
   const [isGitTokenExpanded, setGitTokenExpanded] = useState(false);
   const [expandedSection, setExpandedSection] = useState<SettingsSectionKey | null>(null);
   const validation = validateProjectSettingsDraft(draft);
-  const surfaceSummary = buildProjectSettingsSurfaceSummary(project, draft, validation);
+  const surfaceSummary = buildProjectSettingsSurfaceSummary(props.project, draft, validation);
   const mutation = useMutation({
-    mutationFn: () => dashboardApi.patchProject(project.id, buildProjectSettingsPatch(project, draft)),
+    mutationFn: () =>
+      dashboardApi.patchProject(props.project.id, buildProjectSettingsPatch(props.project, draft)),
     onSuccess: async (updatedProject) => {
       setDraft(createProjectSettingsDraft(updatedProject));
       setGitTokenExpanded(false);
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['project', project.id] }),
+        queryClient.invalidateQueries({ queryKey: ['project', props.project.id] }),
         queryClient.invalidateQueries({ queryKey: ['projects'] }),
       ]);
       toast.success('Project settings saved.');
@@ -69,33 +75,37 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
 
   return (
     <>
-      <div className="space-y-3">
+      <ProjectSettingsShell
+        project={props.project}
+        overview={props.overview}
+        headerAction={
+          <Button
+            size="sm"
+            disabled={!validation.isValid || mutation.isPending}
+            onClick={() => mutation.mutate()}
+          >
+            <Save className="h-4 w-4" />
+            Save settings
+          </Button>
+        }
+      >
       <Card className="border-border/70 shadow-none">
         <CardContent className="space-y-3 p-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge variant="outline">{surfaceSummary.lifecycleLabel}</Badge>
-                <Badge variant="outline">{surfaceSummary.repositoryLabel}</Badge>
-                {surfaceSummary.blockingIssueCount > 0 ? (
-                  <Badge variant="warning">
-                    {surfaceSummary.blockingIssueCount}{' '}
-                    {surfaceSummary.blockingIssueCount === 1 ? 'blocker' : 'blockers'}
-                  </Badge>
-                ) : null}
-              </div>
-              <p className="text-sm leading-6 text-muted">
-                Open only the section you need. Repository configuration stays optional for projects
-                without source control.
-              </p>
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{surfaceSummary.lifecycleLabel}</Badge>
+              <Badge variant="outline">{surfaceSummary.repositoryLabel}</Badge>
+              {surfaceSummary.blockingIssueCount > 0 ? (
+                <Badge variant="warning">
+                  {surfaceSummary.blockingIssueCount}{' '}
+                  {surfaceSummary.blockingIssueCount === 1 ? 'blocker' : 'blockers'}
+                </Badge>
+              ) : null}
             </div>
-            <Button
-              className="w-full sm:w-auto"
-              disabled={!validation.isValid || mutation.isPending}
-              onClick={() => mutation.mutate()}
-            >
-              Save settings
-            </Button>
+            <p className="text-sm leading-6 text-muted">
+              Open only the section you need. Repository configuration stays optional for projects
+              without source control.
+            </p>
           </div>
 
           {surfaceSummary.blockingIssueCount > 0 ? (
@@ -230,9 +240,9 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
           </Button>
         </div>
       </SettingsDisclosureSection>
-      </div>
+      </ProjectSettingsShell>
       {showDelete ? (
-        <DeleteProjectDialog project={project} onClose={() => setShowDelete(false)} />
+        <DeleteProjectDialog project={props.project} onClose={() => setShowDelete(false)} />
       ) : null}
     </>
   );
