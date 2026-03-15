@@ -105,7 +105,7 @@ export function PlaybookFamilyCard(props: {
     family.process.processInstructions || 'Open the playbook to define process instructions.';
 
   return (
-    <Card className="border-border/70 shadow-sm">
+    <Card className="flex h-[340px] flex-col border-border/70 shadow-sm">
       <CardHeader className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -137,10 +137,10 @@ export function PlaybookFamilyCard(props: {
           </span>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="flex flex-1 flex-col space-y-4 overflow-hidden">
         <div className="rounded-xl border border-border/70 bg-muted/15 p-3 text-sm">
           <div className="font-medium">Outcome</div>
-          <div className="mt-1 text-muted">{family.outcome}</div>
+          <div className="mt-1 line-clamp-2 text-muted">{family.outcome}</div>
         </div>
         <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm">
           <div className="font-medium">Process</div>
@@ -152,7 +152,7 @@ export function PlaybookFamilyCard(props: {
             workflow.
           </div>
         ) : null}
-        <div className="flex flex-wrap gap-2">
+        <div className="mt-auto flex flex-wrap gap-2">
           <Button asChild variant="outline" size="sm">
             <Link to={`/config/playbooks/${playbook.id}`}>
               <Settings2 className="h-4 w-4" />
