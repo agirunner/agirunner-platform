@@ -147,11 +147,9 @@ describe('project detail workspace shell source', () => {
     const knowledgeTabSource = readSource('./project-knowledge-tab.tsx');
     const memorySource = readSource('./project-detail-memory-tab.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
-    const contentSource = readSource('./content-browser-page.tsx');
+    const artifactSource = readSource('./project-artifact-files-panel.tsx');
     expect(knowledgeTabSource).toContain('<ProjectDetailMemoryTab');
-    expect(knowledgeTabSource).toContain(
-      '<ContentBrowserSurface\n            scopedProjectId={props.projectId}',
-    );
+    expect(knowledgeTabSource).toContain('<ProjectArtifactFilesPanel projectId={props.projectId} />');
     expect(source).not.toContain('<ProjectArtifactExplorerPanel projectId={project.id} />');
     expect(knowledgeSource).not.toContain('Open documents');
     expect(knowledgeSource).not.toContain('Open memory explorer');
@@ -164,8 +162,9 @@ describe('project detail workspace shell source', () => {
     expect(memorySource).toContain("allowedTypes={['string', 'json']}");
     expect(memorySource).toContain('Memory is for evolving notes and learned state.');
     expect(memorySource).toContain('Existing memory entries stay editable here and save with the rest of the Knowledge tab.');
-    expect(contentSource).toContain('Document Operator Controls');
-    expect(contentSource).toContain('Artifact Operator Controls');
+    expect(artifactSource).toContain('Upload project artifacts');
+    expect(artifactSource).toContain('Add files');
+    expect(artifactSource).toContain('Delete file');
   });
 
   it('replaces the old artifacts tab with overview and knowledge-only run-content actions', () => {

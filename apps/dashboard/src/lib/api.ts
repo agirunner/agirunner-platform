@@ -126,6 +126,26 @@ export interface DashboardProjectCredentialPosture {
   webhook_secret_configured?: boolean;
 }
 
+export interface DashboardProjectArtifactFileRecord {
+  id: string;
+  project_id: string;
+  key: string;
+  description?: string | null;
+  file_name: string;
+  content_type: string;
+  size_bytes: number;
+  created_at: string;
+  download_url: string;
+}
+
+export interface DashboardProjectArtifactFileUploadInput {
+  key?: string;
+  description?: string;
+  file_name: string;
+  content_base64: string;
+  content_type?: string;
+}
+
 export interface DashboardProjectCredentialInput {
   git_token?: string | null;
   git_token_configured?: boolean;
@@ -1450,6 +1470,12 @@ export interface DashboardApi {
     projectId: string,
     filters?: Record<string, string>,
   ): Promise<DashboardProjectArtifactResponse>;
+  listProjectArtifactFiles(projectId: string): Promise<DashboardProjectArtifactFileRecord[]>;
+  uploadProjectArtifactFiles(
+    projectId: string,
+    payload: DashboardProjectArtifactFileUploadInput[],
+  ): Promise<DashboardProjectArtifactFileRecord[]>;
+  deleteProjectArtifactFile(projectId: string, fileId: string): Promise<void>;
   updateProjectSpec(
     projectId: string,
     payload: Record<string, unknown>,
@@ -2620,6 +2646,28 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           },
         ),
       ),
+    listProjectArtifactFiles: (projectId) =>
+      withRefresh(() =>
+        requestData<DashboardProjectArtifactFileRecord[]>(`/api/v1/projects/${projectId}/files`, {
+          method: 'GET',
+        }),
+      ),
+    uploadProjectArtifactFiles: (projectId, payload) =>
+      withRefresh(() =>
+        requestData<DashboardProjectArtifactFileRecord[]>(
+          `/api/v1/projects/${projectId}/files/batch`,
+          {
+            body: { files: payload as unknown as Record<string, unknown>[] },
+          },
+        ),
+      ),
+    deleteProjectArtifactFile: (projectId, fileId) =>
+      withRefresh(async () => {
+        await requestJson(`/api/v1/projects/${projectId}/files/${fileId}`, {
+          method: 'DELETE',
+          allowNoContent: true,
+        });
+      }),
     createPlanningWorkflow: (projectId, payload) =>
       withRefresh(() =>
         requestJson(`/api/v1/projects/${projectId}/planning-workflow`, {

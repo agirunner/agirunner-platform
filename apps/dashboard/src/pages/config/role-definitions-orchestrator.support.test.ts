@@ -50,7 +50,7 @@ describe('role definitions orchestrator support', () => {
       ]),
     ).toEqual({
       modelLabel: 'gpt-5.4 (OpenAI (Subscription))',
-      reasoningLabel: 'effort: medium',
+      reasoningLabel: 'Reasoning: medium',
       sourceLabel: 'Orchestrator override',
     });
   });
@@ -168,7 +168,7 @@ describe('role definitions orchestrator support', () => {
         },
         {
           modelLabel: 'gpt-5.4 (OpenAI)',
-          reasoningLabel: 'effort: medium',
+          reasoningLabel: 'Reasoning: medium',
           sourceLabel: 'System default',
         },
         {
@@ -198,7 +198,7 @@ describe('role definitions orchestrator support', () => {
         },
         {
           modelLabel: 'gpt-5.4 (OpenAI)',
-          reasoningLabel: 'effort: medium',
+          reasoningLabel: 'Reasoning: medium',
           sourceLabel: 'System default',
         },
         {
