@@ -352,6 +352,7 @@ export function WebhookTriggerEditorDialog(props: {
   trigger?: DashboardWebhookWorkItemTriggerRecord | null;
   open: boolean;
   defaultProjectId?: string;
+  projectScoped?: boolean;
   projects: DashboardProjectRecord[];
   workflows: DashboardWorkflowRecord[];
   isPending: boolean;
@@ -360,19 +361,23 @@ export function WebhookTriggerEditorDialog(props: {
   onSubmit(payload: ReturnType<typeof buildWebhookTriggerCreatePayload> | ReturnType<typeof buildWebhookTriggerUpdatePayload>): void;
 }): JSX.Element {
   const [form, setForm] = useState<WebhookTriggerFormState>(createWebhookTriggerFormState());
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   useEffect(() => {
     if (!props.open) return;
     if (props.trigger) {
-      setForm(hydrateWebhookTriggerForm(props.trigger));
+      const hydrated = hydrateWebhookTriggerForm(props.trigger);
+      setForm(hydrated);
+      setShowAdvanced(props.projectScoped ? hasAdvancedWebhookConfig(hydrated) : true);
     } else {
       const initial = createWebhookTriggerFormState();
       if (props.defaultProjectId) {
         initial.projectId = props.defaultProjectId;
       }
       setForm(initial);
+      setShowAdvanced(!props.projectScoped);
     }
-  }, [props.trigger, props.open, props.defaultProjectId]);
+  }, [props.trigger, props.open, props.defaultProjectId, props.projectScoped]);
 
   const isCreate = props.mode === 'create';
   const validation = validateWebhookTriggerForm(form, props.mode);
@@ -391,7 +396,9 @@ export function WebhookTriggerEditorDialog(props: {
         <DialogHeader>
           <DialogTitle>{isCreate ? 'Create webhook trigger' : 'Edit webhook trigger'}</DialogTitle>
           <DialogDescription>
-            Configure an inbound webhook rule that creates work items from external events.
+            {props.projectScoped
+              ? 'Configure a project-scoped inbound webhook that creates work items from external events.'
+              : 'Configure an inbound webhook rule that creates work items from external events.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -451,17 +458,19 @@ export function WebhookTriggerEditorDialog(props: {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            <ConfigSelectField
-              fieldId="webhook-trigger-project-scope"
-              label="Project scope"
-              value={form.projectId || '__none__'}
-              description="Leave this unscoped to accept events for any project, or pin the trigger to one project."
-              options={[
-                { value: '__none__', label: 'Unscoped' },
-                ...props.projects.map((project) => ({ value: project.id, label: project.name })),
-              ]}
-              onValueChange={(value) => update('projectId', value === '__none__' ? '' : value)}
-            />
+            {props.projectScoped ? null : (
+              <ConfigSelectField
+                fieldId="webhook-trigger-project-scope"
+                label="Project scope"
+                value={form.projectId || '__none__'}
+                description="Leave this unscoped to accept events for any project, or pin the trigger to one project."
+                options={[
+                  { value: '__none__', label: 'Unscoped' },
+                  ...props.projects.map((project) => ({ value: project.id, label: project.name })),
+                ]}
+                onValueChange={(value) => update('projectId', value === '__none__' ? '' : value)}
+              />
+            )}
             <ConfigSelectField
               fieldId="webhook-trigger-workflow"
               label="Target workflow"
@@ -550,31 +559,54 @@ export function WebhookTriggerEditorDialog(props: {
             />
           </div>
 
-          <ConfigTextAreaField
-            fieldId="webhook-trigger-field-mappings"
-            label="Field mappings (JSON)"
-            description="Use a JSON object that maps incoming payload fields into work-item fields."
-            error={validation.fieldErrors['fieldMappings']}
-            textAreaProps={{
-              rows: 4,
-              className: 'font-mono text-xs',
-              value: form.fieldMappings,
-              onChange: (event) => update('fieldMappings', event.target.value),
-            }}
-          />
+          <section className="rounded-xl border border-border/70 bg-background/70 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">Advanced mapping</h3>
+                <p className="text-sm leading-6 text-muted">
+                  Open this only when the source payload needs JSON mapping rules or default fallback values.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAdvanced((current) => !current)}
+              >
+                {showAdvanced ? 'Hide advanced mapping' : 'Open advanced mapping'}
+              </Button>
+            </div>
 
-          <ConfigTextAreaField
-            fieldId="webhook-trigger-defaults"
-            label="Defaults (JSON)"
-            description="Use a JSON object for fallback work-item values when the incoming payload omits them."
-            error={validation.fieldErrors['defaults']}
-            textAreaProps={{
-              rows: 4,
-              className: 'font-mono text-xs',
-              value: form.defaults,
-              onChange: (event) => update('defaults', event.target.value),
-            }}
-          />
+            {showAdvanced ? (
+              <div className="mt-4 space-y-4">
+                <ConfigTextAreaField
+                  fieldId="webhook-trigger-field-mappings"
+                  label="Field mappings (JSON)"
+                  description="Use a JSON object that maps incoming payload fields into work-item fields."
+                  error={validation.fieldErrors['fieldMappings']}
+                  textAreaProps={{
+                    rows: 4,
+                    className: 'font-mono text-xs',
+                    value: form.fieldMappings,
+                    onChange: (event) => update('fieldMappings', event.target.value),
+                  }}
+                />
+
+                <ConfigTextAreaField
+                  fieldId="webhook-trigger-defaults"
+                  label="Defaults (JSON)"
+                  description="Use a JSON object for fallback work-item values when the incoming payload omits them."
+                  error={validation.fieldErrors['defaults']}
+                  textAreaProps={{
+                    rows: 4,
+                    className: 'font-mono text-xs',
+                    value: form.defaults,
+                    onChange: (event) => update('defaults', event.target.value),
+                  }}
+                />
+              </div>
+            ) : null}
+          </section>
 
           <ConfigToggleField
             label="Trigger status"
@@ -596,6 +628,10 @@ export function WebhookTriggerEditorDialog(props: {
       </DialogContent>
     </Dialog>
   );
+}
+
+function hasAdvancedWebhookConfig(form: WebhookTriggerFormState): boolean {
+  return form.fieldMappings.trim() !== '{}' || form.defaults.trim() !== '{}';
 }
 
 export function WebhookTriggerDeleteDialog(props: {

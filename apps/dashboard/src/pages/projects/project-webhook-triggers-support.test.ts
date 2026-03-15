@@ -6,6 +6,7 @@ describe('project webhook triggers support', () => {
   it('returns empty-state overview when no triggers exist', () => {
     const overview = buildWebhookTriggerOverview([]);
     expect(overview.heading).toBe('No webhook triggers are configured yet');
+    expect(overview.summary).toContain('first inbound hook');
     expect(overview.packets).toHaveLength(3);
     expect(overview.packets[0]).toMatchObject({
       label: 'Webhook coverage',

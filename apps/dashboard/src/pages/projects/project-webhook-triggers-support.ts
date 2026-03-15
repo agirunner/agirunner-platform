@@ -26,9 +26,9 @@ export function buildWebhookTriggerOverview(
     return {
       heading: 'No webhook triggers are configured yet',
       summary:
-        'Inbound webhook automation is empty for this project. Add the first webhook trigger to start receiving external events as work items.',
+        'Inbound webhook automation is empty for this project. Add the first inbound hook when external events should create project work.',
       nextAction:
-        'Create the first webhook trigger, choose the target workflow, and configure the source signature before you leave this project.',
+        'Create the first inbound hook, choose the target workflow, and only configure git signatures if this project should trust repository events.',
       packets: [
         {
           label: 'Webhook coverage',

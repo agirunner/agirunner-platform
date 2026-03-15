@@ -7,6 +7,7 @@ function readSource() {
     './project-automation-tab.tsx',
     './project-scheduled-triggers-card.tsx',
     './project-webhook-triggers-card.tsx',
+    './project-git-webhook-signatures-card.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');

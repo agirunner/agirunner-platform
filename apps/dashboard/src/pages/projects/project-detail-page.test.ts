@@ -33,6 +33,8 @@ describe('project detail workspace shell source', () => {
     const automationSource = [
       readSource('./project-automation-tab.tsx'),
       readSource('./project-automation-tab.support.ts'),
+      readSource('./project-webhook-triggers-card.tsx'),
+      readSource('./project-git-webhook-signatures-card.tsx'),
     ].join('\n');
     expect(supportSource).toContain("value: 'automation'");
     expect(source).toContain('<ProjectAutomationTab project={project} />');
@@ -50,9 +52,13 @@ describe('project detail workspace shell source', () => {
   });
 
   it('keeps git webhook management inside the project automation surface', () => {
-    const automationSource = readSource('./project-automation-tab.tsx');
-    expect(automationSource).toContain('<GitWebhookTab project={project} />');
-    expect(automationSource).toContain('Repository webhook signatures');
+    const automationSource = [
+      readSource('./project-automation-tab.tsx'),
+      readSource('./project-webhook-triggers-card.tsx'),
+      readSource('./project-git-webhook-signatures-card.tsx'),
+    ].join('\n');
+    expect(automationSource).toContain('<ProjectGitWebhookSignaturesCard project={project} compact />');
+    expect(automationSource).toContain('Git provider signatures');
   });
 
   it('relabels scheduled trigger targeting around workflows and removes operator-only schedule internals', () => {

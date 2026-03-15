@@ -36,6 +36,7 @@ describe('project webhook triggers card source', () => {
   it('pre-scopes the editor to the owning project via defaultProjectId', () => {
     const source = readSource();
     expect(source).toContain('defaultProjectId={project.id}');
+    expect(source).toContain('projectScoped');
   });
 
   it('provides toggle enable/disable for individual triggers', () => {

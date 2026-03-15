@@ -24,6 +24,7 @@ import {
   describeWebhookTriggerActivity,
   describeWebhookTriggerPacket,
 } from '../config/work-item-triggers-page.support.js';
+import { ProjectGitWebhookSignaturesCard } from './project-git-webhook-signatures-card.js';
 import { buildWebhookTriggerOverview } from './project-webhook-triggers-support.js';
 
 type EditorTarget = 'create' | DashboardWebhookWorkItemTriggerRecord;
@@ -201,6 +202,7 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
           trigger={editorTrigger}
           open={editorTarget !== null}
           defaultProjectId={project.id}
+          projectScoped
           projects={[project]}
           workflows={workflows}
           isPending={createMutation.isPending || updateMutation.isPending}
@@ -224,6 +226,8 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
           workflows={workflows}
           onOpenChange={(open) => { if (!open) setInspectTarget(null); }}
         />
+
+        <ProjectGitWebhookSignaturesCard project={project} compact />
       </CardContent>
     </Card>
   );
@@ -253,7 +257,7 @@ function EmptyState({ onCreateClick }: { onCreateClick(): void }): JSX.Element {
       <div className="space-y-1">
         <p className="font-medium">No webhook triggers for this project</p>
         <p className="text-sm text-muted">
-          Create a webhook trigger to start receiving external events as work items.
+          Add the first inbound hook when this project should turn external events into workflow work.
         </p>
       </div>
       <Button size="sm" variant="outline" onClick={onCreateClick}>
