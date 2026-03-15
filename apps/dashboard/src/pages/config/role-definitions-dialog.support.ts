@@ -3,8 +3,6 @@ import type { RoleDefinition, RoleFormState } from './role-definitions-page.supp
 export interface RoleDialogValidation {
   fieldErrors: {
     name?: string;
-    modelPreference?: string;
-    fallbackModel?: string;
   };
   blockingIssues: string[];
   advisoryIssues: string[];
@@ -52,12 +50,6 @@ function buildFieldErrors(
     errors.name = 'Choose a unique role name.';
   }
 
-  if (!form.modelPreference && form.fallbackModel) {
-    errors.modelPreference = 'Choose a preferred model before setting a fallback.';
-  }
-  if (form.modelPreference && form.modelPreference === form.fallbackModel) {
-    errors.fallbackModel = 'Choose a fallback model that differs from the preferred model.';
-  }
   return errors;
 }
 

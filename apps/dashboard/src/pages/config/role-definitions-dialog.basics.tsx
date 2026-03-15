@@ -121,7 +121,7 @@ export function RoleModelAssignmentSection(props: {
   const providerNames = new Map(props.providers.map((p) => [p.id, p.name] as const));
 
   const reasoningValue = props.selectedModel?.reasoning_config
-    ? (props.reasoningConfig?.[props.selectedModel.reasoning_config.key] as string | number | null) ?? null
+    ? (props.reasoningConfig?.[props.selectedModel.reasoning_config.type] as string | number | null) ?? null
     : null;
 
   return (
