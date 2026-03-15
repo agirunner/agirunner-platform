@@ -51,7 +51,7 @@ export function buildOrchestratorPoolDraft(
     return {
       workerId: null,
       workerName: 'orchestrator-primary',
-      runtimeImage: '',
+      runtimeImage: 'agirunner-runtime:local',
       replicas: '1',
       enabled: true,
       modelId: ORCHESTRATOR_ASSIGNMENT_MODEL,
