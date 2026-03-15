@@ -60,7 +60,7 @@ export function RoleBasicsSection(props: {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="grid gap-4 md:grid-cols-2">
+      <CardContent className="grid gap-4">
         <label className="grid gap-2 text-sm">
           <span className="font-medium">Name</span>
           <Input
@@ -74,7 +74,7 @@ export function RoleBasicsSection(props: {
             <span className="text-xs text-red-600 dark:text-red-400">{props.validation.fieldErrors.name}</span>
           ) : null}
         </label>
-        <label className="grid gap-2 text-sm md:col-span-2">
+        <label className="grid gap-2 text-sm">
           <span className="font-medium">Description</span>
           <Input
             value={props.form.description}
@@ -84,7 +84,7 @@ export function RoleBasicsSection(props: {
             placeholder="What this role is responsible for."
           />
         </label>
-        <label className="grid gap-2 text-sm md:col-span-2">
+        <label className="grid gap-2 text-sm">
           <span className="font-medium">System prompt</span>
           <Textarea
             value={props.form.systemPrompt}
