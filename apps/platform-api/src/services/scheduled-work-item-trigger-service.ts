@@ -199,7 +199,7 @@ export class ScheduledWorkItemTriggerService {
       source: normalizedSource,
       project_id: scope.projectId,
       workflow_id: input.workflow_id,
-      schedule_type: scheduleType,
+      schedule_type: scheduleType as ScheduledTriggerScheduleType,
       cadence_minutes: scheduleType === 'interval' ? input.cadence_minutes ?? null : null,
       daily_time: dailyTime,
       timezone,
@@ -274,7 +274,7 @@ export class ScheduledWorkItemTriggerService {
 }
 
 function parseNextFireAt(value: string | undefined): Date {
-  const parsed = new Date(value);
+  const parsed = new Date(value ?? '');
   if (Number.isNaN(parsed.getTime())) {
     throw new ValidationError('next_fire_at must be a valid ISO-8601 timestamp');
   }
