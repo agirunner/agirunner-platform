@@ -29,6 +29,8 @@ const SKIP_PATHS = new Set([
   // Fleet event ingestion — container-manager reports every cycle
   '/api/v1/fleet/events',
   '/api/v1/fleet/workers/actual-state',
+  '/api/v1/fleet/workers/actual-state/prune',
+  '/api/v1/fleet/reconcile-snapshot',
   // Image inventory — container-manager scans and reports every cycle
   '/api/v1/fleet/images',
   // Queue depth polling and task claim polling

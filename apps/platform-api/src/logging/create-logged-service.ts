@@ -84,8 +84,10 @@ export function createLoggedService<T extends object>(
         try {
           const result = await (value as Function).apply(target, args);
 
-          // Skip logging for polling methods that return null (e.g. claimTask with no task available).
+          // Skip logging for polling/prune/batch methods that return no-op results.
           if (result === null || result === undefined) return result;
+          if (typeof result === 'number' && result === 0) return result;
+          if (Array.isArray(result) && result.length === 0) return result;
 
           const durationMs = Math.round(performance.now() - start);
           const context = resolveLogContext(result, args, config.nameField, config.entityType);
