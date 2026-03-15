@@ -142,7 +142,7 @@ export function PlaybookFamilyCard(props: {
           <div className="font-medium">Outcome</div>
           <div className="mt-1 line-clamp-2 text-muted">{family.outcome}</div>
         </div>
-        <div className="h-[104px] overflow-hidden rounded-xl border border-border/70 bg-background/60 p-3 text-sm">
+        <div className="h-[108px] overflow-hidden rounded-xl border border-border/70 bg-background/60 p-3 text-sm">
           <div className="font-medium">Process</div>
           <div className="mt-1 line-clamp-3 text-muted">{processSummary}</div>
         </div>
