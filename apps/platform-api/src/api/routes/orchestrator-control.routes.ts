@@ -9,6 +9,7 @@ import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { OrchestratorTaskMessageService } from '../../services/orchestrator-task-message-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
+import { HandoffService } from '../../services/handoff-service.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
@@ -185,6 +186,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     app.workerConnectionHub,
     { staleAfterMs: app.config.ORCHESTRATOR_TASK_MESSAGE_DELIVERY_STALE_AFTER_MS },
   );
+  const handoffService = new HandoffService(app.pgPool);
   const playbookControlService = new PlaybookWorkflowControlService({
     pool: app.pgPool,
     eventService: app.eventService,
@@ -266,6 +268,82 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           ),
       );
       return { data: stored };
+    },
+  );
+
+  app.get(
+    '/api/v1/orchestrator/tasks/:taskId/work-items/:workItemId/continuity',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; workItemId: string };
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const workItem = await app.workflowService.getWorkflowWorkItem(
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        params.workItemId,
+      );
+      return {
+        data: {
+          id: workItem.id,
+          stage_name: workItem.stage_name ?? null,
+          current_checkpoint: workItem.current_checkpoint ?? workItem.stage_name ?? null,
+          column_id: workItem.column_id ?? null,
+          owner_role: workItem.owner_role ?? null,
+          next_expected_actor: workItem.next_expected_actor ?? null,
+          next_expected_action: workItem.next_expected_action ?? null,
+          rework_count: workItem.rework_count ?? 0,
+          completed_at: workItem.completed_at ?? null,
+        },
+      };
+    },
+  );
+
+  app.get(
+    '/api/v1/orchestrator/tasks/:taskId/work-items/:workItemId/handoffs',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; workItemId: string };
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      await app.workflowService.getWorkflowWorkItem(
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        params.workItemId,
+      );
+      const data = await handoffService.listWorkItemHandoffs(
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        params.workItemId,
+      );
+      return { data };
+    },
+  );
+
+  app.get(
+    '/api/v1/orchestrator/tasks/:taskId/work-items/:workItemId/handoffs/latest',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; workItemId: string };
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      await app.workflowService.getWorkflowWorkItem(
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        params.workItemId,
+      );
+      const data = await handoffService.getLatestWorkItemHandoff(
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        params.workItemId,
+      );
+      return { data };
     },
   );
 
