@@ -179,8 +179,8 @@ export function PlaybookFamilyCard(props: {
             </div>
           </div>
         ) : null}
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button asChild variant="outline">
+        <div className="grid grid-cols-4 gap-2">
+          <Button asChild variant="outline" size="sm" className="w-full px-2">
             <Link to={`/config/playbooks/${playbook.id}`}>
               <Settings2 className="h-4 w-4" />
               Manage
@@ -189,6 +189,8 @@ export function PlaybookFamilyCard(props: {
           {isArchivedFamily ? (
             <Button
               variant="outline"
+              size="sm"
+              className="w-full px-2"
               onClick={() => props.onArchiveChange(false)}
               disabled={props.isArchiving}
             >
@@ -199,13 +201,15 @@ export function PlaybookFamilyCard(props: {
             <>
               <Button
                 variant="outline"
+                size="sm"
+                className="w-full px-2"
                 onClick={() => props.onArchiveChange(true)}
                 disabled={props.isArchiving}
               >
                 <Archive className="h-4 w-4" />
                 Archive
               </Button>
-              <Button asChild>
+              <Button asChild size="sm" className="w-full px-2">
                 <Link to={`/config/playbooks/${playbook.id}/launch`}>
                   <Rocket className="h-4 w-4" />
                   Launch
@@ -213,7 +217,13 @@ export function PlaybookFamilyCard(props: {
               </Button>
             </>
           )}
-          <Button variant="outline" onClick={props.onRequestDelete} disabled={props.isDeleting}>
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full px-2"
+            onClick={props.onRequestDelete}
+            disabled={props.isDeleting}
+          >
             <Trash2 className="h-4 w-4" />
             Delete
           </Button>
