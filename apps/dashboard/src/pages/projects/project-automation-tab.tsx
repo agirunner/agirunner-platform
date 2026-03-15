@@ -24,6 +24,7 @@ import { ScheduledTriggersCard } from './project-scheduled-triggers-card.js';
 import { WebhookTriggersCard } from './project-webhook-triggers-card.js';
 
 const GIT_PROVIDERS = ['github', 'gitea', 'gitlab'] as const;
+type GitProvider = (typeof GIT_PROVIDERS)[number];
 
 interface AutomationHeaderSignal {
   label: string;
@@ -154,7 +155,7 @@ function GitWebhookTab({ project }: { project: DashboardProjectRecord }): JSX.El
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-base font-semibold text-foreground">
               <Webhook className="h-4 w-4" />
-              Repository signatures
+              Repository webhook signatures
             </div>
             <p className="text-sm leading-6 text-muted">
               {buildGitSignatureSummary(project, hasRepository)}
@@ -334,6 +335,9 @@ function buildAutomationHeaderState(
   now: Date = new Date(),
 ): AutomationHeaderState {
   const hasRepository = Boolean(project.repository_url);
+  const hasGitInboundHooks = webhookTriggers.some((trigger) =>
+    isGitProviderSource(trigger.source),
+  );
   const activeSchedules = scheduledTriggers.filter((trigger) => trigger.is_active);
   const activeWebhookTriggers = webhookTriggers.filter((trigger) => trigger.is_active);
   const overdueSchedules = activeSchedules.filter(
@@ -378,10 +382,10 @@ function buildAutomationHeaderState(
       badgeVariant: 'success',
       summary: hasRepository
         ? `${formatCount(activeSchedules.length, 'schedule')} and ${formatCount(activeWebhookTriggers.length, 'inbound hook')} are currently feeding this project.`
-        : `${formatCount(activeSchedules.length, 'schedule')} and ${formatCount(activeWebhookTriggers.length, 'inbound hook')} are live. Repository signatures stay optional until source-driven automation is needed.`,
+        : `${formatCount(activeSchedules.length, 'schedule')} and ${formatCount(activeWebhookTriggers.length, 'inbound hook')} are live. Repository webhook signatures stay optional until this project accepts git-provider inbound hooks.`,
       nextAction: hasRepository
         ? 'Adjust cadence, hook routes, or repository trust only when the project workflow changes.'
-        : 'Keep schedules and inbound hooks aligned. Link a repository only when source-driven automation should create work.',
+        : 'Keep schedules and inbound hooks aligned. Link a repository only when this project should accept git-provider inbound hooks.',
       signals: [
         { label: 'Live', value: `${liveLaneCount} live`, tone: 'success' },
         { label: 'Attention', value: 'Clear', tone: 'success' },
@@ -397,12 +401,12 @@ function buildAutomationHeaderState(
   return {
     statusLabel: 'Automation ready',
     badgeVariant: 'secondary',
-    summary: hasRepository
+    summary: hasRepository && hasGitInboundHooks
       ? 'No schedules or inbound hooks are active yet. Open the lanes below when this project needs automation.'
-      : 'No schedules or inbound hooks are active yet. Repository signatures are optional until this project uses source-driven automation.',
-    nextAction: hasRepository
+      : 'No schedules or inbound hooks are active yet. Repository webhook signatures are optional unless this project should trust git-provider inbound hooks.',
+    nextAction: hasRepository && hasGitInboundHooks
       ? 'Start with a schedule or inbound hook, then open signatures only if repository trust changes.'
-      : 'Start with a schedule or inbound hook. Link a repository only if this project should accept source-driven automation.',
+      : 'Start with a schedule or inbound hook. Open repository signatures only when git-provider inbound hooks should be trusted.',
     signals: [
       { label: 'Live', value: 'No live lanes', tone: 'secondary' },
       { label: 'Attention', value: 'Clear', tone: 'success' },
@@ -436,12 +440,12 @@ function buildGitSignatureSummary(
   hasRepository: boolean,
 ): string {
   if (!hasRepository) {
-    return 'Repository signatures are optional until this project uses source-driven automation.';
+    return 'Repository webhook signatures are optional unless this project should trust git-provider inbound hooks.';
   }
   if (project.git_webhook_secret_configured) {
-    return 'Repository trust is configured. Open signatures only when the provider changes or credentials rotate.';
+    return 'Repository trust is configured for git-provider inbound hooks. Open signatures only when the provider changes or credentials rotate.';
   }
-  return 'Repository is linked. Open signatures when you are ready to finish provider and secret setup.';
+  return 'Repository is linked. Configure signatures only if this project should trust git-provider inbound hooks.';
 }
 
 function buildGitSignatureNextAction(
@@ -449,12 +453,16 @@ function buildGitSignatureNextAction(
   hasRepository: boolean,
 ): string {
   if (!hasRepository) {
-    return 'Link a repository only when this project should accept source-driven automation.';
+    return 'Leave this collapsed unless this project should trust git-provider inbound hooks.';
   }
   if (!project.git_webhook_provider || !project.git_webhook_secret_configured) {
-    return 'Open signatures to finish provider and secret setup before trusting repository events.';
+    return 'Open signatures to finish provider and secret setup before trusting git-provider inbound hooks.';
   }
   return 'Leave this collapsed unless the repository provider changes or the secret rotates.';
+}
+
+function isGitProviderSource(source: string | null | undefined): source is GitProvider {
+  return source === 'github' || source === 'gitea' || source === 'gitlab';
 }
 
 function automationSignalClassName(
