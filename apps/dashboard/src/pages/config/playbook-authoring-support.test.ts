@@ -15,6 +15,7 @@ describe('playbook authoring support', () => {
   it('builds a structured definition payload that matches the create playbook contract', () => {
     const draft = createDefaultAuthoringDraft('standard');
     draft.roles = [{ value: 'architect' }, { value: 'developer' }];
+    draft.entry_column_id = 'doing';
     draft.columns[0].description = 'New work waiting for orchestration';
     draft.stages[0].involves = 'architect,developer';
     draft.parameters = [{
@@ -46,6 +47,7 @@ describe('playbook authoring support', () => {
           lifecycle: 'standard',
           roles: ['architect', 'developer'],
           board: expect.objectContaining({
+            entry_column_id: 'doing',
             columns: expect.arrayContaining([
               expect.objectContaining({
                 id: 'inbox',
@@ -181,14 +183,21 @@ describe('playbook authoring support', () => {
       { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
       { id: 'inbox', label: 'Doing', description: '', is_blocked: false, is_terminal: false },
     ];
+    draft.entry_column_id = 'review';
 
-    expect(validateBoardColumnsDraft(draft.columns)).toEqual({
+    expect(validateBoardColumnsDraft(draft.columns, draft.entry_column_id)).toEqual({
       columnErrors: [
         { id: 'Add a stable column ID.', label: 'Add a column label.' },
         { id: 'Column IDs must be unique.', label: undefined },
         { id: 'Column IDs must be unique.', label: undefined },
       ],
-      blockingIssues: ['Add a stable column ID.', 'Add a column label.', 'Column IDs must be unique.'],
+      entryColumnError: 'Choose a valid intake column from this board.',
+      blockingIssues: [
+        'Add a stable column ID.',
+        'Add a column label.',
+        'Column IDs must be unique.',
+        'Choose a valid intake column from this board.',
+      ],
       isValid: false,
     });
   });
@@ -306,6 +315,7 @@ describe('playbook authoring support', () => {
           { id: 'triage', label: 'Triage', description: 'Incoming work' },
           { id: 'done', label: 'Done', is_terminal: true },
         ],
+        entry_column_id: 'triage',
       },
       stages: [
         {
@@ -345,6 +355,7 @@ describe('playbook authoring support', () => {
     expect(draft.columns[0]).toEqual(
       expect.objectContaining({ id: 'triage', label: 'Triage' }),
     );
+    expect(draft.entry_column_id).toBe('triage');
     expect(draft.stages[0]).toEqual(
       expect.objectContaining({ name: 'triage', involves: 'developer' }),
     );

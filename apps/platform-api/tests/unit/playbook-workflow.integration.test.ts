@@ -57,6 +57,14 @@ describe('playbook workflow integration', () => {
     harness = createV2Harness(db, { WORKFLOW_ACTIVATION_DELAY_MS: 0 });
     workflowChainingService = new WorkflowChainingService(db.pool, harness.workflowService);
     approvalQueueService = new ApprovalQueueService(db.pool);
+    await harness.roleDefinitionService.createRole(identity.tenantId, {
+      name: 'developer',
+      description: 'Implements playbook specialist tasks in integration tests.',
+      systemPrompt: 'You are a developer.',
+      allowedTools: [],
+      capabilities: ['coding'],
+      isActive: true,
+    });
   }, 120_000);
 
   afterAll(async () => {
@@ -77,8 +85,10 @@ describe('playbook workflow integration', () => {
         roles: ['developer'],
         lifecycle: 'continuous',
         board: {
+          entry_column_id: 'active',
           columns: [
             { id: 'planned', label: 'Planned' },
+            { id: 'active', label: 'Active' },
             { id: 'done', label: 'Done', is_terminal: true },
           ],
         },
@@ -101,6 +111,7 @@ describe('playbook workflow integration', () => {
     });
     expect(workItem.workflow_id).toBe(workflow.id);
     expect(workItem.stage_name).toBe('implementation');
+    expect(workItem.column_id).toBe('active');
 
     const loadedWorkItem = await harness.workflowService.getWorkflowWorkItem(
       identity.tenantId,
@@ -737,15 +748,21 @@ describe('playbook workflow integration', () => {
     expect(board.stage_summary).toEqual([
       expect.objectContaining({
         name: 'triage',
+        status: 'active',
+        gate_status: 'not_requested',
+        is_active: true,
         work_item_count: 1,
         open_work_item_count: 1,
         completed_count: 0,
       }),
       expect.objectContaining({
         name: 'implementation',
+        status: 'active',
+        gate_status: 'not_requested',
+        is_active: true,
         work_item_count: 4,
-        open_work_item_count: 2,
-        completed_count: 2,
+        open_work_item_count: 3,
+        completed_count: 1,
       }),
     ]);
     expect(board.active_stages).toEqual(['triage', 'implementation']);

@@ -52,6 +52,7 @@ export interface RuntimePoolDraft {
 export interface PlaybookAuthoringDraft {
   roles: RoleDraft[];
   columns: BoardColumnDraft[];
+  entry_column_id: string;
   stages: StageDraft[];
   parameters: ParameterDraft[];
   orchestrator: {
@@ -86,6 +87,7 @@ export interface BoardColumnValidationResult {
     id?: string;
     label?: string;
   }>;
+  entryColumnError?: string;
   blockingIssues: string[];
   isValid: boolean;
 }
@@ -114,6 +116,7 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
       { id: 'doing', label: 'Doing', description: '', is_blocked: false, is_terminal: false },
       { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
     ],
+    entry_column_id: 'inbox',
     stages:
       lifecycle === 'continuous'
         ? [
@@ -223,6 +226,7 @@ export function hydratePlaybookAuthoringDraft(
   return {
     roles: roles.length > 0 ? roles : fallback.roles,
     columns: columns.length > 0 ? columns : fallback.columns,
+    entry_column_id: readBoardEntryColumnId(record.board, columns, fallback.entry_column_id),
     stages: stages.length > 0 ? stages : fallback.stages,
     parameters,
     orchestrator: { ...fallback.orchestrator, ...orchestrator },
@@ -287,10 +291,11 @@ export function buildPlaybookDefinition(
       parameter.secret,
     );
 
-  const boardColumnValidation = validateBoardColumnsDraft(draft.columns);
+  const resolvedEntryColumnId = resolveEntryColumnId(draft.entry_column_id, columns);
+  const boardValidationWithEntry = validateBoardColumnsDraft(draft.columns, draft.entry_column_id);
 
-  if (boardColumnValidation.blockingIssues[0]) {
-    return { ok: false, error: boardColumnValidation.blockingIssues[0] };
+  if (boardValidationWithEntry.blockingIssues[0]) {
+    return { ok: false, error: boardValidationWithEntry.blockingIssues[0] };
   }
   if (columns.length === 0) {
     return { ok: false, error: 'At least one board column is required.' };
@@ -324,6 +329,7 @@ export function buildPlaybookDefinition(
     lifecycle,
     roles,
     board: {
+      entry_column_id: resolvedEntryColumnId,
       columns: columns.map((column) => compactRecord(column)),
     },
     stages: stages.map((stage) => compactRecord(stage)),
@@ -358,10 +364,12 @@ export function buildPlaybookDefinition(
 
 export function validateBoardColumnsDraft(
   columns: BoardColumnDraft[],
+  entryColumnId = '',
 ): BoardColumnValidationResult {
   if (columns.length === 0) {
     return {
       columnErrors: [],
+      entryColumnError: undefined,
       blockingIssues: ['At least one board column is required.'],
       isValid: false,
     };
@@ -377,17 +385,52 @@ export function validateBoardColumnsDraft(
   }));
   const blockingIssues = Array.from(
     new Set(
-      columnErrors.flatMap((column) =>
-        [column.id, column.label].filter((value): value is string => Boolean(value)),
-      ),
+      [
+        ...columnErrors.flatMap((column) =>
+          [column.id, column.label].filter((value): value is string => Boolean(value)),
+        ),
+        readEntryColumnError(columns, entryColumnId),
+      ].filter((value): value is string => Boolean(value)),
     ),
   );
+  const entryColumnError = readEntryColumnError(columns, entryColumnId);
 
   return {
     columnErrors,
+    entryColumnError,
     blockingIssues,
     isValid: blockingIssues.length === 0,
   };
+}
+
+function readEntryColumnError(columns: BoardColumnDraft[], entryColumnId: string): string | undefined {
+  const resolved = resolveEntryColumnId(entryColumnId, columns);
+  return resolved ? undefined : 'Choose a valid intake column from this board.';
+}
+
+function resolveEntryColumnId(
+  entryColumnId: string,
+  columns: Array<{ id: string }>,
+): string | undefined {
+  const trimmed = entryColumnId.trim();
+  if (trimmed && columns.some((column) => column.id.trim() === trimmed)) {
+    return trimmed;
+  }
+  return trimmed ? undefined : columns[0]?.id.trim() || undefined;
+}
+
+function readBoardEntryColumnId(
+  value: unknown,
+  columns: BoardColumnDraft[],
+  fallbackEntryColumnId: string,
+): string {
+  const board = asRecord(value);
+  const explicit = readString(board.entry_column_id);
+  return (
+    resolveEntryColumnId(explicit, columns) ??
+    resolveEntryColumnId(fallbackEntryColumnId, columns) ??
+    ''
+  );
 }
 
 export function validateParameterDrafts(

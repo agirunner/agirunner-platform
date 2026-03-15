@@ -42,6 +42,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
       ],
       roles: ['product-manager', 'architect'],
       board: {
+        entry_column_id: 'planned',
         columns: [
           { id: 'planned', label: 'Planned', description: 'Planning tasks that are queued.' },
           { id: 'active', label: 'In Progress', description: 'Planning work underway.' },
@@ -105,6 +106,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
       ],
       roles: ['product-manager', 'architect', 'developer', 'reviewer', 'qa'],
       board: {
+        entry_column_id: 'planned',
         columns: [
           {
             id: 'planned',

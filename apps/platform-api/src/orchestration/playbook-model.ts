@@ -38,6 +38,7 @@ const runtimeSchema = runtimePoolSchema.extend({
 const playbookDefinitionSchema = z.object({
   roles: z.array(z.string().min(1).max(120)).default([]),
   board: z.object({
+    entry_column_id: z.string().min(1).max(120).optional(),
     columns: z.array(boardColumnSchema).min(1),
   }),
   stages: z.array(stageSchema).default([]),
@@ -77,12 +78,13 @@ export function parsePlaybookDefinition(value: unknown): PlaybookDefinition {
   }
 
   assertUniqueIds(parsed.data.board.columns.map((column) => column.id), 'board column');
+  assertBoardEntryColumn(parsed.data);
   assertUniqueIds(parsed.data.stages.map((stage) => stage.name), 'stage');
   return parsed.data;
 }
 
 export function defaultColumnId(definition: PlaybookDefinition): string {
-  return definition.board.columns[0].id;
+  return definition.board.entry_column_id ?? definition.board.columns[0].id;
 }
 
 export function defaultStageName(definition: PlaybookDefinition): string | null {
@@ -140,6 +142,19 @@ function assertUniqueIds(values: string[], label: string): void {
       throw new SchemaValidationFailedError(`Duplicate ${label} '${value}' in playbook definition`);
     }
     seen.add(value);
+  }
+}
+
+function assertBoardEntryColumn(definition: PlaybookDefinition): void {
+  const entryColumnId = definition.board.entry_column_id;
+  if (!entryColumnId) {
+    return;
+  }
+  const exists = definition.board.columns.some((column) => column.id === entryColumnId);
+  if (!exists) {
+    throw new SchemaValidationFailedError(
+      `Unknown board entry column '${entryColumnId}' in playbook definition`,
+    );
   }
 }
 

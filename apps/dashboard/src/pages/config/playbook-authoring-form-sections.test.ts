@@ -29,6 +29,11 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain(
       'Labels should match the board language operators use in workflow views.',
     );
+    expect(source).toContain('Default intake column');
+    expect(source).toContain(
+      'Automation and manual intake land here unless a work item explicitly targets',
+    );
+    expect(source).toContain('another column.');
     expect(source).toContain('Blocked columns signal stalled work that needs intervention.');
     expect(source).toContain('Terminal columns mark end-state lanes such as done or cancelled.');
     expect(source).toContain('Column ${index + 1} of ${columnCount}');

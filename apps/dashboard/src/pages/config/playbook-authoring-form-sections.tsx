@@ -150,7 +150,10 @@ export function TeamRolesSection(
 
 export function BoardColumnsSection(props: SectionProps): JSX.Element {
   const columnCount = props.draft.columns.length;
-  const boardColumnValidation = validateBoardColumnsDraft(props.draft.columns);
+  const boardColumnValidation = validateBoardColumnsDraft(
+    props.draft.columns,
+    props.draft.entry_column_id,
+  );
   const columnDrag = useDraftDragReorder(props.draft.columns, (next) =>
     props.onChange((current) => ({ ...current, columns: next })),
   );
@@ -167,6 +170,48 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
             Resolve board-column blockers before save.
           </div>
         ) : null}
+        <LabeledField label="Default intake column">
+          <div className="space-y-1">
+            <Select
+              value={resolveBoardEntryColumnValue(props.draft)}
+              onValueChange={(value) =>
+                props.onChange((current) => ({
+                  ...current,
+                  entry_column_id: value === ENTRY_COLUMN_UNSET ? '' : value,
+                }))
+              }
+            >
+              <SelectTrigger
+                aria-invalid={boardColumnValidation.entryColumnError ? true : undefined}
+                className={
+                  boardColumnValidation.entryColumnError
+                    ? 'border-red-300 focus-visible:ring-red-500'
+                    : undefined
+                }
+              >
+                <SelectValue placeholder="Select the intake column" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ENTRY_COLUMN_UNSET}>Select the intake column</SelectItem>
+                {buildEntryColumnOptions(props.draft.columns).map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {boardColumnValidation.entryColumnError ? (
+              <p className="text-xs text-red-600 dark:text-red-400">
+                {boardColumnValidation.entryColumnError}
+              </p>
+            ) : (
+              <p className="text-xs text-muted">
+                Automation and manual intake land here unless a work item explicitly targets
+                another column.
+              </p>
+            )}
+          </div>
+        </LabeledField>
         {props.draft.columns.map((column, index) => {
           const dropTargetProps = columnDrag.getDropTargetProps(index);
           return (
@@ -1099,6 +1144,7 @@ function resolveStageTitle(
 }
 
 const PARAMETER_INPUT_STYLE_UNSET = '__unset__';
+const ENTRY_COLUMN_UNSET = '__unset__';
 const ROLE_SELECT_UNSET = '__unset__';
 
 const PARAMETER_INPUT_STYLE_OPTIONS: StructuredChoiceOption[] = [
@@ -1189,6 +1235,25 @@ function describeParameterMappingHint(
     return 'Repository parameters should map to non-secret project metadata.';
   }
   return 'Choose a known project value when possible. Use a custom path such as project.settings.knowledge.<key> when the standard mappings are not enough.';
+}
+
+function buildEntryColumnOptions(
+  columns: PlaybookAuthoringDraft['columns'],
+): StructuredChoiceOption[] {
+  return columns
+    .map((column) => ({
+      value: column.id.trim(),
+      label: column.label.trim() || column.id.trim(),
+    }))
+    .filter((option) => option.value.length > 0);
+}
+
+function resolveBoardEntryColumnValue(draft: PlaybookAuthoringDraft): string {
+  const current = draft.entry_column_id.trim();
+  if (current.length > 0) {
+    return current;
+  }
+  return buildEntryColumnOptions(draft.columns)[0]?.value ?? ENTRY_COLUMN_UNSET;
 }
 
 function resolveRoleSelectionValue(
