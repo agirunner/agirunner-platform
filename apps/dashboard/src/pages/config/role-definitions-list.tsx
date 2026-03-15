@@ -13,7 +13,6 @@ import {
 } from './role-definitions-page.support.js';
 import {
   canDeleteRole,
-  describeRoleLifecyclePolicy,
 } from './role-definitions-lifecycle.js';
 
 export function MetricCard(props: {
@@ -93,14 +92,10 @@ export function RoleRow(props: {
           </div>
         </TableCell>
         <TableCell>
-          <Badge variant="outline">{props.role.capabilities?.length ?? 0}</Badge>
-        </TableCell>
-        <TableCell>
           <Badge variant="outline">{props.role.allowed_tools?.length ?? 0}</Badge>
         </TableCell>
-        <TableCell className="space-y-1 text-xs">
+        <TableCell className="text-xs">
           <div className="font-mono">{modelPolicy.primary}</div>
-          <div className="text-muted">{modelPolicy.fallback}</div>
         </TableCell>
         <TableCell className="text-right">
           <div className="flex flex-wrap justify-end gap-2">
@@ -150,58 +145,26 @@ export function RoleRow(props: {
       </TableRow>
       {isExpanded ? (
         <TableRow>
-          <TableCell colSpan={5} className="bg-border/10">
-            <div className="grid gap-4 py-3 xl:grid-cols-[1.2fr_1fr]">
-              <div className="space-y-3">
-                {props.role.system_prompt ? (
-                  <p className="rounded-lg bg-surface p-3 font-mono text-sm whitespace-pre-wrap">
-                    {props.role.system_prompt}
-                  </p>
-                ) : (
-                  <div className="rounded-lg border border-dashed border-border/70 p-3 text-sm text-muted">
-                    No system prompt configured.
-                  </div>
-                )}
-                {props.role.capabilities?.length ? (
-                  <div className="flex flex-wrap gap-1">
-                    {props.role.capabilities.map((capability) => (
-                      <Badge key={capability} variant="secondary">
-                        {capability}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
-                {props.role.allowed_tools?.length ? (
-                  <div className="flex flex-wrap gap-1">
-                    {props.role.allowed_tools.map((tool) => (
-                      <Badge key={tool} variant="outline">
-                        {tool}
-                      </Badge>
-                    ))}
-                  </div>
-                ) : null}
-              </div>
-              <div className="space-y-2 rounded-lg border border-border/70 bg-surface px-4 py-3 text-sm">
-                <div>
-                  <span className="font-medium">Verification:</span>{' '}
-                  {props.role.verification_strategy ?? 'none'}
+          <TableCell colSpan={4} className="bg-border/10">
+            <div className="space-y-3 py-3">
+              {props.role.system_prompt ? (
+                <p className="rounded-lg bg-surface p-3 font-mono text-sm whitespace-pre-wrap">
+                  {props.role.system_prompt}
+                </p>
+              ) : (
+                <div className="rounded-lg border border-dashed border-border/70 p-3 text-sm text-muted">
+                  No system prompt configured.
                 </div>
-                <div>
-                  <span className="font-medium">Escalation:</span>{' '}
-                  {props.role.escalation_target ?? 'none'}
+              )}
+              {props.role.allowed_tools?.length ? (
+                <div className="flex flex-wrap gap-1">
+                  {props.role.allowed_tools.map((tool) => (
+                    <Badge key={tool} variant="outline">
+                      {tool}
+                    </Badge>
+                  ))}
                 </div>
-                <div>
-                  <span className="font-medium">Max depth:</span>{' '}
-                  {props.role.max_escalation_depth ?? 5}
-                </div>
-                <div>
-                  <span className="font-medium">Fallback model:</span> {modelPolicy.fallback}
-                </div>
-                <div>
-                  <span className="font-medium">Lifecycle:</span>{' '}
-                  {describeRoleLifecyclePolicy(props.role)}
-                </div>
-              </div>
+              ) : null}
             </div>
           </TableCell>
         </TableRow>
