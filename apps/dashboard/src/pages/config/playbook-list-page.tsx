@@ -409,7 +409,7 @@ export function PlaybookListPage(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Playbooks</h1>
