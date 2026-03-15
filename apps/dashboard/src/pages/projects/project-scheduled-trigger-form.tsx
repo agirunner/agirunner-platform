@@ -16,21 +16,19 @@ import type {
   DashboardWorkflowStageRecord,
 } from '../../lib/api.js';
 import {
-  DEFAULT_SCHEDULED_TRIGGER_SOURCE,
   SCHEDULED_TRIGGER_PRIORITY_OPTIONS,
+  SCHEDULED_TRIGGER_TIMEZONE_OPTIONS,
   validateScheduledTriggerForm,
   type ScheduledTriggerFormState,
 } from './project-scheduled-trigger-support.js';
 
 const EMPTY_SELECT_VALUE = '__empty__';
-type RoleOption = { id: string; name: string; description: string | null; is_active: boolean };
 
 export function ProjectScheduledTriggerForm({
   form,
   workflows,
   stages,
   columns,
-  roles,
   isEditing,
   isPending,
   isLoadingWorkflowDetails,
@@ -43,7 +41,6 @@ export function ProjectScheduledTriggerForm({
   workflows: DashboardWorkflowRecord[];
   stages: DashboardWorkflowStageRecord[];
   columns: DashboardWorkflowBoardColumn[];
-  roles: RoleOption[];
   isEditing: boolean;
   isPending: boolean;
   isLoadingWorkflowDetails: boolean;
@@ -71,7 +68,7 @@ export function ProjectScheduledTriggerForm({
 
       {workflows.length === 0 ? (
         <p className="text-sm text-muted">
-          Create a project run before adding a scheduled trigger.
+          Create a target workflow before adding a scheduled trigger.
         </p>
       ) : (
         <>
@@ -93,12 +90,16 @@ export function ProjectScheduledTriggerForm({
               </div>
               <div className="flex flex-wrap gap-2">
                 <span className="rounded-full border border-current/10 bg-background/70 px-3 py-1 text-xs font-medium">
-                  {form.workflowId ? 'Run selected' : 'Choose a run'}
+                  {form.workflowId ? 'Workflow selected' : 'Choose a workflow'}
                 </span>
                 <span className="rounded-full border border-current/10 bg-background/70 px-3 py-1 text-xs font-medium">
-                  {form.cadenceMinutes.trim()
-                    ? `Every ${form.cadenceMinutes.trim()} min`
-                    : 'Cadence missing'}
+                  {form.scheduleType === 'daily_time'
+                    ? form.dailyTime.trim()
+                      ? `Daily at ${form.dailyTime.trim()}`
+                      : 'Choose a daily time'
+                    : form.cadenceMinutes.trim()
+                      ? `Every ${form.cadenceMinutes.trim()} min`
+                      : 'Cadence missing'}
                 </span>
               </div>
             </div>
@@ -113,10 +114,10 @@ export function ProjectScheduledTriggerForm({
 
           <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
             <div className="space-y-1">
-              <h4 className="text-sm font-semibold">Run target and timing</h4>
+              <h4 className="text-sm font-semibold">Workflow target and timing</h4>
               <p className="text-sm text-muted">
-                Choose the run this schedule should wake, then set cadence and optional routing
-                posture.
+                Choose the workflow this schedule should target, then choose whether it runs on an
+                interval or at a daily wall-clock time.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -127,17 +128,10 @@ export function ProjectScheduledTriggerForm({
                 error={validation.fieldErrors.name}
                 onChange={(value) => onChange({ name: value })}
               />
-              <FormInput
-                label="Source"
-                value={form.source}
-                placeholder={DEFAULT_SCHEDULED_TRIGGER_SOURCE}
-                description="Defaults to the canonical project schedule source when left blank."
-                onChange={(value) => onChange({ source: value })}
-              />
               <SelectField
-                label="Target run"
+                label="Target workflow"
                 value={form.workflowId}
-                placeholder="Select run"
+                placeholder="Select workflow"
                 error={validation.fieldErrors.workflowId}
                 options={workflows.map((workflow) => ({
                   value: workflow.id,
@@ -151,21 +145,53 @@ export function ProjectScheduledTriggerForm({
                   })
                 }
               />
-              <FormInput
-                label="Cadence (minutes)"
-                type="number"
-                value={form.cadenceMinutes}
-                placeholder="60"
-                description="Choose how often this project should create a new work item."
-                error={validation.fieldErrors.cadenceMinutes}
-                onChange={(value) => onChange({ cadenceMinutes: value })}
+              <SelectField
+                label="Schedule type"
+                value={form.scheduleType}
+                placeholder="Select schedule type"
+                options={[
+                  { value: 'interval', label: 'Recurring interval' },
+                  { value: 'daily_time', label: 'Daily time' },
+                ]}
+                onChange={(value) =>
+                  onChange({
+                    scheduleType: (value === 'daily_time' ? 'daily_time' : 'interval') as ScheduledTriggerFormState['scheduleType'],
+                  })
+                }
               />
-              <FormInput
-                label="First run (optional)"
-                type="datetime-local"
-                value={form.nextFireAt}
-                onChange={(value) => onChange({ nextFireAt: value })}
-              />
+              {form.scheduleType === 'interval' ? (
+                <FormInput
+                  label="Every (minutes)"
+                  type="number"
+                  value={form.cadenceMinutes}
+                  placeholder="60"
+                  description="Choose how often this project should create a new work item."
+                  error={validation.fieldErrors.cadenceMinutes}
+                  onChange={(value) => onChange({ cadenceMinutes: value })}
+                />
+              ) : (
+                <>
+                  <FormInput
+                    label="Time of day"
+                    value={form.dailyTime}
+                    placeholder="09:00"
+                    description="Use 24-hour HH:MM format."
+                    error={validation.fieldErrors.dailyTime}
+                    onChange={(value) => onChange({ dailyTime: value })}
+                  />
+                  <SelectField
+                    label="Timezone"
+                    value={form.timezone}
+                    placeholder="Choose timezone"
+                    error={validation.fieldErrors.timezone}
+                    options={SCHEDULED_TRIGGER_TIMEZONE_OPTIONS.map((timezone) => ({
+                      value: timezone,
+                      label: timezone,
+                    }))}
+                    onChange={(value) => onChange({ timezone: value })}
+                  />
+                </>
+              )}
               <SelectField
                 label="Stage"
                 value={form.stageName}
@@ -185,14 +211,6 @@ export function ProjectScheduledTriggerForm({
                 disabled={!form.workflowId || isLoadingWorkflowDetails}
               />
               <SelectField
-                label="Owner role"
-                value={form.ownerRole}
-                placeholder={roles.length > 0 ? 'Use playbook default' : 'No roles available'}
-                options={roles.map((role) => ({ value: role.name, label: role.name }))}
-                onChange={(value) => onChange({ ownerRole: value })}
-                disabled={roles.length === 0}
-              />
-              <SelectField
                 label="Priority"
                 value={form.priority}
                 placeholder="Normal work item priority"
@@ -207,9 +225,9 @@ export function ProjectScheduledTriggerForm({
 
           <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
             <div className="space-y-1">
-              <h4 className="text-sm font-semibold">Generated work item</h4>
+              <h4 className="text-sm font-semibold">Work item template</h4>
               <p className="text-sm text-muted">
-                Define the work item content operators will receive each time this schedule fires.
+                Define the work item the orchestrator will receive each time this schedule fires.
               </p>
             </div>
             <div className="grid gap-4 md:grid-cols-2">
@@ -244,7 +262,7 @@ export function ProjectScheduledTriggerForm({
           {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
           <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/90">
             <p className="text-sm text-muted">
-              Save once the target run, cadence, and generated work item copy all look correct.
+              Save once the target workflow, schedule, and work-item template all look correct.
             </p>
             <Button disabled={isPending || !validation.isValid} onClick={onSubmit}>
               {isPending ? (

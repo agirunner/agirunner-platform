@@ -174,12 +174,6 @@ async function seedRuntimeDefaults(
     description: 'Default grace period in seconds before forced container shutdown',
   });
 
-  await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'tools.web_search_provider',
-    configValue: 'duckduckgo',
-    configType: 'string',
-    description: 'Preferred web search provider for the runtime. Falls back to DuckDuckGo when the configured provider is unavailable.',
-  });
 }
 
 // ---------------------------------------------------------------------------

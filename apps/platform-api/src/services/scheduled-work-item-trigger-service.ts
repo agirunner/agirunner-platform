@@ -4,8 +4,10 @@ import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { hasBoardColumn, hasStage, parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { EventService } from './event-service.js';
 import {
+  computeInitialScheduledFireAt,
   toPublicScheduledTrigger,
   validateScheduledTriggerDefinition,
+  type ScheduledTriggerScheduleType,
   type ScheduledWorkItemTriggerRow,
 } from './scheduled-work-item-trigger-helpers.js';
 import {
@@ -25,7 +27,10 @@ export interface CreateScheduledWorkItemTriggerInput {
   source: string;
   project_id?: string;
   workflow_id: string;
-  cadence_minutes: number;
+  schedule_type?: ScheduledTriggerScheduleType | null;
+  cadence_minutes?: number | null;
+  daily_time?: string | null;
+  timezone?: string | null;
   defaults?: Record<string, unknown>;
   is_active?: boolean;
   next_fire_at?: string;
@@ -36,7 +41,10 @@ export interface UpdateScheduledWorkItemTriggerInput {
   source?: string;
   project_id?: string | null;
   workflow_id?: string;
-  cadence_minutes?: number;
+  schedule_type?: ScheduledTriggerScheduleType | null;
+  cadence_minutes?: number | null;
+  daily_time?: string | null;
+  timezone?: string | null;
   defaults?: Record<string, unknown>;
   is_active?: boolean;
   next_fire_at?: string;
@@ -57,8 +65,8 @@ export class ScheduledWorkItemTriggerService {
     const normalized = await this.normalizeTriggerInput(identity.tenantId, input);
     const result = await this.pool.query<ScheduledWorkItemTriggerRow>(
       `INSERT INTO scheduled_work_item_triggers (
-         tenant_id, name, source, project_id, workflow_id, cadence_minutes, defaults, is_active, next_fire_at
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,$8,$9)
+         tenant_id, name, source, project_id, workflow_id, schedule_type, cadence_minutes, daily_time, timezone, defaults, is_active, next_fire_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
        RETURNING *`,
       [
         identity.tenantId,
@@ -66,7 +74,10 @@ export class ScheduledWorkItemTriggerService {
         normalized.source,
         normalized.project_id,
         normalized.workflow_id,
+        normalized.schedule_type,
         normalized.cadence_minutes,
+        normalized.daily_time,
+        normalized.timezone,
         normalized.defaults,
         normalized.is_active,
         normalized.next_fire_at,
@@ -97,10 +108,13 @@ export class ScheduledWorkItemTriggerService {
       source: input.source ?? current.source,
       project_id: input.project_id === undefined ? current.project_id ?? undefined : input.project_id ?? undefined,
       workflow_id: input.workflow_id ?? current.workflow_id,
+      schedule_type: input.schedule_type ?? current.schedule_type,
       cadence_minutes: input.cadence_minutes ?? current.cadence_minutes,
+      daily_time: input.daily_time ?? current.daily_time,
+      timezone: input.timezone ?? current.timezone,
       defaults: input.defaults ?? current.defaults ?? {},
       is_active: input.is_active ?? current.is_active,
-      next_fire_at: input.next_fire_at ?? current.next_fire_at.toISOString(),
+      next_fire_at: input.next_fire_at,
     });
 
     const result = await this.pool.query<ScheduledWorkItemTriggerRow>(
@@ -109,10 +123,13 @@ export class ScheduledWorkItemTriggerService {
               source = $4,
               project_id = $5,
               workflow_id = $6,
-              cadence_minutes = $7,
-              defaults = $8::jsonb,
-              is_active = $9,
-              next_fire_at = $10,
+              schedule_type = $7,
+              cadence_minutes = $8,
+              daily_time = $9,
+              timezone = $10,
+              defaults = $11::jsonb,
+              is_active = $12,
+              next_fire_at = $13,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2
@@ -124,7 +141,10 @@ export class ScheduledWorkItemTriggerService {
         normalized.source,
         normalized.project_id,
         normalized.workflow_id,
+        normalized.schedule_type,
         normalized.cadence_minutes,
+        normalized.daily_time,
+        normalized.timezone,
         normalized.defaults,
         normalized.is_active,
         normalized.next_fire_at,
@@ -164,20 +184,31 @@ export class ScheduledWorkItemTriggerService {
     return this.executor.fireDueTriggers(now);
   }
 
-  private async normalizeTriggerInput(tenantId: string, input: CreateScheduledWorkItemTriggerInput) {
+  private async normalizeTriggerInput(
+    tenantId: string,
+    input: CreateScheduledWorkItemTriggerInput,
+    now = new Date(),
+  ) {
     const scope = await this.assertScopeTargets(tenantId, input.project_id, input.workflow_id);
-    const nextFireAt = parseNextFireAt(input.next_fire_at);
+    const scheduleType = input.schedule_type === 'daily_time' ? 'daily_time' : 'interval';
+    const dailyTime = scheduleType === 'daily_time' ? readStringValue(input.daily_time) : null;
+    const timezone = scheduleType === 'daily_time' ? readStringValue(input.timezone) : null;
+    const normalizedSource = normalizeProjectScheduleSource(scope.projectId, input.source);
     const normalized = {
       name: input.name.trim(),
-      source: input.source.trim(),
+      source: normalizedSource,
       project_id: scope.projectId,
       workflow_id: input.workflow_id,
-      cadence_minutes: input.cadence_minutes,
+      schedule_type: scheduleType,
+      cadence_minutes: scheduleType === 'interval' ? input.cadence_minutes ?? null : null,
+      daily_time: dailyTime,
+      timezone,
       defaults: input.defaults ?? {},
       is_active: input.is_active ?? true,
-      next_fire_at: nextFireAt,
+      next_fire_at: now,
     };
     validateScheduledTriggerDefinition(normalized);
+    normalized.next_fire_at = resolveNextFireAt(input.next_fire_at, normalized, now);
     this.assertPlaybookDefaults(scope.definition, normalized.defaults);
     return normalized;
   }
@@ -243,14 +274,35 @@ export class ScheduledWorkItemTriggerService {
 }
 
 function parseNextFireAt(value: string | undefined): Date {
-  if (!value) {
-    return new Date();
-  }
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) {
     throw new ValidationError('next_fire_at must be a valid ISO-8601 timestamp');
   }
   return parsed;
+}
+
+function resolveNextFireAt(
+  explicitValue: string | undefined,
+  schedule: {
+    schedule_type: ScheduledTriggerScheduleType;
+    cadence_minutes?: number | null;
+    daily_time?: string | null;
+    timezone?: string | null;
+  },
+  now: Date,
+) {
+  if (explicitValue) {
+    return parseNextFireAt(explicitValue);
+  }
+  return computeInitialScheduledFireAt(schedule, now);
+}
+
+function normalizeProjectScheduleSource(projectId: string | null, source: string) {
+  const trimmed = source.trim();
+  if (projectId) {
+    return 'project.schedule';
+  }
+  return trimmed || 'project.schedule';
 }
 
 function readStringValue(value: unknown): string | null {

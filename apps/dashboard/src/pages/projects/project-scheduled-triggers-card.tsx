@@ -25,13 +25,11 @@ import {
   buildScheduledTriggerPayload,
   createScheduledTriggerFormState,
   describeTriggerHealth,
-  formatCadence,
   formatDateTime,
+  formatSchedule,
   hydrateScheduledTriggerForm,
   type ScheduledTriggerFormState,
 } from './project-scheduled-trigger-support.js';
-
-type RoleOption = { id: string; name: string; description: string | null; is_active: boolean };
 
 export function ScheduledTriggersCard({ project }: { project: DashboardProjectRecord }): JSX.Element {
   const queryClient = useQueryClient();
@@ -47,10 +45,6 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
   const workflowsQuery = useQuery({
     queryKey: ['project-workflows', project.id],
     queryFn: () => dashboardApi.listWorkflows({ project_id: project.id, per_page: '100' }),
-  });
-  const roleDefinitionsQuery = useQuery({
-    queryKey: ['role-definitions', 'active'],
-    queryFn: () => dashboardApi.listRoleDefinitions(),
   });
   const selectedWorkflowQuery = useQuery({
     queryKey: ['workflow', form.workflowId, 'stages'],
@@ -91,7 +85,6 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
   });
 
   const workflows = (workflowsQuery.data?.data ?? []) as DashboardWorkflowRecord[];
-  const roles = (roleDefinitionsQuery.data ?? []) as RoleOption[];
   const scheduledTriggers = useMemo(
     () =>
       ((triggersQuery.data?.data ?? []) as DashboardScheduledWorkItemTriggerRecord[])
@@ -195,11 +188,16 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
             workflows={workflows}
             stages={selectedWorkflowQuery.data?.workflow_stages ?? []}
             columns={selectedBoardQuery.data?.columns ?? []}
-            roles={roles}
             isEditing={editingTriggerId !== null}
             isPending={saveMutation.isPending}
             isLoadingWorkflowDetails={selectedWorkflowQuery.isLoading || selectedBoardQuery.isLoading}
-            errorMessage={saveMutation.isError ? 'Failed to save scheduled trigger.' : null}
+            errorMessage={
+              saveMutation.isError
+                ? saveMutation.error instanceof Error && saveMutation.error.message.includes('422')
+                  ? 'Review the schedule settings and work-item template, then try saving again.'
+                  : 'Failed to save scheduled trigger.'
+                : null
+            }
             onChange={(patch) => setForm((current) => ({ ...current, ...patch }))}
             onSubmit={() => saveMutation.mutate()}
             onCancel={resetEditor}
@@ -287,11 +285,10 @@ function ScheduledTriggerCard(props: {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{props.trigger.name}</span>
             <Badge variant={health.variant}>{health.label}</Badge>
-            <Badge variant="outline">{props.trigger.source}</Badge>
           </div>
           <div className="flex flex-wrap gap-2 text-sm text-muted">
             <span>{props.workflowName}</span>
-            <span>{formatCadence(props.trigger.cadence_minutes)}</span>
+            <span>{formatSchedule(props.trigger)}</span>
             <span>Next {formatDateTime(props.trigger.next_fire_at)}</span>
             <span>
               Last run {props.trigger.last_fired_at ? formatDateTime(props.trigger.last_fired_at) : 'Not fired yet'}
@@ -300,7 +297,6 @@ function ScheduledTriggerCard(props: {
           <div className="flex flex-wrap gap-2 text-xs text-muted">
             {typeof defaults.stage_name === 'string' ? <Badge variant="secondary">{defaults.stage_name}</Badge> : null}
             {typeof defaults.column_id === 'string' ? <Badge variant="secondary">{defaults.column_id}</Badge> : null}
-            {typeof defaults.owner_role === 'string' ? <Badge variant="secondary">{defaults.owner_role}</Badge> : null}
             {typeof defaults.priority === 'string' ? <Badge variant="secondary">{defaults.priority}</Badge> : null}
           </div>
         </div>

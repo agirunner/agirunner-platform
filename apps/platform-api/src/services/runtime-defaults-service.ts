@@ -5,7 +5,6 @@ import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 
 const CONFIG_TYPES = ['string', 'number', 'boolean', 'json'] as const;
-const WEB_SEARCH_PROVIDERS = new Set(['duckduckgo', 'serper', 'tavily']);
 const RUNTIME_DEFAULT_SECRET_REDACTION = 'redacted://runtime-default-secret';
 const runtimeDefaultSecretKeyPattern =
   /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|webhook_url|known_hosts)/i;
@@ -188,52 +187,8 @@ function shouldRedactRuntimeDefault(configKey: string, configValue: string): boo
 function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {
   validateNumericRuntimeDefault(input);
 
-  switch (input.configKey) {
-    case 'tools.web_search_provider': {
-      const provider = input.configValue.trim().toLowerCase();
-      if (input.configType !== 'string') {
-        throw new Error('tools.web_search_provider must use string config type');
-      }
-      if (!WEB_SEARCH_PROVIDERS.has(provider)) {
-        throw new Error('tools.web_search_provider must be one of: duckduckgo, serper, tavily');
-      }
-      return;
-    }
-    case 'tools.web_search_base_url': {
-      if (input.configType !== 'string') {
-        throw new Error('tools.web_search_base_url must use string config type');
-      }
-      const value = input.configValue.trim();
-      if (!value) {
-        return;
-      }
-      let parsed: URL;
-      try {
-        parsed = new URL(value);
-      } catch {
-        throw new Error('tools.web_search_base_url must be a valid http or https URL');
-      }
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        throw new Error('tools.web_search_base_url must be a valid http or https URL');
-      }
-      return;
-    }
-    case 'tools.web_search_api_key_secret_ref': {
-      if (input.configType !== 'string') {
-        throw new Error('tools.web_search_api_key_secret_ref must use string config type');
-      }
-      const value = input.configValue.trim();
-      if (!value) {
-        return;
-      }
-      if (!value.startsWith('secret:')) {
-        throw new Error('tools.web_search_api_key_secret_ref must use secret: references');
-      }
-      return;
-    }
-    default:
-      return;
-  }
+  // No tool-specific validation needed after web_search removal.
+  void input;
 }
 
 function validateNumericRuntimeDefault(input: CreateRuntimeDefaultInput): void {

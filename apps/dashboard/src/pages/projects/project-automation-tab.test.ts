@@ -20,7 +20,9 @@ describe('project automation surface source', () => {
     expect(source).toContain('Open signatures');
     expect(source).toContain('Hide signatures');
     expect(source).toContain('const [showEditor, setShowEditor] = useState(false)');
-    expect(source).toContain('Repository signatures are optional until this project uses source-driven automation.');
+    expect(source).toContain(
+      'Repository webhook signatures are optional unless this project should trust git-provider inbound hooks.',
+    );
     expect(source).toContain('Next move');
     expect(source).not.toContain('Schedules, inbound hooks, and repository signatures in one scan-first surface.');
     expect(source).not.toContain('Verify provider, secret posture, and repository trust without leaving Automation.');

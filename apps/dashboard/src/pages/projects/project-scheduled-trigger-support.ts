@@ -3,21 +3,29 @@ import type { DashboardScheduledWorkItemTriggerRecord } from '../../lib/api.js';
 
 export const DEFAULT_SCHEDULED_TRIGGER_SOURCE = 'project.schedule';
 export const SCHEDULED_TRIGGER_PRIORITY_OPTIONS = ['critical', 'high', 'normal', 'low'] as const;
+export const SCHEDULED_TRIGGER_TIMEZONE_OPTIONS = [
+  'UTC',
+  'America/Vancouver',
+  'America/Los_Angeles',
+  'America/New_York',
+  'Europe/London',
+];
+export type ScheduledTriggerScheduleType = 'interval' | 'daily_time';
 
 export interface ScheduledTriggerFormState {
   name: string;
-  source: string;
   workflowId: string;
+  scheduleType: ScheduledTriggerScheduleType;
   cadenceMinutes: string;
+  dailyTime: string;
+  timezone: string;
   title: string;
   stageName: string;
   columnId: string;
-  ownerRole: string;
   priority: string;
   goal: string;
   acceptanceCriteria: string;
   notes: string;
-  nextFireAt: string;
 }
 
 export interface ScheduledTriggerFormValidation {
@@ -25,6 +33,8 @@ export interface ScheduledTriggerFormValidation {
     name?: string;
     workflowId?: string;
     cadenceMinutes?: string;
+    dailyTime?: string;
+    timezone?: string;
     title?: string;
   };
   issues: string[];
@@ -47,18 +57,18 @@ export interface ScheduledTriggerOverview {
 export function createScheduledTriggerFormState(): ScheduledTriggerFormState {
   return {
     name: '',
-    source: DEFAULT_SCHEDULED_TRIGGER_SOURCE,
     workflowId: '',
+    scheduleType: 'interval',
     cadenceMinutes: '60',
+    dailyTime: '09:00',
+    timezone: 'UTC',
     title: '',
     stageName: '',
     columnId: '',
-    ownerRole: '',
     priority: '',
     goal: '',
     acceptanceCriteria: '',
     notes: '',
-    nextFireAt: '',
   };
 }
 
@@ -68,18 +78,19 @@ export function hydrateScheduledTriggerForm(
   const defaults = asRecord(trigger.defaults);
   return {
     name: trigger.name,
-    source: trigger.source,
     workflowId: trigger.workflow_id,
-    cadenceMinutes: String(trigger.cadence_minutes),
+    scheduleType: trigger.schedule_type ?? 'interval',
+    cadenceMinutes:
+      typeof trigger.cadence_minutes === 'number' ? String(trigger.cadence_minutes) : '60',
+    dailyTime: trigger.daily_time ?? '09:00',
+    timezone: trigger.timezone ?? 'UTC',
     title: readString(defaults.title),
     stageName: readString(defaults.stage_name),
     columnId: readString(defaults.column_id),
-    ownerRole: readString(defaults.owner_role),
     priority: readString(defaults.priority),
     goal: readString(defaults.goal),
     acceptanceCriteria: readString(defaults.acceptance_criteria),
     notes: readString(defaults.notes),
-    nextFireAt: toDateTimeLocal(trigger.next_fire_at),
   };
 }
 
@@ -87,13 +98,11 @@ export function buildScheduledTriggerPayload(
   projectId: string,
   form: ScheduledTriggerFormState,
 ): Parameters<typeof dashboardApi.createScheduledWorkItemTrigger>[0] {
-  const cadenceMinutes = Number(form.cadenceMinutes);
   const defaults: Record<string, unknown> = {
     title: form.title.trim(),
   };
   if (form.stageName.trim()) defaults.stage_name = form.stageName.trim();
   if (form.columnId.trim()) defaults.column_id = form.columnId.trim();
-  if (form.ownerRole.trim()) defaults.owner_role = form.ownerRole.trim();
   if (form.priority.trim()) defaults.priority = form.priority.trim();
   if (form.goal.trim()) defaults.goal = form.goal.trim();
   if (form.acceptanceCriteria.trim()) {
@@ -103,14 +112,20 @@ export function buildScheduledTriggerPayload(
 
   const payload: Parameters<typeof dashboardApi.createScheduledWorkItemTrigger>[0] = {
     name: form.name.trim(),
-    source: form.source.trim() || DEFAULT_SCHEDULED_TRIGGER_SOURCE,
+    source: DEFAULT_SCHEDULED_TRIGGER_SOURCE,
     project_id: projectId,
     workflow_id: form.workflowId,
-    cadence_minutes: Number.isFinite(cadenceMinutes) && cadenceMinutes > 0 ? cadenceMinutes : 60,
+    schedule_type: form.scheduleType,
     defaults,
   };
-  if (form.nextFireAt) {
-    payload.next_fire_at = new Date(form.nextFireAt).toISOString();
+  if (form.scheduleType === 'interval') {
+    const cadenceMinutes = Number(form.cadenceMinutes);
+    payload.cadence_minutes =
+      Number.isFinite(cadenceMinutes) && cadenceMinutes > 0 ? cadenceMinutes : 60;
+  } else {
+    payload.cadence_minutes = null;
+    payload.daily_time = form.dailyTime.trim();
+    payload.timezone = form.timezone.trim();
   }
   return payload;
 }
@@ -129,16 +144,25 @@ export function validateScheduledTriggerForm(
   }
 
   if (!form.workflowId.trim()) {
-    fieldErrors.workflowId = 'Choose the run this trigger should target.';
+    fieldErrors.workflowId = 'Choose the workflow this trigger should target.';
   }
 
   if (!form.title.trim()) {
     fieldErrors.title = 'Enter the work item title to create on each run.';
   }
 
-  const cadenceMinutes = Number(form.cadenceMinutes);
-  if (!Number.isFinite(cadenceMinutes) || cadenceMinutes <= 0) {
-    fieldErrors.cadenceMinutes = 'Enter a cadence greater than 0 minutes.';
+  if (form.scheduleType === 'interval') {
+    const cadenceMinutes = Number(form.cadenceMinutes);
+    if (!Number.isFinite(cadenceMinutes) || cadenceMinutes <= 0) {
+      fieldErrors.cadenceMinutes = 'Enter a cadence greater than 0 minutes.';
+    }
+  } else {
+    if (!/^([01]\d|2[0-3]):([0-5]\d)$/.test(form.dailyTime.trim())) {
+      fieldErrors.dailyTime = 'Enter a daily time in HH:MM format.';
+    }
+    if (!form.timezone.trim()) {
+      fieldErrors.timezone = 'Choose a timezone for the daily schedule.';
+    }
   }
 
   const issues = Object.values(fieldErrors);
@@ -177,12 +201,12 @@ export function buildScheduledTriggerOverview(
       summary:
         'Scheduled work-item automation is empty for this project. Add the first schedule to create recurring work and wake the orchestrator through the normal activation flow.',
       nextAction:
-        'Create the first schedule, pick the target run, and define the work item title before you leave this project.',
+        'Create the first schedule, pick the target workflow, and define the work item title before you leave this project.',
       packets: [
         {
           label: 'Schedule coverage',
           value: '0 schedules',
-          detail: 'No recurring work-item automation is active for this project yet.',
+          detail: 'No scheduled work-item automation is active for this project yet.',
         },
         {
           label: 'Attention needed',
@@ -192,7 +216,7 @@ export function buildScheduledTriggerOverview(
         {
           label: 'Next trigger',
           value: 'Not scheduled',
-          detail: 'Add a cadence to start recurring work-item creation.',
+          detail: 'Add an interval or daily schedule to start recurring work-item creation.',
         },
       ],
     };
@@ -202,14 +226,14 @@ export function buildScheduledTriggerOverview(
     heading: dueCount > 0 ? 'Automation attention is needed' : 'Automation posture is healthy',
     summary:
       dueCount > 0
-        ? `${dueCount} active schedule${dueCount === 1 ? '' : 's'} should have fired already. Review the related run before more overdue work accumulates.`
+        ? `${dueCount} active schedule${dueCount === 1 ? '' : 's'} should have fired already. Review the related workflow before more overdue work accumulates.`
         : `${activeCount} active schedule${activeCount === 1 ? '' : 's'} are set to keep this project moving without manual launch steps.`,
     nextAction:
       dueCount > 0
-        ? 'Review the next due schedule first, then confirm the target run, stage, and owner role still match the intended automation path.'
+        ? 'Review the next due schedule first, then confirm the target workflow, stage, and board column still match the intended automation path.'
         : disabledCount > 0
           ? 'Decide whether the paused schedules should stay dormant or be re-enabled before the next automation window.'
-          : 'Check the next upcoming schedule, then edit cadence or ownership only if the current project rhythm has changed.',
+          : 'Check the next upcoming schedule, then edit interval, daily timing, or work-item routing only if the project rhythm has changed.',
     packets: [
       {
         label: 'Schedule coverage',
@@ -243,21 +267,22 @@ export function formatCadence(minutes: number): string {
   return `Every ${hours} hr ${remaining} min`;
 }
 
+export function formatSchedule(trigger: Pick<
+  DashboardScheduledWorkItemTriggerRecord,
+  'schedule_type' | 'cadence_minutes' | 'daily_time' | 'timezone'
+>) {
+  if (trigger.schedule_type === 'daily_time') {
+    const timezone = trigger.timezone ?? 'UTC';
+    const dailyTime = trigger.daily_time ?? '--:--';
+    return `Daily at ${dailyTime} (${timezone})`;
+  }
+  return formatCadence(trigger.cadence_minutes ?? 60);
+}
+
 export function formatDateTime(value?: string | null): string {
   if (!value) return '-';
   const timestamp = Date.parse(value);
   return Number.isNaN(timestamp) ? value : new Date(timestamp).toLocaleString();
-}
-
-function toDateTimeLocal(value?: string | null): string {
-  if (!value) {
-    return '';
-  }
-  const timestamp = Date.parse(value);
-  if (Number.isNaN(timestamp)) {
-    return '';
-  }
-  return new Date(timestamp).toISOString().slice(0, 16);
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

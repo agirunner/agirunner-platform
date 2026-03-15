@@ -843,7 +843,10 @@ export interface DashboardScheduledWorkItemTriggerRecord {
   source: string;
   project_id?: string | null;
   workflow_id: string;
-  cadence_minutes: number;
+  schedule_type: 'interval' | 'daily_time';
+  cadence_minutes: number | null;
+  daily_time?: string | null;
+  timezone?: string | null;
   defaults?: Record<string, unknown>;
   is_active: boolean;
   last_fired_at?: string | null;
@@ -1541,7 +1544,10 @@ export interface DashboardApi {
     source: string;
     project_id?: string;
     workflow_id: string;
-    cadence_minutes: number;
+    schedule_type?: 'interval' | 'daily_time';
+    cadence_minutes?: number | null;
+    daily_time?: string | null;
+    timezone?: string | null;
     defaults?: Record<string, unknown>;
     is_active?: boolean;
     next_fire_at?: string;
@@ -1553,7 +1559,10 @@ export interface DashboardApi {
       source: string;
       project_id: string | null;
       workflow_id: string;
-      cadence_minutes: number;
+      schedule_type: 'interval' | 'daily_time';
+      cadence_minutes: number | null;
+      daily_time: string | null;
+      timezone: string | null;
       defaults: Record<string, unknown>;
       is_active: boolean;
       next_fire_at: string;

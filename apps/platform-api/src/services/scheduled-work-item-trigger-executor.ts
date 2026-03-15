@@ -108,7 +108,7 @@ export class ScheduledWorkItemTriggerExecutor {
   }
 
   private async completeClaim(trigger: ScheduledWorkItemTriggerRow, scheduledFor: Date, workItemId: string) {
-    const nextFireAt = advanceScheduledFireAt(scheduledFor, trigger.cadence_minutes);
+    const nextFireAt = advanceScheduledFireAt(trigger, scheduledFor);
     await this.pool.query(
       `UPDATE scheduled_work_item_triggers
           SET last_fired_at = $3,

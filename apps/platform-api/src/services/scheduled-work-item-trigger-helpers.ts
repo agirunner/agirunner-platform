@@ -3,6 +3,7 @@ import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import type { CreateWorkItemInput } from './work-item-service.js';
 
 type WorkItemPriority = 'critical' | 'high' | 'normal' | 'low';
+export type ScheduledTriggerScheduleType = 'interval' | 'daily_time';
 
 export interface ScheduledWorkItemTriggerRow {
   id: string;
@@ -11,7 +12,10 @@ export interface ScheduledWorkItemTriggerRow {
   source: string;
   project_id: string | null;
   workflow_id: string;
-  cadence_minutes: number;
+  schedule_type: ScheduledTriggerScheduleType;
+  cadence_minutes: number | null;
+  daily_time: string | null;
+  timezone: string | null;
   defaults: Record<string, unknown>;
   is_active: boolean;
   last_fired_at: Date | null;
@@ -23,12 +27,16 @@ export interface ScheduledWorkItemTriggerRow {
 }
 
 const allowedPriorities = new Set<WorkItemPriority>(['critical', 'high', 'normal', 'low']);
+const DAILY_TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 export function validateScheduledTriggerDefinition(input: {
   name: string;
   source: string;
   workflow_id?: string | null;
-  cadence_minutes: number;
+  schedule_type?: ScheduledTriggerScheduleType | null;
+  cadence_minutes?: number | null;
+  daily_time?: string | null;
+  timezone?: string | null;
   defaults: Record<string, unknown>;
 }): void {
   if (!input.name) {
@@ -40,8 +48,30 @@ export function validateScheduledTriggerDefinition(input: {
   if (!input.workflow_id) {
     throw new ValidationError('workflow_id is required');
   }
-  if (!Number.isInteger(input.cadence_minutes) || input.cadence_minutes < 1) {
-    throw new ValidationError('cadence_minutes must be a positive integer');
+  const scheduleType = normalizeScheduleType(input.schedule_type);
+  if (scheduleType === 'interval') {
+    if (!Number.isInteger(input.cadence_minutes) || Number(input.cadence_minutes) < 1) {
+      throw new ValidationError('cadence_minutes must be a positive integer');
+    }
+    if (asString(input.daily_time) || asString(input.timezone)) {
+      throw new ValidationError('daily_time and timezone are only valid for daily_time schedules');
+    }
+  } else {
+    const dailyTime = asString(input.daily_time);
+    if (!dailyTime) {
+      throw new ValidationError('daily_time is required for daily_time schedules');
+    }
+    if (!DAILY_TIME_PATTERN.test(dailyTime)) {
+      throw new ValidationError('daily_time must use HH:MM 24-hour format');
+    }
+    const timezone = asString(input.timezone);
+    if (!timezone) {
+      throw new ValidationError('timezone is required for daily_time schedules');
+    }
+    assertValidTimeZone(timezone);
+    if (input.cadence_minutes != null) {
+      throw new ValidationError('cadence_minutes must be omitted for daily_time schedules');
+    }
   }
   validateDefaults(input.defaults);
 }
@@ -53,7 +83,10 @@ export function toPublicScheduledTrigger(row: ScheduledWorkItemTriggerRow) {
     source: row.source,
     project_id: row.project_id,
     workflow_id: row.workflow_id,
+    schedule_type: row.schedule_type,
     cadence_minutes: row.cadence_minutes,
+    daily_time: row.daily_time,
+    timezone: row.timezone,
     defaults: sanitizeTriggerDefaults(row.defaults),
     is_active: row.is_active,
     last_fired_at: row.last_fired_at?.toISOString() ?? null,
@@ -64,10 +97,12 @@ export function toPublicScheduledTrigger(row: ScheduledWorkItemTriggerRow) {
 }
 
 function sanitizeTriggerDefaults(value: unknown) {
-  return sanitizeSecretLikeRecord(value, {
+  const sanitized = sanitizeSecretLikeRecord(value, {
     redactionValue: 'redacted://trigger-secret',
     allowSecretReferences: false,
   });
+  delete sanitized.owner_role;
+  return sanitized;
 }
 
 export function buildScheduledWorkItem(
@@ -90,7 +125,6 @@ export function buildScheduledWorkItem(
         : {}),
       ...(asString(defaults.stage_name) ? { stage_name: asString(defaults.stage_name) } : {}),
       ...(asString(defaults.column_id) ? { column_id: asString(defaults.column_id) } : {}),
-      ...(asString(defaults.owner_role) ? { owner_role: asString(defaults.owner_role) } : {}),
       ...(normalizePriority(defaults.priority) ? { priority: normalizePriority(defaults.priority) } : {}),
       ...(asString(defaults.notes) ? { notes: asString(defaults.notes) } : {}),
       metadata: mergeRecords(asRecord(defaults.metadata), {
@@ -105,8 +139,48 @@ export function buildScheduledWorkItem(
   };
 }
 
-export function advanceScheduledFireAt(scheduledFor: Date, cadenceMinutes: number): Date {
-  return new Date(scheduledFor.getTime() + cadenceMinutes * 60_000);
+export function advanceScheduledFireAt(trigger: Pick<
+  ScheduledWorkItemTriggerRow,
+  'schedule_type' | 'cadence_minutes' | 'daily_time' | 'timezone'
+>, scheduledFor: Date): Date {
+  const scheduleType = normalizeScheduleType(trigger.schedule_type);
+  if (scheduleType === 'interval') {
+    const cadenceMinutes = trigger.cadence_minutes;
+    if (!Number.isInteger(cadenceMinutes) || Number(cadenceMinutes) < 1) {
+      throw new ValidationError('cadence_minutes must be a positive integer');
+    }
+    return new Date(scheduledFor.getTime() + Number(cadenceMinutes) * 60_000);
+  }
+
+  const dailyTime = asString(trigger.daily_time);
+  const timezone = asString(trigger.timezone);
+  if (!dailyTime || !timezone) {
+    throw new ValidationError('daily_time schedules require daily_time and timezone');
+  }
+  return computeNextDailyTime(dailyTime, timezone, scheduledFor);
+}
+
+export function computeInitialScheduledFireAt(input: {
+  schedule_type?: ScheduledTriggerScheduleType | null;
+  cadence_minutes?: number | null;
+  daily_time?: string | null;
+  timezone?: string | null;
+}, now = new Date()): Date {
+  const scheduleType = normalizeScheduleType(input.schedule_type);
+  if (scheduleType === 'interval') {
+    const cadenceMinutes = input.cadence_minutes;
+    if (!Number.isInteger(cadenceMinutes) || Number(cadenceMinutes) < 1) {
+      throw new ValidationError('cadence_minutes must be a positive integer');
+    }
+    return new Date(now.getTime() + Number(cadenceMinutes) * 60_000);
+  }
+
+  const dailyTime = asString(input.daily_time);
+  const timezone = asString(input.timezone);
+  if (!dailyTime || !timezone) {
+    throw new ValidationError('daily_time schedules require daily_time and timezone');
+  }
+  return computeNextDailyTime(dailyTime, timezone, now);
 }
 
 function validateDefaults(defaults: Record<string, unknown>): void {
@@ -125,6 +199,118 @@ function normalizePriority(value: unknown): WorkItemPriority | undefined {
     return undefined;
   }
   return allowedPriorities.has(value as WorkItemPriority) ? (value as WorkItemPriority) : undefined;
+}
+
+function normalizeScheduleType(value: ScheduledTriggerScheduleType | string | null | undefined) {
+  return value === 'daily_time' ? 'daily_time' : 'interval';
+}
+
+function assertValidTimeZone(timezone: string): void {
+  try {
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+  } catch {
+    throw new ValidationError('timezone must be a valid IANA timezone');
+  }
+}
+
+function computeNextDailyTime(dailyTime: string, timezone: string, after: Date): Date {
+  const match = DAILY_TIME_PATTERN.exec(dailyTime);
+  if (!match) {
+    throw new ValidationError('daily_time must use HH:MM 24-hour format');
+  }
+  assertValidTimeZone(timezone);
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  let localDate = getLocalDateParts(after, timezone);
+  let candidate = zonedDateTimeToUtc(localDate.year, localDate.month, localDate.day, hour, minute, timezone);
+  if (candidate.getTime() <= after.getTime()) {
+    localDate = addCalendarDays(localDate, 1);
+    candidate = zonedDateTimeToUtc(localDate.year, localDate.month, localDate.day, hour, minute, timezone);
+  }
+  return candidate;
+}
+
+function zonedDateTimeToUtc(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  timezone: string,
+): Date {
+  const utcGuess = Date.UTC(year, month - 1, day, hour, minute, 0);
+  let date = new Date(utcGuess - getTimeZoneOffsetMs(new Date(utcGuess), timezone));
+  const adjustedOffset = getTimeZoneOffsetMs(date, timezone);
+  date = new Date(utcGuess - adjustedOffset);
+  return date;
+}
+
+function getTimeZoneOffsetMs(date: Date, timezone: string): number {
+  const parts = getDateTimeParts(date, timezone);
+  const utcFromTzView = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+    parts.second,
+  );
+  return utcFromTzView - date.getTime();
+}
+
+function getLocalDateParts(date: Date, timezone: string) {
+  const parts = getDateTimeParts(date, timezone);
+  return { year: parts.year, month: parts.month, day: parts.day };
+}
+
+function getDateTimeParts(date: Date, timezone: string) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = formatter.formatToParts(date);
+  return {
+    year: Number(readPart(parts, 'year')),
+    month: Number(readPart(parts, 'month')),
+    day: Number(readPart(parts, 'day')),
+    hour: Number(readPart(parts, 'hour')),
+    minute: Number(readPart(parts, 'minute')),
+    second: Number(readPart(parts, 'second')),
+  };
+}
+
+function readPart(
+  parts: Intl.DateTimeFormatPart[],
+  type: Intl.DateTimeFormatPartTypes,
+) {
+  const match = parts.find((part) => part.type === type)?.value;
+  if (!match) {
+    throw new ValidationError(`Could not read ${type} for scheduled trigger timezone conversion`);
+  }
+  return match;
+}
+
+function addCalendarDays(
+  value: { year: number; month: number; day: number },
+  days: number,
+) {
+  const next = new Date(Date.UTC(value.year, value.month - 1, value.day + days, 12, 0, 0));
+  return {
+    year: next.getUTCFullYear(),
+    month: next.getUTCMonth() + 1,
+    day: next.getUTCDate(),
+  };
 }
 
 function mergeRecords(...records: Record<string, unknown>[]): Record<string, unknown> {

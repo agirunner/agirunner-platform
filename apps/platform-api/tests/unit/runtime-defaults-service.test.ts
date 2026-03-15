@@ -143,26 +143,6 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow();
     });
 
-    it('rejects invalid web search provider values', async () => {
-      await expect(
-        service.createDefault(TENANT_ID, {
-          configKey: 'tools.web_search_provider',
-          configValue: 'bing',
-          configType: 'string',
-        }),
-      ).rejects.toThrow('tools.web_search_provider must be one of: duckduckgo, serper, tavily');
-    });
-
-    it('rejects plaintext web search api keys', async () => {
-      await expect(
-        service.createDefault(TENANT_ID, {
-          configKey: 'tools.web_search_api_key_secret_ref',
-          configValue: 'not-secret-ref',
-          configType: 'string',
-        }),
-      ).rejects.toThrow('tools.web_search_api_key_secret_ref must use secret: references');
-    });
-
     it('redacts secret refs from create responses for secret-bearing defaults', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
@@ -227,17 +207,6 @@ describe('RuntimeDefaultsService', () => {
       await expect(
         service.updateDefault(TENANT_ID, DEFAULT_ID, { configValue: '10' }),
       ).rejects.toThrow('Runtime default not found');
-    });
-
-    it('rejects invalid search base urls during update', async () => {
-      pool.query.mockResolvedValueOnce({
-        rows: [{ ...sampleDefault, config_key: 'tools.web_search_base_url', config_value: 'https://good.example.test', config_type: 'string' }],
-        rowCount: 1,
-      });
-
-      await expect(
-        service.updateDefault(TENANT_ID, DEFAULT_ID, { configValue: 'ftp://bad.example.test' }),
-      ).rejects.toThrow('tools.web_search_base_url must be a valid http or https URL');
     });
 
     it('rejects invalid runtime safeguard updates', async () => {

@@ -4,15 +4,68 @@ import { z } from 'zod';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 
+const scheduleTypeSchema = z.enum(['interval', 'daily_time']).default('interval');
+
 const triggerSchema = z.object({
   name: z.string().min(1).max(255),
   source: z.string().min(1).max(255),
   project_id: z.string().uuid().optional(),
   workflow_id: z.string().uuid(),
-  cadence_minutes: z.coerce.number().int().min(1),
+  schedule_type: scheduleTypeSchema.optional(),
+  cadence_minutes: z.coerce.number().int().min(1).nullable().optional(),
+  daily_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).nullable().optional(),
+  timezone: z.string().min(1).nullable().optional(),
   defaults: z.record(z.unknown()).optional(),
   is_active: z.boolean().optional(),
   next_fire_at: z.string().datetime().optional(),
+}).superRefine((value, ctx) => {
+  const scheduleType = value.schedule_type ?? 'interval';
+  if (scheduleType === 'interval') {
+    if (value.cadence_minutes == null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cadence_minutes'],
+        message: 'cadence_minutes is required for interval schedules',
+      });
+    }
+    if (value.daily_time != null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['daily_time'],
+        message: 'daily_time is only valid for daily_time schedules',
+      });
+    }
+    if (value.timezone != null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['timezone'],
+        message: 'timezone is only valid for daily_time schedules',
+      });
+    }
+    return;
+  }
+
+  if (value.daily_time == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['daily_time'],
+      message: 'daily_time is required for daily_time schedules',
+    });
+  }
+  if (value.timezone == null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['timezone'],
+      message: 'timezone is required for daily_time schedules',
+    });
+  }
+  if (value.cadence_minutes != null) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['cadence_minutes'],
+      message: 'cadence_minutes must be omitted for daily_time schedules',
+    });
+  }
 });
 
 const triggerPatchSchema = z
@@ -21,10 +74,65 @@ const triggerPatchSchema = z
     source: z.string().min(1).max(255).optional(),
     project_id: z.string().uuid().nullable().optional(),
     workflow_id: z.string().uuid().optional(),
-    cadence_minutes: z.coerce.number().int().min(1).optional(),
+    schedule_type: scheduleTypeSchema.optional(),
+    cadence_minutes: z.coerce.number().int().min(1).nullable().optional(),
+    daily_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)$/).nullable().optional(),
+    timezone: z.string().min(1).nullable().optional(),
     defaults: z.record(z.unknown()).optional(),
     is_active: z.boolean().optional(),
     next_fire_at: z.string().datetime().optional(),
+  })
+  .superRefine((value, ctx) => {
+    const scheduleType = value.schedule_type;
+    if (!scheduleType) {
+      return;
+    }
+    if (scheduleType === 'interval') {
+      if (value.cadence_minutes === null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['cadence_minutes'],
+          message: 'cadence_minutes is required for interval schedules',
+        });
+      }
+      if (value.daily_time !== undefined && value.daily_time !== null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['daily_time'],
+          message: 'daily_time is only valid for daily_time schedules',
+        });
+      }
+      if (value.timezone !== undefined && value.timezone !== null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ['timezone'],
+          message: 'timezone is only valid for daily_time schedules',
+        });
+      }
+      return;
+    }
+
+    if (value.daily_time === undefined || value.daily_time === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['daily_time'],
+        message: 'daily_time is required for daily_time schedules',
+      });
+    }
+    if (value.timezone === undefined || value.timezone === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['timezone'],
+        message: 'timezone is required for daily_time schedules',
+      });
+    }
+    if (value.cadence_minutes !== undefined && value.cadence_minutes !== null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['cadence_minutes'],
+        message: 'cadence_minutes must be omitted for daily_time schedules',
+      });
+    }
   })
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field is required',

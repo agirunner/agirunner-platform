@@ -38,7 +38,9 @@ describe('project detail workspace shell source', () => {
     expect(source).toContain('<ProjectAutomationTab project={project} />');
     expect(automationSource).toContain('<ScheduledTriggersCard project={project} />');
     expect(automationSource).toContain('buildProjectAutomationOverview');
-    expect(automationSource).toContain('Repository signatures are optional until this project uses source-driven automation.');
+    expect(automationSource).toContain(
+      'Repository webhook signatures are optional unless this project should trust git-provider inbound hooks.',
+    );
     expect(automationSource).toContain('Active now');
     expect(automationSource).toContain('Broken');
     expect(automationSource).toContain('Setup needed');
@@ -50,14 +52,15 @@ describe('project detail workspace shell source', () => {
   it('keeps git webhook management inside the project automation surface', () => {
     const automationSource = readSource('./project-automation-tab.tsx');
     expect(automationSource).toContain('<GitWebhookTab project={project} />');
-    expect(automationSource).toContain('Repository signatures');
+    expect(automationSource).toContain('Repository webhook signatures');
   });
 
-  it('relabels scheduled trigger targeting around project runs instead of workflows', () => {
+  it('relabels scheduled trigger targeting around workflows and removes operator-only schedule internals', () => {
     const formSource = readSource('./project-scheduled-trigger-form.tsx');
-    expect(formSource).toContain('Create a project run before adding a scheduled trigger.');
-    expect(formSource).toContain('label="Target run"');
-    expect(formSource).toContain('placeholder="Select run"');
+    expect(formSource).toContain('Create a target workflow before adding a scheduled trigger.');
+    expect(formSource).toContain('label="Target workflow"');
+    expect(formSource).toContain('placeholder="Select workflow"');
+    expect(formSource).not.toContain('label="Source"');
   });
 
   it('rebuilds the top-level taxonomy around overview, settings, knowledge, automation, and delivery', () => {
@@ -134,12 +137,14 @@ describe('project detail workspace shell source', () => {
   it('uses bounded workflow stage and role options in the automation form when they are available', () => {
     const triggerSource = readSource('./project-scheduled-triggers-card.tsx');
     const formSource = readSource('./project-scheduled-trigger-form.tsx');
-    expect(triggerSource).toContain('dashboardApi.listRoleDefinitions()');
     expect(triggerSource).toContain('dashboardApi.getWorkflow(form.workflowId)');
     expect(triggerSource).toContain('dashboardApi.getWorkflowBoard(form.workflowId)');
+    expect(formSource).toContain('label="Target workflow"');
+    expect(formSource).toContain('label="Schedule type"');
     expect(formSource).toContain('label="Stage"');
     expect(formSource).toContain('label="Target board column"');
-    expect(formSource).toContain('label="Owner role"');
+    expect(formSource).not.toContain('label="Source"');
+    expect(formSource).not.toContain('label="Owner role"');
   });
 
   it('keeps typed memory and artifacts accessible from the knowledge shell', () => {

@@ -12,22 +12,27 @@ describe('project scheduled trigger form source', () => {
     expect(source).toContain('validateScheduledTriggerForm');
     expect(source).toContain('Save readiness');
     expect(source).toContain('Resolve the items below before saving this trigger.');
-    expect(source).toContain('Run target and timing');
-    expect(source).toContain('Generated work item');
+    expect(source).toContain('Workflow target and timing');
+    expect(source).toContain('Work item template');
     expect(source).toContain(
-      'Save once the target run, cadence, and generated work item copy all look correct.',
+      'Save once the target workflow, schedule, and work-item template all look correct.',
     );
     expect(source).toContain('error={validation.fieldErrors.workflowId}');
-    expect(source).toContain('error={validation.fieldErrors.cadenceMinutes}');
     expect(source).toContain('error={validation.fieldErrors.title}');
   });
 
-  it('keeps structured select controls for run, stage, column, and owner role selection', () => {
+  it('keeps structured controls for workflow, schedule type, and routing without exposing source or owner role', () => {
     const source = readSource();
-    expect(source).toContain('label="Target run"');
+    expect(source).toContain('label="Target workflow"');
+    expect(source).toContain('label="Schedule type"');
+    expect(source).toContain('label="Every (minutes)"');
+    expect(source).toContain('label="Time of day"');
+    expect(source).toContain('label="Timezone"');
     expect(source).toContain('label="Stage"');
     expect(source).toContain('label="Target board column"');
-    expect(source).toContain('label="Owner role"');
+    expect(source).not.toContain('label="Source"');
+    expect(source).not.toContain('label="Owner role"');
+    expect(source).not.toContain('label="First run (optional)"');
     expect(source).not.toContain('<select');
   });
 });

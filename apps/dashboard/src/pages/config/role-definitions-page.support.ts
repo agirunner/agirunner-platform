@@ -122,7 +122,7 @@ const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
   },
 ];
 
-export const KNOWN_TOOLS = ['shell_exec', 'file_read', 'file_write', 'file_edit', 'file_list', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'web_fetch', 'web_search', 'escalate'];
+export const KNOWN_TOOLS = ['file_read', 'file_write', 'file_edit', 'file_list', 'grep', 'glob', 'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'web_fetch', 'escalate'];
 
 export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
   return {

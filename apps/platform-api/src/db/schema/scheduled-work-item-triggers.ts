@@ -17,7 +17,10 @@ export const scheduledWorkItemTriggers = pgTable(
     workflowId: uuid('workflow_id')
       .notNull()
       .references(() => workflows.id),
-    cadenceMinutes: integer('cadence_minutes').notNull(),
+    scheduleType: text('schedule_type').notNull().default('interval'),
+    cadenceMinutes: integer('cadence_minutes'),
+    dailyTime: text('daily_time'),
+    timezone: text('timezone'),
     defaults: jsonb('defaults').notNull().default({}),
     isActive: boolean('is_active').notNull().default(true),
     lastFiredAt: timestamp('last_fired_at', { withTimezone: true }),
