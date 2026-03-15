@@ -2801,6 +2801,9 @@ describe('WorkflowActivationDispatchService', () => {
           );
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('web_search');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('advance_stage');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task_output');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('request_task_changes');
           return { rowCount: 1, rows: [{ id: 'task-tools' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
