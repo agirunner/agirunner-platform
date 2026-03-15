@@ -195,6 +195,10 @@ func (m *mockPlatformClient) ReportActualState(state ActualState) error {
 	return nil
 }
 
+func (m *mockPlatformClient) PruneActualState(desiredStateID string, activeContainerIDs []string) error {
+	return nil
+}
+
 func (m *mockPlatformClient) ReportImage(img ContainerImage) error {
 	if m.reportImageErr != nil {
 		return m.reportImageErr

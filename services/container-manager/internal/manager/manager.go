@@ -69,6 +69,7 @@ type PlatformAPI interface {
 	FetchDesiredState() ([]DesiredState, error)
 	FetchReconcileSnapshot() (*ReconcileSnapshot, error)
 	ReportActualState(state ActualState) error
+	PruneActualState(desiredStateID string, activeContainerIDs []string) error
 	ReportImage(image ContainerImage) error
 	FetchRuntimeTargets() ([]RuntimeTarget, error)
 	FetchHeartbeats() ([]RuntimeHeartbeat, error)
@@ -457,11 +458,16 @@ func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) Containe
 }
 
 func (m *Manager) reportActualState(ctx context.Context, containers []ContainerInfo) {
+	// Track active container IDs per desired state for stale cleanup.
+	activeByDS := make(map[string][]string)
+
 	for _, c := range containers {
 		dsID, ok := c.Labels[labelDesiredStateID]
 		if !ok {
 			continue
 		}
+
+		activeByDS[dsID] = append(activeByDS[dsID], c.ID)
 
 		stats, err := m.docker.GetContainerStats(ctx, c.ID)
 		if err != nil {
@@ -483,6 +489,13 @@ func (m *Manager) reportActualState(ctx context.Context, containers []ContainerI
 
 		if err := m.platform.ReportActualState(state); err != nil {
 			m.logger.Error("failed to report actual state", "container", c.ID, "error", err)
+		}
+	}
+
+	// Prune actual-state rows for containers that no longer exist.
+	for dsID, containerIDs := range activeByDS {
+		if err := m.platform.PruneActualState(dsID, containerIDs); err != nil {
+			m.logger.Error("failed to prune stale actual state", "desired_state_id", dsID, "error", err)
 		}
 	}
 }

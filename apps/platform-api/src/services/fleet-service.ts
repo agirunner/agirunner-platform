@@ -542,6 +542,20 @@ export class FleetService {
     );
   }
 
+  async pruneStaleActualState(desiredStateId: string, activeContainerIds: string[]): Promise<number> {
+    if (activeContainerIds.length === 0) {
+      return 0;
+    }
+    const placeholders = activeContainerIds.map((_, i) => `$${i + 2}`).join(', ');
+    const result = await this.pool.query(
+      `DELETE FROM worker_actual_state
+       WHERE desired_state_id = $1
+         AND container_id NOT IN (${placeholders})`,
+      [desiredStateId, ...activeContainerIds],
+    );
+    return result.rowCount ?? 0;
+  }
+
   async pruneStaleHeartbeats(maxAgeMinutes = 10): Promise<number> {
     const result = await this.pool.query(
       `DELETE FROM runtime_heartbeats

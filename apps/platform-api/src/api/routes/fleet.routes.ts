@@ -194,6 +194,18 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.post(
+    '/api/v1/fleet/workers/actual-state/prune',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request, reply) => {
+      const body = request.body as { desiredStateId?: string; activeContainerIds?: string[] };
+      if (body.desiredStateId && Array.isArray(body.activeContainerIds)) {
+        await service.pruneStaleActualState(body.desiredStateId, body.activeContainerIds);
+      }
+      reply.status(204);
+    },
+  );
+
   // --- Images ---
 
   app.get(

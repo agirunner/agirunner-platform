@@ -140,6 +140,38 @@ func (c *PlatformClient) ReportActualState(state ActualState) error {
 	return nil
 }
 
+// PruneActualState removes actual-state rows for containers no longer running.
+func (c *PlatformClient) PruneActualState(desiredStateID string, activeContainerIDs []string) error {
+	payload := map[string]interface{}{
+		"desiredStateId":     desiredStateID,
+		"activeContainerIds": activeContainerIDs,
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshal prune request: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/fleet/workers/actual-state/prune", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create prune request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("prune request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("prune API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
 // ReportImage reports a discovered Docker image to the platform.
 func (c *PlatformClient) ReportImage(image ContainerImage) error {
 	payload := map[string]interface{}{
