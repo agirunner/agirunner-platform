@@ -19,7 +19,6 @@ import {
 import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import type {
-  EscalationTargetOption,
   RoleDialogValidation,
 } from './role-definitions-dialog.support.js';
 import type {
@@ -32,7 +31,6 @@ export function RoleBasicsSection(props: {
   form: RoleFormState;
   setForm: Dispatch<SetStateAction<RoleFormState>>;
   role?: RoleDefinition | null;
-  escalationOptions: EscalationTargetOption[];
   validation: RoleDialogValidation;
 }) {
   return (
@@ -40,7 +38,7 @@ export function RoleBasicsSection(props: {
       <CardHeader>
         <CardTitle>Role basics</CardTitle>
         <CardDescription>
-          Set the role identity, prompt, lifecycle state, and review posture.
+          Set the role identity, prompt, and lifecycle state.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
@@ -102,84 +100,6 @@ export function RoleBasicsSection(props: {
             Explain how the specialist should reason, verify, and communicate.
           </span>
         </label>
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Verification strategy</span>
-          <Select
-            value={props.form.verificationStrategy}
-            onValueChange={(value) =>
-              props.setForm((current) => ({ ...current, verificationStrategy: value }))
-            }
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none">None</SelectItem>
-              <SelectItem value="peer_review">Peer review</SelectItem>
-              <SelectItem value="human_approval">Human approval</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Escalation target</span>
-          <Select
-            value={props.form.escalationTarget ?? '__none__'}
-            onValueChange={(value) =>
-              props.setForm((current) => ({
-                ...current,
-                escalationTarget: value === '__none__' ? null : value,
-                maxEscalationDepth: value === '__none__' ? 5 : current.maxEscalationDepth,
-              }))
-            }
-          >
-            <SelectTrigger aria-invalid={Boolean(props.validation.fieldErrors.escalationTarget)}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {props.escalationOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <span className="text-xs text-muted">
-            {props.escalationOptions.find(
-              (option) => option.value === (props.form.escalationTarget ?? '__none__'),
-            )?.description ?? 'Choose where the role should hand off blocked work.'}
-          </span>
-          {props.validation.fieldErrors.escalationTarget ? (
-            <span className="text-xs text-red-600 dark:text-red-400">
-              {props.validation.fieldErrors.escalationTarget}
-            </span>
-          ) : null}
-        </label>
-        {props.form.escalationTarget ? (
-          <label className="grid gap-2 text-sm">
-            <span className="font-medium">Max escalation depth</span>
-            <Input
-              type="number"
-              min={1}
-              max={10}
-              value={props.form.maxEscalationDepth}
-              onChange={(event) =>
-                props.setForm((current) => ({
-                  ...current,
-                  maxEscalationDepth: Math.max(
-                    1,
-                    Math.min(10, Number(event.target.value) || 1),
-                  ),
-                }))
-              }
-              aria-invalid={Boolean(props.validation.fieldErrors.maxEscalationDepth)}
-            />
-            {props.validation.fieldErrors.maxEscalationDepth ? (
-              <span className="text-xs text-red-600 dark:text-red-400">
-                {props.validation.fieldErrors.maxEscalationDepth}
-              </span>
-            ) : null}
-          </label>
-        ) : null}
       </CardContent>
     </Card>
   );

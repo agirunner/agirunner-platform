@@ -134,7 +134,7 @@ export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
     name: role?.name ?? '',
     description: role?.description ?? '',
     systemPrompt: role?.system_prompt ?? '',
-    allowedTools: role?.allowed_tools ?? [],
+    allowedTools: role?.allowed_tools ?? [...KNOWN_TOOLS],
     capabilities: role?.capabilities ?? [],
     modelPreference: role?.model_preference ?? '',
     fallbackModel: role?.fallback_model ?? '',

@@ -3,9 +3,6 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
 import {
-  buildEscalationTargetOptions,
-  readCustomCapabilityError,
-  readCustomToolError,
   summarizeRoleSetup,
   validateRoleDialog,
 } from './role-definitions-dialog.support.js';
@@ -14,7 +11,6 @@ import {
   RoleModelPreferenceSection,
 } from './role-definitions-dialog.basics.js';
 import {
-  RoleCapabilitiesSection,
   RoleToolGrantsSection,
 } from './role-definitions-dialog.catalog.js';
 import {
@@ -24,7 +20,6 @@ import {
 import {
   buildRoleModelOptions,
   createRoleForm,
-  listAvailableCapabilities,
   listAvailableTools,
   type LlmModelRecord,
   type LlmProviderRecord,
@@ -53,10 +48,6 @@ export function RoleDialog(props: {
     }
     return createRoleForm(null);
   });
-  const [customCapability, setCustomCapability] = useState('');
-  const [customTool, setCustomTool] = useState('');
-  const [customCapabilityError, setCustomCapabilityError] = useState<string>();
-  const [customToolError, setCustomToolError] = useState<string>();
   const mutation = useMutation({
     mutationFn: () => props.onSave(props.role?.id ?? null, form),
     onSuccess: () => {
@@ -65,41 +56,18 @@ export function RoleDialog(props: {
     },
   });
 
-  const capabilities = listAvailableCapabilities(props.role);
   const tools = listAvailableTools(props.role);
   const modelOptions = buildRoleModelOptions(props.models, props.providers, props.role);
-  const escalationOptions = buildEscalationTargetOptions(props.roles, props.role);
   const validation = validateRoleDialog(form, props.roles, props.role);
   const summary = summarizeRoleSetup(form);
 
-  function toggleListValue(field: 'allowedTools' | 'capabilities', value: string) {
+  function toggleTool(value: string) {
     setForm((current) => ({
       ...current,
-      [field]: current[field].includes(value)
-        ? current[field].filter((item) => item !== value)
-        : [...current[field], value],
+      allowedTools: current.allowedTools.includes(value)
+        ? current.allowedTools.filter((item) => item !== value)
+        : [...current.allowedTools, value],
     }));
-  }
-
-  function addListValue(
-    field: 'allowedTools' | 'capabilities',
-    value: string,
-    reset: () => void,
-    readError: (draft: string) => string | undefined,
-    setError: (message: string | undefined) => void,
-  ) {
-    const error = readError(value);
-    if (error) {
-      setError(error);
-      return;
-    }
-    const trimmed = value.trim();
-    setForm((current) => ({
-      ...current,
-      [field]: current[field].includes(trimmed) ? current[field] : [...current[field], trimmed],
-    }));
-    setError(undefined);
-    reset();
   }
 
   return (
@@ -108,8 +76,8 @@ export function RoleDialog(props: {
         <DialogHeader className="border-b border-border/70 px-6 py-5">
           <DialogTitle>{props.role ? `Edit Role: ${props.role.name}` : 'Create Role'}</DialogTitle>
           <DialogDescription>
-            Configure specialist routing, model posture, capabilities, and escalation in one
-            operator workflow. Save blockers appear inline before submit.
+            Configure specialist identity, model posture, tools, and escalation.
+            Save blockers appear inline before submit.
           </DialogDescription>
         </DialogHeader>
         <form
@@ -129,72 +97,20 @@ export function RoleDialog(props: {
                   form={form}
                   setForm={setForm}
                   role={props.role}
-                  escalationOptions={escalationOptions}
                   validation={validation}
                 />
-                <div className="grid gap-5 xl:grid-cols-[1.1fr_1.4fr]">
-                  <RoleModelPreferenceSection
-                    form={form}
-                    setForm={setForm}
-                    modelOptions={modelOptions}
-                    isModelCatalogLoading={props.isModelCatalogLoading}
-                    modelCatalogError={props.modelCatalogError}
-                    validation={validation}
-                  />
-                  <RoleCapabilitiesSection
-                    form={form}
-                    capabilities={capabilities}
-                    customCapability={customCapability}
-                    customCapabilityError={customCapabilityError}
-                    setCustomCapability={(value) => {
-                      setCustomCapability(value);
-                      if (customCapabilityError) {
-                        setCustomCapabilityError(
-                          readCustomCapabilityError(value, form.capabilities),
-                        );
-                      }
-                    }}
-                    onCustomCapabilityBlur={() =>
-                      setCustomCapabilityError(
-                        readCustomCapabilityError(customCapability, form.capabilities),
-                      )
-                    }
-                    toggleCapability={(value) => toggleListValue('capabilities', value)}
-                    addCustomCapability={() =>
-                      addListValue(
-                        'capabilities',
-                        customCapability,
-                        () => setCustomCapability(''),
-                        (draft) => readCustomCapabilityError(draft, form.capabilities),
-                        setCustomCapabilityError,
-                      )
-                    }
-                  />
-                </div>
+                <RoleModelPreferenceSection
+                  form={form}
+                  setForm={setForm}
+                  modelOptions={modelOptions}
+                  isModelCatalogLoading={props.isModelCatalogLoading}
+                  modelCatalogError={props.modelCatalogError}
+                  validation={validation}
+                />
                 <RoleToolGrantsSection
                   form={form}
                   tools={tools}
-                  customTool={customTool}
-                  customToolError={customToolError}
-                  setCustomTool={(value) => {
-                    setCustomTool(value);
-                    if (customToolError) {
-                      setCustomToolError(readCustomToolError(value, form.allowedTools));
-                    }
-                  }}
-                  onCustomToolBlur={() =>
-                    setCustomToolError(readCustomToolError(customTool, form.allowedTools))
-                  }
-                  toggleTool={(value) => toggleListValue('allowedTools', value)}
-                  addCustomTool={() =>
-                    addListValue(
-                      'allowedTools',
-                      customTool,
-                      () => setCustomTool(''),
-                      (draft) => readCustomToolError(draft, form.allowedTools),
-                      setCustomToolError,
-                    )
-                  }
+                  toggleTool={toggleTool}
                 />
               </div>
 

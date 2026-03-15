@@ -50,8 +50,6 @@ describe('role definitions page source', () => {
   it('keeps unknown existing allowed tools editable alongside the standard catalog', () => {
     const source = readCombinedSource();
     expect(source).toContain('listAvailableTools');
-    expect(source).toContain('Existing grants that are no longer in the standard catalog');
-    expect(source).toContain('No catalog tools enabled.');
     expect(source).toContain('ToggleCard');
     expect(source).not.toContain('type="checkbox"');
   });
@@ -61,11 +59,6 @@ describe('role definitions page source', () => {
     expect(source).toContain('Model preference');
     expect(source).toContain('Fallback model');
     expect(source).toContain('Active role');
-    expect(source).toContain('Add custom capability');
-    expect(source).toContain('Enter a custom capability before adding it.');
-    expect(source).toContain('Use an ID-style capability without spaces');
-    expect(source).toContain('Enter a custom tool grant before adding it.');
-    expect(source).toContain('Use a single tool ID without spaces');
     expect(source).toContain('Save readiness');
     expect(source).toContain('Resolve these role setup issues before saving.');
     expect(source).toContain('Choose a unique role name.');
