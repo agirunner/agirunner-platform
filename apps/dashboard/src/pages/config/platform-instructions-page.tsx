@@ -75,7 +75,6 @@ export function PlatformInstructionsPage(): JSX.Element {
           </div>
           <p className="max-w-3xl text-sm text-muted">
             Org-wide baseline instructions applied to all agents — orchestrator and specialists.
-            The orchestrator also receives its own dedicated prompt configured on the Orchestrator page.
           </p>
         </div>
         <Button
