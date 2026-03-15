@@ -339,23 +339,33 @@ function buildAutomationHeaderState(
     isGitProviderSource(trigger.source),
   );
   const activeSchedules = scheduledTriggers.filter((trigger) => trigger.is_active);
+  const pausedSchedules = scheduledTriggers.filter((trigger) => !trigger.is_active);
   const activeWebhookTriggers = webhookTriggers.filter((trigger) => trigger.is_active);
+  const pausedWebhookTriggers = webhookTriggers.filter((trigger) => !trigger.is_active);
   const overdueSchedules = activeSchedules.filter(
     (trigger) => Date.parse(trigger.next_fire_at) <= now.getTime(),
   );
   const webhookSecretsMissing = activeWebhookTriggers.filter((trigger) => !trigger.secret_configured);
   const liveLaneCount = activeSchedules.length + activeWebhookTriggers.length;
-  const issueCount = overdueSchedules.length + webhookSecretsMissing.length;
+  const pausedLaneCount = pausedSchedules.length + pausedWebhookTriggers.length;
+  const issueCount = overdueSchedules.length + webhookSecretsMissing.length + pausedLaneCount;
 
   if (issueCount > 0) {
     return {
       statusLabel: 'Automation needs attention',
       badgeVariant: 'warning',
-      summary: buildAutomationIssueSummary(overdueSchedules.length, webhookSecretsMissing.length),
+      summary: buildAutomationIssueSummary(
+        overdueSchedules.length,
+        webhookSecretsMissing.length,
+        pausedSchedules.length,
+        pausedWebhookTriggers.length,
+      ),
       nextAction:
         overdueSchedules.length > 0
           ? 'Start with the overdue schedule, then confirm inbound hooks still route to the intended workflow.'
-          : 'Set the missing inbound-hook secret before the next external event arrives.',
+          : webhookSecretsMissing.length > 0
+            ? 'Set the missing inbound-hook secret before the next external event arrives.'
+            : 'Review the paused automation lane before re-enabling it or leaving it dormant.',
       signals: [
         {
           label: 'Live',
@@ -422,6 +432,8 @@ function buildAutomationHeaderState(
 function buildAutomationIssueSummary(
   overdueScheduleCount: number,
   missingWebhookSecretCount: number,
+  pausedScheduleCount: number,
+  pausedWebhookCount: number,
 ): string {
   const parts = [
     overdueScheduleCount > 0
@@ -430,9 +442,12 @@ function buildAutomationIssueSummary(
     missingWebhookSecretCount > 0
       ? `${formatCount(missingWebhookSecretCount, 'active inbound hook')} missing secrets`
       : null,
+    pausedScheduleCount > 0 ? `${formatCount(pausedScheduleCount, 'paused schedule')}` : null,
+    pausedWebhookCount > 0 ? `${formatCount(pausedWebhookCount, 'paused inbound hook')}` : null,
   ].filter((value): value is string => value !== null);
 
-  return `${parts.join(' and ')} need operator repair.`;
+  const verb = parts.length === 1 && parts[0]?.startsWith('1 ') ? 'needs' : 'need';
+  return `${parts.join(' and ')} ${verb} operator repair.`;
 }
 
 function buildGitSignatureSummary(

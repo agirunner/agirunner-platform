@@ -2695,4 +2695,41 @@ describe('dashboard global search', () => {
     expect(result.suggestions).toHaveLength(1);
     expect(result.suggestions![0].path).toBe('runtime.timeout');
   });
+
+  it('surfaces backend validation messages instead of bare HTTP status codes', async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            code: 'SCHEMA_VALIDATION_FAILED',
+            message: 'Workflow and project targets must belong to the same project scope',
+          },
+        }),
+        {
+          status: 422,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      baseUrl: 'http://localhost:8080',
+      fetcher,
+      client: {} as never,
+    });
+
+    await expect(
+      api.createWebhookWorkItemTrigger({
+        name: 'GitHub push',
+        source: 'github',
+        project_id: '11111111-1111-4111-8111-111111111111',
+        workflow_id: '22222222-2222-4222-8222-222222222222',
+        signature_header: 'x-hub-signature-256',
+        signature_mode: 'hmac_sha256',
+        secret: 'secret123',
+      }),
+    ).rejects.toThrow(
+      'HTTP 422: Workflow and project targets must belong to the same project scope',
+    );
+  });
 });

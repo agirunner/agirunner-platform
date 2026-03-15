@@ -54,7 +54,9 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
       toast.success('Webhook trigger created');
     },
     onError: (error: unknown) => {
-      toast.error(`Failed to create trigger: ${String(error)}`);
+      toast.error(
+        `Failed to create trigger: ${error instanceof Error ? error.message : String(error)}`,
+      );
     },
   });
 
@@ -67,7 +69,9 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
       toast.success('Webhook trigger updated');
     },
     onError: (error: unknown) => {
-      toast.error(`Failed to update trigger: ${String(error)}`);
+      toast.error(
+        `Failed to update trigger: ${error instanceof Error ? error.message : String(error)}`,
+      );
     },
   });
 

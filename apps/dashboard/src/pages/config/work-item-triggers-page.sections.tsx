@@ -399,8 +399,8 @@ export function WebhookTriggerEditorDialog(props: {
           <section
             className={
               validation.isValid
-                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4 dark:border-emerald-800 dark:bg-emerald-950/30'
-                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4 dark:border-amber-800 dark:bg-amber-950/30'
+                ? 'rounded-xl border border-emerald-300/80 bg-background/70 p-4 dark:border-emerald-800/70'
+                : 'rounded-xl border border-amber-300/80 bg-background/70 p-4 dark:border-amber-800/70'
             }
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -417,7 +417,7 @@ export function WebhookTriggerEditorDialog(props: {
               </span>
             </div>
             {!validation.isValid ? (
-              <ul className="mt-3 space-y-1 text-sm text-amber-950">
+              <ul className="mt-3 space-y-1 text-sm text-amber-900 dark:text-amber-100">
                 {validation.issues.map((issue) => (
                   <li key={issue}>• {issue}</li>
                 ))}
@@ -440,11 +440,11 @@ export function WebhookTriggerEditorDialog(props: {
             <ConfigInputField
               fieldId="webhook-trigger-source"
               label="Source"
-              description="Use a namespaced source key such as github.webhook so operators can trace the external system."
+              description="Use a short source key that identifies the external system, such as github, stripe, or zendesk.ticket."
               error={validation.fieldErrors['source']}
               inputProps={{
                 value: form.source,
-                placeholder: 'e.g. github.webhook',
+                placeholder: 'e.g. github',
                 onChange: (event) => update('source', event.target.value),
               }}
             />

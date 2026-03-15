@@ -204,18 +204,12 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
           />
         ) : (
           <section className="rounded-xl border border-border/70 bg-background/70 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">Create or revise schedules</h3>
-                <p className="text-sm leading-6 text-muted">
-                  Open the composer only when cadence, routing, or generated work-item copy needs to
-                  change.
-                </p>
-              </div>
-              <Button variant="outline" size="sm" onClick={startCreate}>
-                <Plus className="h-4 w-4" />
-                Add schedule
-              </Button>
+            <div className="space-y-1">
+              <h3 className="text-sm font-semibold text-foreground">Create or revise schedules</h3>
+              <p className="text-sm leading-6 text-muted">
+                Open the composer only when cadence, routing, or generated work-item copy needs to
+                change.
+              </p>
             </div>
           </section>
         )}

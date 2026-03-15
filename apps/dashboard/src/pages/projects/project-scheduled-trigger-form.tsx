@@ -59,11 +59,9 @@ export function ProjectScheduledTriggerForm({
             Configure a recurring work-item creation rule for this project.
           </p>
         </div>
-        {isEditing ? (
-          <Button variant="outline" onClick={onCancel} disabled={isPending}>
-            Cancel edit
-          </Button>
-        ) : null}
+        <Button variant="outline" onClick={onCancel} disabled={isPending}>
+          {isEditing ? 'Cancel edit' : 'Close composer'}
+        </Button>
       </div>
 
       {workflows.length === 0 ? (
@@ -75,8 +73,8 @@ export function ProjectScheduledTriggerForm({
           <section
             className={
               validation.isValid
-                ? 'rounded-xl border border-emerald-300 bg-emerald-50/70 p-4'
-                : 'rounded-xl border border-amber-300 bg-amber-50/80 p-4'
+                ? 'rounded-xl border border-emerald-300/80 bg-background/70 p-4 dark:border-emerald-800/70'
+                : 'rounded-xl border border-amber-300/80 bg-background/70 p-4 dark:border-amber-800/70'
             }
           >
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -104,7 +102,7 @@ export function ProjectScheduledTriggerForm({
               </div>
             </div>
             {!validation.isValid ? (
-              <ul className="mt-3 space-y-1 text-sm text-amber-950">
+              <ul className="mt-3 space-y-1 text-sm text-amber-900 dark:text-amber-100">
                 {validation.issues.map((issue) => (
                   <li key={issue}>• {issue}</li>
                 ))}

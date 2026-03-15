@@ -324,7 +324,7 @@ describe('work item triggers page support', () => {
     expect(result.fieldErrors['eventTypes']).toBe('Event types must be unique.');
   });
 
-  it('requires a namespaced source and a header value without spaces', () => {
+  it('allows simple source keys and still rejects signature headers with spaces', () => {
     const form = {
       ...createWebhookTriggerFormState(),
       name: 'GitHub push',
@@ -337,9 +337,7 @@ describe('work item triggers page support', () => {
     const result = validateWebhookTriggerForm(form, 'create');
 
     expect(result.isValid).toBe(false);
-    expect(result.fieldErrors['source']).toBe(
-      'Use a namespaced source such as github.webhook or jira.issue.created.',
-    );
+    expect(result.fieldErrors['source']).toBeUndefined();
     expect(result.fieldErrors['signatureHeader']).toBe(
       'Signature headers cannot contain spaces.',
     );

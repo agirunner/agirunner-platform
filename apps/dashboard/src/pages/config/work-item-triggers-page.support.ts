@@ -76,13 +76,6 @@ export function validateWebhookTriggerForm(
   }
   if (!form.source.trim()) {
     addIssue(fieldErrors, issues, 'source', 'Add a source identifier.');
-  } else if (!/^[a-z0-9]+(?:[._-][a-z0-9]+)+$/i.test(form.source.trim())) {
-    addIssue(
-      fieldErrors,
-      issues,
-      'source',
-      'Use a namespaced source such as github.webhook or jira.issue.created.',
-    );
   }
   if (!form.workflowId) {
     addIssue(fieldErrors, issues, 'workflowId', 'Select a target workflow.');

@@ -2011,7 +2011,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      throw new Error(await buildHttpErrorMessage(response));
     }
 
     if (options.allowNoContent && response.status === 204) {
@@ -2072,7 +2072,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     });
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      throw new Error(await buildHttpErrorMessage(response));
     }
 
     return response;
@@ -2085,6 +2085,27 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       throw new Error('Artifact access must remain on the platform API origin');
     }
     return resolved.toString();
+  }
+
+  async function buildHttpErrorMessage(response: Response): Promise<string> {
+    const fallback = `HTTP ${response.status}`;
+    const contentType = response.headers.get('content-type') ?? '';
+
+    try {
+      if (contentType.includes('application/json')) {
+        const payload = (await response.json()) as {
+          error?: { message?: string };
+          message?: string;
+        };
+        const message = payload.error?.message ?? payload.message;
+        return message ? `HTTP ${response.status}: ${message}` : fallback;
+      }
+
+      const text = (await response.text()).trim();
+      return text ? `HTTP ${response.status}: ${text}` : fallback;
+    } catch {
+      return fallback;
+    }
   }
 
   function readContentDispositionFileName(headerValue: string | null): string | null {

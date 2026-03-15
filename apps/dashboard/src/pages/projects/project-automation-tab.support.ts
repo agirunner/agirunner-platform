@@ -34,7 +34,9 @@ export function buildProjectAutomationOverview(
   now: Date = new Date(),
 ): ProjectAutomationOverview {
   const activeSchedules = scheduledTriggers.filter((trigger) => trigger.is_active);
+  const pausedSchedules = scheduledTriggers.filter((trigger) => !trigger.is_active);
   const activeWebhookTriggers = webhookTriggers.filter((trigger) => trigger.is_active);
+  const pausedWebhookTriggers = webhookTriggers.filter((trigger) => !trigger.is_active);
   const overdueSchedules = activeSchedules.filter(
     (trigger) => Date.parse(trigger.next_fire_at) <= now.getTime(),
   );
@@ -42,7 +44,11 @@ export function buildProjectAutomationOverview(
     (trigger) => !trigger.secret_configured,
   );
   const activeLaneCount = activeSchedules.length + activeWebhookTriggers.length;
-  const brokenCount = overdueSchedules.length + webhookSecretsMissing.length;
+  const brokenCount =
+    overdueSchedules.length +
+    webhookSecretsMissing.length +
+    pausedSchedules.length +
+    pausedWebhookTriggers.length;
   const hasGitInboundHooks = webhookTriggers.some((trigger) =>
     GIT_PROVIDER_SOURCES.has(trigger.source),
   );
@@ -65,7 +71,12 @@ export function buildProjectAutomationOverview(
     tone,
     summary:
       brokenCount > 0
-        ? buildBrokenSummary(overdueSchedules.length, webhookSecretsMissing.length)
+        ? buildBrokenSummary(
+            overdueSchedules.length,
+            webhookSecretsMissing.length,
+            pausedSchedules.length,
+            pausedWebhookTriggers.length,
+          )
         : setupItems.length > 0
           ? `Finish ${joinLabels(setupItems)} so schedules, inbound hooks, and optional git trust all stay aligned from one control center.`
           : `Schedules, inbound hooks, and repository trust are aligned for this project with ${formatCount(activeLaneCount, 'live lane')}.`,
@@ -74,6 +85,8 @@ export function buildProjectAutomationOverview(
         ? 'Start with the overdue schedule, then confirm inbound hooks and repository signatures still point at the intended run.'
         : webhookSecretsMissing.length > 0
           ? 'Set the missing inbound-hook secret before the next external event arrives.'
+          : pausedSchedules.length + pausedWebhookTriggers.length > 0
+            ? 'Review the paused automation lane before re-enabling it or leaving it dormant.'
           : setupItems.includes('Repository webhook signatures')
             ? 'Configure repository webhook signatures before operators rely on git-provider inbound hooks.'
             : setupItems.length > 0
@@ -149,6 +162,8 @@ function needsRepositorySignatureSetup(
 function buildBrokenSummary(
   overdueScheduleCount: number,
   missingWebhookSecretCount: number,
+  pausedScheduleCount: number,
+  pausedWebhookCount: number,
 ): string {
   const parts = [
     overdueScheduleCount > 0
@@ -157,10 +172,12 @@ function buildBrokenSummary(
     missingWebhookSecretCount > 0
       ? `${formatCount(missingWebhookSecretCount, 'active inbound hook')} missing signature secrets`
       : null,
+    pausedScheduleCount > 0 ? `${formatCount(pausedScheduleCount, 'paused schedule')}` : null,
+    pausedWebhookCount > 0 ? `${formatCount(pausedWebhookCount, 'paused inbound hook')}` : null,
   ].filter((value): value is string => value !== null);
 
   return parts.length > 0
-    ? `${joinLabels(parts)} need operator repair.`
+    ? `${joinLabels(parts)} ${parts.length === 1 && parts[0]?.startsWith('1 ') ? 'needs' : 'need'} operator repair.`
     : 'No overdue schedules or misconfigured active inbound hooks need operator repair right now.';
 }
 
