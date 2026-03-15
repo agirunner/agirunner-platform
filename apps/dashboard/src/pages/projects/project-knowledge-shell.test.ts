@@ -59,16 +59,11 @@ describe('project knowledge surface source', () => {
   it('keeps the reference, memory, and run content tools available without bringing back duplicate wrapper headers', () => {
     const specSource = readSource('./project-spec-tab.tsx');
     const memorySource = readSource('./project-detail-memory-tab.tsx');
-    const contentSource = readSource('./content-browser-page.tsx');
 
     expect(specSource).toContain('Project Context');
     expect(specSource).toContain('Key/Value pairs');
     expect(specSource).toContain('Use simple string or JSON values for reusable project knowledge.');
     expect(memorySource).toContain('Add memory entry');
     expect(memorySource).toContain('Memory is for evolving notes and learned state.');
-    expect(contentSource).toContain('Document Operator Controls');
-    expect(contentSource).toContain('Artifact Operator Controls');
-    expect(contentSource).toContain('showHeader?: boolean;');
-    expect(contentSource).toContain('props.showHeader === false ? null');
   });
 });

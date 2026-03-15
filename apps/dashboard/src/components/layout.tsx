@@ -107,18 +107,10 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'Projects',
-    icon: FolderOpen,
-    items: [
-      { label: 'All Projects', href: '/projects', icon: FolderOpen },
-      { label: 'Memory Browser', href: '/projects/memory', icon: Database },
-      { label: 'Content Browser', href: '/projects/content', icon: FileText },
-    ],
-  },
-  {
     label: 'Configuration',
     icon: Cog,
     items: [
+      { label: 'Projects', href: '/projects', icon: FolderOpen },
       { label: 'Playbooks', href: '/config/playbooks', icon: Workflow },
       { label: 'Orchestrator', href: '/config/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
       { label: 'Roles', href: '/config/roles', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },

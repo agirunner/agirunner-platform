@@ -68,8 +68,6 @@ const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-que
 
 const ProjectListPage = lazyWithRetry(() => import('../pages/projects/project-list-page.js').then((m) => ({ default: m.ProjectListPage })));
 const ProjectDetailPage = lazyWithRetry(() => import('../pages/projects/project-detail-page.js').then((m) => ({ default: m.ProjectDetailPage })));
-const MemoryBrowserPage = lazyWithRetry(() => import('../pages/projects/memory-browser-page.js').then((m) => ({ default: m.MemoryBrowserPage })));
-const ContentBrowserPage = lazyWithRetry(() => import('../pages/projects/content-browser-page.js').then((m) => ({ default: m.ContentBrowserPage })));
 
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
 const OrchestratorPage = lazyWithRetry(() => import('../pages/config/orchestrator-page.js').then((m) => ({ default: m.OrchestratorPage })));
@@ -211,8 +209,8 @@ export function App(): JSX.Element {
             <Route path="/projects/:id/memory" element={<LegacyProjectKnowledgeRedirect />} />
             <Route path="/projects/:id/content" element={<LegacyProjectKnowledgeRedirect />} />
             <Route path="/projects/:id/artifacts" element={<LegacyProjectKnowledgeRedirect />} />
-            <Route path="/projects/memory" element={<MemoryBrowserPage />} />
-            <Route path="/projects/content" element={<ContentBrowserPage />} />
+            <Route path="/projects/memory" element={<Navigate to="/projects" replace />} />
+            <Route path="/projects/content" element={<Navigate to="/projects" replace />} />
 
             {/* Configuration */}
             <Route path="/config/playbooks" element={<PlaybookListPage />} />
