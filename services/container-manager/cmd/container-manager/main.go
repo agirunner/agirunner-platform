@@ -23,15 +23,18 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel()}))
 
 	cfg := manager.Config{
-		PlatformAPIURL:      envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
-		PlatformAPIKey:      envOrFileOrDefault("PLATFORM_API_KEY", "PLATFORM_API_KEY_FILE", ""),
-		PlatformAdminAPIKey: envOrFileOrDefault("PLATFORM_ADMIN_API_KEY", "PLATFORM_ADMIN_API_KEY_FILE", ""),
-		DockerHost:          envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
-		ReconcileInterval:   parseDuration("RECONCILE_INTERVAL_SECONDS", 5),
-		StopTimeout:         parseDuration("STOP_TIMEOUT_SECONDS", 30),
-		GlobalMaxRuntimes:      parseIntWithAlias("AGIRUNNER_GLOBAL_MAX_RUNTIMES", "GLOBAL_MAX_RUNTIMES", 10),
-		RuntimeNetwork:         envOrDefault("RUNTIME_NETWORK", ""),
-		RuntimeInternalNetwork: envOrDefault("RUNTIME_INTERNAL_NETWORK", ""),
+		PlatformAPIURL:           envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
+		PlatformAPIKey:           envOrFileOrDefault("PLATFORM_API_KEY", "PLATFORM_API_KEY_FILE", ""),
+		PlatformAdminAPIKey:      envOrFileOrDefault("PLATFORM_ADMIN_API_KEY", "PLATFORM_ADMIN_API_KEY_FILE", ""),
+		DockerHost:               envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
+		ReconcileInterval:        parseDuration("RECONCILE_INTERVAL_SECONDS", 5),
+		StopTimeout:              parseDuration("STOP_TIMEOUT_SECONDS", 30),
+		ShutdownTaskStopTimeout:  parseDuration("SHUTDOWN_TASK_STOP_TIMEOUT_SECONDS", 2),
+		DockerActionBuffer:       parseDuration("DOCKER_ACTION_BUFFER_SECONDS", 15),
+		GlobalMaxRuntimes:        parseIntWithAlias("AGIRUNNER_GLOBAL_MAX_RUNTIMES", "GLOBAL_MAX_RUNTIMES", 10),
+		RuntimeOrphanGraceCycles: parseInt("RUNTIME_ORPHAN_GRACE_CYCLES", 3),
+		RuntimeNetwork:           envOrDefault("RUNTIME_NETWORK", ""),
+		RuntimeInternalNetwork:   envOrDefault("RUNTIME_INTERNAL_NETWORK", ""),
 	}
 
 	if cfg.PlatformAPIKey == "" {

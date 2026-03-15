@@ -150,6 +150,12 @@ func TestNewFleetMetricsRegistersAllCollectors(t *testing.T) {
 	if fm.OrphansCleanedTotal == nil {
 		t.Error("OrphansCleanedTotal is nil")
 	}
+	if fm.RuntimeOrphansDetectedTotal == nil {
+		t.Error("RuntimeOrphansDetectedTotal is nil")
+	}
+	if fm.RuntimeOrphansCleanedTotal == nil {
+		t.Error("RuntimeOrphansCleanedTotal is nil")
+	}
 	if fm.Registry == nil {
 		t.Error("Registry is nil")
 	}
@@ -160,6 +166,30 @@ func TestNewFleetMetricsRegistersAllCollectors(t *testing.T) {
 	}
 	if len(families) == 0 {
 		t.Error("expected at least one metric family registered")
+	}
+}
+
+func TestRecordRuntimeOrphanCountersIncrement(t *testing.T) {
+	fm := NewFleetMetrics()
+
+	fm.RecordRuntimeOrphanDetected()
+	fm.RecordRuntimeOrphanDetected()
+	fm.RecordRuntimeOrphanCleaned()
+
+	detected := gatherMetric(t, fm, "agirunner_fleet_runtime_orphans_detected_total")
+	if detected == nil {
+		t.Fatal("runtime_orphans_detected_total metric not found")
+	}
+	if value := detected.GetMetric()[0].GetCounter().GetValue(); value != 2 {
+		t.Fatalf("expected 2 detected runtime orphans, got %v", value)
+	}
+
+	cleaned := gatherMetric(t, fm, "agirunner_fleet_runtime_orphans_cleaned_total")
+	if cleaned == nil {
+		t.Fatal("runtime_orphans_cleaned_total metric not found")
+	}
+	if value := cleaned.GetMetric()[0].GetCounter().GetValue(); value != 1 {
+		t.Fatalf("expected 1 cleaned runtime orphan, got %v", value)
 	}
 }
 

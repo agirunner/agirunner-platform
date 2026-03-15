@@ -42,6 +42,8 @@ type mockDockerClient struct {
 	listErr         error
 	stopErr         error
 	removeErr       error
+	stopWaitForCtx  bool
+	sawStopDeadline bool
 	listImagesErr   error
 	statsErr        error
 	pullErr         error
@@ -70,7 +72,14 @@ func (m *mockDockerClient) CreateContainer(_ context.Context, spec ContainerSpec
 	return fmt.Sprintf("container-%d", m.nextContainerID), nil
 }
 
-func (m *mockDockerClient) StopContainer(_ context.Context, containerID string, _ time.Duration) error {
+func (m *mockDockerClient) StopContainer(ctx context.Context, containerID string, _ time.Duration) error {
+	if _, ok := ctx.Deadline(); ok {
+		m.sawStopDeadline = true
+	}
+	if m.stopWaitForCtx {
+		<-ctx.Done()
+		return ctx.Err()
+	}
 	if m.stopErr != nil {
 		return m.stopErr
 	}
@@ -243,8 +252,10 @@ func (m *mockPlatformClient) FailTask(taskID, reason string) error {
 func newTestManager(docker *mockDockerClient, platform *mockPlatformClient) *Manager {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := Config{
-		ReconcileInterval: 5 * time.Second,
-		StopTimeout:       10 * time.Second,
+		ReconcileInterval:        5 * time.Second,
+		StopTimeout:              10 * time.Second,
+		ShutdownTaskStopTimeout:  2 * time.Second,
+		RuntimeOrphanGraceCycles: 3,
 	}
 	return NewWithPlatform(cfg, docker, platform, logger)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -77,7 +78,8 @@ func (m *Manager) adoptOrRemoveRuntimes(
 		}
 		playbookID := c.Labels[labelDCMPlaybookID]
 		poolKind := normalizePoolKind(c.Labels[labelDCMPoolKind])
-		if _, hasTarget := targetMap[containerTargetKey(c)]; hasTarget {
+		reason := classifyManagedRuntimeOrphan(c, targetMap)
+		if reason == "" {
 			m.logger.Info("startup: adopting runtime", "container", c.ID, "playbook_id", playbookID, "pool_kind", poolKind)
 			m.emitLog("container", "lifecycle.startup_adopt", "debug", "completed", map[string]any{
 				"action":       "adopt",
@@ -89,16 +91,17 @@ func (m *Manager) adoptOrRemoveRuntimes(
 			adopted++
 			continue
 		}
-		gracePeriod := gracePeriodForContainer(c)
-		m.logger.Info("startup: removing stale runtime", "container", c.ID, "playbook_id", playbookID, "pool_kind", poolKind)
-		m.stopAndRemove(ctx, c.ID, gracePeriod)
-		m.emitLog("container", "lifecycle.startup_remove", "debug", "completed", map[string]any{
+		m.logger.Info("startup: removing stale runtime", "container", c.ID, "playbook_id", playbookID, "pool_kind", poolKind, "reason", reason)
+		m.forceRemoveContainer(ctx, c.ID)
+		m.metrics.RecordRuntimeOrphanCleaned()
+		m.emitLogWithResource("container", "lifecycle.startup_remove", "warn", "completed", map[string]any{
 			"action":       "orphan_clean",
 			"container_id": c.ID,
 			"playbook_id":  playbookID,
 			"pool_kind":    poolKind,
-			"reason":       "no_matching_target",
-		})
+			"reason":       reason,
+			"image":        c.Image,
+		}, logResourceInfo{ResourceType: "runtime", ResourceID: c.Labels[labelDCMRuntimeID]})
 		removed++
 	}
 	return adopted, removed
@@ -130,7 +133,16 @@ func (m *Manager) removeOrphanTasksOnStartup(ctx context.Context, containers []C
 
 	for _, orphan := range orphans {
 		m.logger.Info("startup: removing orphan task", "container", orphan.ID)
-		m.stopAndRemove(ctx, orphan.ID, m.config.StopTimeout)
+		m.forceRemoveContainer(ctx, orphan.ID)
+		m.metrics.RecordOrphanCleaned()
+		m.emitLogWithResource("container", "lifecycle.startup_task_remove", "warn", "completed", map[string]any{
+			"action":       "orphan_clean",
+			"container_id": orphan.ID,
+			"playbook_id":  orphan.Labels[labelDCMPlaybookID],
+			"pool_kind":    orphan.Labels[labelDCMPoolKind],
+			"reason":       "missing_parent_runtime",
+			"image":        orphan.Image,
+		}, logResourceInfo{ResourceType: "task_container", ResourceName: orphan.ID})
 	}
 	return len(orphans)
 }
@@ -143,11 +155,24 @@ func (m *Manager) shutdownCascade() {
 
 	m.emitLog("container", "lifecycle.shutdown", "info", "started", map[string]any{"action": "shutdown"})
 
+	var runtimeCount int
+	var taskCount int
+	var wg sync.WaitGroup
+	wg.Add(2)
+
 	m.logger.Info("shutdown cascade: stopping runtime containers")
-	runtimeCount := m.shutdownRuntimes(ctx)
+	go func() {
+		defer wg.Done()
+		runtimeCount = m.shutdownRuntimes(ctx)
+	}()
 
 	m.logger.Info("shutdown cascade: cleaning up orphan task containers")
-	taskCount := m.shutdownOrphanTasks(ctx)
+	go func() {
+		defer wg.Done()
+		taskCount = m.shutdownOrphanTasks(ctx)
+	}()
+
+	wg.Wait()
 
 	m.emitLogTimed("container", "lifecycle.shutdown", "info", "completed", map[string]any{
 		"action":           "shutdown",
@@ -170,6 +195,16 @@ func (m *Manager) shutdownRuntimes(ctx context.Context) int {
 		gracePeriod := gracePeriodForContainer(c)
 		m.logger.Info("shutdown: stopping runtime", "container", c.ID)
 		m.stopAndRemove(ctx, c.ID, gracePeriod)
+		m.emitLogWithResource("container", "lifecycle.shutdown_runtime_remove", "info", "completed", map[string]any{
+			"action":        "shutdown_cleanup",
+			"container_id":  c.ID,
+			"playbook_id":   c.Labels[labelDCMPlaybookID],
+			"playbook_name": c.Labels[labelDCMPlaybookName],
+			"pool_kind":     c.Labels[labelDCMPoolKind],
+			"pool_mode":     c.Labels[labelDCMPoolMode],
+			"reason":        "manager_shutdown",
+			"image":         c.Image,
+		}, logResourceInfo{ResourceType: "runtime", ResourceID: c.Labels[labelDCMRuntimeID]})
 	}
 	return len(containers)
 }
@@ -185,7 +220,23 @@ func (m *Manager) shutdownOrphanTasks(ctx context.Context) int {
 	tasks := filterByLabels(all, labelDCMManaged, "true", labelDCMTier, tierTask)
 	for _, t := range tasks {
 		m.logger.Info("shutdown: removing task container", "container", t.ID)
-		m.stopAndRemove(ctx, t.ID, m.config.StopTimeout)
+		m.stopAndRemove(ctx, t.ID, m.shutdownTaskStopTimeout())
+		m.metrics.RecordOrphanCleaned()
+		m.emitLogWithResource("container", "lifecycle.shutdown_task_remove", "info", "completed", map[string]any{
+			"action":       "shutdown_cleanup",
+			"container_id": t.ID,
+			"playbook_id":  t.Labels[labelDCMPlaybookID],
+			"pool_kind":    t.Labels[labelDCMPoolKind],
+			"reason":       "manager_shutdown",
+			"image":        t.Image,
+		}, logResourceInfo{ResourceType: "task_container", ResourceName: t.ID})
 	}
 	return len(tasks)
+}
+
+func (m *Manager) shutdownTaskStopTimeout() time.Duration {
+	if m.config.ShutdownTaskStopTimeout > 0 {
+		return m.config.ShutdownTaskStopTimeout
+	}
+	return m.config.StopTimeout
 }

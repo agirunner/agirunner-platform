@@ -53,15 +53,18 @@ type ContainerSpec struct {
 
 // Config holds container manager configuration.
 type Config struct {
-	PlatformAPIURL         string
-	PlatformAPIKey         string
-	PlatformAdminAPIKey    string
-	DockerHost             string
-	ReconcileInterval      time.Duration
-	StopTimeout            time.Duration
-	GlobalMaxRuntimes      int
-	RuntimeNetwork         string
-	RuntimeInternalNetwork string
+	PlatformAPIURL           string
+	PlatformAPIKey           string
+	PlatformAdminAPIKey      string
+	DockerHost               string
+	ReconcileInterval        time.Duration
+	StopTimeout              time.Duration
+	ShutdownTaskStopTimeout  time.Duration
+	DockerActionBuffer       time.Duration
+	GlobalMaxRuntimes        int
+	RuntimeOrphanGraceCycles int
+	RuntimeNetwork           string
+	RuntimeInternalNetwork   string
 }
 
 // PlatformAPI abstracts communication with the platform API.
@@ -91,7 +94,8 @@ type Manager struct {
 	pullFailCache        map[string]time.Time // tracks when an image pull last failed, keyed by image ref
 	idleSince            map[string]time.Time // tracks when each runtime first became idle
 	processedOrphans     map[string]struct{}  // runtime IDs already handled as orphans (prevents log spam)
-	lastReportedImages   string               // canonical image inventory fingerprint last reported to platform
+	runtimeOrphans       map[string]runtimeOrphanState
+	lastReportedImages   string // canonical image inventory fingerprint last reported to platform
 	nowFunc              func() time.Time
 	cycleCount           uint64 // monotonic reconcile cycle counter
 }
@@ -111,6 +115,7 @@ func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
 		pullFailCache:        make(map[string]time.Time),
 		idleSince:            make(map[string]time.Time),
 		processedOrphans:     make(map[string]struct{}),
+		runtimeOrphans:       make(map[string]runtimeOrphanState),
 		lastReportedImages:   "",
 		nowFunc:              time.Now,
 	}
@@ -130,6 +135,7 @@ func NewWithPlatform(cfg Config, docker DockerClient, platform PlatformAPI, logg
 		pullFailCache:        make(map[string]time.Time),
 		idleSince:            make(map[string]time.Time),
 		processedOrphans:     make(map[string]struct{}),
+		runtimeOrphans:       make(map[string]runtimeOrphanState),
 		lastReportedImages:   "",
 		nowFunc:              time.Now,
 	}

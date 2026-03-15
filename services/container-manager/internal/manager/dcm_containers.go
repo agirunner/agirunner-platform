@@ -266,12 +266,33 @@ func (m *Manager) drainExecutingRuntime(ctx context.Context, c ContainerInfo, ru
 
 // stopAndRemove stops then removes a container, logging errors without failing.
 func (m *Manager) stopAndRemove(ctx context.Context, containerID string, timeout time.Duration) {
-	if err := m.docker.StopContainer(ctx, containerID, timeout); err != nil {
+	_ = ctx
+	stopCtx, stopCancel := context.WithTimeout(context.Background(), timeout+m.dockerActionBuffer())
+	defer stopCancel()
+	if err := m.docker.StopContainer(stopCtx, containerID, timeout); err != nil {
 		m.logger.Error("failed to stop container", "container", containerID, "error", err)
 	}
-	if err := m.docker.RemoveContainer(ctx, containerID); err != nil {
+	removeCtx, removeCancel := context.WithTimeout(context.Background(), m.dockerActionBuffer())
+	defer removeCancel()
+	if err := m.docker.RemoveContainer(removeCtx, containerID); err != nil {
 		m.logger.Error("failed to remove container", "container", containerID, "error", err)
 	}
+}
+
+func (m *Manager) forceRemoveContainer(ctx context.Context, containerID string) {
+	_ = ctx
+	removeCtx, removeCancel := context.WithTimeout(context.Background(), m.dockerActionBuffer())
+	defer removeCancel()
+	if err := m.docker.RemoveContainer(removeCtx, containerID); err != nil {
+		m.logger.Error("failed to force remove container", "container", containerID, "error", err)
+	}
+}
+
+func (m *Manager) dockerActionBuffer() time.Duration {
+	if m.config.DockerActionBuffer > 0 {
+		return m.config.DockerActionBuffer
+	}
+	return 15 * time.Second
 }
 
 // cleanupOrphanTaskContainers removes task containers whose parent runtimes are gone.
@@ -289,7 +310,7 @@ func (m *Manager) cleanupOrphanTaskContainers(ctx context.Context) {
 		m.logger.Info("removing orphan task container", "container", orphan.ID)
 		parentRuntime := orphan.Labels[labelDCMRuntimeID]
 		playbookID := orphan.Labels[labelDCMPlaybookID]
-		m.stopAndRemove(ctx, orphan.ID, m.config.StopTimeout)
+		m.forceRemoveContainer(ctx, orphan.ID)
 		m.logFleetEvent("orphan.cleaned", "warn", parentRuntime, playbookID, orphan.Labels[labelDCMPoolKind], orphan.ID)
 		m.metrics.RecordOrphanCleaned()
 		m.emitLogWithResource("container", "container.orphan_cleanup", "warn", "completed", map[string]any{
@@ -302,7 +323,7 @@ func (m *Manager) cleanupOrphanTaskContainers(ctx context.Context) {
 			"pool_mode":     orphan.Labels[labelDCMPoolMode],
 			"priority":      orphan.Labels[labelDCMPriority],
 			"reason":        "parent_runtime_gone",
-		}, logResourceInfo{ResourceType: "runtime", ResourceID: parentRuntime})
+		}, logResourceInfo{ResourceType: "task_container", ResourceName: orphan.ID})
 	}
 }
 

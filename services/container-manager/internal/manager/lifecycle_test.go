@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"testing"
+	"time"
 )
 
 func TestDCMStartupSweepAdoptsMatchingRuntimes(t *testing.T) {
@@ -43,8 +44,8 @@ func TestDCMStartupSweepRemovesStaleRuntimes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "c-1" {
-		t.Errorf("expected stale runtime c-1 stopped, got %v", docker.stoppedIDs)
+	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "c-1" {
+		t.Errorf("expected stale runtime c-1 removed, got %v", docker.removedIDs)
 	}
 }
 
@@ -97,8 +98,8 @@ func TestDCMStartupSweepRemovesOrphanTasksWithDeadParent(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "task-orphan" {
-		t.Errorf("expected orphan task task-orphan stopped, got %v", docker.stoppedIDs)
+	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "task-orphan" {
+		t.Errorf("expected orphan task task-orphan removed, got %v", docker.removedIDs)
 	}
 }
 
@@ -167,5 +168,26 @@ func TestDCMStartupSweepKeepsTasksWithLiveParent(t *testing.T) {
 	}
 	if len(docker.stoppedIDs) != 0 {
 		t.Errorf("expected no containers stopped when task parent is alive, got %v", docker.stoppedIDs)
+	}
+}
+
+func TestStopAndRemoveUsesBoundedDockerDeadline(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.stopWaitForCtx = true
+	mgr := newDCMTestManager(docker, &mockPlatformClient{})
+	mgr.config.DockerActionBuffer = 10 * time.Millisecond
+
+	start := time.Now()
+	mgr.stopAndRemove(context.Background(), "c-1", 20*time.Millisecond)
+	elapsed := time.Since(start)
+
+	if elapsed > 500*time.Millisecond {
+		t.Fatalf("expected bounded stopAndRemove to finish quickly, took %s", elapsed)
+	}
+	if !docker.sawStopDeadline {
+		t.Fatalf("expected stopAndRemove to apply a deadline to the docker stop call")
+	}
+	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "c-1" {
+		t.Fatalf("expected container removal after stop timeout, got %v", docker.removedIDs)
 	}
 }

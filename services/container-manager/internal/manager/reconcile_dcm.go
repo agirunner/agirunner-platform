@@ -55,6 +55,15 @@ func (m *Manager) reconcileDCMWithResolvedInputs(
 	containers []ContainerInfo,
 	heartbeatMap map[string]RuntimeHeartbeat,
 ) error {
+	if removed := m.reconcileManagedRuntimeOrphans(ctx, containers, targets); removed > 0 {
+		refreshedContainers, err := m.listDCMRuntimeContainers(ctx)
+		if err != nil {
+			return fmt.Errorf("list DCM containers after orphan cleanup: %w", err)
+		}
+		containers = refreshedContainers
+		heartbeatMap = buildHeartbeatMap(heartbeats)
+	}
+
 	grouped := groupContainersByTarget(containers)
 	drainingCount := countDrainingContainers(containers)
 	totalRunning := len(containers)

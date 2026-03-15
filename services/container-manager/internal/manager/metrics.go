@@ -4,10 +4,12 @@ import "github.com/prometheus/client_golang/prometheus"
 
 // FleetMetrics holds Prometheus metric collectors for fleet-level observability.
 type FleetMetrics struct {
-	RuntimesTotal       *prometheus.GaugeVec
-	ScalingEventsTotal  *prometheus.CounterVec
-	OrphansCleanedTotal prometheus.Counter
-	Registry            *prometheus.Registry
+	RuntimesTotal               *prometheus.GaugeVec
+	ScalingEventsTotal          *prometheus.CounterVec
+	OrphansCleanedTotal         prometheus.Counter
+	RuntimeOrphansDetectedTotal prometheus.Counter
+	RuntimeOrphansCleanedTotal  prometheus.Counter
+	Registry                    *prometheus.Registry
 }
 
 // NewFleetMetrics creates and registers all fleet Prometheus metrics.
@@ -28,14 +30,30 @@ func NewFleetMetrics() *FleetMetrics {
 		Name: "agirunner_fleet_orphans_cleaned_total",
 		Help: "Cumulative orphan task containers cleaned up",
 	})
+	runtimeOrphansDetectedTotal := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "agirunner_fleet_runtime_orphans_detected_total",
+		Help: "Cumulative orphaned managed runtime containers detected",
+	})
+	runtimeOrphansCleanedTotal := prometheus.NewCounter(prometheus.CounterOpts{
+		Name: "agirunner_fleet_runtime_orphans_cleaned_total",
+		Help: "Cumulative orphaned managed runtime containers cleaned up",
+	})
 
-	registry.MustRegister(runtimesTotal, scalingEventsTotal, orphansCleanedTotal)
+	registry.MustRegister(
+		runtimesTotal,
+		scalingEventsTotal,
+		orphansCleanedTotal,
+		runtimeOrphansDetectedTotal,
+		runtimeOrphansCleanedTotal,
+	)
 
 	return &FleetMetrics{
-		RuntimesTotal:       runtimesTotal,
-		ScalingEventsTotal:  scalingEventsTotal,
-		OrphansCleanedTotal: orphansCleanedTotal,
-		Registry:            registry,
+		RuntimesTotal:               runtimesTotal,
+		ScalingEventsTotal:          scalingEventsTotal,
+		OrphansCleanedTotal:         orphansCleanedTotal,
+		RuntimeOrphansDetectedTotal: runtimeOrphansDetectedTotal,
+		RuntimeOrphansCleanedTotal:  runtimeOrphansCleanedTotal,
+		Registry:                    registry,
 	}
 }
 
@@ -47,6 +65,16 @@ func (fm *FleetMetrics) RecordScalingEvent(playbookID, action string) {
 // RecordOrphanCleaned increments the orphan cleanup counter.
 func (fm *FleetMetrics) RecordOrphanCleaned() {
 	fm.OrphansCleanedTotal.Inc()
+}
+
+// RecordRuntimeOrphanDetected increments the managed runtime orphan detection counter.
+func (fm *FleetMetrics) RecordRuntimeOrphanDetected() {
+	fm.RuntimeOrphansDetectedTotal.Inc()
+}
+
+// RecordRuntimeOrphanCleaned increments the managed runtime orphan cleanup counter.
+func (fm *FleetMetrics) RecordRuntimeOrphanCleaned() {
+	fm.RuntimeOrphansCleanedTotal.Inc()
 }
 
 // SetRuntimeGauge sets the gauge for a given playbook and state.

@@ -12,12 +12,15 @@ import (
 func newDCMTestManager(docker *mockDockerClient, platform *mockPlatformClient) *Manager {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := Config{
-		PlatformAPIURL:      "http://localhost:8080",
-		PlatformAdminAPIKey: "test-admin-key",
-		DockerHost:          "tcp://localhost:2375",
-		ReconcileInterval:   5 * time.Second,
-		StopTimeout:         10 * time.Second,
-		GlobalMaxRuntimes:   10,
+		PlatformAPIURL:           "http://localhost:8080",
+		PlatformAdminAPIKey:      "test-admin-key",
+		DockerHost:               "tcp://localhost:2375",
+		ReconcileInterval:        5 * time.Second,
+		StopTimeout:              10 * time.Second,
+		ShutdownTaskStopTimeout:  2 * time.Second,
+		DockerActionBuffer:       1 * time.Second,
+		GlobalMaxRuntimes:        10,
+		RuntimeOrphanGraceCycles: 3,
 	}
 	return NewWithPlatform(cfg, docker, platform, logger)
 }
@@ -304,8 +307,8 @@ func TestDCMOrphanTaskCleanup(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected no error, got %v", err)
 	}
-	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "task-1" {
-		t.Errorf("expected orphan task-1 stopped, got %v", docker.stoppedIDs)
+	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "task-1" {
+		t.Errorf("expected orphan task-1 removed, got %v", docker.removedIDs)
 	}
 }
 
