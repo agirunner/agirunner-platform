@@ -54,6 +54,10 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   next_expected_actor: string | null;
   next_expected_action: string | null;
   rework_count: number;
+  latest_handoff_completion?: string | null;
+  unresolved_findings?: string[];
+  review_focus?: string[];
+  known_risks?: string[];
   completed_at: string | Date | null;
   task_count: number;
   children_count: number;
@@ -462,7 +466,11 @@ export class WorkItemService {
       `SELECT wi.*,
               COUNT(DISTINCT t.id)::int AS task_count,
               COUNT(DISTINCT child.id)::int AS children_count,
-              COUNT(DISTINCT child.id) FILTER (WHERE child.completed_at IS NOT NULL)::int AS children_completed
+              COUNT(DISTINCT child.id) FILTER (WHERE child.completed_at IS NOT NULL)::int AS children_completed,
+              latest_handoff.latest_handoff_completion,
+              latest_handoff.unresolved_findings,
+              latest_handoff.review_focus,
+              latest_handoff.known_risks
          FROM workflow_work_items wi
          LEFT JOIN tasks t
            ON t.tenant_id = wi.tenant_id
@@ -470,8 +478,33 @@ export class WorkItemService {
          LEFT JOIN workflow_work_items child
            ON child.tenant_id = wi.tenant_id
           AND child.parent_work_item_id = wi.id
+         LEFT JOIN LATERAL (
+           SELECT th.completion AS latest_handoff_completion,
+                  array_cat(
+                    COALESCE(
+                      ARRAY(SELECT jsonb_array_elements_text(COALESCE(th.remaining_items, '[]'::jsonb))),
+                      ARRAY[]::text[]
+                    ),
+                    COALESCE(
+                      ARRAY(SELECT jsonb_array_elements_text(COALESCE(th.blockers, '[]'::jsonb))),
+                      ARRAY[]::text[]
+                    )
+                  ) AS unresolved_findings,
+                  th.review_focus,
+                  th.known_risks
+             FROM task_handoffs th
+            WHERE th.tenant_id = wi.tenant_id
+              AND th.workflow_id = wi.workflow_id
+              AND th.work_item_id = wi.id
+            ORDER BY th.sequence DESC, th.created_at DESC
+            LIMIT 1
+         ) latest_handoff ON true
         WHERE ${conditions.join(' AND ')}
-        GROUP BY wi.id
+        GROUP BY wi.id,
+                 latest_handoff.latest_handoff_completion,
+                 latest_handoff.unresolved_findings,
+                 latest_handoff.review_focus,
+                 latest_handoff.known_risks
         ORDER BY wi.created_at ASC`,
       values,
     );
@@ -535,6 +568,13 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     next_expected_action:
       typeof sanitizedRow.next_expected_action === 'string' ? sanitizedRow.next_expected_action : null,
     rework_count: readCount(sanitizedRow.rework_count),
+    latest_handoff_completion:
+      typeof sanitizedRow.latest_handoff_completion === 'string'
+        ? sanitizedRow.latest_handoff_completion
+        : null,
+    unresolved_findings: readStringArray(sanitizedRow.unresolved_findings),
+    review_focus: readStringArray(sanitizedRow.review_focus),
+    known_risks: readStringArray(sanitizedRow.known_risks),
     completed_at:
       typeof sanitizedRow.completed_at === 'string' || sanitizedRow.completed_at instanceof Date
         ? sanitizedRow.completed_at
@@ -584,6 +624,12 @@ function readCount(value: unknown) {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+    : [];
 }
 
 function assertMatchingCreateWorkItemReplay(

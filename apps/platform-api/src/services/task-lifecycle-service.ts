@@ -16,6 +16,7 @@ import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { applyOutputStateDeclarations } from './task-output-storage.js';
+import type { HandoffService } from './handoff-service.js';
 import type { WorkItemContinuityService } from './work-item-continuity-service.js';
 import {
   calculateRetryBackoffSeconds,
@@ -89,6 +90,7 @@ interface TaskLifecycleDependencies {
     WorkItemContinuityService,
     'clearReviewExpectation' | 'recordReviewRejected' | 'recordTaskCompleted'
   >;
+  handoffService?: Pick<HandoffService, 'assertRequiredTaskHandoffBeforeCompletion'>;
 }
 
 const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
@@ -670,6 +672,12 @@ export class TaskLifecycleService {
     ) {
       return this.deps.toTaskResponse(task);
     }
+
+    await this.deps.handoffService?.assertRequiredTaskHandoffBeforeCompletion(
+      identity.tenantId,
+      task,
+      existingClient,
+    );
 
     const outputValidation = validateOutputSchema(payload.output, this.extractOutputSchema(task));
     const verificationPassed = this.readVerificationPassed(payload.verification, payload.metrics);

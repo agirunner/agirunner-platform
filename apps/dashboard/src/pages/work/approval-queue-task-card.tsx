@@ -123,6 +123,8 @@ export function TaskApprovalCard(props: {
   const primaryTitleHref = workflowOperatorFlow && workflowContextLink
     ? workflowContextLink
     : `/work/tasks/${task.id}`;
+  const handoffSummary = task.latest_handoff?.summary?.trim() ?? '';
+  const successorContext = task.latest_handoff?.successor_context?.trim() ?? '';
 
   return (
     <>
@@ -238,18 +240,21 @@ export function TaskApprovalCard(props: {
           </div>
         </CardHeader>
         <CardContent className="space-y-4 pt-0">
-          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
             {task.workflow_name ? <QueueInfoTile label="Board" value={task.workflow_name} /> : null}
             {task.work_item_title ? (
               <QueueInfoTile label="Work item" value={task.work_item_title} />
             ) : null}
             {task.stage_name ? <QueueInfoTile label="Stage" value={task.stage_name} /> : null}
+            {task.current_checkpoint ? (
+              <QueueInfoTile label="Current checkpoint" value={task.current_checkpoint} />
+            ) : null}
             {task.role ? <QueueInfoTile label="Role" value={task.role} /> : null}
             <QueueInfoTile label="Operator flow" value={operatorFlowLabel} />
             <QueueInfoTile label={stepReferenceLabel} value={task.id} monospace />
           </div>
 
-          <div className="grid gap-3 lg:grid-cols-3">
+          <div className="grid gap-3 lg:grid-cols-2 xl:grid-cols-4">
             <ReviewPacketCard
               title={decisionPacket.title}
               summary={decisionPacket.summary}
@@ -258,6 +263,53 @@ export function TaskApprovalCard(props: {
               title={recoveryPacket.title}
               summary={recoveryPacket.summary}
             />
+            <ReviewPacketCard
+              title="Current continuity"
+              summary="Use the persisted platform continuity state to confirm who should act next before you approve, request changes, or reject."
+            >
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Badge variant="outline">
+                  Next expected actor: {task.next_expected_actor ?? 'Not set'}
+                </Badge>
+                <Badge variant="outline">
+                  Next expected action: {task.next_expected_action ?? 'Not set'}
+                </Badge>
+                <Badge variant="outline">
+                  Handoffs: {task.handoff_count ?? 0}
+                </Badge>
+              </div>
+            </ReviewPacketCard>
+            <ReviewPacketCard
+              title="Latest handoff"
+              summary={
+                handoffSummary ||
+                'No structured handoff is attached to this work item yet. Open the step record if you need direct execution evidence.'
+              }
+            >
+              {task.latest_handoff ? (
+                <>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {task.latest_handoff.role ? (
+                      <Badge variant="outline">{task.latest_handoff.role}</Badge>
+                    ) : null}
+                    {task.latest_handoff.stage_name ? (
+                      <Badge variant="outline">{task.latest_handoff.stage_name}</Badge>
+                    ) : null}
+                    {task.latest_handoff.completion ? (
+                      <Badge variant="secondary">{task.latest_handoff.completion}</Badge>
+                    ) : null}
+                  </div>
+                  {successorContext ? (
+                    <div className="mt-3 rounded-xl border border-border/70 bg-surface p-3">
+                      <p className="text-xs font-medium uppercase tracking-wide text-muted">
+                        Successor context
+                      </p>
+                      <p className="mt-2 text-sm leading-6 text-muted">{successorContext}</p>
+                    </div>
+                  ) : null}
+                </>
+              ) : null}
+            </ReviewPacketCard>
             <ReviewPacketCard
               title={outputPacket.title}
               summary={outputPacket.summary}

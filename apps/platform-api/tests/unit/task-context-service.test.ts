@@ -229,6 +229,10 @@ describe('buildTaskContext active stage semantics', () => {
               next_expected_actor: 'reviewer',
               next_expected_action: 'review',
               rework_count: 1,
+              latest_handoff_completion: 'partial',
+              unresolved_findings: ['Investigate auth edge cases'],
+              review_focus: ['Auth edge cases'],
+              known_risks: ['Refresh token expiry handling'],
               priority: 2,
               notes: null,
             }],
@@ -276,6 +280,14 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('Commit and push');
     expect(workflowLayer.content).toContain('## Predecessor Context');
     expect(workflowLayer.content).toContain('Implementation is ready for review.');
+    expect((context.task as Record<string, unknown>).work_item).toEqual(
+      expect.objectContaining({
+        latest_handoff_completion: 'partial',
+        unresolved_findings: ['Investigate auth edge cases'],
+        review_focus: ['Auth edge cases'],
+        known_risks: ['Refresh token expiry handling'],
+      }),
+    );
   });
 
   it('injects board-driven workflow context when no checkpoints are defined', async () => {

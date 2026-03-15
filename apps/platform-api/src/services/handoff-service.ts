@@ -1,5 +1,6 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 
 export interface SubmitTaskHandoffInput {
@@ -54,6 +55,44 @@ interface TaskHandoffRow extends Record<string, unknown> {
 
 export class HandoffService {
   constructor(private readonly pool: DatabasePool) {}
+
+  async assertRequiredTaskHandoffBeforeCompletion(
+    tenantId: string,
+    task: Record<string, unknown>,
+    db: DatabaseClient | DatabasePool = this.pool,
+  ) {
+    const taskId = readOptionalString(task.id);
+    const workflowId = readOptionalString(task.workflow_id);
+    const role = readOptionalString(task.role);
+    if (!taskId || !workflowId || !role) {
+      return;
+    }
+
+    const definition = await this.loadWorkflowPlaybookDefinition(tenantId, workflowId, db);
+    if (!definition) {
+      return;
+    }
+    const requiresHandoff = definition.handoff_rules.some(
+      (rule) => rule.required !== false && rule.from_role === role,
+    );
+    if (!requiresHandoff) {
+      return;
+    }
+
+    const handoffResult = await db.query<{ id: string }>(
+      `SELECT id
+         FROM task_handoffs
+        WHERE tenant_id = $1
+          AND task_id = $2
+        LIMIT 1`,
+      [tenantId, taskId],
+    );
+    if (handoffResult.rowCount) {
+      return;
+    }
+
+    throw new ValidationError('Task requires a structured handoff before completion');
+  }
 
   async submitTaskHandoff(
     tenantId: string,
@@ -207,6 +246,29 @@ export class HandoffService {
       throw new NotFoundError('Task not found');
     }
     return result.rows[0];
+  }
+
+  private async loadWorkflowPlaybookDefinition(
+    tenantId: string,
+    workflowId: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const result = await db.query<{ definition: unknown }>(
+      `SELECT pb.definition
+         FROM workflows w
+         JOIN playbooks pb
+           ON pb.tenant_id = w.tenant_id
+          AND pb.id = w.playbook_id
+        WHERE w.tenant_id = $1
+          AND w.id = $2
+        LIMIT 1`,
+      [tenantId, workflowId],
+    );
+    const definitionValue = result.rows[0]?.definition;
+    if (!definitionValue) {
+      return null;
+    }
+    return parsePlaybookDefinition(definitionValue);
   }
 
   private async loadNextSequence(

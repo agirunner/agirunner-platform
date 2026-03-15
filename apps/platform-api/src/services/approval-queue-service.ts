@@ -15,9 +15,19 @@ interface ApprovalTaskRow {
   work_item_id: string | null;
   work_item_title: string | null;
   stage_name: string | null;
+  current_checkpoint: string | null;
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
   role: string | null;
   activation_id: string | null;
   rework_count: number | null;
+  handoff_count: number | null;
+  latest_handoff_role: string | null;
+  latest_handoff_stage_name: string | null;
+  latest_handoff_summary: string | null;
+  latest_handoff_completion: string | null;
+  latest_handoff_successor_context: string | null;
+  latest_handoff_created_at: Date | null;
   created_at: Date;
   output: unknown;
 }
@@ -48,9 +58,19 @@ export class ApprovalQueueService {
                 t.work_item_id::text AS work_item_id,
                 wi.title AS work_item_title,
                 t.stage_name,
+                wi.current_checkpoint,
+                wi.next_expected_actor,
+                wi.next_expected_action,
                 t.role,
                 t.activation_id::text AS activation_id,
                 t.rework_count,
+                handoff_stats.handoff_count,
+                latest_handoff.role AS latest_handoff_role,
+                latest_handoff.stage_name AS latest_handoff_stage_name,
+                latest_handoff.summary AS latest_handoff_summary,
+                latest_handoff.completion AS latest_handoff_completion,
+                latest_handoff.successor_context AS latest_handoff_successor_context,
+                latest_handoff.created_at AS latest_handoff_created_at,
                 t.created_at,
                 t.output
            FROM tasks t
@@ -61,6 +81,33 @@ export class ApprovalQueueService {
              ON wi.tenant_id = t.tenant_id
             AND wi.workflow_id = t.workflow_id
             AND wi.id = t.work_item_id
+           LEFT JOIN LATERAL (
+             SELECT COUNT(*)::int AS handoff_count
+               FROM task_handoffs th
+              WHERE th.tenant_id = t.tenant_id
+                AND th.workflow_id = t.workflow_id
+                AND (
+                  (th.work_item_id IS NULL AND t.work_item_id IS NULL)
+                  OR th.work_item_id = t.work_item_id
+                )
+           ) handoff_stats ON true
+           LEFT JOIN LATERAL (
+             SELECT th.role,
+                    th.stage_name,
+                    th.summary,
+                    th.completion,
+                    th.successor_context,
+                    th.created_at
+               FROM task_handoffs th
+              WHERE th.tenant_id = t.tenant_id
+                AND th.workflow_id = t.workflow_id
+                AND (
+                  (th.work_item_id IS NULL AND t.work_item_id IS NULL)
+                  OR th.work_item_id = t.work_item_id
+                )
+              ORDER BY th.sequence DESC, th.created_at DESC
+              LIMIT 1
+           ) latest_handoff ON true
           WHERE t.tenant_id = $1
             AND t.state IN ('awaiting_approval', 'output_pending_review')
           ORDER BY t.created_at ASC`,
@@ -179,9 +226,23 @@ export class ApprovalQueueService {
         work_item_id: row.work_item_id,
         work_item_title: row.work_item_title,
         stage_name: row.stage_name,
+        current_checkpoint: row.current_checkpoint,
+        next_expected_actor: row.next_expected_actor,
+        next_expected_action: row.next_expected_action,
         role: row.role,
         activation_id: row.activation_id,
         rework_count: row.rework_count ?? 0,
+        handoff_count: row.handoff_count ?? 0,
+        latest_handoff: row.latest_handoff_summary
+          ? {
+              role: row.latest_handoff_role,
+              stage_name: row.latest_handoff_stage_name,
+              summary: row.latest_handoff_summary,
+              completion: row.latest_handoff_completion,
+              successor_context: row.latest_handoff_successor_context,
+              created_at: row.latest_handoff_created_at?.toISOString() ?? null,
+            }
+          : null,
         created_at: row.created_at.toISOString(),
         output: row.output,
       })),

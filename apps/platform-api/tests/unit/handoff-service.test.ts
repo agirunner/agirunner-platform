@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConflictError } from '../../src/errors/domain-errors.js';
+import { ConflictError, ValidationError } from '../../src/errors/domain-errors.js';
 import { HandoffService } from '../../src/services/handoff-service.js';
 
 describe('HandoffService', () => {
@@ -234,5 +234,34 @@ describe('HandoffService', () => {
     const result = await service.getPredecessorHandoff('tenant-1', 'task-2');
 
     expect(result).toEqual(expect.objectContaining({ id: 'handoff-1', role: 'developer' }));
+  });
+
+  it('requires a structured handoff before completion when the playbook mandates it', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            definition: {
+              process_instructions: 'Developer implements and reviewer reviews.',
+              roles: ['developer', 'reviewer'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(
+      service.assertRequiredTaskHandoffBeforeCompletion('tenant-1', {
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        role: 'developer',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 });

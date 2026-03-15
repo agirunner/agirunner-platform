@@ -28,6 +28,11 @@ describe('approval queue task card source', () => {
     expect(source).toContain('buildApprovalDecisionPacket');
     expect(source).toContain('buildApprovalRecoveryPacket');
     expect(source).toContain('buildApprovalOutputPacket');
+    expect(source).toContain('Current continuity');
+    expect(source).toContain('Latest handoff');
+    expect(source).toContain('Next expected actor');
+    expect(source).toContain('Next expected action');
+    expect(source).toContain('Successor context');
     expect(source).toContain('ReviewPacketCard');
     expect(source).toContain('View output preview');
     expect(source).toContain('DialogContent className="sm:max-w-lg"');

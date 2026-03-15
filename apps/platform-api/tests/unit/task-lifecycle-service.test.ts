@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { ValidationError } from '../../src/errors/domain-errors.js';
 import { TaskLifecycleService } from '../../src/services/task-lifecycle-service.js';
 
 type TaskLifecycleDependencies = ConstructorParameters<typeof TaskLifecycleService>[0];
@@ -223,6 +224,70 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
 
     expect(result.state).toBe('output_pending_review');
+  });
+
+  it('fails completion before state transition when a required handoff is missing', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          throw new Error('should not update task state when handoff is missing');
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const handoffService = {
+      assertRequiredTaskHandoffBeforeCompletion: vi.fn(async () => {
+        throw new ValidationError('Task requires a structured handoff before completion');
+      }),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-needs-handoff',
+        state: 'in_progress',
+        workflow_id: 'workflow-1',
+        role: 'developer',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        role_config: {},
+      }),
+      toTaskResponse: (task) => task,
+      handoffService: handoffService as never,
+    });
+
+    await expect(
+      service.completeTask(
+        {
+          id: 'agent-key',
+          tenantId: 'tenant-1',
+          scope: 'agent',
+          ownerType: 'agent',
+          ownerId: 'agent-1',
+          keyPrefix: 'ak',
+        },
+        'task-needs-handoff',
+        {
+          output: { ok: true },
+          verification: { passed: true },
+        },
+      ),
+    ).rejects.toThrow('Task requires a structured handoff before completion');
+
+    expect(handoffService.assertRequiredTaskHandoffBeforeCompletion).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        id: 'task-needs-handoff',
+        workflow_id: 'workflow-1',
+        role: 'developer',
+      }),
+      undefined,
+    );
   });
 
   it('queues cancel signal for in-progress worker task before cancellation transition', async () => {

@@ -69,6 +69,10 @@ describe('orchestrator control handoff routes', () => {
         next_expected_actor: 'reviewer',
         next_expected_action: 'review',
         rework_count: 1,
+        latest_handoff_completion: 'partial',
+        unresolved_findings: ['Investigate edge-case auth failures'],
+        review_focus: ['Auth edge cases'],
+        known_risks: ['Refresh token expiry handling'],
         completed_at: null,
       }),
     } as never);
@@ -96,6 +100,10 @@ describe('orchestrator control handoff routes', () => {
       next_expected_actor: 'reviewer',
       next_expected_action: 'review',
       rework_count: 1,
+      latest_handoff_completion: 'partial',
+      unresolved_findings: ['Investigate edge-case auth failures'],
+      review_focus: ['Auth edge cases'],
+      known_risks: ['Refresh token expiry handling'],
       completed_at: null,
     });
   });

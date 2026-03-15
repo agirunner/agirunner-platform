@@ -328,7 +328,7 @@ async function loadWorkItemContext(
   }
 
   const result = await db.query(
-    `SELECT id,
+      `SELECT id,
             stage_name,
             current_checkpoint,
             column_id,
@@ -339,9 +339,34 @@ async function loadWorkItemContext(
             next_expected_actor,
             next_expected_action,
             rework_count,
+            latest_handoff.latest_handoff_completion,
+            latest_handoff.unresolved_findings,
+            latest_handoff.review_focus,
+            latest_handoff.known_risks,
             priority,
             notes
        FROM workflow_work_items
+       LEFT JOIN LATERAL (
+         SELECT th.completion AS latest_handoff_completion,
+                array_cat(
+                  COALESCE(
+                    ARRAY(SELECT jsonb_array_elements_text(COALESCE(th.remaining_items, '[]'::jsonb))),
+                    ARRAY[]::text[]
+                  ),
+                  COALESCE(
+                    ARRAY(SELECT jsonb_array_elements_text(COALESCE(th.blockers, '[]'::jsonb))),
+                    ARRAY[]::text[]
+                  )
+                ) AS unresolved_findings,
+                th.review_focus,
+                th.known_risks
+           FROM task_handoffs th
+          WHERE th.tenant_id = workflow_work_items.tenant_id
+            AND th.workflow_id = workflow_work_items.workflow_id
+            AND th.work_item_id = workflow_work_items.id
+          ORDER BY th.sequence DESC, th.created_at DESC
+          LIMIT 1
+       ) latest_handoff ON true
       WHERE tenant_id = $1
         AND id = $2`,
     [tenantId, workItemId],

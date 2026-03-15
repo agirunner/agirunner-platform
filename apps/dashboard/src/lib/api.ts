@@ -599,9 +599,21 @@ export interface DashboardApprovalTaskRecord {
   work_item_id?: string | null;
   work_item_title?: string | null;
   stage_name?: string | null;
+  current_checkpoint?: string | null;
+  next_expected_actor?: string | null;
+  next_expected_action?: string | null;
   role?: string | null;
   activation_id?: string | null;
   rework_count?: number;
+  handoff_count?: number;
+  latest_handoff?: {
+    role?: string | null;
+    stage_name?: string | null;
+    summary?: string | null;
+    completion?: string | null;
+    successor_context?: string | null;
+    created_at?: string | null;
+  } | null;
   created_at: string;
   output?: unknown;
 }

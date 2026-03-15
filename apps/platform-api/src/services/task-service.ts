@@ -22,6 +22,7 @@ import { PlaybookTaskParallelismService } from './playbook-task-parallelism-serv
 import { WorkItemContinuityService } from './work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
+import { HandoffService } from './handoff-service.js';
 const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
 const DEFAULT_WORKFLOW_ACTIVATION_DELAY_MS = 10_000;
 const DEFAULT_WORKFLOW_ACTIVATION_STALE_AFTER_MS = 300_000;
@@ -165,6 +166,7 @@ export class TaskService {
       },
     });
     const workItemContinuityService = new WorkItemContinuityService(pool);
+    const handoffService = new HandoffService(pool);
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,
@@ -191,6 +193,7 @@ export class TaskService {
       },
       parallelismService,
       workItemContinuityService,
+      handoffService,
     });
 
     const modelCatalog = new ModelCatalogService(pool);
