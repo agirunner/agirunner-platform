@@ -196,11 +196,7 @@ function formatParallelism(draft: PlaybookAuthoringDraft): string {
 }
 
 function formatRuntimePools(draft: PlaybookAuthoringDraft): string {
-  return [
-    `shared ${formatRuntimePool(draft.runtime.shared)}`,
-    `orch ${formatRuntimePool(draft.runtime.orchestrator_pool)}`,
-    `spec ${formatRuntimePool(draft.runtime.specialist_pool)}`,
-  ].join(' • ');
+  return `spec ${formatRuntimePool(draft.runtime.specialist_pool)}`;
 }
 
 function formatRuntimePool(pool: RuntimePoolDraft): string {

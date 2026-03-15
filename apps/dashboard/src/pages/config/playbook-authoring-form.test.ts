@@ -11,7 +11,6 @@ describe('playbook authoring form source', () => {
     const source = readSource();
     expect(source).toContain('summarizePlaybookAuthoringDraft');
     expect(source).toContain('dashboardApi.listRoleDefinitions');
-    expect(source).toContain('dashboardApi.listToolTags');
     expect(source).toContain('Authoring Overview');
     expect(source).toContain(
       'Review the current board shape, stage gates, launch inputs, and runtime posture',
@@ -40,6 +39,6 @@ describe('playbook authoring form source', () => {
     expect(source).toContain('WorkflowStagesSection');
     expect(source).toContain('OrchestratorSection');
     expect(source).toContain('RuntimeAndParametersSection');
-    expect(source).toContain('availableToolOptions');
+    expect(source).not.toContain('availableToolOptions');
   });
 });

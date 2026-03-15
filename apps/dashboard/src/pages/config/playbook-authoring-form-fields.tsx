@@ -95,25 +95,6 @@ export function RuntimePoolFields(props: {
             </SelectContent>
           </Select>
         </LabeledField>
-        <LabeledField label="Pull policy">
-          <Select
-            value={props.pool.pull_policy || '__unset__'}
-            onValueChange={(value) =>
-              props.onChange('pull_policy', value === '__unset__' ? '' : value)
-            }
-            disabled={disabled}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="inherit" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__unset__">inherit</SelectItem>
-              <SelectItem value="always">always</SelectItem>
-              <SelectItem value="if-not-present">if-not-present</SelectItem>
-              <SelectItem value="never">never</SelectItem>
-            </SelectContent>
-          </Select>
-        </LabeledField>
         <LabeledField label="Image">
           <Input
             value={props.pool.image}

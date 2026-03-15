@@ -45,7 +45,6 @@ export interface RuntimePoolDraft {
   idle_timeout_seconds: string;
   grace_period_seconds: string;
   image: string;
-  pull_policy: string;
   cpu: string;
   memory: string;
 }
@@ -57,7 +56,6 @@ export interface PlaybookAuthoringDraft {
   parameters: ParameterDraft[];
   orchestrator: {
     instructions: string;
-    tools: string[];
     check_interval: string;
     stale_threshold: string;
     max_rework_iterations: string;
@@ -66,8 +64,6 @@ export interface PlaybookAuthoringDraft {
     allow_parallel_work_items: boolean;
   };
   runtime: {
-    shared: RuntimePoolDraft;
-    orchestrator_pool: RuntimePoolDraft;
     specialist_pool: RuntimePoolDraft;
   };
 }
@@ -149,7 +145,6 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
     parameters: [],
     orchestrator: {
       instructions: '',
-      tools: [],
       check_interval: '5m',
       stale_threshold: '30m',
       max_rework_iterations: '3',
@@ -158,8 +153,6 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
       allow_parallel_work_items: true,
     },
     runtime: {
-      shared: createRuntimePoolDraft(),
-      orchestrator_pool: createRuntimePoolDraft(false),
       specialist_pool: createRuntimePoolDraft(false),
     },
   };
@@ -203,7 +196,6 @@ export function createRuntimePoolDraft(enabled = true): RuntimePoolDraft {
     idle_timeout_seconds: '',
     grace_period_seconds: '',
     image: '',
-    pull_policy: '',
     cpu: '',
     memory: '',
   };
@@ -229,11 +221,6 @@ export function hydratePlaybookAuthoringDraft(
     parameters,
     orchestrator: { ...fallback.orchestrator, ...orchestrator },
     runtime: {
-      shared: { ...fallback.runtime.shared, ...runtime.shared },
-      orchestrator_pool: {
-        ...fallback.runtime.orchestrator_pool,
-        ...runtime.orchestrator_pool,
-      },
       specialist_pool: {
         ...fallback.runtime.specialist_pool,
         ...runtime.specialist_pool,
@@ -338,13 +325,6 @@ export function buildPlaybookDefinition(
 
   const orchestrator = compactRecord({
     instructions: draft.orchestrator.instructions.trim(),
-    tools: Array.from(
-      new Set(
-        draft.orchestrator.tools
-          .map((value) => value.trim())
-          .filter((value) => value.length > 0),
-      ),
-    ),
     check_interval: draft.orchestrator.check_interval.trim(),
     stale_threshold: draft.orchestrator.stale_threshold.trim(),
     max_rework_iterations: parseOptionalInt(draft.orchestrator.max_rework_iterations),
@@ -357,8 +337,6 @@ export function buildPlaybookDefinition(
   }
 
   const runtime = compactRecord({
-    ...buildRuntimePoolRecord(draft.runtime.shared),
-    orchestrator_pool: buildRuntimePoolRecord(draft.runtime.orchestrator_pool, true),
     specialist_pool: buildRuntimePoolRecord(draft.runtime.specialist_pool, true),
   });
   if (Object.keys(runtime).length > 0) {
@@ -438,7 +416,6 @@ function buildRuntimePoolRecord(pool: RuntimePoolDraft, gated = false): Record<s
     idle_timeout_seconds: parseOptionalInt(pool.idle_timeout_seconds),
     grace_period_seconds: parseOptionalInt(pool.grace_period_seconds),
     image: pool.image.trim(),
-    pull_policy: normalizePullPolicy(pool.pull_policy),
     cpu: pool.cpu.trim(),
     memory: pool.memory.trim(),
   });
@@ -494,10 +471,6 @@ function parseOptionalInt(value: string): number | undefined {
 
 function normalizePoolMode(value: string): string | undefined {
   return value === 'warm' || value === 'cold' ? value : undefined;
-}
-
-function normalizePullPolicy(value: string): string | undefined {
-  return value === 'always' || value === 'if-not-present' || value === 'never' ? value : undefined;
 }
 
 function hasDuplicates(values: string[]): boolean {
@@ -667,7 +640,6 @@ function readOrchestrator(value: unknown): PlaybookAuthoringDraft['orchestrator'
   const record = asRecord(value);
   return {
     instructions: readString(record.instructions),
-    tools: readStringArray(record.tools),
     check_interval: readString(record.check_interval),
     stale_threshold: readString(record.stale_threshold),
     max_rework_iterations: readNumberish(record.max_rework_iterations),
@@ -715,7 +687,6 @@ export function summarizePlaybookAuthoringDraft(
       parameter.secret,
   );
   const runtimeOverrideCount = [
-    draft.runtime.orchestrator_pool.enabled !== false,
     draft.runtime.specialist_pool.enabled !== false,
   ].filter(Boolean).length;
 
@@ -736,8 +707,6 @@ export function summarizePlaybookAuthoringDraft(
 function readRuntime(value: unknown): PlaybookAuthoringDraft['runtime'] {
   const record = asRecord(value);
   return {
-    shared: readRuntimePool(record, true),
-    orchestrator_pool: readRuntimePool(record.orchestrator_pool, false),
     specialist_pool: readRuntimePool(record.specialist_pool, false),
   };
 }
@@ -755,7 +724,6 @@ function readRuntimePool(value: unknown, enabledByDefault: boolean): RuntimePool
     idle_timeout_seconds: readNumberish(record.idle_timeout_seconds),
     grace_period_seconds: readNumberish(record.grace_period_seconds),
     image: readString(record.image),
-    pull_policy: readString(record.pull_policy),
     cpu: readString(record.cpu),
     memory: readString(record.memory),
   };

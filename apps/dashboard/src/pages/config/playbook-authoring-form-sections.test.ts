@@ -17,7 +17,6 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('validateBoardColumnsDraft');
     expect(source).toContain('MultiChoiceButtonsControl');
     expect(source).toContain('SelectWithCustomControl');
-    expect(source).toContain('ToggleCard');
     expect(source).toContain('TypedParameterValueControl');
     expect(source).toContain('moveDraftItem');
     expect(source).toContain('Move Earlier');
@@ -30,7 +29,8 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain(
       'Labels should match the board language operators use in workflow views.',
     );
-    expect(source).toContain('No optional verification tools enabled.');
+    expect(source).toContain('Blocked columns signal stalled work that needs intervention.');
+    expect(source).toContain('Terminal columns mark end-state lanes such as done or cancelled.');
     expect(source).toContain('Column ${index + 1} of ${columnCount}');
     expect(source).toContain('Stage ${index + 1} of ${stageCount}');
     expect(source).toContain('Add team roles above to make them selectable here.');
@@ -61,6 +61,13 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('GripVertical');
     expect(source).toContain('Drag to reorder');
     expect(source).toContain('drag handle');
+    expect(source).toContain('Specialist runtime override');
+    expect(source).toContain('Most playbooks should inherit tenant runtime defaults.');
+    expect(source).not.toContain('Optional verification tools');
+    expect(source).not.toContain('toggleOrchestratorTool');
+    expect(source).not.toContain('Shared runtime defaults');
+    expect(source).not.toContain('Orchestrator pool override');
+    expect(source).not.toContain('Pull policy');
     expect(source).not.toContain('type="checkbox"');
   });
 });

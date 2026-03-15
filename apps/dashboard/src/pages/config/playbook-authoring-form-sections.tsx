@@ -11,7 +11,6 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import { ToggleCard } from '../../components/ui/toggle-card.js';
 import {
   createEmptyColumnDraft,
   createEmptyParameterDraft,
@@ -43,14 +42,6 @@ import {
 interface SectionProps {
   draft: PlaybookAuthoringDraft;
   onChange(updater: (current: PlaybookAuthoringDraft) => PlaybookAuthoringDraft): void;
-}
-
-export interface OrchestratorToolOption {
-  id: string;
-  name: string;
-  description?: string | null;
-  category?: string | null;
-  required?: boolean;
 }
 
 export function TeamRolesSection(
@@ -276,6 +267,10 @@ export function BoardColumnsSection(props: SectionProps): JSX.Element {
                   updateColumn(props.onChange, index, 'is_terminal', checked)
                 }
               />
+            </div>
+            <div className="mt-3 grid gap-2 text-xs text-muted md:grid-cols-2">
+              <p>Blocked columns signal stalled work that needs intervention.</p>
+              <p>Terminal columns mark end-state lanes such as done or cancelled.</p>
             </div>
           </div>
           );
@@ -568,21 +563,12 @@ function useDraftDragReorder<T>(
   return { dragState, getDragHandleProps, getDropTargetProps };
 }
 
-export function OrchestratorSection(
-  props: SectionProps & { availableToolOptions?: OrchestratorToolOption[] },
-): JSX.Element {
-  const availableToolOptions = props.availableToolOptions ?? [];
-  const requiredTools = availableToolOptions.filter((tool) => tool.required);
-  const optionalTools = availableToolOptions.filter((tool) => !tool.required);
-  const enabledOptionalToolCount = optionalTools.filter((tool) =>
-    props.draft.orchestrator.tools.includes(tool.id),
-  ).length;
-
+export function OrchestratorSection(props: SectionProps): JSX.Element {
   return (
     <SectionCard
       id="playbook-orchestrator-controls"
-      title="Orchestrator Controls"
-      description="Configure orchestrator instructions, optional verification tools, cadence, stale detection, rework policy, and specialist parallelism in one place."
+      title="Orchestrator Policy"
+      description="Set the workflow-specific orchestration guidance, cadence, stale detection, rework policy, and specialist parallelism limits."
     >
       <div className="space-y-4">
         <LabeledField label="Orchestrator instructions">
@@ -595,50 +581,6 @@ export function OrchestratorSection(
             placeholder="Add workflow-specific guidance for how the orchestrator should verify work, escalate decisions, and communicate outcomes."
           />
         </LabeledField>
-        {requiredTools.length > 0 ? (
-          <div className="grid gap-2 text-sm">
-            <span className="font-medium">Core management tools</span>
-            <p className="text-xs text-muted">
-              These stay enabled because the orchestrator cannot manage workflow state without them.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {requiredTools.map((tool) => (
-                <span
-                  key={tool.id}
-                  className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-xs font-medium"
-                >
-                  {tool.name}
-                </span>
-              ))}
-            </div>
-          </div>
-        ) : null}
-        {optionalTools.length > 0 ? (
-          <div className="grid gap-2 text-sm">
-            <span className="font-medium">Optional verification tools</span>
-            <p className="text-xs text-muted">
-              Enable the specialist-grade tools the orchestrator may use when it needs to inspect
-              files, run git checks, fetch the web, or escalate.
-            </p>
-            <div className="rounded-md border border-border/70 bg-surface px-3 py-3 text-xs text-muted">
-              {enabledOptionalToolCount > 0
-                ? `${enabledOptionalToolCount} optional verification tool${enabledOptionalToolCount === 1 ? '' : 's'} enabled for direct orchestrator inspection.`
-                : 'No optional verification tools enabled. The orchestrator will rely on core management tools and specialist tasks for deeper inspection.'}
-            </div>
-            <div className="grid gap-2 md:grid-cols-2">
-              {optionalTools.map((tool) => (
-                <ToggleCard
-                  key={tool.id}
-                  label={tool.name}
-                  description={tool.description ?? undefined}
-                  meta={tool.category ? `Category: ${tool.category}` : undefined}
-                  checked={props.draft.orchestrator.tools.includes(tool.id)}
-                  onCheckedChange={() => toggleOrchestratorTool(props.onChange, tool.id)}
-                />
-              ))}
-            </div>
-          </div>
-        ) : null}
         <div className="grid gap-3 md:grid-cols-2">
           <LabeledField label="Check interval">
             <SelectWithCustomControl
@@ -732,49 +674,43 @@ export function RuntimeAndParametersSection(
       <SectionCard
         id="playbook-runtime-controls"
         title="Runtime Controls"
-        description="Default runtime pool settings plus optional overrides for orchestrator and specialist pools."
+        description="Most playbooks should inherit tenant runtime defaults. Open the specialist override only when this playbook needs an exception."
       >
-        <div className="space-y-4">
-          <RuntimePoolFields
-            title="Shared runtime defaults"
-            pool={props.draft.runtime.shared}
-            onChange={(field, value) => updateRuntimePool(props.onChange, 'shared', field, value)}
-          />
-          <RuntimePoolFields
-            title="Orchestrator pool override"
-            pool={props.draft.runtime.orchestrator_pool}
-            canDisable
-            onEnabledChange={(enabled) =>
-              props.onChange((current) => ({
-                ...current,
-                runtime: {
-                  ...current.runtime,
-                  orchestrator_pool: { ...current.runtime.orchestrator_pool, enabled },
-                },
-              }))
-            }
-            onChange={(field, value) =>
-              updateRuntimePool(props.onChange, 'orchestrator_pool', field, value)
-            }
-          />
-          <RuntimePoolFields
-            title="Specialist pool override"
-            pool={props.draft.runtime.specialist_pool}
-            canDisable
-            onEnabledChange={(enabled) =>
-              props.onChange((current) => ({
-                ...current,
-                runtime: {
-                  ...current.runtime,
-                  specialist_pool: { ...current.runtime.specialist_pool, enabled },
-                },
-              }))
-            }
-            onChange={(field, value) =>
-              updateRuntimePool(props.onChange, 'specialist_pool', field, value)
-            }
-          />
-        </div>
+        <details className="rounded-xl border border-border/70 bg-background/80 p-4">
+          <summary className="cursor-pointer list-none">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="text-sm font-medium">Specialist runtime override</div>
+                <p className="text-xs text-muted">
+                  Override tenant runtime defaults only when specialist tasks for this playbook
+                  need a different pool posture.
+                </p>
+              </div>
+              <span className="rounded-full border border-border/70 bg-muted/20 px-3 py-1 text-xs font-medium">
+                {props.draft.runtime.specialist_pool.enabled === false ? 'Using tenant defaults' : 'Override enabled'}
+              </span>
+            </div>
+          </summary>
+          <div className="mt-4">
+            <RuntimePoolFields
+              title="Specialist runtime override"
+              pool={props.draft.runtime.specialist_pool}
+              canDisable
+              onEnabledChange={(enabled) =>
+                props.onChange((current) => ({
+                  ...current,
+                  runtime: {
+                    ...current.runtime,
+                    specialist_pool: { ...current.runtime.specialist_pool, enabled },
+                  },
+                }))
+              }
+              onChange={(field, value) =>
+                updateRuntimePool(props.onChange, 'specialist_pool', field, value)
+              }
+            />
+          </div>
+        </details>
       </SectionCard>
       <SectionCard
         id="playbook-parameters"
@@ -1104,22 +1040,10 @@ function updateOrchestrator<K extends keyof PlaybookAuthoringDraft['orchestrator
   }));
 }
 
-function toggleOrchestratorTool(onChange: SectionProps['onChange'], toolId: string): void {
-  onChange((current) => ({
-    ...current,
-    orchestrator: {
-      ...current.orchestrator,
-      tools: current.orchestrator.tools.includes(toolId)
-        ? current.orchestrator.tools.filter((value) => value !== toolId)
-        : [...current.orchestrator.tools, toolId],
-    },
-  }));
-}
-
 function updateRuntimePool(
   onChange: SectionProps['onChange'],
   pool: keyof PlaybookAuthoringDraft['runtime'],
-  field: keyof Omit<PlaybookAuthoringDraft['runtime']['shared'], 'enabled'>,
+  field: keyof Omit<PlaybookAuthoringDraft['runtime']['specialist_pool'], 'enabled'>,
   value: string,
 ): void {
   onChange((current) => ({

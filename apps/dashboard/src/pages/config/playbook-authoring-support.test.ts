@@ -30,11 +30,11 @@ describe('playbook authoring support', () => {
       allowed_values: '',
       input_style: 'textarea',
     }];
-    draft.runtime.shared.pool_mode = 'warm';
-    draft.runtime.shared.max_runtimes = '3';
-    draft.runtime.shared.image = 'ghcr.io/agirunner/runtime:latest';
-    draft.runtime.orchestrator_pool = createRuntimePoolDraft(true);
-    draft.runtime.orchestrator_pool.priority = '10';
+    draft.runtime.specialist_pool = createRuntimePoolDraft(true);
+    draft.runtime.specialist_pool.pool_mode = 'warm';
+    draft.runtime.specialist_pool.max_runtimes = '3';
+    draft.runtime.specialist_pool.image = 'ghcr.io/agirunner/runtime:latest';
+    draft.runtime.specialist_pool.priority = '10';
 
     const built = buildPlaybookDefinition('standard', draft);
 
@@ -73,10 +73,10 @@ describe('playbook authoring support', () => {
             allow_parallel_work_items: true,
           }),
           runtime: expect.objectContaining({
-            pool_mode: 'warm',
-            max_runtimes: 3,
-            image: 'ghcr.io/agirunner/runtime:latest',
-            orchestrator_pool: expect.objectContaining({
+            specialist_pool: expect.objectContaining({
+              pool_mode: 'warm',
+              max_runtimes: 3,
+              image: 'ghcr.io/agirunner/runtime:latest',
               priority: 10,
             }),
           }),
@@ -95,6 +95,17 @@ describe('playbook authoring support', () => {
         }),
       }),
     );
+    if (built.ok) {
+      expect(built.value.orchestrator).not.toEqual(
+        expect.objectContaining({ tools: expect.anything() }),
+      );
+      expect(built.value.runtime).not.toEqual(
+        expect.objectContaining({ orchestrator_pool: expect.anything() }),
+      );
+      expect(built.value.runtime).not.toEqual(
+        expect.objectContaining({ pool_mode: expect.anything() }),
+      );
+    }
   });
 
   it('rejects incomplete or duplicate structured rows before submit', () => {
@@ -301,11 +312,17 @@ describe('playbook authoring support', () => {
       orchestrator: {
         max_active_tasks: 6,
         allow_parallel_work_items: false,
+        tools: ['tool_search'],
       },
       runtime: {
         pool_mode: 'warm',
+        pull_policy: 'always',
         orchestrator_pool: {
           max_runtimes: 2,
+        },
+        specialist_pool: {
+          max_runtimes: 4,
+          image: 'ghcr.io/agirunner/runtime:latest',
         },
       },
     });
@@ -330,9 +347,10 @@ describe('playbook authoring support', () => {
     );
     expect(draft.orchestrator.max_active_tasks).toBe('6');
     expect(draft.orchestrator.allow_parallel_work_items).toBe(false);
-    expect(draft.runtime.shared.pool_mode).toBe('warm');
-    expect(draft.runtime.orchestrator_pool.enabled).toBe(true);
-    expect(draft.runtime.orchestrator_pool.max_runtimes).toBe('2');
+    expect(draft.orchestrator).not.toEqual(expect.objectContaining({ tools: expect.anything() }));
+    expect(draft.runtime.specialist_pool.enabled).toBe(true);
+    expect(draft.runtime.specialist_pool.max_runtimes).toBe('4');
+    expect(draft.runtime.specialist_pool.image).toBe('ghcr.io/agirunner/runtime:latest');
   });
 
   it('summarizes structured authoring posture for guided review', () => {
@@ -340,7 +358,7 @@ describe('playbook authoring support', () => {
     draft.roles = [{ value: 'architect' }, { value: 'developer' }];
     draft.columns[0].is_blocked = true;
     draft.stages[1].human_gate = true;
-    draft.runtime.orchestrator_pool.enabled = true;
+    draft.runtime.specialist_pool.enabled = true;
     draft.parameters = [
       {
         name: 'ticket_id',

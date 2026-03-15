@@ -4,14 +4,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
-import { dashboardApi, type DashboardToolTagRecord } from '../../lib/api.js';
+import { dashboardApi } from '../../lib/api.js';
 import {
   summarizePlaybookAuthoringDraft,
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
 import {
   BoardColumnsSection,
-  type OrchestratorToolOption,
   OrchestratorSection,
   RuntimeAndParametersSection,
   TeamRolesSection,
@@ -32,16 +31,11 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
     queryKey: ['role-definitions', 'active'],
     queryFn: () => dashboardApi.listRoleDefinitions(),
   });
-  const toolTagsQuery = useQuery({
-    queryKey: ['tool-tags'],
-    queryFn: () => dashboardApi.listToolTags(),
-  });
   const availableRoleNames = (roleDefinitionsQuery.data ?? [])
     .filter((role) => role.is_active)
     .map((role) => role.name)
     .filter((value, index, all) => value.trim().length > 0 && all.indexOf(value) === index)
     .sort((left, right) => left.localeCompare(right));
-  const availableToolOptions = buildOrchestratorToolOptions(toolTagsQuery.data);
 
   function updateDraft(updater: (current: PlaybookAuthoringDraft) => PlaybookAuthoringDraft): void {
     props.onClearError();
@@ -167,11 +161,7 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
         </TabsContent>
 
         <TabsContent value="automation-policy" className="space-y-4">
-          <OrchestratorSection
-            draft={props.draft}
-            onChange={updateDraft}
-            availableToolOptions={availableToolOptions}
-          />
+          <OrchestratorSection draft={props.draft} onChange={updateDraft} />
         </TabsContent>
 
         <TabsContent value="launch-and-runtime" className="space-y-4">
@@ -193,32 +183,6 @@ function buildParameterIssueKey(index: number, kind: 'default' | 'mapping'): str
 function readParameterIssueIndex(issueKey: string): number {
   const [index] = issueKey.split(':', 1);
   return Number.parseInt(index ?? '', 10);
-}
-
-function normalizeToolTags(
-  toolTags: DashboardToolTagRecord[] | undefined,
-): DashboardToolTagRecord[] {
-  return [...(toolTags ?? [])]
-    .filter((tag) => tag.id.trim().length > 0)
-    .sort((left, right) => left.name.localeCompare(right.name));
-}
-
-function buildOrchestratorToolOptions(
-  toolTags: DashboardToolTagRecord[] | undefined,
-): OrchestratorToolOption[] {
-  const requiredToolIds = new Set([
-    'create_work_item',
-    'update_work_item',
-    'create_task',
-    'create_workflow',
-    'request_gate_approval',
-    'advance_stage',
-    'complete_workflow',
-  ]);
-  return normalizeToolTags(toolTags).map((tag) => ({
-    ...tag,
-    required: requiredToolIds.has(tag.id),
-  }));
 }
 
 function OverviewCard(props: { title: string; lines: string[] }): JSX.Element {
