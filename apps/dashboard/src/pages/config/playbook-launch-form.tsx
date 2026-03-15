@@ -1,7 +1,4 @@
-import { Loader2, Rocket } from 'lucide-react';
-
 import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import type {
   DashboardEffectiveModelResolution,
@@ -19,7 +16,9 @@ import type {
 import { StructuredEntryEditor } from './playbook-launch-entries.js';
 import { LaunchPageHeader, RunIdentitySection } from './playbook-launch-identity.js';
 import {
+  LaunchActionCard,
   LaunchDefinitionSnapshot,
+  ResolutionOrderPanel,
   StructuredSection,
 } from './playbook-launch-page.sections.js';
 import { ParameterField } from './playbook-launch-parameters.js';
@@ -30,6 +29,7 @@ import {
   type RoleOverrideDraft,
   type StructuredEntryDraft,
   type WorkflowBudgetDraft,
+  readWorkflowBudgetMode,
 } from './playbook-launch-support.js';
 import { PlaybookSummaryCard } from './playbook-launch-summary.js';
 import { WorkflowBudgetEditor } from './playbook-launch-budget.js';
@@ -105,29 +105,44 @@ export function PlaybookLaunchForm(props: {
   const hasAdditionalParameters = props.extraParameterDrafts.length > 0;
   const hasMetadataEntries = props.metadataDrafts.length > 0;
   const hasWorkflowOverrides = props.configuredWorkflowOverrideCount > 0;
+  const hasPrimaryParameterSpecs = props.launchDefinition.parameterSpecs.length > 0;
+  const hasWorkflowBudgetGuardrails = readWorkflowBudgetMode(props.workflowBudgetDraft) === 'guarded';
+  const advancedAdjustmentCount = [
+    hasPrimaryParameterSpecs && hasAdditionalParameters ? 1 : 0,
+    hasMetadataEntries ? 1 : 0,
+    props.configuredWorkflowConfigOverrideCount > 0 || props.hasInstructionConfigOverride ? 1 : 0,
+    hasWorkflowBudgetGuardrails ? 1 : 0,
+    hasWorkflowOverrides ? 1 : 0,
+  ].reduce((count, value) => count + value, 0);
+  const shouldOpenAdvancedSection =
+    advancedAdjustmentCount > 0 ||
+    Boolean(
+      props.error ||
+        props.workflowConfigBlockingError ||
+        props.workflowOverrideBlockingError ||
+        (hasPrimaryParameterSpecs && props.launchValidation.fieldErrors.additionalParameters) ||
+        props.launchValidation.fieldErrors.metadata,
+    );
 
   return (
     <>
       <LaunchPageHeader selectedPlaybookId={props.selectedPlaybookId} />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr),minmax(18rem,24rem)]">
-        <Card>
-          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <Card className="border-border/70 bg-card/80 shadow-sm">
+          <CardHeader className="space-y-2">
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">Process-first launch</Badge>
+              <Badge variant="outline">Playbook-driven inputs</Badge>
+              <Badge variant="outline">Advanced policy optional</Badge>
+            </div>
             <div className="space-y-1">
-              <CardTitle>Workflow Launch</CardTitle>
+              <CardTitle>Process-First Launch</CardTitle>
               <p className="text-sm text-muted">
-                Choose a playbook, resolve project autofill, and add only the workflow overrides
-                this launch actually needs.
+                Start with the playbook process, add project context when it can autofill inputs,
+                then open advanced launch policy only when this run needs extra control.
               </p>
             </div>
-            <Button onClick={props.onLaunch} disabled={!props.canLaunch}>
-              {props.isLaunching ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Rocket className="h-4 w-4" />
-              )}
-              Launch Workflow
-            </Button>
           </CardHeader>
           <CardContent className="grid gap-6">
             <RunIdentitySection
@@ -144,23 +159,24 @@ export function PlaybookLaunchForm(props: {
             />
 
             <StructuredSection
-              id="playbook-snapshot"
-              title="Workflow Structure"
-              description="Preview the board shape, workflow stages, and declared roles that will guide this workflow."
+              id="process-snapshot"
+              title="Process Snapshot"
+              description="Confirm the outcome, board shape, stage flow, and declared roles before you customize anything for this run."
             >
-              <LaunchDefinitionSnapshot launchDefinition={props.launchDefinition} />
+              <LaunchDefinitionSnapshot
+                launchDefinition={props.launchDefinition}
+                outcome={props.selectedPlaybook?.outcome}
+              />
             </StructuredSection>
 
             <StructuredSection
-              id="playbook-parameters"
-              title="Playbook Parameters"
-              description={
-                props.launchDefinition.parameterSpecs.length > 0
-                  ? 'Launch-time parameters are driven from the selected playbook definition.'
-                  : 'This playbook does not define parameter specs yet. Add structured parameter keys as needed.'
-              }
+              id="launch-inputs"
+              title="Launch Inputs"
+              description="Resolution order is playbook default, then project autofill, then any launch override you enter here."
             >
-              {props.launchDefinition.parameterSpecs.length > 0 ? (
+              <ResolutionOrderPanel />
+
+              {hasPrimaryParameterSpecs ? (
                 <div className="grid gap-4">
                   {props.launchDefinition.parameterSpecs.map((spec) => (
                     <ParameterField
@@ -172,118 +188,169 @@ export function PlaybookLaunchForm(props: {
                     />
                   ))}
                 </div>
-              ) : null}
-
-              <StructuredEntryEditor
-                title={
-                  props.launchDefinition.parameterSpecs.length > 0
-                    ? 'Additional Parameters'
-                    : 'Parameters'
-                }
-                description="Add extra launch parameters without typing a full JSON object."
-                drafts={props.extraParameterDrafts}
-                validation={props.extraParametersValidation}
-                onChange={props.onExtraParameterDraftsChange}
-                addLabel="Add parameter"
-              />
-            </StructuredSection>
-
-            <StructuredSection
-              id="launch-metadata"
-              title="Metadata"
-              description="Attach structured workflow metadata as key/value entries instead of a raw JSON blob."
-            >
-              <StructuredEntryEditor
-                title="Metadata Entries"
-                drafts={props.metadataDrafts}
-                validation={props.metadataValidation}
-                onChange={props.onMetadataDraftsChange}
-                addLabel="Add metadata field"
-              />
-            </StructuredSection>
-
-            <WorkflowLaunchPolicySections
-              workflowPolicyDefinition={props.workflowPolicyDefinition}
-              workflowConfigDrafts={props.workflowConfigDrafts}
-              workflowConfigValidation={props.workflowConfigValidation}
-              extraWorkflowConfigDrafts={props.extraWorkflowConfigDrafts}
-              extraWorkflowConfigValidation={props.extraWorkflowConfigValidation}
-              suppressedInstructionLayers={props.suppressedInstructionLayers}
-              onWorkflowConfigChange={props.onWorkflowConfigChange}
-              onExtraWorkflowConfigDraftsChange={props.onExtraWorkflowConfigDraftsChange}
-              onSuppressedInstructionLayersChange={props.onSuppressedInstructionLayersChange}
-            />
-
-            <StructuredSection
-              id="workflow-budget-policy"
-              title="Workflow Budget Policy"
-              description="Set optional workflow-level guardrails for token spend, cost, and elapsed runtime."
-            >
-              <WorkflowBudgetEditor
-                draft={props.workflowBudgetDraft}
-                fieldErrors={props.launchValidation.fieldErrors}
-                onChange={props.onWorkflowBudgetChange}
-              />
-            </StructuredSection>
-
-            <StructuredSection
-              id="workflow-model-overrides"
-              title="Workflow Model Overrides"
-              description="Configure workflow-scoped overrides per playbook role and preview the effective model stack before launch."
-            >
-              {props.launchDefinition.roles.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {props.launchDefinition.roles.map((role) => (
-                    <Badge key={role} variant="outline">
-                      {role}
-                    </Badge>
-                  ))}
-                </div>
               ) : (
-                <p className="text-sm text-muted">
-                  This playbook definition does not declare roles, so custom override rows are
-                  available.
-                </p>
+                <StructuredEntryEditor
+                  title="Parameters"
+                  description="This playbook does not define parameter specs yet, so add only the launch inputs this run actually needs."
+                  drafts={props.extraParameterDrafts}
+                  validation={props.extraParametersValidation}
+                  onChange={props.onExtraParameterDraftsChange}
+                  addLabel="Add parameter"
+                />
               )}
-              <RoleOverrideEditor
-                drafts={props.modelOverrideDrafts}
-                playbookRoles={props.launchDefinition.roles}
-                providers={props.llmProviders}
-                models={props.llmModels}
-                validation={props.roleOverrideValidation}
-                onChange={props.onModelOverrideDraftsChange}
-              />
-              {props.hasLlmLoadError ? (
-                <p className="text-sm text-red-600 dark:text-red-400">
-                  Failed to load provider or model options for workflow overrides.
-                </p>
-              ) : null}
             </StructuredSection>
 
-            {props.workflowConfigBlockingError ? (
-              <p className="text-sm text-red-600 dark:text-red-400">{props.workflowConfigBlockingError}</p>
-            ) : null}
-            {props.workflowOverrideBlockingError ? (
-              <p className="text-sm text-red-600 dark:text-red-400">{props.workflowOverrideBlockingError}</p>
-            ) : null}
-            {props.error ? <p className="text-sm text-red-600 dark:text-red-400">{props.error}</p> : null}
+            <details
+              open={shouldOpenAdvancedSection}
+              className="rounded-2xl border border-border/70 bg-card/60 p-4"
+            >
+              <summary className="cursor-pointer list-none">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <div className="font-medium text-foreground">Advanced launch policy</div>
+                    <p className="text-sm text-muted">
+                      Open only when this run needs metadata, workflow policy, budget guardrails,
+                      or model overrides.
+                    </p>
+                  </div>
+                  {advancedAdjustmentCount > 0 ? (
+                    <Badge variant="secondary">
+                      {advancedAdjustmentCount} configured
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline">Closed by default</Badge>
+                  )}
+                </div>
+              </summary>
+              <div className="mt-4 grid gap-6">
+                {hasPrimaryParameterSpecs ? (
+                  <StructuredSection
+                    id="launch-extra-parameters"
+                    title="Additional Parameters"
+                    description="Add extra launch parameters only when this run needs fields beyond the playbook-defined inputs."
+                  >
+                    <StructuredEntryEditor
+                      title="Additional Parameters"
+                      description="Add extra launch parameters without typing a full JSON object."
+                      drafts={props.extraParameterDrafts}
+                      validation={props.extraParametersValidation}
+                      onChange={props.onExtraParameterDraftsChange}
+                      addLabel="Add parameter"
+                    />
+                  </StructuredSection>
+                ) : null}
 
-            <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
-              <div className="space-y-1">
-                <div className="text-sm font-medium text-foreground">Workflow launch status</div>
-                <p className="text-sm text-muted">
-                  Review any highlighted issues above, then launch this workflow when the form is
-                  ready.
-                </p>
+                <StructuredSection
+                  id="launch-metadata"
+                  title="Metadata"
+                  description="Attach structured workflow metadata as key/value entries instead of a raw JSON blob."
+                >
+                  <StructuredEntryEditor
+                    title="Metadata Entries"
+                    drafts={props.metadataDrafts}
+                    validation={props.metadataValidation}
+                    onChange={props.onMetadataDraftsChange}
+                    addLabel="Add metadata field"
+                  />
+                </StructuredSection>
+
+                <WorkflowLaunchPolicySections
+                  workflowPolicyDefinition={props.workflowPolicyDefinition}
+                  workflowConfigDrafts={props.workflowConfigDrafts}
+                  workflowConfigValidation={props.workflowConfigValidation}
+                  extraWorkflowConfigDrafts={props.extraWorkflowConfigDrafts}
+                  extraWorkflowConfigValidation={props.extraWorkflowConfigValidation}
+                  suppressedInstructionLayers={props.suppressedInstructionLayers}
+                  onWorkflowConfigChange={props.onWorkflowConfigChange}
+                  onExtraWorkflowConfigDraftsChange={props.onExtraWorkflowConfigDraftsChange}
+                  onSuppressedInstructionLayersChange={props.onSuppressedInstructionLayersChange}
+                />
+
+                <StructuredSection
+                  id="workflow-budget-policy"
+                  title="Workflow Budget Policy"
+                  description="Set optional workflow-level guardrails for token spend, cost, and elapsed runtime."
+                >
+                  <WorkflowBudgetEditor
+                    draft={props.workflowBudgetDraft}
+                    fieldErrors={props.launchValidation.fieldErrors}
+                    onChange={props.onWorkflowBudgetChange}
+                  />
+                </StructuredSection>
+
+                <StructuredSection
+                  id="workflow-model-overrides"
+                  title="Workflow Model Overrides"
+                  description="Configure workflow-scoped overrides per playbook role and preview the effective model stack before launch."
+                >
+                  {props.launchDefinition.roles.length > 0 ? (
+                    <div className="flex flex-wrap gap-2">
+                      {props.launchDefinition.roles.map((role) => (
+                        <Badge key={role} variant="outline">
+                          {role}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted">
+                      This playbook definition does not declare roles, so custom override rows are
+                      available.
+                    </p>
+                  )}
+                  <RoleOverrideEditor
+                    drafts={props.modelOverrideDrafts}
+                    playbookRoles={props.launchDefinition.roles}
+                    providers={props.llmProviders}
+                    models={props.llmModels}
+                    validation={props.roleOverrideValidation}
+                    onChange={props.onModelOverrideDraftsChange}
+                  />
+                  {props.hasLlmLoadError ? (
+                    <p className="text-sm text-red-600 dark:text-red-400">
+                      Failed to load provider or model options for workflow overrides.
+                    </p>
+                  ) : null}
+                </StructuredSection>
+
+                {props.workflowConfigBlockingError ? (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {props.workflowConfigBlockingError}
+                  </p>
+                ) : null}
+                {props.workflowOverrideBlockingError ? (
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {props.workflowOverrideBlockingError}
+                  </p>
+                ) : null}
+                {props.error ? (
+                  <p className="text-sm text-red-600 dark:text-red-400">{props.error}</p>
+                ) : null}
               </div>
-              <Badge variant={props.canLaunch ? 'secondary' : 'destructive'}>
-                {props.canLaunch ? 'Ready to launch' : 'Action needed'}
-              </Badge>
-            </section>
+            </details>
           </CardContent>
         </Card>
 
         <div className="space-y-4 xl:sticky xl:top-6">
+          <LaunchActionCard
+            canLaunch={props.canLaunch}
+            isLaunching={props.isLaunching}
+            blockingIssueCount={props.launchValidation.blockingIssues.length}
+            onLaunch={props.onLaunch}
+          />
+          <PlaybookSummaryCard
+            playbook={props.selectedPlaybook}
+            projects={props.projects}
+            selectedProjectId={props.projectId}
+            projectResolvedModels={props.projectResolvedModels}
+            previewData={props.previewData}
+            previewError={props.previewError}
+            previewLoading={props.previewLoading}
+            workflowOverrides={props.workflowOverrides}
+            workflowConfigOverrideCount={props.configuredWorkflowConfigOverrideCount}
+            instructionConfigSummary={props.instructionConfigSummary}
+            launchDefinition={props.launchDefinition}
+            isLoading={props.isLoadingSummary}
+          />
           <LaunchReadinessPanel
             selectedPlaybook={props.selectedPlaybook}
             selectedProject={props.selectedProject}
@@ -299,20 +366,6 @@ export function PlaybookLaunchForm(props: {
             hasWorkflowOverrides={hasWorkflowOverrides}
             budgetDraft={props.workflowBudgetDraft}
             validation={props.launchValidation}
-          />
-          <PlaybookSummaryCard
-            playbook={props.selectedPlaybook}
-            projects={props.projects}
-            selectedProjectId={props.projectId}
-            projectResolvedModels={props.projectResolvedModels}
-            previewData={props.previewData}
-            previewError={props.previewError}
-            previewLoading={props.previewLoading}
-            workflowOverrides={props.workflowOverrides}
-            workflowConfigOverrideCount={props.configuredWorkflowConfigOverrideCount}
-            instructionConfigSummary={props.instructionConfigSummary}
-            launchDefinition={props.launchDefinition}
-            isLoading={props.isLoadingSummary}
           />
         </div>
       </div>

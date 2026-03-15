@@ -644,6 +644,9 @@ function readResolutionDetail(input: {
   hasCurrentValue: boolean;
 }): string {
   if (input.activeSource === 'playbook-default') {
+    if (!input.hasProjectMapping) {
+      return 'This run uses the playbook default until you override it at launch.';
+    }
     if (input.project && input.hasProjectMapping && input.mappedValue !== undefined) {
       return `This run stays pinned to the playbook default instead of ${input.project.name} autofill.`;
     }
