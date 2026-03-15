@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseQueryable } from '../db/database.js';
 import type { RbacRole } from '../auth/rbac.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 
@@ -62,7 +62,7 @@ function toSafeUser(row: UserRow): SafeUser {
 }
 
 export class UserService {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(private readonly pool: DatabaseQueryable) {}
 
   async listUsers(tenantId: string): Promise<SafeUser[]> {
     const result = await this.pool.query<UserRow>(

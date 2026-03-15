@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseQueryable } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
@@ -47,7 +47,7 @@ interface RoleDefinitionRow {
 }
 
 export class RoleDefinitionService {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(private readonly pool: DatabaseQueryable) {}
 
   async listRoles(tenantId: string, activeOnly = false): Promise<RoleDefinitionRow[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);

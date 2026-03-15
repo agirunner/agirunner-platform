@@ -8,6 +8,7 @@ import { loadBuiltInRolesConfig } from '../../src/catalogs/built-in-roles.js';
 import { runMigrations } from '../../src/db/migrations/run-migrations.js';
 import { seedDefaultTenant } from '../../src/db/seed.js';
 import { seedConfigTables } from '../../src/bootstrap/seed.js';
+import { resetPlaybookRedesignState } from '../../src/bootstrap/seed.js';
 import {
   isContainerRuntimeAvailable,
   startTestDatabase,
@@ -51,6 +52,58 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     expect(rebuiltSnapshot.migrations).not.toContain('0010_drop_templates.sql');
 
     expect(rebuiltSnapshot).toEqual(initialSnapshot);
+  }, 120_000);
+
+  it('preserves admin key and llm configuration while rebuilding redesign-owned state', async () => {
+    expect(db).not.toBeNull();
+    const pool = db!.pool;
+
+    await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
+    await seedConfigTables(pool);
+
+    await pool.query(
+      `INSERT INTO llm_providers (id, tenant_id, name, provider_type, auth_mode, created_at, updated_at)
+       VALUES ('10000000-0000-0000-0000-000000000001', $1, 'Test Provider', 'openai', 'api_key', now(), now())`,
+      ['00000000-0000-0000-0000-000000000001'],
+    );
+    await pool.query(
+      `INSERT INTO llm_models (id, tenant_id, provider_id, model_id, created_at, updated_at)
+       VALUES ('20000000-0000-0000-0000-000000000001', $1, '10000000-0000-0000-0000-000000000001', 'gpt-test', now(), now())`,
+      ['00000000-0000-0000-0000-000000000001'],
+    );
+    await pool.query(
+      `INSERT INTO role_model_assignments (id, tenant_id, role_name, primary_model_id, created_at, updated_at)
+       VALUES ('30000000-0000-0000-0000-000000000001', $1, 'developer', '20000000-0000-0000-0000-000000000001', now(), now())`,
+      ['00000000-0000-0000-0000-000000000001'],
+    );
+    await pool.query(
+      `INSERT INTO projects (tenant_id, id, name, slug)
+       VALUES ($1, '40000000-0000-0000-0000-000000000001', 'Reset Me', 'reset-me')`,
+      ['00000000-0000-0000-0000-000000000001'],
+    );
+
+    await resetPlaybookRedesignState(pool);
+    await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
+    await seedConfigTables(pool);
+
+    const [providerCount, modelCount, assignmentCount, projectCount, playbookCount, promptCount, apiKeyCount] =
+      await Promise.all([
+        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_providers'),
+        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_models'),
+        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM role_model_assignments'),
+        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM projects'),
+        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM playbooks'),
+        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM platform_instructions'),
+        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM api_keys'),
+      ]);
+
+    expect(Number(providerCount.rows[0]?.count ?? '0')).toBe(1);
+    expect(Number(modelCount.rows[0]?.count ?? '0')).toBe(1);
+    expect(Number(assignmentCount.rows[0]?.count ?? '0')).toBe(1);
+    expect(Number(projectCount.rows[0]?.count ?? '0')).toBe(0);
+    expect(Number(playbookCount.rows[0]?.count ?? '0')).toBe(BUILT_IN_PLAYBOOKS.length);
+    expect(Number(promptCount.rows[0]?.count ?? '0')).toBe(1);
+    expect(Number(apiKeyCount.rows[0]?.count ?? '0')).toBeGreaterThan(0);
   }, 120_000);
 });
 

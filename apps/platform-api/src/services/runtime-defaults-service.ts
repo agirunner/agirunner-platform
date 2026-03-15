@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseQueryable } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 
@@ -52,7 +52,7 @@ interface RuntimeDefaultRow {
 }
 
 export class RuntimeDefaultsService {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(private readonly pool: DatabaseQueryable) {}
 
   async listDefaults(tenantId: string): Promise<RuntimeDefaultRow[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);

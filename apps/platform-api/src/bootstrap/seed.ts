@@ -7,6 +7,7 @@
 import type pg from 'pg';
 
 import type { AppEnv } from '../config/schema.js';
+import type { DatabaseQueryable } from '../db/database.js';
 import {
   BUILT_IN_PLAYBOOKS,
 } from '../catalogs/built-in-playbooks.js';
@@ -18,28 +19,69 @@ import {
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
 import { UserService } from '../services/user-service.js';
-import { DEFAULT_TENANT_ID } from '../db/seed.js';
+import {
+  DEFAULT_ADMIN_KEY_PREFIX,
+  DEFAULT_TENANT_ID,
+} from '../db/seed.js';
+
+const REDESIGN_RESET_PRESERVED_TABLES = new Set([
+  'api_keys',
+  'llm_providers',
+  'llm_models',
+  'role_model_assignments',
+  'schema_migrations',
+  'tenants',
+]);
 
 // ---------------------------------------------------------------------------
 // Public entry point
 // ---------------------------------------------------------------------------
 
 export async function seedConfigTables(
-  pool: pg.Pool,
+  db: DatabaseQueryable,
   config?: Pick<AppEnv, 'AGIRUNNER_ADMIN_EMAIL'>,
 ): Promise<void> {
-  await seedRolesAndDefaults(pool);
-  await seedAdminUser(pool, config?.AGIRUNNER_ADMIN_EMAIL);
-  await seedBuiltInPlaybooks(pool);
+  await seedRolesAndDefaults(db);
+  await seedAdminUser(db, config?.AGIRUNNER_ADMIN_EMAIL);
+  await seedBuiltInPlaybooks(db);
+}
+
+export async function resetPlaybookRedesignState(pool: pg.Pool): Promise<void> {
+  await pool.query(
+    `DELETE FROM api_keys
+      WHERE tenant_id = $1
+        AND key_prefix <> $2`,
+    [DEFAULT_TENANT_ID, DEFAULT_ADMIN_KEY_PREFIX],
+  );
+
+  const result = await pool.query<{ tablename: string }>(
+    `SELECT tablename
+       FROM pg_tables
+      WHERE schemaname = 'public'
+      ORDER BY tablename ASC`,
+  );
+
+  const tablesToReset = result.rows
+    .map((row: { tablename: string }) => row.tablename)
+    .filter((tableName: string) => !REDESIGN_RESET_PRESERVED_TABLES.has(tableName));
+
+  if (tablesToReset.length === 0) {
+    return;
+  }
+
+  const qualifiedTables = tablesToReset
+    .map((tableName: string) => `"public"."${tableName}"`)
+    .join(', ');
+  await pool.query(`TRUNCATE TABLE ${qualifiedTables} RESTART IDENTITY CASCADE`);
 }
 
 // ---------------------------------------------------------------------------
 // Roles + runtime defaults
 // ---------------------------------------------------------------------------
 
-async function seedRolesAndDefaults(pool: pg.Pool): Promise<void> {
-  const roleService = new RoleDefinitionService(pool);
-  const defaultsService = new RuntimeDefaultsService(pool);
+async function seedRolesAndDefaults(db: DatabaseQueryable): Promise<void> {
+  const roleService = new RoleDefinitionService(db);
+  const defaultsService = new RuntimeDefaultsService(db);
 
   const existingRoles = await roleService.listRoles(DEFAULT_TENANT_ID);
   const rolesConfig = loadBuiltInRolesConfig();
@@ -53,7 +95,7 @@ async function seedRolesAndDefaults(pool: pg.Pool): Promise<void> {
     await syncBuiltInRoleTools(roleService, rolesConfig, existingRoles);
   }
 
-  await seedDefaultPrompts(pool);
+  await seedDefaultPrompts(db);
 }
 
 async function seedMissingRoles(
@@ -182,16 +224,16 @@ async function seedRuntimeDefaults(
 // Default prompts
 // ---------------------------------------------------------------------------
 
-async function seedDefaultPrompts(pool: pg.Pool): Promise<void> {
+async function seedDefaultPrompts(db: DatabaseQueryable): Promise<void> {
   const { DEFAULT_PLATFORM_INSTRUCTIONS, DEFAULT_ORCHESTRATOR_PROMPT } = await import('../catalogs/default-prompts.js');
 
   // Platform instructions — only seed if empty
-  const existing = await pool.query(
+  const existing = await db.query(
     'SELECT content FROM platform_instructions WHERE tenant_id = $1',
     [DEFAULT_TENANT_ID],
   );
   if (!existing.rows[0]?.content?.trim()) {
-    await pool.query(
+    await db.query(
       `INSERT INTO platform_instructions (tenant_id, content, format, version)
        VALUES ($1, $2, 'markdown', 1)
        ON CONFLICT (tenant_id) DO UPDATE SET content = $2, version = platform_instructions.version + 1, updated_at = NOW()`,
@@ -201,12 +243,12 @@ async function seedDefaultPrompts(pool: pg.Pool): Promise<void> {
   }
 
   // Orchestrator config — only seed if empty
-  const existingOrch = await pool.query(
+  const existingOrch = await db.query(
     'SELECT prompt FROM orchestrator_config WHERE tenant_id = $1',
     [DEFAULT_TENANT_ID],
   );
   if (!existingOrch.rows[0]?.prompt?.trim()) {
-    await pool.query(
+    await db.query(
       `INSERT INTO orchestrator_config (tenant_id, prompt, updated_at)
        VALUES ($1, $2, NOW())
        ON CONFLICT (tenant_id) DO UPDATE SET prompt = $2, updated_at = NOW()`,
@@ -220,8 +262,8 @@ async function seedDefaultPrompts(pool: pg.Pool): Promise<void> {
 // Admin user
 // ---------------------------------------------------------------------------
 
-async function seedAdminUser(pool: pg.Pool, adminEmail = 'admin@agirunner.local'): Promise<void> {
-  const userService = new UserService(pool);
+async function seedAdminUser(db: DatabaseQueryable, adminEmail = 'admin@agirunner.local'): Promise<void> {
+  const userService = new UserService(db);
 
   const existing = await userService.listUsers(DEFAULT_TENANT_ID);
   if (existing.length > 0) {
@@ -237,9 +279,9 @@ async function seedAdminUser(pool: pg.Pool, adminEmail = 'admin@agirunner.local'
   console.info(`[seed] Admin user created: ${adminEmail}`);
 }
 
-async function seedBuiltInPlaybooks(pool: pg.Pool): Promise<void> {
+async function seedBuiltInPlaybooks(db: DatabaseQueryable): Promise<void> {
   for (const playbook of BUILT_IN_PLAYBOOKS) {
-    const existing = await pool.query(
+    const existing = await db.query(
       'SELECT id FROM playbooks WHERE tenant_id = $1 AND slug = $2 AND version = 1 LIMIT 1',
       [DEFAULT_TENANT_ID, playbook.slug],
     );
@@ -247,7 +289,7 @@ async function seedBuiltInPlaybooks(pool: pg.Pool): Promise<void> {
       continue;
     }
 
-    await pool.query(
+    await db.query(
       `INSERT INTO playbooks (tenant_id, name, slug, description, outcome, lifecycle, version, definition, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, 1, $7, true)`,
       [
