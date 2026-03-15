@@ -100,7 +100,7 @@ export function RoleDialog(props: {
     }));
   }
 
-  const selectedModel = props.models.find((m) => m.model_id === selectedModelId);
+  const selectedModel = props.models.find((m) => m.id === selectedModelId);
 
   return (
     <Dialog open onOpenChange={(open) => !open && props.onClose()}>

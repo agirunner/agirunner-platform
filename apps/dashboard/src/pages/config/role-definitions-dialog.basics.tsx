@@ -149,7 +149,7 @@ export function RoleModelAssignmentSection(props: {
                   .map((model) => {
                     const provider = model.provider_name ?? (model.provider_id ? providerNames.get(model.provider_id) : null) ?? 'Unknown';
                     return (
-                      <SelectItem key={model.model_id} value={model.model_id}>
+                      <SelectItem key={model.id} value={model.id}>
                         {provider} / {model.model_id}
                       </SelectItem>
                     );
