@@ -16,6 +16,7 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
+import { Textarea } from '../../components/ui/textarea.js';
 import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { cn } from '../../lib/utils.js';
 import {
@@ -276,7 +277,11 @@ export function PlaybookDetailPage(): JSX.Element {
             </label>
             <label className="grid gap-2 text-sm md:col-span-2">
               <span className="font-medium">Outcome</span>
-              <Input value={outcome} onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }} />
+              <Textarea
+                value={outcome}
+                onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }}
+                className="min-h-[88px]"
+              />
             </label>
             <div className="grid gap-2 text-sm xl:row-span-2">
               <span className="font-medium">Lifecycle</span>
@@ -306,14 +311,14 @@ export function PlaybookDetailPage(): JSX.Element {
                 })}
               </div>
             </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:col-span-2">
-              <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted">
-                <div className="font-medium text-foreground">Created</div>
-                <div className="mt-1">{formatDate(playbook.created_at)}</div>
+            <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted xl:col-span-2">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-foreground">Created</span>
+                <span>{formatDate(playbook.created_at)}</span>
               </div>
-              <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted">
-                <div className="font-medium text-foreground">Updated</div>
-                <div className="mt-1">{formatDate(playbook.updated_at)}</div>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-foreground">Updated</span>
+                <span>{formatDate(playbook.updated_at)}</span>
               </div>
             </div>
             <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted md:col-span-2 xl:col-span-2">

@@ -38,6 +38,7 @@ describe('playbook detail page source', () => {
     expect(source).toContain('rounded-xl border border-emerald-300 bg-emerald-50/80');
     expect(source).toContain('onValidationChange={setAuthoringValidationIssues}');
     expect(source).toContain('Save Playbook');
+    expect(source).toContain('className="min-h-[88px]"');
     expect(source).not.toContain('Archive Playbook');
     expect(source).not.toContain('Description</span>');
     expect(source).not.toContain('Operator-facing catalog copy only.');

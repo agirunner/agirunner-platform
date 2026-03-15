@@ -18,6 +18,7 @@ describe('playbook authoring form source', () => {
     expect(source).toContain('OverviewCard');
     expect(source).toContain('Parallel work items enabled');
     expect(source).toContain('Max active tasks');
+    expect(source).not.toContain('signals');
   });
 
   it('uses tabs for progressive disclosure instead of one long linear stack', () => {

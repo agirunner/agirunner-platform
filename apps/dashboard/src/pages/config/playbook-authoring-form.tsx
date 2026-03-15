@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { dashboardApi } from '../../lib/api.js';
@@ -193,10 +192,7 @@ function readParameterIssueIndex(issueKey: string): number {
 function OverviewCard(props: { title: string; lines: string[] }): JSX.Element {
   return (
     <div className="rounded-lg border border-border/70 bg-border/10 p-4">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <div className="text-sm font-medium">{props.title}</div>
-        <Badge variant="outline">{props.lines.length} signals</Badge>
-      </div>
+      <div className="mb-3 text-sm font-medium">{props.title}</div>
       <div className="grid gap-2 text-sm text-muted">
         {props.lines.map((line) => (
           <div key={line}>{line}</div>
