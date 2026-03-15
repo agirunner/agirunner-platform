@@ -67,7 +67,6 @@ export function RoleReadinessCard(props: {
         ) : null}
         <div className="grid gap-3">
           <SummaryRow label="Tools" value={props.summary.toolSummary} />
-          <SummaryRow label="Model routing" value={props.summary.modelSummary} />
         </div>
       </CardContent>
     </Card>
