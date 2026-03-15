@@ -268,9 +268,10 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('## Current Checkpoint');
     expect(workflowLayer.content).toContain('implementation');
     expect(workflowLayer.content).toContain('## Board Position');
-    expect(workflowLayer.content).toContain('In Review');
+    expect(workflowLayer.content).toContain('## Board Position\nLane: In Review');
     expect(workflowLayer.content).toContain('## Review Expectations');
-    expect(workflowLayer.content).toContain('reviewer should review');
+    expect(workflowLayer.content).toContain('Review required from reviewer');
+    expect(workflowLayer.content).toContain('reviewer should review the current output before completion.');
     expect(workflowLayer.content).toContain('## Output Protocol');
     expect(workflowLayer.content).toContain('Commit and push');
     expect(workflowLayer.content).toContain('## Predecessor Context');
@@ -356,8 +357,7 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('## Progress Model');
     expect(workflowLayer.content).toContain('Board-driven');
     expect(workflowLayer.content).toContain('Use board lane posture');
-    expect(workflowLayer.content).toContain('## Board Position');
-    expect(workflowLayer.content).toContain('Active');
-    expect(workflowLayer.content).toContain('Upload required artifacts');
+    expect(workflowLayer.content).toContain('## Board Position\nLane: Active');
+    expect(workflowLayer.content).toContain('Upload required artifacts before completion or escalation');
   });
 });

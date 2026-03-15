@@ -95,14 +95,14 @@ function buildOrchestratorSections(params: {
   repoBacked: boolean;
 }) {
   const sections = [
-    `## Workflow Mode\n${params.lifecycle === 'ongoing' ? 'Ongoing' : 'Planned'}\n${workflowModeGuidance(params.lifecycle)}`,
+    `## Workflow Mode: ${params.lifecycle}\n${workflowModeGuidance(params.lifecycle)}`,
     `## Process Instructions\n${params.definition.process_instructions}`,
     `## Progress Model\n${progressModelGuidance(params.definition)}`,
   ];
 
   if (params.checkpoint) {
     sections.push(
-      `## Current Checkpoint\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}\nHuman gate: ${params.checkpoint.human_gate ? 'required' : 'not required'}`,
+      `## Current Checkpoint\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}\nHuman gate: ${params.checkpoint.human_gate ? 'yes' : 'no'}`,
     );
   } else if (params.boardColumn) {
     sections.push(`## Current Board Focus\n${params.boardColumn.label}`);
@@ -137,7 +137,7 @@ function buildSpecialistSections(params: {
   role: string | null;
 }) {
   const sections = [
-    `## Workflow Mode\n${params.lifecycle === 'ongoing' ? 'Ongoing' : 'Planned'}\n${workflowModeGuidance(params.lifecycle)}`,
+    `## Workflow Mode: ${params.lifecycle}\n${workflowModeGuidance(params.lifecycle)}`,
     `## Process Instructions\n${params.definition.process_instructions}`,
     `## Progress Model\n${progressModelGuidance(params.definition)}`,
   ];
@@ -149,7 +149,7 @@ function buildSpecialistSections(params: {
   }
 
   if (params.boardColumn) {
-    sections.push(`## Board Position\n${params.boardColumn.label}`);
+    sections.push(`## Board Position\nLane: ${params.boardColumn.label}`);
   }
 
   sections.push(`## Review Expectations\n${formatReviewExpectations(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem, params.role)}`);
@@ -185,11 +185,11 @@ function progressModelGuidance(
 function outputProtocol(repoBacked: boolean, orchestrator: boolean) {
   if (repoBacked) {
     return orchestrator
-      ? 'Repository-backed task. Inspect files, diffs, and git state before deciding.'
-      : 'Repository-backed task. Read predecessor context first, inspect the repository before changing it, and Commit and push required work before completion or escalation.';
+      ? 'Repository-backed workflow. Inspect files, diffs, and git state before deciding.'
+      : 'Repository-backed workflow. Read predecessor context first, inspect the repository before changing it, and Commit and push required work before completion or escalation.';
   }
   return orchestrator
-    ? 'Non-repository task. Evaluate artifacts and task outputs directly, and require clear uploaded evidence before accepting completion.'
+    ? 'Non-repository workflow. Evaluate artifacts and task outputs directly, and require clear uploaded evidence before accepting completion.'
     : 'Non-repository task. Base your completion on artifacts, outputs, and recorded evidence. Upload required artifacts before completion or escalation and leave a clear structured handoff for the next step.';
 }
 
@@ -239,14 +239,14 @@ function formatReviewExpectations(
   const lines: string[] = [];
   const roleName = role ?? readString(workItem.owner_role);
   const incomingReviewRule = definition.review_rules.find((entry) => entry.reviewed_by === roleName);
-  if (incomingReviewRule?.required !== false) {
+  if (incomingReviewRule && incomingReviewRule.required !== false && roleName) {
     lines.push(`Review required from ${roleName}`);
-    lines.push(`${roleName} should review the current output before completion.`);
+    lines.push(`Mandatory review: ${roleName} should review the current output before completion.`);
   } else {
     const outgoingReviewRule = definition.review_rules.find((entry) => entry.from_role === roleName);
-    if (outgoingReviewRule?.required !== false) {
+    if (outgoingReviewRule && outgoingReviewRule.required !== false) {
       lines.push(`Review required from ${outgoingReviewRule.reviewed_by}`);
-      lines.push(`${outgoingReviewRule.reviewed_by} should review the current output before completion.`);
+      lines.push(`Mandatory review: ${outgoingReviewRule.reviewed_by} should review the current output before completion.`);
     }
   }
   if (readString(workItem.next_expected_actor)) {

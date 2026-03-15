@@ -4,6 +4,7 @@ import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
 import { currentStageNameFromStages, type WorkflowStageResponse } from './workflow-stage-service.js';
 
 const TASK_CONTEXT_SECRET_REDACTION = 'redacted://task-context-secret';
@@ -98,19 +99,6 @@ export async function buildTaskContext(
   const orchestratorPrompt = task.is_orchestrator_task
     ? await loadOrchestratorPrompt(db, tenantId)
     : undefined;
-  const instructionLayers = buildInstructionLayers({
-    platformInstructions,
-    orchestratorPrompt,
-    isOrchestratorTask: Boolean(task.is_orchestrator_task),
-    projectInstructions,
-    roleConfig: asRecord(task.role_config),
-    taskInput: asRecord(task.input),
-    taskId: String(task.id ?? ''),
-    projectId: asOptionalString(task.project_id),
-    projectSpecVersion: asOptionalNumber(workflowRow?.project_spec_version),
-    role: asOptionalString(task.role),
-    suppressLayers: readSuppressedLayers(workflowRow?.instruction_config),
-  });
   const flatInstructions = readFlatInstructions(asRecord(task.role_config), agent?.metadata);
   const orchestratorContext = await buildOrchestratorTaskContext(db, tenantId, task);
   const workflowContext = workflowRow
@@ -130,6 +118,24 @@ export async function buildTaskContext(
           parentWorkflowContext,
         })
     : null;
+  const instructionLayers = buildInstructionLayers({
+    platformInstructions,
+    orchestratorPrompt,
+    isOrchestratorTask: Boolean(task.is_orchestrator_task),
+    projectInstructions,
+    roleConfig: asRecord(task.role_config),
+    taskInput: asRecord(task.input),
+    taskId: String(task.id ?? ''),
+    projectId: asOptionalString(task.project_id),
+    projectSpecVersion: asOptionalNumber(workflowRow?.project_spec_version),
+    role: asOptionalString(task.role),
+    suppressLayers: readSuppressedLayers(workflowRow?.instruction_config),
+    workflowContext,
+    project: projectRes.rows[0] as Record<string, unknown> | undefined,
+    workItem,
+    predecessorHandoff,
+    orchestratorContext: orchestratorContext as Record<string, unknown> | undefined,
+  });
 
   return {
     agent: sanitizeTaskContextValue(agent),
@@ -509,6 +515,11 @@ function buildInstructionLayers(params: {
   projectSpecVersion?: number;
   role?: string;
   suppressLayers: string[];
+  workflowContext?: Record<string, unknown> | null;
+  project?: Record<string, unknown>;
+  workItem?: Record<string, unknown> | null;
+  predecessorHandoff?: Record<string, unknown> | null;
+  orchestratorContext?: Record<string, unknown>;
 }) {
   const suppressed = new Set(params.suppressLayers);
   const layers: Record<string, unknown> = {};
@@ -579,6 +590,25 @@ function buildInstructionLayers(params: {
     }
   }
 
+  const workflowDocument = buildWorkflowInstructionLayer({
+    isOrchestratorTask: params.isOrchestratorTask,
+    role: params.role,
+    workflow: params.workflowContext ?? null,
+    project: params.project ?? null,
+    taskInput: params.taskInput,
+    workItem: params.workItem ?? null,
+    predecessorHandoff: params.predecessorHandoff ?? null,
+    orchestratorContext: params.orchestratorContext ?? null,
+  });
+  if (workflowDocument && !suppressed.has('workflow')) {
+    layers.workflow = {
+      ...workflowDocument,
+      source: {
+        workflow_id: params.workflowContext?.id ?? null,
+      },
+    };
+  }
+
   const taskDocument = normalizeInstructionDocument(
     params.taskInput.instructions,
     'task instructions',
@@ -596,11 +626,10 @@ function buildInstructionLayers(params: {
   return layers;
 }
 
-const LAYER_ORDER = ['platform', 'orchestrator', 'project', 'role'] as const;
-
 const LAYER_HEADERS: Record<string, string> = {
   platform: '=== Platform Instructions ===',
   orchestrator: '=== Orchestrator Prompt ===',
+  workflow: '=== Workflow Context ===',
   project: '=== Project Instructions ===',
   role: '=== Role Instructions ===',
 };
@@ -612,8 +641,11 @@ const LAYER_HEADERS: Record<string, string> = {
 export function flattenInstructionLayers(
   layers: Record<string, unknown>,
 ): string {
+  const layerOrder = 'orchestrator' in layers
+    ? ['platform', 'orchestrator', 'workflow', 'project']
+    : ['platform', 'role', 'workflow', 'project'];
   const sections: string[] = [];
-  for (const name of LAYER_ORDER) {
+  for (const name of layerOrder) {
     const layer = layers[name] as
       | { content?: string }
       | undefined;

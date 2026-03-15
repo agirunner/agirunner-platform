@@ -7,6 +7,7 @@ describe('flattenInstructionLayers', () => {
   it('concatenates layers in order with headers', () => {
     const layers = {
       platform: { content: 'Be helpful', format: 'text' },
+      workflow: { content: 'Workflow context', format: 'text' },
       project: { content: 'Project rules', format: 'text' },
       role: { content: 'Role rules', format: 'text' },
       task: { content: 'Task instructions', format: 'text' },
@@ -15,6 +16,7 @@ describe('flattenInstructionLayers', () => {
     const result = flattenInstructionLayers(layers);
 
     expect(result).toContain('=== Platform Instructions ===\nBe helpful');
+    expect(result).toContain('=== Workflow Context ===\nWorkflow context');
     expect(result).toContain('=== Project Instructions ===\nProject rules');
     expect(result).toContain('=== Role Instructions ===\nRole rules');
     expect(result).not.toContain('Task instructions');
@@ -54,14 +56,17 @@ describe('flattenInstructionLayers', () => {
     const layers = {
       role: { content: 'R', format: 'text' },
       platform: { content: 'P', format: 'text' },
+      workflow: { content: 'W', format: 'text' },
       project: { content: 'J', format: 'text' },
     };
     const result = flattenInstructionLayers(layers);
     const platformIdx = result.indexOf('Platform');
-    const projectIdx = result.indexOf('Project');
     const roleIdx = result.indexOf('Role');
-    expect(platformIdx).toBeLessThan(projectIdx);
-    expect(projectIdx).toBeLessThan(roleIdx);
+    const workflowIdx = result.indexOf('Workflow');
+    const projectIdx = result.indexOf('Project');
+    expect(platformIdx).toBeLessThan(roleIdx);
+    expect(roleIdx).toBeLessThan(workflowIdx);
+    expect(workflowIdx).toBeLessThan(projectIdx);
   });
 });
 

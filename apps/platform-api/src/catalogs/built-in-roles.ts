@@ -42,7 +42,8 @@ export interface BuiltInRolesConfig {
 }
 
 const PREDECESSOR_HANDOFF_INSTRUCTION =
-  'If predecessor handoff exists in your task context, read it first and use it to guide your next action.';
+  'If predecessor handoff exists in your task context, read it first.';
+const SHARED_ROLE_WORKFLOW_TOOLS = ['submit_handoff', 'read_predecessor_handoff'] as const;
 
 function withSharedRoleDiscipline(prompt: string): string {
   return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Leave a structured handoff that tells the next actor what changed, what remains, and what they should inspect next.`;
@@ -72,6 +73,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'artifact_upload', 'artifact_list', 'artifact_read',
         'memory_read', 'memory_write',
         'web_fetch', 'escalate',
+        ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['coding', 'testing'],
@@ -96,6 +98,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'artifact_upload', 'artifact_list', 'artifact_read',
         'memory_read', 'memory_write',
         'web_fetch', 'escalate',
+        ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['code-review', 'security-review'],
@@ -119,6 +122,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'artifact_upload', 'artifact_list', 'artifact_read',
         'memory_read', 'memory_write',
         'web_fetch', 'escalate',
+        ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['architecture', 'research', 'documentation'],
@@ -138,6 +142,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'file_read', 'file_list', 'file_write', 'file_edit',
         'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push',
         'grep', 'glob', 'tool_search', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch',
+        ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['testing', 'security-review', 'requirements'],
@@ -157,6 +162,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'file_read', 'file_list', 'file_write', 'file_edit',
         'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push',
         'grep', 'glob', 'tool_search', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch',
+        ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['requirements', 'documentation', 'research'],
@@ -176,6 +182,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         'file_read', 'file_list', 'file_write', 'file_edit',
         'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push',
         'grep', 'glob', 'tool_search', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'escalate', 'web_fetch',
+        ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['project-management', 'requirements'],

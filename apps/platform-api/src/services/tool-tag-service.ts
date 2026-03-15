@@ -49,11 +49,17 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'create_workflow', name: 'Create Workflow', description: 'Create a child workflow', category: 'workflow' },
   { id: 'request_gate_approval', name: 'Request Gate Approval', description: 'Request human approval for a stage gate', category: 'workflow' },
   { id: 'advance_stage', name: 'Advance Stage', description: 'Advance the active playbook stage', category: 'workflow' },
+  { id: 'advance_checkpoint', name: 'Advance Checkpoint', description: 'Advance the active playbook checkpoint', category: 'workflow' },
   { id: 'complete_workflow', name: 'Complete Workflow', description: 'Complete the current workflow', category: 'workflow' },
   { id: 'approve_task', name: 'Approve Task', description: 'Approve a task waiting for approval', category: 'workflow' },
   { id: 'approve_task_output', name: 'Approve Task Output', description: 'Approve a task output after review', category: 'workflow' },
   { id: 'request_task_changes', name: 'Request Task Changes', description: 'Request changes on a task', category: 'workflow' },
   { id: 'retry_task', name: 'Retry Task', description: 'Retry a failed or escalated task', category: 'workflow' },
+  { id: 'submit_handoff', name: 'Submit Handoff', description: 'Submit the structured handoff for the current task', category: 'workflow' },
+  { id: 'read_predecessor_handoff', name: 'Read Predecessor Handoff', description: 'Read the latest predecessor handoff for the current task', category: 'workflow' },
+  { id: 'read_work_item_continuity', name: 'Read Work Item Continuity', description: 'Read compact continuity state for a workflow work item', category: 'workflow' },
+  { id: 'read_latest_handoff', name: 'Read Latest Handoff', description: 'Read the latest structured handoff for a workflow work item', category: 'workflow' },
+  { id: 'read_handoff_chain', name: 'Read Handoff Chain', description: 'Read the structured handoff chain for a workflow work item', category: 'workflow' },
 ];
 
 const allowedCategories = new Set<ToolCategory>(['files', 'search', 'execution', 'git', 'artifacts', 'memory', 'web', 'workflow', 'control']);

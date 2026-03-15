@@ -10,12 +10,12 @@ describe('prompt catalogs', () => {
   it('keeps platform instructions aligned with escalation and memory discipline', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave the work in a clean takeover state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before escalation.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Operational state such as rework counters');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
   });
 
   it('keeps orchestrator prompt aligned with continuity, budget, and checkpoint guidance', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Operational continuity lives in work items, rule posture, and structured handoffs.');
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use read_workflow_budget when budget posture can affect the next decision.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Check workflow budget posture when cost, time, or token pressure matters');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_checkpoint when planned workflows are ready to move forward.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
   });
