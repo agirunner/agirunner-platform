@@ -43,7 +43,9 @@ export function buildPlaybookFamilies(
   }
 
   return Array.from(families.entries()).map(([slug, revisions]) => {
-    const orderedRevisions = [...revisions].sort(comparePlaybookRecency);
+    const orderedRevisions = [...revisions].sort((left, right) =>
+      comparePlaybookRecency(right, left),
+    );
     const activeRevisions = orderedRevisions.filter((entry) => entry.is_active !== false);
     const primaryRevision = activeRevisions[0] ?? orderedRevisions[0];
 

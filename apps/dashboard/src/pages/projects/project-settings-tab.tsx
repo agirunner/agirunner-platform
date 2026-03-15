@@ -121,6 +121,8 @@ export function ProjectSettingsTab(props: {
                 : 'Inactive projects stay available for review but should not receive new work.'
             }
             checked={draft.isActive}
+            checkedLabel="Active"
+            uncheckedLabel="Inactive"
             onCheckedChange={(checked) => setDraft((current) => ({ ...current, isActive: checked }))}
           />
         </CardContent>

@@ -45,6 +45,18 @@ const PLAYBOOKS = [
     updated_at: '2026-03-14T12:00:00Z',
     definition: { board: { columns: [{}] }, stages: [{}] },
   },
+  {
+    id: 'playbook-2-v1',
+    name: 'Release Checklist',
+    slug: 'release-checklist',
+    description: 'Older archived revision',
+    outcome: 'Deliver a stable release',
+    lifecycle: 'standard' as const,
+    version: 1,
+    is_active: false,
+    updated_at: '2026-03-10T12:00:00Z',
+    definition: { board: { columns: [{}] }, stages: [{}] },
+  },
 ];
 
 describe('playbook list support', () => {
@@ -58,7 +70,7 @@ describe('playbook list support', () => {
       }),
       expect.objectContaining({
         slug: 'release-checklist',
-        revisionCount: 1,
+        revisionCount: 2,
         activeRevisionCount: 0,
         primaryRevision: expect.objectContaining({ id: 'playbook-2' }),
       }),

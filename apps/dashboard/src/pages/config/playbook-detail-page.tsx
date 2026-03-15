@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Archive, RotateCcw, Save, Trash2 } from 'lucide-react';
+import { ChevronDown, Save, Trash2 } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
 import { useUnsavedChanges } from '../../lib/use-unsaved-changes.js';
@@ -17,6 +17,8 @@ import {
 } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
 import { Textarea } from '../../components/ui/textarea.js';
+import { ToggleCard } from '../../components/ui/toggle-card.js';
+import { cn } from '../../lib/utils.js';
 import {
   buildPlaybookDefinition,
   hydratePlaybookAuthoringDraft,
@@ -62,8 +64,8 @@ export function PlaybookDetailPage(): JSX.Element {
   const [message, setMessage] = useState<string | null>(null);
   const [loadedPlaybookId, setLoadedPlaybookId] = useState<string | null>(null);
   const [isDirty, setIsDirty] = useState(false);
-  const [archiveOpen, setArchiveOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [dangerOpen, setDangerOpen] = useState(false);
 
   const playbookQuery = useQuery({
     queryKey: ['playbook', playbookId],
@@ -198,13 +200,12 @@ export function PlaybookDetailPage(): JSX.Element {
         : dashboardApi.restorePlaybook(playbookId),
     onSuccess: async (nextPlaybook) => {
       loadPlaybook(nextPlaybook);
-      setArchiveOpen(false);
       setDeleteOpen(false);
       setDefinitionError(null);
       setMessage(
         nextPlaybook.is_active
-          ? `Playbook restored as the active revision for ${nextPlaybook.slug}.`
-          : 'Playbook archived. Launch is disabled until this revision is restored or superseded.',
+          ? `Playbook activated for ${nextPlaybook.slug}.`
+          : 'Playbook archived. New workflow launches stay disabled until you reactivate it.',
       );
       await queryClient.invalidateQueries({ queryKey: ['playbook', playbookId] });
       await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
@@ -265,25 +266,6 @@ export function PlaybookDetailPage(): JSX.Element {
               <Link to={`/config/playbooks/${playbook.id}/launch`}>Launch</Link>
             </Button>
           ) : null}
-          {playbook.is_active ? (
-            <Button
-              variant="outline"
-              onClick={() => setArchiveOpen(true)}
-              disabled={archiveStateMutation.isPending}
-            >
-              <Archive className="h-4 w-4" />
-              Archive
-            </Button>
-          ) : (
-            <Button
-              variant="outline"
-              onClick={() => archiveStateMutation.mutate(false)}
-              disabled={archiveStateMutation.isPending}
-            >
-              <RotateCcw className="h-4 w-4" />
-              Restore
-            </Button>
-          )}
           <Button onClick={() => updateMutation.mutate()} disabled={!canSave || updateMutation.isPending}>
             <Save className="h-4 w-4" />
             Save Playbook
@@ -300,6 +282,20 @@ export function PlaybookDetailPage(): JSX.Element {
           </p>
         </CardHeader>
         <CardContent className="grid gap-6">
+          <ToggleCard
+            label="Playbook Availability"
+            description="Control whether this playbook family can launch new workflows."
+            meta={
+              playbook.is_active
+                ? 'Active playbooks can launch new workflows from this family.'
+                : 'Archive prevents new workflow launches but keeps revision history available.'
+            }
+            checked={playbook.is_active !== false}
+            checkedLabel="Active"
+            uncheckedLabel="Archived"
+            disabled={archiveStateMutation.isPending}
+            onCheckedChange={(checked) => archiveStateMutation.mutate(!checked)}
+          />
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr),minmax(0,0.9fr)]">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Name</span>
@@ -439,64 +435,55 @@ export function PlaybookDetailPage(): JSX.Element {
         </div>
       </details>
 
-      <details
-        id="playbook-danger-zone"
-        className="rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm"
-      >
-        <summary className="cursor-pointer list-none">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="space-y-1">
-              <h2 className="text-lg font-semibold">Danger</h2>
-              <p className="text-sm text-muted">
+      <Card id="playbook-danger-zone" className="border-border/70 shadow-none">
+        <button
+          type="button"
+          className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
+          aria-expanded={dangerOpen}
+          onClick={() => setDangerOpen((current) => !current)}
+        >
+          <div className="space-y-1.5">
+            <div className="text-base font-semibold text-foreground">Danger</div>
+            <p className="text-sm leading-6 text-muted">
+              Delete this playbook revision only when it should be removed permanently from the
+              library.
+            </p>
+            <p className="max-w-3xl text-sm leading-5 text-muted">
+              Playbook deletion is destructive. Leave this closed unless you intentionally need to
+              remove the revision.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 pt-0.5">
+            <span className="text-xs font-medium text-muted">
+              {dangerOpen ? 'Hide danger' : 'Open danger'}
+            </span>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-muted transition-transform',
+                dangerOpen && 'rotate-180',
+              )}
+            />
+          </div>
+        </button>
+        {dangerOpen ? (
+          <CardContent className="border-t border-border/70 p-4 pt-4">
+            <div className="space-y-3">
+              <p className="text-sm leading-6 text-muted">
                 Delete this playbook revision only when it should be removed permanently from the
                 library.
               </p>
-            </div>
-            <Badge variant="destructive">Destructive</Badge>
-          </div>
-        </summary>
-        <div className="mt-4 flex flex-wrap justify-end gap-2">
-          <Button
-            variant="destructive"
-            onClick={() => setDeleteOpen(true)}
-            disabled={deleteMutation.isPending}
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete Revision
-          </Button>
-        </div>
-      </details>
-
-      <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
-        <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Archive Playbook</DialogTitle>
-            <DialogDescription>
-              Archive disables launch for this playbook family while keeping every revision
-              available for audit and restore flows.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 text-sm text-muted">
-            <p>
-              Archiving <span className="font-medium text-foreground">{playbook.name}</span> marks
-              the active revisions on slug <span className="font-mono">{playbook.slug}</span> as
-              archived. Existing workflow history is preserved.
-            </p>
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button variant="outline" onClick={() => setArchiveOpen(false)}>
-                Cancel
-              </Button>
               <Button
                 variant="destructive"
-                onClick={() => archiveStateMutation.mutate(true)}
-                disabled={archiveStateMutation.isPending}
+                onClick={() => setDeleteOpen(true)}
+                disabled={deleteMutation.isPending}
               >
-                Archive Playbook
+                <Trash2 className="h-4 w-4" />
+                Delete Revision
               </Button>
             </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          </CardContent>
+        ) : null}
+      </Card>
 
       <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">
