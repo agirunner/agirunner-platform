@@ -22,6 +22,7 @@ describe('PlaybookService', () => {
             version: 3,
             is_active: true,
             definition: {
+              process_instructions: 'Developer implements and reviewer validates before completion.',
               board: { columns: [{ id: 'todo', label: 'To Do' }] },
               stages: [{ name: 'build', goal: 'Build' }],
               lifecycle: 'ongoing',
@@ -46,6 +47,7 @@ describe('PlaybookService', () => {
       description: 'Updated',
       lifecycle: 'ongoing',
       definition: {
+        process_instructions: 'Developer implements and reviewer validates before completion.',
         board: { columns: [{ id: 'todo', label: 'To Do' }] },
         stages: [{ name: 'build', goal: 'Build' }],
         lifecycle: 'ongoing',
@@ -89,6 +91,7 @@ describe('PlaybookService', () => {
       name: 'Release Flow',
       outcome: 'Release',
       definition: {
+        process_instructions: 'Release work is implemented and reviewed before shipping.',
         board: { columns: [{ id: 'todo', label: 'To Do' }] },
         stages: [{ name: 'release', goal: 'Release' }],
       },
@@ -203,6 +206,7 @@ describe('PlaybookService', () => {
         name: 'Build Flow',
         outcome: 'Ship it',
         definition: {
+          process_instructions: 'Developer implements and reviewer validates before completion.',
           board: { columns: [{ id: 'todo', label: 'To Do' }] },
           stages: [{ name: 'build', goal: 'Build' }],
           roles: ['developer', 'missing-role'],
@@ -270,6 +274,7 @@ function createPlaybookRow(
     version: 1,
     is_active: true,
     definition: {
+      process_instructions: 'Developer implements and reviewer validates before completion.',
       board: { columns: [{ id: 'todo', label: 'To Do' }] },
       stages: [{ name: 'build', goal: 'Build' }],
       lifecycle: 'planned',

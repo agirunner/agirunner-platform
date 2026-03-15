@@ -18,6 +18,38 @@ const stageSchema = z.object({
   guidance: z.string().max(8000).optional(),
 });
 
+const checkpointSchema = z.object({
+  name: z.string().min(1).max(120),
+  goal: z.string().min(1).max(4000),
+  human_gate: z.boolean().optional(),
+  entry_criteria: z.string().max(4000).optional(),
+});
+
+const reviewRuleSchema = z.object({
+  from_role: z.string().min(1).max(120),
+  reviewed_by: z.string().min(1).max(120),
+  required: z.boolean().optional(),
+  on_reject: z
+    .object({
+      action: z.enum(['return_to_role']),
+      role: z.string().min(1).max(120),
+    })
+    .optional(),
+});
+
+const approvalRuleSchema = z.object({
+  on: z.enum(['checkpoint', 'completion']),
+  checkpoint: z.string().min(1).max(120).optional(),
+  approved_by: z.enum(['human']),
+  required: z.boolean().optional(),
+});
+
+const handoffRuleSchema = z.object({
+  from_role: z.string().min(1).max(120),
+  to_role: z.string().min(1).max(120),
+  required: z.boolean().optional(),
+});
+
 const runtimePoolSchema = z.object({
   pool_mode: z.enum(['warm', 'cold']).optional(),
   max_runtimes: z.number().int().positive().optional(),
@@ -36,12 +68,17 @@ const runtimeSchema = runtimePoolSchema.extend({
 });
 
 const playbookDefinitionSchema = z.object({
+  process_instructions: z.string().min(1).max(12000).optional(),
   roles: z.array(z.string().min(1).max(120)).default([]),
   board: z.object({
     entry_column_id: z.string().min(1).max(120).optional(),
     columns: z.array(boardColumnSchema).min(1),
   }),
+  checkpoints: z.array(checkpointSchema).default([]),
   stages: z.array(stageSchema).default([]),
+  review_rules: z.array(reviewRuleSchema).default([]),
+  approval_rules: z.array(approvalRuleSchema).default([]),
+  handoff_rules: z.array(handoffRuleSchema).default([]),
   lifecycle: z.enum(['planned', 'ongoing']).default('planned'),
   orchestrator: z
     .object({
@@ -77,10 +114,14 @@ export function parsePlaybookDefinition(value: unknown): PlaybookDefinition {
     });
   }
 
-  assertUniqueIds(parsed.data.board.columns.map((column) => column.id), 'board column');
-  assertBoardEntryColumn(parsed.data);
-  assertUniqueIds(parsed.data.stages.map((stage) => stage.name), 'stage');
-  return parsed.data;
+  const normalized = normalizePlaybookDefinition(parsed.data);
+
+  assertUniqueIds(normalized.board.columns.map((column) => column.id), 'board column');
+  assertBoardEntryColumn(normalized);
+  assertUniqueIds(normalized.stages.map((stage) => stage.name), 'stage');
+  assertUniqueIds(normalized.checkpoints.map((checkpoint) => checkpoint.name), 'checkpoint');
+  assertRuleConflicts(normalized);
+  return normalized;
 }
 
 export function defaultColumnId(definition: PlaybookDefinition): string {
@@ -89,6 +130,10 @@ export function defaultColumnId(definition: PlaybookDefinition): string {
 
 export function defaultStageName(definition: PlaybookDefinition): string | null {
   return definition.stages[0]?.name ?? null;
+}
+
+export function defaultCheckpointName(definition: PlaybookDefinition): string | null {
+  return definition.checkpoints[0]?.name ?? null;
 }
 
 export function hasBoardColumn(definition: PlaybookDefinition, columnId: string): boolean {
@@ -155,6 +200,76 @@ function assertBoardEntryColumn(definition: PlaybookDefinition): void {
     throw new SchemaValidationFailedError(
       `Unknown board entry column '${entryColumnId}' in playbook definition`,
     );
+  }
+}
+
+function normalizePlaybookDefinition(definition: PlaybookDefinition): PlaybookDefinition {
+  const checkpoints = definition.checkpoints.length > 0
+    ? definition.checkpoints
+    : definition.stages.map((stage) => ({
+        name: stage.name,
+        goal: stage.goal,
+        human_gate: stage.human_gate ?? false,
+        entry_criteria: undefined,
+      }));
+
+  const stages = definition.stages.length > 0
+    ? definition.stages
+    : checkpoints.map((checkpoint) => ({
+        name: checkpoint.name,
+        goal: checkpoint.goal,
+        human_gate: checkpoint.human_gate ?? false,
+      }));
+
+  return {
+    ...definition,
+    process_instructions:
+      definition.process_instructions?.trim() ||
+      definition.orchestrator?.instructions?.trim() ||
+      buildLegacyProcessInstructions(stages),
+    checkpoints,
+    stages,
+    review_rules: definition.review_rules.map((rule) => ({
+      ...rule,
+      required: rule.required ?? true,
+    })),
+    approval_rules: definition.approval_rules.map((rule) => ({
+      ...rule,
+      required: rule.required ?? true,
+    })),
+    handoff_rules: definition.handoff_rules.map((rule) => ({
+      ...rule,
+      required: rule.required ?? true,
+    })),
+  };
+}
+
+function buildLegacyProcessInstructions(stages: PlaybookDefinition['stages']): string {
+  if (stages.length === 0) {
+    return 'Move work forward through the defined board lanes and complete required reviews and approvals before finishing.';
+  }
+
+  return stages
+    .map((stage, index) => {
+      const ordinal = index + 1;
+      return `${ordinal}. ${stage.name}: ${stage.goal}`;
+    })
+    .join('\n');
+}
+
+function assertRuleConflicts(definition: PlaybookDefinition): void {
+  const mandatoryReviewers = new Map<string, string>();
+  for (const rule of definition.review_rules) {
+    if (rule.required === false) {
+      continue;
+    }
+    const existing = mandatoryReviewers.get(rule.from_role);
+    if (existing && existing !== rule.reviewed_by) {
+      throw new SchemaValidationFailedError(
+        `Conflicting mandatory review rules for role '${rule.from_role}'`,
+      );
+    }
+    mandatoryReviewers.set(rule.from_role, rule.reviewed_by);
   }
 }
 

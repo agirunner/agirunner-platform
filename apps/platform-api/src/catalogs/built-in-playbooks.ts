@@ -17,6 +17,8 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
     outcome: 'A prioritized execution plan with initial work items.',
     lifecycle: 'planned',
     definition: {
+      process_instructions:
+        'Product manager clarifies the brief and success criteria. Architect turns the brief into a scoped execution plan. Human approval is required before the plan is considered complete.',
       parameters: [
         {
           name: 'project_name',
@@ -55,6 +57,42 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
           name: 'planning',
           goal: 'Generate an actionable plan and starting backlog from the brief',
           involves: ['product-manager', 'architect'],
+          guidance:
+            'Clarify the brief, define acceptance criteria, and produce an initial execution plan and starting backlog.',
+        },
+      ],
+      checkpoints: [
+        {
+          name: 'planning',
+          goal: 'An actionable execution plan and starting backlog exist for the project.',
+          human_gate: true,
+          entry_criteria: 'A project brief and project identity have been provided.',
+        },
+      ],
+      review_rules: [
+        {
+          from_role: 'architect',
+          reviewed_by: 'product-manager',
+          required: true,
+        },
+      ],
+      approval_rules: [
+        {
+          on: 'completion',
+          approved_by: 'human',
+          required: true,
+        },
+      ],
+      handoff_rules: [
+        {
+          from_role: 'product-manager',
+          to_role: 'architect',
+          required: true,
+        },
+        {
+          from_role: 'architect',
+          to_role: 'product-manager',
+          required: true,
         },
       ],
       lifecycle: 'planned',
@@ -80,6 +118,8 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
     outcome: 'Production-ready software with tests and documentation.',
     lifecycle: 'planned',
     definition: {
+      process_instructions:
+        'Product manager clarifies the goal and acceptance criteria. Architect produces or reviews the technical design when needed. Developer implements the change. Reviewer must review every developer-delivered code change. Rejected review returns to developer with concrete findings. QA validates after approved implementation. Human approval is required before completion when requirements or verification gates demand it.',
       parameters: [
         {
           name: 'goal',
@@ -162,6 +202,89 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
         },
       ],
       lifecycle: 'planned',
+      checkpoints: [
+        {
+          name: 'requirements',
+          goal: 'Approved requirements with testable acceptance criteria.',
+          human_gate: true,
+          entry_criteria: 'The workflow goal and initial context are available.',
+        },
+        {
+          name: 'design',
+          goal: 'A design exists for the implementation approach when needed.',
+          human_gate: false,
+          entry_criteria: 'Requirements are clear enough to shape implementation.',
+        },
+        {
+          name: 'implementation',
+          goal: 'Working code exists and is ready for formal review.',
+          human_gate: false,
+          entry_criteria: 'Requirements and any required design are available.',
+        },
+        {
+          name: 'verification',
+          goal: 'QA validation and evidence are complete.',
+          human_gate: true,
+          entry_criteria: 'Implementation and required review are complete.',
+        },
+      ],
+      review_rules: [
+        {
+          from_role: 'developer',
+          reviewed_by: 'reviewer',
+          required: true,
+          on_reject: {
+            action: 'return_to_role',
+            role: 'developer',
+          },
+        },
+      ],
+      approval_rules: [
+        {
+          on: 'checkpoint',
+          checkpoint: 'requirements',
+          approved_by: 'human',
+          required: true,
+        },
+        {
+          on: 'checkpoint',
+          checkpoint: 'verification',
+          approved_by: 'human',
+          required: true,
+        },
+      ],
+      handoff_rules: [
+        {
+          from_role: 'product-manager',
+          to_role: 'architect',
+          required: true,
+        },
+        {
+          from_role: 'architect',
+          to_role: 'developer',
+          required: true,
+        },
+        {
+          from_role: 'developer',
+          to_role: 'reviewer',
+          required: true,
+        },
+        {
+          from_role: 'reviewer',
+          to_role: 'developer',
+          required: false,
+        },
+        {
+          from_role: 'reviewer',
+          to_role: 'qa',
+          required: true,
+        },
+        {
+          from_role: 'qa',
+          to_role: 'product-manager',
+          required: false,
+        },
+      ],
       orchestrator: {
         check_interval: '5m',
         stale_threshold: '30m',
