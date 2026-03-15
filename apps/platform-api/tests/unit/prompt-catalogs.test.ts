@@ -4,7 +4,7 @@ import {
   DEFAULT_ORCHESTRATOR_PROMPT,
   DEFAULT_PLATFORM_INSTRUCTIONS,
 } from '../../src/catalogs/default-prompts.js';
-import { loadBuiltInRolesConfig } from '../../src/catalogs/built-in-roles.js';
+import { BUILT_IN_ROLES, loadBuiltInRolesConfig } from '../../src/catalogs/built-in-roles.js';
 
 describe('prompt catalogs', () => {
   it('keeps platform instructions aligned with escalation and memory discipline', () => {
@@ -18,6 +18,10 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Check workflow budget posture when cost, time, or token pressure matters');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_checkpoint when planned workflows are ready to move forward.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.',
+    );
   });
 
   it('adds predecessor-handoff discipline to every built-in role prompt', () => {
@@ -27,5 +31,20 @@ describe('prompt catalogs', () => {
       expect(role.systemPrompt).toContain('If predecessor handoff exists in your task context, read it first');
       expect(role.systemPrompt).toContain('Leave a structured handoff');
     }
+  });
+
+  it('gives the core SDLC roles explicit handoff expectations', () => {
+    expect(BUILT_IN_ROLES.roles.developer.systemPrompt).toContain(
+      'changed files, tests run, known risks, and what the reviewer should inspect next',
+    );
+    expect(BUILT_IN_ROLES.roles.reviewer.systemPrompt).toContain(
+      'APPROVED, REQUEST CHANGES, or BLOCKED',
+    );
+    expect(BUILT_IN_ROLES.roles.qa.systemPrompt).toContain(
+      'evidence, defects, residual risk, and release posture',
+    );
+    expect(BUILT_IN_ROLES.roles['product-manager'].systemPrompt).toContain(
+      'acceptance criteria, scope decisions, and any required human follow-up',
+    );
   });
 });

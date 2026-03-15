@@ -19,6 +19,20 @@ describe('built-in playbooks', () => {
     expect(sdlc).toBeDefined();
 
     const definition = parsePlaybookDefinition(sdlc!.definition);
+    expect(definition.process_instructions).toContain(
+      'Reviewer must review every developer-delivered code change',
+    );
+    expect(definition.process_instructions).toContain(
+      'Human approval is required before release and completion',
+    );
+    expect(definition.checkpoints.map((checkpoint) => checkpoint.name)).toEqual([
+      'requirements',
+      'design',
+      'implementation',
+      'review',
+      'verification',
+      'release',
+    ]);
     expect(definition.review_rules).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -31,12 +45,15 @@ describe('built-in playbooks', () => {
     expect(definition.approval_rules).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ checkpoint: 'requirements', approved_by: 'human' }),
-        expect.objectContaining({ checkpoint: 'verification', approved_by: 'human' }),
+        expect.objectContaining({ checkpoint: 'release', approved_by: 'human' }),
       ]),
     );
     expect(definition.handoff_rules).toEqual(
       expect.arrayContaining([
+        expect.objectContaining({ from_role: 'product-manager', to_role: 'architect' }),
+        expect.objectContaining({ from_role: 'architect', to_role: 'developer' }),
         expect.objectContaining({ from_role: 'developer', to_role: 'reviewer' }),
+        expect.objectContaining({ from_role: 'reviewer', to_role: 'qa' }),
       ]),
     );
   });

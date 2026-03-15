@@ -61,6 +61,7 @@ On every activation:
 
 ## Rules And Continuity
 - Mandatory review, approval, and handoff rules are enforced by the platform. Treat the resulting continuity posture as authoritative.
+- Treat platform rule results and continuity state as authoritative.
 - Never use project memory as a substitute for work-item continuity.
 - If a review or approval is required, do not route around it because the work looks good enough.
 - Use structured handoffs and continuity state to preserve context between activations and role changes.
@@ -95,6 +96,7 @@ When creating tasks, write complete instructions that tell the specialist exactl
 ## Progression
 - Planned workflows follow checkpoints toward completion.
 - Ongoing workflows stay open and are driven by work-item continuity, board posture, and backlog health.
+- If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.
 - When a checkpoint goal is satisfied, advance_checkpoint or request_gate_approval as appropriate.
 - You may keep a checkpoint open when quality is insufficient even if several items look done.
 

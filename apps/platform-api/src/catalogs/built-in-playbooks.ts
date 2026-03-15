@@ -119,7 +119,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
     lifecycle: 'planned',
     definition: {
       process_instructions:
-        'Product manager clarifies the goal and acceptance criteria. Architect produces or reviews the technical design when needed. Developer implements the change. Reviewer must review every developer-delivered code change. Rejected review returns to developer with concrete findings. QA validates after approved implementation. Human approval is required before completion when requirements or verification gates demand it.',
+        'Product manager clarifies the goal and acceptance criteria and resolves scope questions with humans when needed. Architect produces or reviews the technical design before implementation begins. Developer implements the change. Reviewer must review every developer-delivered code change, and rejected review returns to developer with concrete findings. QA validates after reviewer approval and records evidence. Product manager confirms the delivered outcome, release notes, and operator communication. Human approval is required before release and completion.',
       parameters: [
         {
           name: 'goal',
@@ -195,9 +195,19 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
           involves: ['developer', 'reviewer'],
         },
         {
+          name: 'review',
+          goal: 'Reviewer verdict with concrete findings or approval',
+          involves: ['reviewer', 'developer'],
+        },
+        {
           name: 'verification',
           goal: 'QA signoff with test evidence',
-          involves: ['qa', 'developer'],
+          involves: ['qa', 'developer', 'product-manager'],
+        },
+        {
+          name: 'release',
+          goal: 'Operator-ready release package and final human approval',
+          involves: ['product-manager', 'qa'],
           human_gate: true,
         },
       ],
@@ -222,10 +232,22 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
           entry_criteria: 'Requirements and any required design are available.',
         },
         {
+          name: 'review',
+          goal: 'A reviewer verdict exists for every developer-delivered change.',
+          human_gate: false,
+          entry_criteria: 'Implementation output and developer handoff are available.',
+        },
+        {
           name: 'verification',
           goal: 'QA validation and evidence are complete.',
+          human_gate: false,
+          entry_criteria: 'Required review is complete and approved.',
+        },
+        {
+          name: 'release',
+          goal: 'Release notes, residual risk, and human approval are complete.',
           human_gate: true,
-          entry_criteria: 'Implementation and required review are complete.',
+          entry_criteria: 'Verification evidence and operator summary are ready.',
         },
       ],
       review_rules: [
@@ -248,7 +270,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
         },
         {
           on: 'checkpoint',
-          checkpoint: 'verification',
+          checkpoint: 'release',
           approved_by: 'human',
           required: true,
         },

@@ -63,7 +63,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         '- Every change includes tests: unit, edge cases, error paths. Coverage >= 80%.\n' +
         '- Bug fixes include a regression test that fails without the fix.\n' +
         '- Plan before coding on non-trivial tasks. If it goes sideways, stop and re-plan.\n' +
-        '- Run tests after every change. Self-review before requesting review.',
+        '- Run tests after every change. Self-review before requesting review.\n' +
+        '- In your handoff, call out changed files, tests run, known risks, and what the reviewer should inspect next.',
       ),
       allowedTools: [
         'file_read', 'file_write', 'file_edit', 'file_list',
@@ -88,7 +89,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         '- Check tests: exist for all changes, regression tests for fixes, coverage >= 80%.\n' +
         '- Check architecture: SOLID, no circular deps, module boundaries respected.\n' +
         '- APPROVE when solid. REQUEST CHANGES with specific issue, severity, and fix suggestion.\n' +
-        '- Max 3 review cycles per PR. After 3: escalate.',
+        '- Max 3 review cycles per PR. After 3: escalate.\n' +
+        '- Every review handoff MUST end with a clear verdict: APPROVED, REQUEST CHANGES, or BLOCKED.',
       ),
       allowedTools: [
         'file_read', 'file_write', 'file_edit', 'file_list',
@@ -136,7 +138,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         '- Go beyond the plan: unexpected inputs, concurrent access, boundary conditions.\n' +
         '- Report defects with severity, reproduction steps, expected vs actual, and evidence.\n' +
         '- Verify implementation against requirements — find gaps between spec and code.\n' +
-        '- All P0/P1 defects must be resolved before sign-off.',
+        '- All P0/P1 defects must be resolved before sign-off.\n' +
+        '- In your handoff, summarize evidence, defects, residual risk, and release posture.',
       ),
       allowedTools: [
         'file_read', 'file_list', 'file_write', 'file_edit',
@@ -156,7 +159,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         '- Dig into the why behind requests. Surface hidden assumptions and edge cases.\n' +
         '- Prioritize with MoSCoW (Must/Should/Could/Won\'t).\n' +
         '- Validate deliverables against requirements in UAT — every criterion gets PASS/FAIL with evidence.\n' +
-        '- Flag scope creep immediately. Escalate when requirements are unclear.',
+        '- Flag scope creep immediately. Escalate when requirements are unclear.\n' +
+        '- In your handoff, summarize acceptance criteria, scope decisions, and any required human follow-up.',
       ),
       allowedTools: [
         'file_read', 'file_list', 'file_write', 'file_edit',
