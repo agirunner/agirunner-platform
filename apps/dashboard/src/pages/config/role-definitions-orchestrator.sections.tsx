@@ -48,8 +48,8 @@ export function EditableControlPacket(props: {
   value: string;
   detail: string;
   primaryLabel: string;
-  secondaryHref: string;
-  secondaryLabel: string;
+  secondaryHref?: string;
+  secondaryLabel?: string;
   isLoading: boolean;
   onEdit: () => void;
 }): JSX.Element {
@@ -78,12 +78,14 @@ export function EditableControlPacket(props: {
           <Settings2 className="h-4 w-4" />
           {props.primaryLabel}
         </Button>
-        <Button asChild variant="ghost" size="sm">
-          <Link to={props.secondaryHref}>
-            <ExternalLink className="h-4 w-4" />
-            {props.secondaryLabel}
-          </Link>
-        </Button>
+        {props.secondaryHref && props.secondaryLabel ? (
+          <Button asChild variant="ghost" size="sm">
+            <Link to={props.secondaryHref}>
+              <ExternalLink className="h-4 w-4" />
+              {props.secondaryLabel}
+            </Link>
+          </Button>
+        ) : null}
       </div>
     </div>
   );

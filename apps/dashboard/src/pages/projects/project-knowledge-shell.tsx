@@ -35,7 +35,7 @@ const KNOWLEDGE_PANELS: Array<{
   {
     value: 'artifacts',
     label: 'Project Artifacts',
-    description: 'Generated outputs, delivery evidence, and uploaded artifacts stay here.',
+    description: 'Project-owned files stay here for upload, review, and removal.',
     icon: PackageSearch,
   },
   {
@@ -165,7 +165,7 @@ function buildReferenceSummary(overview: ProjectWorkspaceOverview): string {
 
 function buildArtifactSummary(overview: ProjectWorkspaceOverview): string {
   const artifacts = getPacketSummary(overview, 'Project artifacts');
-  return artifacts || 'Workflow documents, task artifacts, and delivery evidence';
+  return artifacts || 'Project-owned files available to this project';
 }
 
 function getPacketSummary(overview: ProjectWorkspaceOverview, label: string): string {

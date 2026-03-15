@@ -12,7 +12,7 @@ import {
   type StructuredEntryDraft,
 } from './project-detail-support.js';
 import { ErrorCard, LoadingCard } from './project-detail-shared.js';
-import { ContentBrowserSurface } from './content-browser-page.js';
+import { ProjectArtifactFilesPanel } from './project-artifact-files-panel.js';
 import { ProjectDetailMemoryTab } from './project-detail-memory-tab.js';
 import { ProjectKnowledgeShell } from './project-knowledge-shell.js';
 import { ProjectSpecTab } from './project-spec-tab.js';
@@ -126,11 +126,7 @@ export function ProjectKnowledgeTab(props: {
           />
         }
         artifactContent={
-          <ContentBrowserSurface
-            scopedProjectId={props.projectId}
-            preferredTab="artifacts"
-            showHeader={false}
-          />
+          <ProjectArtifactFilesPanel projectId={props.projectId} />
         }
         memoryContent={
           <ProjectDetailMemoryTab

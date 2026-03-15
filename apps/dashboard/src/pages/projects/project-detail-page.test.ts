@@ -175,9 +175,7 @@ describe('project detail workspace shell source', () => {
     expect(source).toContain('<ProjectOverviewShell');
     expect(knowledgeSource).toContain("label: 'Project Artifacts'");
     expect(overviewSource).not.toContain('Artifact explorer');
-    expect(knowledgeTabSource).toContain(
-      'scopedProjectId={props.projectId}',
-    );
+    expect(knowledgeTabSource).toContain('<ProjectArtifactFilesPanel projectId={props.projectId} />');
   });
 
   it('trims knowledge quick actions so mobile headers stop competing with the embedded management surfaces', () => {
