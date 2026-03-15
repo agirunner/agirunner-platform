@@ -4,7 +4,6 @@ import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { ORCHESTRATOR_INHERIT_MODEL, resolveWorkerModelSelection } from './role-definitions-orchestrator.form.js';
 import {
-  summarizeOrchestratorControlSurfaces,
   summarizeOrchestratorModel,
   summarizeOrchestratorPool,
   summarizeOrchestratorPrompt,
@@ -150,11 +149,6 @@ export function useRolePageOrchestratorState() {
       modelSummary,
       poolSummary,
       readiness: summarizeOrchestratorReadiness(promptSummary, modelSummary, poolSummary),
-      controlSurfaces: summarizeOrchestratorControlSurfaces(
-        promptSummary,
-        modelSummary,
-        poolSummary,
-      ),
       orchestratorConfig: orchestratorConfigQuery.data,
       assignments: assignmentsQuery.data,
       systemDefault: systemDefaultQuery.data,

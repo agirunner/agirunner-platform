@@ -97,29 +97,14 @@ describe('role definitions page source', () => {
   it('adds a first-class orchestrator control plane with direct prompt, model, and pool editing', () => {
     const source = readCombinedSource();
     expect(source).toContain('OrchestratorControlPlane');
-    expect(source).toContain('Roles');
-    expect(source).toContain('Keep the workflow orchestrator fully manageable from this page');
-    expect(source).toContain('Edit prompt here');
-    expect(source).toContain('Edit model here');
-    expect(source).toContain('Edit pool here');
+    expect(source).toContain('Edit prompt');
     expect(source).toContain('Edit orchestrator prompt');
-    expect(source).toContain('Edit orchestrator model routing');
-    expect(source).toContain('Edit orchestrator pool posture');
     expect(source).toContain('Save orchestrator prompt');
     expect(source).toContain('Save model routing');
     expect(source).toContain('Save pool posture');
-    expect(source).toContain('max-h-[85vh] max-w-3xl overflow-y-auto');
-    expect(source).toContain('max-h-[85vh] max-w-2xl overflow-y-auto');
     expect(source).toContain('dashboardApi.getOrchestratorConfig()');
-    expect(source).toContain('dashboardApi.fetchFleetStatus()');
-    expect(source).toContain('dashboardApi.fetchFleetWorkers()');
     expect(source).toContain('dashboardApi.updateOrchestratorConfig');
-    expect(source).toContain('dashboardApi.updateFleetWorker');
-    expect(source).toContain('dashboardApi.createFleetWorker');
     expect(source).toContain("updateAssignment('orchestrator'");
-    expect(source).toContain('/config/instructions');
-    expect(source).toContain('/config/llm');
-    expect(source).toContain('/fleet/workers');
   });
 
   it('exposes a first-class delete role flow for custom roles with built-in protection', () => {

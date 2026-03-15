@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Bot, Cpu, ExternalLink, FilePenLine } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Bot, Cpu, FilePenLine } from 'lucide-react';
 
 import type {
   FleetWorkerRecord,
@@ -20,14 +19,12 @@ import {
 } from './role-definitions-orchestrator.dialogs.js';
 import { OrchestratorPoolDialog } from './role-definitions-orchestrator.pool-dialog.js';
 import {
-  AdvancedSurfaceCard,
   EditableControlPacket,
   InlineWarning,
   ReadinessBanner,
 } from './role-definitions-orchestrator.sections.js';
 import type {
   OrchestratorControlReadiness,
-  OrchestratorControlSurface,
   OrchestratorModelSummary,
   OrchestratorPoolSummary,
   OrchestratorPromptSummary,
@@ -41,7 +38,6 @@ export function OrchestratorControlPlane(props: {
   modelSummary: OrchestratorModelSummary;
   poolSummary: OrchestratorPoolSummary;
   readiness: OrchestratorControlReadiness;
-  controlSurfaces: OrchestratorControlSurface[];
   orchestratorConfig: { prompt: string; updatedAt: string } | undefined;
   assignments: RoleAssignmentRecord[] | undefined;
   systemDefault: SystemDefaultRecord | undefined;
@@ -82,16 +78,9 @@ export function OrchestratorControlPlane(props: {
               </div>
               <CardDescription className="max-w-3xl leading-6">
                 Keep the workflow orchestrator fully manageable from this page: prompt baseline,
-                model override, and worker-pool posture all stay directly editable here. Use the
-                advanced links only when you need deeper history or topology controls.
+                prompt, model override, and worker-pool posture are directly editable here.
               </CardDescription>
             </div>
-            <Button asChild variant="outline">
-              <Link to="/config/instructions">
-                <ExternalLink className="h-4 w-4" />
-                Advanced instruction history
-              </Link>
-            </Button>
           </div>
           {props.hasError ? (
             <InlineWarning>
@@ -105,13 +94,11 @@ export function OrchestratorControlPlane(props: {
           <div className="grid gap-4 xl:grid-cols-3">
             <EditableControlPacket
               icon={FilePenLine}
-              title="Prompt baseline"
+              title="Prompt"
               status={props.promptSummary.statusLabel}
               value={props.promptSummary.versionLabel}
               detail={props.promptSummary.excerpt}
-              primaryLabel="Edit prompt here"
-              secondaryHref="/config/instructions"
-              secondaryLabel="Open history"
+              primaryLabel="Edit prompt"
               isLoading={props.isLoading}
               onEdit={() => setIsPromptOpen(true)}
             />
@@ -139,20 +126,6 @@ export function OrchestratorControlPlane(props: {
               isLoading={props.isLoading}
               onEdit={() => setIsPoolOpen(true)}
             />
-          </div>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">Advanced surfaces</p>
-              <p className="max-w-3xl text-sm text-muted">
-                The primary path is direct editing above. These surfaces stay available for
-                revision history, full role/model routing, and advanced worker topology.
-              </p>
-            </div>
-            <div className="grid gap-3 lg:grid-cols-2">
-              {props.controlSurfaces.map((surface) => (
-                <AdvancedSurfaceCard key={surface.id} surface={surface} />
-              ))}
-            </div>
           </div>
         </CardContent>
       </Card>
