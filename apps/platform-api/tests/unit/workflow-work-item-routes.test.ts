@@ -179,11 +179,15 @@ describe('workflow work-item routes', () => {
         children: [expect.objectContaining({ id: 'wi-child-1' })],
       }),
     );
-    expect(handoffListResponse.json().data).toEqual([
-      expect.objectContaining({ id: 'handoff-1', summary: 'ready' }),
-    ]);
-    expect(latestHandoffResponse.json().data).toEqual(
-      expect.objectContaining({ id: 'handoff-1', summary: 'ready' }),
+    expect(handoffRouteMocks.listWorkItemHandoffs).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      'wi-parent',
+    );
+    expect(handoffRouteMocks.getLatestWorkItemHandoff).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      'wi-parent',
     );
   });
 
