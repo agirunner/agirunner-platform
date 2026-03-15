@@ -1,4 +1,3 @@
-import { Badge } from '../../components/ui/badge.js';
 import {
   Card,
   CardContent,
@@ -40,13 +39,6 @@ export function RoleToolGrantsSection(props: {
               checked={props.form.allowedTools.includes(tool)}
               onCheckedChange={() => props.toggleTool(tool)}
             />
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {props.form.allowedTools.map((tool) => (
-            <Badge key={tool} variant="outline">
-              {tool}
-            </Badge>
           ))}
         </div>
       </CardContent>
