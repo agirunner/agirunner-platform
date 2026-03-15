@@ -108,6 +108,10 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
   }
 
   function startCreate(): void {
+    if (workflows.length === 0) {
+      setShowComposer(false);
+      return;
+    }
     setEditingTriggerId(null);
     setForm(createScheduledTriggerFormState());
     setShowComposer(true);
@@ -161,7 +165,7 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
                 Inspect, pause, or revise the schedules already feeding this project.
               </p>
             </div>
-            <Button size="sm" onClick={startCreate}>
+            <Button size="sm" onClick={startCreate} disabled={workflows.length === 0}>
               <Plus className="h-4 w-4" />
               Add schedule
             </Button>
@@ -169,6 +173,10 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
 
           {triggersQuery.isLoading ? (
             <LoadingCard />
+          ) : workflows.length === 0 ? (
+            <div className="rounded-xl border border-border/70 bg-muted/20 p-4 text-sm text-muted">
+              Create a workflow for this project before adding scheduled work.
+            </div>
           ) : scheduledTriggers.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border/70 bg-background/70 p-4 text-sm text-muted">
               No scheduled work item triggers for this project yet.

@@ -22,6 +22,8 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Move Earlier');
     expect(source).toContain('Move Later');
     expect(source).toContain('Remove Role');
+    expect(source).toContain('className="min-w-0 flex-1"');
+    expect(source).toContain('className="shrink-0 whitespace-nowrap px-3"');
     expect(source).toContain('Resolve board-column blockers before save.');
     expect(source).toContain(
       'Use a stable slug-style ID. This is what automation, stages, and board links reference.',

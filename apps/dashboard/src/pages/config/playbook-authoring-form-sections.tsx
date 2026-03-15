@@ -62,57 +62,59 @@ export function TeamRolesSection(
           Playbooks use active role definitions from the shared role catalog.
         </p>
         {props.draft.roles.map((role, index) => (
-          <div key={`role-${index}`} className="grid gap-2 md:grid-cols-[minmax(0,1fr),auto]">
-            {availableRoleNames.length > 0 ? (
-              <Select
-                value={resolveRoleSelectionValue(role.value, availableRoleNames, index)}
-                onValueChange={(value) =>
+          <div key={`role-${index}`} className="grid gap-1.5">
+            <div className="flex items-start gap-2">
+              {availableRoleNames.length > 0 ? (
+                <Select
+                  value={resolveRoleSelectionValue(role.value, availableRoleNames, index)}
+                  onValueChange={(value) =>
+                    props.onChange((current) => ({
+                      ...current,
+                      roles: current.roles.map((entry, entryIndex) =>
+                        entryIndex === index
+                          ? { value: value === ROLE_SELECT_UNSET ? '' : value }
+                          : entry,
+                      ),
+                    }))
+                  }
+                >
+                  <SelectTrigger className="min-w-0 flex-1">
+                    <SelectValue placeholder="Select a role definition" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={ROLE_SELECT_UNSET}>Select a role definition</SelectItem>
+                    {availableRoleNames.map((name) => (
+                      <SelectItem key={name} value={name}>
+                        {name}
+                      </SelectItem>
+                    ))}
+                    {!availableRoleNames.includes(role.value) && role.value.trim().length > 0 ? (
+                      <SelectItem value={resolveMissingRoleValue(index)}>
+                        Unknown role: {role.value}
+                      </SelectItem>
+                    ) : null}
+                  </SelectContent>
+                </Select>
+              ) : null}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="shrink-0 whitespace-nowrap px-3"
+                onClick={() =>
                   props.onChange((current) => ({
                     ...current,
-                    roles: current.roles.map((entry, entryIndex) =>
-                      entryIndex === index
-                        ? { value: value === ROLE_SELECT_UNSET ? '' : value }
-                        : entry,
-                    ),
+                    roles:
+                      current.roles.length === 1
+                        ? current.roles
+                        : current.roles.filter((_, entryIndex) => entryIndex !== index),
                   }))
                 }
               >
-                <SelectTrigger className="w-full sm:min-w-[220px] sm:flex-1">
-                  <SelectValue placeholder="Select a role definition" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ROLE_SELECT_UNSET}>Select a role definition</SelectItem>
-                  {availableRoleNames.map((name) => (
-                    <SelectItem key={name} value={name}>
-                      {name}
-                    </SelectItem>
-                  ))}
-                  {!availableRoleNames.includes(role.value) && role.value.trim().length > 0 ? (
-                    <SelectItem value={resolveMissingRoleValue(index)}>
-                      Unknown role: {role.value}
-                    </SelectItem>
-                  ) : null}
-                </SelectContent>
-              </Select>
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="justify-self-start md:justify-self-end"
-              onClick={() =>
-                props.onChange((current) => ({
-                  ...current,
-                  roles:
-                    current.roles.length === 1
-                      ? current.roles
-                      : current.roles.filter((_, entryIndex) => entryIndex !== index),
-                }))
-              }
-            >
-              <Minus className="h-4 w-4" />
-              Remove Role
-            </Button>
+                <Minus className="h-4 w-4" />
+                Remove Role
+              </Button>
+            </div>
             {roleValidation.roleErrors[index] ? (
               <p className="text-xs text-red-600 dark:text-red-400">
                 {roleValidation.roleErrors[index]}
