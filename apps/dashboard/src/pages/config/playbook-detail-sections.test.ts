@@ -7,13 +7,14 @@ function readSource() {
 }
 
 describe('playbook detail sections source', () => {
-  it('provides a dedicated editing rail and section outline for long playbooks', () => {
+  it('keeps revision comparison tooling available while the detail page sheds extra chrome', () => {
     const source = readSource();
-    expect(source).toContain('export function PlaybookEditingActionRailCard');
-    expect(source).toContain('Editing Actions');
-    expect(source).toContain('grid gap-2 sm:grid-cols-2 xl:grid-cols-1');
-    expect(source).toContain('export function PlaybookEditOutlineCard');
-    expect(source).toContain('Jump to Editor Sections');
-    expect(source).toContain('hover:bg-muted/20');
+    expect(source).toContain('export function PlaybookRevisionHistoryCard');
+    expect(source).toContain('Revision History');
+    expect(source).toContain('Compare against revision');
+    expect(source).toContain('Structured Diff');
+    expect(source).toContain('Rendered Snapshot Diff');
+    expect(source).not.toContain('export function PlaybookEditingActionRailCard');
+    expect(source).not.toContain('export function PlaybookEditOutlineCard');
   });
 });

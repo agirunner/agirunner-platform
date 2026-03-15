@@ -28,12 +28,7 @@ import {
   buildPlaybookRevisionChain,
   buildPlaybookRevisionDiff,
 } from './playbook-detail-support.js';
-import {
-  PlaybookControlCenterCard,
-  PlaybookEditOutlineCard,
-  PlaybookEditingActionRailCard,
-  PlaybookRevisionHistoryCard,
-} from './playbook-detail-sections.js';
+import { PlaybookRevisionHistoryCard } from './playbook-detail-sections.js';
 
 const DEFAULT_LIFECYCLE = 'continuous';
 const lifecycleOptions = [
@@ -78,18 +73,6 @@ export function PlaybookDetailPage(): JSX.Element {
   const playbooksQuery = useQuery({
     queryKey: ['playbooks'],
     queryFn: () => dashboardApi.listPlaybooks(),
-  });
-  const roleDefinitionsQuery = useQuery({
-    queryKey: ['role-definitions', 'active'],
-    queryFn: () => dashboardApi.listRoleDefinitions(),
-  });
-  const llmProvidersQuery = useQuery({
-    queryKey: ['llm-providers'],
-    queryFn: () => dashboardApi.listLlmProviders(),
-  });
-  const llmModelsQuery = useQuery({
-    queryKey: ['llm-models'],
-    queryFn: () => dashboardApi.listLlmModels(),
   });
   const [comparedRevisionId, setComparedRevisionId] = useState('');
 
@@ -259,126 +242,61 @@ export function PlaybookDetailPage(): JSX.Element {
   }
 
   const playbook = playbookQuery.data;
-  const summaryCards = [
-    {
-      label: 'Launch posture',
-      value: playbook.is_active ? 'Ready to launch' : 'Archived',
-      detail: playbook.is_active
-        ? 'This revision can launch workflows immediately.'
-        : 'Restore or create a newer active revision before launch.',
-      tone: playbook.is_active ? 'border-emerald-300 bg-emerald-50/80 text-emerald-950 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200' : 'border-amber-300 bg-amber-50/80 text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200',
-    },
-    {
-      label: 'Lifecycle',
-      value: lifecycle === 'continuous' ? 'Continuous orchestration' : 'Standard progression',
-      detail:
-        lifecycle === 'continuous'
-          ? 'Multiple work items may stay active across stages.'
-          : 'A tighter single-stage progression stays in focus.',
-      tone: 'border-border/70 bg-muted/15 text-foreground',
-    },
-    {
-      label: 'Revision status',
-      value: `v${playbook.version}`,
-      detail: comparedRevision ? `Comparing against v${comparedRevision.version}` : 'Latest revision loaded.',
-      tone: 'border-border/70 bg-muted/15 text-foreground',
-    },
-    {
-      label: 'Last updated',
-      value: formatDate(playbook.updated_at ?? playbook.created_at),
-      detail: `Created ${formatDate(playbook.created_at)}.`,
-      tone: 'border-border/70 bg-muted/15 text-foreground',
-    },
-  ];
-  const editOutlineLinks = [
-    {
-      href: '#playbook-identity',
-      title: 'Identity and lifecycle',
-      description: 'Name, slug, outcome, description, and lifecycle posture.',
-    },
-    {
-      href: '#playbook-team-roles',
-      title: 'Team roles',
-      description: 'Specialist lineup, ownership, and role coverage.',
-    },
-    {
-      href: '#playbook-workflow-stages',
-      title: 'Workflow stages',
-      description: 'Stage order, human gates, and stage-specific guidance.',
-    },
-    {
-      href: '#playbook-orchestrator-controls',
-      title: 'Automation policy',
-      description: 'Cadence, retries, recovery, and parallelism controls.',
-    },
-    {
-      href: '#playbook-runtime-controls',
-      title: 'Runtime pools',
-      description: 'Pool overrides, execution posture, and runtime inheritance.',
-    },
-    {
-      href: '#playbook-parameters',
-      title: 'Launch parameters',
-      description: 'Operator-provided inputs and runtime configuration at launch.',
-    },
-    {
-      href: '#playbook-control-center',
-      title: 'Control center',
-      description: 'Linked orchestrator, role, model, and runtime control surfaces.',
-    },
-    {
-      href: '#playbook-revision-history',
-      title: 'Revision history',
-      description: 'Compare revisions and restore an older structure safely.',
-    },
-  ];
 
   return (
     <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
-      <div className="grid gap-4 xl:grid-cols-[1.15fr,0.85fr]">
-        <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold">{playbook.name}</h1>
             <Badge variant="outline">v{playbook.version}</Badge>
             <Badge variant="secondary">{playbook.lifecycle}</Badge>
             {!playbook.is_active ? <Badge variant="destructive">Archived</Badge> : null}
           </div>
-          <div className="space-y-2">
-            <p className="text-sm text-muted">
-              Edit playbook structure, runtime posture, and launch-time parameter definitions
-              without dropping to raw JSON.
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {summaryCards.map((card) => (
-                <div
-                  key={card.label}
-                  className={`rounded-2xl border p-4 ${card.tone}`}
-                >
-                  <div className="text-xs font-semibold uppercase tracking-[0.16em] opacity-80">
-                    {card.label}
-                  </div>
-                  <div className="mt-2 text-base font-semibold">{card.value}</div>
-                  <p className="mt-1 text-sm opacity-90">{card.detail}</p>
-                </div>
-              ))}
-            </div>
-          </div>
+          <p className="max-w-3xl text-sm text-muted">
+            Edit workflow structure, automation policy, and launch inputs in one place without
+            dropping to raw JSON. Playbook descriptions stay operator-facing; stage guidance and
+            orchestrator instructions drive execution.
+          </p>
         </div>
-        <aside className="space-y-4 self-start xl:sticky xl:top-6">
-          <PlaybookEditingActionRailCard
-            playbookId={playbook.id}
-            isActive={Boolean(playbook.is_active)}
-            canSave={Boolean(canSave)}
-            isSaving={Boolean(updateMutation.isPending)}
-            isArchiving={Boolean(archiveStateMutation.isPending)}
-            isDeleting={Boolean(deleteMutation.isPending)}
-            onArchive={() => setArchiveOpen(true)}
-            onRestore={() => archiveStateMutation.mutate(false)}
-            onSave={() => updateMutation.mutate()}
-            onDelete={() => setDeleteOpen(true)}
-          />
-          <PlaybookEditOutlineCard links={editOutlineLinks} />
-        </aside>
+        <div className="flex flex-wrap gap-2">
+          {playbook.is_active ? (
+            <Button asChild variant="outline">
+              <Link to={`/config/playbooks/${playbook.id}/launch`}>Launch</Link>
+            </Button>
+          ) : null}
+          {playbook.is_active ? (
+            <Button
+              variant="outline"
+              onClick={() => setArchiveOpen(true)}
+              disabled={archiveStateMutation.isPending}
+            >
+              <Archive className="h-4 w-4" />
+              Archive
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              onClick={() => archiveStateMutation.mutate(false)}
+              disabled={archiveStateMutation.isPending}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Restore
+            </Button>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => setDeleteOpen(true)}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </Button>
+          <Button onClick={() => updateMutation.mutate()} disabled={!canSave || updateMutation.isPending}>
+            <Save className="h-4 w-4" />
+            Save Playbook
+          </Button>
+        </div>
       </div>
 
       <Card id="playbook-identity">
@@ -389,8 +307,8 @@ export function PlaybookDetailPage(): JSX.Element {
             authoring sections below.
           </p>
         </CardHeader>
-        <CardContent className="grid gap-6 xl:grid-cols-[1.2fr,0.8fr]">
-          <div className="grid gap-4 md:grid-cols-2">
+        <CardContent className="grid gap-6">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr),minmax(0,0.9fr)]">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Name</span>
               <Input value={name} onChange={(event) => { setName(event.target.value); setIsDirty(true); }} />
@@ -415,14 +333,11 @@ export function PlaybookDetailPage(): JSX.Element {
                 execution.
               </p>
             </label>
-          </div>
-
-          <div className="space-y-4">
-            <div className="grid gap-2 text-sm">
+            <div className="grid gap-2 text-sm xl:row-span-2">
               <span className="font-medium">Lifecycle</span>
               <div
                 aria-label="Playbook lifecycle"
-                className="grid gap-2 sm:grid-cols-2"
+                className="grid gap-2"
                 role="group"
               >
                 {lifecycleOptions.map((option) => {
@@ -446,15 +361,7 @@ export function PlaybookDetailPage(): JSX.Element {
                 })}
               </div>
             </div>
-            <div className="grid gap-2 text-sm">
-              <span className="font-medium">Configuration model</span>
-              <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted">
-                Configure playbook-specific cadence, runtime pools, concurrency, and workflow
-                structure below. Shared prompts, model preferences, and escalation policy for
-                specialist roles live on the Roles page, orchestrator config on the Orchestrator page.
-              </div>
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-3 sm:grid-cols-2 xl:col-span-2">
               <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted">
                 <div className="font-medium text-foreground">Created</div>
                 <div className="mt-1">{formatDate(playbook.created_at)}</div>
@@ -464,13 +371,15 @@ export function PlaybookDetailPage(): JSX.Element {
                 <div className="mt-1">{formatDate(playbook.updated_at)}</div>
               </div>
             </div>
+            <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted md:col-span-2 xl:col-span-2">
+              Shared prompts, role prompts, and runtime defaults are configured elsewhere. This
+              page owns workflow structure, orchestration policy, specialist exceptions, and launch
+              inputs only.
+            </div>
             {!playbook.is_active ? (
-              <div className="grid gap-2 text-sm">
-                <span className="font-medium">Archive state</span>
-                <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-                  This playbook is archived. Revision history remains available, but launch is
-                  disabled until a new active revision is created.
-                </div>
+              <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200 md:col-span-2 xl:col-span-3">
+                This playbook is archived. Revision history remains available, but launch is
+                disabled until a revision is restored.
               </div>
             ) : null}
           </div>
@@ -508,81 +417,35 @@ export function PlaybookDetailPage(): JSX.Element {
         </div>
       ) : null}
 
-      <PlaybookControlCenterCard
-        playbook={playbook}
-        activeRoleCount={(roleDefinitionsQuery.data ?? []).filter((role) => role.is_active).length}
-        llmProviders={llmProvidersQuery.data ?? []}
-        llmModels={llmModelsQuery.data ?? []}
-      />
-
-      <PlaybookRevisionHistoryCard
-        currentPlaybook={playbook}
-        revisions={revisions.length > 0 ? revisions : [playbook]}
-        comparedRevisionId={comparedRevisionId || playbook.id}
-        diffRows={revisionDiff}
-        onComparedRevisionChange={setComparedRevisionId}
-        onRestore={() => restoreMutation.mutate()}
-        isRestoring={restoreMutation.isPending}
-      />
-
-      <div className="sticky bottom-4 z-10 xl:hidden">
-        <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-surface/95 p-4 shadow-lg backdrop-blur sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <div className="text-sm font-medium">Save changes from anywhere in the editor</div>
-            <p className="text-sm text-muted">
-              The action bar stays visible while you review the control center, revisions, and
-              longer authoring sections.
-            </p>
+      <details
+        id="playbook-revision-history"
+        className="rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm"
+      >
+        <summary className="cursor-pointer list-none">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">Revision History</h2>
+              <p className="text-sm text-muted">
+                Compare past revisions and restore an older workflow structure when needed.
+              </p>
+            </div>
+            <Badge variant="outline">
+              {revisions.length > 0 ? `${revisions.length} revisions` : '1 revision'}
+            </Badge>
           </div>
-          <div className="grid gap-2 sm:flex sm:flex-wrap">
-            <Button asChild variant="outline" className="w-full justify-between sm:w-auto">
-              <Link to="/config/roles">Manage Roles</Link>
-            </Button>
-            {playbook.is_active ? (
-              <Button asChild variant="outline" className="w-full justify-between sm:w-auto">
-                <Link to={`/config/playbooks/${playbook.id}/launch`}>Launch</Link>
-              </Button>
-            ) : null}
-            {playbook.is_active ? (
-              <Button
-                variant="destructive"
-                className="w-full justify-between sm:w-auto"
-                onClick={() => setArchiveOpen(true)}
-              >
-                <Archive className="h-4 w-4" />
-                Archive
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                className="w-full justify-between sm:w-auto"
-                onClick={() => archiveStateMutation.mutate(false)}
-                disabled={archiveStateMutation.isPending}
-              >
-                <RotateCcw className="h-4 w-4" />
-                Restore
-              </Button>
-            )}
-            <Button
-              className="w-full justify-between sm:w-auto"
-              disabled={!canSave || updateMutation.isPending}
-              onClick={() => updateMutation.mutate()}
-            >
-              <Save className="h-4 w-4" />
-              Save Playbook
-            </Button>
-            <Button
-              variant="outline"
-              className="w-full justify-between sm:w-auto"
-              onClick={() => setDeleteOpen(true)}
-              disabled={deleteMutation.isPending}
-            >
-              <Trash2 className="h-4 w-4" />
-              Delete
-            </Button>
-          </div>
+        </summary>
+        <div className="mt-4">
+          <PlaybookRevisionHistoryCard
+            currentPlaybook={playbook}
+            revisions={revisions.length > 0 ? revisions : [playbook]}
+            comparedRevisionId={comparedRevisionId || playbook.id}
+            diffRows={revisionDiff}
+            onComparedRevisionChange={setComparedRevisionId}
+            onRestore={() => restoreMutation.mutate()}
+            isRestoring={restoreMutation.isPending}
+          />
         </div>
-      </div>
+      </details>
 
       <Dialog open={archiveOpen} onOpenChange={setArchiveOpen}>
         <DialogContent className="max-h-[70vh] max-w-lg overflow-y-auto">

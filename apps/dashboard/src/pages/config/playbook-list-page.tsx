@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
 
-import { dashboardApi, type DashboardPlaybookRecord } from '../../lib/api.js';
+import { dashboardApi } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -25,7 +25,6 @@ import {
 } from '../../components/ui/select.js';
 import {
   buildPlaybookFamilies,
-  filterPlaybooks,
   filterPlaybookFamilies,
   summarizePlaybookFamilyCounts,
   validatePlaybookCreateDraft,
