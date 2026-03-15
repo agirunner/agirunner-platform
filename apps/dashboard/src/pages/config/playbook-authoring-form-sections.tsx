@@ -698,7 +698,8 @@ export function OrchestratorSection(props: SectionProps): JSX.Element {
               />
               <p className="text-xs text-muted">
                 Limits specialist fan-out for one work item so a single feature cannot monopolize
-                workflow concurrency.
+                workflow concurrency. In an SDLC workflow, a value of 2 lets one feature run
+                implementation and QA in parallel while preserving capacity for other work items.
               </p>
             </div>
           </LabeledField>

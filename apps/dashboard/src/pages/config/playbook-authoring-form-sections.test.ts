@@ -67,6 +67,8 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Category stays hidden until this parameter maps to project data');
     expect(source).toContain('Cap how many full rework loops the orchestrator can request');
     expect(source).toContain('Limits specialist fan-out for one work item');
+    expect(source).toContain('In an SDLC workflow, a value of 2 lets one feature run');
+    expect(source).toContain('implementation and QA in parallel while preserving capacity');
     expect(source).toContain('spliceDraftItem');
     expect(source).toContain('GripVertical');
     expect(source).toContain('Drag to reorder');

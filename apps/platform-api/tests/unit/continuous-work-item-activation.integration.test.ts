@@ -30,6 +30,14 @@ describe('continuous workflow work-item activation integration', () => {
       return;
     }
     harness = createV2Harness(db, { WORKFLOW_ACTIVATION_DELAY_MS: 0 });
+    await harness.roleDefinitionService.createRole(identity.tenantId, {
+      name: 'developer',
+      description: 'Handles continuous-workflow specialist tasks in integration tests.',
+      systemPrompt: 'You are a developer.',
+      allowedTools: [],
+      capabilities: ['coding'],
+      isActive: true,
+    });
   }, 120_000);
 
   afterAll(async () => {

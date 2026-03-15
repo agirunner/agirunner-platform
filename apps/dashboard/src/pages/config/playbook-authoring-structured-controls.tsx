@@ -39,23 +39,43 @@ export function SelectWithCustomControl(props: {
 }): JSX.Element {
   const isKnownValue = props.options.some((option) => option.value === props.value);
   const selectedOption = props.options.find((option) => option.value === props.value) ?? null;
-  const selectValue =
-    props.value.trim().length === 0 ? UNSET_VALUE : isKnownValue ? props.value : CUSTOM_VALUE;
+  const [isCustomMode, setIsCustomMode] = useState<boolean>(() =>
+    resolveSelectWithCustomMode({
+      currentValue: props.value,
+      optionValues: props.options.map((option) => option.value),
+    }),
+  );
+
+  useEffect(() => {
+    if (props.value.trim().length === 0) {
+      return;
+    }
+    setIsCustomMode(
+      resolveSelectWithCustomMode({
+        currentValue: props.value,
+        optionValues: props.options.map((option) => option.value),
+      }),
+    );
+  }, [props.options, props.value]);
+
+  const selectValue = resolveSelectWithCustomValue({
+    currentValue: props.value,
+    isKnownValue,
+    isCustomMode,
+  });
 
   return (
     <div className="grid gap-2">
       <Select
         value={selectValue}
         onValueChange={(value) => {
-          if (value === UNSET_VALUE) {
-            props.onChange('');
-            return;
-          }
-          if (value === CUSTOM_VALUE) {
-            props.onChange(isKnownValue ? '' : props.value);
-            return;
-          }
-          props.onChange(value);
+          const nextSelection = resolveSelectWithCustomSelection({
+            currentValue: props.value,
+            optionValues: props.options.map((option) => option.value),
+            nextSelection: value,
+          });
+          setIsCustomMode(nextSelection.isCustomMode);
+          props.onChange(nextSelection.nextValue);
         }}
       >
         <SelectTrigger>
@@ -85,6 +105,48 @@ export function SelectWithCustomControl(props: {
       ) : null}
     </div>
   );
+}
+
+export function resolveSelectWithCustomMode(input: {
+  currentValue: string;
+  optionValues: string[];
+}): boolean {
+  return input.currentValue.trim().length > 0 && !input.optionValues.includes(input.currentValue);
+}
+
+export function resolveSelectWithCustomValue(input: {
+  currentValue: string;
+  isKnownValue: boolean;
+  isCustomMode: boolean;
+}): string {
+  if (input.isCustomMode) {
+    return CUSTOM_VALUE;
+  }
+  if (input.currentValue.trim().length === 0) {
+    return UNSET_VALUE;
+  }
+  return input.isKnownValue ? input.currentValue : CUSTOM_VALUE;
+}
+
+export function resolveSelectWithCustomSelection(input: {
+  currentValue: string;
+  optionValues: string[];
+  nextSelection: string;
+}): {
+  nextValue: string;
+  isCustomMode: boolean;
+} {
+  const isKnownValue = input.optionValues.includes(input.currentValue);
+  if (input.nextSelection === UNSET_VALUE) {
+    return { nextValue: '', isCustomMode: false };
+  }
+  if (input.nextSelection === CUSTOM_VALUE) {
+    return {
+      nextValue: isKnownValue ? '' : input.currentValue,
+      isCustomMode: true,
+    };
+  }
+  return { nextValue: input.nextSelection, isCustomMode: false };
 }
 
 export function MultiChoiceButtonsControl(props: {
