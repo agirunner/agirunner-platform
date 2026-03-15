@@ -12,7 +12,7 @@ describe('playbook detail page source', () => {
     expect(source).toContain('dashboardApi.getPlaybook');
     expect(source).toContain('dashboardApi.listPlaybooks');
     expect(source).toContain('dashboardApi.updatePlaybook');
-    expect(source).toContain('max-w-[88rem]');
+    expect(source).toContain('space-y-6 p-4 sm:p-6');
     expect(source).toContain('PlaybookAuthoringForm');
     expect(source).toContain('PlaybookRevisionHistoryCard');
     expect(source).toContain('buildPlaybookRestorePayload');
@@ -22,6 +22,9 @@ describe('playbook detail page source', () => {
     expect(source).toContain('Archive Playbook');
     expect(source).toContain('Delete Playbook Revision');
     expect(source).toContain('Delete Revision');
+    expect(source).toContain('playbook-danger-zone');
+    expect(source).toContain('Danger');
+    expect(source).toContain('Delete this playbook revision only when it should be removed permanently');
     expect(source).toContain('Restore');
     expect(source).toContain('max-h-[70vh] max-w-lg overflow-y-auto');
     expect(source).toContain('Playbook lifecycle');

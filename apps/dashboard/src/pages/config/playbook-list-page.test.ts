@@ -27,9 +27,6 @@ describe('playbook list page source', () => {
     expect(source).toContain('This family has no active revision. Restore one before launching');
     expect(source).toContain('dashboardApi.archivePlaybook');
     expect(source).toContain('dashboardApi.restorePlaybook');
-    expect(source).toContain('dashboardApi.deletePlaybook');
-    expect(source).toContain('Delete Playbook Revision');
-    expect(source).toContain('Delete revision');
     expect(source).toContain('Restore');
     expect(source).toContain('Back to playbook library');
     expect(source).toContain('PlaybookLibraryToolbar');
@@ -45,7 +42,8 @@ describe('playbook list page source', () => {
     expect(source).toContain('Resolve these blockers before creating the playbook.');
     expect(source).toContain('Slug preview:');
     expect(source).toContain('onValidationChange={setAuthoringValidationIssues}');
-    expect(source).toContain('DialogContent');
     expect(source).not.toContain('PlaybookLibrarySummaryCards');
+    expect(source).not.toContain('dashboardApi.deletePlaybook');
+    expect(source).not.toContain('Delete Playbook Revision');
   });
 });

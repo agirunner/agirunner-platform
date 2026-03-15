@@ -244,7 +244,7 @@ export function PlaybookDetailPage(): JSX.Element {
   const playbook = playbookQuery.data;
 
   return (
-    <div className="mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="space-y-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -284,14 +284,6 @@ export function PlaybookDetailPage(): JSX.Element {
               Restore
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={() => setDeleteOpen(true)}
-            disabled={deleteMutation.isPending}
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete
-          </Button>
           <Button onClick={() => updateMutation.mutate()} disabled={!canSave || updateMutation.isPending}>
             <Save className="h-4 w-4" />
             Save Playbook
@@ -444,6 +436,34 @@ export function PlaybookDetailPage(): JSX.Element {
             onRestore={() => restoreMutation.mutate()}
             isRestoring={restoreMutation.isPending}
           />
+        </div>
+      </details>
+
+      <details
+        id="playbook-danger-zone"
+        className="rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm"
+      >
+        <summary className="cursor-pointer list-none">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-lg font-semibold">Danger</h2>
+              <p className="text-sm text-muted">
+                Delete this playbook revision only when it should be removed permanently from the
+                library.
+              </p>
+            </div>
+            <Badge variant="destructive">Destructive</Badge>
+          </div>
+        </summary>
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button
+            variant="destructive"
+            onClick={() => setDeleteOpen(true)}
+            disabled={deleteMutation.isPending}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete Revision
+          </Button>
         </div>
       </details>
 

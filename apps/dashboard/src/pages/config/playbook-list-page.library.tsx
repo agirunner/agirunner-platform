@@ -1,14 +1,5 @@
 import { Link } from 'react-router-dom';
-import {
-  Archive,
-  GitBranch,
-  Layers3,
-  RotateCcw,
-  Rocket,
-  Search,
-  Settings2,
-  Trash2,
-} from 'lucide-react';
+import { Archive, GitBranch, Layers3, RotateCcw, Rocket, Search, Settings2 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -103,9 +94,7 @@ export function PlaybookLibraryToolbar(props: {
 export function PlaybookFamilyCard(props: {
   family: PlaybookFamilyRecord;
   isArchiving: boolean;
-  isDeleting: boolean;
   onArchiveChange(archived: boolean): void;
-  onRequestDelete(): void;
 }): JSX.Element {
   const { family } = props;
   const playbook = family.primaryRevision;
@@ -156,7 +145,7 @@ export function PlaybookFamilyCard(props: {
             This family has no active revision. Restore one before launching a new workflow.
           </div>
         ) : null}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Button asChild variant="outline" size="sm" className="w-full px-2">
             <Link to={`/config/playbooks/${playbook.id}`}>
               <Settings2 className="h-4 w-4" />
@@ -194,16 +183,6 @@ export function PlaybookFamilyCard(props: {
               </Button>
             </>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            className="w-full px-2"
-            onClick={props.onRequestDelete}
-            disabled={props.isDeleting}
-          >
-            <Trash2 className="h-4 w-4" />
-            Delete
-          </Button>
         </div>
       </CardContent>
     </Card>
