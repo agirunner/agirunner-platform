@@ -1,53 +1,32 @@
-import { useId, useMemo, useState } from 'react';
+import { useId, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { FileUp, Trash2, Upload, X } from 'lucide-react';
+import { Download, FileUp, Trash2 } from 'lucide-react';
 
-import {
-  dashboardApi,
-  type DashboardProjectArtifactFileRecord,
-} from '../../lib/api.js';
+import { dashboardApi, type DashboardProjectArtifactFileRecord } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
-import { Input } from '../../components/ui/input.js';
 import { toast } from '../../lib/toast.js';
-
-interface ArtifactUploadDraft {
-  id: string;
-  file: File;
-  key: string;
-  description: string;
-}
 
 export function ProjectArtifactFilesPanel(props: { projectId: string }): JSX.Element {
   const queryClient = useQueryClient();
   const fileInputId = useId();
-  const [drafts, setDrafts] = useState<ArtifactUploadDraft[]>([]);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [downloadTargetId, setDownloadTargetId] = useState<string | null>(null);
 
   const filesQuery = useQuery({
     queryKey: ['project-artifact-files', props.projectId],
     queryFn: () => dashboardApi.listProjectArtifactFiles(props.projectId),
   });
 
-  const draftErrors = useMemo(
-    () => validateDrafts(drafts, filesQuery.data ?? []),
-    [drafts, filesQuery.data],
-  );
-  const hasDraftErrors = draftErrors.some(Boolean);
-
   const uploadMutation = useMutation({
-    mutationFn: async () => {
-      const normalizedDrafts = await Promise.all(drafts.map(async (draft) => ({
-        key: draft.key.trim(),
-        description: draft.description.trim(),
-        file_name: draft.file.name,
-        content_base64: await fileToBase64(draft.file),
-        content_type: draft.file.type || undefined,
-      })));
-      return dashboardApi.uploadProjectArtifactFiles(props.projectId, normalizedDrafts);
+    mutationFn: async (selectedFiles: File[]) => {
+      const payload = await buildArtifactUploadPayloads(
+        selectedFiles,
+        (filesQuery.data ?? []).map((file) => file.key),
+      );
+      return dashboardApi.uploadProjectArtifactFiles(props.projectId, payload);
     },
     onSuccess: async () => {
-      setDrafts([]);
       setUploadError(null);
       await queryClient.invalidateQueries({ queryKey: ['project-artifact-files', props.projectId] });
       toast.success('Project artifacts uploaded.');
@@ -76,7 +55,7 @@ export function ProjectArtifactFilesPanel(props: { projectId: string }): JSX.Ele
       return;
     }
     setUploadError(null);
-    setDrafts((current) => appendDrafts(current, selectedFiles, filesQuery.data ?? []));
+    uploadMutation.mutate(selectedFiles);
   }
 
   return (
@@ -106,91 +85,12 @@ export function ProjectArtifactFilesPanel(props: { projectId: string }): JSX.Ele
                 Add files
               </label>
             </Button>
-            <Button
-              type="button"
-              disabled={drafts.length === 0 || hasDraftErrors || uploadMutation.isPending}
-              onClick={() => uploadMutation.mutate()}
-            >
-              <Upload className="h-4 w-4" />
-              Upload files
-            </Button>
           </div>
         </div>
 
-        {drafts.length > 0 ? (
-          <div className="space-y-3 border-t border-border/70 pt-3">
-            {drafts.map((draft, index) => (
-              <div key={draft.id} className="rounded-xl border border-border/70 bg-background/80 p-3">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">{draft.file.name}</p>
-                    <p className="text-xs text-muted">{formatFileSize(draft.file.size)}</p>
-                  </div>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() =>
-                      setDrafts((current) => current.filter((entry) => entry.id !== draft.id))
-                    }
-                    aria-label={`Remove ${draft.file.name}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="mt-3 grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-                  <div className="space-y-1">
-                    <label className="text-xs font-medium text-muted" htmlFor={`${draft.id}-key`}>
-                      Key
-                    </label>
-                    <Input
-                      id={`${draft.id}-key`}
-                      value={draft.key}
-                      onChange={(event) =>
-                        setDrafts((current) =>
-                          current.map((entry) =>
-                            entry.id === draft.id ? { ...entry, key: event.target.value } : entry,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label
-                      className="text-xs font-medium text-muted"
-                      htmlFor={`${draft.id}-description`}
-                    >
-                      Description
-                    </label>
-                    <Input
-                      id={`${draft.id}-description`}
-                      value={draft.description}
-                      placeholder="Optional description"
-                      onChange={(event) =>
-                        setDrafts((current) =>
-                          current.map((entry) =>
-                            entry.id === draft.id
-                              ? { ...entry, description: event.target.value }
-                              : entry,
-                          ),
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-
-                {draftErrors[index] ? (
-                  <p className="mt-2 text-sm text-red-700 dark:text-red-300">{draftErrors[index]}</p>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted">
-            No files queued yet.
-          </p>
-        )}
+        <p className="rounded-xl border border-dashed border-border/70 px-4 py-6 text-sm text-muted">
+          Files upload as soon as you select them. Keys default from file names and can be adjusted later if needed.
+        </p>
 
         {uploadError ? (
           <p className="rounded-xl border border-red-300/70 bg-background/70 px-3 py-2 text-sm text-red-700 dark:border-red-800/70 dark:text-red-300">
@@ -207,6 +107,10 @@ export function ProjectArtifactFilesPanel(props: { projectId: string }): JSX.Ele
           </p>
         </div>
 
+        {uploadMutation.isPending ? (
+          <p className="text-sm text-muted">Uploading project artifacts…</p>
+        ) : null}
+
         {filesQuery.isLoading ? (
           <p className="text-sm text-muted">Loading project artifacts…</p>
         ) : filesQuery.error ? (
@@ -220,6 +124,28 @@ export function ProjectArtifactFilesPanel(props: { projectId: string }): JSX.Ele
                 key={file.id}
                 file={file}
                 isDeleting={deleteMutation.isPending && deleteTargetId === file.id}
+                isDownloading={downloadTargetId === file.id}
+                onDownload={async () => {
+                  setDownloadTargetId(file.id);
+                  try {
+                    const download = await dashboardApi.downloadProjectArtifactFile(
+                      props.projectId,
+                      file.id,
+                    );
+                    const objectUrl = URL.createObjectURL(download.blob);
+                    const link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = download.file_name ?? file.file_name;
+                    document.body.append(link);
+                    link.click();
+                    link.remove();
+                    URL.revokeObjectURL(objectUrl);
+                  } catch (error) {
+                    toast.error(readErrorMessage(error, 'Failed to download project artifact.'));
+                  } finally {
+                    setDownloadTargetId(null);
+                  }
+                }}
                 onDelete={() => {
                   setDeleteTargetId(file.id);
                   deleteMutation.mutate(file.id);
@@ -240,6 +166,8 @@ export function ProjectArtifactFilesPanel(props: { projectId: string }): JSX.Ele
 function ExistingArtifactRow(props: {
   file: DashboardProjectArtifactFileRecord;
   isDeleting: boolean;
+  isDownloading: boolean;
+  onDownload(): void;
   onDelete(): void;
 }): JSX.Element {
   return (
@@ -258,43 +186,30 @@ function ExistingArtifactRow(props: {
           {formatFileSize(props.file.size_bytes)} • {new Date(props.file.created_at).toLocaleString()}
         </p>
       </div>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        disabled={props.isDeleting}
-        onClick={props.onDelete}
-      >
-        <Trash2 className="h-4 w-4" />
-        Delete file
-      </Button>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={props.isDownloading || props.isDeleting}
+          onClick={props.onDownload}
+        >
+          <Download className="h-4 w-4" />
+          Download file
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={props.isDeleting || props.isDownloading}
+          onClick={props.onDelete}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete file
+        </Button>
+      </div>
     </div>
   );
-}
-
-function appendDrafts(
-  currentDrafts: ArtifactUploadDraft[],
-  files: File[],
-  existingFiles: DashboardProjectArtifactFileRecord[],
-): ArtifactUploadDraft[] {
-  const nextDrafts = [...currentDrafts];
-  const reservedKeys = new Set([
-    ...existingFiles.map((file) => file.key.toLowerCase()),
-    ...currentDrafts.map((draft) => draft.key.trim().toLowerCase()),
-  ]);
-
-  for (const file of files) {
-    const key = buildUniqueArtifactKey(file.name, reservedKeys);
-    reservedKeys.add(key.toLowerCase());
-    nextDrafts.push({
-      id: globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`,
-      file,
-      key,
-      description: '',
-    });
-  }
-
-  return nextDrafts;
 }
 
 export function snapshotSelectedFiles(fileList: FileList | null): File[] {
@@ -329,38 +244,33 @@ function buildUniqueArtifactKey(fileName: string, reservedKeys: Set<string>): st
   return `${baseKey}-${index}`;
 }
 
-function validateDrafts(
-  drafts: ArtifactUploadDraft[],
-  existingFiles: DashboardProjectArtifactFileRecord[],
-): Array<string | null> {
-  const counts = new Map<string, number>();
-  const existingKeys = new Set(existingFiles.map((file) => file.key.trim().toLowerCase()));
+export async function buildArtifactUploadPayloads(
+  files: File[],
+  existingKeys: string[],
+): Promise<
+  Array<{
+    key: string;
+    description: string;
+    file_name: string;
+    content_base64: string;
+    content_type?: string;
+  }>
+> {
+  const reservedKeys = new Set(existingKeys.map((key) => key.trim().toLowerCase()));
 
-  for (const draft of drafts) {
-    const normalizedKey = draft.key.trim().toLowerCase();
-    counts.set(normalizedKey, (counts.get(normalizedKey) ?? 0) + 1);
-  }
-
-  return drafts.map((draft) => {
-    const key = draft.key.trim();
-    const normalizedKey = key.toLowerCase();
-    if (!key) {
-      return 'Enter a key before uploading.';
-    }
-    if (key.length > 120) {
-      return 'Key must be 120 characters or fewer.';
-    }
-    if (existingKeys.has(normalizedKey)) {
-      return 'This key already exists for the project.';
-    }
-    if ((counts.get(normalizedKey) ?? 0) > 1) {
-      return 'Each queued file needs a unique key.';
-    }
-    if (draft.description.trim().length > 2000) {
-      return 'Description must be 2000 characters or fewer.';
-    }
-    return null;
-  });
+  return Promise.all(
+    files.map(async (file) => {
+      const key = buildUniqueArtifactKey(file.name, reservedKeys);
+      reservedKeys.add(key.toLowerCase());
+      return {
+        key,
+        description: '',
+        file_name: file.name,
+        content_base64: await fileToBase64(file),
+        content_type: file.type || undefined,
+      };
+    }),
+  );
 }
 
 async function fileToBase64(file: File): Promise<string> {

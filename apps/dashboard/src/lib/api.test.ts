@@ -387,6 +387,16 @@ describe('dashboard api auth/session behavior', () => {
           { status: 201 },
         ),
       )
+      .mockResolvedValueOnce(
+        new Response('artifact-bytes', {
+          status: 200,
+          headers: {
+            'content-type': 'text/markdown; charset=utf-8',
+            'content-disposition': 'attachment; filename="brief.md"',
+            'content-length': '14',
+          },
+        }),
+      )
       .mockResolvedValueOnce(new Response(null, { status: 204 })) as unknown as typeof fetch;
 
     const client = {
@@ -417,9 +427,12 @@ describe('dashboard api auth/session behavior', () => {
         content_type: 'text/markdown',
       },
     ]);
+    const download = await api.downloadProjectArtifactFile('project-1', 'file-1');
     await api.deleteProjectArtifactFile('project-1', 'file-1');
 
     expect(files[0]?.key).toBe('brief-md');
+    expect(download.file_name).toBe('brief.md');
+    expect(download.content_type).toBe('text/markdown; charset=utf-8');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
       'http://localhost:8080/api/v1/projects/project-1/files',
     );
@@ -427,6 +440,9 @@ describe('dashboard api auth/session behavior', () => {
       'http://localhost:8080/api/v1/projects/project-1/files/batch',
     );
     expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/files/file-1/content',
+    );
+    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
       'http://localhost:8080/api/v1/projects/project-1/files/file-1',
     );
   });

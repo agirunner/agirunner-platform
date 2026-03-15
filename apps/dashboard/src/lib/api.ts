@@ -1052,6 +1052,13 @@ export interface DashboardTaskArtifactDownload {
   size_bytes: number;
 }
 
+export interface DashboardProjectArtifactFileDownload {
+  blob: Blob;
+  content_type: string;
+  file_name?: string | null;
+  size_bytes: number;
+}
+
 export interface DashboardTaskArtifactUploadInput {
   path: string;
   content_base64: string;
@@ -1471,6 +1478,10 @@ export interface DashboardApi {
     filters?: Record<string, string>,
   ): Promise<DashboardProjectArtifactResponse>;
   listProjectArtifactFiles(projectId: string): Promise<DashboardProjectArtifactFileRecord[]>;
+  downloadProjectArtifactFile(
+    projectId: string,
+    fileId: string,
+  ): Promise<DashboardProjectArtifactFileDownload>;
   uploadProjectArtifactFiles(
     projectId: string,
     payload: DashboardProjectArtifactFileUploadInput[],
@@ -2652,6 +2663,21 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'GET',
         }),
       ),
+    downloadProjectArtifactFile: (projectId, fileId) =>
+      withRefresh(async () => {
+        const response = await requestBinary(
+          `/api/v1/projects/${projectId}/files/${fileId}/content`,
+          {
+            method: 'GET',
+          },
+        );
+        return {
+          blob: await response.blob(),
+          content_type: response.headers.get('content-type') ?? 'application/octet-stream',
+          file_name: readContentDispositionFileName(response.headers.get('content-disposition')),
+          size_bytes: Number(response.headers.get('content-length') ?? '0'),
+        };
+      }),
     uploadProjectArtifactFiles: (projectId, payload) =>
       withRefresh(() =>
         requestData<DashboardProjectArtifactFileRecord[]>(
