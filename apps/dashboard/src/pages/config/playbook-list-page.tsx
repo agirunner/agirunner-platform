@@ -174,7 +174,7 @@ export function PlaybookListPage(): JSX.Element {
     return (
       <div
         data-testid="playbook-create-workspace"
-        className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8"
+        className="mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8"
       >
         <div className="space-y-4 rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm">
           <Button variant="ghost" className="w-fit px-0 text-muted" onClick={closeCreateWorkspace}>
@@ -409,7 +409,7 @@ export function PlaybookListPage(): JSX.Element {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">Playbooks</h1>

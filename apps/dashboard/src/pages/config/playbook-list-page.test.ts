@@ -18,7 +18,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('PlaybookAuthoringForm');
     expect(source).toContain('playbook-create-workspace');
     expect(source).toContain('Full-page authoring workspace');
-    expect(source).toContain('max-w-7xl');
+    expect(source).toContain('max-w-[88rem]');
     expect(source).toContain('sticky bottom-4');
     expect(source).toContain('xl:sticky xl:top-6');
     expect(source).not.toContain('DialogContent');

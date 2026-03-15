@@ -12,7 +12,7 @@ describe('playbook detail page source', () => {
     expect(source).toContain('dashboardApi.getPlaybook');
     expect(source).toContain('dashboardApi.listPlaybooks');
     expect(source).toContain('dashboardApi.updatePlaybook');
-    expect(source).toContain('max-w-7xl');
+    expect(source).toContain('max-w-[88rem]');
     expect(source).toContain('PlaybookAuthoringForm');
     expect(source).toContain('PlaybookRevisionHistoryCard');
     expect(source).toContain('buildPlaybookRestorePayload');
