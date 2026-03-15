@@ -48,7 +48,7 @@ const KNOWLEDGE_PANELS: Array<{
 
 export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.Element {
   const location = useLocation();
-  const [expandedPanel, setExpandedPanel] = useState<KnowledgePanelValue | null>('reference');
+  const [expandedPanel, setExpandedPanel] = useState<KnowledgePanelValue | null>(null);
   const sectionSummaries: Record<KnowledgePanelValue, string> = {
     reference: props.referenceSummary ?? buildReferenceSummary(props.overview),
     artifacts: props.artifactSummary ?? buildArtifactSummary(props.overview),

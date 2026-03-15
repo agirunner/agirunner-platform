@@ -72,13 +72,9 @@ export function OrchestratorControlPlane(props: {
         <CardHeader className="space-y-3">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
             <div className="space-y-2">
-              <div className="flex flex-wrap items-center gap-2">
-                <CardTitle>Orchestrator control plane</CardTitle>
-                <Badge variant="secondary">First-class system actor</Badge>
-              </div>
-              <CardDescription className="max-w-3xl leading-6">
-                Keep the workflow orchestrator fully manageable from this page: prompt baseline,
-                prompt, model override, and worker-pool posture are directly editable here.
+              <CardTitle>Orchestrator</CardTitle>
+              <CardDescription>
+                Configure the orchestrator prompt, model, and worker pool.
               </CardDescription>
             </div>
           </div>

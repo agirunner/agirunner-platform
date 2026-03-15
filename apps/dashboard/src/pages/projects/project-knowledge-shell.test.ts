@@ -21,13 +21,13 @@ describe('project knowledge surface source', () => {
     expect(source).not.toContain('<TabsContent');
   });
 
-  it('opens reference material by default and trims the top wrapper copy to a single calm intro', () => {
+  it('starts collapsed by default and trims the top wrapper copy to a single calm intro', () => {
     const source = readSource('./project-knowledge-shell.tsx');
 
     expect(source).toContain('Knowledge');
     expect(source).toContain('Use Knowledge for curated context, Project Artifacts for generated outputs, and Project Memory for evolving notes.');
     expect(source).toContain('className="sr-only">{props.overview.summary}</p>');
-    expect(source).toContain("useState<KnowledgePanelValue | null>('reference')");
+    expect(source).toContain('useState<KnowledgePanelValue | null>(null)');
     expect(source).toContain('current === value ? null : value');
     expect(source).not.toContain('Start here');
     expect(source).not.toContain('Open documents');

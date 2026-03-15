@@ -85,12 +85,9 @@ export function useRolePageOrchestratorState() {
       modelId: string;
     }) => {
       const workerName = input.workerName.trim();
-      const runtimeImage = input.runtimeImage.trim();
+      const runtimeImage = input.runtimeImage.trim() || 'agirunner-runtime:local';
       if (!workerName) {
         throw new Error('Enter a worker name for the orchestrator pool entry.');
-      }
-      if (!runtimeImage) {
-        throw new Error('Enter a runtime image for the orchestrator pool entry.');
       }
       const selection = resolveWorkerModelSelection(modelsQuery.data ?? [], input.modelId);
       const payload = {

@@ -90,13 +90,17 @@ export function listOrchestratorWorkerOptions(workers: FleetWorkerRecord[]) {
     }));
 }
 
+const DEFAULT_RUNTIME_IMAGE = 'agirunner-runtime:local';
+
 export function listSuggestedRuntimeImages(workers: FleetWorkerRecord[]): string[] {
-  return [...new Set(
+  const images = new Set(
     workers
       .filter((worker) => worker.pool_kind === 'orchestrator')
       .map((worker) => worker.runtime_image.trim())
       .filter(Boolean),
-  )];
+  );
+  images.add(DEFAULT_RUNTIME_IMAGE);
+  return [...images];
 }
 
 export function resolveWorkerModelSelection(

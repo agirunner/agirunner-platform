@@ -180,8 +180,8 @@ describe('role definitions orchestrator support', () => {
         },
       ),
     ).toEqual({
-      headline: 'Control plane ready',
-      detail: 'Prompt, model routing, and worker pool posture are configured for live orchestration.',
+      headline: 'Ready',
+      detail: 'Prompt, model, and pool are configured.',
       issues: [],
       isReady: true,
     });
