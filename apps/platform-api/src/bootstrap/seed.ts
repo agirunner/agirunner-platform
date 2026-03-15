@@ -42,6 +42,7 @@ export async function seedConfigTables(
   config?: Pick<AppEnv, 'AGIRUNNER_ADMIN_EMAIL'>,
 ): Promise<void> {
   await seedRolesAndDefaults(db);
+  await seedOrchestratorWorker(db);
   await seedAdminUser(db, config?.AGIRUNNER_ADMIN_EMAIL);
   await seedBuiltInPlaybooks(db);
 }
@@ -218,6 +219,26 @@ async function seedRuntimeDefaults(
     description: 'Default grace period in seconds before forced container shutdown',
   });
 
+}
+
+// ---------------------------------------------------------------------------
+// Default orchestrator worker
+// ---------------------------------------------------------------------------
+
+async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<void> {
+  const existing = await db.query(
+    `SELECT id FROM worker_desired_state WHERE tenant_id = $1 AND pool_kind = 'orchestrator' LIMIT 1`,
+    [DEFAULT_TENANT_ID],
+  );
+  if (existing.rowCount && existing.rowCount > 0) return;
+
+  await db.query(
+    `INSERT INTO worker_desired_state (tenant_id, worker_name, role, runtime_image, replicas, enabled, pool_kind)
+     VALUES ($1, 'orchestrator-primary', 'orchestrator', 'agirunner-runtime:local', 1, true, 'orchestrator')
+     ON CONFLICT DO NOTHING`,
+    [DEFAULT_TENANT_ID],
+  );
+  console.info('[seed] Created default orchestrator worker (orchestrator-primary, 1 replica).');
 }
 
 // ---------------------------------------------------------------------------
