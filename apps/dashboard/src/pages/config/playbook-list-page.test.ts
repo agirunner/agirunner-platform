@@ -21,7 +21,6 @@ describe('playbook list page source', () => {
     expect(source).toContain('max-w-[88rem]');
     expect(source).toContain('sticky bottom-4');
     expect(source).toContain('xl:sticky xl:top-6');
-    expect(source).not.toContain('DialogContent');
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('Manage');
@@ -29,7 +28,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('dashboardApi.archivePlaybook');
     expect(source).toContain('dashboardApi.restorePlaybook');
     expect(source).toContain('dashboardApi.deletePlaybook');
-    expect(source).toContain('Delete revision v{playbook.version}?');
+    expect(source).toContain('Delete Playbook Revision');
     expect(source).toContain('Delete revision');
     expect(source).toContain('Restore');
     expect(source).toContain('Back to playbook library');
@@ -46,6 +45,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('Resolve these blockers before creating the playbook.');
     expect(source).toContain('Slug preview:');
     expect(source).toContain('onValidationChange={setAuthoringValidationIssues}');
+    expect(source).toContain('DialogContent');
     expect(source).not.toContain('PlaybookLibrarySummaryCards');
   });
 });

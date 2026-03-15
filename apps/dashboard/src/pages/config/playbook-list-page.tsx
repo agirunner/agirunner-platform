@@ -8,6 +8,13 @@ import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../../components/ui/dialog.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import {
   buildPlaybookDefinition,
@@ -137,6 +144,13 @@ export function PlaybookListPage(): JSX.Element {
   const createReadinessIssues = useMemo(
     () => Array.from(new Set([...createValidation.blockingIssues, ...authoringValidationIssues])),
     [authoringValidationIssues, createValidation.blockingIssues],
+  );
+  const deleteCandidate = useMemo(
+    () =>
+      playbookFamilies
+        .map((family) => family.primaryRevision)
+        .find((playbook) => playbook.id === confirmDeleteId) ?? null,
+    [confirmDeleteId, playbookFamilies],
   );
 
   function resetForm() {
@@ -450,7 +464,6 @@ export function PlaybookListPage(): JSX.Element {
           <PlaybookFamilyCard
             key={family.slug}
             family={family}
-            confirmDelete={confirmDeleteId === playbook.id}
             isArchiving={
               archiveMutation.isPending && archiveMutation.variables?.playbookId === playbook.id
             }
@@ -458,7 +471,6 @@ export function PlaybookListPage(): JSX.Element {
             onArchiveChange={(archived) =>
               archiveMutation.mutate({ playbookId: playbook.id, archived })
             }
-            onDelete={() => deleteMutation.mutate(playbook.id)}
             onRequestDelete={() =>
               setConfirmDeleteId((current) => (current === playbook.id ? null : playbook.id))
             }
@@ -473,6 +485,42 @@ export function PlaybookListPage(): JSX.Element {
           </Card>
         ) : null}
       </div>
+
+      <Dialog
+        open={confirmDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setConfirmDeleteId(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Delete Playbook Revision</DialogTitle>
+            <DialogDescription>
+              {deleteCandidate
+                ? `Delete revision v${deleteCandidate.version} for ${deleteCandidate.name}? Existing workflows that already reference this revision will block deletion.`
+                : 'Delete this playbook revision? Existing workflows that already reference it will block deletion.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" onClick={() => setConfirmDeleteId(null)}>
+              Keep revision
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (deleteCandidate) {
+                  deleteMutation.mutate(deleteCandidate.id);
+                }
+              }}
+              disabled={deleteMutation.isPending || deleteCandidate === null}
+            >
+              Delete revision
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

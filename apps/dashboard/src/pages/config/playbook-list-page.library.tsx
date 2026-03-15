@@ -102,11 +102,9 @@ export function PlaybookLibraryToolbar(props: {
 
 export function PlaybookFamilyCard(props: {
   family: PlaybookFamilyRecord;
-  confirmDelete: boolean;
   isArchiving: boolean;
   isDeleting: boolean;
   onArchiveChange(archived: boolean): void;
-  onDelete(): void;
   onRequestDelete(): void;
 }): JSX.Element {
   const { family } = props;
@@ -156,27 +154,6 @@ export function PlaybookFamilyCard(props: {
         {isArchivedFamily ? (
           <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
             This family has no active revision. Restore one before launching a new workflow.
-          </div>
-        ) : null}
-        {props.confirmDelete ? (
-          <div className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-            <div className="font-medium">Delete revision v{playbook.version}?</div>
-            <p className="mt-1">
-              Existing workflows that already reference this revision will block deletion.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button variant="outline" size="sm" onClick={props.onRequestDelete}>
-                Keep revision
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={props.onDelete}
-                disabled={props.isDeleting}
-              >
-                Delete revision
-              </Button>
-            </div>
           </div>
         ) : null}
         <div className="grid grid-cols-4 gap-2">
