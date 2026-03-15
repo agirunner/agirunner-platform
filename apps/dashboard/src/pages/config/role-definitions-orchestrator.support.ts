@@ -251,7 +251,7 @@ export function summarizeReasoningConfig(
   const [firstKey] = Object.keys(config);
   const value = config[firstKey];
   if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    return `${firstKey}: ${String(value)}`;
+    return `Reasoning: ${String(value)}`;
   }
   return `${firstKey} configured`;
 }

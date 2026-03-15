@@ -109,8 +109,6 @@ export function OrchestratorControlPlane(props: {
               value={props.modelSummary.modelLabel}
               detail={props.modelSummary.reasoningLabel}
               primaryLabel="Edit model here"
-              secondaryHref="/config/llm"
-              secondaryLabel="Open full routing"
               isLoading={props.isLoading}
               onEdit={() => setIsModelOpen(true)}
             />
@@ -121,8 +119,6 @@ export function OrchestratorControlPlane(props: {
               value={`${props.poolSummary.runningContainers} running / ${props.poolSummary.desiredReplicas} desired replicas`}
               detail={`Runtime: ${props.poolSummary.runtimeLabel} · Model pin: ${props.poolSummary.modelLabel}`}
               primaryLabel="Edit pool here"
-              secondaryHref="/fleet/workers"
-              secondaryLabel="Open full fleet"
               isLoading={props.isLoading}
               onEdit={() => setIsPoolOpen(true)}
             />

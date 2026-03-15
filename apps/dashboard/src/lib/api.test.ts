@@ -342,6 +342,95 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
+  it('manages project-owned artifact files through dedicated project file routes', async () => {
+    writeSession({ accessToken: 'artifact-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn() as unknown as typeof fetch;
+    vi.mocked(fetcher)
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'file-1',
+                project_id: 'project-1',
+                key: 'brief-md',
+                description: 'Initial brief',
+                file_name: 'brief.md',
+                content_type: 'text/markdown',
+                size_bytes: 128,
+                created_at: '2026-03-14T18:00:00.000Z',
+                download_url: '/api/v1/projects/project-1/files/file-1/content',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                id: 'file-1',
+                project_id: 'project-1',
+                key: 'brief-md',
+                description: 'Initial brief',
+                file_name: 'brief.md',
+                content_type: 'text/markdown',
+                size_bytes: 128,
+                created_at: '2026-03-14T18:00:00.000Z',
+                download_url: '/api/v1/projects/project-1/files/file-1/content',
+              },
+            ],
+          }),
+          { status: 201 },
+        ),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 204 })) as unknown as typeof fetch;
+
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    const files = await api.listProjectArtifactFiles('project-1');
+    await api.uploadProjectArtifactFiles('project-1', [
+      {
+        file_name: 'brief.md',
+        description: 'Initial brief',
+        content_base64: Buffer.from('# Brief').toString('base64'),
+        content_type: 'text/markdown',
+      },
+    ]);
+    await api.deleteProjectArtifactFile('project-1', 'file-1');
+
+    expect(files[0]?.key).toBe('brief-md');
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/files',
+    );
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/files/batch',
+    );
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+      'http://localhost:8080/api/v1/projects/project-1/files/file-1',
+    );
+  });
+
   it('creates playbook workflows through the dashboard api surface', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 

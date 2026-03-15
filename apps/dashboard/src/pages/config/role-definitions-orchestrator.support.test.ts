@@ -116,7 +116,7 @@ describe('role definitions orchestrator support', () => {
   it('formats empty reasoning config safely', () => {
     expect(summarizeReasoningConfig(null)).toBe('No explicit reasoning profile');
     expect(summarizeReasoningConfig({ thinking_level: 'medium' })).toBe(
-      'thinking_level: medium',
+      'Reasoning: medium',
     );
   });
 
