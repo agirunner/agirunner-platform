@@ -7,19 +7,18 @@ function readSource() {
 }
 
 describe('playbook authoring form source', () => {
-  it('adds a process-first overview ahead of the detailed authoring sections', () => {
+  it('keeps the primary authoring path process-first instead of summary-card-first', () => {
     const source = readSource();
-    expect(source).toContain('summarizePlaybookAuthoringDraft');
     expect(source).toContain('dashboardApi.listRoleDefinitions');
-    expect(source).toContain('Authoring Overview');
+    expect(source).toContain('Process-first authoring');
     expect(source).toContain(
-      'Start with the process the orchestrator must follow',
+      'Define the workflow outcome, tell the orchestrator how the process should run',
     );
-    expect(source).toContain('OverviewCard');
     expect(source).toContain('Process');
-    expect(source).toContain('Rules');
     expect(source).toContain('Inputs');
     expect(source).toContain('Advanced');
+    expect(source).not.toContain('Authoring Overview');
+    expect(source).not.toContain('OverviewCard');
   });
 
   it('uses tabs for progressive disclosure with process first and advanced controls separated', () => {

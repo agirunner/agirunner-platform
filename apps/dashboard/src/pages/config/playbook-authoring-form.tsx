@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { dashboardApi } from '../../lib/api.js';
 import {
-  summarizePlaybookAuthoringDraft,
   validateRoleDrafts,
   validateWorkflowRulesDraft,
   type PlaybookAuthoringDraft,
@@ -26,7 +25,6 @@ interface PlaybookAuthoringFormProps {
 }
 
 export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.Element {
-  const summary = summarizePlaybookAuthoringDraft(props.draft);
   const [parameterIssues, setParameterIssues] = useState<Record<string, string>>({});
   const roleDefinitionsQuery = useQuery({
     queryKey: ['role-definitions', 'active'],
@@ -92,50 +90,6 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
 
   return (
     <div className="grid gap-5">
-      <Card>
-        <CardHeader className="space-y-2">
-          <CardTitle>Authoring Overview</CardTitle>
-          <p className="text-sm text-muted">
-            Start with the process the orchestrator must follow, then add only the rules and inputs
-            needed to keep execution deterministic.
-          </p>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <OverviewCard
-            title="Process"
-            lines={[
-              summary.hasProcessInstructions ? 'Instructions ready' : 'Add process instructions',
-              `${summary.reviewRuleCount} review rules`,
-              `${summary.approvalRuleCount} approval rules`,
-            ]}
-          />
-          <OverviewCard
-            title="Team and Handoffs"
-            lines={[
-              `${summary.roleCount} team roles`,
-              `${summary.handoffRuleCount} handoff rules`,
-              `${summary.checkpointCount} checkpoints`,
-            ]}
-          />
-          <OverviewCard
-            title="Inputs"
-            lines={[
-              `${summary.parameterCount} inputs`,
-              `${summary.requiredParameterCount} required`,
-              `${summary.secretParameterCount} secret`,
-            ]}
-          />
-          <OverviewCard
-            title="Advanced"
-            lines={[
-              `${summary.columnCount} board columns`,
-              `${summary.gatedCheckpointCount} gated checkpoints`,
-              `${summary.runtimeOverrideCount} pool overrides`,
-            ]}
-          />
-        </CardContent>
-      </Card>
-
       <Tabs defaultValue="process" className="space-y-4" data-testid="playbook-authoring-tabs">
         <div className="sticky top-4 z-10 -mx-1 rounded-2xl bg-background/95 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/80">
           <TabsList className="grid h-auto w-full gap-2 rounded-xl bg-border/20 p-2 sm:grid-cols-3">
@@ -161,6 +115,16 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
         </div>
 
         <TabsContent value="process" className="space-y-4">
+          <Card className="border-border/70 bg-card/80 shadow-sm">
+            <CardHeader className="space-y-2">
+              <CardTitle>Process-first authoring</CardTitle>
+              <p className="text-sm text-muted">
+                Define the workflow outcome, tell the orchestrator how the process should run, and
+                add only the mandatory role, review, approval, and handoff rules needed to keep the
+                workflow deterministic.
+              </p>
+            </CardHeader>
+          </Card>
           <ProcessInstructionsSection draft={props.draft} onChange={updateDraft} />
           <TeamRolesSection
             draft={props.draft}
@@ -197,17 +161,4 @@ function buildParameterIssueKey(index: number, kind: 'default' | 'mapping'): str
 function readParameterIssueIndex(issueKey: string): number {
   const [index] = issueKey.split(':', 1);
   return Number.parseInt(index ?? '', 10);
-}
-
-function OverviewCard(props: { title: string; lines: string[] }): JSX.Element {
-  return (
-    <div className="rounded-lg border border-border/70 bg-border/10 p-4">
-      <div className="mb-3 text-sm font-medium">{props.title}</div>
-      <div className="grid gap-2 text-sm text-muted">
-        {props.lines.map((line) => (
-          <div key={line}>{line}</div>
-        ))}
-      </div>
-    </div>
-  );
 }
