@@ -91,6 +91,14 @@ export function RoleDefinitionsPage(): JSX.Element {
   const allRoles = [...(rolesQuery.data ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   const roles = showActiveOnly ? allRoles.filter((r) => r.is_active !== false) : allRoles;
   const summary = countRoleStateSummary(allRoles);
+
+  const { assignments, models } = orchestratorState.roleDialogCatalog;
+  const modelLookup = new Map(models.map((m) => [m.id, m.model_id]));
+  function getModelLabel(roleName: string): string {
+    const assignment = assignments.find((a) => a.role_name.trim().toLowerCase() === roleName.trim().toLowerCase());
+    if (!assignment?.primary_model_id) return 'System default';
+    return modelLookup.get(assignment.primary_model_id) ?? assignment.primary_model_id;
+  }
   const dialogProps = {
     roles: allRoles,
     ...orchestratorState.roleDialogCatalog,
@@ -158,6 +166,7 @@ export function RoleDefinitionsPage(): JSX.Element {
                   <RoleRow
                     key={role.id}
                     role={role}
+                    modelLabel={getModelLabel(role.name)}
                     togglingRoleId={toggleActiveMutation.isPending ? (toggleActiveMutation.variables as RoleDefinition | undefined)?.id ?? null : null}
                     onEdit={setEditingRole}
                     onDelete={setDeletingRole}

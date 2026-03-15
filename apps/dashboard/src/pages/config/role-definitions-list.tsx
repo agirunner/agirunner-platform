@@ -7,9 +7,8 @@ import { Card, CardContent } from '../../components/ui/card.js';
 import { Switch } from '../../components/ui/switch.js';
 import { TableCell, TableRow } from '../../components/ui/table.js';
 import { cn } from '../../lib/utils.js';
-import {
-  describeRoleModelPolicy,
-  type RoleDefinition,
+import type {
+  RoleDefinition,
 } from './role-definitions-page.support.js';
 import {
   canDeleteRole,
@@ -40,6 +39,7 @@ export function MetricCard(props: {
 
 export function RoleRow(props: {
   role: RoleDefinition;
+  modelLabel: string;
   togglingRoleId: string | null;
   onEdit(role: RoleDefinition): void;
   onDelete(role: RoleDefinition): void;
@@ -47,7 +47,6 @@ export function RoleRow(props: {
   onDuplicate(role: RoleDefinition): void;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const modelPolicy = describeRoleModelPolicy(props.role);
   const isDeletable = canDeleteRole(props.role);
 
   return (
@@ -95,7 +94,7 @@ export function RoleRow(props: {
           <Badge variant="outline">{props.role.allowed_tools?.length ?? 0}</Badge>
         </TableCell>
         <TableCell className="text-xs">
-          <div className="font-mono">{modelPolicy.primary}</div>
+          <div className="font-mono">{props.modelLabel}</div>
         </TableCell>
         <TableCell className="text-right">
           <div className="flex items-center justify-end gap-1">
