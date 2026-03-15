@@ -95,9 +95,11 @@ export function summarizeTools(tools: ToolTag[]): ToolSummaryCard[] {
     byCategory.set(cat, (byCategory.get(cat) ?? 0) + 1);
   }
 
+  const workflowCount = byCategory.get('workflow') ?? 0;
+  const specialistCount = tools.length - workflowCount;
   return [
-    { label: 'Total tools', value: `${tools.length}`, detail: `${byCategory.size} categories` },
-    { label: 'Agent tools', value: `${(byCategory.get('files') ?? 0) + (byCategory.get('search') ?? 0) + (byCategory.get('execution') ?? 0) + (byCategory.get('git') ?? 0)}`, detail: 'Files, search, execution, git' },
-    { label: 'Workflow tools', value: `${byCategory.get('workflow') ?? 0}`, detail: 'Orchestrator-only management tools' },
+    { label: 'Total', value: `${tools.length}`, detail: `${byCategory.size} categories` },
+    { label: 'Specialist', value: `${specialistCount}`, detail: 'Available to all agents' },
+    { label: 'Orchestrator-only', value: `${workflowCount}`, detail: 'Workflow management' },
   ];
 }
