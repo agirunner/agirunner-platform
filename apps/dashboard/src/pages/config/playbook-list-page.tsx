@@ -93,16 +93,6 @@ export function PlaybookListPage(): JSX.Element {
     },
   });
 
-  const archiveMutation = useMutation({
-    mutationFn: ({ playbookId, archived }: { playbookId: string; archived: boolean }) =>
-      archived
-        ? dashboardApi.archivePlaybook(playbookId)
-        : dashboardApi.restorePlaybook(playbookId),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
-    },
-  });
-
   const allPlaybooks = playbooksQuery.data?.data ?? [];
   const playbookFamilies = useMemo(() => buildPlaybookFamilies(allPlaybooks), [allPlaybooks]);
   const filteredFamilies = useMemo(
@@ -404,8 +394,8 @@ export function PlaybookListPage(): JSX.Element {
         <div>
           <h1 className="text-2xl font-semibold">Playbooks</h1>
           <p className="text-sm text-muted">
-            Define reusable orchestrated workflow operating models, archive retired revisions, and
-            delete unused playbook records without leaving the supported management path.
+            Define reusable orchestrated workflow operating models and manage them from a single
+            full-width library.
           </p>
         </div>
         <Button onClick={openCreateWorkspace}>
@@ -435,20 +425,10 @@ export function PlaybookListPage(): JSX.Element {
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredFamilies.map((family) => {
-          const playbook = family.primaryRevision;
           return (
-          <PlaybookFamilyCard
-            key={family.slug}
-            family={family}
-            isArchiving={
-              archiveMutation.isPending && archiveMutation.variables?.playbookId === playbook.id
-            }
-            onArchiveChange={(archived) =>
-              archiveMutation.mutate({ playbookId: playbook.id, archived })
-            }
-          />
-        );
-      })}
+            <PlaybookFamilyCard key={family.slug} family={family} />
+          );
+        })}
         {!playbooksQuery.isLoading && filteredFamilies.length === 0 ? (
           <Card>
             <CardContent className="p-6 text-sm text-muted">

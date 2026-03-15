@@ -81,6 +81,29 @@ describe('PlatformApiClient', () => {
     expect(headers.Authorization).toBe('Bearer jwt-token');
   });
 
+  it('does not send a json content-type header for delete requests without a body', async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ data: { id: 'playbook-1', deleted: true } }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    ) as unknown as typeof fetch;
+
+    const client = new PlatformApiClient({
+      baseUrl: 'http://localhost:8080',
+      accessToken: 'jwt-token',
+      fetcher,
+    });
+
+    await client.deletePlaybook('playbook-1');
+
+    const [, options] = vi.mocked(fetcher).mock.calls[0];
+    const headers = (options?.headers ?? {}) as Record<string, string>;
+    expect(headers.Authorization).toBe('Bearer jwt-token');
+    expect(headers['Content-Type']).toBeUndefined();
+    expect(options?.body).toBeUndefined();
+  });
+
   it.each([401, 403, 404, 500])('throws PlatformApiError for HTTP %s responses', async (statusCode) => {
     const fetcher = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ error: 'failure' }), {

@@ -558,12 +558,14 @@ export class PlatformApiClient {
     const shouldIncludeAuth = options.includeAuth ?? true;
     const token = options.token ?? this.accessToken;
 
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
 
     if (shouldIncludeAuth && token) {
       headers.Authorization = `Bearer ${token}`;
+    }
+
+    if (options.body !== undefined) {
+      headers['Content-Type'] = 'application/json';
     }
 
     const response = await this.fetcher(`${this.baseUrl}${path}`, {

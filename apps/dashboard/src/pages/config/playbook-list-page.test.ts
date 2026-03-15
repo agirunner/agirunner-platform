@@ -24,10 +24,7 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('Manage');
-    expect(source).toContain('This family has no active revision. Restore one before launching');
-    expect(source).toContain('dashboardApi.archivePlaybook');
-    expect(source).toContain('dashboardApi.restorePlaybook');
-    expect(source).toContain('Restore');
+    expect(source).toContain('This playbook is inactive. Open it to reactivate the family before launching a new');
     expect(source).toContain('Back to playbook library');
     expect(source).toContain('PlaybookLibraryToolbar');
     expect(source).toContain('PlaybookFamilyCard');
@@ -45,5 +42,7 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('PlaybookLibrarySummaryCards');
     expect(source).not.toContain('dashboardApi.deletePlaybook');
     expect(source).not.toContain('Delete Playbook Revision');
+    expect(source).not.toContain('dashboardApi.archivePlaybook');
+    expect(source).not.toContain('dashboardApi.restorePlaybook');
   });
 });

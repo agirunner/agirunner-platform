@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { Archive, GitBranch, Layers3, RotateCcw, Rocket, Search, Settings2 } from 'lucide-react';
+import { Layers3, Rocket, Search, Settings2 } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -93,8 +93,6 @@ export function PlaybookLibraryToolbar(props: {
 
 export function PlaybookFamilyCard(props: {
   family: PlaybookFamilyRecord;
-  isArchiving: boolean;
-  onArchiveChange(archived: boolean): void;
 }): JSX.Element {
   const { family } = props;
   const playbook = family.primaryRevision;
@@ -115,22 +113,13 @@ export function PlaybookFamilyCard(props: {
           <div className="flex flex-wrap justify-end gap-2">
             <Badge variant="outline">v{playbook.version}</Badge>
             <Badge variant="secondary">{family.lifecycle}</Badge>
-            {isArchivedFamily ? <Badge variant="destructive">Archived-only</Badge> : null}
+            {isArchivedFamily ? <Badge variant="secondary">Inactive</Badge> : null}
           </div>
         </div>
         <div className="flex flex-wrap gap-2 text-xs text-muted">
           <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
-            <GitBranch className="h-3.5 w-3.5" />
-            {family.revisionCount} revision{family.revisionCount === 1 ? '' : 's'}
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
             <Layers3 className="h-3.5 w-3.5" />
             {family.structure.boardColumns} columns / {family.structure.stages} stages
-          </span>
-          <span className="rounded-full border border-border/70 bg-muted/20 px-3 py-1">
-            {family.activeRevisionCount > 0
-              ? `${family.activeRevisionCount} active revision${family.activeRevisionCount === 1 ? '' : 's'}`
-              : 'No active revisions'}
           </span>
         </div>
       </CardHeader>
@@ -142,7 +131,8 @@ export function PlaybookFamilyCard(props: {
         </div>
         {isArchivedFamily ? (
           <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-            This family has no active revision. Restore one before launching a new workflow.
+            This playbook is inactive. Open it to reactivate the family before launching a new
+            workflow.
           </div>
         ) : null}
         <div className="grid grid-cols-3 gap-2">
@@ -153,35 +143,17 @@ export function PlaybookFamilyCard(props: {
             </Link>
           </Button>
           {isArchivedFamily ? (
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full px-2"
-              onClick={() => props.onArchiveChange(false)}
-              disabled={props.isArchiving}
-            >
-              <RotateCcw className="h-4 w-4" />
-              Restore
+            <Button size="sm" className="col-span-2 w-full px-2" disabled>
+              <Rocket className="h-4 w-4" />
+              Launch
             </Button>
           ) : (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                className="w-full px-2"
-                onClick={() => props.onArchiveChange(true)}
-                disabled={props.isArchiving}
-              >
-                <Archive className="h-4 w-4" />
-                Archive
-              </Button>
-              <Button asChild size="sm" className="w-full px-2">
-                <Link to={`/config/playbooks/${playbook.id}/launch`}>
-                  <Rocket className="h-4 w-4" />
-                  Launch
-                </Link>
-              </Button>
-            </>
+            <Button asChild size="sm" className="col-span-2 w-full px-2">
+              <Link to={`/config/playbooks/${playbook.id}/launch`}>
+                <Rocket className="h-4 w-4" />
+                Launch
+              </Link>
+            </Button>
           )}
         </div>
       </CardContent>

@@ -18,11 +18,9 @@ describe('playbook detail page source', () => {
     expect(source).toContain('buildPlaybookRestorePayload');
     expect(source).toContain('ToggleCard');
     expect(source).toContain('Playbook Availability');
-    expect(source).toContain('Archive prevents new workflow launches');
+    expect(source).toContain('Inactive playbooks cannot launch new workflows until you save and reactivate them.');
     expect(source).toContain("checkedLabel=\"Active\"");
-    expect(source).toContain("uncheckedLabel=\"Archived\"");
-    expect(source).toContain('dashboardApi.archivePlaybook');
-    expect(source).toContain('dashboardApi.restorePlaybook');
+    expect(source).toContain("uncheckedLabel=\"Inactive\"");
     expect(source).toContain('dashboardApi.deletePlaybook');
     expect(source).toContain('Delete Playbook Revision');
     expect(source).toContain('Delete Revision');

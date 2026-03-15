@@ -55,6 +55,7 @@ export function PlaybookDetailPage(): JSX.Element {
   const [slug, setSlug] = useState('');
   const [description, setDescription] = useState('');
   const [outcome, setOutcome] = useState('');
+  const [isActive, setIsActive] = useState(true);
   const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
   const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
     hydratePlaybookAuthoringDraft(DEFAULT_LIFECYCLE, {}),
@@ -86,6 +87,7 @@ export function PlaybookDetailPage(): JSX.Element {
     setSlug(playbook.slug);
     setDescription(playbook.description ?? '');
     setOutcome(playbook.outcome);
+    setIsActive(playbook.is_active !== false);
     setLifecycle(nextLifecycle);
     setDraft(hydratePlaybookAuthoringDraft(nextLifecycle, playbook.definition));
     setAuthoringValidationIssues([]);
@@ -148,7 +150,7 @@ export function PlaybookDetailPage(): JSX.Element {
       if (definition.ok === false) {
         throw new Error(definition.error);
       }
-      return dashboardApi.updatePlaybook(playbookId, {
+      const savedPlaybook = await dashboardApi.updatePlaybook(playbookId, {
         name: name.trim(),
         slug: slug.trim() || undefined,
         description: description.trim() || undefined,
@@ -156,6 +158,10 @@ export function PlaybookDetailPage(): JSX.Element {
         lifecycle,
         definition: definition.value,
       });
+      if (!isActive) {
+        return dashboardApi.archivePlaybook(savedPlaybook.id);
+      }
+      return savedPlaybook;
     },
     onSuccess: (playbook) => {
       loadPlaybook(playbook);
@@ -190,30 +196,6 @@ export function PlaybookDetailPage(): JSX.Element {
       setMessage(null);
       setDefinitionError(
         error instanceof Error ? error.message : 'Failed to restore playbook revision.',
-      );
-    },
-  });
-  const archiveStateMutation = useMutation({
-    mutationFn: (archived: boolean) =>
-      archived
-        ? dashboardApi.archivePlaybook(playbookId)
-        : dashboardApi.restorePlaybook(playbookId),
-    onSuccess: async (nextPlaybook) => {
-      loadPlaybook(nextPlaybook);
-      setDeleteOpen(false);
-      setDefinitionError(null);
-      setMessage(
-        nextPlaybook.is_active
-          ? `Playbook activated for ${nextPlaybook.slug}.`
-          : 'Playbook archived. New workflow launches stay disabled until you reactivate it.',
-      );
-      await queryClient.invalidateQueries({ queryKey: ['playbook', playbookId] });
-      await queryClient.invalidateQueries({ queryKey: ['playbooks'] });
-    },
-    onError: (error) => {
-      setMessage(null);
-      setDefinitionError(
-        error instanceof Error ? error.message : 'Failed to change playbook archive state.',
       );
     },
   });
@@ -252,7 +234,7 @@ export function PlaybookDetailPage(): JSX.Element {
             <h1 className="text-2xl font-semibold">{playbook.name}</h1>
             <Badge variant="outline">v{playbook.version}</Badge>
             <Badge variant="secondary">{playbook.lifecycle}</Badge>
-            {!playbook.is_active ? <Badge variant="destructive">Archived</Badge> : null}
+            {!playbook.is_active ? <Badge variant="secondary">Inactive</Badge> : null}
           </div>
           <p className="max-w-3xl text-sm text-muted">
             Edit workflow structure, automation policy, and launch inputs in one place without
@@ -286,15 +268,17 @@ export function PlaybookDetailPage(): JSX.Element {
             label="Playbook Availability"
             description="Control whether this playbook family can launch new workflows."
             meta={
-              playbook.is_active
+              isActive
                 ? 'Active playbooks can launch new workflows from this family.'
-                : 'Archive prevents new workflow launches but keeps revision history available.'
+                : 'Inactive playbooks cannot launch new workflows until you save and reactivate them.'
             }
-            checked={playbook.is_active !== false}
+            checked={isActive}
             checkedLabel="Active"
-            uncheckedLabel="Archived"
-            disabled={archiveStateMutation.isPending}
-            onCheckedChange={(checked) => archiveStateMutation.mutate(!checked)}
+            uncheckedLabel="Inactive"
+            onCheckedChange={(checked) => {
+              setIsActive(checked);
+              setIsDirty(true);
+            }}
           />
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr),minmax(0,0.9fr)]">
             <label className="grid gap-2 text-sm">
@@ -364,10 +348,10 @@ export function PlaybookDetailPage(): JSX.Element {
               page owns workflow structure, orchestration policy, specialist exceptions, and launch
               inputs only.
             </div>
-            {!playbook.is_active ? (
+            {!isActive ? (
               <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200 md:col-span-2 xl:col-span-3">
-                This playbook is archived. Revision history remains available, but launch is
-                disabled until a revision is restored.
+                This playbook is staged as inactive. Save the page to stop new workflow launches
+                for this family while keeping revision history available.
               </div>
             ) : null}
           </div>
