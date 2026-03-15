@@ -4,7 +4,7 @@ export type ThemeMode = 'light' | 'dark';
 
 export function readTheme(): ThemeMode {
   const stored = localStorage.getItem(THEME_KEY);
-  return stored === 'dark' ? 'dark' : 'light';
+  return stored === 'light' ? 'light' : 'dark';
 }
 
 export function applyTheme(theme: ThemeMode): void {
