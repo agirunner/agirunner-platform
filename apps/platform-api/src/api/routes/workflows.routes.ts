@@ -16,6 +16,7 @@ import {
   parseCursorAfter,
   parseCursorLimit,
 } from '../../services/event-query-service.js';
+import { HandoffService } from '../../services/handoff-service.js';
 import { WorkflowChainingService } from '../../services/workflow-chaining-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
@@ -149,6 +150,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
   const workflowChainingService = new WorkflowChainingService(app.pgPool, workflowService);
   const approvalQueueService = new ApprovalQueueService(app.pgPool);
   const eventQueryService = new EventQueryService(app.pgPool);
+  const handoffService = new HandoffService(app.pgPool);
   const toolResultService = new WorkflowToolResultService(app.pgPool);
   const playbookControlService = new PlaybookWorkflowControlService({
     pool: app.pgPool,
@@ -395,6 +397,36 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           params.id,
           params.workItemId,
           limit,
+        ),
+      };
+    },
+  );
+
+  app.get(
+    '/api/v1/workflows/:id/work-items/:workItemId/handoffs',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string };
+      return {
+        data: await handoffService.listWorkItemHandoffs(
+          request.auth!.tenantId,
+          params.id,
+          params.workItemId,
+        ),
+      };
+    },
+  );
+
+  app.get(
+    '/api/v1/workflows/:id/work-items/:workItemId/handoffs/latest',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string };
+      return {
+        data: await handoffService.getLatestWorkItemHandoff(
+          request.auth!.tenantId,
+          params.id,
+          params.workItemId,
         ),
       };
     },

@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import {
   dashboardApi,
+  type DashboardTaskHandoffRecord,
   type DashboardWorkItemMemoryEntry,
   type DashboardWorkItemMemoryHistoryEntry,
   type DashboardWorkflowBoardColumn,
@@ -118,6 +119,17 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
     queryFn: () => dashboardApi.listWorkflowWorkItemEvents(props.workflowId, props.workItemId, 50),
     enabled: props.workItemId.length > 0,
   });
+  const handoffQuery = useQuery({
+    queryKey: ['workflow-work-item-handoffs', props.workflowId, props.workItemId],
+    queryFn: () => dashboardApi.listWorkflowWorkItemHandoffs(props.workflowId, props.workItemId),
+    enabled: props.workflowId.length > 0 && props.workItemId.length > 0,
+  });
+  const latestHandoffQuery = useQuery({
+    queryKey: ['workflow-work-item-handoffs', props.workflowId, props.workItemId, 'latest'],
+    queryFn: () =>
+      dashboardApi.getLatestWorkflowWorkItemHandoff(props.workflowId, props.workItemId),
+    enabled: props.workflowId.length > 0 && props.workItemId.length > 0,
+  });
   const artifactQuery = useQuery({
     queryKey: [
       'workflow-work-item-artifacts',
@@ -146,6 +158,7 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
   });
 
   const workItem = workItemQuery.data;
+  const latestHandoff = latestHandoffQuery.data;
   const events = useMemo(() => sortEventsNewestFirst(eventQuery.data ?? []), [eventQuery.data]);
   const memoryEntries = useMemo(
     () => sortMemoryEntriesByKey(memoryQuery.data?.entries ?? []),
@@ -459,6 +472,12 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
                 artifactCount={artifactQuery.data?.length ?? 0}
                 memoryCount={memoryEntries.length}
                 eventCount={events.length}
+              />
+              <WorkItemContinuitySection
+                workItem={workItem}
+                handoffCount={handoffQuery.data?.length ?? 0}
+                latestHandoff={latestHandoff ?? null}
+                isLoading={handoffQuery.isLoading || latestHandoffQuery.isLoading}
               />
               {milestoneOperatorSummary ? (
                 <MilestoneOperatorSummarySection summary={milestoneOperatorSummary} />
@@ -1137,16 +1156,30 @@ function WorkItemHeader(props: {
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{workItem.stage_name ?? 'Unassigned stage'}</Badge>
+          {workItem.current_checkpoint ? (
+            <Badge variant="outline">Checkpoint: {workItem.current_checkpoint}</Badge>
+          ) : null}
           <Badge variant="outline">{workItem.column_id ?? 'Unassigned column'}</Badge>
           <Badge variant="outline">{describeCountLabel(props.linkedTaskCount, 'linked step')}</Badge>
           <Badge variant="outline">{describeCountLabel(props.artifactCount, 'artifact')}</Badge>
           {workItem.owner_role ? <Badge variant="outline">{workItem.owner_role}</Badge> : null}
+          {typeof workItem.rework_count === 'number' && workItem.rework_count > 0 ? (
+            <Badge variant="warning">
+              {workItem.rework_count} rework loop{workItem.rework_count === 1 ? '' : 's'}
+            </Badge>
+          ) : null}
         </div>
         <p className={mutedBodyClass}>
           {milestone
             ? `This milestone coordinates ${props.childCount} child work item${props.childCount === 1 ? '' : 's'} across the board.`
             : 'Review the summary first. Open controls only when routing or metadata needs to change.'}
         </p>
+        {readContinuitySummary(workItem) ? (
+          <div className="rounded-lg border border-border/70 bg-muted/10 px-3 py-2 text-sm text-muted">
+            <span className="font-medium text-foreground">Operator next step:</span>{' '}
+            {readContinuitySummary(workItem)}
+          </div>
+        ) : null}
       </div>
       {stageRecord ? <WorkItemStageProgressCard stage={stageRecord} /> : null}
       <div className={metaRowClass}>
@@ -1178,6 +1211,21 @@ function WorkItemHeader(props: {
       ) : null}
     </section>
   );
+}
+
+function readContinuitySummary(workItem: DashboardGroupedWorkItemRecord): string | null {
+  const nextActor = workItem.next_expected_actor?.trim();
+  const nextAction = workItem.next_expected_action?.trim();
+  if (nextActor && nextAction) {
+    return `${nextActor} should ${nextAction}.`;
+  }
+  if (nextActor) {
+    return `${nextActor} is the next expected actor.`;
+  }
+  if (nextAction) {
+    return `Next expected action: ${nextAction}.`;
+  }
+  return null;
 }
 
 function WorkItemStageProgressCard(props: { stage: DashboardWorkflowStageRecord }): JSX.Element {
@@ -1359,6 +1407,95 @@ function WorkItemFocusPacket(props: {
         <Badge variant="outline">{props.artifactCount} artifacts</Badge>
         <Badge variant="outline">{props.eventCount} history events</Badge>
       </div>
+    </section>
+  );
+}
+
+function WorkItemContinuitySection(props: {
+  workItem: DashboardWorkflowWorkItemRecord | null | undefined;
+  latestHandoff: DashboardTaskHandoffRecord | null;
+  handoffCount: number;
+  isLoading: boolean;
+}): JSX.Element {
+  const continuityFacts = [
+    {
+      label: 'Current checkpoint',
+      value: props.workItem?.current_checkpoint ?? props.workItem?.stage_name ?? 'Not set',
+    },
+    {
+      label: 'Next expected actor',
+      value: props.workItem?.next_expected_actor ?? 'Not set',
+    },
+    {
+      label: 'Next expected action',
+      value: props.workItem?.next_expected_action ?? 'Not set',
+    },
+    {
+      label: 'Rework count',
+      value: String(props.workItem?.rework_count ?? 0),
+    },
+  ];
+
+  return (
+    <section className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <article className={sectionFrameClass}>
+        <div className="grid gap-1">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            Current continuity
+          </div>
+          <strong className="text-base text-foreground">What the platform expects next</strong>
+          <p className={mutedBodyClass}>
+            This is the persisted continuity state the orchestrator uses between activations.
+          </p>
+        </div>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {continuityFacts.map((fact) => (
+            <div key={fact.label} className="rounded-lg border border-border/70 bg-background/80 p-3">
+              <div className="text-xs font-medium uppercase tracking-wide text-muted">{fact.label}</div>
+              <div className="mt-1 text-sm text-foreground">{fact.value}</div>
+            </div>
+          ))}
+        </div>
+      </article>
+      <article className={sectionFrameClass}>
+        <div className="grid gap-1">
+          <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
+            Latest handoff
+          </div>
+          <strong className="text-base text-foreground">Most recent specialist handoff</strong>
+          <p className={mutedBodyClass}>
+            Structured handoffs preserve what changed, what remains, and what the next actor should inspect.
+          </p>
+        </div>
+        {props.isLoading ? (
+          <p className="mt-4 text-sm text-muted">Loading latest handoff…</p>
+        ) : props.latestHandoff ? (
+          <div className="mt-4 grid gap-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline">{props.latestHandoff.role}</Badge>
+              {props.latestHandoff.stage_name ? (
+                <Badge variant="outline">{props.latestHandoff.stage_name}</Badge>
+              ) : null}
+              <Badge variant="secondary">{props.latestHandoff.completion}</Badge>
+              <Badge variant="outline">{props.handoffCount} handoffs</Badge>
+            </div>
+            <p className="text-sm leading-6 text-foreground">{props.latestHandoff.summary}</p>
+            {props.latestHandoff.successor_context ? (
+              <div className="rounded-lg border border-border/70 bg-background/80 p-3 text-sm text-muted">
+                <div className="font-medium text-foreground">Successor context</div>
+                <p className="mt-1 leading-6">{props.latestHandoff.successor_context}</p>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2 text-xs text-muted">
+              <RelativeTimestamp value={props.latestHandoff.created_at} prefix="Submitted" />
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 rounded-lg border border-dashed border-border/70 bg-background/80 px-4 py-5 text-sm text-muted">
+            No handoff recorded yet.
+          </div>
+        )}
+      </article>
     </section>
   );
 }

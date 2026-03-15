@@ -17,6 +17,18 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withScope: () => async () => {},
 }));
 
+const handoffRouteMocks = {
+  listWorkItemHandoffs: vi.fn(async () => [{ id: 'handoff-1', summary: 'ready' }]),
+  getLatestWorkItemHandoff: vi.fn(async () => ({ id: 'handoff-1', summary: 'ready' })),
+};
+
+vi.mock('../../src/services/handoff-service.js', () => ({
+  HandoffService: class {
+    listWorkItemHandoffs = handoffRouteMocks.listWorkItemHandoffs;
+    getLatestWorkItemHandoff = handoffRouteMocks.getLatestWorkItemHandoff;
+  },
+}));
+
 describe('workflow work-item routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
@@ -61,6 +73,8 @@ describe('workflow work-item routes', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    handoffRouteMocks.listWorkItemHandoffs.mockResolvedValue([{ id: 'handoff-1', summary: 'ready' }]);
+    handoffRouteMocks.getLatestWorkItemHandoff.mockResolvedValue({ id: 'handoff-1', summary: 'ready' });
   });
 
   afterEach(async () => {
@@ -90,6 +104,8 @@ describe('workflow work-item routes', () => {
       })),
       listWorkflowWorkItemTasks: vi.fn(),
       listWorkflowWorkItemEvents: vi.fn(),
+      listWorkItemHandoffs: vi.fn(async () => [{ id: 'handoff-1', summary: 'ready' }]),
+      getLatestWorkItemHandoff: vi.fn(async () => ({ id: 'handoff-1', summary: 'ready' })),
       getWorkflowWorkItemMemory: vi.fn(),
       getWorkflowWorkItemMemoryHistory: vi.fn(),
       updateWorkflowWorkItem: vi.fn(),
@@ -127,9 +143,21 @@ describe('workflow work-item routes', () => {
       url: '/api/v1/workflows/workflow-1/work-items/wi-parent?include_children=true',
       headers: { authorization: 'Bearer test' },
     });
+    const handoffListResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-parent/handoffs',
+      headers: { authorization: 'Bearer test' },
+    });
+    const latestHandoffResponse = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-parent/handoffs/latest',
+      headers: { authorization: 'Bearer test' },
+    });
 
     expect(listResponse.statusCode).toBe(200);
     expect(detailResponse.statusCode).toBe(200);
+    expect(handoffListResponse.statusCode).toBe(200);
+    expect(latestHandoffResponse.statusCode).toBe(200);
     expect(workflowService.listWorkflowWorkItems).toHaveBeenCalledWith('tenant-1', 'workflow-1', {
       parent_work_item_id: 'wi-root',
       stage_name: 'implementation',
@@ -150,6 +178,12 @@ describe('workflow work-item routes', () => {
         id: 'wi-parent',
         children: [expect.objectContaining({ id: 'wi-child-1' })],
       }),
+    );
+    expect(handoffListResponse.json().data).toEqual([
+      expect.objectContaining({ id: 'handoff-1', summary: 'ready' }),
+    ]);
+    expect(latestHandoffResponse.json().data).toEqual(
+      expect.objectContaining({ id: 'handoff-1', summary: 'ready' }),
     );
   });
 

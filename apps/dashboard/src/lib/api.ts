@@ -446,11 +446,15 @@ export interface DashboardWorkflowWorkItemRecord {
   workflow_id: string;
   parent_work_item_id?: string | null;
   stage_name: string;
+  current_checkpoint?: string | null;
   title: string;
   goal?: string | null;
   acceptance_criteria?: string | null;
   column_id: string;
   owner_role?: string | null;
+  next_expected_actor?: string | null;
+  next_expected_action?: string | null;
+  rework_count?: number | null;
   priority: string;
   notes?: string | null;
   metadata?: Record<string, unknown> | null;
@@ -462,6 +466,30 @@ export interface DashboardWorkflowWorkItemRecord {
   children?: DashboardWorkflowWorkItemRecord[];
   created_at?: string;
   updated_at?: string;
+}
+
+export interface DashboardTaskHandoffRecord {
+  id: string;
+  workflow_id: string;
+  work_item_id?: string | null;
+  task_id: string;
+  request_id?: string | null;
+  role: string;
+  team_name?: string | null;
+  stage_name?: string | null;
+  sequence: number;
+  summary: string;
+  completion: string;
+  changes: unknown[];
+  decisions: unknown[];
+  remaining_items: unknown[];
+  blockers: unknown[];
+  review_focus: string[];
+  known_risks: string[];
+  successor_context?: string | null;
+  role_data: Record<string, unknown>;
+  artifact_ids: string[];
+  created_at: string;
 }
 
 export interface DashboardWorkItemMemoryEntry {
@@ -1596,6 +1624,14 @@ export interface DashboardApi {
     workItemId: string,
     limit?: number,
   ): Promise<DashboardEventRecord[]>;
+  listWorkflowWorkItemHandoffs(
+    workflowId: string,
+    workItemId: string,
+  ): Promise<DashboardTaskHandoffRecord[]>;
+  getLatestWorkflowWorkItemHandoff(
+    workflowId: string,
+    workItemId: string,
+  ): Promise<DashboardTaskHandoffRecord | null>;
   getWorkflowWorkItemMemory(
     workflowId: string,
     workItemId: string,
@@ -2435,6 +2471,24 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestData<DashboardEventRecord[]>(
           `/api/v1/workflows/${workflowId}/work-items/${workItemId}/events?limit=${limit}`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    listWorkflowWorkItemHandoffs: (workflowId, workItemId) =>
+      withRefresh(() =>
+        requestData<DashboardTaskHandoffRecord[]>(
+          `/api/v1/workflows/${workflowId}/work-items/${workItemId}/handoffs`,
+          {
+            method: 'GET',
+          },
+        ),
+      ),
+    getLatestWorkflowWorkItemHandoff: (workflowId, workItemId) =>
+      withRefresh(() =>
+        requestData<DashboardTaskHandoffRecord | null>(
+          `/api/v1/workflows/${workflowId}/work-items/${workItemId}/handoffs/latest`,
           {
             method: 'GET',
           },

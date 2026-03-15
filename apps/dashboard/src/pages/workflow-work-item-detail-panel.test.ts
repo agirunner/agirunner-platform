@@ -86,6 +86,10 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('props.brief.facts.map((fact) => (');
     expect(source).toContain('Operator breadcrumb');
     expect(source).toContain('Current routing');
+    expect(source).toContain('Checkpoint: {workItem.current_checkpoint}');
+    expect(source).toContain('readContinuitySummary(workItem)');
+    expect(source).toContain('Operator next step:');
+    expect(source).toContain('rework loop');
     expect(source).toContain('Stage and board routing');
     expect(source).toContain('Ownership and linkage');
     expect(source).toContain('Milestone decomposition');
