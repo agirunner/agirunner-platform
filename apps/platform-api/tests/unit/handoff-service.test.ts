@@ -54,6 +54,7 @@ describe('HandoffService', () => {
     const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
       request_id: 'req-1',
       summary: 'Implemented auth flow.',
+      completion: 'full',
       changes: [{ file: 'src/auth.ts' }],
       review_focus: ['error handling'],
       successor_context: 'Focus on refresh token expiry.',
@@ -120,6 +121,7 @@ describe('HandoffService', () => {
     const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
       request_id: 'req-1',
       summary: 'Implemented auth flow.',
+      completion: 'full',
       changes: [{ file: 'src/auth.ts' }],
       review_focus: ['error handling'],
       successor_context: 'Focus on refresh token expiry.',
@@ -181,6 +183,7 @@ describe('HandoffService', () => {
       service.submitTaskHandoff('tenant-1', 'task-1', {
         request_id: 'req-1',
         summary: 'Different summary',
+        completion: 'full',
       }),
     ).rejects.toBeInstanceOf(ConflictError);
   });

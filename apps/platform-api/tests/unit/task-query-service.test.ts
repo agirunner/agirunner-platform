@@ -13,6 +13,61 @@ function createPool(row: Record<string, unknown>) {
 }
 
 describe('task query service git activity (FR-055)', () => {
+  it('includes the latest structured handoff on task detail responses', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            id: taskId,
+            tenant_id: tenantId,
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            metadata: {},
+          }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            id: 'handoff-1',
+            task_id: taskId,
+            role: 'developer',
+            summary: 'Implementation is ready for review.',
+            completion: 'partial',
+            changes: [{ path: 'src/auth.ts', summary: 'Refined token refresh handling' }],
+            decisions: ['Keep refresh token rotation server-side'],
+            remaining_items: ['Validate refresh expiry edge case'],
+            blockers: ['Waiting on production token sample'],
+            review_focus: ['Auth edge cases'],
+            known_risks: ['Refresh token expiry handling'],
+            successor_context: 'Focus on auth edge cases.',
+            role_data: { module: 'auth' },
+            artifact_ids: ['artifact-1'],
+            created_at: new Date('2026-03-15T12:00:00Z'),
+          }],
+        }),
+    };
+    const service = new TaskQueryService(pool as never);
+
+    const task = await service.getTask(tenantId, taskId);
+
+    expect(task).toEqual(
+      expect.objectContaining({
+        id: taskId,
+        latest_handoff: expect.objectContaining({
+          id: 'handoff-1',
+          completion: 'partial',
+          summary: 'Implementation is ready for review.',
+          changes: [{ path: 'src/auth.ts', summary: 'Refined token refresh handling' }],
+          remaining_items: ['Validate refresh expiry edge case'],
+          created_at: '2026-03-15T12:00:00.000Z',
+        }),
+      }),
+    );
+  });
+
   it('applies work item, escalation, stage, activation, and orchestrator filters when listing tasks', async () => {
     const pool = {
       query: vi

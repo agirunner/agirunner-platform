@@ -93,7 +93,12 @@ export class TaskQueryService {
   }
 
   async getTask(tenantId: string, taskId: string) {
-    return this.toTaskResponse(await this.loadTaskOrThrow(tenantId, taskId));
+    const task = await this.loadTaskOrThrow(tenantId, taskId);
+    const latestHandoff = await this.loadLatestTaskHandoff(tenantId, taskId);
+    return this.toTaskResponse({
+      ...task,
+      ...(latestHandoff ? { latest_handoff: latestHandoff } : {}),
+    });
   }
 
   async getTaskGitActivity(tenantId: string, taskId: string) {
@@ -120,6 +125,36 @@ export class TaskQueryService {
   async getTaskContext(tenantId: string, taskId: string, agentId?: string) {
     return buildTaskContext(this.pool, tenantId, await this.loadTaskOrThrow(tenantId, taskId), agentId);
   }
+
+  private async loadLatestTaskHandoff(tenantId: string, taskId: string) {
+    const result = await this.pool.query(
+      `SELECT id,
+              task_id,
+              role,
+              summary,
+              completion,
+              changes,
+              decisions,
+              remaining_items,
+              blockers,
+              review_focus,
+              known_risks,
+              successor_context,
+              role_data,
+              artifact_ids,
+              created_at
+         FROM task_handoffs
+        WHERE tenant_id = $1
+          AND task_id = $2
+        LIMIT 1`,
+      [tenantId, taskId],
+    );
+    const row = (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+    if (!row) {
+      return null;
+    }
+    return normalizeTaskHandoff(row);
+  }
 }
 
 function sanitizeTaskRecord(task: Record<string, unknown>): Record<string, unknown> {
@@ -138,4 +173,14 @@ function normalizeResponseTaskState(value: unknown): unknown {
     return normalized;
   }
   throw new Error(`Persisted task state must be canonical. Found '${value}'.`);
+}
+
+function normalizeTaskHandoff(row: Record<string, unknown>) {
+  return {
+    ...row,
+    created_at:
+      row.created_at instanceof Date
+        ? row.created_at.toISOString()
+        : row.created_at ?? null,
+  };
 }

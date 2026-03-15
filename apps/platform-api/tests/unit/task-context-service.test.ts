@@ -243,8 +243,18 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'handoff-1',
               summary: 'Implementation is ready for review.',
+              completion: 'partial',
+              changes: [{ path: 'src/auth.ts', summary: 'Refined token refresh handling' }],
+              decisions: ['Keep refresh token rotation server-side'],
+              remaining_items: ['Validate refresh expiry edge case'],
+              blockers: ['Waiting on production token sample'],
+              artifact_ids: ['artifact-1'],
+              review_focus: ['Auth edge cases'],
+              known_risks: ['Refresh token expiry handling'],
               successor_context: 'Focus on auth edge cases.',
               role: 'developer',
+              stage_name: 'implementation',
+              role_data: { module: 'auth' },
               created_at: new Date('2026-03-15T00:00:00Z'),
             }],
           };
@@ -286,6 +296,22 @@ describe('buildTaskContext active stage semantics', () => {
         unresolved_findings: ['Investigate auth edge cases'],
         review_focus: ['Auth edge cases'],
         known_risks: ['Refresh token expiry handling'],
+      }),
+    );
+    expect((context.task as Record<string, unknown>).predecessor_handoff).toEqual(
+      expect.objectContaining({
+        id: 'handoff-1',
+        completion: 'partial',
+        changes: [{ path: 'src/auth.ts', summary: 'Refined token refresh handling' }],
+        decisions: ['Keep refresh token rotation server-side'],
+        remaining_items: ['Validate refresh expiry edge case'],
+        blockers: ['Waiting on production token sample'],
+        artifact_ids: ['artifact-1'],
+        summary: 'Implementation is ready for review.',
+        successor_context: 'Focus on auth edge cases.',
+        role: 'developer',
+        stage_name: 'implementation',
+        role_data: { module: 'auth' },
       }),
     );
   });

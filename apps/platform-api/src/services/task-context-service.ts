@@ -393,10 +393,15 @@ async function loadPredecessorHandoff(
             stage_name,
             summary,
             completion,
+            changes,
+            decisions,
+            remaining_items,
+            blockers,
             review_focus,
             known_risks,
             successor_context,
             role_data,
+            artifact_ids,
             created_at
        FROM task_handoffs
       WHERE tenant_id = $1

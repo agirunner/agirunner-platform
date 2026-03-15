@@ -2692,4 +2692,132 @@ describe('WorkflowActivationDispatchService', () => {
       client,
     );
   });
+
+  it('uses the runtime-aligned orchestrator tool contract when dispatching activation tasks', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-tools',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-tools',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: { task_id: 'task-1', work_item_id: 'wi-1', stage_name: 'review' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-15T01:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              project_id: 'project-1',
+              lifecycle: 'planned',
+              current_stage: 'review',
+              active_stages: ['review'],
+              playbook_id: 'playbook-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship tested code',
+              project_repository_url: null,
+              project_settings: null,
+              workflow_git_branch: null,
+              workflow_parameters: null,
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-tools',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-tools',
+              request_id: 'req-tools',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: { task_id: 'task-1', work_item_id: 'wi-1', stage_name: 'review' },
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-tools',
+              queued_at: new Date('2026-03-15T01:00:00Z'),
+              started_at: new Date('2026-03-15T01:00:05Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          expect(params?.[8]).toEqual(
+            expect.objectContaining({
+              tools: expect.arrayContaining([
+                'list_work_items',
+                'list_workflow_tasks',
+                'read_task_output',
+                'read_task_status',
+                'read_task_events',
+                'read_escalation',
+                'read_stage_status',
+                'read_workflow_budget',
+                'read_work_item_continuity',
+                'read_latest_handoff',
+                'read_handoff_chain',
+                'update_task_input',
+                'cancel_task',
+                'reassign_task',
+                'escalate_to_human',
+                'work_item_memory_read',
+                'work_item_memory_history',
+                'artifact_document_read',
+                'send_task_message',
+              ]),
+            }),
+          );
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('web_search');
+          return { rowCount: 1, rows: [{ id: 'task-tools' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-tools');
+
+    expect(taskId).toBe('task-tools');
+  });
 });

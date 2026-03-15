@@ -6,7 +6,7 @@ import { areJsonValuesEquivalent } from './json-equivalence.js';
 export interface SubmitTaskHandoffInput {
   request_id?: string;
   summary: string;
-  completion?: 'full' | 'partial' | 'blocked';
+  completion: 'full' | 'partial' | 'blocked';
   changes?: unknown[];
   decisions?: unknown[];
   remaining_items?: unknown[];
@@ -332,7 +332,7 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     team_name: readOptionalString(task.metadata?.team_name),
     stage_name: task.stage_name?.trim() || null,
     summary: input.summary.trim(),
-    completion: input.completion ?? 'full',
+    completion: input.completion,
     changes: normalizeArray(input.changes),
     decisions: normalizeArray(input.decisions),
     remaining_items: normalizeArray(input.remaining_items),

@@ -34,7 +34,7 @@ const memoryPatchSchema = z.union([
 const taskHandoffSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),
   summary: z.string().min(1).max(4000),
-  completion: z.enum(['full', 'partial', 'blocked']).optional(),
+  completion: z.enum(['full', 'partial', 'blocked']),
   changes: z.array(z.unknown()).max(200).optional(),
   decisions: z.array(z.unknown()).max(200).optional(),
   remaining_items: z.array(z.unknown()).max(200).optional(),
