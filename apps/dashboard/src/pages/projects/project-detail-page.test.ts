@@ -83,7 +83,7 @@ describe('project detail workspace shell source', () => {
     expect(source).not.toContain('<TabsContent value="models">');
   });
 
-  it('adds a settings shell that keeps model override editing and resolved model display together', () => {
+  it('adds a settings shell that keeps project basics and repository control posture together', () => {
     const source = readSource('./project-detail-page.tsx');
     const supportSource = readSource('./project-detail-support.ts');
     const settingsShellSource = readSource('./project-settings-shell.tsx');
@@ -95,10 +95,12 @@ describe('project detail workspace shell source', () => {
     expect(settingsShellSource).not.toContain('WorkspaceMetricCard');
     expect(settingsShellSource).not.toContain('props.overview.packets.map');
     expect(supportSource).toContain('Stored settings');
-    expect(supportSource).toContain('Repository trust');
+    expect(supportSource).toContain('Repository link');
+    expect(supportSource).not.toContain('Repository trust');
+    expect(settingsShellSource).not.toContain('Project Context');
   });
 
-  it('nests structured spec editing under the knowledge shell instead of a top-level spec tab', () => {
+  it('nests project context and simplified knowledge editing under the knowledge shell instead of a top-level spec tab', () => {
     const source = readSource('./project-detail-page.tsx');
     const specSource = readSource('./project-spec-tab.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
@@ -111,16 +113,18 @@ describe('project detail workspace shell source', () => {
     expect(specSource).toContain(
       "import { StructuredEntryEditor } from './project-structured-entry-editor.js';",
     );
-    expect(specSource).toContain('Save Spec');
-    expect(specSource).toContain('Config Entries');
-    expect(specSource).toContain('Instruction Entries');
-    expect(specSource).toContain('Resource Entries');
-    expect(specSource).toContain('Document Entries');
-    expect(specSource).toContain('Tool Entries');
-    expect(specSource).toContain('Edit project configuration as structured key/value entries');
-    expect(specSource).toContain('Edit structured project instructions and document references');
+    expect(specSource).toContain('Project Context');
+    expect(specSource).toContain('Project knowledge');
+    expect(specSource).toContain('Only string and JSON values are supported here.');
+    expect(specSource).toContain('Save Knowledge');
+    expect(specSource).toContain('Add knowledge entry');
+    expect(specSource).toContain('Edit curated project facts and policies as simple key/value entries');
+    expect(specSource).not.toContain('Workspace structure');
+    expect(specSource).not.toContain('Start here');
     expect(specSource).toContain('dashboardApi.updateProjectSpec(projectId, nextSpec)');
-    expect(structuredEditorSource).toContain('SelectTrigger className="w-full"');
+    expect(structuredEditorSource).toContain('allowedTypes?: StructuredValueType[]');
+    expect(structuredEditorSource).toContain("allowedTypes ?? ['string', 'number', 'boolean', 'json']");
+    expect(structuredEditorSource).toContain('formatStructuredTypeLabel(type)');
     expect(structuredEditorSource).toContain('Remove entry');
     expect(specSource).not.toContain('Save (read-only)');
   });
@@ -155,6 +159,7 @@ describe('project detail workspace shell source', () => {
     expect(memorySource).toContain('ProjectMemoryTable');
     expect(memorySource).toContain('MemoryEditor');
     expect(memorySource).toContain('Choose a different key.');
+    expect(memorySource).toContain('Memory is for evolving notes and learned state.');
     expect(memorySource).not.toContain('<select');
     expect(contentSource).toContain('Document Operator Controls');
     expect(contentSource).toContain('Artifact Operator Controls');

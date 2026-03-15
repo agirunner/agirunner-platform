@@ -69,6 +69,7 @@ describe('project list page source', () => {
     expect(dialogSource).toContain('dashboardApi.createProject');
     expect(dialogSource).toContain('max-h-[calc(100vh-4rem)] overflow-y-auto');
     expect(dialogSource).toContain('navigate(`/projects/${created.id}`)');
+    expect(dialogSource).toContain("navigate('/projects')");
     expect(dialogSource).not.toContain('?tab=settings');
     expect(dialogSource).not.toContain('Repository URL');
     expect(dialogSource).not.toContain('repository_url');

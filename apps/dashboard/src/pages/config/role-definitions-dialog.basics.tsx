@@ -37,11 +37,28 @@ export function RoleBasicsSection(props: {
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Role basics</CardTitle>
-        <CardDescription>
-          Set the role identity, prompt, and lifecycle state.
-        </CardDescription>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Role basics</CardTitle>
+          <CardDescription>
+            Set the role identity, prompt, and lifecycle state.
+          </CardDescription>
+        </div>
+        <div className="flex items-center gap-3">
+          {props.role?.is_built_in ? (
+            <Badge variant="secondary">Built-in</Badge>
+          ) : null}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted">Active</span>
+            <Switch
+              checked={props.form.isActive}
+              onCheckedChange={(checked) =>
+                props.setForm((current) => ({ ...current, isActive: checked }))
+              }
+              aria-label="Active role"
+            />
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="grid gap-4 md:grid-cols-2">
         <label className="grid gap-2 text-sm">
@@ -57,28 +74,6 @@ export function RoleBasicsSection(props: {
             <span className="text-xs text-red-600 dark:text-red-400">{props.validation.fieldErrors.name}</span>
           ) : null}
         </label>
-        <div className="flex items-center justify-between rounded-lg border border-border/70 bg-muted/10 px-4 py-3">
-          <div>
-            <div className="font-medium">Active role</div>
-            <p className="text-sm text-muted">
-              Inactive roles stay visible but are excluded from active use.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {props.role ? (
-              <Badge variant={props.role.is_built_in ? 'secondary' : 'outline'}>
-                {props.role.is_built_in ? 'Built-in' : 'Custom'}
-              </Badge>
-            ) : null}
-            <Switch
-              checked={props.form.isActive}
-              onCheckedChange={(checked) =>
-                props.setForm((current) => ({ ...current, isActive: checked }))
-              }
-              aria-label="Active role"
-            />
-          </div>
-        </div>
         <label className="grid gap-2 text-sm md:col-span-2">
           <span className="font-medium">Description</span>
           <Input
@@ -133,49 +128,51 @@ export function RoleModelAssignmentSection(props: {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Model</span>
-          <Select
-            value={props.selectedModelId || '__system__'}
-            onValueChange={(value) =>
-              props.onModelChange(value === '__system__' ? '' : value)
-            }
-          >
-            <SelectTrigger>
-              <SelectValue
-                placeholder={props.isLoading ? 'Loading models...' : 'Use system default'}
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__system__">Use system default</SelectItem>
-              {props.models
-                .filter((m) => m.is_enabled !== false)
-                .map((model) => {
-                  const provider = model.provider_name ?? (model.provider_id ? providerNames.get(model.provider_id) : null) ?? 'Unknown';
-                  return (
-                    <SelectItem key={model.model_id} value={model.model_id}>
-                      {provider} / {model.model_id}
-                    </SelectItem>
-                  );
-                })}
-            </SelectContent>
-          </Select>
-        </label>
-        {props.selectedModel?.reasoning_config ? (
+        <div className={props.selectedModel?.reasoning_config ? 'grid gap-4 md:grid-cols-2' : ''}>
           <label className="grid gap-2 text-sm">
-            <span className="font-medium">Thinking</span>
-            <ReasoningControl
-              schema={props.selectedModel.reasoning_config}
-              value={reasoningValue}
-              onChange={props.onReasoningChange}
-            />
+            <span className="font-medium">Model</span>
+            <Select
+              value={props.selectedModelId || '__system__'}
+              onValueChange={(value) =>
+                props.onModelChange(value === '__system__' ? '' : value)
+              }
+            >
+              <SelectTrigger>
+                <SelectValue
+                  placeholder={props.isLoading ? 'Loading models...' : 'Use system default'}
+                />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__system__">Use system default</SelectItem>
+                {props.models
+                  .filter((m) => m.is_enabled !== false)
+                  .map((model) => {
+                    const provider = model.provider_name ?? (model.provider_id ? providerNames.get(model.provider_id) : null) ?? 'Unknown';
+                    return (
+                      <SelectItem key={model.model_id} value={model.model_id}>
+                        {provider} / {model.model_id}
+                      </SelectItem>
+                    );
+                  })}
+              </SelectContent>
+            </Select>
           </label>
-        ) : null}
-        <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted">
-          {props.error
-            ? `Model catalog unavailable: ${props.error}. Existing selections remain editable.`
-            : 'This assignment syncs with the LLM Providers page. Workflow and project overrides can still supersede it.'}
+          {props.selectedModel?.reasoning_config ? (
+            <label className="grid gap-2 text-sm">
+              <span className="font-medium">Thinking</span>
+              <ReasoningControl
+                schema={props.selectedModel.reasoning_config}
+                value={reasoningValue}
+                onChange={props.onReasoningChange}
+              />
+            </label>
+          ) : null}
         </div>
+        <p className="text-xs text-muted">
+          {props.error
+            ? `Model catalog unavailable: ${props.error}.`
+            : 'Syncs with LLM Providers page. Workflow and project overrides can supersede.'}
+        </p>
       </CardContent>
     </Card>
   );

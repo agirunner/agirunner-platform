@@ -30,7 +30,7 @@ describe('project overview shell', () => {
     expect(markup).not.toContain('Artifact explorer');
   });
 
-  it('uses the calmer needs-attention treatment for missing repository guidance', () => {
+  it('treats repository guidance as optional when the project does not use source control', () => {
     const markup = renderOverview({
       id: 'project-2',
       name: 'Signals',
@@ -40,12 +40,10 @@ describe('project overview shell', () => {
       repository_url: null,
     });
 
-    expect(markup).toContain('Needs attention');
     expect(markup).toContain(
-      'Add a repository in Settings before you expect delivery or automation to map back to source control.',
+      'Repository setup is optional. Add it in Settings only when this project should map delivery or automation back to source control.',
     );
-    expect(markup).toContain('bg-amber-50/70');
-    expect(markup).not.toContain('bg-yellow-100');
+    expect(markup).not.toContain('Needs attention');
   });
 });
 

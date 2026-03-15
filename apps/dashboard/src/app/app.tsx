@@ -72,6 +72,7 @@ const MemoryBrowserPage = lazyWithRetry(() => import('../pages/projects/memory-b
 const ContentBrowserPage = lazyWithRetry(() => import('../pages/projects/content-browser-page.js').then((m) => ({ default: m.ContentBrowserPage })));
 
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
+const OrchestratorPage = lazyWithRetry(() => import('../pages/config/orchestrator-page.js').then((m) => ({ default: m.OrchestratorPage })));
 const LlmProvidersPage = lazyWithRetry(() => import('../pages/config/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
 const RuntimesPage = lazyWithRetry(() => import('../pages/config/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })));
 const IntegrationsPage = lazyWithRetry(() => import('../pages/config/integrations-page.js').then((m) => ({ default: m.IntegrationsPage })));
@@ -218,6 +219,7 @@ export function App(): JSX.Element {
             <Route path="/config/playbooks/:id" element={<PlaybookDetailPage />} />
             <Route path="/config/playbooks/:id/launch" element={<PlaybookLaunchPage />} />
             <Route path="/config/playbooks/launch" element={<PlaybookLaunchPage />} />
+            <Route path="/config/orchestrator" element={<OrchestratorPage />} />
             <Route path="/config/roles" element={<RoleDefinitionsPage />} />
             <Route path="/config/llm" element={<LlmProvidersPage />} />
             <Route path="/config/runtimes" element={<RuntimesPage />} />

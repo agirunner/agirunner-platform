@@ -53,11 +53,12 @@ describe('layout breadcrumbs', () => {
     expect(source).not.toContain("label: 'Runtime Defaults'");
   });
 
-  it('labels the roles page as Roles & Orchestrator for discoverability', () => {
+  it('has separate Orchestrator and Roles nav entries', () => {
     const source = readLayoutSource();
-    expect(source).toContain("label: 'Roles & Orchestrator'");
+    expect(source).toContain("label: 'Orchestrator'");
+    expect(source).toContain("href: '/config/orchestrator'");
+    expect(source).toContain("label: 'Roles'");
     expect(source).toContain("href: '/config/roles'");
-    expect(source).not.toContain("label: 'Role Definitions'");
   });
 
   it('keeps user management out of the primary governance navigation', () => {

@@ -109,12 +109,14 @@ export function DeleteProjectDialog(props: {
   project: DashboardProjectRecord;
   onClose: () => void;
 }): JSX.Element {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
   const mutation = useMutation({
     mutationFn: () => dashboardApi.deleteProject(props.project.id),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
       props.onClose();
+      navigate('/projects');
       toast.success('Project deleted');
     },
     onError: () => {

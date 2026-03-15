@@ -97,7 +97,7 @@ describe('role definitions page source', () => {
   it('adds a first-class orchestrator control plane with direct prompt, model, and pool editing', () => {
     const source = readCombinedSource();
     expect(source).toContain('OrchestratorControlPlane');
-    expect(source).toContain('Roles &amp; Orchestrator');
+    expect(source).toContain('Roles');
     expect(source).toContain('Keep the workflow orchestrator fully manageable from this page');
     expect(source).toContain('Edit prompt here');
     expect(source).toContain('Edit model here');

@@ -3,7 +3,6 @@ import type {
   DashboardProjectRecord,
   DashboardProjectSettingsInput,
   DashboardProjectSettingsRecord,
-  DashboardRoleModelOverride,
 } from '../../lib/api.js';
 
 export type ProjectSecretMode = 'preserve' | 'replace' | 'clear';
@@ -18,14 +17,9 @@ export interface ProjectSettingsState {
   defaultBranch: string;
   gitUserName: string;
   gitUserEmail: string;
-  projectBrief: string;
   settingsExtras: Record<string, unknown>;
-  modelOverrides: Record<string, DashboardRoleModelOverride>;
   credentials: {
     gitToken: { configured: boolean };
-    gitSshPrivateKey: { configured: boolean };
-    gitSshKnownHosts: { configured: boolean };
-    webhookSecret: { configured: boolean };
   };
 }
 
@@ -38,14 +32,9 @@ export interface ProjectSettingsDraft {
   defaultBranch: string;
   gitUserName: string;
   gitUserEmail: string;
-  projectBrief: string;
   settingsExtras: Record<string, unknown>;
-  modelOverrides: Record<string, DashboardRoleModelOverride>;
   credentials: {
     gitToken: ProjectSecretDraft;
-    gitSshPrivateKey: ProjectSecretDraft;
-    gitSshKnownHosts: ProjectSecretDraft;
-    webhookSecret: ProjectSecretDraft;
   };
 }
 
@@ -60,8 +49,6 @@ export interface ProjectSettingsSurfaceSummary {
   configuredSecretLabel: string;
   stagedSecretChangeCount: number;
   stagedSecretChangeLabel: string;
-  modelOverrideCount: number;
-  modelOverrideLabel: string;
   repositoryLabel: string;
   lifecycleLabel: string;
   blockingIssueCount: number;
@@ -91,27 +78,12 @@ export function readProjectSettings(project: DashboardProjectRecord): ProjectSet
     defaultBranch: readString(settings.default_branch),
     gitUserName: readString(settings.git_user_name),
     gitUserEmail: readString(settings.git_user_email),
-    projectBrief: readString(settings.project_brief),
     settingsExtras: readSettingsExtras(settings),
-    modelOverrides: readModelOverrides(settings.model_overrides),
     credentials: {
-      gitToken: { configured: readConfigured(settings.credentials?.git_token_configured, settings.credentials?.git_token) },
-      gitSshPrivateKey: {
+      gitToken: {
         configured: readConfigured(
-          settings.credentials?.git_ssh_private_key_configured,
-          settings.credentials?.git_ssh_private_key,
-        ),
-      },
-      gitSshKnownHosts: {
-        configured: readConfigured(
-          settings.credentials?.git_ssh_known_hosts_configured,
-          settings.credentials?.git_ssh_known_hosts,
-        ),
-      },
-      webhookSecret: {
-        configured: readConfigured(
-          settings.credentials?.webhook_secret_configured,
-          settings.credentials?.webhook_secret,
+          settings.credentials?.git_token_configured,
+          settings.credentials?.git_token,
         ),
       },
     },
@@ -129,14 +101,9 @@ export function createProjectSettingsDraft(project: DashboardProjectRecord): Pro
     defaultBranch: settings.defaultBranch,
     gitUserName: settings.gitUserName,
     gitUserEmail: settings.gitUserEmail,
-    projectBrief: settings.projectBrief,
     settingsExtras: settings.settingsExtras,
-    modelOverrides: settings.modelOverrides,
     credentials: {
       gitToken: createSecretDraft(settings.credentials.gitToken.configured),
-      gitSshPrivateKey: createSecretDraft(settings.credentials.gitSshPrivateKey.configured),
-      gitSshKnownHosts: createSecretDraft(settings.credentials.gitSshKnownHosts.configured),
-      webhookSecret: createSecretDraft(settings.credentials.webhookSecret.configured),
     },
   };
 }
@@ -193,35 +160,15 @@ export function buildProjectSettingsPatch(
       git_user_name: draft.gitUserName.trim(),
       git_user_email: draft.gitUserEmail.trim(),
       credentials: {
-        git_token: resolveSecretInput(draft.credentials.gitToken, current.credentials.gitToken.configured),
-        git_token_configured: resolveSecretConfigured(draft.credentials.gitToken, current.credentials.gitToken.configured),
-        git_ssh_private_key: resolveSecretInput(
-          draft.credentials.gitSshPrivateKey,
-          current.credentials.gitSshPrivateKey.configured,
+        git_token: resolveSecretInput(
+          draft.credentials.gitToken,
+          current.credentials.gitToken.configured,
         ),
-        git_ssh_private_key_configured: resolveSecretConfigured(
-          draft.credentials.gitSshPrivateKey,
-          current.credentials.gitSshPrivateKey.configured,
-        ),
-        git_ssh_known_hosts: resolveSecretInput(
-          draft.credentials.gitSshKnownHosts,
-          current.credentials.gitSshKnownHosts.configured,
-        ),
-        git_ssh_known_hosts_configured: resolveSecretConfigured(
-          draft.credentials.gitSshKnownHosts,
-          current.credentials.gitSshKnownHosts.configured,
-        ),
-        webhook_secret: resolveSecretInput(
-          draft.credentials.webhookSecret,
-          current.credentials.webhookSecret.configured,
-        ),
-        webhook_secret_configured: resolveSecretConfigured(
-          draft.credentials.webhookSecret,
-          current.credentials.webhookSecret.configured,
+        git_token_configured: resolveSecretConfigured(
+          draft.credentials.gitToken,
+          current.credentials.gitToken.configured,
         ),
       },
-      model_overrides: draft.modelOverrides,
-      project_brief: draft.projectBrief.trim(),
     } satisfies DashboardProjectSettingsInput,
   };
 }
@@ -237,7 +184,6 @@ export function buildProjectSettingsSurfaceSummary(
   const stagedSecretChangeCount = Object.values(draft.credentials).filter(
     (credential) => credential.mode !== 'preserve',
   ).length;
-  const modelOverrideCount = Object.keys(readProjectSettings(project).modelOverrides).length;
 
   return {
     configuredSecretCount,
@@ -247,20 +193,11 @@ export function buildProjectSettingsSurfaceSummary(
       stagedSecretChangeCount > 0
         ? `${stagedSecretChangeCount} ${pluralize(stagedSecretChangeCount, 'secret change')} staged`
         : 'No secret changes staged',
-    modelOverrideCount,
-    modelOverrideLabel:
-      modelOverrideCount > 0
-        ? `${modelOverrideCount} ${pluralize(modelOverrideCount, 'role override')}`
-        : 'Shared model posture',
     repositoryLabel: draft.repositoryUrl.trim() ? 'Repository linked' : 'Repository optional',
     lifecycleLabel: draft.isActive ? 'Active project' : 'Inactive project',
     blockingIssueCount: validation.blockingIssues.length,
     blockingTitle: 'Resolve before saving',
   };
-}
-
-export function hasProjectModelOverrides(project: DashboardProjectRecord): boolean {
-  return Object.keys(readProjectSettings(project).modelOverrides).length > 0;
 }
 
 export function buildProjectSecretPostureSummary(
@@ -295,15 +232,17 @@ export function buildProjectSecretPostureSummary(
   };
 }
 
-export function summarizeProjectBrief(value: string): string {
+export function summarizeProjectContext(value: string): string {
   const trimmed = value.trim();
   if (!trimmed) {
-    return 'No project brief saved yet.';
+    return 'No project context saved yet.';
   }
 
   const preview = trimmed.split('\n').find((line) => line.trim().length > 0) ?? trimmed;
   return preview.length > 96 ? `${preview.slice(0, 93)}...` : preview;
 }
+
+export const summarizeProjectBrief = summarizeProjectContext;
 
 function createSecretDraft(configured: boolean): ProjectSecretDraft {
   return {
@@ -318,7 +257,6 @@ function readSettingsRecord(value: unknown): DashboardProjectSettingsRecord {
   return {
     ...record,
     credentials: asRecord(record.credentials),
-    model_overrides: readModelOverrides(record.model_overrides),
   } as DashboardProjectSettingsRecord;
 }
 
@@ -326,16 +264,6 @@ function readSettingsExtras(settings: DashboardProjectSettingsRecord): Record<st
   return Object.fromEntries(
     Object.entries(settings).filter(([key]) => !KNOWN_SETTING_KEYS.has(key)),
   );
-}
-
-function readModelOverrides(value: unknown): Record<string, DashboardRoleModelOverride> {
-  const record = asRecord(value);
-  return Object.fromEntries(
-    Object.entries(record).filter(([, override]) => {
-      const next = asRecord(override);
-      return Boolean(readString(next.provider) && readString(next.model));
-    }),
-  ) as Record<string, DashboardRoleModelOverride>;
 }
 
 function resolveSecretInput(draft: ProjectSecretDraft, configured: boolean): string | null {

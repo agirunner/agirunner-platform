@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Bot, Loader2, Plus, ShieldCheck } from 'lucide-react';
+import { Loader2, Plus, ShieldCheck, Users } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import {
@@ -19,9 +19,6 @@ import {
 } from '../../components/ui/table.js';
 import { toast } from '../../lib/toast.js';
 import { DeleteRoleDialog } from './role-definitions-delete-dialog.js';
-import {
-  OrchestratorControlPlane,
-} from './role-definitions-orchestrator.js';
 import {
   fetchRoles,
   deleteRole,
@@ -102,18 +99,15 @@ export function RoleDefinitionsPage(): JSX.Element {
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <Bot className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-semibold">Roles &amp; Orchestrator</h1>
+            <Users className="h-5 w-5 text-accent" />
+            <h1 className="text-2xl font-semibold">Roles</h1>
           </div>
           <p className="max-w-3xl text-sm text-muted">
-            Configure specialist roles here, and use the orchestrator control plane below to keep
-            prompt, model routing, and worker pool posture discoverable from one operator surface.
+            Define specialist roles — identity, prompt, model assignment, and tool grants.
           </p>
         </div>
         <Button onClick={() => setIsCreating(true)}><Plus className="h-4 w-4" />Create Role</Button>
       </div>
-
-      <OrchestratorControlPlane {...orchestratorState.controlPlaneProps} />
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard label="Total roles" value={summary.total} />
@@ -127,7 +121,7 @@ export function RoleDefinitionsPage(): JSX.Element {
           <ShieldCheck className="h-12 w-12" />
           <div>
             <p className="font-medium">No roles defined</p>
-            <p className="text-sm">Create the first specialist role definition here. Orchestrator prompt, model, and pool posture stay in the control plane above.</p>
+            <p className="text-sm">Create the first specialist role definition.</p>
           </div>
           <Button onClick={() => setIsCreating(true)}>
             <Plus className="h-4 w-4" />
@@ -138,7 +132,7 @@ export function RoleDefinitionsPage(): JSX.Element {
         <Card id="specialist-role-catalog">
           <CardHeader>
             <CardTitle>Specialist role catalog</CardTitle>
-            <CardDescription>Review current specialist role posture at a glance, then expand any row for the full prompt, grants, and escalation details.</CardDescription>
+            <CardDescription>Review roles at a glance, then expand any row for the full prompt and tool details.</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>

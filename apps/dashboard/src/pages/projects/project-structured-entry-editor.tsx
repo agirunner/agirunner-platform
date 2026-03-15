@@ -22,7 +22,12 @@ export function StructuredEntryEditor(props: {
   drafts: StructuredEntryDraft[];
   onChange(drafts: StructuredEntryDraft[]): void;
   addLabel: string;
+  allowedTypes?: StructuredValueType[];
+  stringInputMode?: 'single-line' | 'multiline';
 }): JSX.Element {
+  const allowedTypes = props.allowedTypes ?? ['string', 'number', 'boolean', 'json'];
+  const showTypeSelector = allowedTypes.length > 1;
+
   return (
     <div className="space-y-3 rounded-md border border-dashed border-border p-3">
       <div className="space-y-1">
@@ -34,7 +39,13 @@ export function StructuredEntryEditor(props: {
       ) : (
         props.drafts.map((draft) => (
           <div key={draft.id} className="grid gap-3 rounded-md border border-border p-3">
-            <div className="grid gap-3 md:grid-cols-[1.1fr,0.7fr,1.2fr,auto]">
+            <div
+              className={
+                showTypeSelector
+                  ? 'grid gap-3 md:grid-cols-[1.1fr,0.7fr,1.2fr,auto]'
+                  : 'grid gap-3 md:grid-cols-[1.1fr,1.2fr,auto]'
+              }
+            >
               <label className="grid gap-1 text-xs">
                 <span className="font-medium">Key</span>
                 <Input
@@ -44,34 +55,38 @@ export function StructuredEntryEditor(props: {
                   }
                 />
               </label>
-              <label className="grid gap-1 text-xs">
-                <span className="font-medium">Type</span>
-                <Select
-                  value={draft.valueType}
-                  onValueChange={(value) =>
-                    props.onChange(
-                      updateStructuredDraft(props.drafts, draft.id, {
-                        valueType: value as StructuredValueType,
-                      }),
-                    )
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="string">String</SelectItem>
-                    <SelectItem value="number">Number</SelectItem>
-                    <SelectItem value="boolean">Boolean</SelectItem>
-                    <SelectItem value="json">JSON</SelectItem>
-                  </SelectContent>
-                </Select>
-              </label>
+              {showTypeSelector ? (
+                <label className="grid gap-1 text-xs">
+                  <span className="font-medium">Type</span>
+                  <Select
+                    value={draft.valueType}
+                    onValueChange={(value) =>
+                      props.onChange(
+                        updateStructuredDraft(props.drafts, draft.id, {
+                          valueType: value as StructuredValueType,
+                        }),
+                      )
+                    }
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {allowedTypes.map((type) => (
+                        <SelectItem key={type} value={type}>
+                          {formatStructuredTypeLabel(type)}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+              ) : null}
               <div className="grid gap-1 text-xs">
                 <span className="font-medium">Value</span>
                 <StructuredValueInput
                   valueType={draft.valueType}
                   value={draft.value}
+                  stringInputMode={props.stringInputMode ?? 'single-line'}
                   onChange={(value) =>
                     props.onChange(updateStructuredDraft(props.drafts, draft.id, { value }))
                   }
@@ -95,7 +110,12 @@ export function StructuredEntryEditor(props: {
       <Button
         type="button"
         variant="outline"
-        onClick={() => props.onChange([...props.drafts, createStructuredEntryDraft()])}
+        onClick={() =>
+          props.onChange([
+            ...props.drafts,
+            createStructuredEntryDraft(allowedTypes[0] ?? 'string'),
+          ])
+        }
       >
         <Plus className="h-4 w-4" />
         {props.addLabel}
@@ -107,6 +127,7 @@ export function StructuredEntryEditor(props: {
 function StructuredValueInput(props: {
   valueType: StructuredValueType;
   value: string;
+  stringInputMode: 'single-line' | 'multiline';
   onChange(value: string): void;
 }): JSX.Element {
   if (props.valueType === 'boolean') {
@@ -132,6 +153,15 @@ function StructuredValueInput(props: {
       />
     );
   }
+  if (props.stringInputMode === 'multiline') {
+    return (
+      <Textarea
+        value={props.value}
+        className="min-h-[100px]"
+        onChange={(event) => props.onChange(event.target.value)}
+      />
+    );
+  }
   return (
     <Input
       type={props.valueType === 'number' ? 'number' : 'text'}
@@ -139,6 +169,19 @@ function StructuredValueInput(props: {
       onChange={(event) => props.onChange(event.target.value)}
     />
   );
+}
+
+function formatStructuredTypeLabel(value: StructuredValueType): string {
+  switch (value) {
+    case 'json':
+      return 'JSON';
+    case 'number':
+      return 'Number';
+    case 'boolean':
+      return 'Boolean';
+    default:
+      return 'String';
+  }
 }
 
 function updateStructuredDraft(

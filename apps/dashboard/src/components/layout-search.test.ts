@@ -74,12 +74,20 @@ describe('command palette helpers', () => {
   it('surfaces nav items via keyword match when the label does not contain the query', () => {
     const links: CommandPaletteItem[] = [
       {
-        id: 'nav:/config/roles',
-        href: '/config/roles',
-        label: 'Roles & Orchestrator',
+        id: 'nav:/config/orchestrator',
+        href: '/config/orchestrator',
+        label: 'Orchestrator',
         meta: 'Configuration',
         kind: 'navigation',
-        keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture', 'specialist', 'agent roles', 'role definitions'],
+        keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'],
+      },
+      {
+        id: 'nav:/config/roles',
+        href: '/config/roles',
+        label: 'Roles',
+        meta: 'Configuration',
+        kind: 'navigation',
+        keywords: ['specialist', 'agent roles', 'role definitions'],
       },
       {
         id: 'nav:/governance/grants',
@@ -92,16 +100,16 @@ describe('command palette helpers', () => {
 
     const promptResults = filterCommandPaletteQuickLinks(links, 'prompt');
     expect(promptResults).toHaveLength(1);
-    expect(promptResults[0].id).toBe('nav:/config/roles');
+    expect(promptResults[0].id).toBe('nav:/config/orchestrator');
 
     const orchestratorResults = filterCommandPaletteQuickLinks(links, 'orchestrator');
     expect(orchestratorResults).toHaveLength(2);
-    expect(orchestratorResults[0].id).toBe('nav:/governance/grants');
-    expect(orchestratorResults[1].id).toBe('nav:/config/roles');
+    expect(orchestratorResults[0].id).toBe('nav:/config/orchestrator');
+    expect(orchestratorResults[1].id).toBe('nav:/governance/grants');
 
     const poolResults = filterCommandPaletteQuickLinks(links, 'pool');
     expect(poolResults).toHaveLength(1);
-    expect(poolResults[0].id).toBe('nav:/config/roles');
+    expect(poolResults[0].id).toBe('nav:/config/orchestrator');
 
     const roleDefResults = filterCommandPaletteQuickLinks(links, 'role definitions');
     expect(roleDefResults).toHaveLength(1);

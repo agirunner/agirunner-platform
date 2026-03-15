@@ -1,9 +1,4 @@
-import type {
-  DashboardEffectiveModelResolution,
-  DashboardProjectRecord,
-  DashboardProjectSpecRecord,
-  DashboardRoleModelOverride,
-} from '../../lib/api.js';
+import type { DashboardProjectRecord, DashboardProjectSpecRecord } from '../../lib/api.js';
 
 export const PROJECT_DETAIL_TAB_OPTIONS = [
   {
@@ -16,13 +11,13 @@ export const PROJECT_DETAIL_TAB_OPTIONS = [
     value: 'settings',
     label: 'Settings',
     description:
-      'Adjust project-specific control plane settings, especially model override posture.',
+      'Adjust project basics, repository defaults, and lifecycle posture.',
   },
   {
     value: 'knowledge',
     label: 'Knowledge',
     description:
-      'Group structured spec, resources, tool policy, memory, and artifacts in one surface.',
+      'Group project context, reusable knowledge entries, memory, and run content in one surface.',
   },
   {
     value: 'automation',
@@ -46,11 +41,6 @@ export interface ProjectWorkspaceOverviewPacket {
 }
 
 export interface ProjectWorkspaceOverview {
-  summary: string;
-  packets: ProjectWorkspaceOverviewPacket[];
-}
-
-export interface ProjectModelOverview {
   summary: string;
   packets: ProjectWorkspaceOverviewPacket[];
 }
@@ -79,14 +69,6 @@ export interface StructuredEntryDraft {
   value: string;
 }
 
-export interface RoleOverrideDraft {
-  id: string;
-  role: string;
-  provider: string;
-  model: string;
-  reasoningConfig: string;
-}
-
 let draftCounter = 0;
 
 export function normalizeProjectDetailTab(value: string | null | undefined): ProjectDetailTabValue {
@@ -102,12 +84,8 @@ export function buildProjectWorkspaceOverview(
 ): ProjectWorkspaceOverview {
   const memoryCount = countObjectEntries(project.memory);
   const configCount = countObjectEntries(spec?.config);
-  const instructionCount = countObjectEntries(spec?.instructions);
-  const resourceCount = countObjectEntries(spec?.resources);
-  const documentCount = countObjectEntries(spec?.documents);
   const toolCount = countObjectEntries(spec?.tools);
-  const knowledgeCount =
-    configCount + instructionCount + resourceCount + documentCount + toolCount + memoryCount;
+  const knowledgeCount = configCount + toolCount + memoryCount;
   const updatedLabel = formatProjectDateTime(project.updated_at ?? spec?.updated_at);
   const deliveryOverview = buildProjectDeliveryOverview(project);
 
@@ -126,7 +104,7 @@ export function buildProjectWorkspaceOverview(
       {
         label: 'Knowledge base',
         value: `${knowledgeCount} entries`,
-        detail: `${configCount} config • ${instructionCount} instructions • ${resourceCount + documentCount + toolCount} knowledge assets • ${memoryCount} memory`,
+        detail: `${configCount} curated knowledge • ${memoryCount} memory • ${toolCount} tool policies`,
       },
       {
         label: 'Automation',
@@ -200,32 +178,15 @@ export function buildProjectSettingsOverview(
   project: DashboardProjectRecord,
 ): ProjectWorkspaceOverview {
   const settings = asRecord(project.settings);
-  const modelOverrides = asRecord(settings.model_overrides);
 
   return {
     summary:
-      'Settings is the project control plane: keep model overrides, stored settings, and repository trust posture together so operators can verify changes before launch.',
+      'Settings is the project control plane: keep project basics, repository defaults, stored settings, and lifecycle posture together before execution.',
     packets: [
       {
         label: 'Stored settings',
         value: `${countObjectEntries(settings)} entries`,
-        detail:
-          'Project-scoped settings saved on the record, including model override configuration.',
-      },
-      {
-        label: 'Model overrides',
-        value: `${countObjectEntries(modelOverrides)} role${countObjectEntries(modelOverrides) === 1 ? '' : 's'}`,
-        detail:
-          countObjectEntries(modelOverrides) > 0
-            ? 'Project-only role model overrides are already defined.'
-            : 'No project-only role overrides are defined yet.',
-      },
-      {
-        label: 'Repository trust',
-        value: project.git_webhook_secret_configured ? 'Configured' : 'Needs setup',
-        detail: project.git_webhook_secret_configured
-          ? 'Inbound repository signatures can be verified.'
-          : 'Finish webhook secret setup before trusting repository-driven automation.',
+        detail: 'Project-scoped settings saved on the record, including repository defaults and lifecycle configuration.',
       },
       {
         label: 'Repository link',
@@ -242,39 +203,36 @@ export function buildProjectKnowledgeOverview(
   project: DashboardProjectRecord,
   spec?: DashboardProjectSpecRecord | null,
 ): ProjectWorkspaceOverview {
+  const hasProjectContext = readString(asRecord(project.settings).project_brief).trim().length > 0;
   const configCount = countObjectEntries(spec?.config);
-  const instructionCount = countObjectEntries(spec?.instructions);
-  const resourceCount = countObjectEntries(spec?.resources);
-  const documentCount = countObjectEntries(spec?.documents);
-  const toolCount = countObjectEntries(spec?.tools);
   const memoryCount = countObjectEntries(project.memory);
 
   return {
     summary:
-      'Knowledge brings structured spec, resource descriptors, tool policy, shared memory, and artifact inspection into one operator-facing surface.',
+      'Knowledge brings reusable project context, simple knowledge entries, shared memory, and run content into one operator-facing surface.',
     packets: [
       {
-        label: 'Structured spec',
-        value: `${configCount + instructionCount} entries`,
-        detail: `${configCount} config • ${instructionCount} instructions`,
+        label: 'Project Context',
+        value: hasProjectContext ? 'Configured' : 'Not configured',
+        detail: hasProjectContext
+          ? 'Reusable project context is ready for playbooks that map it into workflow inputs.'
+          : 'Add reusable context here when workflows should inherit stable LLM context.',
       },
       {
-        label: 'Reference assets',
-        value: `${resourceCount + documentCount} items`,
-        detail: `${resourceCount} resources • ${documentCount} documents`,
-      },
-      {
-        label: 'Tool policy',
-        value: `${toolCount} entr${toolCount === 1 ? 'y' : 'ies'}`,
-        detail: 'Structured tool allow/block policy stays beside the rest of project knowledge.',
+        label: 'Knowledge entries',
+        value: `${configCount} entries`,
+        detail:
+          configCount > 0
+            ? 'Curated project facts and policies are ready for workflows and runtime access by key.'
+            : 'No curated knowledge entries are saved yet.',
       },
       {
         label: 'Shared memory',
         value: `${memoryCount} entries`,
         detail:
           memoryCount > 0
-            ? 'Shared project memory is available without leaving the workspace.'
-            : 'No shared memory entries are saved yet.',
+            ? 'Working memory holds evolving notes and learned state without changing the curated knowledge base.'
+            : 'No project memory entries are saved yet.',
       },
       {
         label: 'Artifacts',
@@ -285,64 +243,13 @@ export function buildProjectKnowledgeOverview(
   };
 }
 
-export function buildProjectModelOverview(
-  overrides: Record<string, DashboardRoleModelOverride> | null | undefined,
-  effectiveModels: Record<string, DashboardEffectiveModelResolution> | null | undefined,
-): ProjectModelOverview {
-  const overrideCount = countObjectEntries(overrides);
-  const resolutions = Object.values(effectiveModels ?? {});
-  const resolvedCount = resolutions.length;
-  const fallbackCount = resolutions.filter((resolution) => resolution.fallback).length;
-  const unresolvedCount = resolutions.filter((resolution) => !resolution.resolved).length;
-
-  let summary =
-    'Project-level overrides are empty. Resolved roles currently inherit from broader model posture.';
-  if (overrideCount > 0 && fallbackCount === 0) {
-    summary =
-      'Project-specific role overrides are in place and the currently resolved roles are not falling back.';
-  } else if (fallbackCount > 0) {
-    summary =
-      'At least one resolved role is falling back. Review provider/model availability before operators rely on this project posture.';
-  }
-
-  return {
-    summary,
-    packets: [
-      {
-        label: 'Project overrides',
-        value: `${overrideCount} role${overrideCount === 1 ? '' : 's'}`,
-        detail:
-          overrideCount > 0
-            ? 'Project-level provider and model overrides are explicitly configured.'
-            : 'No project-only overrides are saved yet.',
-      },
-      {
-        label: 'Resolved roles',
-        value: `${resolvedCount} role${resolvedCount === 1 ? '' : 's'}`,
-        detail:
-          resolvedCount > 0
-            ? 'These are the effective role model assignments currently visible to operators.'
-            : 'No resolved role model assignments are available yet.',
-      },
-      {
-        label: 'Fallbacks',
-        value: `${fallbackCount} active`,
-        detail:
-          fallbackCount > 0
-            ? 'One or more roles are using fallback resolution.'
-            : unresolvedCount > 0
-              ? `${unresolvedCount} role${unresolvedCount === 1 ? '' : 's'} still have no resolved model.`
-              : 'No fallback resolution is currently active.',
-      },
-    ],
-  };
-}
-
-export function createStructuredEntryDraft(): StructuredEntryDraft {
+export function createStructuredEntryDraft(
+  valueType: StructuredValueType = 'string',
+): StructuredEntryDraft {
   return {
     id: nextDraftId('entry'),
     key: '',
-    valueType: 'string',
+    valueType,
     value: '',
   };
 }
@@ -381,81 +288,6 @@ export function buildStructuredObject(
     value[key] = parsed;
   }
   return Object.keys(value).length > 0 ? value : undefined;
-}
-
-export function createRoleOverrideDraft(role = ''): RoleOverrideDraft {
-  return {
-    id: nextDraftId('role'),
-    role,
-    provider: '',
-    model: '',
-    reasoningConfig: '',
-  };
-}
-
-export function hydrateRoleOverrideDrafts(
-  roles: string[],
-  overrides: Record<string, DashboardRoleModelOverride>,
-): RoleOverrideDraft[] {
-  const ordered = roles.map((role) => {
-    const override = overrides[role];
-    return {
-      id: nextDraftId('role'),
-      role,
-      provider: override?.provider ?? '',
-      model: override?.model ?? '',
-      reasoningConfig:
-        override?.reasoning_config && Object.keys(override.reasoning_config).length > 0
-          ? JSON.stringify(override.reasoning_config, null, 2)
-          : '',
-    };
-  });
-  const custom = Object.entries(overrides)
-    .filter(([role]) => !roles.includes(role))
-    .map(([role, override]) => ({
-      id: nextDraftId('role'),
-      role,
-      provider: override.provider,
-      model: override.model,
-      reasoningConfig:
-        override.reasoning_config && Object.keys(override.reasoning_config).length > 0
-          ? JSON.stringify(override.reasoning_config, null, 2)
-          : '',
-    }));
-  return [...ordered, ...custom];
-}
-
-export function buildRoleModelOverrides(
-  drafts: RoleOverrideDraft[],
-): Record<string, DashboardRoleModelOverride> | undefined {
-  const overrides: Record<string, DashboardRoleModelOverride> = {};
-  for (const draft of drafts) {
-    const role = draft.role.trim();
-    const provider = draft.provider.trim();
-    const model = draft.model.trim();
-    const reasoning = draft.reasoningConfig.trim();
-    if (!role && !provider && !model && !reasoning) {
-      continue;
-    }
-    if (!role) {
-      throw new Error('Project model override roles are required.');
-    }
-    if (Object.prototype.hasOwnProperty.call(overrides, role)) {
-      throw new Error(`Project model overrides contains a duplicate role '${role}'.`);
-    }
-    if (!provider || !model) {
-      throw new Error(`Project model override '${role}' must include both provider and model.`);
-    }
-    const reasoningConfig = reasoning
-      ? parseJsonRecord(reasoning, `Project model override '${role}' reasoning`)
-      : undefined;
-    overrides[role] = {
-      provider,
-      model,
-      ...(reasoningConfig ? { reasoning_config: reasoningConfig } : {}),
-    };
-  }
-  return Object.keys(overrides).length > 0 ? overrides : undefined;
 }
 
 function inferValueType(value: unknown): StructuredValueType {
@@ -505,14 +337,6 @@ function parseDraftValue(rawValue: string, valueType: StructuredValueType, label
   return rawValue;
 }
 
-function parseJsonRecord(value: string, label: string): Record<string, unknown> {
-  const parsed = parseJsonValue(value, label);
-  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    throw new Error(`${label} must be a JSON object.`);
-  }
-  return parsed as Record<string, unknown>;
-}
-
 function parseJsonValue(value: string, label: string): unknown {
   try {
     return JSON.parse(value);
@@ -543,6 +367,10 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value : '';
 }
 
 function buildProjectDeliveryOverview(project: DashboardProjectRecord): ProjectWorkspaceOverviewPacket {

@@ -20,42 +20,38 @@ import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
 import { DeleteProjectDialog } from './project-list-page.dialogs.js';
-import { ProjectModelOverridesTab } from './project-model-overrides-tab.js';
 import {
   buildProjectSecretPostureSummary,
   buildProjectSettingsPatch,
   buildProjectSettingsSurfaceSummary,
   createProjectSettingsDraft,
-  summarizeProjectBrief,
   type ProjectSecretDraft,
   type ProjectSecretMode,
   type ProjectSettingsDraft,
   validateProjectSettingsDraft,
 } from './project-settings-support.js';
 
-const EMPTY_BRIEF_SUMMARY = 'No project brief saved yet.';
 const SECRET_MODE_OPTIONS: Array<{ value: ProjectSecretMode; label: string }> = [
   { value: 'preserve', label: 'Preserve existing' },
   { value: 'replace', label: 'Replace on save' },
   { value: 'clear', label: 'Clear on save' },
 ];
 
-type CredentialKey = keyof ProjectSettingsDraft['credentials'];
-type SettingsSectionKey = 'basics' | 'repository' | 'credentials' | 'models' | 'brief';
+type SettingsSectionKey = 'basics' | 'repository' | 'danger';
 
 export function ProjectSettingsTab({ project }: { project: DashboardProjectRecord }): JSX.Element {
   const queryClient = useQueryClient();
   const [draft, setDraft] = useState(() => createProjectSettingsDraft(project));
   const [showDelete, setShowDelete] = useState(false);
-  const [expandedCredentialKey, setExpandedCredentialKey] = useState<CredentialKey | null>(null);
+  const [isGitTokenExpanded, setGitTokenExpanded] = useState(false);
   const [expandedSection, setExpandedSection] = useState<SettingsSectionKey | null>(null);
   const validation = validateProjectSettingsDraft(draft);
   const surfaceSummary = buildProjectSettingsSurfaceSummary(project, draft, validation);
-  const planningBriefSummary = summarizeProjectBrief(draft.projectBrief);
-  const isPlanningBriefEmpty = planningBriefSummary === EMPTY_BRIEF_SUMMARY;
   const mutation = useMutation({
     mutationFn: () => dashboardApi.patchProject(project.id, buildProjectSettingsPatch(project, draft)),
-    onSuccess: async () => {
+    onSuccess: async (updatedProject) => {
+      setDraft(createProjectSettingsDraft(updatedProject));
+      setGitTokenExpanded(false);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['project', project.id] }),
         queryClient.invalidateQueries({ queryKey: ['projects'] }),
@@ -64,55 +60,8 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
     },
   });
 
-  const basicsSummary = buildBasicsSummary(draft, surfaceSummary.lifecycleLabel);
+  const basicsSummary = buildBasicsSummary(draft);
   const repositorySummary = buildRepositorySummary(draft, surfaceSummary.repositoryLabel);
-  const credentialsSummary = `${surfaceSummary.configuredSecretLabel} • ${surfaceSummary.stagedSecretChangeLabel}`;
-  const modelSummary =
-    surfaceSummary.modelOverrideCount > 0
-      ? `${surfaceSummary.modelOverrideLabel} configured`
-      : 'Using shared model posture';
-
-  const credentials: Array<{
-    key: CredentialKey;
-    label: string;
-    draft: ProjectSecretDraft;
-    error?: string;
-    textarea?: boolean;
-  }> = [
-    {
-      key: 'gitToken',
-      label: 'Git token',
-      draft: draft.credentials.gitToken,
-      error: validation.fieldErrors.gitToken,
-    },
-    {
-      key: 'gitSshPrivateKey',
-      label: 'SSH private key',
-      draft: draft.credentials.gitSshPrivateKey,
-      textarea: true,
-    },
-    {
-      key: 'gitSshKnownHosts',
-      label: 'SSH known_hosts',
-      draft: draft.credentials.gitSshKnownHosts,
-      textarea: true,
-    },
-    {
-      key: 'webhookSecret',
-      label: 'Webhook secret',
-      draft: draft.credentials.webhookSecret,
-    },
-  ];
-
-  function updateCredential(key: CredentialKey, next: ProjectSecretDraft) {
-    setDraft((current) => ({
-      ...current,
-      credentials: {
-        ...current.credentials,
-        [key]: next,
-      },
-    }));
-  }
 
   function toggleSection(section: SettingsSectionKey) {
     setExpandedSection((current) => (current === section ? null : section));
@@ -128,11 +77,6 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
               <div className="flex flex-wrap items-center gap-2">
                 <Badge variant="outline">{surfaceSummary.lifecycleLabel}</Badge>
                 <Badge variant="outline">{surfaceSummary.repositoryLabel}</Badge>
-                <Badge variant="outline">{surfaceSummary.configuredSecretLabel}</Badge>
-                <Badge variant="outline">{surfaceSummary.modelOverrideLabel}</Badge>
-                {surfaceSummary.stagedSecretChangeCount > 0 ? (
-                  <Badge variant="secondary">{surfaceSummary.stagedSecretChangeLabel}</Badge>
-                ) : null}
                 {surfaceSummary.blockingIssueCount > 0 ? (
                   <Badge variant="warning">
                     {surfaceSummary.blockingIssueCount}{' '}
@@ -157,13 +101,25 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
           {surfaceSummary.blockingIssueCount > 0 ? (
             <BlockingIssuesPanel title="Resolve before saving" issues={validation.blockingIssues} />
           ) : null}
+
+          <ToggleCard
+            label="Project lifecycle"
+            description="Control whether this project should accept new work."
+            meta={
+              draft.isActive
+                ? 'Active projects can receive new work.'
+                : 'Inactive projects stay available for review but should not receive new work.'
+            }
+            checked={draft.isActive}
+            onCheckedChange={(checked) => setDraft((current) => ({ ...current, isActive: checked }))}
+          />
         </CardContent>
       </Card>
 
       <SettingsDisclosureSection
         id="project-settings-basics"
         title="Project basics"
-        description="Name, slug, description, and delivery eligibility."
+        description="Name, slug, and operator-facing description."
         summary={basicsSummary}
         actionLabel={expandedSection === 'basics' ? 'Hide basics' : 'Open basics'}
         isExpanded={expandedSection === 'basics'}
@@ -190,24 +146,16 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
             className="min-h-[88px]"
             onChange={(value) => setDraft((current) => ({ ...current, description: value }))}
           />
-          <ToggleCard
-            label="Active project"
-            description="Disable this when the workspace should stay visible for review but stop accepting new work."
-            meta={
-              draft.isActive
-                ? 'Operators can route work here.'
-                : 'Operators can review it, but new work should stay elsewhere.'
-            }
-            checked={draft.isActive}
-            onCheckedChange={(checked) => setDraft((current) => ({ ...current, isActive: checked }))}
-          />
+          <p className="text-sm leading-6 text-muted">
+            Description is only shown to operators. It is not used for execution context.
+          </p>
         </div>
       </SettingsDisclosureSection>
 
       <SettingsDisclosureSection
         id="project-settings-repository"
         title="Repository & git defaults"
-        description="Repository URL, default branch, and author identity stay together."
+        description="Repository URL, default branch, author identity, and git token stay together."
         summary={repositorySummary}
         actionLabel={expandedSection === 'repository' ? 'Hide defaults' : 'Open defaults'}
         isExpanded={expandedSection === 'repository'}
@@ -244,94 +192,44 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
               onChange={(value) => setDraft((current) => ({ ...current, gitUserEmail: value }))}
             />
           </div>
+          <div className="space-y-2">
+            <SecretDisclosureRow
+              label="Git token"
+              draft={draft.credentials.gitToken}
+              error={validation.fieldErrors.gitToken}
+              isExpanded={isGitTokenExpanded}
+              onToggle={() => setGitTokenExpanded((current) => !current)}
+              onChange={(next) =>
+                setDraft((current) => ({
+                  ...current,
+                  credentials: {
+                    ...current.credentials,
+                    gitToken: next,
+                  },
+                }))
+              }
+            />
+          </div>
         </div>
       </SettingsDisclosureSection>
-
       <SettingsDisclosureSection
-        id="project-settings-credentials"
-        title="Credentials posture"
-        description="Open the posture only when a secret needs work."
-        summary={credentialsSummary}
-        actionLabel={expandedSection === 'credentials' ? 'Hide credentials' : 'Open credentials'}
-        isExpanded={expandedSection === 'credentials'}
-        onToggle={() => toggleSection('credentials')}
+        id="project-settings-danger"
+        title="Danger"
+        description="Delete this project only when the workspace should be removed permanently for this tenant."
+        summary="Project deletion is destructive. Leave this closed unless you intentionally need to remove the workspace."
+        actionLabel={expandedSection === 'danger' ? 'Hide danger' : 'Open danger'}
+        isExpanded={expandedSection === 'danger'}
+        onToggle={() => toggleSection('danger')}
       >
         <div className="space-y-3">
           <p className="text-sm leading-6 text-muted">
-            Stored posture stays visible even when editors stay closed.
+            Delete this project only when the workspace should be removed permanently for this tenant.
           </p>
-          <div className="space-y-2">
-            {credentials.map((credential) => (
-              <SecretDisclosureRow
-                key={credential.key}
-                label={credential.label}
-                draft={credential.draft}
-                error={credential.error}
-                textarea={credential.textarea}
-                isExpanded={expandedCredentialKey === credential.key}
-                onToggle={() =>
-                  setExpandedCredentialKey((current) =>
-                    current === credential.key ? null : credential.key,
-                  )
-                }
-                onChange={(next) => updateCredential(credential.key, next)}
-              />
-            ))}
-          </div>
-        </div>
-      </SettingsDisclosureSection>
-
-      <SettingsDisclosureSection
-        id="project-settings-models"
-        title="Models"
-        description="Project overrides stay secondary until this project truly needs them."
-        summary={modelSummary}
-        actionLabel={expandedSection === 'models' ? 'Hide models' : 'Open models'}
-        isExpanded={expandedSection === 'models'}
-        onToggle={() => toggleSection('models')}
-      >
-        <ProjectModelOverridesTab project={project} />
-      </SettingsDisclosureSection>
-
-      <SettingsDisclosureSection
-        id="project-settings-brief"
-        title="Planning brief"
-        description="Keep long-form project context tucked away until you need to review or revise it."
-        summary={planningBriefSummary}
-        actionLabel={expandedSection === 'brief' ? 'Hide brief' : 'Open brief'}
-        isExpanded={expandedSection === 'brief'}
-        onToggle={() => toggleSection('brief')}
-      >
-        <div className="space-y-3">
-          {isPlanningBriefEmpty ? (
-            <p className="text-sm leading-6 text-muted">
-              No project brief saved yet. Open the editor only when this project needs persistent
-              operator context.
-            </p>
-          ) : null}
-          <TextAreaField
-            label="Project brief"
-            value={draft.projectBrief}
-            className="min-h-[112px]"
-            onChange={(value) => setDraft((current) => ({ ...current, projectBrief: value }))}
-          />
-        </div>
-      </SettingsDisclosureSection>
-      <Card className="border-border/70 bg-card/80 shadow-none">
-        <CardContent className="space-y-3 p-4">
-          <div className="space-y-1">
-            <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-foreground">
-              Danger
-            </h3>
-            <p className="text-sm leading-6 text-muted">
-              Delete this project only when the workspace should be removed permanently for this tenant.
-            </p>
-          </div>
           <Button variant="destructive" type="button" onClick={() => setShowDelete(true)}>
             Delete project
           </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </SettingsDisclosureSection>
       </div>
       {showDelete ? (
         <DeleteProjectDialog project={project} onClose={() => setShowDelete(false)} />
@@ -428,7 +326,7 @@ function SecretDisclosureRow(props: {
 }): JSX.Element {
   const InputComponent = props.textarea ? Textarea : Input;
   const summary = buildProjectSecretPostureSummary(props.draft);
-  const isBodyVisible = props.isExpanded || props.draft.mode === 'replace' || !props.draft.configured;
+  const isBodyVisible = props.isExpanded || props.draft.mode === 'replace';
   const actionLabel = props.draft.configured
     ? props.isExpanded
       ? 'Hide secret'
@@ -545,20 +443,18 @@ function FieldMessage(props: { message?: string }): JSX.Element | null {
   return <p className="text-xs text-amber-900 dark:text-amber-100">{props.message}</p>;
 }
 
-function buildBasicsSummary(
-  draft: ProjectSettingsDraft,
-  lifecycleLabel: string,
-): string {
+function buildBasicsSummary(draft: ProjectSettingsDraft): string {
   const slugLabel = draft.slug.trim() ? `Slug ${draft.slug.trim()}` : 'Slug required';
-  return `${lifecycleLabel} • ${slugLabel}`;
+  return slugLabel;
 }
 
 function buildRepositorySummary(
   draft: ProjectSettingsDraft,
   repositoryLabel: string,
 ): string {
+  const gitTokenSummary = buildProjectSecretPostureSummary(draft.credentials.gitToken);
   if (!draft.repositoryUrl.trim()) {
-    return 'Repository optional';
+    return `${repositoryLabel} • Git token ${gitTokenSummary.postureLabel.toLowerCase()}`;
   }
 
   const details = [repositoryLabel];
@@ -568,5 +464,6 @@ function buildRepositorySummary(
   if (draft.gitUserEmail.trim()) {
     details.push('Author identity ready');
   }
+  details.push(`Git token ${gitTokenSummary.postureLabel.toLowerCase()}`);
   return details.join(' • ');
 }

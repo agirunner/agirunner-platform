@@ -22,9 +22,6 @@ export function ProjectSettingsShell(props: ProjectSettingsShellProps): JSX.Elem
           <Badge variant={props.project.is_active ? 'success' : 'secondary'}>
             {props.project.is_active ? 'Live project' : 'Inactive project'}
           </Badge>
-          {props.project.git_webhook_secret_configured ? (
-            <Badge variant="outline">Repository trust configured</Badge>
-          ) : null}
         </div>
       </div>
       {props.children}

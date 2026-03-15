@@ -12,7 +12,7 @@ describe('project knowledge surface source', () => {
 
     expect(source).toContain("type KnowledgePanelValue = 'reference' | 'memory' | 'runContent'");
     expect(source).toContain('<KnowledgeSection');
-    expect(source).toContain("label: 'Reference material'");
+    expect(source).toContain("label: 'Project Context & Knowledge'");
     expect(source).toContain("label: 'Project memory'");
     expect(source).toContain("label: 'Run content'");
     expect(source).toContain('referenceContent: ReactNode;');
@@ -24,7 +24,7 @@ describe('project knowledge surface source', () => {
     const source = readSource('./project-knowledge-shell.tsx');
 
     expect(source).toContain('Knowledge');
-    expect(source).toContain('Open the section you need for project reference material, shared memory, or run content.');
+    expect(source).toContain('Use Knowledge for curated context, Memory for evolving notes, and Run content for generated outputs.');
     expect(source).toContain('className="sr-only">{props.overview.summary}</p>');
     expect(source).toContain("useState<KnowledgePanelValue | null>('reference')");
     expect(source).toContain('current === value ? null : value');
@@ -36,8 +36,8 @@ describe('project knowledge surface source', () => {
   it('keeps section headers compact so the page stays action-oriented', () => {
     const source = readSource('./project-knowledge-shell.tsx');
 
-    expect(source).toContain('Project spec and long-lived reference material stay here.');
-    expect(source).toContain('Reusable notes and structured context stay here.');
+    expect(source).toContain('Curated project context, policies, and reusable facts stay here.');
+    expect(source).toContain('Evolving notes and learned state stay here as work progresses.');
     expect(source).toContain('Scoped outputs, delivery evidence, and run-generated documents stay here.');
     expect(source).toContain('max-w-3xl text-sm leading-5 text-muted');
     expect(source).not.toContain('guidance:');
@@ -49,11 +49,12 @@ describe('project knowledge surface source', () => {
     const memorySource = readSource('./project-detail-memory-tab.tsx');
     const contentSource = readSource('./content-browser-page.tsx');
 
-    expect(specSource).toContain('useState<SpecSection | null>(null)');
-    expect(specSource).toContain('Start with the section you need to change');
+    expect(specSource).toContain('Project Context');
+    expect(specSource).toContain('Project knowledge');
+    expect(specSource).toContain('Only string and JSON values are supported here.');
     expect(memorySource).toContain('useState<MemorySectionKey | null>(null)');
     expect(memorySource).toContain('Memory at a glance');
-    expect(memorySource).toContain('Start with Current memory to review reusable context');
+    expect(memorySource).toContain('Memory is for evolving notes and learned state.');
     expect(contentSource).toContain('Document Operator Controls');
     expect(contentSource).toContain('Artifact Operator Controls');
     expect(contentSource).toContain('showHeader?: boolean;');

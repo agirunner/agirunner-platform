@@ -447,7 +447,7 @@ export function PlaybookDetailPage(): JSX.Element {
               <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted">
                 Configure playbook-specific cadence, runtime pools, concurrency, and workflow
                 structure below. Shared prompts, model preferences, and escalation policy for
-                specialist or orchestrator roles live on the Roles &amp; Orchestrator page.
+                specialist roles live on the Roles page, orchestrator config on the Orchestrator page.
               </div>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">

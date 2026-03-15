@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   Bell,
+  Bot,
   ChevronRight,
   Clipboard,
   Cog,
@@ -119,7 +120,8 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Cog,
     items: [
       { label: 'Playbooks', href: '/config/playbooks', icon: Workflow },
-      { label: 'Roles & Orchestrator', href: '/config/roles', icon: Users, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture', 'specialist', 'agent roles', 'role definitions'] },
+      { label: 'Orchestrator', href: '/config/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
+      { label: 'Roles', href: '/config/roles', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },
       { label: 'Platform Instructions', href: '/config/instructions', icon: ScrollText },
       { label: 'LLM Providers', href: '/config/llm', icon: Cog },
       { label: 'Tools', href: '/config/tools', icon: Wrench },

@@ -4,12 +4,9 @@ import {
   PROJECT_DETAIL_TAB_OPTIONS,
   buildProjectDetailHeaderState,
   buildProjectKnowledgeOverview,
-  buildProjectModelOverview,
   buildProjectSettingsOverview,
   buildProjectWorkspaceOverview,
-  buildRoleModelOverrides,
   buildStructuredObject,
-  hydrateRoleOverrideDrafts,
   normalizeProjectDetailTab,
   objectToStructuredDrafts,
 } from './project-detail-support.js';
@@ -56,43 +53,6 @@ describe('project detail support', () => {
     ).toThrow(/duplicate key 'retries'/i);
   });
 
-  it('hydrates resolved and custom role overrides into structured drafts', () => {
-    const drafts = hydrateRoleOverrideDrafts(['architect', 'developer'], {
-      architect: { provider: 'openai', model: 'gpt-5' },
-      qa: { provider: 'anthropic', model: 'claude-sonnet' },
-    });
-
-    expect(drafts.map((draft) => draft.role)).toEqual(['architect', 'developer', 'qa']);
-    expect(drafts[0]?.provider).toBe('openai');
-    expect(drafts[2]?.model).toBe('claude-sonnet');
-  });
-
-  it('builds typed project model override payloads and validates required fields', () => {
-    expect(
-      buildRoleModelOverrides([
-        {
-          id: 'a',
-          role: 'architect',
-          provider: 'openai',
-          model: 'gpt-5',
-          reasoningConfig: '{"effort":"medium"}',
-        },
-      ]),
-    ).toEqual({
-      architect: {
-        provider: 'openai',
-        model: 'gpt-5',
-        reasoning_config: { effort: 'medium' },
-      },
-    });
-
-    expect(() =>
-      buildRoleModelOverrides([
-        { id: 'a', role: 'architect', provider: 'openai', model: '', reasoningConfig: '' },
-      ]),
-    ).toThrow(/must include both provider and model/i);
-  });
-
   it('normalizes unknown project-detail tabs back to the spec workspace', () => {
     expect(PROJECT_DETAIL_TAB_OPTIONS.map((option) => option.value)).toEqual([
       'overview',
@@ -137,9 +97,6 @@ describe('project detail support', () => {
       {
         project_id: 'project-1',
         config: { retries: 2, branch: 'main' },
-        instructions: { operator: 'Review blockers' },
-        resources: { repo: { kind: 'git' } },
-        documents: { runbook: { title: 'Release runbook' } },
         tools: { shell: { allowed: true } },
       },
     );
@@ -148,7 +105,7 @@ describe('project detail support', () => {
     expect(overview.packets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Lifecycle', value: 'Active' }),
-        expect.objectContaining({ label: 'Knowledge base', value: '8 entries' }),
+        expect.objectContaining({ label: 'Knowledge base', value: '5 entries' }),
         expect.objectContaining({ label: 'Automation', value: 'Verified repo' }),
         expect.objectContaining({ label: 'Repository', value: 'Linked' }),
         expect.objectContaining({ label: 'Delivery', value: '7 workflows' }),
@@ -202,37 +159,26 @@ describe('project detail support', () => {
 
     expect(headerState.mode).toBe('compact');
     expect(headerState.activeTab.label).toBe('Settings');
-    expect(headerState.description).toContain('control plane');
+    expect(headerState.description).toContain('repository defaults');
     expect(headerState.contextPills).toEqual([]);
     expect(headerState.quickActions.map((action) => action.label)).toEqual(['Back to overview']);
     expect(headerState.quickActions[0]?.href).toBe('/projects/project-1');
   });
 
-  it('builds a settings overview from project posture and stored settings', () => {
+  it('builds a settings overview from project posture and repository defaults', () => {
     const overview = buildProjectSettingsOverview({
       id: 'project-1',
       name: 'Release automation',
       slug: 'release-automation',
       is_active: true,
       repository_url: 'https://example.com/repo.git',
-      git_webhook_provider: 'github',
-      git_webhook_secret_configured: true,
       settings: {
         retention_days: 30,
         credentials: {
           git_token: null,
           git_token_configured: false,
-          git_ssh_private_key: null,
-          git_ssh_private_key_configured: false,
-          git_ssh_known_hosts: null,
-          git_ssh_known_hosts_configured: false,
-          webhook_secret: null,
-          webhook_secret_configured: false,
         },
-        model_overrides: {
-          architect: { provider: 'openai', model: 'gpt-5' },
-          reviewer: { provider: 'anthropic', model: 'claude-sonnet' },
-        },
+        project_brief: 'Keep release automation ready for Friday handoff.',
       },
     });
 
@@ -240,14 +186,13 @@ describe('project detail support', () => {
     expect(overview.packets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Stored settings', value: '3 entries' }),
-        expect.objectContaining({ label: 'Model overrides', value: '2 roles' }),
-        expect.objectContaining({ label: 'Repository trust', value: 'Configured' }),
         expect.objectContaining({ label: 'Repository link', value: 'Linked' }),
       ]),
     );
+    expect(overview.packets.map((packet) => packet.label)).not.toContain('Project Context');
   });
 
-  it('builds a knowledge overview that groups spec, resources, tools, memory, and artifacts', () => {
+  it('builds a knowledge overview that separates curated knowledge from project memory and artifacts', () => {
     const overview = buildProjectKnowledgeOverview(
       {
         id: 'project-1',
@@ -262,55 +207,18 @@ describe('project detail support', () => {
       {
         project_id: 'project-1',
         config: { retries: 2, branch: 'main' },
-        instructions: { operator: 'Review blockers' },
-        resources: { repo: { kind: 'git' } },
-        documents: { runbook: { title: 'Release runbook' } },
-        tools: { shell: { allowed: true } },
       },
     );
 
-    expect(overview.summary).toContain('structured spec');
+    expect(overview.summary).toContain('reusable project context');
     expect(overview.packets).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: 'Structured spec', value: '3 entries' }),
-        expect.objectContaining({ label: 'Reference assets', value: '2 items' }),
-        expect.objectContaining({ label: 'Tool policy', value: '1 entry' }),
+        expect.objectContaining({ label: 'Project Context' }),
+        expect.objectContaining({ label: 'Knowledge entries', value: '2 entries' }),
         expect.objectContaining({ label: 'Shared memory', value: '2 entries' }),
         expect.objectContaining({ label: 'Artifacts', value: 'Inline workspace' }),
       ]),
     );
   });
 
-  it('summarizes override posture and fallback risk for project models', () => {
-    const overview = buildProjectModelOverview(
-      {
-        architect: { provider: 'openai', model: 'gpt-5' },
-      },
-      {
-        architect: {
-          source: 'project',
-          fallback: false,
-          resolved: {
-            provider: { name: 'openai', providerType: 'chat' },
-            model: { modelId: 'gpt-5' },
-          },
-        },
-        qa: {
-          source: 'base',
-          fallback: true,
-          resolved: null,
-          fallback_reason: 'Provider unavailable',
-        },
-      },
-    );
-
-    expect(overview.summary).toContain('falling back');
-    expect(overview.packets).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ label: 'Project overrides', value: '1 role' }),
-        expect.objectContaining({ label: 'Resolved roles', value: '2 roles' }),
-        expect.objectContaining({ label: 'Fallbacks', value: '1 active' }),
-      ]),
-    );
-  });
 });

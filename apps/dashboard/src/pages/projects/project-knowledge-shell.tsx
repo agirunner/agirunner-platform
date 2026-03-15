@@ -22,14 +22,14 @@ const KNOWLEDGE_PANELS: Array<{
 }> = [
   {
     value: 'reference',
-    label: 'Reference material',
-    description: 'Project spec and long-lived reference material stay here.',
+    label: 'Project Context & Knowledge',
+    description: 'Curated project context, policies, and reusable facts stay here.',
     icon: FileText,
   },
   {
     value: 'memory',
     label: 'Project memory',
-    description: 'Reusable notes and structured context stay here.',
+    description: 'Evolving notes and learned state stay here as work progresses.',
     icon: BrainCircuit,
   },
   {
@@ -44,7 +44,9 @@ export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.El
   const [expandedPanel, setExpandedPanel] = useState<KnowledgePanelValue | null>('reference');
   const sectionSummaries: Record<KnowledgePanelValue, string> = {
     reference: buildReferenceSummary(props.overview),
-    memory: getPacketSummary(props.overview, 'Shared memory') || 'Shared memory and reusable notes.',
+    memory:
+      getPacketSummary(props.overview, 'Shared memory')
+      || 'Project memory captures evolving notes and learned state.',
     runContent: buildRunContentSummary(props.overview),
   };
 
@@ -58,7 +60,7 @@ export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.El
         <div className="space-y-1">
           <h2 className="text-sm font-semibold text-foreground">Knowledge</h2>
           <p className="max-w-3xl text-sm leading-6 text-muted">
-            Open the section you need for project reference material, shared memory, or run content.
+            Use Knowledge for curated context, Memory for evolving notes, and Run content for generated outputs.
           </p>
           <p className="sr-only">{props.overview.summary}</p>
         </div>
@@ -131,11 +133,10 @@ function KnowledgeSection(props: {
 }
 
 function buildReferenceSummary(overview: ProjectWorkspaceOverview): string {
-  const structuredSpec = getPacketSummary(overview, 'Structured spec');
-  const referenceAssets = getPacketSummary(overview, 'Reference assets');
-  const toolPolicy = getPacketSummary(overview, 'Tool policy');
-  const summary = [structuredSpec, referenceAssets, toolPolicy].filter(Boolean).join(' • ');
-  return summary || 'Structured spec, reference assets, and tool policy.';
+  const projectContext = getPacketSummary(overview, 'Project Context');
+  const knowledgeEntries = getPacketSummary(overview, 'Knowledge entries');
+  const summary = [projectContext, knowledgeEntries].filter(Boolean).join(' • ');
+  return summary || 'Curated project context and reusable knowledge entries.';
 }
 
 function buildRunContentSummary(overview: ProjectWorkspaceOverview): string {

@@ -90,15 +90,15 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
         <CardHeader className="space-y-2">
           <CardTitle>Memory at a glance</CardTitle>
           <CardDescription>
-            Start with Current memory to review reusable context. Open Add memory entry only when a
-            new key is needed.
+            Memory is for evolving notes and learned state. Use Current memory to review what work
+            has taught the project, then add a new key only when a new memory record is needed.
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-3">
           <MemorySummaryCard
             title="Memory posture"
             value={`${summary.totalEntries} entries`}
-            detail="Shared project context available to future workflow runs and operators."
+            detail="Working memory that can evolve as operators and workflows discover new context."
             icon={BrainCircuit}
           />
           <MemorySummaryCard
@@ -110,7 +110,7 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
           <MemorySummaryCard
             title="Plain-text notes"
             value={`${summary.stringEntries} string`}
-            detail="Use these for concise operator notes and reusable human-readable guidance."
+            detail="Use these for concise notes, observations, and other evolving human-readable context."
             icon={Sparkles}
           />
         </CardContent>
@@ -121,10 +121,10 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
         summary={buildMemorySectionSummary(
           summary.totalEntries,
           entries.length === 0
-            ? 'No shared keys saved yet.'
-            : 'Review shared notes, flags, and structured values before editing.',
+            ? 'No evolving memory saved yet.'
+            : 'Review notes, learned state, and structured values before editing.',
         )}
-        description="Review and update shared memory with responsive card or table layouts, depending on viewport size."
+        description="Review and update project memory without changing the curated knowledge base."
         isExpanded={expandedSection === 'current'}
         onToggle={() => toggleSection('current')}
       >
@@ -140,7 +140,7 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
       <MemorySection
         title="Add memory entry"
         summary={buildComposerSummary(draftKey)}
-        description="Create a typed project-memory record with the same structured controls used elsewhere in the memory browser."
+        description="Create a typed memory record for new notes or learned state that should stay project-scoped."
         isExpanded={expandedSection === 'composer'}
         onToggle={() => toggleSection('composer')}
       >
@@ -179,8 +179,8 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
             </p>
           ) : null}
           <p className="text-sm leading-6 text-muted">
-            Keys should be stable and reusable. Add a new key for new operator context instead of
-            overwriting a different concept under an existing name.
+            Keys should be stable and reusable. Save durable policy and reference facts under
+            Knowledge, and use memory for evolving notes or learned state.
           </p>
         </div>
       </MemorySection>
