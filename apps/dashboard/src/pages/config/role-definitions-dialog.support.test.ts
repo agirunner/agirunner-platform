@@ -7,13 +7,11 @@ import {
 import { createRoleForm } from './role-definitions-page.support.js';
 
 describe('role dialog support', () => {
-  it('blocks duplicate names and invalid fallback routing while surfacing advisory guidance', () => {
+  it('blocks duplicate names while surfacing advisory guidance', () => {
     const result = validateRoleDialog(
       {
         ...createRoleForm(),
         name: 'Architect',
-        modelPreference: 'gpt-5.4',
-        fallbackModel: 'gpt-5.4',
         allowedTools: [],
       },
       [{ id: 'role-1', name: 'architect' }],
@@ -22,7 +20,6 @@ describe('role dialog support', () => {
     expect(result.isValid).toBe(false);
     expect(result.fieldErrors).toMatchObject({
       name: 'Choose a unique role name.',
-      fallbackModel: 'Choose a fallback model that differs from the preferred model.',
     });
     expect(result.advisoryIssues).toEqual(
       expect.arrayContaining([
@@ -37,12 +34,10 @@ describe('role dialog support', () => {
       summarizeRoleSetup({
         ...createRoleForm(),
         allowedTools: ['file_read'],
-        modelPreference: 'gpt-5.4',
-        fallbackModel: 'gpt-4.1',
       }),
     ).toEqual({
       toolSummary: '1 tool enabled',
-      modelSummary: 'gpt-5.4 with gpt-4.1 fallback',
+      modelSummary: 'Model assigned via LLM Providers page',
     });
   });
 });

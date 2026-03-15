@@ -20,11 +20,6 @@ export interface RoleFormState {
   systemPrompt: string;
   allowedTools: string[];
   capabilities: string[];
-  modelPreference: string;
-  fallbackModel: string;
-  verificationStrategy: string;
-  escalationTarget: string | null;
-  maxEscalationDepth: number;
   isActive: boolean;
 }
 
@@ -136,11 +131,6 @@ export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
     systemPrompt: role?.system_prompt ?? '',
     allowedTools: role?.allowed_tools ?? [...KNOWN_TOOLS],
     capabilities: role?.capabilities ?? [],
-    modelPreference: role?.model_preference ?? '',
-    fallbackModel: role?.fallback_model ?? '',
-    verificationStrategy: role?.verification_strategy ?? 'none',
-    escalationTarget: role?.escalation_target ?? null,
-    maxEscalationDepth: role?.max_escalation_depth ?? 5,
     isActive: role?.is_active ?? true,
   };
 }
@@ -158,11 +148,6 @@ export function buildRolePayload(form: RoleFormState) {
     systemPrompt: form.systemPrompt.trim() || undefined,
     allowedTools: normalizeStringList(form.allowedTools),
     capabilities: normalizeStringList(form.capabilities),
-    modelPreference: form.modelPreference || undefined,
-    fallbackModel: form.fallbackModel || undefined,
-    verificationStrategy: form.verificationStrategy,
-    escalationTarget: form.escalationTarget,
-    maxEscalationDepth: form.escalationTarget ? form.maxEscalationDepth : undefined,
     isActive: form.isActive,
   };
 }

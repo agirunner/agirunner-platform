@@ -35,9 +35,7 @@ export function validateRoleDialog(
 export function summarizeRoleSetup(form: RoleFormState): RoleSetupSummary {
   return {
     toolSummary: `${form.allowedTools.length} tool${form.allowedTools.length === 1 ? '' : 's'} enabled`,
-    modelSummary: form.modelPreference
-      ? `${form.modelPreference}${form.fallbackModel ? ` with ${form.fallbackModel} fallback` : ''}`
-      : 'System default model routing',
+    modelSummary: 'Model assigned via LLM Providers page',
   };
 }
 

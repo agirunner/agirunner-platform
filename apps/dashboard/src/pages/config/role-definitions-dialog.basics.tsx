@@ -22,10 +22,12 @@ import type {
   RoleDialogValidation,
 } from './role-definitions-dialog.support.js';
 import type {
+  LlmModelRecord,
+  LlmProviderRecord,
   RoleDefinition,
   RoleFormState,
-  RoleModelOption,
 } from './role-definitions-page.support.js';
+import { ReasoningControl } from './role-definitions-orchestrator.dialog-shared.js';
 
 export function RoleBasicsSection(props: {
   form: RoleFormState;
@@ -105,99 +107,74 @@ export function RoleBasicsSection(props: {
   );
 }
 
-export function RoleModelPreferenceSection(props: {
-  form: RoleFormState;
-  setForm: Dispatch<SetStateAction<RoleFormState>>;
-  modelOptions: RoleModelOption[];
-  isModelCatalogLoading: boolean;
-  modelCatalogError?: string | null;
-  validation: RoleDialogValidation;
+export function RoleModelAssignmentSection(props: {
+  models: LlmModelRecord[];
+  providers: LlmProviderRecord[];
+  selectedModelId: string;
+  reasoningConfig: Record<string, unknown> | null;
+  selectedModel?: LlmModelRecord | null;
+  isLoading: boolean;
+  error?: string | null;
+  onModelChange: (modelId: string) => void;
+  onReasoningChange: (config: Record<string, unknown> | null) => void;
 }) {
+  const providerNames = new Map(props.providers.map((p) => [p.id, p.name] as const));
+
+  const reasoningValue = props.selectedModel?.reasoning_config
+    ? (props.reasoningConfig?.[props.selectedModel.reasoning_config.key] as string | number | null) ?? null
+    : null;
+
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Model preference</CardTitle>
+        <CardTitle>Model assignment</CardTitle>
         <CardDescription>
-          Choose live models for the role default and fallback chain.
+          Assign a model to this role. This is the same assignment shown on the LLM Providers page.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <label className="grid gap-2 text-sm">
-          <span className="font-medium">Preferred model</span>
+          <span className="font-medium">Model</span>
           <Select
-            value={props.form.modelPreference || '__system__'}
+            value={props.selectedModelId || '__system__'}
             onValueChange={(value) =>
-              props.setForm((current) => ({
-                ...current,
-                modelPreference: value === '__system__' ? '' : value,
-                fallbackModel: value === '__system__' ? '' : current.fallbackModel,
-              }))
+              props.onModelChange(value === '__system__' ? '' : value)
             }
           >
-            <SelectTrigger aria-invalid={Boolean(props.validation.fieldErrors.modelPreference)}>
+            <SelectTrigger>
               <SelectValue
-                placeholder={
-                  props.isModelCatalogLoading ? 'Loading models...' : 'Use system default'
-                }
+                placeholder={props.isLoading ? 'Loading models...' : 'Use system default'}
               />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__system__">Use system default</SelectItem>
-              {props.modelOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
+              {props.models
+                .filter((m) => m.is_enabled !== false)
+                .map((model) => {
+                  const provider = model.provider_name ?? (model.provider_id ? providerNames.get(model.provider_id) : null) ?? 'Unknown';
+                  return (
+                    <SelectItem key={model.model_id} value={model.model_id}>
+                      {provider} / {model.model_id}
+                    </SelectItem>
+                  );
+                })}
             </SelectContent>
           </Select>
-          {props.validation.fieldErrors.modelPreference ? (
-            <span className="text-xs text-red-600 dark:text-red-400">
-              {props.validation.fieldErrors.modelPreference}
-            </span>
-          ) : null}
         </label>
-        <label className="grid gap-2 text-sm">
-          <span className="font-medium">Fallback model</span>
-          <Select
-            disabled={!props.form.modelPreference}
-            value={props.form.fallbackModel || '__none__'}
-            onValueChange={(value) =>
-              props.setForm((current) => ({
-                ...current,
-                fallbackModel: value === '__none__' ? '' : value,
-              }))
-            }
-          >
-            <SelectTrigger aria-invalid={Boolean(props.validation.fieldErrors.fallbackModel)}>
-              <SelectValue
-                placeholder={
-                  props.form.modelPreference
-                    ? 'Select fallback model'
-                    : 'Choose a preferred model first'
-                }
-              />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">No fallback</SelectItem>
-              {props.modelOptions
-                .filter((option) => option.value !== props.form.modelPreference)
-                .map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-            </SelectContent>
-          </Select>
-          {props.validation.fieldErrors.fallbackModel ? (
-            <span className="text-xs text-red-600 dark:text-red-400">
-              {props.validation.fieldErrors.fallbackModel}
-            </span>
-          ) : null}
-        </label>
+        {props.selectedModel?.reasoning_config ? (
+          <label className="grid gap-2 text-sm">
+            <span className="font-medium">Thinking</span>
+            <ReasoningControl
+              schema={props.selectedModel.reasoning_config}
+              value={reasoningValue}
+              onChange={props.onReasoningChange}
+            />
+          </label>
+        ) : null}
         <div className="rounded-lg border border-border/70 bg-muted/10 px-4 py-3 text-sm text-muted">
-          {props.modelCatalogError
-            ? `Model catalog unavailable: ${props.modelCatalogError}. Existing selections remain editable.`
-            : 'Live models come from the enabled provider catalog. Workflow and project overrides can still supersede this default.'}
+          {props.error
+            ? `Model catalog unavailable: ${props.error}. Existing selections remain editable.`
+            : 'This assignment syncs with the LLM Providers page. Workflow and project overrides can still supersede it.'}
         </div>
       </CardContent>
     </Card>

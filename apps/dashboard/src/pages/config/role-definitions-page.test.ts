@@ -42,7 +42,7 @@ describe('role definitions page source', () => {
     const source = readSource();
     expect(source).toContain("import { RoleDialog } from './role-definitions-dialog.js'");
     const dialogSource = readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8');
-    expect(dialogSource).toContain('top-[5vh] flex max-h-[90vh] max-w-6xl translate-y-0 flex-col overflow-hidden p-0');
+    expect(dialogSource).toContain('top-[5vh] flex max-h-[90vh] max-w-4xl translate-y-0 flex-col overflow-hidden p-0');
     expect(dialogSource).toContain('RoleDialogFooter');
     expect(dialogSource).toContain('overflow-y-auto px-6 py-5');
   });
@@ -56,8 +56,7 @@ describe('role definitions page source', () => {
 
   it('exposes structured model and active-state controls in the dialog', () => {
     const source = readCombinedSource();
-    expect(source).toContain('Model preference');
-    expect(source).toContain('Fallback model');
+    expect(source).toContain('Model assignment');
     expect(source).toContain('Active role');
     expect(source).toContain('Save readiness');
     expect(source).toContain('Resolve these role setup issues before saving.');
