@@ -80,8 +80,9 @@ export class PlaybookRedesignResetService {
       await deleteNonDefaultAdminKeys(client);
       await truncateResetTables(client);
       await this.deps.seedDefaultTenant(client as never, source);
-      const config = source.AGIRUNNER_ADMIN_EMAIL
-        ? { AGIRUNNER_ADMIN_EMAIL: source.AGIRUNNER_ADMIN_EMAIL }
+      const adminEmail = source.AGIRUNNER_ADMIN_EMAIL;
+      const config = adminEmail
+        ? { AGIRUNNER_ADMIN_EMAIL: adminEmail }
         : undefined;
       await this.deps.seedConfigTables(client as never, config);
       await client.query('COMMIT');

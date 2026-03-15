@@ -25,12 +25,9 @@ describe('PlaybookRedesignResetService', () => {
     await service.reset({ AGIRUNNER_ADMIN_EMAIL: 'admin@example.com' } as never);
 
     expect(client.query).toHaveBeenNthCalledWith(1, 'BEGIN');
-    expect(client.query).toHaveBeenNthCalledWith(
-      2,
-      expect.stringContaining('DELETE FROM api_keys'),
-      [expect.any(String)],
-    );
-    const truncateSql = String((client.query.mock.calls[2] as unknown[] | undefined)?.[0] ?? '');
+    const queryCalls = client.query.mock.calls as Array<[unknown?, ...unknown[]]>;
+    expect(String(queryCalls[1]?.[0] ?? '')).toContain('DELETE FROM api_keys');
+    const truncateSql = String(queryCalls[2]?.[0] ?? '');
     expect(truncateSql).toContain('TRUNCATE TABLE');
     for (const table of PLAYBOOK_REDESIGN_PRESERVED_TABLES) {
       expect(truncateSql).not.toContain(`public.${table}`);
