@@ -16,15 +16,18 @@ function readSource() {
 describe('project automation surface source', () => {
   it('uses progressive disclosure so the surface stays list-first instead of permanently form-heavy', () => {
     const source = readSource();
-    expect(source).toContain('Create or revise schedules');
     expect(source).toContain('Add schedule');
     expect(source).toContain('Open signatures');
     expect(source).toContain('Hide signatures');
     expect(source).toContain('const [showEditor, setShowEditor] = useState(false)');
+    expect(source).toContain("const [isExpanded, setExpanded] = useState(false)");
     expect(source).toContain(
-      'Repository webhook signatures are optional unless this project should trust git-provider inbound hooks.',
+      'Use this only when GitHub, Gitea, or GitLab should be allowed to deliver signed inbound repository events for this project.',
     );
-    expect(source).toContain('Next move');
+    expect(source).not.toContain('Automation needs attention');
+    expect(source).not.toContain('Automation live');
+    expect(source).not.toContain('Refresh posture');
+    expect(source).not.toContain('Automation status is partial');
     expect(source).not.toContain('Schedules, inbound hooks, and repository signatures in one scan-first surface.');
     expect(source).not.toContain('Verify provider, secret posture, and repository trust without leaving Automation.');
   });

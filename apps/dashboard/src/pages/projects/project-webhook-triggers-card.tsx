@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Eye, Pencil, Plus, Trash2, Webhook } from 'lucide-react';
+import { ChevronDown, Eye, Pencil, Plus, Trash2, Webhook } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -13,6 +13,7 @@ import type {
   DashboardWorkflowRecord,
 } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
+import { cn } from '../../lib/utils.js';
 import {
   WebhookTriggerDeleteDialog,
   WebhookTriggerEditorDialog,
@@ -25,12 +26,12 @@ import {
   describeWebhookTriggerPacket,
 } from '../config/work-item-triggers-page.support.js';
 import { ProjectGitWebhookSignaturesCard } from './project-git-webhook-signatures-card.js';
-import { buildWebhookTriggerOverview } from './project-webhook-triggers-support.js';
 
 type EditorTarget = 'create' | DashboardWebhookWorkItemTriggerRecord;
 
 export function WebhookTriggersCard({ project }: { project: DashboardProjectRecord }): JSX.Element {
   const queryClient = useQueryClient();
+  const [isExpanded, setExpanded] = useState(false);
   const [editorTarget, setEditorTarget] = useState<EditorTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DashboardWebhookWorkItemTriggerRecord | null>(null);
   const [inspectTarget, setInspectTarget] = useState<DashboardWebhookWorkItemTriggerRecord | null>(null);
@@ -108,10 +109,6 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
         .sort((left, right) => left.name.localeCompare(right.name)),
     [project.id, triggersQuery.data],
   );
-  const triggerOverview = useMemo(
-    () => buildWebhookTriggerOverview(projectTriggers),
-    [projectTriggers],
-  );
 
   const isMutating =
     createMutation.isPending ||
@@ -122,6 +119,10 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
   const editorMode = editorTarget === 'create' ? ('create' as const) : ('edit' as const);
   const editorTrigger = editorTarget !== 'create' ? editorTarget : null;
   const editorMutationError = editorMode === 'create' ? createMutation.error : updateMutation.error;
+  const triggerSummary =
+    projectTriggers.length === 0
+      ? 'No inbound hooks configured.'
+      : `${projectTriggers.length} ${projectTriggers.length === 1 ? 'inbound hook' : 'inbound hooks'} configured.`;
 
   function handleEditorSubmit(payload: Record<string, unknown>) {
     if (editorMode === 'create') {
@@ -132,38 +133,39 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
   }
 
   return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <CardTitle className="flex items-center gap-2">
-            <Webhook className="h-4 w-4" />
-            Inbound hooks
-          </CardTitle>
-          <Button size="sm" onClick={() => setEditorTarget('create')}>
-            <Plus className="h-4 w-4" />
-            Add trigger
-          </Button>
-        </div>
+    <Card className="border-border/70 shadow-none">
+      <CardHeader className="p-0">
+        <button
+          type="button"
+          className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
+          aria-expanded={isExpanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Webhook className="h-4 w-4" />
+              Inbound hooks
+            </CardTitle>
+            <p className="text-sm leading-6 text-muted">
+              Turn external project events into workflow work when needed.
+            </p>
+            <p className="max-w-3xl text-sm leading-5 text-muted">{triggerSummary}</p>
+          </div>
+          <div className="flex items-center gap-2 pt-0.5">
+            <span className="text-xs font-medium text-muted">
+              {isExpanded ? 'Hide hooks' : 'Open hooks'}
+            </span>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-muted transition-transform',
+                isExpanded && 'rotate-180',
+              )}
+            />
+          </div>
+        </button>
       </CardHeader>
-      <CardContent className="space-y-6">
-        <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">{triggerOverview.heading}</h3>
-              <p className="text-sm leading-6 text-muted">{triggerOverview.summary}</p>
-            </div>
-            <div className="flex flex-wrap gap-2 xl:max-w-sm xl:justify-end">
-              {triggerOverview.packets.map((packet) => (
-                <OverviewPill key={packet.label} label={packet.label} value={packet.value} />
-              ))}
-            </div>
-          </div>
-          <div className="rounded-xl border border-border/70 bg-card/80 p-3 text-sm leading-6 text-muted">
-            <span className="font-medium text-foreground">Best next step:</span>{' '}
-            {triggerOverview.nextAction}
-          </div>
-        </section>
-
+      {isExpanded ? (
+      <CardContent className="space-y-6 border-t border-border/70 p-4">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -172,6 +174,10 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
                 Inspect, toggle, or revise project-scoped webhook rules.
               </p>
             </div>
+            <Button size="sm" onClick={() => setEditorTarget('create')}>
+              <Plus className="h-4 w-4" />
+              Add trigger
+            </Button>
           </div>
 
           {triggersQuery.isLoading ? (
@@ -229,19 +235,8 @@ export function WebhookTriggersCard({ project }: { project: DashboardProjectReco
 
         <ProjectGitWebhookSignaturesCard project={project} compact />
       </CardContent>
+      ) : null}
     </Card>
-  );
-}
-
-function OverviewPill(props: {
-  label: string;
-  value: string;
-}): JSX.Element {
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-xs">
-      <span className="font-medium uppercase tracking-[0.16em] text-muted">{props.label}</span>
-      <span className="font-semibold text-foreground">{props.value}</span>
-    </div>
   );
 }
 

@@ -62,7 +62,7 @@ export function ProjectGitWebhookSignaturesCard({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
               <Webhook className="h-4 w-4" />
-              Git provider signatures
+              Git repository signatures
             </div>
             <p className="text-sm leading-6 text-muted">
               {buildGitSignatureSummary(project, hasRepository)}
@@ -122,10 +122,11 @@ export function ProjectGitWebhookSignaturesCard({
           <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
             <div className="space-y-1">
               <h4 className="text-sm font-semibold text-foreground">Configure signatures</h4>
-              <p className="text-sm text-muted">
-                Save only when the provider changes or the secret rotates.
-              </p>
-            </div>
+                <p className="text-sm text-muted">
+                  Only use this for GitHub, Gitea, or GitLab inbound repository hooks. Leave it
+                  alone for non-git triggers.
+                </p>
+              </div>
 
             <div className="grid gap-4 lg:grid-cols-[minmax(0,220px)_minmax(0,1fr)]">
               <label className="space-y-1">
@@ -176,6 +177,7 @@ export function ProjectGitWebhookSignaturesCard({
               </p>
               <Button
                 size="sm"
+                variant="outline"
                 onClick={handleSave}
                 disabled={mutation.isPending || !trimmedSecret || Boolean(secretError)}
               >
@@ -241,12 +243,12 @@ function buildGitSignatureSummary(
   hasRepository: boolean,
 ): string {
   if (!hasRepository) {
-    return 'Optional. Configure this only when a git provider should be allowed to deliver signed inbound repository events.';
+    return 'Optional. Use this only when GitHub, Gitea, or GitLab should be allowed to deliver signed inbound repository events for this project.';
   }
   if (project.git_webhook_secret_configured) {
-    return 'Repository trust is configured for git-provider inbound hooks. Open signatures only when the provider changes or credentials rotate.';
+    return 'Repository trust is configured for git-provider inbound hooks. This is only for GitHub, Gitea, or GitLab repository events, and it stays optional for non-git triggers.';
   }
-  return 'Repository is linked. Configure signatures only if this project should trust git-provider inbound hooks.';
+  return 'Repository is linked. Configure signatures only if this project should trust GitHub, Gitea, or GitLab inbound hooks.';
 }
 
 function buildGitSignatureNextAction(
@@ -254,12 +256,12 @@ function buildGitSignatureNextAction(
   hasRepository: boolean,
 ): string {
   if (!hasRepository) {
-    return 'Leave this collapsed unless git-provider inbound hooks should be trusted for this project.';
+    return 'Leave this collapsed unless GitHub, Gitea, or GitLab inbound hooks should be trusted for this project.';
   }
   if (!project.git_webhook_provider || !project.git_webhook_secret_configured) {
-    return 'Open signatures to finish provider and secret setup before trusting git-provider inbound hooks.';
+    return 'Open signatures to finish provider and secret setup before trusting GitHub, Gitea, or GitLab inbound hooks.';
   }
-  return 'Leave this collapsed unless the repository provider changes or the secret rotates.';
+  return 'Leave this collapsed unless the git provider changes or the secret rotates.';
 }
 
 function formatProviderName(value: string): string {

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CalendarClock, Pencil, Plus, Trash2, Zap } from 'lucide-react';
+import { CalendarClock, ChevronDown, Pencil, Plus, Trash2, Zap } from 'lucide-react';
 
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
@@ -19,9 +19,9 @@ import type {
   DashboardScheduledWorkItemTriggerRecord,
   DashboardWorkflowRecord,
 } from '../../lib/api.js';
+import { cn } from '../../lib/utils.js';
 import { ProjectScheduledTriggerForm } from './project-scheduled-trigger-form.js';
 import {
-  buildScheduledTriggerOverview,
   buildScheduledTriggerPayload,
   createScheduledTriggerFormState,
   describeTriggerHealth,
@@ -33,6 +33,7 @@ import {
 
 export function ScheduledTriggersCard({ project }: { project: DashboardProjectRecord }): JSX.Element {
   const queryClient = useQueryClient();
+  const [isExpanded, setExpanded] = useState(false);
   const [form, setForm] = useState<ScheduledTriggerFormState>(createScheduledTriggerFormState());
   const [editingTriggerId, setEditingTriggerId] = useState<string | null>(null);
   const [showComposer, setShowComposer] = useState(false);
@@ -92,10 +93,6 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
         .sort((left, right) => left.next_fire_at.localeCompare(right.next_fire_at)),
     [project.id, triggersQuery.data],
   );
-  const triggerOverview = useMemo(
-    () => buildScheduledTriggerOverview(scheduledTriggers),
-    [scheduledTriggers],
-  );
 
   function resetEditor(): void {
     setEditingTriggerId(null);
@@ -107,47 +104,55 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
     setEditingTriggerId(trigger.id);
     setForm(hydrateScheduledTriggerForm(trigger));
     setShowComposer(true);
+    setExpanded(true);
   }
 
   function startCreate(): void {
     setEditingTriggerId(null);
     setForm(createScheduledTriggerFormState());
     setShowComposer(true);
+    setExpanded(true);
   }
 
-  return (
-    <Card>
-      <CardHeader className="space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <CardTitle className="flex items-center gap-2">
-            <Zap className="h-4 w-4" />
-            Schedules
-          </CardTitle>
-          <Button size="sm" onClick={startCreate}>
-            <Plus className="h-4 w-4" />
-            Add schedule
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            <div className="space-y-2">
-              <h3 className="text-sm font-semibold">{triggerOverview.heading}</h3>
-              <p className="text-sm leading-6 text-muted">{triggerOverview.summary}</p>
-            </div>
-            <div className="flex flex-wrap gap-2 xl:max-w-sm xl:justify-end">
-              {triggerOverview.packets.map((packet) => (
-                <OverviewPill key={packet.label} label={packet.label} value={packet.value} />
-              ))}
-            </div>
-          </div>
-          <div className="rounded-xl border border-border/70 bg-card/80 p-3 text-sm leading-6 text-muted">
-            <span className="font-medium text-foreground">Best next step:</span>{' '}
-            {triggerOverview.nextAction}
-          </div>
-        </section>
+  const scheduleSummary =
+    scheduledTriggers.length === 0
+      ? 'No schedules configured.'
+      : `${scheduledTriggers.length} ${scheduledTriggers.length === 1 ? 'schedule' : 'schedules'} configured.`;
 
+  return (
+    <Card className="border-border/70 shadow-none">
+      <CardHeader className="p-0">
+        <button
+          type="button"
+          className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
+          aria-expanded={isExpanded}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <div className="space-y-1.5">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Zap className="h-4 w-4" />
+              Schedules
+            </CardTitle>
+            <p className="text-sm leading-6 text-muted">
+              Create recurring project work without leaving this page.
+            </p>
+            <p className="max-w-3xl text-sm leading-5 text-muted">{scheduleSummary}</p>
+          </div>
+          <div className="flex items-center gap-2 pt-0.5">
+            <span className="text-xs font-medium text-muted">
+              {isExpanded ? 'Hide schedules' : 'Open schedules'}
+            </span>
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 shrink-0 text-muted transition-transform',
+                isExpanded && 'rotate-180',
+              )}
+            />
+          </div>
+        </button>
+      </CardHeader>
+      {isExpanded ? (
+      <CardContent className="space-y-6 border-t border-border/70 p-4">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -156,6 +161,10 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
                 Inspect, pause, or revise the schedules already feeding this project.
               </p>
             </div>
+            <Button size="sm" onClick={startCreate}>
+              <Plus className="h-4 w-4" />
+              Add schedule
+            </Button>
           </div>
 
           {triggersQuery.isLoading ? (
@@ -202,17 +211,7 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
             onSubmit={() => saveMutation.mutate()}
             onCancel={resetEditor}
           />
-        ) : (
-          <section className="rounded-xl border border-border/70 bg-background/70 p-4">
-            <div className="space-y-1">
-              <h3 className="text-sm font-semibold text-foreground">Create or revise schedules</h3>
-              <p className="text-sm leading-6 text-muted">
-                Open the composer only when cadence, routing, or generated work-item copy needs to
-                change.
-              </p>
-            </div>
-          </section>
-        )}
+        ) : null}
 
         <Dialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
           <DialogContent className="max-w-lg">
@@ -239,19 +238,8 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
           </DialogContent>
         </Dialog>
       </CardContent>
+      ) : null}
     </Card>
-  );
-}
-
-function OverviewPill(props: {
-  label: string;
-  value: string;
-}): JSX.Element {
-  return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-border/70 bg-card/80 px-3 py-1.5 text-xs">
-      <span className="font-medium uppercase tracking-[0.16em] text-muted">{props.label}</span>
-      <span className="font-semibold text-foreground">{props.value}</span>
-    </div>
   );
 }
 

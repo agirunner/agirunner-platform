@@ -123,7 +123,7 @@ describe('project detail support', () => {
     );
   });
 
-  it('builds an expanded overview header state with cross-workspace quick actions', () => {
+  it('builds an expanded overview header state without redundant quick actions', () => {
     const headerState = buildProjectDetailHeaderState(
       {
         id: 'project-1',
@@ -139,13 +139,10 @@ describe('project detail support', () => {
     expect(headerState.activeTab.label).toBe('Overview');
     expect(headerState.description).not.toContain('Overview surfaces posture');
     expect(headerState.contextPills).toEqual([]);
-    expect(headerState.quickActions.map((action) => action.label)).toEqual([
-      'Settings',
-      'Knowledge base',
-    ]);
+    expect(headerState.quickActions).toEqual([]);
   });
 
-  it('builds a compact non-overview header state that keeps context and utility actions', () => {
+  it('builds a compact non-overview header state without redundant back links', () => {
     const headerState = buildProjectDetailHeaderState(
       {
         id: 'project-1',
@@ -161,8 +158,7 @@ describe('project detail support', () => {
     expect(headerState.activeTab.label).toBe('Settings');
     expect(headerState.description).toContain('repository defaults');
     expect(headerState.contextPills).toEqual([]);
-    expect(headerState.quickActions.map((action) => action.label)).toEqual(['Back to overview']);
-    expect(headerState.quickActions[0]?.href).toBe('/projects/project-1');
+    expect(headerState.quickActions).toEqual([]);
   });
 
   it('builds a settings overview from project posture and repository defaults', () => {

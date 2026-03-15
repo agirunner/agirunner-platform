@@ -45,7 +45,6 @@ describe('project-scheduled-trigger support', () => {
           priority: 'high',
           goal: 'Keep backlog current',
           acceptance_criteria: 'All new issues triaged',
-          notes: 'Created by smoke lane',
         },
         last_fired_at: null,
         created_at: '2026-03-12T00:00:00.000Z',
@@ -64,7 +63,6 @@ describe('project-scheduled-trigger support', () => {
       priority: 'high',
       goal: 'Keep backlog current',
       acceptanceCriteria: 'All new issues triaged',
-      notes: 'Created by smoke lane',
     });
   });
 
@@ -82,7 +80,6 @@ describe('project-scheduled-trigger support', () => {
       priority: 'critical',
       goal: 'Keep backlog under control',
       acceptanceCriteria: 'Every issue triaged',
-      notes: 'Use the real workflow',
     });
 
     expect(payload).toEqual({
@@ -98,7 +95,6 @@ describe('project-scheduled-trigger support', () => {
         priority: 'critical',
         goal: 'Keep backlog under control',
         acceptance_criteria: 'Every issue triaged',
-        notes: 'Use the real workflow',
       },
     });
 
@@ -261,5 +257,34 @@ describe('project-scheduled-trigger support', () => {
       value: '0 due',
     });
     expect(overview.nextAction).toContain('paused schedules');
+  });
+
+  it('uses singular grammar when one active schedule remains', () => {
+    const overview = buildScheduledTriggerOverview([
+      {
+        id: 'trigger-1',
+        project_id: 'project-1',
+        workflow_id: 'workflow-1',
+        name: 'Daily triage',
+        source: 'project.schedule',
+        schedule_type: 'interval',
+        cadence_minutes: 60,
+        daily_time: null,
+        timezone: null,
+        next_fire_at: '2999-01-01T00:00:00.000Z',
+        is_active: true,
+        defaults: {},
+        last_fired_at: null,
+        created_at: '2026-03-12T00:00:00.000Z',
+        updated_at: '2026-03-12T00:00:00.000Z',
+      },
+    ]);
+
+    expect(overview.summary).toContain('1 active schedule is set');
+    expect(overview.packets[0]).toMatchObject({
+      label: 'Schedule coverage',
+      value: '1 schedule',
+      detail: '1 active • 0 paused',
+    });
   });
 });

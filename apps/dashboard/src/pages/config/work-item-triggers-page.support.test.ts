@@ -269,7 +269,7 @@ describe('work item triggers page support', () => {
     const result = validateWebhookTriggerForm(blank, 'create');
     expect(result.isValid).toBe(false);
     expect(result.fieldErrors['name']).toBe('Add a trigger name.');
-    expect(result.fieldErrors['source']).toBe('Add a source identifier.');
+    expect(result.fieldErrors['source']).toBe('Add a source system.');
     expect(result.fieldErrors['workflowId']).toBe('Select a target workflow.');
     expect(result.fieldErrors['secret']).toBe('Add a shared secret for new triggers.');
   });

@@ -440,8 +440,8 @@ export function WebhookTriggerEditorDialog(props: {
             />
             <ConfigInputField
               fieldId="webhook-trigger-source"
-              label="Source"
-              description="Use a short source key that identifies the external system, such as github, stripe, or zendesk.ticket."
+              label="Source system"
+              description="Use a short label for the external system, such as github, stripe, or zendesk."
               error={validation.fieldErrors['source']}
               inputProps={{
                 value: form.source,

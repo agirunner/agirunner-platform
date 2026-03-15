@@ -10,21 +10,15 @@ describe('project detail workspace shell source', () => {
   it('uses delivery-oriented operator copy for project run history inside the delivery tab', () => {
     const source = readSource('./project-detail-page.tsx');
     const supportSource = readSource('./project-detail-support.ts');
-    const deliverySource = [
-      readSource('./project-delivery-history.tsx'),
-      readSource('./project-delivery-history-support.ts'),
-    ].join('\n');
+    const deliverySource = readSource('./project-delivery-history.tsx');
     expect(supportSource).toContain("value: 'delivery'");
     expect(source).toContain('<ProjectDeliveryHistory projectId={project.id} />');
-    expect(deliverySource).toContain('Delivery Overview');
-    expect(deliverySource).toContain('buildProjectDeliveryAttentionOverview');
-    expect(deliverySource).toContain('What ran');
-    expect(deliverySource).toContain('Needs attention');
-    expect(deliverySource).toContain('Inspect next');
-    expect(deliverySource).toContain('Failed to load delivery history.');
-    expect(deliverySource).toContain('No delivery history yet');
-    expect(deliverySource).toContain('Open board');
-    expect(deliverySource).toContain('Open inspector');
+    expect(deliverySource).toContain('In Development');
+    expect(deliverySource).toContain('Project delivery is being rebuilt');
+    expect(deliverySource).not.toContain('Delivery Overview');
+    expect(deliverySource).not.toContain('Inspect next');
+    expect(deliverySource).not.toContain('Open board');
+    expect(deliverySource).not.toContain('Open inspector');
   });
 
   it('keeps an automation tab for scheduled work-item triggers', () => {
@@ -32,20 +26,17 @@ describe('project detail workspace shell source', () => {
     const supportSource = readSource('./project-detail-support.ts');
     const automationSource = [
       readSource('./project-automation-tab.tsx'),
-      readSource('./project-automation-tab.support.ts'),
       readSource('./project-webhook-triggers-card.tsx'),
       readSource('./project-git-webhook-signatures-card.tsx'),
     ].join('\n');
     expect(supportSource).toContain("value: 'automation'");
     expect(source).toContain('<ProjectAutomationTab project={project} />');
     expect(automationSource).toContain('<ScheduledTriggersCard project={project} />');
-    expect(automationSource).toContain('buildProjectAutomationOverview');
     expect(automationSource).toContain(
-      'Repository webhook signatures are optional unless this project should trust git-provider inbound hooks.',
+      'Use this only when GitHub, Gitea, or GitLab should be allowed to deliver signed inbound repository events for this project.',
     );
-    expect(automationSource).toContain('Active now');
-    expect(automationSource).toContain('Broken');
-    expect(automationSource).toContain('Setup needed');
+    expect(automationSource).not.toContain('Automation needs attention');
+    expect(automationSource).not.toContain('Best next step:');
     expect(automationSource).not.toContain('Jump to schedules');
     expect(automationSource).not.toContain('Jump to webhook rules');
     expect(automationSource).not.toContain('Jump to repository signatures');
@@ -58,7 +49,7 @@ describe('project detail workspace shell source', () => {
       readSource('./project-git-webhook-signatures-card.tsx'),
     ].join('\n');
     expect(automationSource).toContain('<ProjectGitWebhookSignaturesCard project={project} compact />');
-    expect(automationSource).toContain('Git provider signatures');
+    expect(automationSource).toContain('Git repository signatures');
   });
 
   it('relabels scheduled trigger targeting around workflows and removes operator-only schedule internals', () => {

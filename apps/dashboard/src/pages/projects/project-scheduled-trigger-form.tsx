@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Loader2, Save } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
@@ -49,7 +50,15 @@ export function ProjectScheduledTriggerForm({
   onSubmit: () => void;
   onCancel: () => void;
 }) {
+  const [showRoutingOverrides, setShowRoutingOverrides] = useState(hasRoutingOverrides(form));
   const validation = validateScheduledTriggerForm(form);
+
+  useEffect(() => {
+    if (hasRoutingOverrides(form)) {
+      setShowRoutingOverrides(true);
+    }
+  }, [form]);
+
   return (
     <div className="space-y-4 rounded-md border p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -70,46 +79,6 @@ export function ProjectScheduledTriggerForm({
         </p>
       ) : (
         <>
-          <section
-            className={
-              validation.isValid
-                ? 'rounded-xl border border-emerald-300/80 bg-background/70 p-4 dark:border-emerald-800/70'
-                : 'rounded-xl border border-amber-300/80 bg-background/70 p-4 dark:border-amber-800/70'
-            }
-          >
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="space-y-1">
-                <h4 className="text-sm font-semibold">Save readiness</h4>
-                <p className="text-sm text-muted">
-                  {validation.isValid
-                    ? 'This automation rule is ready to save.'
-                    : 'Resolve the items below before saving this trigger.'}
-                </p>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <span className="rounded-full border border-current/10 bg-background/70 px-3 py-1 text-xs font-medium">
-                  {form.workflowId ? 'Workflow selected' : 'Choose a workflow'}
-                </span>
-                <span className="rounded-full border border-current/10 bg-background/70 px-3 py-1 text-xs font-medium">
-                  {form.scheduleType === 'daily_time'
-                    ? form.dailyTime.trim()
-                      ? `Daily at ${form.dailyTime.trim()}`
-                      : 'Choose a daily time'
-                    : form.cadenceMinutes.trim()
-                      ? `Every ${form.cadenceMinutes.trim()} min`
-                      : 'Cadence missing'}
-                </span>
-              </div>
-            </div>
-            {!validation.isValid ? (
-              <ul className="mt-3 space-y-1 text-sm text-amber-900 dark:text-amber-100">
-                {validation.issues.map((issue) => (
-                  <li key={issue}>• {issue}</li>
-                ))}
-              </ul>
-            ) : null}
-          </section>
-
           <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
             <div className="space-y-1">
               <h4 className="text-sm font-semibold">Workflow target and timing</h4>
@@ -190,35 +159,59 @@ export function ProjectScheduledTriggerForm({
                   />
                 </>
               )}
-              <SelectField
-                label="Stage"
-                value={form.stageName}
-                placeholder={isLoadingWorkflowDetails ? 'Loading stages' : 'Use workflow default'}
-                options={stages.map((stage) => ({ value: stage.name, label: stage.name }))}
-                onChange={(value) => onChange({ stageName: value })}
-                disabled={!form.workflowId || isLoadingWorkflowDetails}
-              />
-              <SelectField
-                label="Target board column"
-                value={form.columnId}
-                placeholder={
-                  isLoadingWorkflowDetails ? 'Loading board columns' : 'Use board default'
-                }
-                options={columns.map((column) => ({ value: column.id, label: column.label }))}
-                onChange={(value) => onChange({ columnId: value })}
-                disabled={!form.workflowId || isLoadingWorkflowDetails}
-              />
-              <SelectField
-                label="Priority"
-                value={form.priority}
-                placeholder="Normal work item priority"
-                options={SCHEDULED_TRIGGER_PRIORITY_OPTIONS.map((priority) => ({
-                  value: priority,
-                  label: priority.charAt(0).toUpperCase() + priority.slice(1),
-                }))}
-                onChange={(value) => onChange({ priority: value })}
-              />
             </div>
+          </section>
+
+          <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold">Routing overrides</h4>
+                <p className="text-sm text-muted">
+                  Leave these blank to use the workflow&apos;s default intake stage, board column,
+                  and normal priority.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowRoutingOverrides((current) => !current)}
+                disabled={!form.workflowId && !showRoutingOverrides}
+              >
+                {showRoutingOverrides ? 'Hide routing overrides' : 'Open routing overrides'}
+              </Button>
+            </div>
+            {showRoutingOverrides ? (
+              <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                <SelectField
+                  label="Stage"
+                  value={form.stageName}
+                  placeholder={isLoadingWorkflowDetails ? 'Loading stages' : 'Use workflow default'}
+                  options={stages.map((stage) => ({ value: stage.name, label: stage.name }))}
+                  onChange={(value) => onChange({ stageName: value })}
+                  disabled={!form.workflowId || isLoadingWorkflowDetails}
+                />
+                <SelectField
+                  label="Target board column"
+                  value={form.columnId}
+                  placeholder={
+                    isLoadingWorkflowDetails ? 'Loading board columns' : 'Use board default'
+                  }
+                  options={columns.map((column) => ({ value: column.id, label: column.label }))}
+                  onChange={(value) => onChange({ columnId: value })}
+                  disabled={!form.workflowId || isLoadingWorkflowDetails}
+                />
+                <SelectField
+                  label="Priority"
+                  value={form.priority}
+                  placeholder="Normal work item priority"
+                  options={SCHEDULED_TRIGGER_PRIORITY_OPTIONS.map((priority) => ({
+                    value: priority,
+                    label: priority.charAt(0).toUpperCase() + priority.slice(1),
+                  }))}
+                  onChange={(value) => onChange({ priority: value })}
+                />
+              </div>
+            ) : null}
           </section>
 
           <section className="space-y-4 rounded-xl border border-border/70 bg-background/70 p-4">
@@ -228,7 +221,7 @@ export function ProjectScheduledTriggerForm({
                 Define the work item the orchestrator will receive each time this schedule fires.
               </p>
             </div>
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
               <FormInput
                 label="Work item title"
                 value={form.title}
@@ -236,27 +229,33 @@ export function ProjectScheduledTriggerForm({
                 error={validation.fieldErrors.title}
                 onChange={(value) => onChange({ title: value })}
               />
-              <FormTextarea
-                label="Goal"
-                value={form.goal}
-                placeholder="Check open work, route urgent items, and summarize the queue."
-                onChange={(value) => onChange({ goal: value })}
-              />
-              <FormTextarea
-                label="Acceptance criteria"
-                value={form.acceptanceCriteria}
-                placeholder="Summarize queue health, route urgent work, and record blockers."
-                onChange={(value) => onChange({ acceptanceCriteria: value })}
-              />
-              <FormTextarea
-                label="Notes"
-                value={form.notes}
-                placeholder="Optional operator notes for the generated work item."
-                onChange={(value) => onChange({ notes: value })}
-              />
+              <div className="grid gap-4 md:grid-cols-2">
+                <FormTextarea
+                  label="Goal"
+                  value={form.goal}
+                  placeholder="Check open work, route urgent items, and summarize the queue."
+                  onChange={(value) => onChange({ goal: value })}
+                />
+                <FormTextarea
+                  label="Acceptance criteria"
+                  value={form.acceptanceCriteria}
+                  placeholder="Summarize queue health, route urgent work, and record blockers."
+                  onChange={(value) => onChange({ acceptanceCriteria: value })}
+                />
+              </div>
             </div>
           </section>
 
+          {validation.issues.length > 0 ? (
+            <div className="rounded-xl border border-amber-300/80 bg-background/70 p-3 text-sm dark:border-amber-800/70">
+              <p className="font-medium text-foreground">Finish these items before saving:</p>
+              <ul className="mt-2 space-y-1 text-amber-900 dark:text-amber-100">
+                {validation.issues.map((issue) => (
+                  <li key={issue}>• {issue}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
           <div className="sticky bottom-4 z-10 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/70 bg-background/95 p-3 backdrop-blur supports-[backdrop-filter]:bg-background/90">
             <p className="text-sm text-muted">
@@ -274,6 +273,14 @@ export function ProjectScheduledTriggerForm({
         </>
       )}
     </div>
+  );
+}
+
+function hasRoutingOverrides(form: ScheduledTriggerFormState): boolean {
+  return (
+    form.stageName.trim().length > 0 ||
+    form.columnId.trim().length > 0 ||
+    form.priority.trim().length > 0
   );
 }
 

@@ -24,7 +24,6 @@ export interface ScheduledTriggerFormState {
   priority: string;
   goal: string;
   acceptanceCriteria: string;
-  notes: string;
 }
 
 export interface ScheduledTriggerFormValidation {
@@ -67,7 +66,6 @@ export function createScheduledTriggerFormState(): ScheduledTriggerFormState {
     priority: '',
     goal: '',
     acceptanceCriteria: '',
-    notes: '',
   };
 }
 
@@ -89,7 +87,6 @@ export function hydrateScheduledTriggerForm(
     priority: readString(defaults.priority),
     goal: readString(defaults.goal),
     acceptanceCriteria: readString(defaults.acceptance_criteria),
-    notes: readString(defaults.notes),
   };
 }
 
@@ -107,7 +104,6 @@ export function buildScheduledTriggerPayload(
   if (form.acceptanceCriteria.trim()) {
     defaults.acceptance_criteria = form.acceptanceCriteria.trim();
   }
-  if (form.notes.trim()) defaults.notes = form.notes.trim();
 
   const payload: Parameters<typeof dashboardApi.createScheduledWorkItemTrigger>[0] = {
     name: form.name.trim(),
@@ -225,7 +221,7 @@ export function buildScheduledTriggerOverview(
     summary:
       dueCount > 0
         ? `${dueCount} active schedule${dueCount === 1 ? '' : 's'} should have fired already. Review the related workflow before more overdue work accumulates.`
-        : `${activeCount} active schedule${activeCount === 1 ? '' : 's'} are set to keep this project moving without manual launch steps.`,
+        : `${activeCount} active schedule${activeCount === 1 ? ' is' : 's are'} set to keep this project moving without manual launch steps.`,
     nextAction:
       dueCount > 0
         ? 'Review the next due schedule first, then confirm the target workflow, stage, and board column still match the intended automation path.'
@@ -235,7 +231,7 @@ export function buildScheduledTriggerOverview(
     packets: [
       {
         label: 'Schedule coverage',
-        value: `${triggers.length} schedules`,
+        value: formatScheduleCount(triggers.length),
         detail: `${activeCount} active • ${disabledCount} paused`,
       },
       {
@@ -291,4 +287,8 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function formatScheduleCount(count: number): string {
+  return `${count} ${count === 1 ? 'schedule' : 'schedules'}`;
 }

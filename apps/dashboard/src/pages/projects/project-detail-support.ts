@@ -143,18 +143,7 @@ export function buildProjectDetailHeaderState(
         ?? 'Use this workspace to move between settings, knowledge, automation, and delivery without losing context.',
       activeTab: activeTabOption,
       contextPills: [],
-      quickActions: [
-        {
-          label: 'Settings',
-          href: `/projects/${project.id}?tab=settings`,
-          variant: 'secondary',
-        },
-        {
-          label: 'Knowledge base',
-          href: `/projects/${project.id}?tab=knowledge`,
-          variant: 'ghost',
-        },
-      ],
+      quickActions: [],
     };
   }
 
@@ -164,13 +153,7 @@ export function buildProjectDetailHeaderState(
     description: activeTabOption.description,
     activeTab: activeTabOption,
     contextPills: [],
-    quickActions: [
-      {
-        label: 'Back to overview',
-        href: `/projects/${project.id}`,
-        variant: 'ghost',
-      },
-    ],
+    quickActions: [],
   };
 }
 

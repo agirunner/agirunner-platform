@@ -3,24 +3,21 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return [
-    './project-webhook-triggers-card.tsx',
-    './project-webhook-triggers-support.ts',
-  ]
-    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
-    .join('\n');
+  return readFileSync(resolve(import.meta.dirname, './project-webhook-triggers-card.tsx'), 'utf8');
 }
 
 describe('project webhook triggers card source', () => {
-  it('adds webhook posture packets and next-step guidance before the trigger list', () => {
+  it('keeps the trigger surface focused on the live list and editor instead of duplicate posture summaries', () => {
     const source = readSource();
-    expect(source).toContain('buildWebhookTriggerOverview');
-    expect(source).toContain('Webhook posture is healthy');
-    expect(source).toContain('Webhook attention is needed');
-    expect(source).toContain('Best next step:');
-    expect(source).toContain('Webhook coverage');
-    expect(source).toContain('Attention needed');
-    expect(source).toContain('Source wiring');
+    expect(source).not.toContain('buildWebhookTriggerOverview');
+    expect(source).not.toContain('Webhook posture is healthy');
+    expect(source).not.toContain('Webhook attention is needed');
+    expect(source).not.toContain('Best next step:');
+    expect(source).toContain('Current triggers');
+    expect(source).toContain('Add trigger');
+    expect(source).toContain("const [isExpanded, setExpanded] = useState(false)");
+    expect(source).toContain('Open hooks');
+    expect(source).toContain('Hide hooks');
   });
 
   it('provides full CRUD and inspection flows for webhook triggers', () => {

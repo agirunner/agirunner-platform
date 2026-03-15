@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { BrainCircuit, ChevronDown, FileText, PackageSearch } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
+import { Card, CardContent } from '../../components/ui/card.js';
 import { cn } from '../../lib/utils.js';
 import type { ProjectWorkspaceOverview } from './project-detail-support.js';
 
@@ -125,7 +126,7 @@ function KnowledgeSection(props: {
   const Icon = props.icon;
 
   return (
-    <section className="rounded-xl border border-border/70 bg-card/70 shadow-none">
+    <Card className="border-border/70 shadow-none">
       <button
         type="button"
         className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
@@ -147,12 +148,12 @@ function KnowledgeSection(props: {
         />
       </button>
       {props.isExpanded ? (
-        <div className="space-y-3 border-t border-border/70 px-4 py-4">
+        <CardContent className="space-y-3 border-t border-border/70 px-4 py-4">
           <p className="text-sm leading-6 text-muted">{props.description}</p>
           {props.children}
-        </div>
+        </CardContent>
       ) : null}
-    </section>
+    </Card>
   );
 }
 

@@ -75,7 +75,7 @@ export function validateWebhookTriggerForm(
     addIssue(fieldErrors, issues, 'name', 'Add a trigger name.');
   }
   if (!form.source.trim()) {
-    addIssue(fieldErrors, issues, 'source', 'Add a source identifier.');
+    addIssue(fieldErrors, issues, 'source', 'Add a source system.');
   }
   if (!form.workflowId) {
     addIssue(fieldErrors, issues, 'workflowId', 'Select a target workflow.');

@@ -3,23 +3,20 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return [
-    './project-scheduled-triggers-card.tsx',
-    './project-scheduled-trigger-support.ts',
-  ]
-    .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
-    .join('\n');
+  return readFileSync(resolve(import.meta.dirname, './project-scheduled-triggers-card.tsx'), 'utf8');
 }
 
 describe('project scheduled triggers card source', () => {
-  it('adds automation posture packets and next-step guidance before the schedule list', () => {
+  it('keeps the schedule surface focused on the live list and editor instead of duplicate posture summaries', () => {
     const source = readSource();
-    expect(source).toContain('buildScheduledTriggerOverview');
-    expect(source).toContain('Automation posture is healthy');
-    expect(source).toContain('Automation attention is needed');
-    expect(source).toContain('Best next step:');
-    expect(source).toContain('Schedule coverage');
-    expect(source).toContain('Attention needed');
-    expect(source).toContain('Next trigger');
+    expect(source).not.toContain('buildScheduledTriggerOverview');
+    expect(source).not.toContain('Automation posture is healthy');
+    expect(source).not.toContain('Automation attention is needed');
+    expect(source).not.toContain('Best next step:');
+    expect(source).toContain('Current schedules');
+    expect(source).toContain('Add schedule');
+    expect(source).toContain("const [isExpanded, setExpanded] = useState(false)");
+    expect(source).toContain('Open schedules');
+    expect(source).toContain('Hide schedules');
   });
 });
