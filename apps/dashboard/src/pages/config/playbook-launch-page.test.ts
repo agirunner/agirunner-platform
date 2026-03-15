@@ -41,9 +41,9 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('LaunchReadinessPanel');
     expect(source).toContain('LaunchDefinitionSnapshot');
     expect(source).toContain('launchablePlaybooks');
-    expect(source).toContain('Archived revision selected - restore first');
+    expect(source).toContain('Inactive playbook selected - save reactivation first');
     expect(source).toContain(
-      'This playbook revision is archived. Restore it from the playbook detail page',
+      'This playbook is inactive. Save a reactivated version from the playbook detail page',
     );
     expect(source).toContain('Playbook Parameters');
     expect(source).toContain('Project autofill available');
@@ -87,7 +87,6 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('metadataError');
     expect(source).toContain('launchValidation.fieldErrors.workflowName');
     expect(source).toContain('All required launch inputs are present.');
-    expect(source).toContain('Description is operator-facing catalog copy only.');
     expect(source).toContain('Launch Workflow');
     expect(source).not.toContain('Reasoning Config JSON');
     expect(source).not.toContain('Launch overview');

@@ -16,7 +16,6 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
-import { Textarea } from '../../components/ui/textarea.js';
 import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { cn } from '../../lib/utils.js';
 import {
@@ -26,7 +25,6 @@ import {
 } from './playbook-authoring-support.js';
 import { PlaybookAuthoringForm } from './playbook-authoring-form.js';
 import {
-  buildPlaybookRestorePayload,
   buildPlaybookRevisionChain,
   buildPlaybookRevisionDiff,
 } from './playbook-detail-support.js';
@@ -53,7 +51,6 @@ export function PlaybookDetailPage(): JSX.Element {
   const queryClient = useQueryClient();
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
-  const [description, setDescription] = useState('');
   const [outcome, setOutcome] = useState('');
   const [isActive, setIsActive] = useState(true);
   const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
@@ -85,7 +82,6 @@ export function PlaybookDetailPage(): JSX.Element {
     const nextLifecycle = playbook.lifecycle ?? DEFAULT_LIFECYCLE;
     setName(playbook.name);
     setSlug(playbook.slug);
-    setDescription(playbook.description ?? '');
     setOutcome(playbook.outcome);
     setIsActive(playbook.is_active !== false);
     setLifecycle(nextLifecycle);
@@ -153,7 +149,6 @@ export function PlaybookDetailPage(): JSX.Element {
       const savedPlaybook = await dashboardApi.updatePlaybook(playbookId, {
         name: name.trim(),
         slug: slug.trim() || undefined,
-        description: description.trim() || undefined,
         outcome: outcome.trim(),
         lifecycle,
         definition: definition.value,
@@ -173,30 +168,6 @@ export function PlaybookDetailPage(): JSX.Element {
     onError: (error) => {
       setMessage(null);
       setDefinitionError(error instanceof Error ? error.message : 'Failed to save playbook.');
-    },
-  });
-  const restoreMutation = useMutation({
-    mutationFn: async () => {
-      if (!comparedRevision) {
-        throw new Error('Choose a revision to restore.');
-      }
-      if (comparedRevision.id === playbookId) {
-        throw new Error('Select an older version before restoring.');
-      }
-      return dashboardApi.updatePlaybook(playbookId, buildPlaybookRestorePayload(comparedRevision));
-    },
-    onSuccess: (playbook) => {
-      loadPlaybook(playbook);
-      setDefinitionError(null);
-      setMessage(`Restored v${playbook.version} from an earlier revision.`);
-      void playbooksQuery.refetch();
-      void navigate(`/config/playbooks/${playbook.id}`, { replace: true });
-    },
-    onError: (error) => {
-      setMessage(null);
-      setDefinitionError(
-        error instanceof Error ? error.message : 'Failed to restore playbook revision.',
-      );
     },
   });
   const deleteMutation = useMutation({
@@ -228,6 +199,22 @@ export function PlaybookDetailPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
+      {!isActive ? (
+        <div className="rounded-xl border border-amber-300 bg-amber-50/80 px-4 py-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+          This playbook is staged as inactive. Save the page to stop new workflow launches for this
+          family while keeping revision history available.
+        </div>
+      ) : null}
+      {message ? (
+        <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
+          {message}
+        </div>
+      ) : null}
+      {definitionError ? (
+        <div className="rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+          {definitionError}
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-2">
@@ -238,8 +225,7 @@ export function PlaybookDetailPage(): JSX.Element {
           </div>
           <p className="max-w-3xl text-sm text-muted">
             Edit workflow structure, automation policy, and launch inputs in one place without
-            dropping to raw JSON. Playbook descriptions stay operator-facing; stage guidance and
-            orchestrator instructions drive execution.
+            dropping to raw JSON. Stage guidance and orchestrator instructions drive execution.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -266,8 +252,7 @@ export function PlaybookDetailPage(): JSX.Element {
         <CardContent className="grid gap-6">
           <ToggleCard
             label="Playbook Availability"
-            description="Control whether this playbook family can launch new workflows."
-            meta={
+            description={
               isActive
                 ? 'Active playbooks can launch new workflows from this family.'
                 : 'Inactive playbooks cannot launch new workflows until you save and reactivate them.'
@@ -293,23 +278,11 @@ export function PlaybookDetailPage(): JSX.Element {
               <span className="font-medium">Outcome</span>
               <Input value={outcome} onChange={(event) => { setOutcome(event.target.value); setIsDirty(true); }} />
             </label>
-            <label className="grid gap-2 text-sm md:col-span-2">
-              <span className="font-medium">Description</span>
-              <Textarea
-                value={description}
-                onChange={(event) => { setDescription(event.target.value); setIsDirty(true); }}
-                className="min-h-[96px]"
-              />
-              <p className="text-xs text-muted">
-                Operator-facing catalog copy only. It is not used as orchestrator guidance during
-                execution.
-              </p>
-            </label>
             <div className="grid gap-2 text-sm xl:row-span-2">
               <span className="font-medium">Lifecycle</span>
               <div
                 aria-label="Playbook lifecycle"
-                className="grid gap-2"
+                className="grid gap-2 sm:grid-cols-2"
                 role="group"
               >
                 {lifecycleOptions.map((option) => {
@@ -348,12 +321,6 @@ export function PlaybookDetailPage(): JSX.Element {
               page owns workflow structure, orchestration policy, specialist exceptions, and launch
               inputs only.
             </div>
-            {!isActive ? (
-              <div className="rounded-xl border border-amber-300 bg-amber-50/80 p-4 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200 md:col-span-2 xl:col-span-3">
-                This playbook is staged as inactive. Save the page to stop new workflow launches
-                for this family while keeping revision history available.
-              </div>
-            ) : null}
           </div>
         </CardContent>
       </Card>
@@ -378,17 +345,6 @@ export function PlaybookDetailPage(): JSX.Element {
           </ul>
         </div>
       ) : null}
-      {definitionError ? (
-        <div className="rounded-xl border border-red-300 bg-red-50/80 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
-          {definitionError}
-        </div>
-      ) : null}
-      {message ? (
-        <div className="rounded-xl border border-emerald-300 bg-emerald-50/80 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200">
-          {message}
-        </div>
-      ) : null}
-
       <details
         id="playbook-revision-history"
         className="rounded-2xl border border-border/70 bg-card/80 p-5 shadow-sm"
@@ -398,12 +354,9 @@ export function PlaybookDetailPage(): JSX.Element {
             <div className="space-y-1">
               <h2 className="text-lg font-semibold">Revision History</h2>
               <p className="text-sm text-muted">
-                Compare past revisions and restore an older workflow structure when needed.
+                Compare every saved playbook setting against an earlier revision.
               </p>
             </div>
-            <Badge variant="outline">
-              {revisions.length > 0 ? `${revisions.length} revisions` : '1 revision'}
-            </Badge>
           </div>
         </summary>
         <div className="mt-4">
@@ -413,8 +366,6 @@ export function PlaybookDetailPage(): JSX.Element {
             comparedRevisionId={comparedRevisionId || playbook.id}
             diffRows={revisionDiff}
             onComparedRevisionChange={setComparedRevisionId}
-            onRestore={() => restoreMutation.mutate()}
-            isRestoring={restoreMutation.isPending}
           />
         </div>
       </details>

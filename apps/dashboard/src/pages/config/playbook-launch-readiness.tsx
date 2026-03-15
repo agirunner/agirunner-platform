@@ -73,7 +73,7 @@ function buildReadinessChecks(
       label: 'Playbook selected',
       detail:
         props.selectedPlaybook?.is_active === false
-          ? `${props.selectedPlaybook.name} is archived and must be restored before launch.`
+          ? `${props.selectedPlaybook.name} is inactive and must be reactivated from the detail page before launch.`
           : (props.selectedPlaybook?.name ?? 'Choose the playbook to launch.'),
       isReady: Boolean(props.selectedPlaybook) && props.selectedPlaybook?.is_active !== false,
     },

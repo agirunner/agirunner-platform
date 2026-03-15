@@ -80,25 +80,18 @@ function PlaybookSummaryBody(props: {
     <>
       <div className="space-y-1">
         <div className="text-lg font-medium">{props.playbook.name}</div>
-        <p className="text-sm text-muted">
-          {props.playbook.description ?? 'No operator description provided.'}
-        </p>
-        <p className="text-xs text-muted">
-          Description is operator-facing catalog copy only. Execution guidance comes from the
-          playbook definition.
-        </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Badge variant="secondary">{props.playbook.lifecycle}</Badge>
         <Badge variant="outline">{props.launchDefinition.boardColumns.length} columns</Badge>
         <Badge variant="outline">{props.launchDefinition.stageNames.length} stages</Badge>
         <Badge variant="outline">{props.launchDefinition.roles.length} roles</Badge>
-        {props.playbook.is_active === false ? <Badge variant="destructive">Archived</Badge> : null}
+        {props.playbook.is_active === false ? <Badge variant="destructive">Inactive</Badge> : null}
       </div>
       {props.playbook.is_active === false ? (
         <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-          Launch is disabled for archived revisions. Restore this playbook from its detail page
-          before starting a new workflow.
+          Launch is disabled while this playbook is inactive. Save a reactivated version from the
+          detail page before starting a new workflow.
         </div>
       ) : null}
       {props.launchDefinition.stageNames.length > 0 ? (

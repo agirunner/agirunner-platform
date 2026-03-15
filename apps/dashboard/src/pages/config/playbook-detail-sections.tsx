@@ -1,4 +1,4 @@
-import { ArrowRight, Bot, Cpu, History, RotateCcw } from 'lucide-react';
+import { ArrowRight, Bot, Cpu, History } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { DiffViewer } from '../../components/diff-viewer.js';
@@ -139,8 +139,6 @@ interface PlaybookRevisionHistoryCardProps {
   comparedRevisionId: string;
   diffRows: PlaybookRevisionDiffRow[];
   onComparedRevisionChange(nextRevisionId: string): void;
-  onRestore(): void;
-  isRestoring: boolean;
 }
 
 export function PlaybookRevisionHistoryCard(
@@ -148,8 +146,6 @@ export function PlaybookRevisionHistoryCard(
 ): JSX.Element {
   const comparedPlaybook =
     props.revisions.find((revision) => revision.id === props.comparedRevisionId) ?? null;
-  const canRestore =
-    comparedPlaybook !== null && comparedPlaybook.id !== props.currentPlaybook.id;
 
   return (
     <Card id="playbook-revision-history">
@@ -161,23 +157,10 @@ export function PlaybookRevisionHistoryCard(
               Revision History
             </CardTitle>
             <CardDescription>
-              Compare versions by workflow behavior, then restore an older revision as the next
-              immutable playbook version.
+              Compare every saved playbook setting against an earlier revision.
             </CardDescription>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">Current v{props.currentPlaybook.version}</Badge>
-            <Button
-              variant="outline"
-              onClick={props.onRestore}
-              disabled={!canRestore || props.isRestoring}
-            >
-              <RotateCcw className="h-4 w-4" />
-              {canRestore && comparedPlaybook
-                ? `Restore v${comparedPlaybook.version} as v${props.currentPlaybook.version + 1}`
-                : 'Select an older version to restore'}
-            </Button>
-          </div>
+          <Badge variant="outline">Current v{props.currentPlaybook.version}</Badge>
         </div>
       </CardHeader>
       <CardContent className="grid gap-4 xl:grid-cols-[0.8fr,1.2fr]">

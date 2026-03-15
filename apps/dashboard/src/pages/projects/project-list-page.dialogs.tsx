@@ -14,18 +14,15 @@ import {
   DialogTrigger,
 } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
-import { Textarea } from '../../components/ui/textarea.js';
 
 interface ProjectFormData {
   name: string;
   slug: string;
-  description: string;
 }
 
 const INITIAL_FORM: ProjectFormData = {
   name: '',
   slug: '',
-  description: '',
 };
 
 export function formatProjectDialogError(error: unknown): string {
@@ -56,7 +53,6 @@ export function CreateProjectDialog(props?: {
       dashboardApi.createProject({
         name: form.name,
         slug: form.slug,
-        description: form.description || undefined,
       }),
     onSuccess: (created) => {
       void queryClient.invalidateQueries({ queryKey: ['projects'] });
@@ -193,15 +189,6 @@ function ProjectEditorForm(props: {
             required
           />
         </div>
-      </div>
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Description</label>
-        <Textarea
-          placeholder="What operators should know about this workspace..."
-          value={props.form.description}
-          onChange={(event) => props.onFieldChange('description', event.target.value)}
-          rows={4}
-        />
       </div>
       {props.error ? <p className="text-sm text-red-600">{props.error}</p> : null}
       <div className="flex flex-wrap justify-end gap-2">

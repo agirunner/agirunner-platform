@@ -355,7 +355,7 @@ export function validateLaunchDraft(input: {
   if (!input.selectedPlaybook) {
     fieldErrors.playbook = 'Select a playbook before launching a run.';
   } else if (input.selectedPlaybook.is_active === false) {
-    fieldErrors.playbook = 'Archived playbooks must be restored before launch.';
+    fieldErrors.playbook = 'Inactive playbooks must be reactivated from the detail page before launch.';
   }
 
   if (!input.workflowName.trim()) {

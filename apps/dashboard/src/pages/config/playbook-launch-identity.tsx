@@ -71,7 +71,7 @@ export function RunIdentitySection(props: {
           <SelectContent>
             {props.isSelectedPlaybookArchived ? (
               <SelectItem value="__archived__" disabled>
-                Archived revision selected - restore first
+                Inactive playbook selected - save reactivation first
               </SelectItem>
             ) : null}
             {props.launchablePlaybooks.map((playbook) => (
@@ -87,8 +87,8 @@ export function RunIdentitySection(props: {
       </label>
       {props.isSelectedPlaybookArchived ? (
         <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
-          This playbook revision is archived. Restore it from the playbook detail page before
-          launching a new workflow.
+          This playbook is inactive. Save a reactivated version from the playbook detail page
+          before launching a new workflow.
         </div>
       ) : null}
 

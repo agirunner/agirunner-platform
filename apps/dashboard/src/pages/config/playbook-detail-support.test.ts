@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 
 import type { DashboardPlaybookRecord } from '../../lib/api.js';
 import {
-  buildPlaybookRestorePayload,
   buildPlaybookRevisionChain,
   buildPlaybookRevisionDiff,
   renderPlaybookSnapshot,
@@ -45,36 +44,61 @@ describe('playbook detail support', () => {
 
     const diff = buildPlaybookRevisionDiff(current, compared);
 
-    expect(diff.find((row) => row.label === 'Description')).toMatchObject({
+    expect(diff.find((row) => row.label === 'Orchestrator cadence')).toMatchObject({
       changed: true,
-      compared: 'Older description',
     });
     expect(diff.find((row) => row.label === 'Parallelism policy')).toMatchObject({
       changed: true,
     });
   });
 
-  it('renders restore payloads and human-readable snapshots', () => {
+  it('renders restore payloads and complete normalized snapshots', () => {
     const playbook = createPlaybook(4, {
       description: 'Automates delivery',
       definition: {
         roles: ['developer', 'reviewer'],
+        board: {
+          entry_column_id: 'active',
+          columns: [
+            { id: 'inbox', label: 'Inbox' },
+            { id: 'active', label: 'Active', description: 'Work in progress' },
+          ],
+        },
+        stages: [
+          {
+            name: 'delivery',
+            goal: 'Ship the change',
+            human_gate: true,
+            guidance: 'Require a final human check',
+          },
+        ],
+        parameters: [
+          {
+            name: 'repository_url',
+            type: 'string',
+            category: 'repository',
+            maps_to: 'project.repository_url',
+          },
+        ],
+        runtime: {
+          specialist_pool: {
+            pool_mode: 'warm',
+            max_runtimes: 3,
+            image: 'agirunner-runtime:stable',
+          },
+        },
       },
     });
 
-    const payload = buildPlaybookRestorePayload(playbook);
     const summary = summarizePlaybookControls(playbook);
     const snapshot = renderPlaybookSnapshot(playbook);
 
-    expect(payload).toMatchObject({
-      name: playbook.name,
-      slug: playbook.slug,
-      outcome: playbook.outcome,
-      definition: playbook.definition,
-    });
     expect(summary.roles).toContain('developer');
-    expect(snapshot).toContain('Roles: developer, reviewer');
-    expect(snapshot).toContain('Orchestrator cadence:');
+    expect(snapshot).toContain('"slug": "delivery-playbook"');
+    expect(snapshot).toContain('"entry_column_id": "active"');
+    expect(snapshot).toContain('"guidance": "Require a final human check"');
+    expect(snapshot).toContain('"maps_to": "project.repository_url"');
+    expect(snapshot).toContain('"image": "agirunner-runtime:stable"');
   });
 });
 

@@ -8,7 +8,6 @@ import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
-import { Textarea } from '../../components/ui/textarea.js';
 import {
   buildPlaybookDefinition,
   createDefaultAuthoringDraft,
@@ -46,7 +45,6 @@ export function PlaybookListPage(): JSX.Element {
   const [createMode, setCreateMode] = useState(false);
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
-  const [description, setDescription] = useState('');
   const [outcome, setOutcome] = useState('');
   const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
   const [statusFilter, setStatusFilter] = useState<PlaybookStatusFilter>('all');
@@ -76,7 +74,6 @@ export function PlaybookListPage(): JSX.Element {
       return dashboardApi.createPlaybook({
         name: name.trim(),
         slug: slug.trim() || undefined,
-        description: description.trim() || undefined,
         outcome: outcome.trim(),
         lifecycle,
         definition: definition.value,
@@ -122,7 +119,6 @@ export function PlaybookListPage(): JSX.Element {
   function resetForm() {
     setName('');
     setSlug('');
-    setDescription('');
     setOutcome('');
     setLifecycle(DEFAULT_LIFECYCLE);
     setDraft(createDefaultAuthoringDraft(DEFAULT_LIFECYCLE));
@@ -243,21 +239,6 @@ export function PlaybookListPage(): JSX.Element {
                   {createValidation.fieldErrors.outcome ? (
                     <p className="text-xs text-red-600 dark:text-red-400">{createValidation.fieldErrors.outcome}</p>
                   ) : null}
-                </label>
-                <label className="grid gap-2 text-sm md:col-span-2">
-                  <span className="font-medium">Description</span>
-                  <Textarea
-                    value={description}
-                    onChange={(event) => {
-                      setDescription(event.target.value);
-                      setDefinitionError(null);
-                    }}
-                    className="min-h-[96px]"
-                  />
-                  <p className="text-xs text-muted">
-                    Operator-facing catalog copy only. It is not passed to the orchestrator at
-                    runtime.
-                  </p>
                 </label>
                 <label className="grid gap-2 text-sm md:max-w-xs">
                   <span className="font-medium">Lifecycle</span>

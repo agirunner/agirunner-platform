@@ -24,6 +24,8 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('Definition JSON');
     expect(source).toContain('buildPlaybookDefinition(');
     expect(source).toContain('Manage');
+    expect(source).toContain('size="sm"');
+    expect(source).toContain('className="flex flex-wrap gap-2"');
     expect(source).toContain('This playbook is inactive. Open it to reactivate the family before launching a new');
     expect(source).toContain('Back to playbook library');
     expect(source).toContain('PlaybookLibraryToolbar');
@@ -39,6 +41,8 @@ describe('playbook list page source', () => {
     expect(source).toContain('Resolve these blockers before creating the playbook.');
     expect(source).toContain('Slug preview:');
     expect(source).toContain('onValidationChange={setAuthoringValidationIssues}');
+    expect(source).not.toContain('col-span-2 w-full');
+    expect(source).not.toContain('Description</span>');
     expect(source).not.toContain('PlaybookLibrarySummaryCards');
     expect(source).not.toContain('dashboardApi.deletePlaybook');
     expect(source).not.toContain('Delete Playbook Revision');

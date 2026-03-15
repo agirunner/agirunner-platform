@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ChangeEvent, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, Save } from 'lucide-react';
 
@@ -114,11 +114,10 @@ export function ProjectSettingsTab(props: {
 
           <ToggleCard
             label="Project Lifecycle"
-            description="Control whether this project should accept new work."
-            meta={
+            description={
               draft.isActive
                 ? 'Active projects can receive new work.'
-                : 'Inactive projects stay available for review but should not receive new work.'
+                : 'Inactive projects stay available for review without receiving new work.'
             }
             checked={draft.isActive}
             checkedLabel="Active"
@@ -131,7 +130,7 @@ export function ProjectSettingsTab(props: {
       <SettingsDisclosureSection
         id="project-settings-basics"
         title="Project Basics"
-        description="Name, slug, and operator-facing description."
+        description="Name and slug."
         summary={basicsSummary}
         actionLabel={expandedSection === 'basics' ? 'Hide basics' : 'Open basics'}
         isExpanded={expandedSection === 'basics'}
@@ -152,15 +151,6 @@ export function ProjectSettingsTab(props: {
               onChange={(value) => setDraft((current) => ({ ...current, slug: value }))}
             />
           </div>
-          <TextAreaField
-            label="Description"
-            value={draft.description}
-            className="min-h-[88px]"
-            onChange={(value) => setDraft((current) => ({ ...current, description: value }))}
-          />
-          <p className="text-sm leading-6 text-muted">
-            Description is only shown to operators. It is not used for execution context.
-          </p>
         </div>
       </SettingsDisclosureSection>
 
@@ -321,7 +311,7 @@ function TextAreaField(props: {
       <Textarea
         value={props.value}
         className={cn('min-h-[96px]', props.className)}
-        onChange={(event) => props.onChange(event.target.value)}
+        onChange={(event: ChangeEvent<HTMLTextAreaElement>) => props.onChange(event.target.value)}
       />
     </label>
   );
@@ -412,7 +402,9 @@ function SecretDisclosureRow(props: {
                 value={props.draft.value}
                 aria-invalid={props.error ? true : undefined}
                 className={props.textarea ? 'min-h-[96px]' : undefined}
-                onChange={(event) => props.onChange({ ...props.draft, value: event.target.value })}
+                onChange={(
+                  event: ChangeEvent<HTMLInputElement> | ChangeEvent<HTMLTextAreaElement>,
+                ) => props.onChange({ ...props.draft, value: event.target.value })}
               />
               <FieldMessage message={props.error} />
             </label>

@@ -39,10 +39,16 @@ export function buildPlaybookRevisionDiff(
 
   return [
     diffRow('Name', current.name, compared.name),
-    diffRow('Description', current.description ?? 'none', compared.description ?? 'none'),
+    diffRow('Slug', current.slug, compared.slug),
     diffRow('Outcome', current.outcome, compared.outcome),
     diffRow('Lifecycle', current.lifecycle, compared.lifecycle),
+    diffRow(
+      'Availability',
+      current.is_active === false ? 'inactive' : 'active',
+      compared.is_active === false ? 'inactive' : 'active',
+    ),
     diffRow('Roles', formatRoles(currentDraft), formatRoles(comparedDraft)),
+    diffRow('Entry column', formatEntryColumn(currentDraft), formatEntryColumn(comparedDraft)),
     diffRow('Board columns', formatColumns(currentDraft), formatColumns(comparedDraft)),
     diffRow('Stages', formatStages(currentDraft), formatStages(comparedDraft)),
     diffRow('Parameters', formatParameters(currentDraft), formatParameters(comparedDraft)),
@@ -75,41 +81,18 @@ export function summarizePlaybookControls(
 }
 
 export function renderPlaybookSnapshot(playbook: DashboardPlaybookRecord): string {
-  const draft = readPlaybookDraft(playbook);
-  const lines = [
-    `Name: ${playbook.name}`,
-    `Description: ${playbook.description ?? 'none'}`,
-    `Outcome: ${playbook.outcome}`,
-    `Lifecycle: ${playbook.lifecycle}`,
-    `Roles: ${formatRoles(draft)}`,
-    `Board columns: ${formatColumns(draft)}`,
-    `Stages: ${formatStages(draft)}`,
-    `Parameters: ${formatParameters(draft)}`,
-    `Orchestrator cadence: ${formatOrchestratorCadence(draft)}`,
-    `Parallelism policy: ${formatParallelism(draft)}`,
-    `Runtime pools: ${formatRuntimePools(draft)}`,
-  ];
-  return lines.join('\n');
-}
-
-export function buildPlaybookRestorePayload(
-  playbook: DashboardPlaybookRecord,
-): {
-  name: string;
-  slug: string;
-  description?: string;
-  outcome: string;
-  lifecycle: 'standard' | 'continuous';
-  definition: Record<string, unknown>;
-} {
-  return {
-    name: playbook.name,
-    slug: playbook.slug,
-    description: playbook.description ?? undefined,
-    outcome: playbook.outcome,
-    lifecycle: playbook.lifecycle,
-    definition: playbook.definition,
-  };
+  return JSON.stringify(
+    normalizeSnapshotValue({
+      name: playbook.name,
+      slug: playbook.slug,
+      outcome: playbook.outcome,
+      lifecycle: playbook.lifecycle,
+      is_active: playbook.is_active !== false,
+      definition: playbook.definition,
+    }),
+    null,
+    2,
+  );
 }
 
 function readPlaybookDraft(playbook: DashboardPlaybookRecord): PlaybookAuthoringDraft {
@@ -147,6 +130,18 @@ function formatColumns(draft: PlaybookAuthoringDraft): string {
   return columns.length > 0 ? columns.join(', ') : 'none';
 }
 
+function formatEntryColumn(draft: PlaybookAuthoringDraft): string {
+  const entryColumnId = draft.entry_column_id.trim();
+  if (!entryColumnId) {
+    return 'none';
+  }
+  const matchingColumn = draft.columns.find((column) => column.id.trim() === entryColumnId);
+  if (!matchingColumn) {
+    return entryColumnId;
+  }
+  return matchingColumn.label.trim() || entryColumnId;
+}
+
 function formatStages(draft: PlaybookAuthoringDraft): string {
   const stages = draft.stages
     .map((stage) => {
@@ -154,7 +149,10 @@ function formatStages(draft: PlaybookAuthoringDraft): string {
       if (!name) {
         return '';
       }
-      return stage.human_gate ? `${name} (gate)` : name;
+      const flags = [stage.human_gate ? 'gate' : '', stage.guidance.trim() ? 'guided' : '']
+        .filter(Boolean)
+        .join(', ');
+      return flags ? `${name} (${flags})` : name;
     })
     .filter(Boolean);
   return stages.length > 0 ? stages.join(', ') : 'none';
@@ -170,11 +168,27 @@ function formatParameters(draft: PlaybookAuthoringDraft): string {
       const flags = [
         parameter.required ? 'required' : '',
         parameter.secret ? 'secret' : '',
+        parameter.maps_to.trim() ? `maps ${parameter.maps_to.trim()}` : '',
       ].filter(Boolean);
       return flags.length > 0 ? `${name} (${flags.join(', ')})` : name;
     })
     .filter(Boolean);
   return parameters.length > 0 ? parameters.join(', ') : 'none';
+}
+
+function normalizeSnapshotValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeSnapshotValue(entry));
+  }
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value as Record<string, unknown>)
+        .filter(([, entry]) => entry !== undefined)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([key, entry]) => [key, normalizeSnapshotValue(entry)]),
+    );
+  }
+  return value;
 }
 
 function formatOrchestratorCadence(draft: PlaybookAuthoringDraft): string {

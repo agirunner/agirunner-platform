@@ -20,7 +20,7 @@ describe('project settings tab source', () => {
     expect(tabSource).toContain('Repository & Git Defaults');
     expect(tabSource).toContain('Repository optional');
     expect(tabSource).toContain('Git token');
-    expect(tabSource).toContain('Description is only shown to operators');
+    expect(tabSource).toContain('Active projects can receive new work.');
     expect(tabSource).toContain('Danger');
     expect(tabSource).toContain('Delete project');
     expect(tabSource).toContain('Open danger');
@@ -66,10 +66,11 @@ describe('project settings tab source', () => {
   it('keeps project settings limited to operator-facing basics and repository defaults', () => {
     const source = readSource('./project-settings-tab.tsx');
 
-    expect(source).toContain('Description is only shown to operators');
+    expect(source).toContain('Name and slug.');
     expect(source).not.toContain('summarizeProjectContext');
     expect(source).not.toContain('No project context saved yet.');
     expect(source).not.toContain('Project Context');
     expect(source).not.toContain('Planning brief');
+    expect(source).not.toContain('label="Description"');
   });
 });

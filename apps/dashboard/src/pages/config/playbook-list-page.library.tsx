@@ -39,7 +39,7 @@ export function PlaybookLibraryToolbar(props: {
           <div className="text-sm font-medium">Playbook library</div>
           <p className="text-sm text-muted">
             {props.familyCount} families, {props.activeFamilyCount} active,{' '}
-            {props.archivedFamilyCount} archived-only.
+            {props.archivedFamilyCount} inactive.
           </p>
         </div>
         <div className="relative min-w-[240px] flex-1 md:max-w-sm">
@@ -59,7 +59,7 @@ export function PlaybookLibraryToolbar(props: {
           options={[
             { value: 'all', label: 'All' },
             { value: 'active', label: 'Active' },
-            { value: 'archived', label: 'Archived-only' },
+            { value: 'archived', label: 'Inactive' },
           ]}
           onChange={(value) => props.onStatusFilterChange(value as PlaybookStatusFilter)}
         />
@@ -124,7 +124,6 @@ export function PlaybookFamilyCard(props: {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {family.description ? <p className="text-sm text-muted">{family.description}</p> : null}
         <div className="rounded-xl border border-border/70 bg-muted/15 p-3 text-sm">
           <div className="font-medium">Outcome</div>
           <div className="mt-1 text-muted">{family.outcome}</div>
@@ -135,20 +134,20 @@ export function PlaybookFamilyCard(props: {
             workflow.
           </div>
         ) : null}
-        <div className="grid grid-cols-3 gap-2">
-          <Button asChild variant="outline" size="sm" className="w-full px-2">
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" size="sm">
             <Link to={`/config/playbooks/${playbook.id}`}>
               <Settings2 className="h-4 w-4" />
               Manage
             </Link>
           </Button>
           {isArchivedFamily ? (
-            <Button size="sm" className="col-span-2 w-full px-2" disabled>
+            <Button size="sm" disabled>
               <Rocket className="h-4 w-4" />
               Launch
             </Button>
           ) : (
-            <Button asChild size="sm" className="col-span-2 w-full px-2">
+            <Button asChild size="sm">
               <Link to={`/config/playbooks/${playbook.id}/launch`}>
                 <Rocket className="h-4 w-4" />
                 Launch
