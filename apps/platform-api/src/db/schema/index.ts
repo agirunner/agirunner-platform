@@ -1,6 +1,7 @@
 export * from './enums.js';
 export * from './tenants.js';
 export * from './projects.js';
+export * from './project-artifact-files.js';
 export * from './project-spec-versions.js';
 export * from './playbooks.js';
 export * from './workflows.js';

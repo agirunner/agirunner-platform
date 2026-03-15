@@ -36,6 +36,8 @@ export const envSchema = z
     ARTIFACT_LOCAL_ROOT: z.string().min(1).default('/tmp/agirunner-platform-artifacts'),
     ARTIFACT_ACCESS_URL_TTL_SECONDS: z.coerce.number().int().min(1).default(900),
     ARTIFACT_PREVIEW_MAX_BYTES: z.coerce.number().int().min(1).default(1048576),
+    PROJECT_ARTIFACT_MAX_UPLOAD_FILES: z.coerce.number().int().min(1).default(10),
+    PROJECT_ARTIFACT_MAX_UPLOAD_BYTES: z.coerce.number().int().min(1).default(10485760),
     ARTIFACT_S3_BUCKET: z.string().optional(),
     ARTIFACT_S3_REGION: z.string().default('us-east-1'),
     ARTIFACT_S3_ENDPOINT: z.string().url().optional(),

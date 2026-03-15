@@ -81,9 +81,17 @@ describe('project artifact explorer routes', () => {
       getProject: vi.fn().mockResolvedValue({ id: 'project-1' }),
       updateProject: vi.fn(),
       patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
       deleteProject: vi.fn(),
       listProjects: vi.fn(),
+    });
+    app.decorate('projectArtifactFileService', {
+      listProjectArtifactFiles: vi.fn(),
+      uploadProjectArtifactFile: vi.fn(),
+      uploadProjectArtifactFiles: vi.fn(),
+      deleteProjectArtifactFile: vi.fn(),
+      downloadProjectArtifactFile: vi.fn(),
     });
     app.decorate('config', {
       ARTIFACT_PREVIEW_MAX_BYTES: 1024 * 1024,
@@ -119,9 +127,17 @@ describe('project artifact explorer routes', () => {
       getProject: vi.fn(),
       updateProject: vi.fn(),
       patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
       deleteProject: vi.fn(),
       listProjects: vi.fn(),
+    });
+    app.decorate('projectArtifactFileService', {
+      listProjectArtifactFiles: vi.fn(),
+      uploadProjectArtifactFile: vi.fn(),
+      uploadProjectArtifactFiles: vi.fn(),
+      deleteProjectArtifactFile: vi.fn(),
+      downloadProjectArtifactFile: vi.fn(),
     });
     app.decorate('config', {
       ARTIFACT_PREVIEW_MAX_BYTES: 1024 * 1024,

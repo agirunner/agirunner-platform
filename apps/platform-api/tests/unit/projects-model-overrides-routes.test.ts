@@ -46,9 +46,17 @@ describe('project model override routes', () => {
       getProject: vi.fn(),
       updateProject: vi.fn(),
       patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
       deleteProject: vi.fn(),
       listProjects: vi.fn(),
+    });
+    app.decorate('projectArtifactFileService', {
+      listProjectArtifactFiles: vi.fn(),
+      uploadProjectArtifactFile: vi.fn(),
+      uploadProjectArtifactFiles: vi.fn(),
+      deleteProjectArtifactFile: vi.fn(),
+      downloadProjectArtifactFile: vi.fn(),
     });
 
     await app.register(projectRoutes);
@@ -93,9 +101,17 @@ describe('project model override routes', () => {
       getProject,
       updateProject: vi.fn(),
       patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
       deleteProject: vi.fn(),
       listProjects: vi.fn(),
+    });
+    app.decorate('projectArtifactFileService', {
+      listProjectArtifactFiles: vi.fn(),
+      uploadProjectArtifactFile: vi.fn(),
+      uploadProjectArtifactFiles: vi.fn(),
+      deleteProjectArtifactFile: vi.fn(),
+      downloadProjectArtifactFile: vi.fn(),
     });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn().mockResolvedValue({
@@ -160,9 +176,17 @@ describe('project model override routes', () => {
       }),
       updateProject: vi.fn(),
       patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
       deleteProject: vi.fn(),
       listProjects: vi.fn(),
+    });
+    app.decorate('projectArtifactFileService', {
+      listProjectArtifactFiles: vi.fn(),
+      uploadProjectArtifactFile: vi.fn(),
+      uploadProjectArtifactFiles: vi.fn(),
+      deleteProjectArtifactFile: vi.fn(),
+      downloadProjectArtifactFile: vi.fn(),
     });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn().mockResolvedValue({

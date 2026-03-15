@@ -15,6 +15,8 @@ import { LogLevelCache } from '../logging/log-level-cache.js';
 import { LogStreamService } from '../logging/log-stream-service.js';
 import { registerRequestLogger } from '../logging/request-logger.js';
 import { registerRequestContext } from '../observability/request-context.js';
+import { buildArtifactStorageConfig } from '../content/storage-config.js';
+import { createArtifactStorage } from '../content/storage-factory.js';
 import { AcpSessionService } from '../services/acp-session-service.js';
 import { AgentService } from '../services/agent-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
@@ -31,6 +33,7 @@ import { OrchestratorGrantService } from '../services/orchestrator-grant-service
 import { ToolTagService } from '../services/tool-tag-service.js';
 import { WebhookWorkItemTriggerService } from '../services/webhook-work-item-trigger-service.js';
 import { ModelCatalogService } from '../services/model-catalog-service.js';
+import { ProjectArtifactFileService } from '../services/project-artifact-file-service.js';
 import { ProjectService } from '../services/project-service.js';
 import { PlaybookService } from '../services/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
@@ -130,6 +133,12 @@ export async function buildApp() {
     integrationActionService,
   );
   const projectService = new ProjectService(pool, eventService, config);
+  const projectArtifactFileService = new ProjectArtifactFileService(
+    pool,
+    createArtifactStorage(buildArtifactStorageConfig(config)),
+    config.PROJECT_ARTIFACT_MAX_UPLOAD_FILES,
+    config.PROJECT_ARTIFACT_MAX_UPLOAD_BYTES,
+  );
   const playbookService = new PlaybookService(pool);
   const workflowService = new WorkflowService(pool, eventService, config, workerConnectionHub, logService);
   const workflowActivationService = new WorkflowActivationService(pool, eventService);
@@ -176,6 +185,10 @@ export async function buildApp() {
   app.decorate('webhookService', createLoggedService(webhookService, 'WebhookService', logService));
   app.decorate('governanceService', createLoggedService(governanceService, 'GovernanceService', logService));
   app.decorate('projectService', createLoggedService(projectService, 'ProjectService', logService));
+  app.decorate(
+    'projectArtifactFileService',
+    createLoggedService(projectArtifactFileService, 'ProjectArtifactFileService', logService),
+  );
   app.decorate('playbookService', createLoggedService(playbookService, 'PlaybookService', logService));
   app.decorate('workflowService', createLoggedService(workflowService, 'WorkflowService', logService));
   app.decorate('workflowActivationService', createLoggedService(workflowActivationService, 'WorkflowActivationService', logService));

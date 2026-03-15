@@ -2,10 +2,12 @@ import type { FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
+import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ProjectPlanningService } from '../../services/project-planning-service.js';
 import { ProjectArtifactExplorerService } from '../../services/project-artifact-explorer-service.js';
+import { deriveProjectArtifactKey } from '../../services/project-artifact-file-service.js';
 import { parseProjectSettingsInput } from '../../services/project-settings.js';
 import { ProjectSpecService } from '../../services/project-spec-service.js';
 
@@ -71,6 +73,18 @@ const projectArtifactListQuerySchema = z.object({
   per_page: z.coerce.number().int().min(1).max(MAX_PER_PAGE).default(DEFAULT_PER_PAGE),
 });
 
+const projectArtifactFileUploadSchema = z.object({
+  key: z.string().min(1).max(120).optional(),
+  description: z.string().max(2000).optional(),
+  file_name: z.string().min(1).max(255),
+  content_base64: z.string().min(1),
+  content_type: z.string().min(1).max(255).optional(),
+});
+
+const projectArtifactFileBatchUploadSchema = z.object({
+  files: z.array(projectArtifactFileUploadSchema).min(1),
+});
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
@@ -81,6 +95,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 
 export const projectRoutes: FastifyPluginAsync = async (app) => {
   const projectService = app.projectService;
+  const projectArtifactFileService = app.projectArtifactFileService;
   const projectSpecService = new ProjectSpecService(app.pgPool, app.eventService);
   const projectArtifactExplorerService = new ProjectArtifactExplorerService(
     app.pgPool,
@@ -168,6 +183,90 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     const timeline = await workflowService.getProjectTimeline(request.auth!.tenantId, params.id);
     return { data: timeline };
   });
+
+  app.get(
+    '/api/v1/projects/:id/files',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      const files = await projectArtifactFileService.listProjectArtifactFiles(
+        request.auth!.tenantId,
+        params.id,
+      );
+      return { data: files };
+    },
+  );
+
+  app.post(
+    '/api/v1/projects/:id/files',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(projectArtifactFileUploadSchema.safeParse(request.body));
+      const file = await projectArtifactFileService.uploadProjectArtifactFile(
+        request.auth!,
+        params.id,
+        {
+          key: body.key,
+          description: body.description,
+          fileName: body.file_name,
+          contentBase64: body.content_base64,
+          contentType: body.content_type,
+        },
+      );
+      return reply.status(201).send({ data: file });
+    },
+  );
+
+  app.post(
+    '/api/v1/projects/:id/files/batch',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string };
+      const body = parseOrThrow(projectArtifactFileBatchUploadSchema.safeParse(request.body));
+      const files = await projectArtifactFileService.uploadProjectArtifactFiles(
+        request.auth!,
+        params.id,
+        body.files.map((entry) => ({
+          key: entry.key ?? deriveProjectArtifactKey(entry.file_name),
+          description: entry.description,
+          fileName: entry.file_name,
+          contentBase64: entry.content_base64,
+          contentType: entry.content_type,
+        })),
+      );
+      return reply.status(201).send({ data: files });
+    },
+  );
+
+  app.get(
+    '/api/v1/projects/:id/files/:fileId/content',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request, reply) => {
+      const params = request.params as { id: string; fileId: string };
+      const result = await projectArtifactFileService.downloadProjectArtifactFile(
+        request.auth!.tenantId,
+        params.id,
+        params.fileId,
+      );
+      applyArtifactPreviewHeaders(reply, result.file.file_name, result.contentType);
+      return reply.send(result.data);
+    },
+  );
+
+  app.delete(
+    '/api/v1/projects/:id/files/:fileId',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request, reply) => {
+      const params = request.params as { id: string; fileId: string };
+      await projectArtifactFileService.deleteProjectArtifactFile(
+        request.auth!,
+        params.id,
+        params.fileId,
+      );
+      return reply.status(204).send();
+    },
+  );
 
   app.get(
     '/api/v1/projects/:id/artifacts',

@@ -14,6 +14,7 @@ import type { IntegrationActionService } from './services/integration-action-ser
 import type { IntegrationAdapterService } from './services/integration-adapter-service.js';
 import type { ModelCatalogService } from './services/model-catalog-service.js';
 import type { ProjectService } from './services/project-service.js';
+import type { ProjectArtifactFileService } from './services/project-artifact-file-service.js';
 import type { PlaybookService } from './services/playbook-service.js';
 import type { RoleDefinitionService } from './services/role-definition-service.js';
 import type { RuntimeDefaultsService } from './services/runtime-defaults-service.js';
@@ -49,6 +50,7 @@ declare module 'fastify' {
     webhookService: WebhookService;
     governanceService: GovernanceService;
     projectService: ProjectService;
+    projectArtifactFileService: ProjectArtifactFileService;
     playbookService: PlaybookService;
     workflowService: WorkflowService;
     workflowActivationService: WorkflowActivationService;
