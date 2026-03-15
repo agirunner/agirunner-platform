@@ -63,8 +63,10 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('function InlineRuleRow(');
     expect(source).toContain('function InlineRuleField(');
     expect(source).toContain('InlineRuleActions');
-    expect(source).toContain('lg:grid-cols-[minmax(0,1fr),auto] lg:items-center');
-    expect(source).toContain('className="lg:justify-self-end"');
+    expect(source).toContain('xl:flex xl:min-w-0 xl:flex-1 xl:items-center xl:gap-3');
+    expect(source).toContain('xl:[&>*]:flex-1');
+    expect(source).toContain('xl:shrink-0');
+    expect(source).toContain('flex flex-col gap-3 xl:flex-row xl:items-center');
     expect(source).toContain('flex flex-col gap-1 lg:flex-row lg:items-center');
     expect(source).not.toContain('title={`Review rule ${index + 1}`}');
     expect(source).not.toContain('title={`Approval rule ${index + 1}`}');

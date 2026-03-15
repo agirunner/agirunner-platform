@@ -1195,8 +1195,10 @@ function InlineRuleField(props: {
   className?: string;
 }): JSX.Element {
   return (
-    <div className={`flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-2 ${props.className ?? ''}`.trim()}>
-      <span className="text-xs font-medium text-foreground lg:w-20 lg:shrink-0">
+    <div
+      className={`flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-2 ${props.className ?? ''}`.trim()}
+    >
+      <span className="text-xs font-medium text-foreground lg:w-16 lg:shrink-0">
         {props.label}
       </span>
       <div className="min-w-0 flex-1">
@@ -1214,9 +1216,13 @@ function InlineRuleRow(props: {
 }): JSX.Element {
   return (
     <div className="space-y-2 rounded-md border border-border/70 bg-background/40 p-3">
-      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr),auto] lg:items-center">
-        <div className={`grid gap-3 ${props.fieldsClassName ?? ''}`.trim()}>{props.children}</div>
-        <div className="lg:justify-self-end">{props.actions}</div>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+        <div
+          className={`grid gap-3 ${props.fieldsClassName ?? ''} xl:flex xl:min-w-0 xl:flex-1 xl:items-center xl:gap-3 xl:[&>*]:min-w-0 xl:[&>*]:flex-1`.trim()}
+        >
+          {props.children}
+        </div>
+        <div className="xl:shrink-0">{props.actions}</div>
       </div>
       {props.error ? (
         <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p>
@@ -1233,8 +1239,8 @@ function InlineRuleActions(props: {
   onRemove?: () => void;
 }): JSX.Element {
   return (
-    <div className="flex flex-nowrap items-center gap-1.5">
-      <label className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 px-2 text-[11px] font-medium text-foreground">
+    <div className="flex flex-nowrap items-center gap-1">
+      <label className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 px-1.5 text-[11px] font-medium text-foreground">
         <Switch checked={props.required} onCheckedChange={props.onRequiredChange} />
         <span>Required</span>
       </label>
@@ -1243,7 +1249,7 @@ function InlineRuleActions(props: {
           type="button"
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7"
           aria-label="Move rule earlier"
           title="Move earlier"
           onClick={props.onMoveEarlier}
@@ -1256,7 +1262,7 @@ function InlineRuleActions(props: {
           type="button"
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7"
           aria-label="Move rule later"
           title="Move later"
           onClick={props.onMoveLater}
@@ -1269,7 +1275,7 @@ function InlineRuleActions(props: {
           type="button"
           variant="outline"
           size="icon"
-          className="h-8 w-8"
+          className="h-7 w-7"
           aria-label="Remove rule"
           title="Remove rule"
           onClick={props.onRemove}
