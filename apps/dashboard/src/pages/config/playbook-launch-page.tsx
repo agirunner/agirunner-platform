@@ -256,10 +256,7 @@ export function PlaybookLaunchPage(): JSX.Element {
   const hasWorkflowOverrides = configuredWorkflowOverrideCount > 0;
 
   return (
-    <div
-      data-testid="playbook-launch-surface"
-      className="mx-auto max-w-[88rem] space-y-6 px-4 py-6 sm:px-6 lg:px-8"
-    >
+    <div data-testid="playbook-launch-surface" className="space-y-6 p-4 sm:p-6">
       <PlaybookLaunchForm
         selectedPlaybookId={selectedPlaybookId}
         isSelectedPlaybookArchived={isSelectedPlaybookArchived}

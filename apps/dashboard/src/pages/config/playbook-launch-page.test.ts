@@ -34,7 +34,7 @@ describe('playbook launch model override source', () => {
 
   it('builds structured launch controls instead of raw JSON textareas', () => {
     const source = readSource();
-    expect(source).toContain('max-w-[88rem]');
+    expect(source).toContain('data-testid="playbook-launch-surface" className="space-y-6 p-4 sm:p-6"');
     expect(source).toContain('Workflow Launch');
     expect(source).toContain('Workflow Basics');
     expect(source).toContain('Workflow Structure');
