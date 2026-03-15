@@ -104,7 +104,7 @@ export function RoleDialog(props: {
 
   return (
     <Dialog open onOpenChange={(open) => !open && props.onClose()}>
-      <DialogContent className="top-[5vh] flex max-h-[90vh] max-w-5xl translate-y-0 flex-col overflow-hidden p-0">
+      <DialogContent className="top-[5vh] flex max-h-[90vh] max-w-[68rem] translate-y-0 flex-col overflow-hidden p-0">
         <DialogHeader className="border-b border-border/70 px-6 py-5">
           <DialogTitle>{props.role ? `Edit Role: ${props.role.name}` : 'Create Role'}</DialogTitle>
           <DialogDescription>
