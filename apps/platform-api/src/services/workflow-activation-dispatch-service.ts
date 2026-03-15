@@ -1480,7 +1480,6 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'create_workflow',
       'request_gate_approval',
       'advance_checkpoint',
-      'advance_stage',
       'complete_workflow',
       'cancel_task',
       'escalate_to_human',
