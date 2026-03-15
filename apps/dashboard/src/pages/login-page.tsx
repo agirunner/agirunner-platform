@@ -27,8 +27,11 @@ export function LoginPage(): JSX.Element {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-md rounded-lg border border-border bg-surface p-8 shadow-sm">
-        <h1 className="mb-1 text-2xl font-semibold">AGI Runner</h1>
-        <p className="mb-6 text-sm text-muted">Sign in with your API key</p>
+        <div className="mb-6 flex flex-col items-center gap-3">
+          <img src="/logo.svg" alt="AGI Runner" className="h-20 w-20" />
+          <h1 className="text-2xl font-semibold">AGI Runner</h1>
+          <p className="text-sm text-muted">Sign in with your API key</p>
+        </div>
 
         <form className="space-y-4" onSubmit={onSubmit}>
           <div>

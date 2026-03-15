@@ -500,7 +500,10 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
     return (
       <>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
-          <span className="text-lg font-semibold">AGI Runner</span>
+          <div className="flex items-center gap-2">
+            <img src="/logo.svg" alt="" className="h-7 w-7" />
+            <span className="text-lg font-semibold">AGI Runner</span>
+          </div>
           <div className="flex items-center gap-1">
             <button
               type="button"
@@ -585,7 +588,10 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         >
           <Menu size={20} />
         </button>
-        <span className="text-sm font-semibold">AGI Runner</span>
+        <div className="flex items-center gap-2">
+          <img src="/logo.svg" alt="" className="h-5 w-5" />
+          <span className="text-sm font-semibold">AGI Runner</span>
+        </div>
         <button
           ref={mobileSearchButtonRef}
           type="button"
