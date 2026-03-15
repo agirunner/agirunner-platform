@@ -38,7 +38,6 @@ describe('ScheduledWorkItemTriggerService', () => {
       },
       {
         name: 'Daily triage',
-        source: 'operator.provided',
         workflow_id: 'workflow-1',
         schedule_type: 'interval',
         cadence_minutes: 60,

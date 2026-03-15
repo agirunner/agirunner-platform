@@ -193,8 +193,8 @@ export function ScheduledTriggersCard({ project }: { project: DashboardProjectRe
             isLoadingWorkflowDetails={selectedWorkflowQuery.isLoading || selectedBoardQuery.isLoading}
             errorMessage={
               saveMutation.isError
-                ? saveMutation.error instanceof Error && saveMutation.error.message.includes('422')
-                  ? 'Review the schedule settings and work-item template, then try saving again.'
+                ? saveMutation.error instanceof Error
+                  ? saveMutation.error.message
                   : 'Failed to save scheduled trigger.'
                 : null
             }

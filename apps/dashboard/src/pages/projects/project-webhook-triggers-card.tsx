@@ -286,11 +286,11 @@ function WebhookTriggerCard(props: {
           <div className="flex flex-wrap items-center gap-2">
             <span className="font-medium">{props.trigger.name}</span>
             <Badge variant={activity.variant}>{activity.label}</Badge>
-            <Badge variant="outline">{props.trigger.source}</Badge>
           </div>
           <div className="flex flex-wrap gap-2 text-sm text-muted">
             <span>{props.workflowName}</span>
             <span>{packet.mode}</span>
+            {props.trigger.event_header ? <span>{props.trigger.event_header}</span> : null}
           </div>
           {props.trigger.event_types && props.trigger.event_types.length > 0 ? (
             <div className="flex flex-wrap gap-1 text-xs text-muted">

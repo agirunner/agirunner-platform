@@ -50,15 +50,18 @@ export function buildWebhookTriggerOverview(
   }
 
   const needsReview = disabledCount + secretMissing;
+  const hasPausedOnly = disabledCount > 0 && secretMissing === 0;
 
   return {
     heading:
       needsReview > 0
-        ? 'Webhook attention is needed'
+        ? hasPausedOnly
+          ? 'Webhook posture needs review'
+          : 'Webhook attention is needed'
         : 'Webhook posture is healthy',
     summary:
       disabledCount > 0
-        ? `${disabledCount} webhook trigger${disabledCount === 1 ? '' : 's'} ${disabledCount === 1 ? 'is' : 'are'} paused. Review source wiring and signature configuration before re-enabling.`
+        ? `${disabledCount} webhook trigger${disabledCount === 1 ? '' : 's'} ${disabledCount === 1 ? 'is' : 'are'} paused. Review it before re-enabling or leave it dormant intentionally.`
         : secretMissing > 0
           ? `${secretMissing} active trigger${secretMissing === 1 ? '' : 's'} may lack signature verification. Confirm the secret is configured.`
           : `${activeCount} active webhook trigger${activeCount === 1 ? '' : 's'} ${activeCount === 1 ? 'is' : 'are'} receiving external events for this project.`,
@@ -74,19 +77,21 @@ export function buildWebhookTriggerOverview(
         value: `${triggers.length} trigger${triggers.length === 1 ? '' : 's'}`,
         detail: `${activeCount} active • ${disabledCount} paused`,
       },
-      {
-        label: 'Attention needed',
-        value:
-          needsReview > 0
-            ? `${needsReview} need review`
-            : 'Healthy',
-        detail:
-          disabledCount > 0
-            ? `${disabledCount} trigger${disabledCount === 1 ? '' : 's'} ${disabledCount === 1 ? 'is' : 'are'} paused and need${disabledCount === 1 ? 's' : ''} operator confirmation.`
-            : secretMissing > 0
-              ? `${secretMissing} active trigger${secretMissing === 1 ? '' : 's'} may lack a configured secret.`
-              : 'No webhook triggers currently need intervention.',
-      },
+        {
+          label: hasPausedOnly ? 'Needs review' : 'Attention needed',
+          value:
+            needsReview > 0
+              ? hasPausedOnly
+                ? `${needsReview} paused`
+                : `${needsReview} need review`
+              : 'Healthy',
+          detail:
+            disabledCount > 0
+              ? `${disabledCount} trigger${disabledCount === 1 ? '' : 's'} ${disabledCount === 1 ? 'is' : 'are'} paused and ready for operator review.`
+              : secretMissing > 0
+                ? `${secretMissing} active trigger${secretMissing === 1 ? '' : 's'} may lack a configured secret.`
+                : 'No webhook triggers currently need intervention.',
+        },
       {
         label: 'Source wiring',
         value: activeCount > 0 ? `${activeCount} live` : 'All paused',

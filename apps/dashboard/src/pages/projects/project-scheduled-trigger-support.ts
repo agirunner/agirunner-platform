@@ -1,7 +1,6 @@
 import { dashboardApi } from '../../lib/api.js';
 import type { DashboardScheduledWorkItemTriggerRecord } from '../../lib/api.js';
 
-export const DEFAULT_SCHEDULED_TRIGGER_SOURCE = 'project.schedule';
 export const SCHEDULED_TRIGGER_PRIORITY_OPTIONS = ['critical', 'high', 'normal', 'low'] as const;
 export const SCHEDULED_TRIGGER_TIMEZONE_OPTIONS = [
   'UTC',
@@ -112,7 +111,6 @@ export function buildScheduledTriggerPayload(
 
   const payload: Parameters<typeof dashboardApi.createScheduledWorkItemTrigger>[0] = {
     name: form.name.trim(),
-    source: DEFAULT_SCHEDULED_TRIGGER_SOURCE,
     project_id: projectId,
     workflow_id: form.workflowId,
     schedule_type: form.scheduleType,

@@ -55,7 +55,7 @@ describe('project webhook triggers support', () => {
     });
   });
 
-  it('flags paused triggers needing review', () => {
+  it('treats paused triggers as reviewable rather than broken', () => {
     const overview = buildWebhookTriggerOverview([
       {
         id: 'wh-1',
@@ -84,7 +84,7 @@ describe('project webhook triggers support', () => {
         updated_at: '2026-03-01T00:00:00.000Z',
       },
     ]);
-    expect(overview.heading).toBe('Webhook attention is needed');
+    expect(overview.heading).toBe('Webhook posture needs review');
     expect(overview.summary).toContain('1 webhook trigger');
     expect(overview.summary).toContain('paused');
     expect(overview.packets[0]).toMatchObject({
@@ -93,8 +93,8 @@ describe('project webhook triggers support', () => {
       detail: '1 active • 1 paused',
     });
     expect(overview.packets[1]).toMatchObject({
-      label: 'Attention needed',
-      value: '1 need review',
+      label: 'Needs review',
+      value: '1 paused',
     });
   });
 

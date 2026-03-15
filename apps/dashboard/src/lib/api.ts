@@ -1541,7 +1541,7 @@ export interface DashboardApi {
   listScheduledWorkItemTriggers(): Promise<{ data: DashboardScheduledWorkItemTriggerRecord[] }>;
   createScheduledWorkItemTrigger(payload: {
     name: string;
-    source: string;
+    source?: string;
     project_id?: string;
     workflow_id: string;
     schedule_type?: 'interval' | 'daily_time';
@@ -1556,7 +1556,7 @@ export interface DashboardApi {
     triggerId: string,
     payload: Partial<{
       name: string;
-      source: string;
+      source: string | null;
       project_id: string | null;
       workflow_id: string;
       schedule_type: 'interval' | 'daily_time';
@@ -2094,11 +2094,13 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     try {
       if (contentType.includes('application/json')) {
         const payload = (await response.json()) as {
-          error?: { message?: string };
+          error?: { message?: string; details?: { issues?: unknown } };
           message?: string;
         };
         const message = payload.error?.message ?? payload.message;
-        return message ? `HTTP ${response.status}: ${message}` : fallback;
+        const issues = formatValidationIssueDetails(payload.error?.details?.issues);
+        const detailMessage = issues ? `${message ?? 'Validation failed'} (${issues})` : message;
+        return detailMessage ? `HTTP ${response.status}: ${detailMessage}` : fallback;
       }
 
       const text = (await response.text()).trim();
@@ -2106,6 +2108,25 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     } catch {
       return fallback;
     }
+  }
+
+  function formatValidationIssueDetails(value: unknown): string | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    const details = value as {
+      fieldErrors?: Record<string, string[] | undefined>;
+      formErrors?: string[];
+    };
+    const fieldMessages = Object.values(details.fieldErrors ?? {})
+      .flatMap((messages) => messages ?? [])
+      .filter((message) => typeof message === 'string' && message.trim().length > 0);
+    const formMessages = (details.formErrors ?? []).filter(
+      (message) => typeof message === 'string' && message.trim().length > 0,
+    );
+    const messages = [...fieldMessages, ...formMessages];
+    return messages.length > 0 ? messages.join(' ') : null;
   }
 
   function readContentDispositionFileName(headerValue: string | null): string | null {

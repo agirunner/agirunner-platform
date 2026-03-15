@@ -8,7 +8,7 @@ const scheduleTypeSchema = z.enum(['interval', 'daily_time']).default('interval'
 
 const triggerSchema = z.object({
   name: z.string().min(1).max(255),
-  source: z.string().min(1).max(255),
+  source: z.string().min(1).max(255).optional(),
   project_id: z.string().uuid().optional(),
   workflow_id: z.string().uuid(),
   schedule_type: scheduleTypeSchema.optional(),
@@ -71,7 +71,7 @@ const triggerSchema = z.object({
 const triggerPatchSchema = z
   .object({
     name: z.string().min(1).max(255).optional(),
-    source: z.string().min(1).max(255).optional(),
+    source: z.string().min(1).max(255).nullable().optional(),
     project_id: z.string().uuid().nullable().optional(),
     workflow_id: z.string().uuid().optional(),
     schedule_type: scheduleTypeSchema.optional(),

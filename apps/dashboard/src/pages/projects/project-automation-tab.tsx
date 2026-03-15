@@ -154,9 +154,10 @@ function buildAutomationHeaderState(
   const webhookSecretsMissing = activeWebhookTriggers.filter((trigger) => !trigger.secret_configured);
   const liveLaneCount = activeSchedules.length + activeWebhookTriggers.length;
   const pausedLaneCount = pausedSchedules.length + pausedWebhookTriggers.length;
-  const issueCount = overdueSchedules.length + webhookSecretsMissing.length + pausedLaneCount;
+  const configIssueCount = overdueSchedules.length + webhookSecretsMissing.length;
+  const reviewCount = pausedLaneCount;
 
-  if (issueCount > 0) {
+  if (configIssueCount > 0) {
     return {
       statusLabel: 'Automation needs attention',
       badgeVariant: 'warning',
@@ -180,8 +181,35 @@ function buildAutomationHeaderState(
         },
         {
           label: 'Attention',
-          value: `${issueCount} ${issueCount === 1 ? 'issue' : 'issues'}`,
+          value: `${configIssueCount} ${configIssueCount === 1 ? 'issue' : 'issues'}`,
           tone: 'warning',
+        },
+        {
+          label: 'Repository',
+          value: hasRepository ? 'Linked' : 'Optional',
+          tone: hasRepository ? 'success' : 'secondary',
+        },
+      ],
+    };
+  }
+
+  if (reviewCount > 0) {
+    return {
+      statusLabel: 'Automation needs review',
+      badgeVariant: 'secondary',
+      summary: buildAutomationPausedSummary(pausedSchedules.length, pausedWebhookTriggers.length),
+      nextAction:
+        'Review the paused lane before re-enabling it or leaving it dormant intentionally.',
+      signals: [
+        {
+          label: 'Live',
+          value: liveLaneCount > 0 ? `${liveLaneCount} live` : 'No live lanes',
+          tone: liveLaneCount > 0 ? 'success' : 'secondary',
+        },
+        {
+          label: 'Review',
+          value: `${reviewCount} paused`,
+          tone: 'secondary',
         },
         {
           label: 'Repository',
@@ -254,6 +282,17 @@ function buildAutomationIssueSummary(
 
   const verb = parts.length === 1 && parts[0]?.startsWith('1 ') ? 'needs' : 'need';
   return `${parts.join(' and ')} ${verb} operator repair.`;
+}
+
+function buildAutomationPausedSummary(
+  pausedScheduleCount: number,
+  pausedWebhookCount: number,
+): string {
+  const parts = [
+    pausedScheduleCount > 0 ? formatCount(pausedScheduleCount, 'paused schedule') : null,
+    pausedWebhookCount > 0 ? formatCount(pausedWebhookCount, 'paused inbound hook') : null,
+  ].filter((value): value is string => value !== null);
+  return `${parts.join(' and ')} ${parts.length === 1 && parts[0]?.startsWith('1 ') ? 'is' : 'are'} paused and ready for operator review.`;
 }
 
 function isGitProviderSource(source: string | null | undefined): boolean {

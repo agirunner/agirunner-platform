@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  DEFAULT_SCHEDULED_TRIGGER_SOURCE,
   buildScheduledTriggerOverview,
   buildScheduledTriggerPayload,
   canSaveScheduledTrigger,
@@ -14,7 +13,7 @@ import {
 } from './project-scheduled-trigger-support.js';
 
 describe('project-scheduled-trigger support', () => {
-  it('creates a default form state with interval scheduling and canonical source semantics', () => {
+  it('creates a default form state with interval scheduling defaults', () => {
     expect(createScheduledTriggerFormState()).toMatchObject({
       scheduleType: 'interval',
       cadenceMinutes: '60',
@@ -88,7 +87,6 @@ describe('project-scheduled-trigger support', () => {
 
     expect(payload).toEqual({
       name: 'Daily triage',
-      source: DEFAULT_SCHEDULED_TRIGGER_SOURCE,
       project_id: 'project-1',
       workflow_id: 'workflow-1',
       schedule_type: 'interval',
@@ -129,7 +127,6 @@ describe('project-scheduled-trigger support', () => {
 
     expect(payload).toEqual({
       name: 'Morning triage',
-      source: DEFAULT_SCHEDULED_TRIGGER_SOURCE,
       project_id: 'project-1',
       workflow_id: 'workflow-1',
       schedule_type: 'daily_time',

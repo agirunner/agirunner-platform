@@ -1945,7 +1945,6 @@ describe('dashboard api auth/session behavior', () => {
     const scheduled = await api.listScheduledWorkItemTriggers();
     const createdScheduled = await api.createScheduledWorkItemTrigger({
       name: 'Hourly sweep',
-      source: 'project.schedule',
       workflow_id: 'wf-1',
       cadence_minutes: 30,
       defaults: { title: 'Sweep' },
@@ -1986,6 +1985,55 @@ describe('dashboard api auth/session behavior', () => {
     );
     expect(vi.mocked(fetcher).mock.calls[7][0]).toBe(
       'http://localhost:8080/api/v1/work-item-triggers/hook-2',
+    );
+  });
+
+  it('surfaces schema validation details in HTTP error messages', async () => {
+    writeSession({ accessToken: 'trigger-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          error: {
+            message: 'Invalid request body',
+            details: {
+              issues: {
+                fieldErrors: {
+                  cadence_minutes: ['cadence_minutes is required for interval schedules'],
+                },
+                formErrors: [],
+              },
+            },
+          },
+        }),
+        { status: 422, headers: { 'content-type': 'application/json' } },
+      ),
+    ) as unknown as typeof fetch;
+
+    const api = createDashboardApi({
+      client: {
+        refreshSession: vi.fn(),
+        setAccessToken: vi.fn(),
+        listWorkflows: vi.fn(),
+        exchangeApiKey: vi.fn(),
+        getWorkflow: vi.fn(),
+        createWorkflow: vi.fn(),
+        listTasks: vi.fn(),
+        getTask: vi.fn(),
+        listWorkers: vi.fn(),
+        listAgents: vi.fn(),
+      } as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await expect(
+      api.createScheduledWorkItemTrigger({
+        name: 'Broken schedule',
+        workflow_id: 'wf-1',
+      }),
+    ).rejects.toThrow(
+      'HTTP 422: Invalid request body (cadence_minutes is required for interval schedules)',
     );
   });
 

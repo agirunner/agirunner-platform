@@ -403,13 +403,7 @@ export function WebhookTriggerEditorDialog(props: {
         </DialogHeader>
 
         <div className="space-y-6">
-          <section
-            className={
-              validation.isValid
-                ? 'rounded-xl border border-emerald-300/80 bg-background/70 p-4 dark:border-emerald-800/70'
-                : 'rounded-xl border border-amber-300/80 bg-background/70 p-4 dark:border-amber-800/70'
-            }
-          >
+          <section className="rounded-xl border border-border/70 bg-muted/30 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
                 <h3 className="text-sm font-semibold">Save readiness</h3>
@@ -424,7 +418,7 @@ export function WebhookTriggerEditorDialog(props: {
               </span>
             </div>
             {!validation.isValid ? (
-              <ul className="mt-3 space-y-1 text-sm text-amber-900 dark:text-amber-100">
+              <ul className="mt-3 space-y-1 text-sm text-muted">
                 {validation.issues.map((issue) => (
                   <li key={issue}>• {issue}</li>
                 ))}

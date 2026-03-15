@@ -24,7 +24,7 @@ interface WorkflowScopeRow {
 
 export interface CreateScheduledWorkItemTriggerInput {
   name: string;
-  source: string;
+  source?: string | null;
   project_id?: string;
   workflow_id: string;
   schedule_type?: ScheduledTriggerScheduleType | null;
@@ -38,7 +38,7 @@ export interface CreateScheduledWorkItemTriggerInput {
 
 export interface UpdateScheduledWorkItemTriggerInput {
   name?: string;
-  source?: string;
+  source?: string | null;
   project_id?: string | null;
   workflow_id?: string;
   schedule_type?: ScheduledTriggerScheduleType | null;
@@ -297,8 +297,8 @@ function resolveNextFireAt(
   return computeInitialScheduledFireAt(schedule, now);
 }
 
-function normalizeProjectScheduleSource(projectId: string | null, source: string) {
-  const trimmed = source.trim();
+function normalizeProjectScheduleSource(projectId: string | null, source?: string | null) {
+  const trimmed = typeof source === 'string' ? source.trim() : '';
   if (projectId) {
     return 'project.schedule';
   }
