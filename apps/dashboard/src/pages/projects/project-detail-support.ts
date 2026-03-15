@@ -227,17 +227,17 @@ export function buildProjectKnowledgeOverview(
             : 'No curated knowledge entries are saved yet.',
       },
       {
+        label: 'Project artifacts',
+        value: 'Inline workspace',
+        detail: 'Artifact inspection stays nested here instead of taking another top-level tab.',
+      },
+      {
         label: 'Shared memory',
         value: `${memoryCount} entries`,
         detail:
           memoryCount > 0
             ? 'Working memory holds evolving notes and learned state without changing the curated knowledge base.'
             : 'No project memory entries are saved yet.',
-      },
-      {
-        label: 'Artifacts',
-        value: 'Inline workspace',
-        detail: 'Artifact inspection stays nested here instead of taking another top-level tab.',
       },
     ],
   };

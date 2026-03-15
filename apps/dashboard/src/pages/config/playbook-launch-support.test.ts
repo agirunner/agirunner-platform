@@ -215,9 +215,30 @@ describe('playbook launch support', () => {
         settings: { default_branch: 'main' },
       },
     );
+    const knowledgeDraft = readMappedProjectParameterDraft(
+      {
+        key: 'release_window',
+        label: 'Release window',
+        description: '',
+        inputType: 'string',
+        options: [],
+        mapsTo: 'project.settings.knowledge.release_window',
+      },
+      {
+        id: 'project-1',
+        name: 'Demo',
+        slug: 'demo',
+        repository_url: 'https://github.com/agisnap/agirunner-test-fixtures',
+        settings: {
+          default_branch: 'main',
+          knowledge: { release_window: 'Friday 16:00 Pacific' },
+        },
+      },
+    );
 
     expect(repositoryDraft).toBe('https://github.com/agisnap/agirunner-test-fixtures');
     expect(branchDraft).toBe('main');
+    expect(knowledgeDraft).toBe('Friday 16:00 Pacific');
   });
 
   it('describes project-mapped launch parameter posture for the UI', () => {

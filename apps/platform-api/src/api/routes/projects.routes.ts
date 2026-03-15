@@ -6,7 +6,7 @@ import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ProjectPlanningService } from '../../services/project-planning-service.js';
 import { ProjectArtifactExplorerService } from '../../services/project-artifact-explorer-service.js';
-import { parseProjectSettingsInput, projectModelOverridesSchema, readProjectModelOverrides } from '../../services/project-settings.js';
+import { parseProjectSettingsInput } from '../../services/project-settings.js';
 import { ProjectSpecService } from '../../services/project-spec-service.js';
 
 const projectCreateSchema = z.object({
@@ -133,7 +133,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       return {
         data: {
           project_id: params.id,
-          model_overrides: readProjectModelOverrides(project.settings),
+          model_overrides: {},
         },
       };
     },
@@ -145,9 +145,9 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const query = request.query as { roles?: string };
-      const project = await projectService.getProject(request.auth!.tenantId, params.id);
-      const projectOverrides = readProjectModelOverrides(project.settings);
-      const roles = parseRoleQuery(query.roles, projectOverrides);
+      await projectService.getProject(request.auth!.tenantId, params.id);
+      const projectOverrides = {};
+      const roles = parseRoleQuery(query.roles);
       return {
         data: {
           project_id: params.id,
@@ -281,16 +281,11 @@ function validateProjectModelOverrides(settings: unknown, ctx: z.RefinementCtx) 
   }
 }
 
-function parseRoleQuery(raw: string | undefined, projectOverrides: Record<string, unknown>) {
+function parseRoleQuery(raw: string | undefined) {
   if (typeof raw === 'string' && raw.trim().length > 0) {
     return raw.split(',').map((value) => value.trim()).filter(Boolean);
   }
-  return Object.keys(projectOverrides);
-}
-
-function readModelOverrides(value: unknown): Record<string, unknown> {
-  const parsed = projectModelOverridesSchema.safeParse(value ?? {});
-  return parsed.success ? parsed.data : {};
+  return [];
 }
 
 async function resolveEffectiveModels(

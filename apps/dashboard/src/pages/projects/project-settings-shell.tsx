@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
 import type { DashboardProjectRecord } from '../../lib/api.js';
-import { Badge } from '../../components/ui/badge.js';
 import type { ProjectWorkspaceOverview } from './project-detail-support.js';
 
 interface ProjectSettingsShellProps {
@@ -13,16 +12,9 @@ interface ProjectSettingsShellProps {
 export function ProjectSettingsShell(props: ProjectSettingsShellProps): JSX.Element {
   return (
     <section className="space-y-3">
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">Settings control plane</h2>
-          <p className="sr-only">{props.overview.summary}</p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant={props.project.is_active ? 'success' : 'secondary'}>
-            {props.project.is_active ? 'Live project' : 'Inactive project'}
-          </Badge>
-        </div>
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">Settings control plane</h2>
+        <p className="sr-only">{props.overview.summary}</p>
       </div>
       {props.children}
     </section>

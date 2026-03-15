@@ -1256,5 +1256,5 @@ function describeParameterMappingHint(
   if (category === 'repository') {
     return 'Repository parameters should map to non-secret project metadata.';
   }
-  return 'Choose a known project value when possible. Use a custom path only when the standard mappings are not enough.';
+  return 'Choose a known project value when possible. Use a custom path such as project.settings.knowledge.<key> when the standard mappings are not enough.';
 }

@@ -13,15 +13,12 @@ import {
   type ProjectDetailTabValue,
 } from './project-detail-support.js';
 import { ProjectAutomationTab } from './project-automation-tab.js';
-import { ContentBrowserSurface } from './content-browser-page.js';
 import { ProjectDeliveryHistory } from './project-delivery-history.js';
-import { ProjectDetailMemoryTab } from './project-detail-memory-tab.js';
 import { ProjectDetailShell } from './project-detail-shell.js';
-import { ProjectKnowledgeShell } from './project-knowledge-shell.js';
+import { ProjectKnowledgeTab } from './project-knowledge-tab.js';
 import { ProjectOverviewShell } from './project-overview-shell.js';
 import { ProjectSettingsShell } from './project-settings-shell.js';
 import { ProjectSettingsTab } from './project-settings-tab.js';
-import { ProjectSpecTab } from './project-spec-tab.js';
 
 export function ProjectDetailPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();
@@ -82,15 +79,7 @@ export function ProjectDetailPage(): JSX.Element {
           <ProjectSettingsTab project={project} />
         </ProjectSettingsShell>
       }
-      knowledgeContent={
-        <ProjectKnowledgeShell
-          projectId={project.id}
-          overview={knowledgeOverview}
-          referenceContent={<ProjectSpecTab projectId={project.id} />}
-          memoryContent={<ProjectDetailMemoryTab projectId={project.id} />}
-          runContentContent={<ContentBrowserSurface scopedProjectId={project.id} preferredTab="documents" showHeader={false} />}
-        />
-      }
+      knowledgeContent={<ProjectKnowledgeTab projectId={project.id} overview={knowledgeOverview} />}
       automationContent={<ProjectAutomationTab project={project} />}
       deliveryContent={<ProjectDeliveryHistory projectId={project.id} />}
     />

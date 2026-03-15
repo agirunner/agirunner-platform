@@ -103,10 +103,10 @@ describe('project detail workspace shell source', () => {
   it('nests project context and simplified knowledge editing under the knowledge shell instead of a top-level spec tab', () => {
     const source = readSource('./project-detail-page.tsx');
     const specSource = readSource('./project-spec-tab.tsx');
+    const knowledgeTabSource = readSource('./project-knowledge-tab.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     const structuredEditorSource = readSource('./project-structured-entry-editor.tsx');
-    expect(source).toContain('<ProjectKnowledgeShell');
-    expect(source).toContain('referenceContent={<ProjectSpecTab projectId={project.id} />}');
+    expect(source).toContain('<ProjectKnowledgeTab projectId={project.id} overview={knowledgeOverview} />');
     expect(source).not.toContain('resourcesContent={<ProjectResourcesTab');
     expect(source).not.toContain('toolsContent={<ProjectToolsTab');
     expect(knowledgeSource).toContain("value: 'reference'");
@@ -115,13 +115,15 @@ describe('project detail workspace shell source', () => {
     );
     expect(specSource).toContain('Project Context');
     expect(specSource).toContain('Project knowledge');
-    expect(specSource).toContain('Only string and JSON values are supported here.');
-    expect(specSource).toContain('Save Knowledge');
+    expect(specSource).toContain('Key/Value pairs');
+    expect(specSource).toContain('Use simple string or JSON values for reusable project knowledge.');
+    expect(knowledgeTabSource).toContain('Save knowledge');
     expect(specSource).toContain('Add knowledge entry');
     expect(specSource).toContain('Edit curated project facts and policies as simple key/value entries');
+    expect(specSource).toContain('project.settings.knowledge');
     expect(specSource).not.toContain('Workspace structure');
     expect(specSource).not.toContain('Start here');
-    expect(specSource).toContain('dashboardApi.updateProjectSpec(projectId, nextSpec)');
+    expect(knowledgeTabSource).toContain('dashboardApi.updateProjectSpec(props.projectId, nextSpec)');
     expect(structuredEditorSource).toContain('allowedTypes?: StructuredValueType[]');
     expect(structuredEditorSource).toContain("allowedTypes ?? ['string', 'number', 'boolean', 'json']");
     expect(structuredEditorSource).toContain('formatStructuredTypeLabel(type)');
@@ -142,20 +144,22 @@ describe('project detail workspace shell source', () => {
 
   it('keeps typed memory and artifacts accessible from the knowledge shell', () => {
     const source = readSource('./project-detail-page.tsx');
+    const knowledgeTabSource = readSource('./project-knowledge-tab.tsx');
     const memorySource = readSource('./project-detail-memory-tab.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     const contentSource = readSource('./content-browser-page.tsx');
-    expect(source).toContain('<ProjectDetailMemoryTab projectId={project.id} />');
-    expect(source).toContain(
-      '<ContentBrowserSurface scopedProjectId={project.id} preferredTab="documents" showHeader={false} />',
+    expect(knowledgeTabSource).toContain('<ProjectDetailMemoryTab projectId={props.projectId} />');
+    expect(knowledgeTabSource).toContain(
+      '<ContentBrowserSurface\n            scopedProjectId={props.projectId}',
     );
     expect(source).not.toContain('<ProjectArtifactExplorerPanel projectId={project.id} />');
     expect(knowledgeSource).not.toContain('Open documents');
     expect(knowledgeSource).not.toContain('Open memory explorer');
     expect(knowledgeSource).not.toContain('Open artifact explorer');
-    expect(knowledgeSource).toContain("label: 'Run content'");
+    expect(knowledgeSource).toContain("label: 'Project artifacts'");
+    expect(knowledgeTabSource).toContain('artifactContent=');
     expect(knowledgeSource).toContain("value: 'memory'");
-    expect(knowledgeSource).toContain("value: 'runContent'");
+    expect(knowledgeSource).toContain("value: 'artifacts'");
     expect(memorySource).toContain('ProjectMemoryTable');
     expect(memorySource).toContain('MemoryEditor');
     expect(memorySource).toContain('Choose a different key.');
@@ -167,13 +171,14 @@ describe('project detail workspace shell source', () => {
 
   it('replaces the old artifacts tab with overview and knowledge-only run-content actions', () => {
     const source = readSource('./project-detail-page.tsx');
+    const knowledgeTabSource = readSource('./project-knowledge-tab.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     const overviewSource = readSource('./project-overview-shell.tsx');
     expect(source).toContain('<ProjectOverviewShell');
-    expect(knowledgeSource).toContain("label: 'Run content'");
+    expect(knowledgeSource).toContain("label: 'Project artifacts'");
     expect(overviewSource).not.toContain('Artifact explorer');
-    expect(source).toContain(
-      '<ContentBrowserSurface scopedProjectId={project.id} preferredTab="documents" showHeader={false} />',
+    expect(knowledgeTabSource).toContain(
+      'scopedProjectId={props.projectId}',
     );
   });
 
@@ -191,7 +196,7 @@ describe('project detail workspace shell source', () => {
     const supportSource = readSource('./project-detail-support.ts');
     expect(source).toContain("import { ProjectDetailShell } from './project-detail-shell.js';");
     expect(source).toContain('<ProjectDetailShell');
-    expect(source).toContain("import { ProjectSpecTab } from './project-spec-tab.js';");
+    expect(source).toContain("import { ProjectKnowledgeTab } from './project-knowledge-tab.js';");
     expect(source).toContain("import { ProjectSettingsTab } from './project-settings-tab.js';");
     expect(source).toContain("import { ProjectAutomationTab } from './project-automation-tab.js';");
     expect(source).toContain('buildProjectDetailHeaderState(project, activeTab)');

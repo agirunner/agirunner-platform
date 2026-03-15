@@ -102,7 +102,7 @@ describe('workflow model override routes', () => {
     );
   });
 
-  it('returns resolved workflow models with workflow precedence over project overrides', async () => {
+  it('returns resolved workflow models without project-level override participation', async () => {
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
 
     app = fastify();
@@ -111,18 +111,7 @@ describe('workflow model override routes', () => {
     app.decorate('projectService', {
       getProject: vi.fn().mockResolvedValue({
         id: 'project-1',
-        settings: {
-          model_overrides: {
-            reviewer: {
-              provider: 'anthropic',
-              model: 'claude-haiku-4',
-            },
-            developer: {
-              provider: 'openai',
-              model: 'gpt-4.1',
-            },
-          },
-        },
+        settings: {},
       }),
     });
     app.decorate('modelCatalogService', {
@@ -209,16 +198,17 @@ describe('workflow model override routes', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/workflows/workflow-1/model-overrides/resolved',
+      url: '/api/v1/workflows/workflow-1/model-overrides/resolved?roles=developer,reviewer',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
+    expect(response.json().data.project_model_overrides).toEqual({});
     expect(response.json().data.effective_models.developer.source).toBe('workflow');
     expect(response.json().data.effective_models.developer.resolved.model.modelId).toBe(
       'claude-sonnet-4-6',
     );
-    expect(response.json().data.effective_models.reviewer.source).toBe('project');
+    expect(response.json().data.effective_models.reviewer.source).toBe('base');
     expect(response.json().data.effective_models.developer.resolved.provider).not.toHaveProperty(
       'apiKeySecretRef',
     );

@@ -630,12 +630,8 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       const workflow = await workflowService.getWorkflow(request.auth!.tenantId, params.id);
       const workflowOverrides = readModelOverrides(asRecord(workflow.metadata).model_overrides);
       const projectId = typeof workflow.project_id === 'string' ? workflow.project_id : null;
-      const projectOverrides = projectId
-        ? readModelOverrides(
-            asRecord(asRecord((await app.projectService.getProject(request.auth!.tenantId, projectId)).settings).model_overrides),
-          )
-        : {};
-      const roles = parseRoleQuery(query.roles, workflowOverrides, projectOverrides);
+      const projectOverrides = {};
+      const roles = parseRoleQuery(query.roles, workflowOverrides);
       return {
         data: {
           workflow_id: params.id,
@@ -890,12 +886,11 @@ function mergeWorkflowMetadata(
 function parseRoleQuery(
   raw: string | undefined,
   workflowOverrides: Record<string, unknown>,
-  projectOverrides: Record<string, unknown>,
 ) {
   if (typeof raw === 'string' && raw.trim().length > 0) {
     return raw.split(',').map((value) => value.trim()).filter(Boolean);
   }
-  return Array.from(new Set([...Object.keys(projectOverrides), ...Object.keys(workflowOverrides)]));
+  return Array.from(new Set([...Object.keys(workflowOverrides)]));
 }
 
 function readModelOverrides(value: unknown): Record<string, unknown> {

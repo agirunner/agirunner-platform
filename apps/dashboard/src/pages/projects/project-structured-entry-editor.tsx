@@ -42,22 +42,21 @@ export function StructuredEntryEditor(props: {
             <div
               className={
                 showTypeSelector
-                  ? 'grid gap-3 md:grid-cols-[1.1fr,0.7fr,1.2fr,auto]'
-                  : 'grid gap-3 md:grid-cols-[1.1fr,1.2fr,auto]'
+                  ? 'grid gap-3 sm:flex sm:flex-nowrap sm:items-center'
+                  : 'grid gap-3 sm:flex sm:flex-nowrap sm:items-center'
               }
             >
-              <label className="grid gap-1 text-xs">
-                <span className="font-medium">Key</span>
-                <Input
-                  value={draft.key}
-                  onChange={(event) =>
-                    props.onChange(updateStructuredDraft(props.drafts, draft.id, { key: event.target.value }))
-                  }
-                />
-              </label>
+              <span className="text-xs font-medium text-muted sm:w-8 sm:shrink-0">Key</span>
+              <Input
+                className="sm:min-w-0 sm:flex-1"
+                value={draft.key}
+                onChange={(event) =>
+                  props.onChange(updateStructuredDraft(props.drafts, draft.id, { key: event.target.value }))
+                }
+              />
               {showTypeSelector ? (
-                <label className="grid gap-1 text-xs">
-                  <span className="font-medium">Type</span>
+                <>
+                  <span className="text-xs font-medium text-muted sm:w-9 sm:shrink-0">Type</span>
                   <Select
                     value={draft.valueType}
                     onValueChange={(value) =>
@@ -68,7 +67,7 @@ export function StructuredEntryEditor(props: {
                       )
                     }
                   >
-                    <SelectTrigger className="w-full">
+                    <SelectTrigger className="w-full sm:w-40 sm:shrink-0">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -79,10 +78,22 @@ export function StructuredEntryEditor(props: {
                       ))}
                     </SelectContent>
                   </Select>
-                </label>
+                </>
               ) : null}
-              <div className="grid gap-1 text-xs">
-                <span className="font-medium">Value</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full whitespace-nowrap sm:ml-auto sm:w-auto sm:self-center"
+                onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
+              >
+                <Trash2 className="h-4 w-4" />
+                Remove entry
+              </Button>
+            </div>
+            <div className="grid gap-3 sm:flex sm:items-start">
+              <span className="pt-2 text-xs font-medium text-muted sm:w-10 sm:shrink-0">Value</span>
+              <div className="sm:min-w-0 sm:flex-1">
                 <StructuredValueInput
                   valueType={draft.valueType}
                   value={draft.value}
@@ -91,17 +102,6 @@ export function StructuredEntryEditor(props: {
                     props.onChange(updateStructuredDraft(props.drafts, draft.id, { value }))
                   }
                 />
-              </div>
-              <div className="flex items-end">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))}
-                >
-                  <Trash2 className="h-4 w-4" />
-                  Remove entry
-                </Button>
               </div>
             </div>
           </div>

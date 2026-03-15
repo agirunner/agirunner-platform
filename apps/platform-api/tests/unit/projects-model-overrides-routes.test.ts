@@ -32,7 +32,7 @@ describe('project model override routes', () => {
     }
   });
 
-  it('validates settings.model_overrides on project create', async () => {
+  it('ignores retired project model overrides on project create instead of rejecting the request', async () => {
     const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
 
     app = fastify();
@@ -71,24 +71,15 @@ describe('project model override routes', () => {
       },
     });
 
-    expect(response.statusCode).toBe(422);
-    expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
+    expect(response.statusCode).toBe(201);
   });
 
-  it('returns resolved project model overrides', async () => {
+  it('returns shared resolved project models without project-specific overrides', async () => {
     const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
 
     const getProject = vi.fn().mockResolvedValue({
       id: 'project-1',
-      settings: {
-        model_overrides: {
-          developer: {
-            provider: 'anthropic',
-            model: 'claude-sonnet-4-6',
-            reasoning_config: { effort: 'high' },
-          },
-        },
-      },
+      settings: {},
     });
 
     app = fastify();
@@ -138,16 +129,15 @@ describe('project model override routes', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/projects/project-1/model-overrides/resolved',
+      url: '/api/v1/projects/project-1/model-overrides/resolved?roles=developer',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
     expect(getProject).toHaveBeenCalledWith('tenant-1', 'project-1');
-    expect(response.json().data.effective_models.developer.source).toBe('project');
-    expect(response.json().data.effective_models.developer.resolved.model.modelId).toBe(
-      'claude-sonnet-4-6',
-    );
+    expect(response.json().data.project_model_overrides).toEqual({});
+    expect(response.json().data.effective_models.developer.source).toBe('base');
+    expect(response.json().data.effective_models.developer.resolved.model.modelId).toBe('gpt-4.1');
     expect(response.json().data.effective_models.developer.resolved.provider).not.toHaveProperty(
       'apiKeySecretRef',
     );

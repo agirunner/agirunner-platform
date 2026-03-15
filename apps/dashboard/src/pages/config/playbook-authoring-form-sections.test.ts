@@ -47,6 +47,7 @@ describe('playbook authoring form sections source', () => {
     );
     expect(source).toContain('Secret parameters can only map to secret-backed project values.');
     expect(source).toContain('Repository parameters should map to non-secret project metadata.');
+    expect(source).toContain('project.settings.knowledge.<key>');
     expect(source).toContain('Display label');
     expect(source).toContain('Human-readable label shown to operators at launch time.');
     expect(source).toContain('Input style');

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ProjectService } from '../../src/services/project-service.js';
 
 describe('ProjectService model overrides', () => {
-  it('stores plural project model overrides during project updates', async () => {
+  it('drops retired project model overrides during project updates', async () => {
     const pool = {
       query: vi
         .fn()
@@ -25,12 +25,7 @@ describe('ProjectService model overrides', () => {
             name: 'Project',
             slug: 'project',
             settings: {
-              model_overrides: {
-                developer: {
-                  provider: 'openai',
-                  model: 'gpt-5',
-                },
-              },
+              model_overrides: {},
             },
           }],
         }),
@@ -63,11 +58,6 @@ describe('ProjectService model overrides', () => {
       },
     );
 
-    expect((project.settings as Record<string, unknown>).model_overrides).toEqual({
-      developer: {
-        provider: 'openai',
-        model: 'gpt-5',
-      },
-    });
+    expect((project.settings as Record<string, unknown>).model_overrides).toEqual({});
   });
 });

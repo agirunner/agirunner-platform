@@ -63,6 +63,10 @@ describe('content browser page source', () => {
     const source = readSource();
     expect(source).toContain('scopedProjectId');
     expect(source).toContain('preferredTab');
+    expect(source).toContain('const isEmbedded = props.showHeader === false || scopedProjectId.length > 0 || scopedWorkflowId.length > 0;');
+    expect(source).toContain('const activeTab = isEmbedded ? preferredTab : searchParams.get(\'tab\') === \'artifacts\' ? \'artifacts\' : preferredTab;');
+    expect(source).toContain('if (isEmbedded) {');
+    expect(source).toContain('return;');
     expect(source).toContain('Project Documents');
     expect(source).toContain('Project documents');
     expect(source).toContain('Back to Project');

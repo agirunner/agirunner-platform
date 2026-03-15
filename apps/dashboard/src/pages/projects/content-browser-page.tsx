@@ -70,14 +70,15 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   const scopedProjectId = props.scopedProjectId?.trim() ?? '';
   const scopedWorkflowId = props.scopedWorkflowId?.trim() ?? '';
   const preferredTab = props.preferredTab ?? 'documents';
+  const isEmbedded = props.showHeader === false || scopedProjectId.length > 0 || scopedWorkflowId.length > 0;
   const [selectedProjectId, setSelectedProjectId] = useState(
-    scopedProjectId || (searchParams.get('project') ?? ''),
+    scopedProjectId || (isEmbedded ? '' : (searchParams.get('project') ?? '')),
   );
   const [selectedWorkflowId, setSelectedWorkflowId] = useState(
-    scopedWorkflowId || (searchParams.get('workflow') ?? ''),
+    scopedWorkflowId || (isEmbedded ? '' : (searchParams.get('workflow') ?? '')),
   );
-  const [selectedWorkItemId, setSelectedWorkItemId] = useState(searchParams.get('work_item') ?? '');
-  const [selectedTaskId, setSelectedTaskId] = useState(searchParams.get('task') ?? '');
+  const [selectedWorkItemId, setSelectedWorkItemId] = useState(isEmbedded ? '' : (searchParams.get('work_item') ?? ''));
+  const [selectedTaskId, setSelectedTaskId] = useState(isEmbedded ? '' : (searchParams.get('task') ?? ''));
   const [documentMode, setDocumentMode] = useState<'create' | 'edit'>('create');
   const [editingLogicalName, setEditingLogicalName] = useState('');
   const [documentDraft, setDocumentDraft] = useState(createEmptyDocumentDraft());
@@ -90,7 +91,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   const [artifactFile, setArtifactFile] = useState<File | null>(null);
   const [artifactError, setArtifactError] = useState<string | null>(null);
   const [artifactMessage, setArtifactMessage] = useState<string | null>(null);
-  const activeTab = searchParams.get('tab') === 'artifacts' ? 'artifacts' : preferredTab;
+  const activeTab = isEmbedded ? preferredTab : searchParams.get('tab') === 'artifacts' ? 'artifacts' : preferredTab;
 
   const projectsQuery = useQuery({
     queryKey: ['projects'],
@@ -354,6 +355,9 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
   });
 
   useEffect(() => {
+    if (isEmbedded) {
+      return;
+    }
     const next = new URLSearchParams();
     if (!scopedProjectId && selectedProjectId) next.set('project', selectedProjectId);
     else next.delete('project');
@@ -379,6 +383,7 @@ export function ContentBrowserSurface(props: ContentBrowserPageProps = {}): JSX.
     selectedWorkflowId,
     selectedWorkItemId,
     setSearchParams,
+    isEmbedded,
   ]);
 
   useEffect(() => {

@@ -1,18 +1,15 @@
-import { useState, type ComponentType, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { BrainCircuit, ChevronDown, Layers3, Sparkles } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
-import { cn } from '../../lib/utils.js';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { Card, CardContent } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
 import { SelectItem } from '../../components/ui/select.js';
 import { MemoryEditor } from './project-memory-table.fields.js';
 import { ProjectMemoryTable } from './project-memory-table.js';
-import { extractMemoryEntries, type MemoryEntry } from './project-memory-support.js';
+import { extractMemoryEntries } from './project-memory-support.js';
 import {
   createMemoryEditorDraft,
-  inferMemoryEditorKind,
   parseMemoryEditorDraft,
   type MemoryEditorDraft,
 } from './project-memory-table-support.js';
@@ -32,14 +29,11 @@ const MEMORY_COMPOSER_TYPE_OPTIONS = [
   </SelectItem>,
 ];
 
-type MemorySectionKey = 'current' | 'composer';
-
 export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Element {
   const queryClient = useQueryClient();
   const [draftKey, setDraftKey] = useState('');
   const [draft, setDraft] = useState<MemoryEditorDraft>(createMemoryEditorDraft(''));
   const [isSubmitAttempted, setIsSubmitAttempted] = useState(false);
-  const [expandedSection, setExpandedSection] = useState<MemorySectionKey | null>(null);
   const projectQuery = useQuery({
     queryKey: ['project', props.projectId],
     queryFn: () => dashboardApi.getProject(props.projectId),
@@ -62,13 +56,8 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
   }
 
   const entries = extractMemoryEntries(projectQuery.data?.memory as Record<string, unknown> | undefined);
-  const summary = summarizeMemoryEntries(entries);
   const keyError = getMemoryKeyError(draftKey, entries, isSubmitAttempted);
   const parsedDraft = parseMemoryEditorDraft(draft);
-
-  function toggleSection(section: MemorySectionKey): void {
-    setExpandedSection((current) => (current === section ? null : section));
-  }
 
   function resetComposer(): void {
     setDraftKey('');
@@ -86,65 +75,31 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
 
   return (
     <div className="space-y-4">
-      <Card className="border-border/70 shadow-sm">
-        <CardHeader className="space-y-2">
-          <CardTitle>Memory at a glance</CardTitle>
-          <CardDescription>
-            Memory is for evolving notes and learned state. Use Current memory to review what work
-            has taught the project, then add a new key only when a new memory record is needed.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3">
-          <MemorySummaryCard
-            title="Memory posture"
-            value={`${summary.totalEntries} entries`}
-            detail="Working memory that can evolve as operators and workflows discover new context."
-            icon={BrainCircuit}
-          />
-          <MemorySummaryCard
-            title="Structured values"
-            value={`${summary.structuredEntries} typed`}
-            detail="Typed JSON, booleans, and numbers stay readable and editable in place."
-            icon={Layers3}
-          />
-          <MemorySummaryCard
-            title="Plain-text notes"
-            value={`${summary.stringEntries} string`}
-            detail="Use these for concise notes, observations, and other evolving human-readable context."
-            icon={Sparkles}
-          />
-        </CardContent>
-      </Card>
+      <div className="space-y-1">
+        <p className="text-sm leading-6 text-muted">
+          Memory is for evolving notes and learned state. Keep durable policy and reference facts in
+          Knowledge, and use memory for what the project learns while work is happening.
+        </p>
+      </div>
 
-      <MemorySection
-        title="Current memory"
-        summary={buildMemorySectionSummary(
-          summary.totalEntries,
-          entries.length === 0
-            ? 'No evolving memory saved yet.'
-            : 'Review notes, learned state, and structured values before editing.',
-        )}
-        description="Review and update project memory without changing the curated knowledge base."
-        isExpanded={expandedSection === 'current'}
-        onToggle={() => toggleSection('current')}
-      >
-        {entries.length === 0 ? (
-          <p className="rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted">
-            No project memory yet.
-          </p>
-        ) : (
-          <ProjectMemoryTable projectId={props.projectId} entries={entries} />
-        )}
-      </MemorySection>
+      {entries.length === 0 ? (
+        <p className="rounded-xl border border-dashed border-border/70 bg-muted/10 px-4 py-6 text-sm text-muted">
+          No project memory yet.
+        </p>
+      ) : (
+        <ProjectMemoryTable projectId={props.projectId} entries={entries} />
+      )}
 
-      <MemorySection
-        title="Add memory entry"
-        summary={buildComposerSummary(draftKey)}
-        description="Create a typed memory record for new notes or learned state that should stay project-scoped."
-        isExpanded={expandedSection === 'composer'}
-        onToggle={() => toggleSection('composer')}
-      >
-        <div className="space-y-4">
+      <Card className="border-border/70 shadow-none">
+        <CardContent className="space-y-4 p-4">
+          <div className="space-y-1">
+            <h3 className="text-sm font-semibold text-foreground">Add memory entry</h3>
+            <p className="text-sm leading-6 text-muted">
+              Add a typed memory record for new notes or learned state that should stay
+              project-scoped.
+            </p>
+          </div>
+
           <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
             <label className="grid gap-2">
               <span className="text-sm font-medium">Key</span>
@@ -162,7 +117,7 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
                 draft={draft}
                 valueTypeLabel="Value type"
                 typeOptions={MEMORY_COMPOSER_TYPE_OPTIONS}
-                saveLabel="Add entry"
+                saveLabel="Add memory entry"
                 onChange={(next) => setDraft(next)}
                 onSave={handleSave}
                 onCancel={resetComposer}
@@ -170,6 +125,7 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
               />
             </div>
           </div>
+
           {keyError ? <p className="text-sm text-red-600">{keyError}</p> : null}
           {patchMutation.isError ? (
             <p className="text-sm text-red-600">
@@ -179,64 +135,12 @@ export function ProjectDetailMemoryTab(props: { projectId: string }): JSX.Elemen
             </p>
           ) : null}
           <p className="text-sm leading-6 text-muted">
-            Keys should be stable and reusable. Save durable policy and reference facts under
-            Knowledge, and use memory for evolving notes or learned state.
+            Keys should be stable and reusable. Add a new key for new notes or learned state rather
+            than overwriting a different concept under an existing name.
           </p>
-        </div>
-      </MemorySection>
+        </CardContent>
+      </Card>
     </div>
-  );
-}
-
-function MemorySummaryCard(props: {
-  title: string;
-  value: string;
-  detail: string;
-  icon: ComponentType<{ className?: string }>;
-}): JSX.Element {
-  return (
-    <Card className="border-border/70 shadow-sm">
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted">{props.title}</CardTitle>
-        <props.icon className="h-4 w-4 text-muted" />
-      </CardHeader>
-      <CardContent>
-        <p className="text-2xl font-semibold">{props.value}</p>
-        <p className="mt-2 text-xs leading-5 text-muted">{props.detail}</p>
-      </CardContent>
-    </Card>
-  );
-}
-
-function MemorySection(props: {
-  title: string;
-  summary: string;
-  description: string;
-  isExpanded: boolean;
-  onToggle(): void;
-  children: ReactNode;
-}): JSX.Element {
-  return (
-    <Card className="border-border/70 shadow-sm">
-      <button
-        type="button"
-        className="flex w-full items-start justify-between gap-3 px-6 py-5 text-left"
-        aria-expanded={props.isExpanded}
-        onClick={props.onToggle}
-      >
-        <div className="space-y-2">
-          <CardTitle className="text-base">{props.title}</CardTitle>
-          <p className="text-xs font-medium uppercase tracking-[0.16em] text-muted">
-            {props.summary}
-          </p>
-          <p className="text-sm leading-6 text-muted">{props.description}</p>
-        </div>
-        <ChevronDown
-          className={cn('mt-1 h-4 w-4 shrink-0 text-muted transition-transform', props.isExpanded && 'rotate-180')}
-        />
-      </button>
-      {props.isExpanded ? <CardContent className="border-t border-border/70 pt-6">{props.children}</CardContent> : null}
-    </Card>
   );
 }
 
@@ -257,54 +161,23 @@ function MemoryStatusCard(props: {
   );
 }
 
-function summarizeMemoryEntries(entries: MemoryEntry[]): {
-  totalEntries: number;
-  structuredEntries: number;
-  stringEntries: number;
-} {
-  let structuredEntries = 0;
-  let stringEntries = 0;
-
-  for (const entry of entries) {
-    if (inferMemoryEditorKind(entry.value) === 'string') {
-      stringEntries += 1;
-    } else {
-      structuredEntries += 1;
-    }
-  }
-
-  return {
-    totalEntries: entries.length,
-    structuredEntries,
-    stringEntries,
-  };
-}
-
 function getMemoryKeyError(
   draftKey: string,
-  entries: MemoryEntry[],
+  entries: Array<{ key: string; value: unknown }>,
   isSubmitAttempted: boolean,
-): string | null {
-  const normalizedKey = draftKey.trim();
-  if (!normalizedKey) {
-    return isSubmitAttempted ? 'Enter a key before adding a memory entry.' : null;
+): string | undefined {
+  if (!isSubmitAttempted) {
+    return undefined;
   }
-  if (entries.some((entry) => entry.key === normalizedKey)) {
-    return `Choose a different key. '${normalizedKey}' already exists in project memory.`;
-  }
-  return null;
-}
 
-function buildMemorySectionSummary(count: number, detail: string): string {
-  if (count === 0) {
-    return `No entries yet • ${detail}`;
+  const normalized = draftKey.trim();
+  if (!normalized) {
+    return 'A key is required.';
   }
-  return `${count} ${count === 1 ? 'entry' : 'entries'} • ${detail}`;
-}
 
-function buildComposerSummary(draftKey: string): string {
-  const normalizedKey = draftKey.trim();
-  return normalizedKey
-    ? `Preparing key • ${normalizedKey}`
-    : 'Add typed context without opening the standalone memory browser';
+  if (entries.some((entry) => entry.key === normalized)) {
+    return 'Choose a different key.';
+  }
+
+  return undefined;
 }

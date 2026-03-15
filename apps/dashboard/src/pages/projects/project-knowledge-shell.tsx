@@ -1,17 +1,20 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { BrainCircuit, ChevronDown, FileText, PackageSearch } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
 
 import { cn } from '../../lib/utils.js';
 import type { ProjectWorkspaceOverview } from './project-detail-support.js';
 
-type KnowledgePanelValue = 'reference' | 'memory' | 'runContent';
+type KnowledgePanelValue = 'reference' | 'artifacts' | 'memory';
 
 interface ProjectKnowledgeShellProps {
   projectId: string;
   overview: ProjectWorkspaceOverview;
+  headerAction?: ReactNode;
+  headerNotice?: ReactNode;
   referenceContent: ReactNode;
+  artifactContent: ReactNode;
   memoryContent: ReactNode;
-  runContentContent: ReactNode;
 }
 
 const KNOWLEDGE_PANELS: Array<{
@@ -27,28 +30,37 @@ const KNOWLEDGE_PANELS: Array<{
     icon: FileText,
   },
   {
+    value: 'artifacts',
+    label: 'Project artifacts',
+    description: 'Generated outputs, delivery evidence, and uploaded artifacts stay here.',
+    icon: PackageSearch,
+  },
+  {
     value: 'memory',
     label: 'Project memory',
     description: 'Evolving notes and learned state stay here as work progresses.',
     icon: BrainCircuit,
   },
-  {
-    value: 'runContent',
-    label: 'Run content',
-    description: 'Scoped outputs, delivery evidence, and run-generated documents stay here.',
-    icon: PackageSearch,
-  },
 ];
 
 export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.Element {
+  const location = useLocation();
   const [expandedPanel, setExpandedPanel] = useState<KnowledgePanelValue | null>('reference');
   const sectionSummaries: Record<KnowledgePanelValue, string> = {
     reference: buildReferenceSummary(props.overview),
+    artifacts: buildArtifactSummary(props.overview),
     memory:
       getPacketSummary(props.overview, 'Shared memory')
       || 'Project memory captures evolving notes and learned state.',
-    runContent: buildRunContentSummary(props.overview),
   };
+
+  useEffect(() => {
+    const panel = readKnowledgePanel(location.search);
+    if (!panel) {
+      return;
+    }
+    setExpandedPanel(panel);
+  }, [location.search]);
 
   function togglePanel(value: KnowledgePanelValue): void {
     setExpandedPanel((current) => (current === value ? null : value));
@@ -57,12 +69,16 @@ export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.El
   return (
     <div className="space-y-4">
       <section className="space-y-3 rounded-xl border border-border/70 bg-background/70 p-4">
-        <div className="space-y-1">
-          <h2 className="text-sm font-semibold text-foreground">Knowledge</h2>
-          <p className="max-w-3xl text-sm leading-6 text-muted">
-            Use Knowledge for curated context, Memory for evolving notes, and Run content for generated outputs.
-          </p>
-          <p className="sr-only">{props.overview.summary}</p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="space-y-1">
+            <h2 className="text-sm font-semibold text-foreground">Knowledge</h2>
+            <p className="max-w-3xl text-sm leading-6 text-muted">
+              Use Knowledge for curated context, Project artifacts for generated outputs, and Memory for evolving notes.
+            </p>
+            {props.headerNotice}
+            <p className="sr-only">{props.overview.summary}</p>
+          </div>
+          {props.headerAction ? <div className="shrink-0">{props.headerAction}</div> : null}
         </div>
 
         <div className="grid gap-3">
@@ -78,9 +94,11 @@ export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.El
             >
               {panel.value === 'reference'
                 ? props.referenceContent
-                : panel.value === 'memory'
+                : panel.value === 'artifacts'
+                  ? props.artifactContent
+                  : panel.value === 'memory'
                   ? props.memoryContent
-                  : props.runContentContent}
+                  : null}
             </KnowledgeSection>
           ))}
         </div>
@@ -139,12 +157,17 @@ function buildReferenceSummary(overview: ProjectWorkspaceOverview): string {
   return summary || 'Curated project context and reusable knowledge entries.';
 }
 
-function buildRunContentSummary(overview: ProjectWorkspaceOverview): string {
-  const artifacts = getPacketSummary(overview, 'Artifacts');
+function buildArtifactSummary(overview: ProjectWorkspaceOverview): string {
+  const artifacts = getPacketSummary(overview, 'Project artifacts');
   return artifacts || 'Workflow documents, task artifacts, and delivery evidence';
 }
 
 function getPacketSummary(overview: ProjectWorkspaceOverview, label: string): string {
   const packet = overview.packets.find((entry) => entry.label === label);
   return packet ? `${packet.label}: ${packet.value}` : '';
+}
+
+function readKnowledgePanel(search: string): KnowledgePanelValue | null {
+  const panel = new URLSearchParams(search).get('panel');
+  return panel === 'reference' || panel === 'artifacts' || panel === 'memory' ? panel : null;
 }

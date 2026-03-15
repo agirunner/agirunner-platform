@@ -215,8 +215,8 @@ describe('project detail support', () => {
       expect.arrayContaining([
         expect.objectContaining({ label: 'Project Context' }),
         expect.objectContaining({ label: 'Knowledge entries', value: '2 entries' }),
+        expect.objectContaining({ label: 'Project artifacts', value: 'Inline workspace' }),
         expect.objectContaining({ label: 'Shared memory', value: '2 entries' }),
-        expect.objectContaining({ label: 'Artifacts', value: 'Inline workspace' }),
       ]),
     );
   });

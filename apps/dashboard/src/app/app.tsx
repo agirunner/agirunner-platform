@@ -283,11 +283,17 @@ function LegacyWorkflowBoardRedirect(): JSX.Element {
 }
 
 function LegacyProjectKnowledgeRedirect(): JSX.Element {
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   if (!id) {
     return <Navigate to="/projects" replace />;
   }
-  return <Navigate to={`/projects/${id}?tab=knowledge`} replace />;
+  const panel = location.pathname.endsWith('/memory')
+    ? 'memory'
+    : location.pathname.endsWith('/artifacts')
+      ? 'artifacts'
+      : 'artifacts';
+  return <Navigate to={`/projects/${id}?tab=knowledge&panel=${panel}`} replace />;
 }
 
 function SSOCallbackPage(): JSX.Element {

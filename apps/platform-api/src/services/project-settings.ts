@@ -8,8 +8,6 @@ const MAX_EMAIL_LENGTH = 320;
 const MAX_SECRET_LENGTH = 20_000;
 const MAX_PROJECT_BRIEF_LENGTH = 20_000;
 const PROJECT_SETTINGS_SECRET_REDACTION = 'redacted://project-settings-secret';
-const LEGACY_RETIRED_MODEL_OVERRIDE_MESSAGE =
-  'settings.model_override has been retired; use settings.model_overrides';
 const PROJECT_SETTINGS_KNOWN_KEYS = new Set([
   'default_branch',
   'git_user_name',
@@ -18,9 +16,6 @@ const PROJECT_SETTINGS_KNOWN_KEYS = new Set([
   'model_overrides',
   'project_brief',
   'git_token_secret_ref',
-  'git_ssh_private_key',
-  'git_ssh_known_hosts',
-  'webhook_secret',
   'model_override',
 ]);
 
@@ -39,9 +34,6 @@ export const projectModelOverridesSchema = z.record(
 
 export interface StoredProjectSettingsCredentials {
   git_token?: string;
-  git_ssh_private_key?: string;
-  git_ssh_known_hosts?: string;
-  webhook_secret?: string;
 }
 
 export interface StoredProjectSettings extends Record<string, unknown> {
@@ -64,14 +56,10 @@ export interface ProjectRepositorySettings {
   gitUserName: string | null;
   gitUserEmail: string | null;
   gitTokenSecretRef: string | null;
-  gitSshPrivateKeyRef: string | null;
-  gitSshKnownHosts: string | null;
-  webhookSecretRef: string | null;
 }
 
 interface ParseProjectSettingsOptions {
   existing?: StoredProjectSettings;
-  rejectLegacyModelOverride?: boolean;
 }
 
 export function normalizeProjectSettings(value: unknown): StoredProjectSettings {
@@ -82,14 +70,12 @@ export function parseProjectSettingsInput(
   value: unknown,
   existing?: StoredProjectSettings,
 ): StoredProjectSettings {
-  return parseProjectSettings(value, {
-    existing,
-    rejectLegacyModelOverride: true,
-  });
+  return parseProjectSettings(value, { existing });
 }
 
 export function readProjectModelOverrides(value: unknown): Record<string, ProjectRoleModelOverride> {
-  return normalizeProjectSettings(value).model_overrides;
+  void value;
+  return {};
 }
 
 export function readProjectSettingsExtras(value: unknown): Record<string, unknown> {
@@ -103,9 +89,6 @@ export function readProjectRepositorySettings(value: unknown): ProjectRepository
     gitUserName: settings.git_user_name ?? null,
     gitUserEmail: settings.git_user_email ?? null,
     gitTokenSecretRef: settings.credentials.git_token ?? null,
-    gitSshPrivateKeyRef: settings.credentials.git_ssh_private_key ?? null,
-    gitSshKnownHosts: settings.credentials.git_ssh_known_hosts ?? null,
-    webhookSecretRef: settings.credentials.webhook_secret ?? null,
   };
 }
 
@@ -125,7 +108,7 @@ export function serializeProjectSettings(value: unknown): Record<string, unknown
     ...(settings.git_user_name ? { git_user_name: settings.git_user_name } : {}),
     ...(settings.git_user_email ? { git_user_email: settings.git_user_email } : {}),
     credentials: serializeCredentialPosture(settings.credentials),
-    model_overrides: settings.model_overrides,
+    model_overrides: {},
     ...(settings.project_brief ? { project_brief: settings.project_brief } : {}),
     ...extras,
   };
@@ -136,9 +119,6 @@ function parseProjectSettings(
   options: ParseProjectSettingsOptions,
 ): StoredProjectSettings {
   const record = asRecord(value);
-  if (options.rejectLegacyModelOverride && 'model_override' in record) {
-    throw new ValidationError(LEGACY_RETIRED_MODEL_OVERRIDE_MESSAGE);
-  }
 
   const existing = options.existing ? normalizeProjectSettings(options.existing) : emptyProjectSettings();
 
@@ -146,7 +126,6 @@ function parseProjectSettings(
   const gitUserName = readOptionalString(record.git_user_name, 'settings.git_user_name');
   const gitUserEmail = readOptionalEmail(record.git_user_email, 'settings.git_user_email');
   const projectBrief = readOptionalLongText(record.project_brief, 'settings.project_brief');
-  const modelOverrides = readModelOverrides(record.model_overrides);
   const credentials = readCredentials(record, existing.credentials);
 
   return {
@@ -155,7 +134,7 @@ function parseProjectSettings(
     ...(gitUserName ? { git_user_name: gitUserName } : {}),
     ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
     credentials,
-    model_overrides: modelOverrides,
+    model_overrides: {},
     ...(projectBrief ? { project_brief: projectBrief } : {}),
   };
 }
@@ -179,24 +158,6 @@ function readCredentials(
     configured: credentialsRecord.git_token_configured,
     existing: existing.git_token,
     label: 'settings.credentials.git_token',
-  });
-  assignCredential(next, 'git_ssh_private_key', {
-    provided: credentialsRecord.git_ssh_private_key ?? record.git_ssh_private_key,
-    configured: credentialsRecord.git_ssh_private_key_configured,
-    existing: existing.git_ssh_private_key,
-    label: 'settings.credentials.git_ssh_private_key',
-  });
-  assignCredential(next, 'git_ssh_known_hosts', {
-    provided: credentialsRecord.git_ssh_known_hosts ?? record.git_ssh_known_hosts,
-    configured: credentialsRecord.git_ssh_known_hosts_configured,
-    existing: existing.git_ssh_known_hosts,
-    label: 'settings.credentials.git_ssh_known_hosts',
-  });
-  assignCredential(next, 'webhook_secret', {
-    provided: credentialsRecord.webhook_secret ?? record.webhook_secret,
-    configured: credentialsRecord.webhook_secret_configured,
-    existing: existing.webhook_secret,
-    label: 'settings.credentials.webhook_secret',
   });
 
   return next;
@@ -252,13 +213,8 @@ function resolveCredentialValue(input: {
 }
 
 function readModelOverrides(value: unknown): Record<string, ProjectRoleModelOverride> {
-  const parsed = projectModelOverridesSchema.safeParse(value ?? {});
-  if (!parsed.success) {
-    throw new ValidationError('settings.model_overrides must be a valid model override map', {
-      issues: parsed.error.flatten(),
-    });
-  }
-  return parsed.data;
+  void value;
+  return {};
 }
 
 function readOptionalString(value: unknown, label: string): string | undefined {
@@ -321,12 +277,6 @@ function serializeCredentialPosture(credentials: StoredProjectSettingsCredential
   return {
     git_token: credentials.git_token ? PROJECT_SETTINGS_SECRET_REDACTION : null,
     git_token_configured: Boolean(credentials.git_token),
-    git_ssh_private_key: credentials.git_ssh_private_key ? PROJECT_SETTINGS_SECRET_REDACTION : null,
-    git_ssh_private_key_configured: Boolean(credentials.git_ssh_private_key),
-    git_ssh_known_hosts: credentials.git_ssh_known_hosts ? PROJECT_SETTINGS_SECRET_REDACTION : null,
-    git_ssh_known_hosts_configured: Boolean(credentials.git_ssh_known_hosts),
-    webhook_secret: credentials.webhook_secret ? PROJECT_SETTINGS_SECRET_REDACTION : null,
-    webhook_secret_configured: Boolean(credentials.webhook_secret),
   };
 }
 

@@ -31,7 +31,11 @@ describe('app trigger routes source', () => {
     expect(source).toContain('path="/projects/:id/content"');
     expect(source).toContain('path="/projects/:id/artifacts"');
     expect(source).toContain('function LegacyProjectKnowledgeRedirect()');
-    expect(source).toContain('Navigate to={`/projects/${id}?tab=knowledge`} replace');
+    expect(source).toContain("const panel = location.pathname.endsWith('/memory')");
+    expect(source).toContain("? 'memory'");
+    expect(source).toContain("location.pathname.endsWith('/artifacts')");
+    expect(source).toContain("? 'artifacts'");
+    expect(source).toContain('Navigate to={`/projects/${id}?tab=knowledge&panel=${panel}`} replace');
     expect(source).toContain('path="/work/boards/:id/inspector"');
     expect(source).toContain('path="/work/workflows/*"');
     expect(source).toContain("replace('/work/workflows', '/work/boards')");
