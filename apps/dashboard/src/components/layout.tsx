@@ -123,7 +123,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Orchestrator', href: '/config/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
       { label: 'Roles', href: '/config/roles', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },
       { label: 'Platform Instructions', href: '/config/instructions', icon: ScrollText },
-      { label: 'LLM Providers', href: '/config/llm', icon: Cog },
+      { label: 'Model Routing', href: '/config/llm', icon: Cog },
       { label: 'Tools', href: '/config/tools', icon: Wrench },
       { label: 'AI Assistant', href: '/config/assistant', icon: Sparkles },
     ],

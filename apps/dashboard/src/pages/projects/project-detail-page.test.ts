@@ -16,7 +16,7 @@ describe('project detail workspace shell source', () => {
     ].join('\n');
     expect(supportSource).toContain("value: 'delivery'");
     expect(source).toContain('<ProjectDeliveryHistory projectId={project.id} />');
-    expect(deliverySource).toContain('Delivery overview');
+    expect(deliverySource).toContain('Delivery Overview');
     expect(deliverySource).toContain('buildProjectDeliveryAttentionOverview');
     expect(deliverySource).toContain('What ran');
     expect(deliverySource).toContain('Needs attention');
@@ -90,7 +90,7 @@ describe('project detail workspace shell source', () => {
     expect(source).toContain('<ProjectSettingsShell');
     expect(source).toContain('buildProjectSettingsOverview(project)');
     expect(source).toContain('<ProjectSettingsTab project={project} />');
-    expect(settingsShellSource).toContain('Settings control plane');
+    expect(settingsShellSource).toContain('Settings Control Plane');
     expect(settingsShellSource).toContain('props.overview.summary');
     expect(settingsShellSource).not.toContain('WorkspaceMetricCard');
     expect(settingsShellSource).not.toContain('props.overview.packets.map');
@@ -114,7 +114,7 @@ describe('project detail workspace shell source', () => {
       "import { StructuredEntryEditor } from './project-structured-entry-editor.js';",
     );
     expect(specSource).toContain('Project Context');
-    expect(specSource).toContain('Project knowledge');
+    expect(specSource).toContain('Project Knowledge');
     expect(specSource).toContain('Key/Value pairs');
     expect(specSource).toContain('Use simple string or JSON values for reusable project knowledge.');
     expect(knowledgeTabSource).toContain('Save knowledge');
@@ -148,7 +148,7 @@ describe('project detail workspace shell source', () => {
     const memorySource = readSource('./project-detail-memory-tab.tsx');
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     const contentSource = readSource('./content-browser-page.tsx');
-    expect(knowledgeTabSource).toContain('<ProjectDetailMemoryTab projectId={props.projectId} />');
+    expect(knowledgeTabSource).toContain('<ProjectDetailMemoryTab');
     expect(knowledgeTabSource).toContain(
       '<ContentBrowserSurface\n            scopedProjectId={props.projectId}',
     );
@@ -156,15 +156,14 @@ describe('project detail workspace shell source', () => {
     expect(knowledgeSource).not.toContain('Open documents');
     expect(knowledgeSource).not.toContain('Open memory explorer');
     expect(knowledgeSource).not.toContain('Open artifact explorer');
-    expect(knowledgeSource).toContain("label: 'Project artifacts'");
+    expect(knowledgeSource).toContain("label: 'Project Artifacts'");
     expect(knowledgeTabSource).toContain('artifactContent=');
     expect(knowledgeSource).toContain("value: 'memory'");
     expect(knowledgeSource).toContain("value: 'artifacts'");
-    expect(memorySource).toContain('ProjectMemoryTable');
-    expect(memorySource).toContain('MemoryEditor');
-    expect(memorySource).toContain('Choose a different key.');
+    expect(memorySource).toContain('StructuredEntryEditor');
+    expect(memorySource).toContain("allowedTypes={['string', 'json']}");
     expect(memorySource).toContain('Memory is for evolving notes and learned state.');
-    expect(memorySource).not.toContain('<select');
+    expect(memorySource).toContain('Existing memory entries stay editable here and save with the rest of the Knowledge tab.');
     expect(contentSource).toContain('Document Operator Controls');
     expect(contentSource).toContain('Artifact Operator Controls');
   });
@@ -175,7 +174,7 @@ describe('project detail workspace shell source', () => {
     const knowledgeSource = readSource('./project-knowledge-shell.tsx');
     const overviewSource = readSource('./project-overview-shell.tsx');
     expect(source).toContain('<ProjectOverviewShell');
-    expect(knowledgeSource).toContain("label: 'Project artifacts'");
+    expect(knowledgeSource).toContain("label: 'Project Artifacts'");
     expect(overviewSource).not.toContain('Artifact explorer');
     expect(knowledgeTabSource).toContain(
       'scopedProjectId={props.projectId}',

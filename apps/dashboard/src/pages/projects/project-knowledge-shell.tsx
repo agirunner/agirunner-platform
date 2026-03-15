@@ -12,6 +12,9 @@ interface ProjectKnowledgeShellProps {
   overview: ProjectWorkspaceOverview;
   headerAction?: ReactNode;
   headerNotice?: ReactNode;
+  referenceSummary?: string;
+  artifactSummary?: string;
+  memorySummary?: string;
   referenceContent: ReactNode;
   artifactContent: ReactNode;
   memoryContent: ReactNode;
@@ -31,13 +34,13 @@ const KNOWLEDGE_PANELS: Array<{
   },
   {
     value: 'artifacts',
-    label: 'Project artifacts',
+    label: 'Project Artifacts',
     description: 'Generated outputs, delivery evidence, and uploaded artifacts stay here.',
     icon: PackageSearch,
   },
   {
     value: 'memory',
-    label: 'Project memory',
+    label: 'Project Memory',
     description: 'Evolving notes and learned state stay here as work progresses.',
     icon: BrainCircuit,
   },
@@ -47,11 +50,14 @@ export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.El
   const location = useLocation();
   const [expandedPanel, setExpandedPanel] = useState<KnowledgePanelValue | null>('reference');
   const sectionSummaries: Record<KnowledgePanelValue, string> = {
-    reference: buildReferenceSummary(props.overview),
-    artifacts: buildArtifactSummary(props.overview),
+    reference: props.referenceSummary ?? buildReferenceSummary(props.overview),
+    artifacts: props.artifactSummary ?? buildArtifactSummary(props.overview),
     memory:
-      getPacketSummary(props.overview, 'Shared memory')
-      || 'Project memory captures evolving notes and learned state.',
+      props.memorySummary
+      ?? (
+        getPacketSummary(props.overview, 'Shared memory')
+        || 'Project memory captures evolving notes and learned state.'
+      ),
   };
 
   useEffect(() => {
@@ -73,7 +79,7 @@ export function ProjectKnowledgeShell(props: ProjectKnowledgeShellProps): JSX.El
           <div className="space-y-1">
             <h2 className="text-sm font-semibold text-foreground">Knowledge</h2>
             <p className="max-w-3xl text-sm leading-6 text-muted">
-              Use Knowledge for curated context, Project artifacts for generated outputs, and Memory for evolving notes.
+              Use Knowledge for curated context, Project Artifacts for generated outputs, and Project Memory for evolving notes.
             </p>
             {props.headerNotice}
             <p className="sr-only">{props.overview.summary}</p>

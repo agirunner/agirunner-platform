@@ -45,6 +45,7 @@ describe('content browser page source', () => {
     expect(source).toContain('Upload Artifact');
     expect(source).toContain('Current execution packet');
     expect(source).toContain('Operator flow');
+    expect(source).toContain('Remove entry');
   });
 
   it('uses structured task and artifact selectors for artifact-backed documents', () => {

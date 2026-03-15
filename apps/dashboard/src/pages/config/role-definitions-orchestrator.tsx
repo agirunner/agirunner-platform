@@ -3,7 +3,6 @@ import { Bot, Cpu, ExternalLink, FilePenLine } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import type {
-  DashboardPlatformInstructionRecord,
   FleetWorkerRecord,
 } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
@@ -43,7 +42,7 @@ export function OrchestratorControlPlane(props: {
   poolSummary: OrchestratorPoolSummary;
   readiness: OrchestratorControlReadiness;
   controlSurfaces: OrchestratorControlSurface[];
-  instructions: DashboardPlatformInstructionRecord | undefined;
+  orchestratorConfig: { prompt: string; updatedAt: string } | undefined;
   assignments: RoleAssignmentRecord[] | undefined;
   systemDefault: SystemDefaultRecord | undefined;
   models: LlmModelRecord[];
@@ -159,7 +158,7 @@ export function OrchestratorControlPlane(props: {
       </Card>
 
       <OrchestratorPromptDialog
-        instructions={props.instructions}
+        orchestratorConfig={props.orchestratorConfig}
         isOpen={isPromptOpen}
         isSaving={props.isPromptSaving}
         onOpenChange={setIsPromptOpen}

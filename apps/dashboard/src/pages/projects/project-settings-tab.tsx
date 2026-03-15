@@ -99,11 +99,11 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
           </div>
 
           {surfaceSummary.blockingIssueCount > 0 ? (
-            <BlockingIssuesPanel title="Resolve before saving" issues={validation.blockingIssues} />
+            <BlockingIssuesPanel title="Resolve Before Saving" issues={validation.blockingIssues} />
           ) : null}
 
           <ToggleCard
-            label="Project lifecycle"
+            label="Project Lifecycle"
             description="Control whether this project should accept new work."
             meta={
               draft.isActive
@@ -118,7 +118,7 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
 
       <SettingsDisclosureSection
         id="project-settings-basics"
-        title="Project basics"
+        title="Project Basics"
         description="Name, slug, and operator-facing description."
         summary={basicsSummary}
         actionLabel={expandedSection === 'basics' ? 'Hide basics' : 'Open basics'}
@@ -154,7 +154,7 @@ export function ProjectSettingsTab({ project }: { project: DashboardProjectRecor
 
       <SettingsDisclosureSection
         id="project-settings-repository"
-        title="Repository & git defaults"
+        title="Repository & Git Defaults"
         description="Repository URL, default branch, author identity, and git token stay together."
         summary={repositorySummary}
         actionLabel={expandedSection === 'repository' ? 'Hide defaults' : 'Open defaults'}

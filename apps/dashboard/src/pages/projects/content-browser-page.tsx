@@ -1560,13 +1560,11 @@ function MetadataEntryEditor(props: {
         <p className="text-sm text-muted-foreground">No metadata entries added.</p>
       ) : (
         props.drafts.map((draft) => (
-          <div
-            key={draft.id}
-            className="grid gap-3 rounded-md border border-border/70 p-3 md:grid-cols-[1fr,160px,1fr,auto]"
-          >
-            <label className="grid gap-1">
-              <span className="text-xs font-medium">Key</span>
+          <div key={draft.id} className="grid gap-3 rounded-md border border-border/70 p-3">
+            <div className="grid gap-3 sm:flex sm:flex-nowrap sm:items-center">
+              <span className="text-xs font-medium text-muted sm:w-8 sm:shrink-0">Key</span>
               <Input
+                className="sm:min-w-0 sm:flex-1"
                 value={draft.key}
                 onChange={(event) =>
                   props.onChange(
@@ -1574,9 +1572,7 @@ function MetadataEntryEditor(props: {
                   )
                 }
               />
-            </label>
-            <label className="grid gap-1">
-              <span className="text-xs font-medium">Type</span>
+              <span className="text-xs font-medium text-muted sm:w-9 sm:shrink-0">Type</span>
               <Select
                 value={draft.valueType}
                 onValueChange={(value) =>
@@ -1587,7 +1583,7 @@ function MetadataEntryEditor(props: {
                   )
                 }
               >
-                <SelectTrigger>
+                <SelectTrigger className="w-full sm:w-40 sm:shrink-0">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1597,57 +1593,58 @@ function MetadataEntryEditor(props: {
                   <SelectItem value="json">JSON object</SelectItem>
                 </SelectContent>
               </Select>
-            </label>
-            <label className="grid gap-1">
-              <span className="text-xs font-medium">Value</span>
-              {draft.valueType === 'boolean' ? (
-                <Select
-                  value={draft.value}
-                  onValueChange={(value) =>
-                    props.onChange(updateMetadataDraft(props.drafts, draft.id, { value }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="true">True</SelectItem>
-                    <SelectItem value="false">False</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : draft.valueType === 'json' ? (
-                <Textarea
-                  rows={4}
-                  className="font-mono text-xs"
-                  value={draft.value}
-                  onChange={(event) =>
-                    props.onChange(
-                      updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }),
-                    )
-                  }
-                />
-              ) : (
-                <Input
-                  value={draft.value}
-                  onChange={(event) =>
-                    props.onChange(
-                      updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }),
-                    )
-                  }
-                />
-              )}
-            </label>
-            <div className="flex items-end">
               <Button
                 type="button"
                 variant="outline"
                 size="sm"
+                className="w-full whitespace-nowrap sm:ml-auto sm:w-auto sm:self-center"
                 onClick={() =>
                   props.onChange(props.drafts.filter((entry) => entry.id !== draft.id))
                 }
               >
-                Remove
+                Remove entry
               </Button>
+            </div>
+            <div className="grid gap-3 sm:flex sm:items-start">
+              <span className="pt-2 text-xs font-medium text-muted sm:w-10 sm:shrink-0">Value</span>
+              <div className="sm:min-w-0 sm:flex-1">
+                {draft.valueType === 'boolean' ? (
+                  <Select
+                    value={draft.value}
+                    onValueChange={(value) =>
+                      props.onChange(updateMetadataDraft(props.drafts, draft.id, { value }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="true">True</SelectItem>
+                      <SelectItem value="false">False</SelectItem>
+                    </SelectContent>
+                  </Select>
+                ) : draft.valueType === 'json' ? (
+                  <Textarea
+                    rows={4}
+                    className="font-mono text-xs"
+                    value={draft.value}
+                    onChange={(event) =>
+                      props.onChange(
+                        updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }),
+                      )
+                    }
+                  />
+                ) : (
+                  <Input
+                    value={draft.value}
+                    onChange={(event) =>
+                      props.onChange(
+                        updateMetadataDraft(props.drafts, draft.id, { value: event.target.value }),
+                      )
+                    }
+                  />
+                )}
+              </div>
             </div>
           </div>
         ))

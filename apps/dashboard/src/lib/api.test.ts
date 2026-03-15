@@ -300,6 +300,48 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
+  it('deletes project memory entries through the dedicated project-memory delete route', async () => {
+    writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
+
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: { id: 'project-1', memory: {} } }), { status: 200 }),
+      ) as unknown as typeof fetch;
+
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi.fn(),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({
+      client: client as never,
+      fetcher,
+      baseUrl: 'http://localhost:8080',
+    });
+
+    await api.removeProjectMemory('project-1', 'operator_note');
+
+    expect(fetcher).toHaveBeenCalledWith(
+      'http://localhost:8080/api/v1/projects/project-1/memory/operator_note',
+      expect.objectContaining({
+        method: 'DELETE',
+        credentials: 'include',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer api-token',
+        }),
+      }),
+    );
+  });
+
   it('creates playbook workflows through the dashboard api surface', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 

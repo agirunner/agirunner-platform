@@ -1,27 +1,30 @@
 import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Check, Pencil, Trash2, X } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
 import { StructuredRecordView } from '../../components/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
-import { SelectItem } from '../../components/ui/select.js';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../../components/ui/table.js';
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select.js';
 import type { MemoryEntry } from './project-memory-support.js';
 import {
   createMemoryEditorDraft,
+  inferMemoryEditorKind,
   parseMemoryEditorDraft,
   type MemoryEditorDraft,
 } from './project-memory-table-support.js';
-import { MemoryEditor, MemoryValuePreview } from './project-memory-table.fields.js';
+import {
+  buildMemoryDraftForKind,
+  MemoryEditorField,
+  MemoryValuePreview,
+} from './project-memory-table.fields.js';
 
 const MEMORY_EDITOR_TYPE_OPTIONS = [
   <SelectItem value="string" key="string">
@@ -63,97 +66,86 @@ export function ProjectMemoryTable(props: {
   const editor = createEntryEditor({ editingKey, editDraft, setEditingKey, setEditDraft, patchMutation, deleteMutation });
 
   return (
-    <>
-      <div className="grid gap-3 lg:hidden">
-        {props.entries.map((entry) => (
-          <MemoryEntryCard key={entry.key} entry={entry} editor={editor} />
-        ))}
-      </div>
-      <div className="hidden overflow-x-auto lg:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Key</TableHead>
-              <TableHead>Value</TableHead>
-              <TableHead>Scope</TableHead>
-              <TableHead className="w-[220px]">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {props.entries.map((entry) => (
-              <TableRow key={entry.key}>
-                <TableCell className="font-mono text-sm">{entry.key}</TableCell>
-                <TableCell>
-                  {editor.isEditing(entry.key) ? (
-                    <MemoryEditor
-                      draft={editor.editDraft}
-                      valueTypeLabel="Value type"
-                      typeOptions={MEMORY_EDITOR_TYPE_OPTIONS}
-                      saveLabel="Save Memory"
-                      onChange={editor.setDraft}
-                      onSave={() => editor.save(entry.key)}
-                      onCancel={editor.cancel}
-                      isSaving={patchMutation.isPending}
-                    />
-                  ) : (
-                    <MemoryValuePreview
-                      value={entry.value}
-                      structuredDetailsLabel="Expand structured value"
-                      StructuredRenderer={StructuredRecordView}
-                    />
-                  )}
-                </TableCell>
-                <TableCell>
-                  <Badge variant="outline">{entry.scope}</Badge>
-                </TableCell>
-                <TableCell>{editor.isEditing(entry.key) ? null : <MemoryEntryActions onEdit={() => editor.start(entry)} onDelete={() => editor.remove(entry.key)} isDeleting={deleteMutation.isPending} />}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </>
+    <div className="space-y-3">
+      {props.entries.map((entry) => (
+        <MemoryEntryRow key={entry.key} entry={entry} editor={editor} />
+      ))}
+    </div>
   );
 }
 
-function MemoryEntryCard(props: {
+function MemoryEntryRow(props: {
   entry: MemoryEntry;
   editor: ReturnType<typeof createEntryEditor>;
 }): JSX.Element {
+  const isEditing = props.editor.isEditing(props.entry.key);
+  const draft = isEditing ? props.editor.editDraft : null;
+  const parsedDraft = draft ? parseMemoryEditorDraft(draft) : null;
+  const kind = draft?.kind ?? inferMemoryEditorKind(props.entry.value);
+
   return (
-    <div className="rounded-xl border border-border/70 bg-muted/10 p-4 shadow-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div className="space-y-2 min-w-0">
-          <p className="font-mono text-sm">{props.entry.key}</p>
-          <div className="flex flex-wrap gap-2">
-            <Badge variant="outline">{props.entry.scope}</Badge>
-            {props.entry.stageName ? <Badge variant="secondary">{props.entry.stageName}</Badge> : null}
-          </div>
+    <div className="grid gap-3 rounded-md border border-border p-3">
+      <div className="grid gap-3 sm:flex sm:flex-nowrap sm:items-center">
+        <span className="text-xs font-medium text-muted sm:w-8 sm:shrink-0">Key</span>
+        <div className="sm:min-w-0 sm:flex-1">
+          <p className="font-mono text-sm text-foreground">{props.entry.key}</p>
         </div>
-        {props.editor.isEditing(props.entry.key) ? null : (
-          <MemoryEntryActions onEdit={() => props.editor.start(props.entry)} onDelete={() => props.editor.remove(props.entry.key)} isDeleting={props.editor.isDeleting} />
-        )}
-      </div>
-      <div className="mt-3">
-        {props.editor.isEditing(props.entry.key) ? (
-          <MemoryEditor
-            draft={props.editor.editDraft}
-            valueTypeLabel="Value type"
-            typeOptions={MEMORY_EDITOR_TYPE_OPTIONS}
-            saveLabel="Save Memory"
-            onChange={props.editor.setDraft}
-            onSave={() => props.editor.save(props.entry.key)}
-            onCancel={props.editor.cancel}
-            isSaving={props.editor.isSaving}
-          />
+        <span className="text-xs font-medium text-muted sm:w-9 sm:shrink-0">Type</span>
+        {isEditing ? (
+          <Select
+            value={kind}
+            onValueChange={(value) =>
+              props.editor.setDraft(buildMemoryDraftForKind(draft, value as MemoryEditorDraft['kind']))
+            }
+          >
+            <SelectTrigger className="w-full sm:w-40 sm:shrink-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>{MEMORY_EDITOR_TYPE_OPTIONS}</SelectContent>
+          </Select>
         ) : (
-          <MemoryValuePreview
-            value={props.entry.value}
-            structuredDetailsLabel="Expand structured value"
-            StructuredRenderer={StructuredRecordView}
+          <div className="flex flex-wrap gap-2 sm:w-40 sm:shrink-0">
+            <Badge variant="outline">{formatMemoryKindLabel(kind)}</Badge>
+          </div>
+        )}
+        {isEditing ? (
+          <div className="flex items-center gap-2 sm:ml-auto">
+            <IconActionButton
+              label="Cancel memory edit"
+              icon={<X className="h-4 w-4" />}
+              onClick={props.editor.cancel}
+              variant="outline"
+            />
+            <IconActionButton
+              label="Save memory entry"
+              icon={<Check className="h-4 w-4" />}
+              onClick={() => props.editor.save(props.entry.key)}
+              disabled={props.editor.isSaving || Boolean(parsedDraft?.error)}
+            />
+          </div>
+        ) : (
+          <MemoryEntryActions
+            onEdit={() => props.editor.start(props.entry)}
+            onDelete={() => props.editor.remove(props.entry.key)}
+            isDeleting={props.editor.isDeleting}
           />
         )}
       </div>
+      <div className="grid gap-3 sm:flex sm:items-start">
+        <span className="pt-2 text-xs font-medium text-muted sm:w-10 sm:shrink-0">Value</span>
+        <div className="sm:min-w-0 sm:flex-1">
+          {isEditing ? (
+            <MemoryEditorField draft={draft} showLabel={false} onChange={props.editor.setDraft} />
+          ) : (
+            <MemoryValuePreview
+              value={props.entry.value}
+              structuredDetailsLabel="Expand structured value"
+              StructuredRenderer={StructuredRecordView}
+            />
+          )}
+        </div>
+      </div>
+      {parsedDraft?.error ? <p className="text-sm text-red-600">{parsedDraft.error}</p> : null}
     </div>
   );
 }
@@ -164,16 +156,40 @@ function MemoryEntryActions(props: {
   isDeleting: boolean;
 }): JSX.Element {
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button size="sm" variant="ghost" onClick={props.onEdit}>
-        <Pencil className="mr-1 h-4 w-4" />
-        Edit
+    <div className="flex items-center gap-2 sm:ml-auto">
+      <Button size="icon" variant="ghost" aria-label="Edit memory entry" onClick={props.onEdit}>
+        <Pencil className="h-4 w-4" />
       </Button>
-      <Button size="sm" variant="ghost" onClick={props.onDelete} disabled={props.isDeleting}>
-        <Trash2 className="mr-1 h-4 w-4" />
-        Delete
+      <Button
+        size="icon"
+        variant="ghost"
+        aria-label="Delete memory entry"
+        onClick={props.onDelete}
+        disabled={props.isDeleting}
+      >
+        <Trash2 className="h-4 w-4" />
       </Button>
     </div>
+  );
+}
+
+function IconActionButton(props: {
+  label: string;
+  icon: JSX.Element;
+  onClick(): void;
+  disabled?: boolean;
+  variant?: 'default' | 'outline';
+}): JSX.Element {
+  return (
+    <Button
+      size="icon"
+      variant={props.variant ?? 'default'}
+      aria-label={props.label}
+      onClick={props.onClick}
+      disabled={props.disabled}
+    >
+      {props.icon}
+    </Button>
   );
 }
 
@@ -211,4 +227,17 @@ function createEntryEditor(input: {
     },
     remove: (key: string) => input.deleteMutation.mutate(key),
   };
+}
+
+function formatMemoryKindLabel(value: MemoryEditorDraft['kind']): string {
+  switch (value) {
+    case 'json':
+      return 'JSON';
+    case 'number':
+      return 'Number';
+    case 'boolean':
+      return 'Boolean';
+    default:
+      return 'String';
+  }
 }

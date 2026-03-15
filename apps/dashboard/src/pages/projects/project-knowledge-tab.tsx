@@ -25,6 +25,7 @@ export function ProjectKnowledgeTab(props: {
 }): JSX.Element {
   const queryClient = useQueryClient();
   const [knowledgeDrafts, setKnowledgeDrafts] = useState<StructuredEntryDraft[]>([]);
+  const [memoryDrafts, setMemoryDrafts] = useState<StructuredEntryDraft[]>([]);
   const [projectContext, setProjectContext] = useState('');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
@@ -49,21 +50,25 @@ export function ProjectKnowledgeTab(props: {
       return;
     }
     setProjectContext(readProjectContext(projectQuery.data));
+    setMemoryDrafts(toMemoryDrafts(projectQuery.data));
   }, [projectQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       const nextKnowledge = buildProjectKnowledgeRecord(knowledgeDrafts);
+      const nextMemory = buildProjectMemoryRecord(memoryDrafts);
       const nextSpec = buildProjectSpecPayload(specQuery.data, nextKnowledge);
       const nextSettings = buildProjectSettingsPatch(projectQuery.data, projectContext, nextKnowledge);
+      const currentMemory = asRecord(projectQuery.data?.memory);
 
       await Promise.all([
         dashboardApi.updateProjectSpec(props.projectId, nextSpec),
         dashboardApi.patchProject(props.projectId, { settings: nextSettings }),
       ]);
+      await syncProjectMemory(props.projectId, currentMemory, nextMemory);
     },
     onSuccess: async () => {
-      setSaveMessage('Knowledge saved.');
+      setSaveMessage('Knowledge and memory saved.');
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ['project-spec', props.projectId] }),
         queryClient.invalidateQueries({ queryKey: ['project', props.projectId] }),
@@ -72,8 +77,10 @@ export function ProjectKnowledgeTab(props: {
     },
   });
 
-  const validationError = readKnowledgeValidationError(knowledgeDrafts);
-  const saveErrorMessage = validationError ?? readMutationError(saveMutation.error);
+  const knowledgeValidationError = readStructuredValidationError(knowledgeDrafts, 'Project knowledge');
+  const memoryValidationError = readStructuredValidationError(memoryDrafts, 'Project memory');
+  const mutationError = readMutationError(saveMutation.error);
+  const validationError = knowledgeValidationError ?? memoryValidationError;
 
   if (projectQuery.isLoading || specQuery.isLoading) {
     return <LoadingCard />;
@@ -89,6 +96,8 @@ export function ProjectKnowledgeTab(props: {
         projectId={props.projectId}
         overview={props.overview}
         headerNotice={saveMessage ? <p className="text-sm text-muted">{saveMessage}</p> : null}
+        referenceSummary={buildReferenceDraftSummary(projectContext, knowledgeDrafts.length)}
+        memorySummary={buildMemoryDraftSummary(memoryDrafts.length)}
         headerAction={
           <Button
             size="sm"
@@ -103,7 +112,7 @@ export function ProjectKnowledgeTab(props: {
           <ProjectSpecTab
             projectContext={projectContext}
             knowledgeDrafts={knowledgeDrafts}
-            saveErrorMessage={saveErrorMessage}
+            saveErrorMessage={knowledgeValidationError ?? mutationError}
             onProjectContextChange={(value) => {
               setSaveMessage(null);
               saveMutation.reset();
@@ -123,7 +132,17 @@ export function ProjectKnowledgeTab(props: {
             showHeader={false}
           />
         }
-        memoryContent={<ProjectDetailMemoryTab projectId={props.projectId} />}
+        memoryContent={
+          <ProjectDetailMemoryTab
+            memoryDrafts={memoryDrafts}
+            saveErrorMessage={memoryValidationError ?? mutationError}
+            onMemoryDraftsChange={(drafts) => {
+              setSaveMessage(null);
+              saveMutation.reset();
+              setMemoryDrafts(normalizeMemoryDrafts(drafts));
+            }}
+          />
+        }
       />
     </div>
   );
@@ -153,6 +172,12 @@ function buildProjectKnowledgeRecord(
   return buildStructuredObject(normalizeKnowledgeDrafts(knowledgeDrafts), 'Project knowledge') ?? {};
 }
 
+function buildProjectMemoryRecord(
+  memoryDrafts: StructuredEntryDraft[],
+): Record<string, unknown> {
+  return buildStructuredObject(memoryDrafts, 'Project memory') ?? {};
+}
+
 function buildProjectSpecPayload(
   spec: DashboardProjectSpecRecord | undefined,
   knowledge: Record<string, unknown>,
@@ -170,11 +195,34 @@ function toKnowledgeDrafts(spec: DashboardProjectSpecRecord): StructuredEntryDra
   return normalizeKnowledgeDrafts(objectToStructuredDrafts(spec.config));
 }
 
+function toMemoryDrafts(project: DashboardProjectRecord): StructuredEntryDraft[] {
+  return normalizeMemoryDrafts(objectToStructuredDrafts(asRecord(project.memory)));
+}
+
 function normalizeKnowledgeDrafts(drafts: StructuredEntryDraft[]): StructuredEntryDraft[] {
   return drafts.map((draft) => ({
     ...draft,
     valueType: draft.valueType === 'json' ? 'json' : 'string',
   }));
+}
+
+function normalizeMemoryDrafts(drafts: StructuredEntryDraft[]): StructuredEntryDraft[] {
+  return drafts.map((draft) => ({
+    ...draft,
+    valueType: draft.valueType === 'json' ? 'json' : 'string',
+  }));
+}
+
+function buildReferenceDraftSummary(projectContext: string, knowledgeCount: number): string {
+  const summary = [
+    projectContext.trim().length > 0 ? 'Project Context: Configured' : 'Project Context: Not configured',
+    `Knowledge entries: ${knowledgeCount} ${knowledgeCount === 1 ? 'entry' : 'entries'}`,
+  ];
+  return summary.join(' • ');
+}
+
+function buildMemoryDraftSummary(memoryCount: number): string {
+  return `Shared memory: ${memoryCount} ${memoryCount === 1 ? 'entry' : 'entries'}`;
 }
 
 function hasRecord(value: unknown): boolean {
@@ -187,12 +235,15 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function readKnowledgeValidationError(drafts: StructuredEntryDraft[]): string | null {
+function readStructuredValidationError(
+  drafts: StructuredEntryDraft[],
+  label: string,
+): string | null {
   try {
-    buildProjectKnowledgeRecord(drafts);
+    buildStructuredObject(drafts, label);
     return null;
   } catch (error) {
-    return error instanceof Error ? error.message : 'Project knowledge is not valid yet.';
+    return error instanceof Error ? error.message : `${label} is not valid yet.`;
   }
 }
 
@@ -201,4 +252,49 @@ function readMutationError(error: unknown): string | null {
     return error.message;
   }
   return error ? 'Failed to save project knowledge.' : null;
+}
+
+async function syncProjectMemory(
+  projectId: string,
+  currentMemory: Record<string, unknown>,
+  nextMemory: Record<string, unknown>,
+): Promise<void> {
+  type MemorySyncOperation =
+    | { kind: 'delete'; key: string }
+    | { kind: 'upsert'; key: string; value: unknown };
+
+  const keys = new Set([...Object.keys(currentMemory), ...Object.keys(nextMemory)]);
+  const operations = Array.from(keys)
+    .sort((left, right) => left.localeCompare(right))
+    .flatMap<MemorySyncOperation>((key) => {
+      const currentValue = currentMemory[key];
+      const hasCurrent = Object.prototype.hasOwnProperty.call(currentMemory, key);
+      const hasNext = Object.prototype.hasOwnProperty.call(nextMemory, key);
+
+      if (hasNext && hasCurrent && areMemoryValuesEqual(currentValue, nextMemory[key])) {
+        return [];
+      }
+      if (!hasNext && hasCurrent) {
+        return [{ kind: 'delete' as const, key }];
+      }
+      if (hasNext) {
+        return [{ kind: 'upsert' as const, key, value: nextMemory[key] }];
+      }
+      return [];
+    });
+
+  await Promise.all(
+    operations.map((operation) =>
+      operation.kind === 'delete'
+        ? dashboardApi.removeProjectMemory(projectId, operation.key)
+        : dashboardApi.patchProjectMemory(projectId, {
+            key: operation.key,
+            value: operation.value,
+          }),
+    ),
+  );
+}
+
+function areMemoryValuesEqual(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
 }

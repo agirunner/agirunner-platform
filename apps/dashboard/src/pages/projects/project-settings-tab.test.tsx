@@ -14,10 +14,10 @@ describe('project settings tab source', () => {
     expect(shellSource).toContain('className="sr-only"');
     expect(shellSource).toContain('props.overview.summary');
     expect(tabSource).toContain('Open only the section you need.');
-    expect(tabSource).toContain('Resolve before saving');
-    expect(tabSource).toContain('Project lifecycle');
-    expect(tabSource).toContain('Project basics');
-    expect(tabSource).toContain('Repository & git defaults');
+    expect(tabSource).toContain('Resolve Before Saving');
+    expect(tabSource).toContain('Project Lifecycle');
+    expect(tabSource).toContain('Project Basics');
+    expect(tabSource).toContain('Repository & Git Defaults');
     expect(tabSource).toContain('Repository optional');
     expect(tabSource).toContain('Git token');
     expect(tabSource).toContain('Description is only shown to operators');
@@ -25,7 +25,7 @@ describe('project settings tab source', () => {
     expect(tabSource).toContain('Delete project');
     expect(tabSource).toContain('Open danger');
     expect(tabSource).toContain('buildProjectSettingsSurfaceSummary');
-    expect(tabSource).toContain('ToggleCard');
+    expect(tabSource).toContain('SettingsDisclosureSection');
     expect(tabSource).toContain('SelectTrigger');
     expect(tabSource).toContain('aria-invalid');
     expect(tabSource).toContain('max-w-3xl text-sm leading-5 text-muted');

@@ -12,7 +12,7 @@ describe('project delivery history source', () => {
   it('renders question-driven overview packets, compact run cards, and direct operator actions', () => {
     const source = readSource();
 
-    expect(source).toContain('Delivery overview');
+    expect(source).toContain('Delivery Overview');
     expect(source).toContain('buildProjectDeliveryAttentionOverview(entries)');
     expect(source).toContain('buildProjectDeliveryAttentionState(entry)');
     expect(source).toContain('buildProjectDeliveryPacket(entry)');
@@ -20,8 +20,8 @@ describe('project delivery history source', () => {
     expect(source).toContain('What failed');
     expect(source).toContain('Needs attention');
     expect(source).toContain('Inspect next');
-    expect(source).toContain('Next move');
-    expect(source).toContain('Recent signals');
+    expect(source).toContain('Next Move');
+    expect(source).toContain('Recent Signals');
     expect(source).toContain('packet.signals.length > 0');
     expect(source).toContain('packet.signals.map');
     expect(source).toContain('Open board');

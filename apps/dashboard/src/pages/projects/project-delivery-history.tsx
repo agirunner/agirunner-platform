@@ -47,7 +47,7 @@ export function ProjectDeliveryHistory({ projectId }: { projectId: string }): JS
         <CardContent className="grid gap-4 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
             <div className="space-y-1">
-              <div className="text-base font-semibold text-foreground">Delivery overview</div>
+              <div className="text-base font-semibold text-foreground">Delivery Overview</div>
               <p className="text-sm leading-6 text-muted">{overview.summary}</p>
             </div>
             <Button asChild variant="outline" className="w-full sm:w-auto">
@@ -105,7 +105,7 @@ export function ProjectDeliveryHistory({ projectId }: { projectId: string }): JS
                     </div>
                     <div className="rounded-xl border border-border/70 bg-muted/30 p-3">
                       <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                        Next move
+                        Next Move
                       </div>
                       <p className="mt-2 text-sm leading-6 text-muted">
                         <span className="font-medium text-foreground">
@@ -119,7 +119,7 @@ export function ProjectDeliveryHistory({ projectId }: { projectId: string }): JS
                   <div className="grid gap-3">
                     <div className="rounded-xl border border-border/70 bg-background/70 p-3">
                       <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
-                        Recent signals
+                        Recent Signals
                       </div>
                       {packet.signals.length > 0 ? (
                         <div className="mt-2 flex flex-wrap gap-2">

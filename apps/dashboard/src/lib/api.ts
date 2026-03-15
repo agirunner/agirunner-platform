@@ -1443,6 +1443,8 @@ export interface DashboardApi {
   getPlatformInstructionVersion(
     version: number,
   ): Promise<DashboardPlatformInstructionVersionRecord>;
+  getOrchestratorConfig(): Promise<{ prompt: string; updatedAt: string }>;
+  updateOrchestratorConfig(payload: { prompt: string }): Promise<{ prompt: string; updatedAt: string }>;
   getProjectSpec(projectId: string): Promise<DashboardProjectSpecRecord>;
   listProjectArtifacts(
     projectId: string,
@@ -1458,6 +1460,7 @@ export interface DashboardApi {
     projectId: string,
     payload: { key: string; value: unknown },
   ): Promise<DashboardProjectRecord>;
+  removeProjectMemory(projectId: string, key: string): Promise<DashboardProjectRecord>;
   configureGitWebhook(
     projectId: string,
     payload: { provider: string; secret: string },
@@ -2145,6 +2148,19 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           },
         ),
       ),
+    getOrchestratorConfig: () =>
+      withRefresh(() =>
+        requestData<{ prompt: string; updatedAt: string }>('/api/v1/config/orchestrator', {
+          method: 'GET',
+        }),
+      ),
+    updateOrchestratorConfig: (payload) =>
+      withRefresh(() =>
+        requestData<{ prompt: string; updatedAt: string }>('/api/v1/config/orchestrator', {
+          method: 'PUT',
+          body: payload as Record<string, unknown>,
+        }),
+      ),
     getProjectSpec: (projectId) =>
       withRefresh(async () =>
         normalizeProjectSpecRecord(
@@ -2183,6 +2199,15 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'PATCH',
           body: payload as Record<string, unknown>,
         }),
+      ),
+    removeProjectMemory: (projectId, key) =>
+      withRefresh(() =>
+        requestData<DashboardProjectRecord>(
+          `/api/v1/projects/${projectId}/memory/${encodeURIComponent(key)}`,
+          {
+            method: 'DELETE',
+          },
+        ),
       ),
     configureGitWebhook: (projectId, payload) =>
       withRefresh(() =>

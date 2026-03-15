@@ -12,18 +12,16 @@ import {
 } from './role-definitions-orchestrator.support.js';
 
 describe('role definitions orchestrator support', () => {
-  it('summarizes orchestrator prompt posture with versioned excerpts', () => {
+  it('summarizes orchestrator prompt posture', () => {
     expect(
       summarizeOrchestratorPrompt({
-        content:
+        prompt:
           'Keep orchestration brief, verify outcomes, and prefer explicit recovery steps when work stalls.',
-        format: 'markdown',
-        version: 7,
-        updated_at: '2026-03-12T00:00:00.000Z',
+        updatedAt: '2026-03-12T00:00:00.000Z',
       }),
     ).toEqual({
       statusLabel: 'Prompt configured',
-      versionLabel: 'v7',
+      versionLabel: '95 chars',
       excerpt:
         'Keep orchestration brief, verify outcomes, and prefer explicit recovery steps when work stalls.',
     });

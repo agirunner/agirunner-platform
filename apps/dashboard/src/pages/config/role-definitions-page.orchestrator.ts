@@ -22,9 +22,9 @@ export function useRolePageOrchestratorState() {
   const queryClient = useQueryClient();
   const providersQuery = useQuery({ queryKey: ['llm-providers'], queryFn: fetchProviders });
   const modelsQuery = useQuery({ queryKey: ['llm-models'], queryFn: fetchModels });
-  const instructionsQuery = useQuery({
-    queryKey: ['platform-instructions', 'roles-page'],
-    queryFn: () => dashboardApi.getPlatformInstructions(),
+  const orchestratorConfigQuery = useQuery({
+    queryKey: ['orchestrator-config'],
+    queryFn: () => dashboardApi.getOrchestratorConfig(),
   });
   const systemDefaultQuery = useQuery({
     queryKey: ['llm-system-default', 'roles-page'],
@@ -45,16 +45,14 @@ export function useRolePageOrchestratorState() {
 
   const promptMutation = useMutation({
     mutationFn: async (content: string) =>
-      dashboardApi.updatePlatformInstructions({ content, format: 'markdown' }),
+      dashboardApi.updateOrchestratorConfig({ prompt: content }),
     onSuccess: async (updated) => {
-      queryClient.setQueryData(['platform-instructions', 'roles-page'], updated);
-      await queryClient.invalidateQueries({ queryKey: ['platform-instructions'] });
-      await queryClient.invalidateQueries({ queryKey: ['platform-instructions', 'versions'] });
-      toast.success(`Saved orchestrator prompt baseline as v${updated.version}.`);
+      queryClient.setQueryData(['orchestrator-config'], updated);
+      toast.success('Saved orchestrator prompt.');
     },
     onError: (error) => {
       const message =
-        error instanceof Error ? error.message : 'Failed to save orchestrator prompt baseline.';
+        error instanceof Error ? error.message : 'Failed to save orchestrator prompt.';
       toast.error(message);
     },
   });
@@ -131,7 +129,7 @@ export function useRolePageOrchestratorState() {
     modelsQuery.error || providersQuery.error
       ? String(modelsQuery.error ?? providersQuery.error)
       : null;
-  const promptSummary = summarizeOrchestratorPrompt(instructionsQuery.data);
+  const promptSummary = summarizeOrchestratorPrompt(orchestratorConfigQuery.data);
   const modelSummary = summarizeOrchestratorModel(
     assignmentsQuery.data,
     systemDefaultQuery.data,
@@ -157,20 +155,20 @@ export function useRolePageOrchestratorState() {
         modelSummary,
         poolSummary,
       ),
-      instructions: instructionsQuery.data,
+      orchestratorConfig: orchestratorConfigQuery.data,
       assignments: assignmentsQuery.data,
       systemDefault: systemDefaultQuery.data,
       models,
       workers,
       isLoading: [
-        instructionsQuery,
+        orchestratorConfigQuery,
         systemDefaultQuery,
         assignmentsQuery,
         fleetStatusQuery,
         fleetWorkersQuery,
       ].some((query) => query.isLoading),
       hasError: [
-        instructionsQuery,
+        orchestratorConfigQuery,
         systemDefaultQuery,
         assignmentsQuery,
         fleetStatusQuery,

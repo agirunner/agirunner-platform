@@ -36,7 +36,7 @@ export function ProjectSpecTab(props: {
           </div>
 
           <div className="space-y-2 border-t border-border/70 pt-4">
-            <CardTitle className="text-base">Project knowledge</CardTitle>
+            <CardTitle className="text-base">Project Knowledge</CardTitle>
             <p className="text-sm leading-6 text-muted">
               Edit curated project facts and policies as simple key/value entries instead of managing
               separate config, instruction, resource, and document sections.

@@ -80,6 +80,15 @@ export function MemoryValuePreview(props: {
   }) => JSX.Element;
 }): JSX.Element {
   const kind = inferMemoryEditorKind(props.value);
+  if (!isStructuredMemoryValue(props.value)) {
+    return (
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant="secondary">{kind}</Badge>
+        <span className="text-sm text-muted">{summarizeMemoryValue(props.value)}</span>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center gap-2">
@@ -101,19 +110,17 @@ export function MemoryValuePreview(props: {
             )}
           </div>
         </details>
-      ) : (
-        <p className="whitespace-pre-wrap break-words font-mono text-xs text-muted">
-          {summarizeMemoryValue(props.value)}
-        </p>
-      )}
+      ) : null}
     </div>
   );
 }
 
-function MemoryEditorField(props: {
+export function MemoryEditorField(props: {
   draft: MemoryEditorDraft | null;
+  showLabel?: boolean;
   onChange(next: MemoryEditorDraft): void;
 }): JSX.Element {
+  const label = props.showLabel === false ? null : <span className="text-sm font-medium">Value</span>;
   const draft = props.draft;
   if (!draft) {
     return <div className="text-sm text-muted">No memory value selected.</div>;
@@ -121,7 +128,7 @@ function MemoryEditorField(props: {
   if (draft.kind === 'boolean') {
     return (
       <label className="grid gap-2">
-        <span className="text-sm font-medium">Value</span>
+        {label}
         <Select
           value={draft.booleanValue}
           onValueChange={(value) =>
@@ -142,7 +149,7 @@ function MemoryEditorField(props: {
   if (draft.kind === 'number') {
     return (
       <label className="grid gap-2">
-        <span className="text-sm font-medium">Value</span>
+        {label}
         <Input
           value={draft.textValue}
           onChange={(event) =>
@@ -155,7 +162,7 @@ function MemoryEditorField(props: {
   }
   return (
     <label className="grid gap-2">
-      <span className="text-sm font-medium">Value</span>
+      {label}
       <Textarea
         value={draft.textValue}
         rows={draft.kind === 'json' ? 8 : 4}
@@ -172,7 +179,7 @@ function MemoryEditorField(props: {
   );
 }
 
-function buildMemoryDraftForKind(
+export function buildMemoryDraftForKind(
   currentDraft: MemoryEditorDraft | null,
   nextKind: MemoryEditorKind,
 ): MemoryEditorDraft {

@@ -7,19 +7,25 @@ function readSource() {
 }
 
 describe('project detail memory tab source', () => {
-  it('reuses the shared typed memory editor and table instead of native selects', () => {
+  it('uses the same structured draft editor pattern as project knowledge and saves through the parent tab action', () => {
     const source = readSource();
-    expect(source).toContain('ProjectMemoryTable');
-    expect(source).toContain('MemoryEditor');
-    expect(source).toContain('SelectItem value="json"');
-    expect(source).not.toContain('<select');
+
+    expect(source).toContain("import { StructuredEntryEditor } from './project-structured-entry-editor.js';");
+    expect(source).toContain('Project Memory');
+    expect(source).toContain('Key/Value pairs');
+    expect(source).toContain('Add memory entry');
+    expect(source).toContain("allowedTypes={['string', 'json']}");
+    expect(source).toContain('pageSize={10}');
+    expect(source).not.toContain('dashboardApi.patchProjectMemory');
+    expect(source).not.toContain('ProjectMemoryTable');
   });
 
-  it('adds inline duplicate-key guidance and responsive summary packets', () => {
+  it('explains that project memory is editable in place and saved with the rest of the knowledge tab', () => {
     const source = readSource();
-    expect(source).toContain('Memory posture');
-    expect(source).toContain('Choose a different key.');
-    expect(source).toContain('Review and update shared memory with responsive card or table layouts');
-    expect(source).toContain("saveLabel=\"Add entry\"");
+
+    expect(source).toContain('Existing memory entries stay editable here and save with the rest of the Knowledge tab.');
+    expect(source).toContain('Memory is for evolving notes and learned state.');
+    expect(source).toContain('Use string or JSON values for project memory.');
+    expect(source).not.toContain('Failed to save project memory.');
   });
 });

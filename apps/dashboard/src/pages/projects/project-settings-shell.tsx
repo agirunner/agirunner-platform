@@ -13,7 +13,7 @@ export function ProjectSettingsShell(props: ProjectSettingsShellProps): JSX.Elem
   return (
     <section className="space-y-3">
       <div>
-        <h2 className="text-sm font-semibold text-foreground">Settings control plane</h2>
+        <h2 className="text-sm font-semibold text-foreground">Settings Control Plane</h2>
         <p className="sr-only">{props.overview.summary}</p>
       </div>
       {props.children}

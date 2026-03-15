@@ -45,7 +45,7 @@ export function ProjectOverviewShell(props: ProjectOverviewShellProps): JSX.Elem
     <div className="space-y-4">
       <Card className="border-border/70 shadow-none">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-base">Project snapshot</CardTitle>
+          <CardTitle className="text-base">Project Snapshot</CardTitle>
           <CardDescription>{props.overview.summary}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -57,7 +57,7 @@ export function ProjectOverviewShell(props: ProjectOverviewShellProps): JSX.Elem
 
       <Card className="border-border/70 shadow-none">
         <CardHeader className="space-y-2">
-          <CardTitle className="text-base">Where to work next</CardTitle>
+          <CardTitle className="text-base">Where To Work Next</CardTitle>
           <CardDescription>
             Start in the main workspaces first, then drop into the explorers only when you need
             raw evidence.

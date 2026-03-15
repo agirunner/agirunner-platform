@@ -13,8 +13,8 @@ describe('project knowledge surface source', () => {
     expect(source).toContain("type KnowledgePanelValue = 'reference' | 'artifacts' | 'memory'");
     expect(source).toContain('<KnowledgeSection');
     expect(source).toContain("label: 'Project Context & Knowledge'");
-    expect(source).toContain("label: 'Project artifacts'");
-    expect(source).toContain("label: 'Project memory'");
+    expect(source).toContain("label: 'Project Artifacts'");
+    expect(source).toContain("label: 'Project Memory'");
     expect(source).toContain('referenceContent: ReactNode;');
     expect(source).toContain('artifactContent: ReactNode;');
     expect(source).not.toContain('<TabsList');
@@ -25,7 +25,7 @@ describe('project knowledge surface source', () => {
     const source = readSource('./project-knowledge-shell.tsx');
 
     expect(source).toContain('Knowledge');
-    expect(source).toContain('Use Knowledge for curated context, Project artifacts for generated outputs, and Memory for evolving notes.');
+    expect(source).toContain('Use Knowledge for curated context, Project Artifacts for generated outputs, and Project Memory for evolving notes.');
     expect(source).toContain('className="sr-only">{props.overview.summary}</p>');
     expect(source).toContain("useState<KnowledgePanelValue | null>('reference')");
     expect(source).toContain('current === value ? null : value');
@@ -43,6 +43,17 @@ describe('project knowledge surface source', () => {
     expect(source).toContain('max-w-3xl text-sm leading-5 text-muted');
     expect(source).not.toContain('guidance:');
     expect(source).not.toContain('formatSectionSummary');
+  });
+
+  it('accepts local draft summary overrides so the shell reflects unsaved page edits immediately', () => {
+    const source = readSource('./project-knowledge-shell.tsx');
+
+    expect(source).toContain('referenceSummary?: string;');
+    expect(source).toContain('artifactSummary?: string;');
+    expect(source).toContain('memorySummary?: string;');
+    expect(source).toContain("reference: props.referenceSummary ?? buildReferenceSummary(props.overview),");
+    expect(source).toContain('props.memorySummary');
+    expect(source).toContain("getPacketSummary(props.overview, 'Shared memory')");
   });
 
   it('keeps the reference, memory, and run content tools available without bringing back duplicate wrapper headers', () => {

@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { DashboardPlatformInstructionRecord } from '../../lib/api.js';
 import {
   Card,
   CardContent,
@@ -26,7 +25,6 @@ import { Textarea } from '../../components/ui/textarea.js';
 import type { RoleAssignmentRecord, SystemDefaultRecord } from './role-definitions-orchestrator.support.js';
 import {
   buildOrchestratorModelDraft,
-  buildOrchestratorPromptDraft,
   extractReasoningValue,
   ORCHESTRATOR_INHERIT_MODEL,
 } from './role-definitions-orchestrator.form.js';
@@ -34,7 +32,7 @@ import { DialogActions, ReasoningControl } from './role-definitions-orchestrator
 import type { LlmModelRecord } from './role-definitions-page.support.js';
 
 export function OrchestratorPromptDialog(props: {
-  instructions: DashboardPlatformInstructionRecord | undefined;
+  orchestratorConfig: { prompt: string; updatedAt: string } | undefined;
   isOpen: boolean;
   isSaving: boolean;
   onOpenChange: (nextOpen: boolean) => void;
@@ -44,26 +42,26 @@ export function OrchestratorPromptDialog(props: {
 
   useEffect(() => {
     if (props.isOpen) {
-      setContent(buildOrchestratorPromptDraft(props.instructions).content);
+      setContent(props.orchestratorConfig?.prompt ?? '');
     }
-  }, [props.instructions, props.isOpen]);
+  }, [props.orchestratorConfig, props.isOpen]);
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
       <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit orchestrator prompt baseline</DialogTitle>
+          <DialogTitle>Edit orchestrator prompt</DialogTitle>
           <DialogDescription>
-            Keep the baseline prompt directly editable here. Use the full instructions page only
-            when you need version history and deep diff review.
+            This prompt is specific to the orchestrator agent. It shapes how the orchestrator
+            manages workflows — delegation, verification, recovery, and stage-gate decisions.
           </DialogDescription>
         </DialogHeader>
         <Card className="border-border/70 shadow-none">
           <CardHeader>
-            <CardTitle className="text-base">Prompt baseline</CardTitle>
+            <CardTitle className="text-base">Orchestrator prompt</CardTitle>
             <CardDescription>
-              This prompt shapes delegation tone, verification posture, recovery behavior, and how
-              stage-gate outcomes are communicated.
+              Org-wide platform instructions are applied separately. This prompt is layered on top
+              and applies only to the orchestrator.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -71,19 +69,14 @@ export function OrchestratorPromptDialog(props: {
               value={content}
               onChange={(event) => setContent(event.target.value)}
               className="min-h-[320px]"
-              placeholder="Write the workflow orchestrator baseline instructions."
+              placeholder="Define how the orchestrator should manage workflows, delegate tasks, evaluate quality, and handle escalation."
             />
-            <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-muted">
-              <p>
-                Current version: {props.instructions ? `v${props.instructions.version}` : 'Draft'}
-              </p>
-              <p>{content.trim().length} characters</p>
-            </div>
+            <p className="text-right text-xs text-muted">{content.trim().length} characters</p>
           </CardContent>
         </Card>
         <DialogActions
           isSaving={props.isSaving}
-          saveLabel="Save prompt baseline"
+          saveLabel="Save orchestrator prompt"
           onCancel={() => props.onOpenChange(false)}
           onSave={async () => {
             await props.onSave(content);

@@ -16,7 +16,7 @@ describe('project overview shell', () => {
       repository_url: 'https://example.com/repo.git',
     });
 
-    expect(markup).toContain('Where to work next');
+    expect(markup).toContain('Where To Work Next');
     expect(markup).toContain('Settings');
     expect(markup).toContain('Knowledge');
     expect(markup).toContain('Automation');

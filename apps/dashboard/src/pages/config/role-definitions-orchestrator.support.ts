@@ -1,6 +1,5 @@
 import type {
   DashboardLlmModelRecord,
-  DashboardPlatformInstructionRecord,
   FleetStatusResponse,
   FleetWorkerRecord,
 } from '../../lib/api.js';
@@ -68,20 +67,20 @@ const EMPTY_MODEL_SUMMARY: OrchestratorModelSummary = {
 };
 
 export function summarizeOrchestratorPrompt(
-  instructions: DashboardPlatformInstructionRecord | undefined,
+  config: { prompt: string; updatedAt: string } | undefined,
 ): OrchestratorPromptSummary {
-  const content = instructions?.content?.trim() ?? '';
+  const content = config?.prompt?.trim() ?? '';
   if (!content) {
     return {
       statusLabel: 'No active prompt',
-      versionLabel: 'Draft needed',
-      excerpt: 'Write the baseline orchestration instructions here before activating new workflows.',
+      versionLabel: 'Not configured',
+      excerpt: 'Define how the orchestrator should manage workflows before activating new runs.',
     };
   }
 
   return {
     statusLabel: 'Prompt configured',
-    versionLabel: `v${instructions?.version ?? 0}`,
+    versionLabel: `${content.length} chars`,
     excerpt:
       content.length > 160
         ? `${content.slice(0, 157).trimEnd()}...`
