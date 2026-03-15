@@ -18,7 +18,7 @@ describe('WorkflowCreationService', () => {
               version: 3,
               definition: {
                 outcome: 'Ship code',
-                lifecycle: 'standard',
+                lifecycle: 'planned',
                 board: {
                   columns: [{ id: 'planned', label: 'Planned' }],
                 },
@@ -84,7 +84,7 @@ describe('WorkflowCreationService', () => {
             rows: [{
               id: 'workflow-1',
               playbook_id: 'playbook-1',
-              lifecycle: 'standard',
+              lifecycle: 'planned',
               current_stage: 'implementation',
             }],
           };
@@ -169,7 +169,7 @@ describe('WorkflowCreationService', () => {
               version: 1,
               definition: {
                 outcome: 'Ship code',
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 board: {
                   columns: [{ id: 'planned', label: 'Planned' }],
                 },
@@ -187,7 +187,7 @@ describe('WorkflowCreationService', () => {
               id: 'workflow-1',
               playbook_id: 'playbook-1',
               current_stage: null,
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
             }],
           };
         }

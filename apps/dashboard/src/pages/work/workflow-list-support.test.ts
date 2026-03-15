@@ -35,7 +35,7 @@ describe('workflow list support', () => {
       status: 'running',
       created_at: '2026-03-11',
       playbook_id: 'playbook-1',
-      lifecycle: 'continuous' as const,
+      lifecycle: 'ongoing' as const,
       active_stages: ['implementation'],
       work_item_summary: {
         total_work_items: 5,
@@ -47,23 +47,23 @@ describe('workflow list support', () => {
       },
     };
 
-    expect(describeWorkflowType(workflow)).toBe('Continuous board run');
+    expect(describeWorkflowType(workflow)).toBe('Ongoing board run');
     expect(describeWorkflowStage(workflow)).toBe('implementation');
     expect(describeWorkItemSummary(workflow)).toBe('3 open / 5 total, 1 live stage');
     expect(describeWorkflowProgress(workflow)).toBe('2 of 5 work items complete');
     expect(describeGateSummary(workflow)).toBe('1 gate waiting');
     expect(describeOperatorSignal(workflow)).toBe('1 gate waiting');
     expect(resolveStatus(workflow)).toBe('gated');
-    expect(resolveTypeFilter(workflow)).toBe('continuous');
+    expect(resolveTypeFilter(workflow)).toBe('ongoing');
   });
 
-  it('prefers active work-item stages over workflow current_stage for continuous workflows', () => {
+  it('prefers active work-item stages over workflow current_stage for ongoing workflows', () => {
     const workflow = {
       id: 'workflow-2',
       name: 'Beta',
       status: 'running',
       created_at: '2026-03-11',
-      lifecycle: 'continuous' as const,
+      lifecycle: 'ongoing' as const,
       current_stage: 'legacy-review',
       active_stages: ['implementation'],
       work_item_summary: {
@@ -79,13 +79,13 @@ describe('workflow list support', () => {
     expect(describeWorkflowStage(workflow)).toBe('implementation, verification');
   });
 
-  it('prefers work-item summary stage ordering over top-level active stage arrays for continuous workflows', () => {
+  it('prefers work-item summary stage ordering over top-level active stage arrays for ongoing workflows', () => {
     const workflow = {
       id: 'workflow-2c',
       name: 'Ordered Continuous',
       status: 'running',
       created_at: '2026-03-11',
-      lifecycle: 'continuous' as const,
+      lifecycle: 'ongoing' as const,
       active_stages: ['verification', 'implementation'],
       work_item_summary: {
         total_work_items: 4,
@@ -100,13 +100,13 @@ describe('workflow list support', () => {
     expect(describeWorkflowStage(workflow)).toBe('implementation, verification');
   });
 
-  it('does not fall back to workflow current_stage for continuous workflows without live work', () => {
+  it('does not fall back to workflow current_stage for ongoing workflows without live work', () => {
     const workflow = {
       id: 'workflow-2b',
       name: 'Idle Continuous',
       status: 'pending',
       created_at: '2026-03-11',
-      lifecycle: 'continuous' as const,
+      lifecycle: 'ongoing' as const,
       current_stage: 'legacy-review',
       active_stages: [],
       work_item_summary: {
@@ -122,7 +122,7 @@ describe('workflow list support', () => {
     expect(describeWorkflowStage(workflow)).toBe('No live stages');
   });
 
-  it('treats standard workflows as the default active type', () => {
+  it('treats planned workflows as the default active type', () => {
     const workflow = {
       id: 'workflow-1',
       name: 'Standard Flow',
@@ -132,16 +132,16 @@ describe('workflow list support', () => {
       task_counts: { completed: 2, running: 1 },
     };
 
-    expect(describeWorkflowType(workflow)).toBe('Milestone board run');
+    expect(describeWorkflowType(workflow)).toBe('Planned board run');
     expect(describeWorkflowStage(workflow)).toBe('review');
     expect(describeWorkItemSummary(workflow)).toBe('No work items');
     expect(describeWorkflowProgress(workflow)).toBe('No work items queued');
     expect(formatTaskProgress(workflow.task_counts)).toBe('2/3');
     expect(resolveStatus(workflow)).toBe('planned');
-    expect(resolveTypeFilter(workflow)).toBe('standard');
+    expect(resolveTypeFilter(workflow)).toBe('planned');
   });
 
-  it('uses a readable standard fallback when no stage is assigned', () => {
+  it('uses a readable planned fallback when no stage is assigned', () => {
     expect(
       describeWorkflowStage({
         id: 'workflow-1b',
@@ -159,7 +159,7 @@ describe('workflow list support', () => {
       status: 'failed',
       state: 'failed',
       created_at: '2026-03-11',
-      lifecycle: 'continuous' as const,
+      lifecycle: 'ongoing' as const,
       active_stages: ['implementation'],
       work_item_summary: {
         total_work_items: 4,

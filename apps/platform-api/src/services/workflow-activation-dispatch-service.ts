@@ -54,7 +54,7 @@ interface WorkflowDispatchRowBase {
 
 type WorkflowDispatchRow =
   | (WorkflowDispatchRowBase & {
-      lifecycle: 'continuous';
+      lifecycle: 'ongoing';
       current_stage?: never;
     })
   | (WorkflowDispatchRowBase & {
@@ -836,7 +836,7 @@ export class WorkflowActivationDispatchService {
                UNION
                SELECT ws.name AS active_stage_name
                  FROM workflow_stages ws
-               WHERE w.lifecycle <> 'continuous'
+               WHERE w.lifecycle <> 'ongoing'
                   AND ws.tenant_id = w.tenant_id
                   AND ws.workflow_id = w.id
                   AND ws.gate_status IN ('awaiting_approval', 'changes_requested', 'rejected')
@@ -1355,7 +1355,7 @@ function buildActivationTaskInput(
     activation_dispatch_attempt: activation.dispatch_attempt,
     activation_dispatch_token: activation.dispatch_token,
     lifecycle: workflow.lifecycle,
-    ...(workflow.lifecycle !== 'continuous' ? { current_stage: workflow.current_stage } : {}),
+    ...(workflow.lifecycle !== 'ongoing' ? { current_stage: workflow.current_stage } : {}),
     active_stages: workflow.active_stages,
     repository: buildActivationRepositoryInput(repository),
     events: queuedEvents,
@@ -1421,7 +1421,7 @@ function activationTaskStageName(
   workflow: WorkflowDispatchRow,
   activationBatch: QueuedActivationRow[],
 ): string | null {
-  if (workflow.lifecycle !== 'continuous') {
+  if (workflow.lifecycle !== 'ongoing') {
     return workflow.current_stage ?? null;
   }
   const eventStages = uniqueStageNames(activationBatch);

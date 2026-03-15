@@ -249,8 +249,8 @@ export class PlaybookWorkflowControlService {
     db: DatabaseClient,
   ) {
     const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
-    if (workflow.lifecycle !== 'standard') {
-      throw new ConflictError('Stage gate approvals are only supported for standard playbook workflows');
+    if (workflow.lifecycle !== 'planned') {
+      throw new ConflictError('Stage gate approvals are only supported for planned playbook workflows');
     }
 
     const stage = await this.loadStage(identity.tenantId, workflowId, stageName, db);
@@ -339,8 +339,8 @@ export class PlaybookWorkflowControlService {
     db: DatabaseClient,
   ) {
     const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
-    if (workflow.lifecycle !== 'standard') {
-      throw new ConflictError('Stage gate approvals are only supported for standard playbook workflows');
+    if (workflow.lifecycle !== 'planned') {
+      throw new ConflictError('Stage gate approvals are only supported for planned playbook workflows');
     }
 
     const stage = await this.loadStage(identity.tenantId, workflowId, stageName, db);
@@ -378,8 +378,8 @@ export class PlaybookWorkflowControlService {
       }
       if (isFollowOnGateDecisionAllowed(existingGate, input)) {
         const workflow = await this.loadWorkflow(identity.tenantId, existingGate.workflow_id, db);
-        if (workflow.lifecycle !== 'standard') {
-          throw new ConflictError('Stage gate approvals are only supported for standard playbook workflows');
+        if (workflow.lifecycle !== 'planned') {
+          throw new ConflictError('Stage gate approvals are only supported for planned playbook workflows');
         }
         const stage = await this.loadStage(identity.tenantId, workflow.id, existingGate.stage_name, db);
         const outcome = await this.applyGateDecision(identity, workflow.id, stage, existingGate, input, db);
@@ -399,8 +399,8 @@ export class PlaybookWorkflowControlService {
       throw new ConflictError('No pending gate approval exists for this gate');
     }
     const workflow = await this.loadWorkflow(identity.tenantId, gate.workflow_id, db);
-    if (workflow.lifecycle !== 'standard') {
-      throw new ConflictError('Stage gate approvals are only supported for standard playbook workflows');
+    if (workflow.lifecycle !== 'planned') {
+      throw new ConflictError('Stage gate approvals are only supported for planned playbook workflows');
     }
 
     const stage = await this.loadStage(identity.tenantId, workflow.id, gate.stage_name, db);
@@ -427,8 +427,8 @@ export class PlaybookWorkflowControlService {
     db: DatabaseClient,
   ) {
     const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
-    if (workflow.lifecycle !== 'standard') {
-      throw new ConflictError('Stage advancement is only supported for standard playbook workflows');
+    if (workflow.lifecycle !== 'planned') {
+      throw new ConflictError('Stage advancement is only supported for planned playbook workflows');
     }
 
     const definition = parsePlaybookDefinition(workflow.definition);
@@ -523,8 +523,8 @@ export class PlaybookWorkflowControlService {
     db: DatabaseClient,
   ) {
     const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
-    if (workflow.lifecycle !== 'standard') {
-      throw new ConflictError('Only standard playbook workflows can be completed by the orchestrator');
+    if (workflow.lifecycle !== 'planned') {
+      throw new ConflictError('Only planned playbook workflows can be completed by the orchestrator');
     }
     if (workflow.state === 'completed') {
       return {

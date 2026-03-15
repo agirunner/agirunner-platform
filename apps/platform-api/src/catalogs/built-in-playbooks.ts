@@ -3,7 +3,7 @@ export interface BuiltInPlaybook {
   slug: string;
   description: string;
   outcome: string;
-  lifecycle: 'standard' | 'continuous';
+  lifecycle: 'planned' | 'ongoing';
   definition: Record<string, unknown>;
 }
 
@@ -15,7 +15,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
     slug: PROJECT_PLANNING_PLAYBOOK_SLUG,
     description: 'Planning workflow that turns a project brief into a scoped execution plan.',
     outcome: 'A prioritized execution plan with initial work items.',
-    lifecycle: 'standard',
+    lifecycle: 'planned',
     definition: {
       parameters: [
         {
@@ -57,7 +57,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
           involves: ['product-manager', 'architect'],
         },
       ],
-      lifecycle: 'standard',
+      lifecycle: 'planned',
       orchestrator: {
         check_interval: '5m',
         stale_threshold: '30m',
@@ -78,7 +78,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
     slug: 'sdlc-v2',
     description: 'Orchestrated SDLC workflow with work items, review loops, and human gates.',
     outcome: 'Production-ready software with tests and documentation.',
-    lifecycle: 'standard',
+    lifecycle: 'planned',
     definition: {
       parameters: [
         {
@@ -161,7 +161,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
           human_gate: true,
         },
       ],
-      lifecycle: 'standard',
+      lifecycle: 'planned',
       orchestrator: {
         check_interval: '5m',
         stale_threshold: '30m',

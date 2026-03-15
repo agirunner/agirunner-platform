@@ -8,7 +8,7 @@ export interface WorkflowListRecord {
   state?: string;
   current_stage?: string | null;
   active_stages?: string[];
-  lifecycle?: 'standard' | 'continuous' | null;
+  lifecycle?: 'planned' | 'ongoing' | null;
   task_counts?: Record<string, number>;
   cost?: number;
   created_at: string;
@@ -32,7 +32,7 @@ function readLiveStageNames(workflow: WorkflowListRecord): string[] {
 }
 
 export type StatusFilter = 'all' | 'planned' | 'active' | 'gated' | 'blocked' | 'done';
-export type TypeFilter = 'all' | 'standard' | 'continuous';
+export type TypeFilter = 'all' | 'planned' | 'ongoing';
 export type ViewMode = 'list' | 'board';
 
 export const STATUS_FILTERS: StatusFilter[] = [
@@ -43,11 +43,11 @@ export const STATUS_FILTERS: StatusFilter[] = [
   'blocked',
   'done',
 ];
-export const TYPE_FILTERS: TypeFilter[] = ['all', 'standard', 'continuous'];
+export const TYPE_FILTERS: TypeFilter[] = ['all', 'planned', 'ongoing'];
 export const TYPE_FILTER_LABELS: Record<TypeFilter, string> = {
   all: 'All Types',
-  standard: 'Standard',
-  continuous: 'Continuous',
+  planned: 'Planned',
+  ongoing: 'Ongoing',
 };
 export const BOARD_COLUMNS = ['planned', 'active', 'gated', 'blocked', 'done'] as const;
 export type BoardColumn = (typeof BOARD_COLUMNS)[number];
@@ -130,12 +130,12 @@ export function describeWorkflowProgress(workflow: WorkflowListRecord): string {
 }
 
 export function describeWorkflowType(workflow: WorkflowListRecord): string {
-  return workflow.lifecycle === 'continuous' ? 'Continuous board run' : 'Milestone board run';
+  return workflow.lifecycle === 'ongoing' ? 'Ongoing board run' : 'Planned board run';
 }
 
 export function describeWorkflowStage(workflow: WorkflowListRecord): string {
   const liveStages = readLiveStageNames(workflow);
-  if (workflow.lifecycle === 'continuous') {
+  if (workflow.lifecycle === 'ongoing') {
     return liveStages.length > 0 ? liveStages.join(', ') : 'No live stages';
   }
   if (workflow.current_stage) {
@@ -202,7 +202,7 @@ export function describeGateSummary(workflow: WorkflowListRecord): string {
 }
 
 export function resolveTypeFilter(workflow: WorkflowListRecord): Exclude<TypeFilter, 'all'> {
-  return workflow.lifecycle === 'continuous' ? 'continuous' : 'standard';
+  return workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
 }
 
 export function formatRelativeRunAge(createdAt: string, now = Date.now()): string {

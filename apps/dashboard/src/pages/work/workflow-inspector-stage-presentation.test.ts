@@ -11,7 +11,7 @@ describe('workflow inspector stage presentation', () => {
     expect(describeWorkflowStageLabel(undefined)).toBe('Current stage');
     expect(
       describeWorkflowStageLabel({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
       }),
     ).toBe('Live stages');
   });
@@ -19,7 +19,7 @@ describe('workflow inspector stage presentation', () => {
   it('prefers live work-item stages and readable empty states', () => {
     expect(
       describeWorkflowStageValue({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         current_stage: 'legacy-review',
         work_item_summary: {
           active_stage_names: ['implementation', 'verification'],
@@ -29,7 +29,7 @@ describe('workflow inspector stage presentation', () => {
 
     expect(
       describeWorkflowStageValue({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
       }),
     ).toBe('No live stages');
 
@@ -45,7 +45,7 @@ describe('workflow inspector stage presentation', () => {
   it('builds a labeled operator-scope summary', () => {
     expect(
       describeWorkflowScopeSummary({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         active_stages: ['implementation'],
       }),
     ).toBe('Live stages: implementation');

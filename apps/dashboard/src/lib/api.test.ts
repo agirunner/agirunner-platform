@@ -104,9 +104,9 @@ describe('dashboard api auth/session behavior', () => {
     expect(source).toContain('export type DashboardTaskState = TaskState;');
     expect(source).toContain('export type DashboardWorkflowState = WorkflowState;');
     expect(workflowBaseBlock).toContain('state: DashboardWorkflowState;');
-    expect(workflowBlock).toContain("lifecycle: 'continuous';");
+    expect(workflowBlock).toContain("lifecycle: 'ongoing';");
     expect(workflowBlock).toContain('current_stage?: never;');
-    expect(workflowBlock).toContain("lifecycle?: 'standard' | null;");
+    expect(workflowBlock).toContain("lifecycle?: 'planned' | null;");
     expect(workflowBlock).toContain('current_stage?: string | null;');
     expect(approvalTaskBlock).toContain('state: DashboardTaskState;');
   });
@@ -815,13 +815,13 @@ describe('dashboard api auth/session behavior', () => {
     const playbook = await api.updatePlaybook('playbook-1', {
       name: 'Delivery',
       outcome: 'Ship work',
-      definition: { lifecycle: 'continuous' },
+      definition: { lifecycle: 'ongoing' },
     });
 
     expect(client.updatePlaybook).toHaveBeenCalledWith('playbook-1', {
       name: 'Delivery',
       outcome: 'Ship work',
-      definition: { lifecycle: 'continuous' },
+      definition: { lifecycle: 'ongoing' },
     });
     expect(playbook).toEqual({ id: 'playbook-1', name: 'Delivery' });
   });
@@ -1404,7 +1404,7 @@ describe('dashboard api auth/session behavior', () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { id: 'pipe-1', lifecycle: 'standard', current_stage: 'build' } }), {
+        new Response(JSON.stringify({ data: { id: 'pipe-1', lifecycle: 'planned', current_stage: 'build' } }), {
           status: 200,
         }),
       )

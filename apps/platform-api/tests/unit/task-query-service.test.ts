@@ -302,7 +302,7 @@ describe('task query service git activity (FR-055)', () => {
           rows: [{
             id: 'workflow-1',
             name: 'Workflow',
-            lifecycle: 'continuous',
+            lifecycle: 'ongoing',
             context: { auth: { password: 'workflow-password' } },
             git_branch: 'main',
             parameters: { secret_ref: 'secret:SAFE' },

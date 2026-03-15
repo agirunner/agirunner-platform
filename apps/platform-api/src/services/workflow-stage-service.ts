@@ -70,7 +70,7 @@ export class WorkflowStageService {
 
     const rows: WorkflowStageResponse[] = [];
     for (const [index, stage] of definition.stages.entries()) {
-      const isActive = definition.lifecycle === 'standard' && index === 0;
+      const isActive = definition.lifecycle === 'planned' && index === 0;
       const result = await client.query<CreatedWorkflowStageRow>(
         `INSERT INTO workflow_stages (
            tenant_id, workflow_id, name, position, goal, guidance, human_gate, status, started_at
@@ -187,7 +187,7 @@ export function currentStageNameFromStages(
 }
 
 function deriveStageView(row: WorkflowStageViewInput) {
-  if (row.lifecycle !== 'continuous') {
+  if (row.lifecycle !== 'ongoing') {
     return {
       status: row.status,
       is_active: isActiveStageStatus(row.status),

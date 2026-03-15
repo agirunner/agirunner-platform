@@ -176,7 +176,7 @@ export async function buildOrchestratorTaskContext(
   const stageRows = stagesRes.rows.map(normalizeWorkflowStageView);
   const activeStages = activeStageNames(workItemsRes.rows);
   const currentStage = currentStageNameFromStages(stageRows);
-  const lifecycle = workflow.lifecycle === 'continuous' ? 'continuous' : 'standard';
+  const lifecycle = workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
   const workflowContext = {
     id: workflow.id,
     name: workflow.name,
@@ -194,7 +194,7 @@ export async function buildOrchestratorTaskContext(
       definition: workflow.playbook_definition,
     },
   } as Record<string, unknown>;
-  if (workflow.lifecycle !== 'continuous') {
+  if (workflow.lifecycle !== 'ongoing') {
     workflowContext.current_stage = currentStage;
   }
 
@@ -254,12 +254,12 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
 }
 
 function mergeActiveStageNames(
-  lifecycle: 'continuous' | 'standard',
+  lifecycle: 'ongoing' | 'planned',
   workItemStages: string[],
   stageRows: Array<Pick<WorkflowStageResponse, 'name' | 'status'>>,
   definition: unknown,
 ): string[] {
-  if (lifecycle === 'continuous') {
+  if (lifecycle === 'ongoing') {
     return orderStageNamesByDefinition(workItemStages, definition);
   }
   const gateStages = stageRows

@@ -19,7 +19,7 @@ describe('playbook launch workflow policy support', () => {
       name: 'Ship',
       slug: 'ship',
       outcome: 'Ship software',
-      lifecycle: 'standard',
+      lifecycle: 'planned',
       version: 2,
       definition: {
         config: {

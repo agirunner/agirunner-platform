@@ -47,8 +47,12 @@ export const workflows = pgTable(
     index('idx_workflows_state').on(table.tenantId, table.state),
     index('idx_workflows_playbook').on(table.playbookId),
     check(
-      'chk_workflows_continuous_current_stage_null',
-      sql`(${table.lifecycle} IS DISTINCT FROM 'continuous' OR ${table.currentStage} IS NULL)`,
+      'workflows_lifecycle_check',
+      sql`${table.lifecycle} IS NULL OR ${table.lifecycle} IN ('planned', 'ongoing')`,
+    ),
+    check(
+      'chk_workflows_ongoing_current_stage_null',
+      sql`(${table.lifecycle} IS DISTINCT FROM 'ongoing' OR ${table.currentStage} IS NULL)`,
     ),
   ],
 );

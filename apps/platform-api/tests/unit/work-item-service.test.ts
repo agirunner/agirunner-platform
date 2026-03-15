@@ -17,10 +17,10 @@ describe('WorkItemService', () => {
               {
                 id: 'workflow-1',
                 active_stage_name: 'triage',
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 definition: {
                   roles: ['triager'],
-                  lifecycle: 'continuous',
+                  lifecycle: 'ongoing',
                   board: { columns: [{ id: 'planned', label: 'Planned' }] },
                   stages: [{ name: 'triage', goal: 'Triage inbound work' }],
                 },
@@ -118,7 +118,7 @@ describe('WorkItemService', () => {
                 active_stage_name: 'triage',
                 definition: {
                   roles: ['triager'],
-                  lifecycle: 'continuous',
+                  lifecycle: 'ongoing',
                   board: { columns: [{ id: 'planned', label: 'Planned' }] },
                   stages: [{ name: 'triage', goal: 'Triage inbound work' }],
                 },
@@ -209,10 +209,10 @@ describe('WorkItemService', () => {
               {
                 id: 'workflow-1',
                 active_stage_name: 'triage',
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 definition: {
                   roles: ['triager'],
-                  lifecycle: 'continuous',
+                  lifecycle: 'ongoing',
                   board: { columns: [{ id: 'planned', label: 'Planned' }] },
                   stages: [{ name: 'triage', goal: 'Triage inbound work' }],
                 },
@@ -291,10 +291,10 @@ describe('WorkItemService', () => {
               {
                 id: 'workflow-1',
                 active_stage_name: 'triage',
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 definition: {
                   roles: ['triager'],
-                  lifecycle: 'continuous',
+                  lifecycle: 'ongoing',
                   board: { columns: [{ id: 'planned', label: 'Planned' }] },
                   stages: [{ name: 'triage', goal: 'Triage inbound work' }],
                 },
@@ -387,7 +387,7 @@ describe('WorkItemService', () => {
               active_stage_name: 'triage',
               definition: {
                 roles: ['triager'],
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 stages: [{ name: 'triage', goal: 'Triage inbound work' }],
               },

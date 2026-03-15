@@ -93,7 +93,7 @@ export interface Playbook {
   slug: string;
   description: string | null;
   outcome: string;
-  lifecycle: 'standard' | 'continuous';
+  lifecycle: 'planned' | 'ongoing';
   definition: Record<string, unknown>;
   version: number;
   is_active: boolean;
@@ -226,7 +226,7 @@ interface WorkflowBase {
   playbook_version?: number | null;
   name: string;
   state: WorkflowState;
-  lifecycle?: 'standard' | 'continuous' | null;
+  lifecycle?: 'planned' | 'ongoing' | null;
   parameters?: Record<string, unknown>;
   context: Record<string, unknown>;
   metadata: Record<string, unknown>;
@@ -251,11 +251,11 @@ interface WorkflowBase {
 
 export type Workflow =
   | (WorkflowBase & {
-      lifecycle: 'continuous';
+      lifecycle: 'ongoing';
       current_stage?: never;
     })
   | (WorkflowBase & {
-      lifecycle?: 'standard' | null;
+      lifecycle?: 'planned' | null;
       current_stage?: string | null;
     });
 
@@ -516,7 +516,7 @@ export interface CreatePlaybookInput {
   slug?: string;
   description?: string;
   outcome: string;
-  lifecycle?: 'standard' | 'continuous';
+  lifecycle?: 'planned' | 'ongoing';
   definition: Record<string, unknown>;
 }
 
@@ -525,7 +525,7 @@ export interface UpdatePlaybookInput {
   slug?: string;
   description?: string;
   outcome?: string;
-  lifecycle?: 'standard' | 'continuous';
+  lifecycle?: 'planned' | 'ongoing';
   definition?: Record<string, unknown>;
 }
 

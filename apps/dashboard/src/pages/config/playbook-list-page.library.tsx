@@ -19,6 +19,10 @@ import {
   type PlaybookStatusFilter,
 } from './playbook-list-page.support.js';
 
+function describePlaybookLifecycle(lifecycle: 'planned' | 'ongoing'): string {
+  return lifecycle === 'planned' ? 'Planned' : 'Ongoing';
+}
+
 export function PlaybookLibraryToolbar(props: {
   search: string;
   statusFilter: PlaybookStatusFilter;
@@ -68,8 +72,8 @@ export function PlaybookLibraryToolbar(props: {
           value={props.lifecycleFilter}
           options={[
             { value: 'all', label: 'All' },
-            { value: 'continuous', label: 'Continuous' },
-            { value: 'standard', label: 'Standard' },
+            { value: 'ongoing', label: 'Ongoing' },
+            { value: 'planned', label: 'Planned' },
           ]}
           onChange={(value) => props.onLifecycleFilterChange(value as PlaybookLifecycleFilter)}
         />
@@ -112,7 +116,7 @@ export function PlaybookFamilyCard(props: {
           </div>
           <div className="flex flex-wrap justify-end gap-2">
             <Badge variant="outline">v{playbook.version}</Badge>
-            <Badge variant="secondary">{family.lifecycle}</Badge>
+            <Badge variant="secondary">{describePlaybookLifecycle(family.lifecycle)}</Badge>
             {isArchivedFamily ? <Badge variant="secondary">Inactive</Badge> : null}
           </div>
         </div>

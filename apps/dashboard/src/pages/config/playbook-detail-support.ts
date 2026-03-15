@@ -96,7 +96,7 @@ export function renderPlaybookSnapshot(playbook: DashboardPlaybookRecord): strin
 }
 
 function readPlaybookDraft(playbook: DashboardPlaybookRecord): PlaybookAuthoringDraft {
-  return hydratePlaybookAuthoringDraft(playbook.lifecycle ?? 'continuous', playbook.definition);
+  return hydratePlaybookAuthoringDraft(playbook.lifecycle ?? 'ongoing', playbook.definition);
 }
 
 function diffRow(label: string, current: string, compared: string): PlaybookRevisionDiffRow {

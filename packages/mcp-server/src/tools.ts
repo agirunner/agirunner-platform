@@ -380,7 +380,7 @@ const CANONICAL_TOOL_SCHEMAS = {
       slug: z.string().optional(),
       description: z.string().optional(),
       outcome: z.string().optional(),
-      lifecycle: z.enum(['standard', 'continuous']).optional(),
+      lifecycle: z.enum(['planned', 'ongoing']).optional(),
       definition: z.record(z.unknown()).optional(),
     },
     ['name', 'outcome', 'definition'],

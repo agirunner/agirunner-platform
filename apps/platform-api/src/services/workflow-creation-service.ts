@@ -131,7 +131,7 @@ export class WorkflowCreationService {
         client,
       );
 
-      if (definition.lifecycle === 'standard' && initialStageName) {
+      if (definition.lifecycle === 'planned' && initialStageName) {
         await this.deps.eventService.emit(
           {
             tenantId: identity.tenantId,
@@ -168,7 +168,7 @@ export class WorkflowCreationService {
       return sanitizeCreatedWorkflow({
         ...workflow,
         current_stage:
-          definition.lifecycle === 'standard'
+          definition.lifecycle === 'planned'
             ? currentStageNameFromStages(createdStages as never)
             : null,
         workflow_stages: createdStages,
@@ -204,14 +204,14 @@ export class WorkflowCreationService {
 }
 
 function initialWorkflowStageName(definition: ReturnType<typeof parsePlaybookDefinition>): string | null {
-  if (definition.lifecycle === 'continuous') {
+  if (definition.lifecycle === 'ongoing') {
     return null;
   }
   return defaultStageName(definition);
 }
 
 function sanitizeCreatedWorkflow(workflow: CreatedWorkflow): CreatedWorkflow {
-  if (workflow.lifecycle !== 'continuous') {
+  if (workflow.lifecycle !== 'ongoing') {
     return workflow;
   }
 

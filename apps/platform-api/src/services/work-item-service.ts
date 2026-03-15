@@ -484,7 +484,7 @@ function resolveWorkItemStageName(
   if (inputStageName) {
     return inputStageName;
   }
-  if (workflow.lifecycle === 'continuous') {
+  if (workflow.lifecycle === 'ongoing') {
     return defaultStageName(definition);
   }
   return (workflow.active_stage_name as string | null) ?? defaultStageName(definition);

@@ -13,7 +13,7 @@ describe('WorkflowStageService', () => {
           rows: [
             {
               id: 'stage-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               name: 'triage',
               position: 0,
               goal: 'Triage',
@@ -32,7 +32,7 @@ describe('WorkflowStageService', () => {
             },
             {
               id: 'stage-2',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               name: 'review',
               position: 1,
               goal: 'Review',
@@ -51,7 +51,7 @@ describe('WorkflowStageService', () => {
             },
             {
               id: 'stage-3',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               name: 'done',
               position: 2,
               goal: 'Done',
@@ -109,7 +109,7 @@ describe('WorkflowStageService', () => {
           rows: [
             {
               id: 'stage-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               name: 'review',
               position: 1,
               goal: 'Review',
@@ -152,7 +152,7 @@ describe('WorkflowStageService', () => {
           rows: [
             {
               id: 'stage-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               name: 'review',
               position: 1,
               goal: 'Review',

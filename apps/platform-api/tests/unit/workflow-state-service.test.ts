@@ -36,7 +36,7 @@ describe('WorkflowStateService', () => {
   it('marks standard playbook workflows completed when all stages are completed', async () => {
     const pool = createPool([
       workflowRow({ state: 'active' }),
-      rowSet([{ lifecycle: 'standard' }]),
+      rowSet([{ lifecycle: 'planned' }]),
       rowSet([{ status: 'completed', gate_status: 'approved' }, { status: 'completed', gate_status: 'approved' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -59,7 +59,7 @@ describe('WorkflowStateService', () => {
   it('returns active for standard workflows when a stage row is active even without specialist task activity', async () => {
     const pool = createPool([
       workflowRow({ state: 'pending' }),
-      rowSet([{ lifecycle: 'standard' }]),
+      rowSet([{ lifecycle: 'planned' }]),
       rowSet([{ status: 'active', gate_status: 'not_requested' }, { status: 'pending', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -86,7 +86,7 @@ describe('WorkflowStateService', () => {
   it('returns pending for continuous workflows when no active work-item or gate posture remains', async () => {
     const pool = createPool([
       workflowRow({ state: 'active' }),
-      rowSet([{ lifecycle: 'continuous' }]),
+      rowSet([{ lifecycle: 'ongoing' }]),
       rowSet([{ status: 'completed', gate_status: 'approved' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -116,7 +116,7 @@ describe('WorkflowStateService', () => {
   it('returns active for continuous workflows when a stage gate is awaiting approval', async () => {
     const pool = createPool([
       workflowRow({ state: 'pending' }),
-      rowSet([{ lifecycle: 'continuous' }]),
+      rowSet([{ lifecycle: 'ongoing' }]),
       rowSet([{ status: 'pending', gate_status: 'awaiting_approval' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -138,7 +138,7 @@ describe('WorkflowStateService', () => {
   it('returns active for continuous workflows when an orchestrator task is already in progress', async () => {
     const pool = createPool([
       workflowRow({ state: 'pending' }),
-      rowSet([{ lifecycle: 'continuous' }]),
+      rowSet([{ lifecycle: 'ongoing' }]),
       rowSet([]),
       rowSet([{ exists: 1 }]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -160,7 +160,7 @@ describe('WorkflowStateService', () => {
   it('returns pending for continuous workflows when only a stale stage status remains', async () => {
     const pool = createPool([
       workflowRow({ state: 'active' }),
-      rowSet([{ lifecycle: 'continuous' }]),
+      rowSet([{ lifecycle: 'ongoing' }]),
       rowSet([{ status: 'active', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -212,7 +212,7 @@ describe('WorkflowStateService', () => {
         state: 'active',
         metadata: { cancel_requested_at: '2026-03-11T00:00:00.000Z' },
       }),
-      rowSet([{ lifecycle: 'standard' }]),
+      rowSet([{ lifecycle: 'planned' }]),
       rowSet([{ status: 'pending', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 2 }]),
@@ -237,7 +237,7 @@ describe('WorkflowStateService', () => {
         state: 'active',
         metadata: { cancel_requested_at: '2026-03-11T00:00:00.000Z' },
       }),
-      rowSet([{ lifecycle: 'standard' }]),
+      rowSet([{ lifecycle: 'planned' }]),
       rowSet([{ status: 'pending', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -263,7 +263,7 @@ describe('WorkflowStateService', () => {
         state: 'active',
         metadata: { cancel_requested_at: '2026-03-11T00:00:00.000Z' },
       }),
-      rowSet([{ lifecycle: 'standard' }]),
+      rowSet([{ lifecycle: 'planned' }]),
       rowSet([{ status: 'active', gate_status: 'not_requested' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),
@@ -298,7 +298,7 @@ describe('WorkflowStateService', () => {
         name: 'Child Workflow',
         playbook_id: 'playbook-child',
       }),
-      rowSet([{ lifecycle: 'standard' }]),
+      rowSet([{ lifecycle: 'planned' }]),
       rowSet([{ status: 'completed', gate_status: 'approved' }, { status: 'completed', gate_status: 'approved' }]),
       rowSet([]),
       rowSet([{ open_work_item_count: 0 }]),

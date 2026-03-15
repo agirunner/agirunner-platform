@@ -29,7 +29,7 @@ describe('WorkflowCancellationService', () => {
                 cancel_requested_at: '2026-03-12T00:00:00.000Z',
                 cancel_force_at: '2026-03-12T00:01:00.000Z',
               },
-              lifecycle: 'standard',
+              lifecycle: 'planned',
             }],
           };
         }
@@ -71,7 +71,7 @@ describe('WorkflowCancellationService', () => {
               id: 'workflow-1',
               state: 'active',
               metadata: {},
-              lifecycle: 'standard',
+              lifecycle: 'planned',
             }],
           };
         }
@@ -130,7 +130,7 @@ describe('WorkflowCancellationService', () => {
               id: 'workflow-1',
               state: 'active',
               metadata: {},
-              lifecycle: 'standard',
+              lifecycle: 'planned',
             }],
           };
         }
@@ -192,7 +192,7 @@ describe('WorkflowCancellationService', () => {
               id: 'workflow-1',
               state: 'active',
               metadata: {},
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
             }],
           };
         }
@@ -251,7 +251,7 @@ describe('WorkflowCancellationService', () => {
               id: 'workflow-1',
               state: 'active',
               metadata: {},
-              lifecycle: 'standard',
+              lifecycle: 'planned',
             }],
           };
         }
@@ -305,7 +305,7 @@ describe('WorkflowCancellationService', () => {
         if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
           return {
             rowCount: 1,
-            rows: [{ id: 'workflow-1', state: 'cancelled', metadata: {}, lifecycle: 'standard' }],
+            rows: [{ id: 'workflow-1', state: 'cancelled', metadata: {}, lifecycle: 'planned' }],
           };
         }
         throw new Error(`Unexpected SQL: ${sql}`);

@@ -18,13 +18,13 @@ describe('PlaybookService', () => {
             slug: 'build-flow',
             description: 'Updated',
             outcome: 'Ship it',
-            lifecycle: 'continuous',
+            lifecycle: 'ongoing',
             version: 3,
             is_active: true,
             definition: {
               board: { columns: [{ id: 'todo', label: 'To Do' }] },
               stages: [{ name: 'build', goal: 'Build' }],
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               roles: [],
             },
           },
@@ -44,11 +44,11 @@ describe('PlaybookService', () => {
 
     const playbook = await service.updatePlaybook('tenant-1', 'playbook-1', {
       description: 'Updated',
-      lifecycle: 'continuous',
+      lifecycle: 'ongoing',
       definition: {
         board: { columns: [{ id: 'todo', label: 'To Do' }] },
         stages: [{ name: 'build', goal: 'Build' }],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
       },
     });
 
@@ -62,7 +62,7 @@ describe('PlaybookService', () => {
     expect(client.query).toHaveBeenNthCalledWith(
       3,
       expect.stringContaining('INSERT INTO playbooks'),
-      expect.arrayContaining(['tenant-1', 'Build Flow', 'build-flow', 'Updated', 'Ship it', 'continuous', 3]),
+      expect.arrayContaining(['tenant-1', 'Build Flow', 'build-flow', 'Updated', 'Ship it', 'ongoing', 3]),
     );
     expect(client.query).toHaveBeenLastCalledWith('COMMIT');
     expect(client.release).toHaveBeenCalled();
@@ -266,13 +266,13 @@ function createPlaybookRow(
     slug: 'build-flow',
     description: 'Original',
     outcome: 'Ship it',
-    lifecycle: 'standard',
+    lifecycle: 'planned',
     version: 1,
     is_active: true,
     definition: {
       board: { columns: [{ id: 'todo', label: 'To Do' }] },
       stages: [{ name: 'build', goal: 'Build' }],
-      lifecycle: 'standard',
+      lifecycle: 'planned',
     },
     ...overrides,
   };

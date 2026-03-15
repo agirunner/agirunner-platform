@@ -9,7 +9,7 @@ const playbookCreateSchema = z.object({
   slug: z.string().min(1).max(120).optional(),
   description: z.string().max(4000).optional(),
   outcome: z.string().min(1).max(4000),
-  lifecycle: z.enum(['standard', 'continuous']).optional(),
+  lifecycle: z.enum(['planned', 'ongoing']).optional(),
   definition: z.record(z.unknown()),
 });
 
@@ -19,7 +19,7 @@ const playbookUpdateSchema = z
     slug: z.string().min(1).max(120).optional(),
     description: z.string().max(4000).optional(),
     outcome: z.string().min(1).max(4000).optional(),
-    lifecycle: z.enum(['standard', 'continuous']).optional(),
+    lifecycle: z.enum(['planned', 'ongoing']).optional(),
     definition: z.record(z.unknown()).optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {

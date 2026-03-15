@@ -32,7 +32,7 @@ describe('playbook detail page source', () => {
     expect(source).toContain('sm:grid-cols-2');
     expect(source).toContain('Shared prompts, role prompts, and runtime defaults are configured elsewhere.');
     expect(source).toContain('Compare every saved playbook setting against an earlier revision.');
-    expect(source).toContain("variant={selected ? 'secondary' : 'outline'}");
+    expect(source).toContain('SelectTrigger aria-label="Playbook lifecycle"');
     expect(source).toContain('rounded-xl border border-red-300 bg-red-50/80');
     expect(source).toContain('Resolve these authoring blockers before saving.');
     expect(source).toContain('rounded-xl border border-emerald-300 bg-emerald-50/80');

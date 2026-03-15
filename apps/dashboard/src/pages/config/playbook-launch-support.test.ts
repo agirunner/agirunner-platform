@@ -25,7 +25,7 @@ describe('playbook launch support', () => {
       name: 'Ship',
       slug: 'ship',
       outcome: 'Ship software',
-      lifecycle: 'continuous',
+      lifecycle: 'ongoing',
       version: 1,
       definition: {
         roles: ['architect', 'developer'],
@@ -401,7 +401,7 @@ describe('playbook launch support', () => {
           name: 'Ship',
           slug: 'ship',
           outcome: 'Ship software',
-          lifecycle: 'continuous',
+          lifecycle: 'ongoing',
           version: 1,
           is_active: true,
           definition: {},

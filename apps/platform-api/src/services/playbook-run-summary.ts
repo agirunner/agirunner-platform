@@ -112,7 +112,7 @@ export function buildPlaybookRunSummary(params: {
   const relations = readWorkflowRelations(params.workflow, metadata);
   const lifecycle = readWorkflowLifecycle(params.workflow);
   const stages =
-    lifecycle === 'continuous'
+    lifecycle === 'ongoing'
       ? normalizeContinuousStages(params.stages, params.workItems)
       : params.stages;
   const activationActivity = buildActivationActivity(params.activations ?? [], params.events);
@@ -151,9 +151,9 @@ export function buildPlaybookRunSummary(params: {
     child_workflow_activity: childWorkflowActivity,
     orchestrator_analytics: orchestratorAnalytics,
     stage_progression:
-      lifecycle === 'continuous' ? null : buildStageProgression(stages, params.workItems),
+      lifecycle === 'ongoing' ? null : buildStageProgression(stages, params.workItems),
     stage_activity:
-      lifecycle === 'continuous' ? buildStageActivity(stages, params.workItems) : null,
+      lifecycle === 'ongoing' ? buildStageActivity(stages, params.workItems) : null,
     stage_metrics: stages.map((stage) => {
       const stageItems = params.workItems.filter((item) => item.stage_name === stage.name);
       return {
@@ -810,7 +810,7 @@ function asOptionalString(value: unknown): string | undefined {
 }
 
 function readWorkflowLifecycle(workflow: Record<string, unknown>) {
-  return workflow.lifecycle === 'continuous' ? 'continuous' : 'standard';
+  return workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
 }
 
 function readWorkflowRelations(

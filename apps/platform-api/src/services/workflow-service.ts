@@ -196,7 +196,7 @@ export class WorkflowService {
                 pb.definition AS playbook_definition,
                 COALESCE(task_counts.task_counts, '{}'::jsonb) AS task_counts,
                 CASE
-                  WHEN w.lifecycle = 'standard'
+                  WHEN w.lifecycle = 'planned'
                   THEN stage_summary.current_stage_name
                   ELSE NULL
                 END AS current_stage,
@@ -207,13 +207,13 @@ export class WorkflowService {
                     'open_work_item_count', COALESCE(work_item_summary.open_work_item_count, 0),
                     'completed_work_item_count', COALESCE(work_item_summary.completed_work_item_count, 0),
                     'active_stage_count', CASE
-                      WHEN w.lifecycle = 'continuous'
+                      WHEN w.lifecycle = 'ongoing'
                       THEN COALESCE(work_item_summary.active_stage_count, 0)
                       ELSE COALESCE(stage_summary.active_stage_count, COALESCE(work_item_summary.active_stage_count, 0))
                     END,
                     'awaiting_gate_count', COALESCE(stage_summary.awaiting_gate_count, 0),
                     'active_stage_names', CASE
-                      WHEN w.lifecycle = 'continuous'
+                      WHEN w.lifecycle = 'ongoing'
                       THEN COALESCE(to_jsonb(work_item_summary.active_stage_names), '[]'::jsonb)
                       ELSE COALESCE(to_jsonb(stage_summary.active_stage_names), '[]'::jsonb)
                     END
@@ -375,7 +375,7 @@ export class WorkflowService {
       );
       return {
         ...normalizedWorkflow,
-        ...(workflowRow.lifecycle !== 'continuous'
+        ...(workflowRow.lifecycle !== 'ongoing'
           ? {
               current_stage: currentStageNameFromStages(workflowStages as never) ?? null,
             }
@@ -692,7 +692,7 @@ export class WorkflowService {
     );
     const boardWorkItems = annotateBoardWorkItems(workItems, terminalColumns);
     const stageSummary = buildBoardStageSummary(
-      String(workflow.lifecycle ?? 'standard'),
+      String(workflow.lifecycle ?? 'planned'),
       definition.stages ?? [],
       workflowStages,
       boardWorkItems,
@@ -834,7 +834,7 @@ function normalizeWorkflowReadModel(
     detailSummary ?? asRecord(workflow.work_item_summary),
     workflow.playbook_definition,
   );
-  if (workflow.lifecycle !== 'continuous') {
+  if (workflow.lifecycle !== 'ongoing') {
     const { playbook_definition: _playbookDefinition, ...rest } = workflow;
     return rest;
   }
@@ -1045,7 +1045,7 @@ function buildBoardStageSummary(
   terminalColumns: Set<string>,
 ) {
   const stageNames = new Set<string>();
-  if (lifecycle !== 'continuous') {
+  if (lifecycle !== 'ongoing') {
     for (const stage of stageDefinitions) {
       stageNames.add(stage.name);
     }
@@ -1062,7 +1062,7 @@ function buildBoardStageSummary(
 
   const workflowStageByName = new Map(workflowStages.map((stage) => [stage.name, stage]));
   const orderedStageNames =
-    lifecycle === 'continuous'
+    lifecycle === 'ongoing'
       ? orderStageNames(Array.from(stageNames), workflowStages)
       : Array.from(stageNames);
   return orderedStageNames.map((stageName) => {

@@ -56,7 +56,7 @@ describe('live board support', () => {
     expect(describeWorkflowStage({ active_stages: ['implementation', 'review'] })).toBe('implementation, review');
     expect(
       describeWorkflowStage({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         current_stage: 'legacy-stage',
         active_stages: ['implementation'],
         work_item_summary: {
@@ -69,7 +69,7 @@ describe('live board support', () => {
     ).toBe('implementation, review');
     expect(
       describeWorkflowStage({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         current_stage: 'legacy-stage',
       }),
     ).toBe('No live stages');
@@ -138,7 +138,7 @@ describe('live board support', () => {
     ).toBe(67);
     expect(
       readBoardProgressPercent({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         work_item_summary: {
           total_work_items: 6,
           completed_work_item_count: 4,

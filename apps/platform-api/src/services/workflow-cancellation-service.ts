@@ -240,7 +240,7 @@ export class WorkflowCancellationService {
     tenantId: string,
     workflowId: string,
   ) {
-    if (workflow.lifecycle === 'continuous') {
+    if (workflow.lifecycle === 'ongoing') {
       await client.query(
         `UPDATE workflow_stages
             SET gate_status = CASE

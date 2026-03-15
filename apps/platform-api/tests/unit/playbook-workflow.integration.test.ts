@@ -83,7 +83,7 @@ describe('playbook workflow integration', () => {
       outcome: 'Shipped work',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         board: {
           entry_column_id: 'active',
           columns: [
@@ -223,7 +223,7 @@ describe('playbook workflow integration', () => {
       outcome: 'Track board moves cleanly',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         board: {
           columns: [
             { id: 'backlog', label: 'Backlog' },
@@ -354,7 +354,7 @@ describe('playbook workflow integration', () => {
       outcome: 'Approved release',
       definition: {
         roles: ['developer'],
-        lifecycle: 'standard',
+        lifecycle: 'planned',
         board: {
           columns: [
             { id: 'planned', label: 'Planned' },
@@ -625,7 +625,7 @@ describe('playbook workflow integration', () => {
       outcome: 'Milestones delivered',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         board: {
           columns: [
             { id: 'backlog', label: 'Backlog' },
@@ -805,7 +805,7 @@ describe('playbook workflow integration', () => {
       outcome: 'Ship queued work',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         orchestrator: {
           max_active_tasks: 4,
           max_active_tasks_per_work_item: 1,
@@ -1018,7 +1018,7 @@ describe('playbook workflow integration', () => {
       outcome: 'Process triggered work safely',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         orchestrator: {
           max_active_tasks: 1,
           max_active_tasks_per_work_item: 1,
@@ -1258,7 +1258,7 @@ describe('playbook workflow integration', () => {
       outcome: 'Coordinate child workflows',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         orchestrator: {
           max_active_tasks: 2,
           max_active_tasks_per_work_item: 1,
@@ -1278,7 +1278,7 @@ describe('playbook workflow integration', () => {
       outcome: 'Deliver a child workflow outcome',
       definition: {
         roles: ['developer'],
-        lifecycle: 'standard',
+        lifecycle: 'planned',
         board: {
           columns: [
             { id: 'planned', label: 'Planned' },

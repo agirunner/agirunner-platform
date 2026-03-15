@@ -11,7 +11,7 @@ export interface LiveBoardWorkflowRecord {
     awaiting_gate_count: number;
     active_stage_names?: string[];
   } | null;
-  lifecycle?: 'standard' | 'continuous' | null;
+  lifecycle?: 'planned' | 'ongoing' | null;
   state?: string;
   metrics?: {
     total_cost_usd?: number;
@@ -67,7 +67,7 @@ function readLiveStageNames(workflow: LiveBoardWorkflowRecord): string[] {
 
 export function describeWorkflowStage(workflow: LiveBoardWorkflowRecord): string {
   const liveStages = readLiveStageNames(workflow);
-  if (workflow.lifecycle === 'continuous') {
+  if (workflow.lifecycle === 'ongoing') {
     return liveStages.length > 0 ? liveStages.join(', ') : 'No live stages';
   }
   if (workflow.current_stage) {
@@ -194,10 +194,10 @@ export function describeBoardProgress(
   workflow: LiveBoardWorkflowRecord,
   board?: DashboardWorkflowBoardResponse,
 ): string {
-  const standardStageProgress =
-    workflow.lifecycle !== 'continuous' ? readCompletedStageCount(board) : null;
-  if (standardStageProgress && standardStageProgress.totalCount > 0) {
-    return `${standardStageProgress.completedCount} of ${standardStageProgress.totalCount} stages complete`;
+  const plannedStageProgress =
+    workflow.lifecycle !== 'ongoing' ? readCompletedStageCount(board) : null;
+  if (plannedStageProgress && plannedStageProgress.totalCount > 0) {
+    return `${plannedStageProgress.completedCount} of ${plannedStageProgress.totalCount} stages complete`;
   }
   const summary = workflow.work_item_summary;
   if (!summary || summary.total_work_items === 0) {
@@ -211,7 +211,7 @@ export function readBoardProgressPercent(
   workflow: LiveBoardWorkflowRecord,
   board?: DashboardWorkflowBoardResponse,
 ): number | null {
-  if (workflow.lifecycle === 'continuous') {
+  if (workflow.lifecycle === 'ongoing') {
     return null;
   }
   const stageProgress = readCompletedStageCount(board);

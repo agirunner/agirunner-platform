@@ -1,6 +1,6 @@
 import { validateStructuredParameterDefaultValue } from './playbook-authoring-structured-controls.support.js';
 
-export type PlaybookLifecycle = 'standard' | 'continuous';
+export type PlaybookLifecycle = 'planned' | 'ongoing';
 
 export interface RoleDraft {
   value: string;
@@ -117,7 +117,7 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
     ],
     entry_column_id: 'inbox',
     stages:
-      lifecycle === 'continuous'
+      lifecycle === 'ongoing'
         ? [
             {
               name: 'triage',
@@ -728,7 +728,7 @@ function readOrchestrator(value: unknown): PlaybookAuthoringDraft['orchestrator'
     allow_parallel_work_items:
       typeof record.allow_parallel_work_items === 'boolean'
         ? record.allow_parallel_work_items
-        : createDefaultAuthoringDraft('continuous').orchestrator.allow_parallel_work_items,
+        : createDefaultAuthoringDraft('ongoing').orchestrator.allow_parallel_work_items,
   };
 }
 

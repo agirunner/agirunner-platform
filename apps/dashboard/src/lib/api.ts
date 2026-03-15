@@ -56,7 +56,7 @@ export interface DashboardPlaybookRecord {
   slug: string;
   description?: string | null;
   outcome: string;
-  lifecycle: 'standard' | 'continuous';
+  lifecycle: 'planned' | 'ongoing';
   version: number;
   is_active?: boolean;
   definition: Record<string, unknown>;
@@ -533,7 +533,7 @@ interface DashboardWorkflowRecordBase {
   project_name?: string | null;
   playbook_id?: string | null;
   playbook_name?: string | null;
-  lifecycle?: 'standard' | 'continuous' | null;
+  lifecycle?: 'planned' | 'ongoing' | null;
   active_stages?: string[];
   work_item_summary?: {
     total_work_items: number;
@@ -554,11 +554,11 @@ interface DashboardWorkflowRecordBase {
 
 export type DashboardWorkflowRecord =
   | (DashboardWorkflowRecordBase & {
-      lifecycle: 'continuous';
+      lifecycle: 'ongoing';
       current_stage?: never;
     })
   | (DashboardWorkflowRecordBase & {
-      lifecycle?: 'standard' | null;
+      lifecycle?: 'planned' | null;
       current_stage?: string | null;
     });
 
@@ -1628,7 +1628,7 @@ export interface DashboardApi {
     slug?: string;
     description?: string;
     outcome: string;
-    lifecycle?: 'standard' | 'continuous';
+    lifecycle?: 'planned' | 'ongoing';
     definition: Record<string, unknown>;
   }): Promise<DashboardPlaybookRecord>;
   updatePlaybook(
@@ -1638,7 +1638,7 @@ export interface DashboardApi {
       slug?: string;
       description?: string;
       outcome: string;
-      lifecycle?: 'standard' | 'continuous';
+      lifecycle?: 'planned' | 'ongoing';
       definition: Record<string, unknown>;
     },
   ): Promise<DashboardPlaybookRecord>;

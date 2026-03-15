@@ -1,7 +1,7 @@
 import { describeWorkflowProgress, type WorkflowListRecord } from './workflow-list-support.js';
 
 export function describeWorkflowStageLabel(workflow: WorkflowListRecord): string {
-  return workflow.lifecycle === 'continuous' ? 'Live stages' : 'Current stage';
+  return workflow.lifecycle === 'ongoing' ? 'Live stages' : 'Current stage';
 }
 
 export function describeWorkflowStageFootnote(workflow: WorkflowListRecord): string {

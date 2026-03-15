@@ -358,7 +358,7 @@ export function WorkflowStagesSection(props: SectionProps): JSX.Element {
     <SectionCard
       id="playbook-workflow-stages"
       title="Workflow Stages"
-      description="Ordered stages the orchestrator uses to progress a standard workflow or classify active work in a continuous workflow."
+      description="Ordered stages the orchestrator uses to progress a planned workflow or classify active work in an ongoing workflow."
     >
       <div className="space-y-4">
         {props.draft.stages.map((stage, index) => {

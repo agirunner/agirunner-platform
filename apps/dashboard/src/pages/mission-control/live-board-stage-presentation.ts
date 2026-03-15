@@ -13,7 +13,7 @@ export interface WorkflowStageProgressStep {
 export function describeWorkflowStageLabel(
   workflow: LiveBoardWorkflowRecord,
 ): string {
-  return workflow.lifecycle === 'continuous' ? 'Live stages' : 'Current stage';
+  return workflow.lifecycle === 'ongoing' ? 'Live stages' : 'Current stage';
 }
 
 export function describeWorkflowStageSummary(
@@ -36,13 +36,13 @@ export function buildWorkflowStageProgressSteps(
   }
 
   const stageNames =
-    workflow.lifecycle === 'continuous'
+    workflow.lifecycle === 'ongoing'
       ? workflow.active_stages ?? workflow.work_item_summary?.active_stage_names ?? []
       : [workflow.current_stage ?? ''].filter((stage) => stage.trim().length > 0);
   return stageNames.map((name) => ({
     name,
     tone: 'active',
-    detail: workflow.lifecycle === 'continuous' ? 'Live work in flight' : 'Current stage',
+    detail: workflow.lifecycle === 'ongoing' ? 'Live work in flight' : 'Current stage',
   }));
 }
 
@@ -52,9 +52,9 @@ export function describeWorkflowStageProgressSummary(
 ): string {
   const steps = buildWorkflowStageProgressSteps(workflow, board);
   if (steps.length === 0) {
-    return workflow.lifecycle === 'continuous' ? 'No live stages yet' : 'No stage progress yet';
+    return workflow.lifecycle === 'ongoing' ? 'No live stages yet' : 'No stage progress yet';
   }
-  if (workflow.lifecycle === 'continuous') {
+  if (workflow.lifecycle === 'ongoing') {
     return `${steps.length} live stage${steps.length === 1 ? '' : 's'} tracked`;
   }
   const completedCount = steps.filter((step) => step.tone === 'done').length;

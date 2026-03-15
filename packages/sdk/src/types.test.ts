@@ -64,9 +64,9 @@ describe('sdk shared state contracts', () => {
 
     expect(source).toContain('export type WorkflowState =');
     expect(workflowBaseBlock).toContain('state: WorkflowState;');
-    expect(workflowBlock).toContain("lifecycle: 'continuous';");
+    expect(workflowBlock).toContain("lifecycle: 'ongoing';");
     expect(workflowBlock).toContain('current_stage?: never;');
-    expect(workflowBlock).toContain("lifecycle?: 'standard' | null;");
+    expect(workflowBlock).toContain("lifecycle?: 'planned' | null;");
     expect(workflowBlock).toContain('current_stage?: string | null;');
     expect(relationBlock).toContain('state: WorkflowState;');
     expect(timelineBlock).toContain('state: WorkflowState;');

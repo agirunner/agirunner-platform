@@ -435,7 +435,7 @@ export function WorkflowDetailPage(): JSX.Element {
     for (const stageName of workflowQuery.data?.active_stages ?? []) {
       names.add(stageName);
     }
-    const shouldUseCurrentStageFallback = workflowQuery.data?.lifecycle !== 'continuous';
+    const shouldUseCurrentStageFallback = workflowQuery.data?.lifecycle !== 'ongoing';
     const currentWorkflowStage = workflowQuery.data?.current_stage;
     if (currentWorkflowStage && shouldUseCurrentStageFallback) {
       names.add(currentWorkflowStage);

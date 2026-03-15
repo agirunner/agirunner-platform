@@ -127,7 +127,7 @@ describe('orchestrator grants support', () => {
         created_at: '2026-03-12T00:00:00.000Z',
         project_name: 'Project Z',
         playbook_name: 'Incident',
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
       },
       {
         id: 'workflow-1',
@@ -163,7 +163,7 @@ describe('orchestrator grants support', () => {
       { label: 'State', value: 'active' },
       { label: 'Project', value: 'Project Z' },
       { label: 'Playbook', value: 'Incident' },
-      { label: 'Lifecycle', value: 'continuous' },
+      { label: 'Lifecycle', value: 'ongoing' },
     ]);
   });
 

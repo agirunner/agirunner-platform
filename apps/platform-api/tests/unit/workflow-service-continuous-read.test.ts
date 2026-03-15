@@ -19,10 +19,10 @@ describe('WorkflowService continuous workflow reads', () => {
             {
               id: 'wf-1',
               tenant_id: 'tenant-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               current_stage: 'legacy-stage',
               playbook_definition: {
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 roles: ['triager'],
                 board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 stages: [
@@ -60,7 +60,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(listSql).not.toContain('template_id');
     expect(listSql).not.toContain('current_phase');
     expect(listSql).not.toContain('w.current_stage');
-    expect(listSql).toContain("WHEN w.lifecycle = 'continuous'");
+    expect(listSql).toContain("WHEN w.lifecycle = 'ongoing'");
     expect(listSql).toContain("THEN COALESCE(work_item_summary.active_stage_count, 0)");
     expect(listSql).toContain("THEN COALESCE(to_jsonb(work_item_summary.active_stage_names), '[]'::jsonb)");
     expect(result.data[0].active_stages).toEqual(['triage', 'implementation']);
@@ -86,7 +86,7 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'wf-1',
               tenant_id: 'tenant-1',
               playbook_id: 'pb-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               current_stage: 'legacy-stage',
               metadata: {},
             },
@@ -283,7 +283,7 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'wf-standard',
               tenant_id: 'tenant-1',
               playbook_id: 'pb-1',
-              lifecycle: 'standard',
+              lifecycle: 'planned',
               current_stage: 'implementation',
               metadata: {},
             },
@@ -332,7 +332,7 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'wf-1',
               tenant_id: 'tenant-1',
               playbook_id: 'pb-1',
-              lifecycle: 'standard',
+              lifecycle: 'planned',
               current_stage: 'implementation',
               metadata: {
                 child_workflow_ids: ['wf-child-1'],
@@ -490,7 +490,7 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'wf-1',
               tenant_id: 'tenant-1',
               playbook_id: 'pb-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               current_stage: 'legacy-stage',
               metadata: {},
             },
@@ -614,7 +614,7 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'wf-1',
               tenant_id: 'tenant-1',
               playbook_id: 'pb-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               current_stage: 'legacy-stage',
               metadata: {},
             },
@@ -691,7 +691,7 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'wf-1',
               tenant_id: 'tenant-1',
               playbook_id: 'pb-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               current_stage: 'legacy-stage',
               metadata: {},
             },
@@ -844,7 +844,7 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'wf-1',
               tenant_id: 'tenant-1',
               playbook_id: 'pb-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               current_stage: 'legacy-stage',
               metadata: {},
             },
@@ -1005,7 +1005,7 @@ describe('WorkflowService continuous workflow reads', () => {
               id: 'wf-1',
               tenant_id: 'tenant-1',
               playbook_id: 'pb-1',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               current_stage: null,
               metadata: {},
             },
@@ -1132,7 +1132,7 @@ describe('WorkflowService continuous workflow reads', () => {
                 id: 'wf-1',
                 tenant_id: 'tenant-1',
                 playbook_id: 'pb-1',
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 current_stage: null,
                 metadata: {},
               },

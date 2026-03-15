@@ -42,7 +42,7 @@ const playbookDefinitionSchema = z.object({
     columns: z.array(boardColumnSchema).min(1),
   }),
   stages: z.array(stageSchema).default([]),
-  lifecycle: z.enum(['standard', 'continuous']).default('standard'),
+  lifecycle: z.enum(['planned', 'ongoing']).default('planned'),
   orchestrator: z
     .object({
       instructions: z.string().max(20000).optional(),

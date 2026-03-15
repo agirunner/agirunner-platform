@@ -1,7 +1,7 @@
 import type { DashboardPlaybookRecord } from '../../lib/api.js';
 
 export type PlaybookStatusFilter = 'all' | 'active' | 'archived';
-export type PlaybookLifecycleFilter = 'all' | 'standard' | 'continuous';
+export type PlaybookLifecycleFilter = 'all' | 'planned' | 'ongoing';
 export type PlaybookSortOption = 'updated-desc' | 'name-asc' | 'revision-count-desc';
 
 export interface PlaybookFamilyRecord {
@@ -9,7 +9,7 @@ export interface PlaybookFamilyRecord {
   name: string;
   description?: string | null;
   outcome: string;
-  lifecycle: 'standard' | 'continuous';
+  lifecycle: 'planned' | 'ongoing';
   revisions: DashboardPlaybookRecord[];
   revisionCount: number;
   activeRevisionCount: number;

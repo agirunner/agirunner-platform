@@ -13,7 +13,7 @@ import {
 
 describe('playbook authoring support', () => {
   it('builds a structured definition payload that matches the create playbook contract', () => {
-    const draft = createDefaultAuthoringDraft('standard');
+    const draft = createDefaultAuthoringDraft('planned');
     draft.roles = [{ value: 'architect' }, { value: 'developer' }];
     draft.entry_column_id = 'doing';
     draft.columns[0].description = 'New work waiting for orchestration';
@@ -37,13 +37,13 @@ describe('playbook authoring support', () => {
     draft.runtime.specialist_pool.image = 'ghcr.io/agirunner/runtime:latest';
     draft.runtime.specialist_pool.priority = '10';
 
-    const built = buildPlaybookDefinition('standard', draft);
+    const built = buildPlaybookDefinition('planned', draft);
 
     expect(built).toEqual(
       expect.objectContaining({
         ok: true,
         value: expect.objectContaining({
-          lifecycle: 'standard',
+          lifecycle: 'planned',
           roles: ['architect', 'developer'],
           board: expect.objectContaining({
             entry_column_id: 'doing',
@@ -110,24 +110,24 @@ describe('playbook authoring support', () => {
   });
 
   it('rejects incomplete or duplicate structured rows before submit', () => {
-    const draft = createDefaultAuthoringDraft('continuous');
+    const draft = createDefaultAuthoringDraft('ongoing');
     draft.columns[0].id = '';
 
-    expect(buildPlaybookDefinition('continuous', draft)).toEqual({
+    expect(buildPlaybookDefinition('ongoing', draft)).toEqual({
       ok: false,
       error: 'Add a stable column ID.',
     });
 
     draft.columns[0].id = 'inbox';
     draft.columns[1].id = 'inbox';
-    expect(buildPlaybookDefinition('continuous', draft)).toEqual({
+    expect(buildPlaybookDefinition('ongoing', draft)).toEqual({
       ok: false,
       error: 'Column IDs must be unique.',
     });
   });
 
   it('rejects invalid persisted object and list defaults before submit', () => {
-    const objectDraft = createDefaultAuthoringDraft('continuous');
+    const objectDraft = createDefaultAuthoringDraft('ongoing');
     objectDraft.parameters = [
       {
         name: 'context',
@@ -144,12 +144,12 @@ describe('playbook authoring support', () => {
       },
     ];
 
-    expect(buildPlaybookDefinition('continuous', objectDraft)).toEqual({
+    expect(buildPlaybookDefinition('ongoing', objectDraft)).toEqual({
       ok: false,
       error: 'Object defaults must be valid structured object data.',
     });
 
-    const arrayDraft = createDefaultAuthoringDraft('continuous');
+    const arrayDraft = createDefaultAuthoringDraft('ongoing');
     arrayDraft.parameters = [
       {
         name: 'branches',
@@ -166,14 +166,14 @@ describe('playbook authoring support', () => {
       },
     ];
 
-    expect(buildPlaybookDefinition('continuous', arrayDraft)).toEqual({
+    expect(buildPlaybookDefinition('ongoing', arrayDraft)).toEqual({
       ok: false,
       error: 'Array defaults must be valid structured list data.',
     });
   });
 
   it('validates board columns inline while operators edit the draft', () => {
-    const draft = createDefaultAuthoringDraft('standard');
+    const draft = createDefaultAuthoringDraft('planned');
     draft.columns = [
       { id: '', label: '', description: '', is_blocked: false, is_terminal: false },
       { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
@@ -300,7 +300,7 @@ describe('playbook authoring support', () => {
   });
 
   it('hydrates a structured authoring draft from an existing playbook definition', () => {
-    const draft = hydratePlaybookAuthoringDraft('continuous', {
+    const draft = hydratePlaybookAuthoringDraft('ongoing', {
       roles: ['developer', 'reviewer'],
       board: {
         columns: [
@@ -370,7 +370,7 @@ describe('playbook authoring support', () => {
   });
 
   it('summarizes structured authoring posture for guided review', () => {
-    const draft = createDefaultAuthoringDraft('continuous');
+    const draft = createDefaultAuthoringDraft('ongoing');
     draft.roles = [{ value: 'architect' }, { value: 'developer' }];
     draft.columns[0].is_blocked = true;
     draft.stages[1].human_gate = true;

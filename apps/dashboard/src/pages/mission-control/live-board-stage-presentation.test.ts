@@ -12,7 +12,7 @@ describe('live board stage presentation', () => {
     expect(describeWorkflowStageLabel({})).toBe('Current stage');
     expect(
       describeWorkflowStageLabel({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
       }),
     ).toBe('Live stages');
   });
@@ -26,7 +26,7 @@ describe('live board stage presentation', () => {
 
     expect(
       describeWorkflowStageSummary({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         active_stages: ['implementation', 'verification'],
       }),
     ).toBe('Live stages · implementation, verification');

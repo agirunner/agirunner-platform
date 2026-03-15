@@ -48,7 +48,7 @@ describe('workflow activation recovery integration', () => {
       outcome: 'Recover stale orchestrator activations safely',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         board: {
           columns: [
             { id: 'triage', label: 'Triage' },

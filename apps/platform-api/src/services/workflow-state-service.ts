@@ -199,7 +199,7 @@ export class WorkflowStateService {
     if (isTerminalWorkflowState(previousState)) return previousState;
 
     const posture = await this.loadWorkflowPosture(tenantId, workflowId, db);
-    if (posture.lifecycle === 'continuous') {
+    if (posture.lifecycle === 'ongoing') {
       return deriveContinuousWorkflowState(posture);
     }
 
@@ -224,7 +224,7 @@ export class WorkflowStateService {
     );
 
     const normalizedLifecycle: WorkflowPosture['lifecycle'] =
-      workflowResult.rows[0]?.lifecycle === 'continuous' ? 'continuous' : 'standard';
+      workflowResult.rows[0]?.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
     const [stageResult, orchestratorResult, workItemResult] = await Promise.all([
       db.query<{ status: string; gate_status: string }>(
         'SELECT status, gate_status FROM workflow_stages WHERE tenant_id = $1 AND workflow_id = $2',
@@ -276,11 +276,11 @@ interface WorkflowPostureBase {
 type WorkflowPostureShape = Omit<WorkflowPostureBase, 'lifecycle'>;
 
 interface StandardWorkflowPosture extends WorkflowPostureBase {
-  lifecycle: 'standard';
+  lifecycle: 'planned';
 }
 
 interface ContinuousWorkflowPosture extends WorkflowPostureBase {
-  lifecycle: 'continuous';
+  lifecycle: 'ongoing';
 }
 
 type WorkflowPosture = StandardWorkflowPosture | ContinuousWorkflowPosture;
@@ -292,13 +292,13 @@ function buildWorkflowPosture(
   openWorkItemCount: number,
 ): WorkflowPosture {
   const normalizedLifecycle: WorkflowPosture['lifecycle'] =
-    lifecycle === 'continuous' ? 'continuous' : 'standard';
+    lifecycle === 'ongoing' ? 'ongoing' : 'planned';
   const base: WorkflowPostureShape = {
     stages,
     hasActiveOrchestratorTask,
     openWorkItemCount,
   };
-  if (normalizedLifecycle === 'continuous') {
+  if (normalizedLifecycle === 'ongoing') {
     return {
       ...base,
       lifecycle: normalizedLifecycle,

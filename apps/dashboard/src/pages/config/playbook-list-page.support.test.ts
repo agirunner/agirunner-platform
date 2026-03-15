@@ -15,7 +15,7 @@ const PLAYBOOKS = [
     slug: 'sdlc-continuous',
     description: 'Continuous delivery board',
     outcome: 'Ship changes continuously',
-    lifecycle: 'continuous' as const,
+    lifecycle: 'ongoing' as const,
     version: 4,
     is_active: true,
     updated_at: '2026-03-15T12:00:00Z',
@@ -27,7 +27,7 @@ const PLAYBOOKS = [
     slug: 'sdlc-continuous',
     description: 'Older active revision',
     outcome: 'Ship changes continuously',
-    lifecycle: 'continuous' as const,
+    lifecycle: 'ongoing' as const,
     version: 3,
     is_active: false,
     updated_at: '2026-03-12T12:00:00Z',
@@ -39,7 +39,7 @@ const PLAYBOOKS = [
     slug: 'release-checklist',
     description: 'Milestone release flow',
     outcome: 'Deliver a stable release',
-    lifecycle: 'standard' as const,
+    lifecycle: 'planned' as const,
     version: 2,
     is_active: false,
     updated_at: '2026-03-14T12:00:00Z',
@@ -51,7 +51,7 @@ const PLAYBOOKS = [
     slug: 'release-checklist',
     description: 'Older archived revision',
     outcome: 'Deliver a stable release',
-    lifecycle: 'standard' as const,
+    lifecycle: 'planned' as const,
     version: 1,
     is_active: false,
     updated_at: '2026-03-10T12:00:00Z',
@@ -82,10 +82,10 @@ describe('playbook list support', () => {
     expect(filterPlaybookFamilies(families, 'release', 'all', 'all', 'updated-desc')).toEqual([
       expect.objectContaining({ slug: 'release-checklist' }),
     ]);
-    expect(filterPlaybookFamilies(families, '', 'active', 'continuous', 'updated-desc')).toEqual([
+    expect(filterPlaybookFamilies(families, '', 'active', 'ongoing', 'updated-desc')).toEqual([
       expect.objectContaining({ slug: 'sdlc-continuous' }),
     ]);
-    expect(filterPlaybookFamilies(families, '', 'archived', 'standard', 'updated-desc')).toEqual([
+    expect(filterPlaybookFamilies(families, '', 'archived', 'planned', 'updated-desc')).toEqual([
       expect.objectContaining({ slug: 'release-checklist' }),
     ]);
     expect(filterPlaybookFamilies(families, '', 'all', 'all', 'name-asc').map((family) => family.slug)).toEqual([

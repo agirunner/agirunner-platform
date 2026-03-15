@@ -1,5 +1,5 @@
 interface InspectorWorkflowStageRecord {
-  lifecycle?: 'standard' | 'continuous' | null;
+  lifecycle?: 'planned' | 'ongoing' | null;
   work_item_summary?: { active_stage_names?: string[] | null } | null;
   active_stages?: string[] | null;
   current_stage?: string | null;
@@ -14,7 +14,7 @@ function readLiveStageNames(workflow: InspectorWorkflowStageRecord | undefined):
 export function describeWorkflowStageLabel(
   workflow: InspectorWorkflowStageRecord | undefined,
 ): string {
-  return workflow?.lifecycle === 'continuous' ? 'Live stages' : 'Current stage';
+  return workflow?.lifecycle === 'ongoing' ? 'Live stages' : 'Current stage';
 }
 
 export function describeWorkflowStageValue(
@@ -24,7 +24,7 @@ export function describeWorkflowStageValue(
   if (liveStages.length > 0) {
     return liveStages.join(', ');
   }
-  if (workflow?.lifecycle === 'continuous') {
+  if (workflow?.lifecycle === 'ongoing') {
     return 'No live stages';
   }
   return workflow?.current_stage ?? 'No current stage';

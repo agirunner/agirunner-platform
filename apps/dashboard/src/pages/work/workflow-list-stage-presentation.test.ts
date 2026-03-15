@@ -22,7 +22,7 @@ describe('workflow list stage presentation', () => {
         name: 'Continuous',
         status: 'running',
         created_at: '2026-03-11',
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
       }),
     ).toBe('Live stages');
   });
@@ -34,7 +34,7 @@ describe('workflow list stage presentation', () => {
         name: 'Active',
         status: 'running',
         created_at: '2026-03-11',
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         work_item_summary: {
           total_work_items: 4,
           open_work_item_count: 2,

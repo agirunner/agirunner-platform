@@ -8,7 +8,7 @@ export interface CreatePlaybookInput {
   slug?: string;
   description?: string;
   outcome: string;
-  lifecycle?: 'standard' | 'continuous';
+  lifecycle?: 'planned' | 'ongoing';
   definition: Record<string, unknown>;
 }
 
@@ -17,7 +17,7 @@ export interface UpdatePlaybookInput {
   slug?: string;
   description?: string;
   outcome?: string;
-  lifecycle?: 'standard' | 'continuous';
+  lifecycle?: 'planned' | 'ongoing';
   definition?: Record<string, unknown>;
 }
 
@@ -277,8 +277,8 @@ function asOptionalString(value: unknown): string | undefined {
   return typeof value === 'string' ? value : undefined;
 }
 
-function readLifecycle(value: unknown): 'standard' | 'continuous' | undefined {
-  return value === 'continuous' ? 'continuous' : value === 'standard' ? 'standard' : undefined;
+function readLifecycle(value: unknown): 'planned' | 'ongoing' | undefined {
+  return value === 'ongoing' ? 'ongoing' : value === 'planned' ? 'planned' : undefined;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

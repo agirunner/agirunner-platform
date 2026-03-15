@@ -136,13 +136,13 @@ describe('sdk full client coverage', () => {
     it('covers v2 playbook, board, stage, activation, approval, and task-scope helpers', async () => {
         const fetcher = vi
             .fn()
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'playbook-1', lifecycle: 'continuous' }] }), {
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'playbook-1', lifecycle: 'ongoing' }] }), {
             status: 200,
         }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'playbook-1', lifecycle: 'continuous' } }), {
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'playbook-1', lifecycle: 'ongoing' } }), {
             status: 200,
         }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'playbook-2', lifecycle: 'standard' } }), {
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'playbook-2', lifecycle: 'planned' } }), {
             status: 200,
         }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'playbook-3', version: 2 } }), {
@@ -367,7 +367,7 @@ describe('sdk full client coverage', () => {
         const createdPlaybook = await client.createPlaybook({
             name: 'Delivery',
             outcome: 'Ship production code',
-            definition: { lifecycle: 'standard', stages: [] },
+            definition: { lifecycle: 'planned', stages: [] },
         });
         const updatedPlaybook = await client.updatePlaybook('playbook-2', {
             description: 'Rev 2',
@@ -375,7 +375,7 @@ describe('sdk full client coverage', () => {
         const replacedPlaybook = await client.replacePlaybook('playbook-3', {
             name: 'Delivery',
             outcome: 'Ship production code',
-            definition: { lifecycle: 'continuous', stages: [] },
+            definition: { lifecycle: 'ongoing', stages: [] },
         });
         const archivedPlaybook = await client.archivePlaybook('playbook-4');
         const restoredPlaybook = await client.restorePlaybook('playbook-4');

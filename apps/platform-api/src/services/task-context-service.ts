@@ -83,7 +83,7 @@ export async function buildTaskContext(
         tenantId,
         String(workflowRow.id),
         workflowRow.playbook_definition,
-        continuousWorkflowRow ? 'continuous' : 'standard',
+        continuousWorkflowRow ? 'ongoing' : 'planned',
       )
     : [];
   const workflowRelations = workflowRow
@@ -190,7 +190,7 @@ function buildWorkflowContextBase(params: {
 
 function buildContinuousWorkflowContext(params: {
   workflowRow: Record<string, unknown> & {
-    lifecycle: 'continuous';
+    lifecycle: 'ongoing';
   };
   activeStages: string[];
   workflowRelations: Record<string, unknown> | null;
@@ -218,8 +218,8 @@ async function buildStandardWorkflowContext(params: {
 
 function isContinuousWorkflowRow(
   workflowRow: Record<string, unknown>,
-): workflowRow is Record<string, unknown> & { lifecycle: 'continuous' } {
-  return workflowRow.lifecycle === 'continuous';
+): workflowRow is Record<string, unknown> & { lifecycle: 'ongoing' } {
+  return workflowRow.lifecycle === 'ongoing';
 }
 
 async function loadWorkflowActiveStages(
@@ -227,10 +227,10 @@ async function loadWorkflowActiveStages(
   tenantId: string,
   workflowId: string,
   definition: unknown,
-  lifecycle: 'continuous' | 'standard',
+  lifecycle: 'ongoing' | 'planned',
 ): Promise<string[]> {
   const result =
-    lifecycle === 'continuous'
+    lifecycle === 'ongoing'
       ? await loadContinuousWorkflowActiveStages(db, tenantId, workflowId)
       : await loadStandardWorkflowActiveStages(db, tenantId, workflowId);
   return orderStageNamesByDefinition(result.rows.map((row) => row.stage_name), definition);

@@ -5,7 +5,7 @@ export interface WorkflowStageDisplay {
 }
 
 interface WorkflowStageRecord {
-  lifecycle?: 'standard' | 'continuous' | null;
+  lifecycle?: 'planned' | 'ongoing' | null;
   current_stage?: string | null;
   active_stages?: string[] | null;
   work_item_summary?: {
@@ -31,7 +31,7 @@ export function deriveWorkflowStageDisplay(
     ]),
   ).filter((stage) => stage.trim().length > 0);
 
-  if (workflow.lifecycle === 'continuous') {
+  if (workflow.lifecycle === 'ongoing') {
     if (liveStages.length > 0) {
       const value = liveStages.join(', ');
       return { label: 'Live stages', badgeValue: value, detailValue: value };

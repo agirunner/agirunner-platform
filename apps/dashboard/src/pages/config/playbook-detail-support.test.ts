@@ -117,7 +117,7 @@ function createPlaybook(
       ],
     },
     stages: [{ name: 'delivery', goal: 'Ship the change', human_gate: version % 2 === 0 }],
-    lifecycle: 'continuous',
+    lifecycle: 'ongoing',
     orchestrator: {
       check_interval: '5m',
       stale_threshold: '30m',
@@ -147,7 +147,7 @@ function createPlaybook(
     slug: 'delivery-playbook',
     description: 'Current description',
     outcome: 'Ship production-ready changes',
-    lifecycle: 'continuous',
+    lifecycle: 'ongoing',
     version,
     definition: mergeDefinition(baseDefinition, overrides.definition),
     created_at: '2026-03-10T12:00:00Z',

@@ -210,7 +210,7 @@ export function WorkflowInspectorPage(): JSX.Element {
                     label={stageLabel}
                     value={stageValue}
                     detail={
-                      workflow.lifecycle === 'continuous'
+                      workflow.lifecycle === 'ongoing'
                         ? `${workflow.work_item_summary?.active_stage_count ?? 0} active stage${workflow.work_item_summary?.active_stage_count === 1 ? '' : 's'} in the current workflow scope`
                         : 'Current board stage in the scoped workflow shell'
                     }

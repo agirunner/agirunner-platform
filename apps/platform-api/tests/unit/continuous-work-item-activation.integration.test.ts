@@ -56,7 +56,7 @@ describe('continuous workflow work-item activation integration', () => {
       outcome: 'Process incoming work safely',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         orchestrator: {
           max_active_tasks: 2,
           max_active_tasks_per_work_item: 1,
@@ -199,7 +199,7 @@ describe('continuous workflow work-item activation integration', () => {
       outcome: 'Avoid duplicate activation finalization',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         board: {
           columns: [
             { id: 'triage', label: 'Triage' },

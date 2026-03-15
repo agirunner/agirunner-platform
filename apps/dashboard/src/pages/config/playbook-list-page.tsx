@@ -36,7 +36,11 @@ import {
   PlaybookLibraryToolbar,
 } from './playbook-list-page.library.js';
 
-const DEFAULT_LIFECYCLE = 'continuous';
+const DEFAULT_LIFECYCLE = 'ongoing';
+
+function describePlaybookLifecycle(lifecycle: 'planned' | 'ongoing'): string {
+  return lifecycle === 'planned' ? 'Planned' : 'Ongoing';
+}
 
 export function PlaybookListPage(): JSX.Element {
   const navigate = useNavigate();
@@ -46,7 +50,7 @@ export function PlaybookListPage(): JSX.Element {
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
   const [outcome, setOutcome] = useState('');
-  const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
+  const [lifecycle, setLifecycle] = useState<'planned' | 'ongoing'>(DEFAULT_LIFECYCLE);
   const [statusFilter, setStatusFilter] = useState<PlaybookStatusFilter>('all');
   const [lifecycleFilter, setLifecycleFilter] = useState<PlaybookLifecycleFilter>('all');
   const [sort, setSort] = useState<PlaybookSortOption>('updated-desc');
@@ -126,7 +130,7 @@ export function PlaybookListPage(): JSX.Element {
     setDefinitionError(null);
   }
 
-  function handleLifecycleChange(next: 'standard' | 'continuous') {
+  function handleLifecycleChange(next: 'planned' | 'ongoing') {
     setLifecycle(next);
     setDraft(createDefaultAuthoringDraft(next));
     setAuthoringValidationIssues([]);
@@ -245,15 +249,15 @@ export function PlaybookListPage(): JSX.Element {
                   <Select
                     value={lifecycle}
                     onValueChange={(value) =>
-                      handleLifecycleChange(value as 'standard' | 'continuous')
+                      handleLifecycleChange(value as 'planned' | 'ongoing')
                     }
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="continuous">Continuous</SelectItem>
-                      <SelectItem value="standard">Standard</SelectItem>
+                      <SelectItem value="ongoing">Ongoing</SelectItem>
+                      <SelectItem value="planned">Planned</SelectItem>
                     </SelectContent>
                   </Select>
                 </label>
@@ -308,7 +312,7 @@ export function PlaybookListPage(): JSX.Element {
                   value={createValidation.normalizedSlug || 'Generated from the playbook name'}
                   ready={!createValidation.fieldErrors.slug}
                 />
-                <ReadinessRow label="Lifecycle" value={lifecycle} ready />
+                <ReadinessRow label="Lifecycle" value={describePlaybookLifecycle(lifecycle)} ready />
                 <ReadinessRow
                   label="Flow design"
                   value={`${summary.columnCount} columns • ${summary.stageCount} stages`}
@@ -404,7 +408,7 @@ export function PlaybookListPage(): JSX.Element {
         <p className="text-sm text-red-600 dark:text-red-400">Failed to load playbooks.</p>
       ) : null}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+      <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
         {filteredFamilies.map((family) => {
           return (
             <PlaybookFamilyCard key={family.slug} family={family} />

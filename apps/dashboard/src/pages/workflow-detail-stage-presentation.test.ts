@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import { deriveWorkflowStageDisplay } from './workflow-detail-stage-presentation.js';
 
 describe('workflow detail stage presentation', () => {
-  it('uses lifecycle-aware live-stage semantics for continuous workflows', () => {
+  it('uses lifecycle-aware live-stage semantics for ongoing workflows', () => {
     expect(
       deriveWorkflowStageDisplay({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         current_stage: 'legacy-review',
         work_item_summary: {
           active_stage_names: ['implementation', 'verification'],
@@ -20,7 +20,7 @@ describe('workflow detail stage presentation', () => {
 
     expect(
       deriveWorkflowStageDisplay({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
       }),
     ).toEqual({
       label: 'Live stages',
@@ -29,7 +29,7 @@ describe('workflow detail stage presentation', () => {
     });
   });
 
-  it('keeps standard workflows on current-stage semantics with readable empty copy', () => {
+  it('keeps planned workflows on current-stage semantics with readable empty copy', () => {
     expect(
       deriveWorkflowStageDisplay({
         current_stage: 'review',

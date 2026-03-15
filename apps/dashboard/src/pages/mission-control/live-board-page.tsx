@@ -83,7 +83,7 @@ interface WorkflowRecord {
   name: string;
   project_id?: string | null;
   playbook_id?: string | null;
-  lifecycle?: 'standard' | 'continuous' | null;
+  lifecycle?: 'planned' | 'ongoing' | null;
   current_stage?: string | null;
   active_stages?: string[];
   work_item_summary?: {
@@ -395,7 +395,7 @@ export function LiveBoardPage(): JSX.Element {
           return true;
         }
         const stageTokens =
-          workflow.lifecycle === 'continuous'
+          workflow.lifecycle === 'ongoing'
             ? [
                 ...(workflow.active_stages ?? []),
                 ...(workflow.work_item_summary?.active_stage_names ?? []),
@@ -588,7 +588,7 @@ export function LiveBoardPage(): JSX.Element {
           const summaryStages = workflow.work_item_summary?.active_stage_names ?? [];
           const activeStages = workflow.active_stages ?? [];
           const liveStageNames = Array.from(new Set([...activeStages, ...summaryStages]));
-          if (workflow.lifecycle === 'continuous') {
+          if (workflow.lifecycle === 'ongoing') {
             return liveStageNames;
           }
           return workflow.current_stage
@@ -1491,8 +1491,8 @@ function WorkflowProgressPanel(props: {
           <p className="text-sm font-medium text-foreground">{progressSummary}</p>
         </div>
         <Badge variant="outline">
-          {props.workflow.lifecycle === 'continuous'
-            ? '∞ continuous'
+          {props.workflow.lifecycle === 'ongoing'
+            ? '∞ ongoing'
             : percent === null
               ? 'No percent yet'
               : `${percent}% complete`}
@@ -1503,13 +1503,13 @@ function WorkflowProgressPanel(props: {
           <div
             className={cn(
               'h-2 rounded-full transition-[width]',
-              props.workflow.lifecycle === 'continuous'
+              props.workflow.lifecycle === 'ongoing'
                 ? 'bg-[linear-gradient(90deg,hsl(var(--accent))_0%,hsl(var(--accent))_55%,rgba(245,158,11,0.85)_100%)]'
                 : 'bg-accent',
             )}
             style={{
               width: `${readProgressWidth(
-                props.workflow.lifecycle === 'continuous' ? 100 : percent,
+                props.workflow.lifecycle === 'ongoing' ? 100 : percent,
               )}%`,
             }}
           />
@@ -1517,8 +1517,8 @@ function WorkflowProgressPanel(props: {
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs leading-5 text-muted">
           <span>{describeBoardProgress(props.workflow, props.board)}</span>
           <span>
-            {props.workflow.lifecycle === 'continuous'
-              ? 'Continuous intake'
+            {props.workflow.lifecycle === 'ongoing'
+              ? 'Ongoing intake'
               : percent === null
                 ? 'Awaiting completed work'
                 : `${percent}% delivered`}

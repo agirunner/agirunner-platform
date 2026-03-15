@@ -16,6 +16,13 @@ import {
   DialogTitle,
 } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { cn } from '../../lib/utils.js';
@@ -31,19 +38,23 @@ import {
 } from './playbook-detail-support.js';
 import { PlaybookRevisionHistoryCard } from './playbook-detail-sections.js';
 
-const DEFAULT_LIFECYCLE = 'continuous';
+const DEFAULT_LIFECYCLE = 'ongoing';
 const lifecycleOptions = [
   {
-    value: 'continuous',
-    label: 'Continuous',
-    description: 'Work items can run across multiple active stages with playbook-level parallelism.',
+    value: 'ongoing',
+    label: 'Ongoing',
+    description: 'Keeps one standing workflow open so new work can continue flowing into it over time.',
   },
   {
-    value: 'standard',
-    label: 'Standard',
-    description: 'One structured stage path with tighter milestone progression.',
+    value: 'planned',
+    label: 'Planned',
+    description: 'Launches a bounded workflow with a clear start, finish, and stage progression.',
   },
 ] as const;
+
+function describePlaybookLifecycle(lifecycle: 'planned' | 'ongoing'): string {
+  return lifecycle === 'planned' ? 'Planned' : 'Ongoing';
+}
 
 export function PlaybookDetailPage(): JSX.Element {
   const params = useParams<{ id: string }>();
@@ -54,7 +65,7 @@ export function PlaybookDetailPage(): JSX.Element {
   const [slug, setSlug] = useState('');
   const [outcome, setOutcome] = useState('');
   const [isActive, setIsActive] = useState(true);
-  const [lifecycle, setLifecycle] = useState<'standard' | 'continuous'>(DEFAULT_LIFECYCLE);
+  const [lifecycle, setLifecycle] = useState<'planned' | 'ongoing'>(DEFAULT_LIFECYCLE);
   const [draft, setDraft] = useState<PlaybookAuthoringDraft>(() =>
     hydratePlaybookAuthoringDraft(DEFAULT_LIFECYCLE, {}),
   );
@@ -221,7 +232,7 @@ export function PlaybookDetailPage(): JSX.Element {
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="text-2xl font-semibold">{playbook.name}</h1>
             <Badge variant="outline">v{playbook.version}</Badge>
-            <Badge variant="secondary">{playbook.lifecycle}</Badge>
+            <Badge variant="secondary">{describePlaybookLifecycle(playbook.lifecycle)}</Badge>
             {!playbook.is_active ? <Badge variant="secondary">Inactive</Badge> : null}
           </div>
           <p className="max-w-3xl text-sm text-muted">
@@ -266,7 +277,7 @@ export function PlaybookDetailPage(): JSX.Element {
               setIsDirty(true);
             }}
           />
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr),minmax(0,0.9fr)]">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-[minmax(0,1fr),minmax(0,1fr),minmax(0,0.9fr)]">
             <label className="grid gap-2 text-sm">
               <span className="font-medium">Name</span>
               <Input value={name} onChange={(event) => { setName(event.target.value); setIsDirty(true); }} />
@@ -285,31 +296,27 @@ export function PlaybookDetailPage(): JSX.Element {
             </label>
             <div className="grid gap-2 text-sm xl:row-span-2">
               <span className="font-medium">Lifecycle</span>
-              <div
-                aria-label="Playbook lifecycle"
-                className="grid gap-2 sm:grid-cols-2"
-                role="group"
+              <Select
+                value={lifecycle}
+                onValueChange={(value) => {
+                  setLifecycle(value as 'planned' | 'ongoing');
+                  setIsDirty(true);
+                }}
               >
-                {lifecycleOptions.map((option) => {
-                  const selected = lifecycle === option.value;
-                  return (
-                    <Button
-                      key={option.value}
-                      type="button"
-                      variant={selected ? 'secondary' : 'outline'}
-                      className="h-auto w-full items-start justify-start whitespace-normal px-4 py-3 text-left"
-                      onClick={() => { setLifecycle(option.value); setIsDirty(true); }}
-                    >
-                      <span className="block">
-                        <span className="block font-medium">{option.label}</span>
-                        <span className="mt-1 block text-xs text-muted">
-                          {option.description}
-                        </span>
-                      </span>
-                    </Button>
-                  );
-                })}
-              </div>
+                <SelectTrigger aria-label="Playbook lifecycle">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {lifecycleOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted">
+                {lifecycleOptions.find((option) => option.value === lifecycle)?.description}
+              </p>
             </div>
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-xs text-muted xl:col-span-2">
               <div className="flex items-center gap-2">

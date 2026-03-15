@@ -8,7 +8,7 @@ describe('buildPlaybookRunSummary', () => {
       workflow: {
         id: 'wf-1',
         name: 'Ship feature',
-        lifecycle: 'standard',
+        lifecycle: 'planned',
         state: 'completed',
         created_at: '2026-03-10T00:00:00.000Z',
         started_at: '2026-03-10T00:10:00.000Z',
@@ -230,7 +230,7 @@ describe('buildPlaybookRunSummary', () => {
       ],
     });
 
-    expect(summary.lifecycle).toBe('standard');
+    expect(summary.lifecycle).toBe('planned');
     expect(summary.activation_activity).toEqual(
       expect.objectContaining({
         total_events: 2,
@@ -377,7 +377,7 @@ describe('buildPlaybookRunSummary', () => {
       workflow: {
         id: 'wf-continuous-1',
         name: 'Continuous multi-stage run',
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         state: 'active',
         created_at: '2026-03-10T00:00:00.000Z',
         started_at: '2026-03-10T00:05:00.000Z',
@@ -465,7 +465,7 @@ describe('buildPlaybookRunSummary', () => {
       artifacts: [],
     });
 
-    expect(summary.lifecycle).toBe('continuous');
+    expect(summary.lifecycle).toBe('ongoing');
     expect(summary.stage_progression).toBeNull();
     expect(summary.stage_activity).toEqual([
       expect.objectContaining({
@@ -502,7 +502,7 @@ describe('buildPlaybookRunSummary', () => {
       workflow: {
         id: 'wf-parent-1',
         name: 'Parent workflow',
-        lifecycle: 'standard',
+        lifecycle: 'planned',
         state: 'active',
         created_at: '2026-03-10T00:00:00.000Z',
         started_at: '2026-03-10T00:05:00.000Z',
@@ -571,7 +571,7 @@ describe('buildPlaybookRunSummary', () => {
       workflow: {
         id: 'wf-2',
         name: 'Continuous intake',
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         state: 'active',
         created_at: '2026-03-10T00:00:00.000Z',
         started_at: '2026-03-10T00:05:00.000Z',
@@ -631,7 +631,7 @@ describe('buildPlaybookRunSummary', () => {
       artifacts: [],
     });
 
-    expect(summary.lifecycle).toBe('continuous');
+    expect(summary.lifecycle).toBe('ongoing');
     expect(summary.stage_progression).toBeNull();
     expect(summary.stage_activity).toEqual([
       expect.objectContaining({
@@ -657,7 +657,7 @@ describe('buildPlaybookRunSummary', () => {
       workflow: {
         id: 'wf-3',
         name: 'Continuous approvals',
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         state: 'active',
         created_at: '2026-03-10T00:00:00.000Z',
         started_at: '2026-03-10T00:05:00.000Z',
@@ -719,7 +719,7 @@ describe('buildPlaybookRunSummary', () => {
       workflow: {
         id: 'wf-secret',
         name: 'Secret flow',
-        lifecycle: 'standard',
+        lifecycle: 'planned',
         state: 'completed',
         created_at: '2026-03-10T00:00:00.000Z',
         started_at: '2026-03-10T00:10:00.000Z',

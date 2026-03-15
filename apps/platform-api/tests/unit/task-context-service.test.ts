@@ -21,7 +21,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Continuous workflow',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               context: {},
               git_branch: 'main',
               parameters: {},
@@ -32,7 +32,7 @@ describe('buildTaskContext active stage semantics', () => {
               playbook_name: 'Continuous playbook',
               playbook_outcome: 'Ship changes',
               playbook_definition: {
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 stages: [
                   { name: 'build', goal: 'Build changes' },
                   { name: 'review', goal: 'Review changes' },
@@ -72,7 +72,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'workflow-2',
               name: 'Standard workflow',
-              lifecycle: 'standard',
+              lifecycle: 'planned',
               context: {},
               git_branch: 'release',
               parameters: {},
@@ -83,7 +83,7 @@ describe('buildTaskContext active stage semantics', () => {
               playbook_name: 'Standard playbook',
               playbook_outcome: 'Ship milestone',
               playbook_definition: {
-                lifecycle: 'standard',
+                lifecycle: 'planned',
                 stages: [
                   { name: 'design', goal: 'Design work' },
                   { name: 'review', goal: 'Review work' },

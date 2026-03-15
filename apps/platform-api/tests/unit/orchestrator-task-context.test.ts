@@ -11,7 +11,7 @@ describe('buildOrchestratorTaskContext', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              lifecycle: 'continuous',
+              lifecycle: 'ongoing',
               metadata: {},
               playbook_name: 'Continuous Flow',
               playbook_outcome: 'Ship work',
@@ -22,7 +22,7 @@ describe('buildOrchestratorTaskContext', () => {
                   { name: 'implementation', goal: 'Implement work' },
                   { name: 'review', goal: 'Review work' },
                 ],
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
               },
             }],
           };
@@ -54,7 +54,7 @@ describe('buildOrchestratorTaskContext', () => {
             rows: [
               {
                 id: 'stage-1',
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 name: 'triage',
                 position: 0,
                 goal: 'Sort incoming work',
@@ -73,7 +73,7 @@ describe('buildOrchestratorTaskContext', () => {
               },
               {
                 id: 'stage-2',
-                lifecycle: 'continuous',
+                lifecycle: 'ongoing',
                 name: 'review',
                 position: 2,
                 goal: 'Review work',
@@ -116,7 +116,7 @@ describe('buildOrchestratorTaskContext', () => {
 
     expect(context?.workflow).toEqual(
       expect.objectContaining({
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         active_stages: ['triage', 'implementation'],
       }),
     );
