@@ -2,7 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { ValidationError } from '../errors/domain-errors.js';
 
-type ToolCategory = 'runtime' | 'vcs' | 'web' | 'language' | 'integration';
+type ToolCategory = 'runtime' | 'orchestrator' | 'web';
 
 interface ToolTagRow {
   id: string;
@@ -27,34 +27,34 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'file_write', name: 'File Write', description: 'Write files to the task workspace', category: 'runtime' },
   { id: 'file_edit', name: 'File Edit', description: 'Edit files with search-and-replace operations', category: 'runtime' },
   { id: 'file_list', name: 'File List', description: 'List files and directories in the workspace', category: 'runtime' },
-  { id: 'git_status', name: 'Git Status', description: 'Show working tree status', category: 'vcs' },
-  { id: 'git_diff', name: 'Git Diff', description: 'Show changes between commits or working tree', category: 'vcs' },
-  { id: 'git_log', name: 'Git Log', description: 'Show commit log history', category: 'vcs' },
-  { id: 'git_commit', name: 'Git Commit', description: 'Record changes to the repository', category: 'vcs' },
-  { id: 'git_push', name: 'Git Push', description: 'Push commits to remote repository', category: 'vcs' },
+  { id: 'git_status', name: 'Git Status', description: 'Show working tree status', category: 'runtime' },
+  { id: 'git_diff', name: 'Git Diff', description: 'Show changes between commits or working tree', category: 'runtime' },
+  { id: 'git_log', name: 'Git Log', description: 'Show commit log history', category: 'runtime' },
+  { id: 'git_commit', name: 'Git Commit', description: 'Record changes to the repository', category: 'runtime' },
+  { id: 'git_push', name: 'Git Push', description: 'Push commits to remote repository', category: 'runtime' },
   { id: 'artifact_upload', name: 'Artifact Upload', description: 'Upload artifacts (files, reports) from the task workspace', category: 'runtime' },
   { id: 'artifact_list', name: 'Artifact List', description: 'List accessible workflow artifacts by task, work item, or logical path', category: 'runtime' },
   { id: 'artifact_read', name: 'Artifact Read', description: 'Read an artifact payload from the platform artifact store', category: 'runtime' },
   { id: 'memory_read', name: 'Memory Read', description: 'Read project memory for the current task', category: 'runtime' },
   { id: 'memory_write', name: 'Memory Write', description: 'Write project memory for the current task', category: 'runtime' },
-  { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a project memory key (orchestrator only)', category: 'runtime' },
-  { id: 'create_work_item', name: 'Create Work Item', description: 'Create a workflow work item (orchestrator only)', category: 'runtime' },
-  { id: 'update_work_item', name: 'Update Work Item', description: 'Update a workflow work item (orchestrator only)', category: 'runtime' },
-  { id: 'create_task', name: 'Create Task', description: 'Create a specialist task from the orchestrator', category: 'runtime' },
-  { id: 'create_workflow', name: 'Create Workflow', description: 'Create a child workflow from the orchestrator', category: 'runtime' },
-  { id: 'request_gate_approval', name: 'Request Gate Approval', description: 'Request human approval for a playbook stage gate', category: 'runtime' },
-  { id: 'advance_stage', name: 'Advance Stage', description: 'Advance the active playbook stage', category: 'runtime' },
-  { id: 'complete_workflow', name: 'Complete Workflow', description: 'Complete the current workflow', category: 'runtime' },
-  { id: 'approve_task', name: 'Approve Task', description: 'Approve a task waiting for manual approval', category: 'runtime' },
-  { id: 'approve_task_output', name: 'Approve Task Output', description: 'Approve a task output after review', category: 'runtime' },
-  { id: 'request_task_changes', name: 'Request Task Changes', description: 'Request changes on a task and return it for rework', category: 'runtime' },
-  { id: 'retry_task', name: 'Retry Task', description: 'Retry a failed or escalated task', category: 'runtime' },
+  { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a project memory key', category: 'orchestrator' },
+  { id: 'create_work_item', name: 'Create Work Item', description: 'Create a workflow work item', category: 'orchestrator' },
+  { id: 'update_work_item', name: 'Update Work Item', description: 'Update a workflow work item', category: 'orchestrator' },
+  { id: 'create_task', name: 'Create Task', description: 'Create a specialist task', category: 'orchestrator' },
+  { id: 'create_workflow', name: 'Create Workflow', description: 'Create a child workflow', category: 'orchestrator' },
+  { id: 'request_gate_approval', name: 'Request Gate Approval', description: 'Request human approval for a stage gate', category: 'orchestrator' },
+  { id: 'advance_stage', name: 'Advance Stage', description: 'Advance the active playbook stage', category: 'orchestrator' },
+  { id: 'complete_workflow', name: 'Complete Workflow', description: 'Complete the current workflow', category: 'orchestrator' },
+  { id: 'approve_task', name: 'Approve Task', description: 'Approve a task waiting for approval', category: 'orchestrator' },
+  { id: 'approve_task_output', name: 'Approve Task Output', description: 'Approve a task output after review', category: 'orchestrator' },
+  { id: 'request_task_changes', name: 'Request Task Changes', description: 'Request changes on a task', category: 'orchestrator' },
+  { id: 'retry_task', name: 'Retry Task', description: 'Retry a failed or escalated task', category: 'orchestrator' },
   { id: 'web_fetch', name: 'Web Fetch', description: 'Fetch and extract content from URLs', category: 'web' },
   { id: 'web_search', name: 'Web Search', description: 'Search the web', category: 'web' },
   { id: 'escalate', name: 'Escalate', description: 'Request escalation when stuck or task is infeasible — pauses task and routes to supervisor or human', category: 'runtime' },
 ];
 
-const allowedCategories = new Set<ToolCategory>(['runtime', 'vcs', 'web', 'language', 'integration']);
+const allowedCategories = new Set<ToolCategory>(['runtime', 'orchestrator', 'web']);
 
 const builtInToolIds = new Set(builtInToolTags.map((tag) => tag.id));
 
