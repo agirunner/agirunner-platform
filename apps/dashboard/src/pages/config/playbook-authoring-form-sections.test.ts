@@ -34,6 +34,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Column ${index + 1} of ${columnCount}');
     expect(source).toContain('Stage ${index + 1} of ${stageCount}');
     expect(source).toContain('Add team roles above to make them selectable here.');
+    expect(source).toContain('Playbooks use active role definitions from the shared role catalog.');
     expect(source).toContain('project.repository_url');
     expect(source).toContain('project.settings.default_branch');
     expect(source).toContain('project.credentials.git_token');
@@ -63,6 +64,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('drag handle');
     expect(source).toContain('Specialist runtime override');
     expect(source).toContain('Most playbooks should inherit tenant runtime defaults.');
+    expect(source).not.toContain('Custom role');
     expect(source).not.toContain('Optional verification tools');
     expect(source).not.toContain('toggleOrchestratorTool');
     expect(source).not.toContain('Shared runtime defaults');

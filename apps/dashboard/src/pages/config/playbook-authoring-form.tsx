@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { dashboardApi } from '../../lib/api.js';
 import {
   summarizePlaybookAuthoringDraft,
+  validateRoleDrafts,
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
 import {
@@ -36,6 +37,7 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
     .map((role) => role.name)
     .filter((value, index, all) => value.trim().length > 0 && all.indexOf(value) === index)
     .sort((left, right) => left.localeCompare(right));
+  const roleValidation = validateRoleDrafts(props.draft.roles, availableRoleNames);
 
   function updateDraft(updater: (current: PlaybookAuthoringDraft) => PlaybookAuthoringDraft): void {
     props.onClearError();
@@ -53,8 +55,11 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
   }, [props.draft.parameters.length]);
 
   useEffect(() => {
-    props.onValidationChange?.(Object.values(parameterIssues).filter(Boolean));
-  }, [parameterIssues, props.onValidationChange]);
+    props.onValidationChange?.([
+      ...roleValidation.blockingIssues,
+      ...Object.values(parameterIssues).filter(Boolean),
+    ]);
+  }, [parameterIssues, props.onValidationChange, roleValidation.blockingIssues]);
 
   function updateParameterIssue(
     index: number,

@@ -100,6 +100,12 @@ export interface ParameterDraftValidationResult {
   isValid: boolean;
 }
 
+export interface RoleDraftValidationResult {
+  roleErrors: Array<string | undefined>;
+  blockingIssues: string[];
+  isValid: boolean;
+}
+
 export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): PlaybookAuthoringDraft {
   return {
     roles: [{ value: 'developer' }],
@@ -400,6 +406,40 @@ export function validateParameterDrafts(
 
   return {
     parameterErrors,
+    blockingIssues,
+    isValid: blockingIssues.length === 0,
+  };
+}
+
+export function validateRoleDrafts(
+  roles: RoleDraft[],
+  availableRoleNames: string[],
+): RoleDraftValidationResult {
+  const available = new Set(
+    availableRoleNames.map((value) => value.trim()).filter(Boolean),
+  );
+  const roleErrors = roles.map((role) => {
+    const name = role.value.trim();
+    if (!name) {
+      return undefined;
+    }
+    return available.has(name)
+      ? undefined
+      : 'Select an active role definition from the shared catalog.';
+  });
+  const blockingIssues = Array.from(
+    new Set(
+      roleErrors.reduce<string[]>((issues, issue) => {
+        if (issue) {
+          issues.push(issue);
+        }
+        return issues;
+      }, []),
+    ),
+  );
+
+  return {
+    roleErrors,
     blockingIssues,
     isValid: blockingIssues.length === 0,
   };

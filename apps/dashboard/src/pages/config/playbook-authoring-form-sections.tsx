@@ -18,6 +18,7 @@ import {
   createEmptyStageDraft,
   validateBoardColumnsDraft,
   validateParameterDrafts,
+  validateRoleDrafts,
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
 import {
@@ -48,6 +49,7 @@ export function TeamRolesSection(
   props: SectionProps & { availableRoleNames?: string[] },
 ): JSX.Element {
   const availableRoleNames = props.availableRoleNames ?? [];
+  const roleValidation = validateRoleDrafts(props.draft.roles, availableRoleNames);
 
   return (
     <SectionCard
@@ -56,16 +58,21 @@ export function TeamRolesSection(
       description="Roles available to the orchestrator when it assigns specialist work."
     >
       <div className="space-y-3">
+        <p className="text-sm text-muted">
+          Playbooks use active role definitions from the shared role catalog.
+        </p>
         {props.draft.roles.map((role, index) => (
-          <div key={`role-${index}`} className="flex flex-wrap items-center gap-2">
+          <div key={`role-${index}`} className="grid gap-2 md:grid-cols-[minmax(0,1fr),auto]">
             {availableRoleNames.length > 0 ? (
               <Select
-                value={availableRoleNames.includes(role.value) ? role.value : '__custom__'}
+                value={resolveRoleSelectionValue(role.value, availableRoleNames, index)}
                 onValueChange={(value) =>
                   props.onChange((current) => ({
                     ...current,
                     roles: current.roles.map((entry, entryIndex) =>
-                      entryIndex === index ? { value: value === '__custom__' ? '' : value } : entry,
+                      entryIndex === index
+                        ? { value: value === ROLE_SELECT_UNSET ? '' : value }
+                        : entry,
                     ),
                   }))
                 }
@@ -74,34 +81,25 @@ export function TeamRolesSection(
                   <SelectValue placeholder="Select a role definition" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={ROLE_SELECT_UNSET}>Select a role definition</SelectItem>
                   {availableRoleNames.map((name) => (
                     <SelectItem key={name} value={name}>
                       {name}
                     </SelectItem>
                   ))}
-                  <SelectItem value="__custom__">Custom role</SelectItem>
+                  {!availableRoleNames.includes(role.value) && role.value.trim().length > 0 ? (
+                    <SelectItem value={resolveMissingRoleValue(index)}>
+                      Unknown role: {role.value}
+                    </SelectItem>
+                  ) : null}
                 </SelectContent>
               </Select>
-            ) : null}
-            {availableRoleNames.length === 0 || !availableRoleNames.includes(role.value) ? (
-              <Input
-                className="w-full sm:flex-1"
-                value={role.value}
-                onChange={(event) =>
-                  props.onChange((current) => ({
-                    ...current,
-                    roles: current.roles.map((entry, entryIndex) =>
-                      entryIndex === index ? { value: event.target.value } : entry,
-                    ),
-                  }))
-                }
-                placeholder={availableRoleNames.length > 0 ? 'Custom role' : 'developer'}
-              />
             ) : null}
             <Button
               type="button"
               variant="outline"
               size="sm"
+              className="justify-self-start md:justify-self-end"
               onClick={() =>
                 props.onChange((current) => ({
                   ...current,
@@ -115,11 +113,17 @@ export function TeamRolesSection(
               <Minus className="h-4 w-4" />
               Remove Role
             </Button>
+            {roleValidation.roleErrors[index] ? (
+              <p className="text-xs text-red-600 dark:text-red-400">
+                {roleValidation.roleErrors[index]}
+              </p>
+            ) : null}
           </div>
         ))}
         <Button
           type="button"
           variant="outline"
+          disabled={availableRoleNames.length === 0}
           onClick={() =>
             props.onChange((current) => ({
               ...current,
@@ -132,10 +136,13 @@ export function TeamRolesSection(
         </Button>
         {availableRoleNames.length > 0 ? (
           <p className="text-sm text-muted">
-            Choose from active role definitions when possible. Use a custom role only when the
-            playbook truly needs a role that is not defined in the catalog yet.
+            Manage the shared role catalog on the Roles page when you need a new specialist.
           </p>
-        ) : null}
+        ) : (
+          <p className="text-sm text-muted">
+            Create active role definitions before assigning team roles to this playbook.
+          </p>
+        )}
       </div>
     </SectionCard>
   );
@@ -1092,6 +1099,7 @@ function resolveStageTitle(
 }
 
 const PARAMETER_INPUT_STYLE_UNSET = '__unset__';
+const ROLE_SELECT_UNSET = '__unset__';
 
 const PARAMETER_INPUT_STYLE_OPTIONS: StructuredChoiceOption[] = [
   { value: 'text', label: 'Text field', description: 'Single-line text input.' },
@@ -1181,4 +1189,20 @@ function describeParameterMappingHint(
     return 'Repository parameters should map to non-secret project metadata.';
   }
   return 'Choose a known project value when possible. Use a custom path such as project.settings.knowledge.<key> when the standard mappings are not enough.';
+}
+
+function resolveRoleSelectionValue(
+  roleName: string,
+  availableRoleNames: string[],
+  index: number,
+): string {
+  const trimmed = roleName.trim();
+  if (!trimmed) {
+    return ROLE_SELECT_UNSET;
+  }
+  return availableRoleNames.includes(trimmed) ? trimmed : resolveMissingRoleValue(index);
+}
+
+function resolveMissingRoleValue(index: number): string {
+  return `__missing__:${index}`;
 }

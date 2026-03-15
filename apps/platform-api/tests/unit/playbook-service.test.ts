@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ConflictError, SchemaValidationFailedError } from '../../src/errors/domain-errors.js';
+import { ConflictError, SchemaValidationFailedError, ValidationError } from '../../src/errors/domain-errors.js';
 import { PlaybookService } from '../../src/services/playbook-service.js';
 
 describe('PlaybookService', () => {
@@ -186,6 +186,29 @@ describe('PlaybookService', () => {
     await expect(service.deletePlaybook('tenant-1', 'playbook-1')).rejects.toBeInstanceOf(
       ConflictError,
     );
+  });
+
+  it('rejects playbook roles that are not active role definitions', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ name: 'developer' }],
+      }),
+    };
+
+    const service = new PlaybookService(pool as never);
+
+    await expect(
+      service.createPlaybook('tenant-1', {
+        name: 'Build Flow',
+        outcome: 'Ship it',
+        definition: {
+          board: { columns: [{ id: 'todo', label: 'To Do' }] },
+          stages: [{ name: 'build', goal: 'Build' }],
+          roles: ['developer', 'missing-role'],
+        },
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('rejects invalid updated definitions', async () => {

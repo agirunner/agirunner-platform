@@ -1,6 +1,6 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 
 export interface CreatePlaybookInput {
@@ -26,6 +26,7 @@ export class PlaybookService {
 
   async createPlaybook(tenantId: string, input: CreatePlaybookInput) {
     const definition = parsePlaybookDefinition(input.definition);
+    await this.assertKnownRoles(this.pool, tenantId, definition.roles);
     const slug = normalizeSlug(input.slug ?? input.name);
     const lifecycle = input.lifecycle ?? definition.lifecycle;
     const normalizedDefinition = { ...definition, lifecycle };
@@ -160,6 +161,7 @@ export class PlaybookService {
 
     try {
       await client.query('BEGIN');
+      await this.assertKnownRoles(client, tenantId, definition.roles);
       await this.deactivatePlaybookFamily(tenantId, slug, client);
       const result = await client.query(
         `INSERT INTO playbooks (
@@ -204,6 +206,36 @@ export class PlaybookService {
           AND is_active = true`,
       [tenantId, slug],
     );
+  }
+
+  private async assertKnownRoles(
+    executor: Pick<DatabasePool, 'query'> | Pick<DatabaseClient, 'query'>,
+    tenantId: string,
+    roles: string[],
+  ): Promise<void> {
+    const requested = Array.from(new Set(roles.map((role) => role.trim()).filter(Boolean)));
+    if (requested.length === 0) {
+      return;
+    }
+
+    const result = await executor.query<{ name: string }>(
+      `SELECT name
+         FROM role_definitions
+        WHERE tenant_id = $1
+          AND is_active = true
+          AND name = ANY($2::text[])`,
+      [tenantId, requested],
+    );
+
+    const known = new Set(result.rows.map((row) => row.name));
+    const missing = requested.filter((role) => !known.has(role));
+    if (missing.length > 0) {
+      throw new ValidationError(
+        missing.length === 1
+          ? `Unknown playbook role "${missing[0]}". Create it in Roles before using it here.`
+          : `Unknown playbook roles: ${missing.join(', ')}. Create them in Roles before using them here.`,
+      );
+    }
   }
 }
 

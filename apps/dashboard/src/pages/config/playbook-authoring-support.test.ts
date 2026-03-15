@@ -8,6 +8,7 @@ import {
   summarizePlaybookAuthoringDraft,
   validateParameterDrafts,
   validateBoardColumnsDraft,
+  validateRoleDrafts,
 } from './playbook-authoring-support.js';
 
 describe('playbook authoring support', () => {
@@ -281,6 +282,19 @@ describe('playbook authoring support', () => {
       parameterErrors: [{}, {}],
       blockingIssues: [],
       isValid: true,
+    });
+  });
+
+  it('flags playbook roles that are no longer active in the shared catalog', () => {
+    expect(
+      validateRoleDrafts(
+        [{ value: 'developer' }, { value: 'legacy-role' }, { value: '' }],
+        ['architect', 'developer'],
+      ),
+    ).toEqual({
+      roleErrors: [undefined, 'Select an active role definition from the shared catalog.', undefined],
+      blockingIssues: ['Select an active role definition from the shared catalog.'],
+      isValid: false,
     });
   });
 
