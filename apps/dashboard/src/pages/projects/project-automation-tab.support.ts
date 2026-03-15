@@ -127,7 +127,12 @@ export function buildProjectAutomationOverview(
         value: brokenCount > 0 ? `${brokenCount} issues` : 'No active breakage',
         detail:
           brokenCount > 0
-            ? buildBrokenSummary(overdueSchedules.length, webhookSecretsMissing.length)
+            ? buildBrokenSummary(
+                overdueSchedules.length,
+                webhookSecretsMissing.length,
+                pausedSchedules.length,
+                pausedWebhookTriggers.length,
+              )
             : 'No overdue schedules or misconfigured active inbound hooks need operator repair right now.',
       },
       {
