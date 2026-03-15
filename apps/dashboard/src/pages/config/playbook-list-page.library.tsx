@@ -144,7 +144,7 @@ export function PlaybookFamilyCard(props: {
         </div>
         <div className="h-[88px] overflow-hidden rounded-xl border border-border/70 bg-background/60 p-3 text-sm">
           <div className="font-medium">Process</div>
-          <div className="mt-1 line-clamp-3 text-muted">{processSummary}</div>
+          <div className="mt-1 line-clamp-2 text-muted">{processSummary}</div>
         </div>
         {isArchivedFamily ? (
           <div className="rounded-md border border-amber-300 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
