@@ -77,12 +77,19 @@ export class WorkItemContinuityService {
     const definition = parsePlaybookDefinition(context.definition);
     const role = readOptionalString(task.role) ?? context.owner_role ?? '';
     const checkpointName = readCheckpointName(task, context);
-    const evaluation = evaluatePlaybookRules({
-      definition,
-      event,
+    const evaluation = await this.resolveEvaluation(
+      tenantId,
+      context,
       role,
-      checkpointName,
-    });
+      event,
+      evaluatePlaybookRules({
+        definition,
+        event,
+        role,
+        checkpointName,
+      }),
+      db,
+    );
 
     await db.query(
       `UPDATE workflow_work_items
@@ -106,6 +113,37 @@ export class WorkItemContinuityService {
     );
 
     return evaluation;
+  }
+
+  private async resolveEvaluation(
+    tenantId: string,
+    context: WorkItemContinuityContextRow,
+    role: string,
+    event: 'task_completed' | 'review_rejected',
+    evaluation: PlaybookRuleEvaluationResult,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (event !== 'review_rejected' || evaluation.nextExpectedActor) {
+      return evaluation;
+    }
+
+    const predecessorRole = await this.loadLatestHandoffRole(
+      tenantId,
+      context.workflow_id,
+      context.work_item_id,
+      db,
+    );
+    if (!predecessorRole || predecessorRole === role) {
+      return evaluation;
+    }
+
+    return {
+      matchedRuleType: evaluation.matchedRuleType ?? 'review',
+      nextExpectedActor: predecessorRole,
+      nextExpectedAction: 'rework',
+      requiresHumanApproval: false,
+      reworkDelta: Math.max(evaluation.reworkDelta, 1),
+    } satisfies PlaybookRuleEvaluationResult;
   }
 
   private async loadContext(
@@ -140,6 +178,25 @@ export class WorkItemContinuityService {
       [tenantId, workflowId, workItemId],
     );
     return result.rows[0] ?? null;
+  }
+
+  private async loadLatestHandoffRole(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const result = await db.query<{ role: string | null }>(
+      `SELECT role
+         FROM task_handoffs
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id = $3
+        ORDER BY sequence DESC, created_at DESC
+        LIMIT 1`,
+      [tenantId, workflowId, workItemId],
+    );
+    return readOptionalString(result.rows[0]?.role);
   }
 }
 

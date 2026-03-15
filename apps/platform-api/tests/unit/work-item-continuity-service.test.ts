@@ -97,6 +97,60 @@ describe('WorkItemContinuityService', () => {
     );
   });
 
+  it('falls back to the predecessor handoff role when a reviewer rejection has no direct on_reject rule', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            current_checkpoint: 'review',
+            owner_role: 'reviewer',
+            definition: {
+              process_instructions: 'Developer implements, reviewer reviews, rejected review returns to developer.',
+              roles: ['developer', 'reviewer'],
+              board: { columns: [{ id: 'review', label: 'Review' }] },
+              checkpoints: [{ name: 'review', goal: 'Review the change', human_gate: false }],
+              review_rules: [{
+                from_role: 'developer',
+                reviewed_by: 'reviewer',
+                required: true,
+                on_reject: { action: 'return_to_role', role: 'developer' },
+              }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ role: 'developer' }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordReviewRejected('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'reviewer',
+      stage_name: 'review',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'review',
+      nextExpectedActor: 'developer',
+      nextExpectedAction: 'rework',
+      reworkDelta: 1,
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'review', 'developer', 'rework', 1],
+    );
+  });
+
   it('clears continuity expectations after an approval path completes', async () => {
     const pool = {
       query: vi
