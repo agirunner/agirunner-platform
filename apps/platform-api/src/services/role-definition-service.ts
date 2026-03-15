@@ -165,6 +165,11 @@ export class RoleDefinitionService {
       throw new ConflictError(`Cannot delete role "${role.name}" — used by playbook${playbooks.length > 1 ? 's' : ''}: ${names}`);
     }
 
+    await this.pool.query(
+      'DELETE FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
+      [tenantId, role.name],
+    );
+
     const result = await this.pool.query(
       'DELETE FROM role_definitions WHERE tenant_id = $1 AND id = $2',
       [tenantId, id],

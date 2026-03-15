@@ -270,9 +270,15 @@ describe('RoleDefinitionService', () => {
       pool.query
         .mockResolvedValueOnce({ rows: [nonBuiltIn], rowCount: 1 }) // getRoleById
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // findPlaybooksUsingRole
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // DELETE role_model_assignments
         .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // DELETE
 
       await expect(service.deleteRole(TENANT_ID, ROLE_ID)).resolves.toBeUndefined();
+      expect(pool.query).toHaveBeenNthCalledWith(
+        3,
+        'DELETE FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
+        [TENANT_ID, sampleRole.name],
+      );
     });
 
     it('throws ConflictError when deleting built-in role', async () => {
