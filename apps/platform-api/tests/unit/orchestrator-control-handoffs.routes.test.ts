@@ -75,6 +75,9 @@ describe('orchestrator control handoff routes', () => {
         unresolved_findings: ['Investigate edge-case auth failures'],
         review_focus: ['Auth edge cases'],
         known_risks: ['Refresh token expiry handling'],
+        gate_status: 'rejected',
+        gate_decision_feedback: 'Human rejected the checkpoint because the CLI entrypoint is missing.',
+        gate_decided_at: '2026-03-16T16:31:49.959Z',
         completed_at: null,
       }),
     } as never);
@@ -106,6 +109,9 @@ describe('orchestrator control handoff routes', () => {
       unresolved_findings: ['Investigate edge-case auth failures'],
       review_focus: ['Auth edge cases'],
       known_risks: ['Refresh token expiry handling'],
+      gate_status: 'rejected',
+      gate_decision_feedback: 'Human rejected the checkpoint because the CLI entrypoint is missing.',
+      gate_decided_at: '2026-03-16T16:31:49.959Z',
       completed_at: null,
     });
   });

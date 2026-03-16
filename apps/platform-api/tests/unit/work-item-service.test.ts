@@ -942,4 +942,55 @@ describe('WorkItemService', () => {
       }),
     );
   });
+
+  it('returns latest gate feedback in the work-item continuity model', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        expect(sql).toContain('workflow_stage_gates');
+        return {
+          rowCount: 1,
+          rows: [
+            {
+              id: 'wi-1',
+              workflow_id: 'wf-1',
+              parent_work_item_id: null,
+              stage_name: 'release',
+              current_checkpoint: 'release',
+              column_id: 'planned',
+              owner_role: 'product-manager',
+              next_expected_actor: 'human',
+              next_expected_action: 'approve',
+              rework_count: 2,
+              latest_handoff_completion: 'full',
+              unresolved_findings: ['Replace the static page with the required CLI entrypoint.'],
+              review_focus: ['Release deliverable must match approved CLI scope.'],
+              known_risks: ['Release package is blocked until the CLI deliverable exists.'],
+              task_count: 1,
+              children_count: 0,
+              children_completed: 0,
+              completed_at: null,
+              gate_status: 'rejected',
+              gate_decision_feedback:
+                'Release approval rejected: expected CLI entrypoint hello.py is missing from the workflow branch.',
+              gate_decided_at: new Date('2026-03-16T16:31:49.959Z'),
+            },
+          ],
+        };
+      }),
+    };
+
+    const service = new WorkItemService(pool as never, {} as never, {} as never, {} as never);
+
+    const workItem = await service.getWorkflowWorkItem('tenant-1', 'wf-1', 'wi-1');
+
+    expect(workItem).toMatchObject({
+      id: 'wi-1',
+      workflow_id: 'wf-1',
+      current_checkpoint: 'release',
+      gate_status: 'rejected',
+      gate_decision_feedback:
+        'Release approval rejected: expected CLI entrypoint hello.py is missing from the workflow branch.',
+    });
+    expect(workItem.gate_decided_at).toEqual(new Date('2026-03-16T16:31:49.959Z'));
+  });
 });

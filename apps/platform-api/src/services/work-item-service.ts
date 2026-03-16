@@ -58,6 +58,9 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   unresolved_findings?: string[];
   review_focus?: string[];
   known_risks?: string[];
+  gate_status?: string | null;
+  gate_decision_feedback?: string | null;
+  gate_decided_at?: string | Date | null;
   completed_at: string | Date | null;
   task_count: number;
   children_count: number;
@@ -470,7 +473,10 @@ export class WorkItemService {
               latest_handoff.latest_handoff_completion,
               latest_handoff.unresolved_findings,
               latest_handoff.review_focus,
-              latest_handoff.known_risks
+              latest_handoff.known_risks,
+              latest_gate.gate_status,
+              latest_gate.gate_decision_feedback,
+              latest_gate.gate_decided_at
          FROM workflow_work_items wi
          LEFT JOIN tasks t
            ON t.tenant_id = wi.tenant_id
@@ -478,6 +484,10 @@ export class WorkItemService {
          LEFT JOIN workflow_work_items child
            ON child.tenant_id = wi.tenant_id
           AND child.parent_work_item_id = wi.id
+         LEFT JOIN workflow_stages ws
+           ON ws.tenant_id = wi.tenant_id
+          AND ws.workflow_id = wi.workflow_id
+          AND ws.name = COALESCE(wi.current_checkpoint, wi.stage_name)
          LEFT JOIN LATERAL (
            SELECT th.completion AS latest_handoff_completion,
                   array_cat(
@@ -499,12 +509,26 @@ export class WorkItemService {
             ORDER BY th.sequence DESC, th.created_at DESC
             LIMIT 1
          ) latest_handoff ON true
+         LEFT JOIN LATERAL (
+           SELECT g.status AS gate_status,
+                  g.decision_feedback AS gate_decision_feedback,
+                  g.decided_at AS gate_decided_at
+             FROM workflow_stage_gates g
+            WHERE g.tenant_id = wi.tenant_id
+              AND g.workflow_id = wi.workflow_id
+              AND g.stage_id = ws.id
+            ORDER BY g.requested_at DESC, g.created_at DESC
+            LIMIT 1
+         ) latest_gate ON true
         WHERE ${conditions.join(' AND ')}
         GROUP BY wi.id,
                  latest_handoff.latest_handoff_completion,
                  latest_handoff.unresolved_findings,
                  latest_handoff.review_focus,
-                 latest_handoff.known_risks
+                 latest_handoff.known_risks,
+                 latest_gate.gate_status,
+                 latest_gate.gate_decision_feedback,
+                 latest_gate.gate_decided_at
         ORDER BY wi.created_at ASC`,
       values,
     );
@@ -575,6 +599,15 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     unresolved_findings: readStringArray(sanitizedRow.unresolved_findings),
     review_focus: readStringArray(sanitizedRow.review_focus),
     known_risks: readStringArray(sanitizedRow.known_risks),
+    gate_status: typeof sanitizedRow.gate_status === 'string' ? sanitizedRow.gate_status : null,
+    gate_decision_feedback:
+      typeof sanitizedRow.gate_decision_feedback === 'string'
+        ? sanitizedRow.gate_decision_feedback
+        : null,
+    gate_decided_at:
+      typeof sanitizedRow.gate_decided_at === 'string' || sanitizedRow.gate_decided_at instanceof Date
+        ? sanitizedRow.gate_decided_at
+        : null,
     completed_at:
       typeof sanitizedRow.completed_at === 'string' || sanitizedRow.completed_at instanceof Date
         ? sanitizedRow.completed_at

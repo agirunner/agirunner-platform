@@ -311,6 +311,9 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           unresolved_findings: workItem.unresolved_findings ?? [],
           review_focus: workItem.review_focus ?? [],
           known_risks: workItem.known_risks ?? [],
+          gate_status: workItem.gate_status ?? null,
+          gate_decision_feedback: workItem.gate_decision_feedback ?? null,
+          gate_decided_at: workItem.gate_decided_at ?? null,
           completed_at: workItem.completed_at ?? null,
         },
       };
