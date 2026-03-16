@@ -86,7 +86,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
     await seedConfigTables(pool);
 
-    const [providerCount, modelCount, assignmentCount, defaultModel, projectCount, playbookCount, promptCount, apiKeyCount] =
+    const [providerCount, modelCount, assignmentCount, defaultModel, projectCount, playbookCount, promptCount, apiKeyCount, developerRole] =
       await Promise.all([
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_providers'),
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_models'),
@@ -100,6 +100,13 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM playbooks'),
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM platform_instructions'),
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM api_keys'),
+        pool.query<{ escalation_target: string | null; max_escalation_depth: number }>(
+          `SELECT escalation_target, max_escalation_depth
+             FROM role_definitions
+            WHERE tenant_id = $1
+              AND name = 'developer'`,
+          ['00000000-0000-0000-0000-000000000001'],
+        ),
       ]);
 
     expect(Number(providerCount.rows[0]?.count ?? '0')).toBe(1);
@@ -110,6 +117,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     expect(Number(playbookCount.rows[0]?.count ?? '0')).toBe(BUILT_IN_PLAYBOOKS.length);
     expect(Number(promptCount.rows[0]?.count ?? '0')).toBe(1);
     expect(Number(apiKeyCount.rows[0]?.count ?? '0')).toBeGreaterThan(0);
+    expect(developerRole.rows).toEqual([{ escalation_target: 'human', max_escalation_depth: 5 }]);
   }, 120_000);
 });
 

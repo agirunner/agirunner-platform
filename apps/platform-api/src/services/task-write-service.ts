@@ -36,6 +36,7 @@ interface ParentTaskRow {
 
 const DEFAULT_MAX_SUBTASK_DEPTH = 3;
 const DEFAULT_MAX_SUBTASKS_PER_PARENT = 20;
+const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'repo-safe';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 const ACTIVE_TASK_DUPLICATE_GUARD_STATES = [
   'pending',
@@ -388,13 +389,20 @@ export class TaskWriteService {
       ?? asNullableString(parameters.gitTokenSecretRef)
       ?? projectRepository.gitTokenSecretRef;
 
-    const nextEnvironment = {
+    const nextEnvironment: Record<string, unknown> = {
       ...environment,
       ...(repositoryURL ? { repository_url: repositoryURL } : {}),
       ...(branch ? { branch } : {}),
       ...(gitUserName ? { git_user_name: gitUserName } : {}),
       ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
     };
+    if (
+      repositoryURL
+      && !asNullableString(nextEnvironment.template)
+      && !asNullableString(nextEnvironment.image)
+    ) {
+      nextEnvironment.template = DEFAULT_REPOSITORY_TASK_TEMPLATE;
+    }
     const nextBindings = mergeWorkflowGitBinding(
       normalizeResourceBindings(input.resource_bindings),
       repositoryURL,

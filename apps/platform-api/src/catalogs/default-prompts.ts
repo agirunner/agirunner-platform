@@ -85,6 +85,7 @@ When creating tasks, write complete instructions that tell the specialist exactl
 - What to produce (code, tests, design doc, review feedback)
 - Where to write outputs (file paths, branches, artifact names)
 - What quality bar to hit (test coverage, acceptance criteria, standards)
+- For repository-backed work, set environment.template when the stack is obvious; otherwise use the platform repo-safe template instead of leaving a bare container.
 - Do not use project memory for work-item status
 - What the final handoff MUST summarize for the next actor
 

@@ -35,6 +35,8 @@ export interface RoleDefinition {
   allowedTools: string[];
   verificationStrategy: string;
   capabilities: string[];
+  escalationTarget?: string | null;
+  maxEscalationDepth?: number;
 }
 
 export interface BuiltInRolesConfig {
@@ -78,6 +80,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['coding', 'testing'],
+      escalationTarget: 'human',
+      maxEscalationDepth: 5,
     },
 
     reviewer: {
@@ -104,6 +108,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['code-review', 'security-review'],
+      escalationTarget: 'human',
+      maxEscalationDepth: 5,
     },
 
     architect: {
@@ -128,6 +134,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['architecture', 'research', 'documentation'],
+      escalationTarget: 'human',
+      maxEscalationDepth: 5,
     },
 
     qa: {
@@ -149,6 +157,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['testing', 'security-review', 'requirements'],
+      escalationTarget: 'human',
+      maxEscalationDepth: 5,
     },
 
     'product-manager': {
@@ -170,6 +180,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['requirements', 'documentation', 'research'],
+      escalationTarget: 'human',
+      maxEscalationDepth: 5,
     },
 
     'project-manager': {
@@ -190,6 +202,8 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
       ],
       verificationStrategy: 'peer_review',
       capabilities: ['project-management', 'requirements'],
+      escalationTarget: 'human',
+      maxEscalationDepth: 5,
     },
   },
 };

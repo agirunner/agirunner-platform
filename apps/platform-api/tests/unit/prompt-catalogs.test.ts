@@ -31,6 +31,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Avoid setting specialist token_budget unless you have a concrete budget reason',
     );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'For repository-backed work, set environment.template when the stack is obvious',
+    );
   });
 
   it('adds predecessor-handoff discipline to every built-in role prompt', () => {
@@ -56,5 +59,12 @@ describe('prompt catalogs', () => {
     expect(BUILT_IN_ROLES.roles['product-manager'].systemPrompt).toContain(
       'acceptance criteria, scope decisions, and any required human follow-up',
     );
+  });
+
+  it('seeds the core SDLC roles with explicit human escalation targets', () => {
+    for (const role of Object.values(BUILT_IN_ROLES.roles)) {
+      expect(role.escalationTarget).toBe('human');
+      expect(role.maxEscalationDepth).toBe(5);
+    }
   });
 });

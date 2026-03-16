@@ -95,7 +95,7 @@ async function seedRolesAndDefaults(db: DatabaseQueryable): Promise<void> {
     console.info('[seed] Role definitions and runtime defaults seeded.');
   } else {
     await seedMissingRoles(roleService, rolesConfig, existingRoles);
-    await syncBuiltInRoleTools(roleService, rolesConfig, existingRoles);
+    await syncBuiltInRoles(roleService, rolesConfig, existingRoles);
   }
 
   await seedDefaultPrompts(db);
@@ -119,6 +119,8 @@ async function seedMissingRoles(
       allowedTools: role.allowedTools,
       verificationStrategy: role.verificationStrategy,
       capabilities: role.capabilities,
+      escalationTarget: role.escalationTarget ?? null,
+      maxEscalationDepth: role.maxEscalationDepth ?? 5,
       isBuiltIn: true,
       isActive: true,
     });
@@ -126,7 +128,7 @@ async function seedMissingRoles(
   }
 }
 
-async function syncBuiltInRoleTools(
+async function syncBuiltInRoles(
   service: RoleDefinitionService,
   config: BuiltInRolesConfig,
   existingRoles: Array<{ name: string }>,
@@ -144,14 +146,20 @@ async function syncBuiltInRoleTools(
     const mergedCapabilities = [...new Set([...(stored.capabilities ?? []), ...roleConfig.capabilities])];
     const toolsChanged = mergedAllowedTools.length !== (stored.allowed_tools ?? []).length;
     const capabilitiesChanged = mergedCapabilities.length !== (stored.capabilities ?? []).length;
-    if (!toolsChanged && !capabilitiesChanged) {
+    const escalationTarget = roleConfig.escalationTarget ?? null;
+    const escalationTargetChanged = (stored.escalation_target ?? null) !== escalationTarget;
+    const maxEscalationDepth = roleConfig.maxEscalationDepth ?? stored.max_escalation_depth ?? 5;
+    const maxEscalationDepthChanged = stored.max_escalation_depth !== maxEscalationDepth;
+    if (!toolsChanged && !capabilitiesChanged && !escalationTargetChanged && !maxEscalationDepthChanged) {
       continue;
     }
     await service.updateRole(DEFAULT_TENANT_ID, stored.id, {
       allowedTools: mergedAllowedTools,
       capabilities: mergedCapabilities,
+      escalationTarget,
+      maxEscalationDepth,
     });
-    console.info(`[seed] Synced built-in role tools: ${existing.name}`);
+    console.info(`[seed] Synced built-in role defaults: ${existing.name}`);
   }
 }
 
@@ -170,6 +178,8 @@ async function seedRoleDefinitions(
       allowedTools: role.allowedTools,
       verificationStrategy: role.verificationStrategy,
       capabilities: role.capabilities,
+      escalationTarget: role.escalationTarget ?? null,
+      maxEscalationDepth: role.maxEscalationDepth ?? 5,
       isBuiltIn: true,
       isActive: true,
     });
