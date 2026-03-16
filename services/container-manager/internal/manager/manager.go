@@ -311,10 +311,10 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 	currentCount := len(existing)
 	targetCount := ds.Replicas
 
-	// Check if existing containers need replacement (version mismatch or wrong image)
+	// Check if existing containers need replacement (image, version, or runtime contract mismatch)
 	for _, c := range existing {
 		if m.needsReplacement(ds, c) {
-			m.logger.Info("replacing container", "container", c.ID, "reason", "version or image mismatch")
+			m.logger.Info("replacing container", "container", c.ID, "reason", "image, version, or contract mismatch")
 			_ = m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout)
 			_ = m.docker.RemoveContainer(ctx, c.ID)
 			m.emitLog("container", "container.wds_replace", "info", "completed", map[string]any{
@@ -323,7 +323,7 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 				"container_id":     c.ID,
 				"image":            ds.RuntimeImage,
 				"desired_state_id": ds.ID,
-				"reason":           "version_or_image_mismatch",
+				"reason":           "image_version_or_contract_mismatch",
 			})
 			currentCount--
 		}
@@ -344,6 +344,25 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 				"role":             ds.Role,
 			}, err.Error())
 			continue
+		}
+		if internalNetwork := orchestratorInternalNetwork(m.config, ds); internalNetwork != "" {
+			if err := m.docker.ConnectNetwork(ctx, containerID, internalNetwork); err != nil {
+				m.logger.Error("failed to connect orchestrator runtime to internal network",
+					"worker", ds.WorkerName,
+					"container", containerID,
+					"network", internalNetwork,
+					"error", err,
+				)
+				m.emitLogError("container", "container.wds_network_connect", map[string]any{
+					"action":           "network_connect",
+					"worker":           ds.WorkerName,
+					"container_id":     containerID,
+					"network":          internalNetwork,
+					"desired_state_id": ds.ID,
+					"version":          ds.Version,
+					"role":             ds.Role,
+				}, err.Error())
+			}
 		}
 		m.logger.Info("created container", "worker", ds.WorkerName, "container", containerID)
 		m.emitLog("container", "container.wds_create", "info", "completed", map[string]any{
@@ -421,7 +440,13 @@ func (m *Manager) handleRestart(ctx context.Context, ds DesiredState, existing [
 }
 
 func (m *Manager) needsReplacement(ds DesiredState, c ContainerInfo) bool {
+	if !isContainerRunning(c.Status) {
+		return true
+	}
 	if c.Image != ds.RuntimeImage {
+		return true
+	}
+	if needsOrchestratorContractReplacement(ds, c, m.config) {
 		return true
 	}
 	if v, ok := c.Labels[labelVersion]; ok {
@@ -449,18 +474,21 @@ func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) Containe
 		env["LLM_MODEL"] = *ds.LLMModel
 	}
 
-	return ContainerSpec{
+	spec := ContainerSpec{
 		Name:        strings.ReplaceAll(name, " ", "-"),
 		Image:       ds.RuntimeImage,
 		CPULimit:    ds.CPULimit,
 		MemoryLimit: ds.MemoryLimit,
 		Environment: env,
+		NetworkName: m.config.RuntimeNetwork,
 		Labels: map[string]string{
 			labelManagedBy:      "true",
 			labelDesiredStateID: ds.ID,
 			labelVersion:        fmt.Sprintf("%d", ds.Version),
 		},
 	}
+	applyOrchestratorRuntimeContract(&spec, m.config, ds)
+	return spec
 }
 
 func (m *Manager) reportActualState(ctx context.Context, containers []ContainerInfo) {
