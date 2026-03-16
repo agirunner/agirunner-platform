@@ -95,6 +95,7 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
       providers,
       models,
       assignments,
+      defaults,
       playbooks,
       workflows,
       tasks,
@@ -105,6 +106,11 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
       pool.query<{ id: string }>('SELECT id FROM llm_providers ORDER BY id ASC'),
       pool.query<{ id: string }>('SELECT id FROM llm_models ORDER BY id ASC'),
       pool.query<{ id: string; role_name: string }>('SELECT id, role_name FROM role_model_assignments ORDER BY id ASC'),
+      pool.query<{ config_key: string; config_value: string }>(
+        `SELECT config_key, config_value
+           FROM runtime_defaults
+          WHERE config_key = 'default_model_id'`,
+      ),
       pool.query<{ slug: string }>('SELECT slug FROM playbooks ORDER BY slug ASC'),
       pool.query<{ id: string }>('SELECT id FROM workflows ORDER BY id ASC'),
       pool.query<{ id: string }>('SELECT id FROM tasks ORDER BY id ASC'),
@@ -121,6 +127,7 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
     expect(providers.rows).toEqual([{ id: providerId }]);
     expect(models.rows).toEqual([{ id: modelId }]);
     expect(assignments.rows).toEqual([{ id: assignmentId, role_name: 'developer' }]);
+    expect(defaults.rows).toEqual([{ config_key: 'default_model_id', config_value: modelId }]);
     expect(playbooks.rows.some((row) => row.slug === 'custom-redesign-reset')).toBe(false);
     expect(workflows.rows).toHaveLength(0);
     expect(tasks.rows).toHaveLength(0);

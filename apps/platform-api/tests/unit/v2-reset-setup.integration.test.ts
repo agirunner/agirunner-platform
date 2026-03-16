@@ -86,11 +86,16 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
     await seedConfigTables(pool);
 
-    const [providerCount, modelCount, assignmentCount, projectCount, playbookCount, promptCount, apiKeyCount] =
+    const [providerCount, modelCount, assignmentCount, defaultModel, projectCount, playbookCount, promptCount, apiKeyCount] =
       await Promise.all([
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_providers'),
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_models'),
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM role_model_assignments'),
+        pool.query<{ config_value: string }>(
+          `SELECT config_value
+             FROM runtime_defaults
+            WHERE config_key = 'default_model_id'`,
+        ),
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM projects'),
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM playbooks'),
         pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM platform_instructions'),
@@ -100,6 +105,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     expect(Number(providerCount.rows[0]?.count ?? '0')).toBe(1);
     expect(Number(modelCount.rows[0]?.count ?? '0')).toBe(1);
     expect(Number(assignmentCount.rows[0]?.count ?? '0')).toBe(1);
+    expect(defaultModel.rows).toEqual([{ config_value: '20000000-0000-0000-0000-000000000001' }]);
     expect(Number(projectCount.rows[0]?.count ?? '0')).toBe(0);
     expect(Number(playbookCount.rows[0]?.count ?? '0')).toBe(BUILT_IN_PLAYBOOKS.length);
     expect(Number(promptCount.rows[0]?.count ?? '0')).toBe(1);

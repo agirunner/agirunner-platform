@@ -23,6 +23,7 @@ import {
   DEFAULT_ADMIN_KEY_PREFIX,
   DEFAULT_TENANT_ID,
 } from '../db/seed.js';
+import { seedDefaultModelAssignment } from './seed-llm-defaults.js';
 
 const REDESIGN_RESET_PRESERVED_TABLES = new Set([
   'api_keys',
@@ -42,6 +43,7 @@ export async function seedConfigTables(
   config?: Pick<AppEnv, 'AGIRUNNER_ADMIN_EMAIL'>,
 ): Promise<void> {
   await seedRolesAndDefaults(db);
+  await seedDefaultModelAssignment(db);
   await seedOrchestratorWorker(db);
   await seedAdminUser(db, config?.AGIRUNNER_ADMIN_EMAIL);
   await seedBuiltInPlaybooks(db);
