@@ -26,7 +26,7 @@ const workItemCreateSchema = z.object({
   title: z.string().min(1).max(500),
   goal: z.string().min(1).max(4000),
   acceptance_criteria: z.string().min(1).max(4000),
-  column_id: z.string().min(1).max(120),
+  column_id: z.string().min(1).max(120).optional(),
   owner_role: z.string().max(120).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   notes: z.string().max(4000).optional(),
