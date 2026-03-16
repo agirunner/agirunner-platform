@@ -25,6 +25,12 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.',
     );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Avoid setting specialist token_budget unless you have a concrete budget reason',
+    );
   });
 
   it('adds predecessor-handoff discipline to every built-in role prompt', () => {

@@ -441,6 +441,131 @@ describe('TaskWriteService', () => {
     expect(pool.query).toHaveBeenCalledTimes(3);
   });
 
+  it('clamps low specialist token budgets to the configured minimum before insert and replay matching', async () => {
+    let insertedTokenBudget: number | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'design' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('workflow_id = $2') &&
+          sql.includes('request_id = $3')
+        ) {
+          if (insertedTokenBudget === null) {
+            return { rowCount: 0, rows: [] };
+          }
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-budget-floor',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              request_id: 'request-budget-floor',
+              role: 'architect',
+              stage_name: 'design',
+              depends_on: [],
+              requires_approval: false,
+              requires_output_review: false,
+              context: {},
+              role_config: null,
+              environment: null,
+              resource_bindings: [],
+              activation_id: null,
+              is_orchestrator_task: false,
+              token_budget: insertedTokenBudget,
+              cost_cap_usd: null,
+              auto_retry: false,
+              max_retries: 0,
+              metadata: {},
+            }],
+          };
+        }
+        if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedTokenBudget = (values?.[22] as number) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-budget-floor',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              request_id: 'request-budget-floor',
+              role: 'architect',
+              stage_name: 'design',
+              token_budget: insertedTokenBudget,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        TASK_SPECIALIST_MIN_TOKEN_BUDGET: 12000,
+      },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const created = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Architect task',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        role: 'architect',
+        request_id: 'request-budget-floor',
+        token_budget: 6000,
+      },
+    );
+
+    const replayed = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Architect task',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        role: 'architect',
+        request_id: 'request-budget-floor',
+        token_budget: 6000,
+      },
+    );
+
+    expect(insertedTokenBudget).toBe(12000);
+    expect(created.token_budget).toBe(12000);
+    expect(replayed.id).toBe('task-budget-floor');
+    expect(replayed.token_budget).toBe(12000);
+  });
+
   it('does not reuse a request_id from a different workflow', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {

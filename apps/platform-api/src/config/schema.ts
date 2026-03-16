@@ -25,6 +25,7 @@ export const envSchema = z
     AGENT_KEY_EXPIRY_MS: z.coerce.number().int().min(1).default(31536000000),
     AGENT_HEARTBEAT_TOLERANCE_MS: z.coerce.number().int().min(1).default(2000),
     TASK_DEFAULT_TIMEOUT_MINUTES: z.coerce.number().int().min(1).default(30),
+    TASK_SPECIALIST_MIN_TOKEN_BUDGET: z.coerce.number().int().min(1).default(12000),
     ORCHESTRATOR_TASK_MESSAGE_DELIVERY_STALE_AFTER_MS: z.coerce.number().int().min(1).default(15000),
     WORKFLOW_ACTIVATION_DELAY_MS: z.coerce.number().int().min(0).default(10000),
     WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().min(1).default(300000),

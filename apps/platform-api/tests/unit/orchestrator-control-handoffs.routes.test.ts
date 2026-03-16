@@ -18,6 +18,8 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withScope: () => async () => {},
 }));
 
+const scopedWorkItemId = '11111111-1111-4111-8111-111111111111';
+
 describe('orchestrator control handoff routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
@@ -61,7 +63,7 @@ describe('orchestrator control handoff routes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', {
       getWorkflowWorkItem: vi.fn().mockResolvedValue({
-        id: 'work-item-1',
+        id: scopedWorkItemId,
         stage_name: 'implementation',
         current_checkpoint: 'implementation',
         column_id: 'review',
@@ -86,13 +88,13 @@ describe('orchestrator control handoff routes', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/orchestrator/tasks/task-orch-1/work-items/work-item-1/continuity',
+      url: `/api/v1/orchestrator/tasks/task-orch-1/work-items/${scopedWorkItemId}/continuity`,
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toEqual({
-      id: 'work-item-1',
+      id: scopedWorkItemId,
       stage_name: 'implementation',
       current_checkpoint: 'implementation',
       column_id: 'review',
@@ -136,7 +138,7 @@ describe('orchestrator control handoff routes', () => {
               id: 'handoff-2',
               tenant_id: 'tenant-1',
               workflow_id: 'workflow-1',
-              work_item_id: 'work-item-1',
+              work_item_id: scopedWorkItemId,
               task_id: 'task-2',
               request_id: 'req-2',
               role: 'reviewer',
@@ -166,7 +168,7 @@ describe('orchestrator control handoff routes', () => {
                 id: 'handoff-1',
                 tenant_id: 'tenant-1',
                 workflow_id: 'workflow-1',
-                work_item_id: 'work-item-1',
+                work_item_id: scopedWorkItemId,
                 task_id: 'task-1',
                 request_id: 'req-1',
                 role: 'developer',
@@ -190,7 +192,7 @@ describe('orchestrator control handoff routes', () => {
                 id: 'handoff-2',
                 tenant_id: 'tenant-1',
                 workflow_id: 'workflow-1',
-                work_item_id: 'work-item-1',
+                work_item_id: scopedWorkItemId,
                 task_id: 'task-2',
                 request_id: 'req-2',
                 role: 'reviewer',
@@ -219,7 +221,7 @@ describe('orchestrator control handoff routes', () => {
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', {
-      getWorkflowWorkItem: vi.fn().mockResolvedValue({ id: 'work-item-1' }),
+      getWorkflowWorkItem: vi.fn().mockResolvedValue({ id: scopedWorkItemId }),
     } as never);
     app.decorate('taskService', { createTask: vi.fn() });
     app.decorate('projectService', {
@@ -231,12 +233,12 @@ describe('orchestrator control handoff routes', () => {
 
     const latestResponse = await app.inject({
       method: 'GET',
-      url: '/api/v1/orchestrator/tasks/task-orch-1/work-items/work-item-1/handoffs/latest',
+      url: `/api/v1/orchestrator/tasks/task-orch-1/work-items/${scopedWorkItemId}/handoffs/latest`,
       headers: { authorization: 'Bearer test' },
     });
     const chainResponse = await app.inject({
       method: 'GET',
-      url: '/api/v1/orchestrator/tasks/task-orch-1/work-items/work-item-1/handoffs',
+      url: `/api/v1/orchestrator/tasks/task-orch-1/work-items/${scopedWorkItemId}/handoffs`,
       headers: { authorization: 'Bearer test' },
     });
 
@@ -252,5 +254,85 @@ describe('orchestrator control handoff routes', () => {
       expect.objectContaining({ id: 'handoff-1', role: 'developer' }),
       expect.objectContaining({ id: 'handoff-2', role: 'reviewer' }),
     ]);
+  });
+
+  it('rejects invalid work item ids on continuity reads before hitting workflow services', async () => {
+    const query = vi.fn(async () => ({
+      rowCount: 0,
+      rows: [],
+    }));
+    const getWorkflowWorkItem = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { query } as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', {
+      getWorkflowWorkItem,
+    } as never);
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/orchestrator/tasks/task-orch-1/work-items/<placeholder>/continuity',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toEqual(
+      expect.objectContaining({
+        code: 'VALIDATION_ERROR',
+        message: 'work_item_id must be a valid uuid',
+      }),
+    );
+    expect(query).not.toHaveBeenCalled();
+    expect(getWorkflowWorkItem).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid work item ids on latest handoff reads before hitting workflow services', async () => {
+    const query = vi.fn(async () => ({
+      rowCount: 0,
+      rows: [],
+    }));
+    const getWorkflowWorkItem = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { query } as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', {
+      getWorkflowWorkItem,
+    } as never);
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/orchestrator/tasks/task-orch-1/work-items/<placeholder>/handoffs/latest',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error).toEqual(
+      expect.objectContaining({
+        code: 'VALIDATION_ERROR',
+        message: 'work_item_id must be a valid uuid',
+      }),
+    );
+    expect(query).not.toHaveBeenCalled();
+    expect(getWorkflowWorkItem).not.toHaveBeenCalled();
   });
 });

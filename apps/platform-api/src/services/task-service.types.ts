@@ -65,6 +65,7 @@ export type PublicTaskState =
 export type AcceptedTaskStateFilter = PublicTaskState;
 
 export type TaskServiceConfig = Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
+  Partial<Pick<AppEnv, 'TASK_SPECIALIST_MIN_TOKEN_BUDGET'>> &
   Partial<
     Pick<
       AppEnv,

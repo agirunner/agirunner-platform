@@ -166,11 +166,21 @@ const childWorkflowCreateSchema = z.object({
   instruction_config: z.record(z.unknown()).optional(),
 });
 
+const workItemIdParamSchema = z.string().uuid();
+
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
     return result.data;
   }
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
+}
+
+function parseWorkItemIdOrThrow(value: string): string {
+  const parsed = workItemIdParamSchema.safeParse(value);
+  if (!parsed.success) {
+    throw new ValidationError('work_item_id must be a valid uuid');
+  }
+  return parsed.data;
 }
 
 const projectMemoryDeleteQuerySchema = z.object({
@@ -276,6 +286,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { taskId: string; workItemId: string };
+      const workItemId = parseWorkItemIdOrThrow(params.workItemId);
       const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
         request.auth!,
         params.taskId,
@@ -283,7 +294,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
       const workItem = await app.workflowService.getWorkflowWorkItem(
         request.auth!.tenantId,
         taskScope.workflow_id,
-        params.workItemId,
+        workItemId,
       );
       return {
         data: {
@@ -310,6 +321,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { taskId: string; workItemId: string };
+      const workItemId = parseWorkItemIdOrThrow(params.workItemId);
       const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
         request.auth!,
         params.taskId,
@@ -317,12 +329,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
       await app.workflowService.getWorkflowWorkItem(
         request.auth!.tenantId,
         taskScope.workflow_id,
-        params.workItemId,
+        workItemId,
       );
       const data = await handoffService.listWorkItemHandoffs(
         request.auth!.tenantId,
         taskScope.workflow_id,
-        params.workItemId,
+        workItemId,
       );
       return { data };
     },
@@ -333,6 +345,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { taskId: string; workItemId: string };
+      const workItemId = parseWorkItemIdOrThrow(params.workItemId);
       const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
         request.auth!,
         params.taskId,
@@ -340,12 +353,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
       await app.workflowService.getWorkflowWorkItem(
         request.auth!.tenantId,
         taskScope.workflow_id,
-        params.workItemId,
+        workItemId,
       );
       const data = await handoffService.getLatestWorkItemHandoff(
         request.auth!.tenantId,
         taskScope.workflow_id,
-        params.workItemId,
+        workItemId,
       );
       return { data };
     },
