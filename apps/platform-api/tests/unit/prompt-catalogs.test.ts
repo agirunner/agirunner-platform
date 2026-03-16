@@ -10,6 +10,9 @@ describe('prompt catalogs', () => {
   it('keeps platform instructions aligned with escalation and memory discipline', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave the work in a clean takeover state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before escalation.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Repository-backed containers guarantee only the repo checkout, git, and sh.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before task completion, you MUST call submit_handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff is a mutating tool call and MUST include a unique request_id');
@@ -57,6 +60,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'execution-workspace template',
     );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Specialists should install any additional language runtime, package manager, or test/build tool they need inside the task container.',
+    );
   });
 
   it('adds predecessor-handoff discipline to every built-in role prompt', () => {
@@ -66,6 +72,9 @@ describe('prompt catalogs', () => {
       expect(role.systemPrompt).toContain('If predecessor handoff exists in your task context, read it first');
       expect(role.systemPrompt).toContain('Treat predecessor handoffs, current task input, project memory, and the current branch diff as authoritative');
       expect(role.systemPrompt).toContain('Treat the workflow brief and launch inputs as authoritative for the requested deliverable');
+      expect(role.systemPrompt).toContain(
+        'assume only the prepared repository workspace, git, and a minimal shell are guaranteed',
+      );
       expect(role.systemPrompt).toContain('Do not infer behavior from legacy package names, file names, or stale repository terminology');
       expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff with a unique request_id');
       expect(role.systemPrompt).toContain('Call submit_handoff once, when the final handoff for the current task attempt is ready.');
