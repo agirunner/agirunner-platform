@@ -14,6 +14,7 @@ const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'awaiting_approval',
   'output_pending_review',
 ] as const;
+const ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES = ['pending', 'ready', 'claimed', 'in_progress'] as const;
 const ACTIVATION_TASK_REQUEST_ID_PATTERN = /^activation:([^:]+):dispatch:(\d+)$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'execution-workspace';
@@ -493,6 +494,16 @@ export class WorkflowActivationDispatchService {
       const activationAnchor = findActivationAnchor(activation.id, activationBatch);
       const activationReason = deriveActivationReason(activationBatch);
       const primaryEvent = derivePrimaryActivationEvent(activationAnchor, activationBatch);
+      if (
+        activationReason === 'heartbeat' &&
+        await this.hasActiveSpecialistTask(activationAnchor.tenant_id, activationAnchor.workflow_id, client)
+      ) {
+        await this.completeHeartbeatWithoutDispatch(activationAnchor, client);
+        if (ownsClient) {
+          await client.query('COMMIT');
+        }
+        return null;
+      }
       const taskRequestId = buildActivationTaskRequestId(activationAnchor);
       const taskDefinition = buildActivationTaskDefinition(workflow, activationAnchor, activationBatch);
       const taskResult = await client.query<ActivationTaskRow>(
@@ -755,6 +766,78 @@ export class WorkflowActivationDispatchService {
       [tenantId, workflowId, ACTIVE_ORCHESTRATOR_TASK_STATES],
     );
     return (result.rowCount ?? 0) > 0;
+  }
+
+  private async hasActiveSpecialistTask(
+    tenantId: string,
+    workflowId: string,
+    client: DatabaseClient,
+  ): Promise<boolean> {
+    const result = await client.query(
+      `SELECT 1
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND is_orchestrator_task = false
+          AND state = ANY($3::task_state[])
+        LIMIT 1`,
+      [tenantId, workflowId, ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES],
+    );
+    return (result.rowCount ?? 0) > 0;
+  }
+
+  private async completeHeartbeatWithoutDispatch(
+    activation: QueuedActivationRow,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const result = await client.query<QueuedActivationRow>(
+      `UPDATE workflow_activations
+          SET state = 'completed',
+              activation_id = id,
+              started_at = now(),
+              consumed_at = now(),
+              completed_at = now(),
+              summary = $4,
+              dispatch_attempt = dispatch_attempt + 1,
+              dispatch_token = NULL,
+              error = NULL
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+          AND consumed_at IS NULL
+      RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
+                state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error`,
+      [
+        activation.tenant_id,
+        activation.workflow_id,
+        activation.id,
+        'heartbeat skipped while specialist work is still in progress',
+      ],
+    );
+    const completed = result.rows[0];
+    if (!completed) {
+      return;
+    }
+
+    await this.deps.eventService.emit(
+      {
+        tenantId: completed.tenant_id,
+        type: 'workflow.activation_completed',
+        entityType: 'workflow',
+        entityId: completed.workflow_id,
+        actorType: 'system',
+        actorId: 'workflow_activation_dispatcher',
+        data: {
+          activation_id: completed.id,
+          event_type: 'heartbeat',
+          reason: 'heartbeat',
+          task_id: null,
+          event_count: 0,
+          summary: completed.summary,
+        },
+      },
+      client,
+    );
   }
 
   private async hasProcessingActivation(

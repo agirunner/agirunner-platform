@@ -18,6 +18,7 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff is a mutating tool call and MUST include a unique request_id');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects task completion without a structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or interim progress marker');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
   });
 
   it('keeps orchestrator prompt aligned with continuity, budget, and checkpoint guidance', () => {
@@ -63,6 +64,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Specialists should install any additional language runtime, package manager, or test/build tool they need inside the task container.',
     );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'On heartbeat-only activations, exit when specialist work is progressing and nothing new is actionable.',
+    );
   });
 
   it('adds predecessor-handoff discipline to every built-in role prompt', () => {
@@ -70,12 +74,13 @@ describe('prompt catalogs', () => {
     expect(roles.length).toBeGreaterThan(0);
     for (const role of roles) {
       expect(role.systemPrompt).toContain('If predecessor handoff exists in your task context, read it first');
-      expect(role.systemPrompt).toContain('Treat predecessor handoffs, current task input, project memory, and the current branch diff as authoritative');
-      expect(role.systemPrompt).toContain('Treat the workflow brief and launch inputs as authoritative for the requested deliverable');
+      expect(role.systemPrompt).toContain('Treat predecessor handoffs, task input, project memory, and the current branch diff as authoritative');
+      expect(role.systemPrompt).toContain('Treat the workflow brief and launch inputs as authoritative');
       expect(role.systemPrompt).toContain(
         'assume only the prepared repository workspace, git, and a minimal shell are guaranteed',
       );
-      expect(role.systemPrompt).toContain('Do not infer behavior from legacy package names, file names, or stale repository terminology');
+      expect(role.systemPrompt).toContain('Install missing runtimes/tools yourself in the task container');
+      expect(role.systemPrompt).toContain('Do not infer behavior from stale package names, file names, or repository terminology');
       expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff with a unique request_id');
       expect(role.systemPrompt).toContain('Call submit_handoff once, when the final handoff for the current task attempt is ready.');
       expect(role.systemPrompt).toContain('The platform will reject completion without a structured handoff');

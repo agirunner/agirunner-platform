@@ -28,7 +28,7 @@ export const envSchema = z
     TASK_SPECIALIST_MIN_TOKEN_BUDGET: z.coerce.number().int().min(1).default(12000),
     ORCHESTRATOR_TASK_MESSAGE_DELIVERY_STALE_AFTER_MS: z.coerce.number().int().min(1).default(15000),
     WORKFLOW_ACTIVATION_DELAY_MS: z.coerce.number().int().min(0).default(10000),
-    WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().min(1).default(300000),
+    WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().min(1).default(900000),
     WORKFLOW_ACTIVATION_STALE_AFTER_MS: z.coerce.number().int().min(1).default(300000),
     WORKFLOW_BUDGET_WARNING_RATIO: z.coerce.number().gt(0).lte(1).default(0.8),
     TASK_MAX_SUBTASK_DEPTH: z.coerce.number().int().min(1).default(3),
