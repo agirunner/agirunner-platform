@@ -237,9 +237,9 @@ describe('evaluatePlaybookRules', () => {
         nextExpectedAction: 'handoff',
       }),
       expect.objectContaining({
-        matchedRuleType: null,
-        nextExpectedActor: null,
-        nextExpectedAction: null,
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'product-manager',
+        nextExpectedAction: 'handoff',
       }),
       expect.objectContaining({
         matchedRuleType: 'approval',

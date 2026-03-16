@@ -119,7 +119,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
     lifecycle: 'planned',
     definition: {
       process_instructions:
-        'Product manager clarifies the goal and acceptance criteria and resolves scope questions with humans when needed. Architect produces or reviews the technical design before implementation begins. Developer implements the change. Reviewer must review every developer-delivered code change, and rejected review returns to developer with concrete findings. QA validates after reviewer approval and records evidence. Product manager confirms the delivered outcome, release notes, and operator communication. Human approval is required before release and completion.',
+        'Product manager clarifies the goal and acceptance criteria and resolves scope questions with humans when needed. Architect produces or reviews the technical design before implementation begins. Developer implements the change. Reviewer must review every developer-delivered code change, and rejected review returns to developer with concrete findings. QA validates after reviewer approval and records evidence. Product manager confirms the delivered outcome, release notes, and operator communication before the release approval is requested. When a checkpoint deliverable is accepted and the next checkpoint begins, complete the finished checkpoint work item instead of leaving it open. Human approval is required before release and completion, and after final release approval the workflow must be completed.',
       parameters: [
         {
           name: 'goal',
@@ -304,7 +304,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
         {
           from_role: 'qa',
           to_role: 'product-manager',
-          required: false,
+          required: true,
         },
       ],
       orchestrator: {

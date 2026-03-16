@@ -25,6 +25,9 @@ describe('built-in playbooks', () => {
     expect(definition.process_instructions).toContain(
       'Human approval is required before release and completion',
     );
+    expect(definition.process_instructions).toContain(
+      'complete the finished checkpoint work item instead of leaving it open',
+    );
     expect(definition.checkpoints.map((checkpoint) => checkpoint.name)).toEqual([
       'requirements',
       'design',
@@ -54,6 +57,11 @@ describe('built-in playbooks', () => {
         expect.objectContaining({ from_role: 'architect', to_role: 'developer' }),
         expect.objectContaining({ from_role: 'developer', to_role: 'reviewer' }),
         expect.objectContaining({ from_role: 'reviewer', to_role: 'qa' }),
+        expect.objectContaining({
+          from_role: 'qa',
+          to_role: 'product-manager',
+          required: true,
+        }),
       ]),
     );
   });
