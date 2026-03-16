@@ -1,5 +1,6 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
@@ -42,9 +43,13 @@ interface LinkedWorkItemRow {
   stage_gate_status: string | null;
 }
 
+interface WorkflowPlaybookDefinitionRow {
+  definition: unknown;
+}
+
 const DEFAULT_MAX_SUBTASK_DEPTH = 3;
 const DEFAULT_MAX_SUBTASKS_PER_PARENT = 20;
-const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'software-workspace';
+const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'execution-workspace';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 const ACTIVE_TASK_DUPLICATE_GUARD_STATES = [
   'pending',
@@ -81,6 +86,7 @@ export class TaskWriteService {
     this.assertWorkflowTaskLinkage(normalizedInput);
     await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyWorkflowExecutionDefaults(identity.tenantId, normalizedInput, db);
+    normalizedInput = await this.applyPlaybookRuleDerivedTaskReviewPolicy(identity.tenantId, normalizedInput, db);
     normalizedInput = this.applySpecialistTokenBudgetFloor(normalizedInput);
     normalizedInput = await this.applyRoleCapabilityDefaults(identity.tenantId, normalizedInput);
     const dependencies = normalizedInput.depends_on ?? [];
@@ -393,14 +399,19 @@ export class TaskWriteService {
       ?? asNullableString(parameters.repository_url)
       ?? asNullableString(parameters.repo)
       ?? asNullableString(workflow.repository_url);
+    const baseBranch =
+      asNullableString(environment.base_branch)
+      ?? asNullableString(environment.baseBranch)
+      ?? asNullableString(parameters.base_branch)
+      ?? asNullableString(workflow.git_branch)
+      ?? asNullableString(parameters.branch)
+      ?? projectRepository.defaultBranch;
     const branch =
       asNullableString(environment.branch)
       ?? asNullableString(parameters.feature_branch)
       ?? asNullableString(parameters.target_branch)
       ?? asNullableString(workflow.git_branch)
-      ?? asNullableString(parameters.base_branch)
-      ?? asNullableString(parameters.branch)
-      ?? projectRepository.defaultBranch;
+      ?? baseBranch;
     const gitUserName =
       asNullableString(environment.git_user_name)
       ?? asNullableString(environment.gitUserName)
@@ -422,6 +433,7 @@ export class TaskWriteService {
       ...environment,
       ...(repositoryURL ? { repository_url: repositoryURL } : {}),
       ...(branch ? { branch } : {}),
+      ...(baseBranch ? { base_branch: baseBranch } : {}),
       ...(gitUserName ? { git_user_name: gitUserName } : {}),
       ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
     };
@@ -444,6 +456,44 @@ export class TaskWriteService {
       ...input,
       ...(hasEnvironment ? { environment: nextEnvironment } : {}),
       ...(hasBindings ? { resource_bindings: nextBindings } : {}),
+    };
+  }
+
+  private async applyPlaybookRuleDerivedTaskReviewPolicy(
+    tenantId: string,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<CreateTaskInput> {
+    if (!input.workflow_id || input.is_orchestrator_task) {
+      return input;
+    }
+    const roleName = input.role?.trim();
+    if (!roleName) {
+      return input;
+    }
+
+    const result = await db.query<WorkflowPlaybookDefinitionRow>(
+      `SELECT pb.definition
+         FROM workflows w
+         JOIN playbooks pb
+           ON pb.tenant_id = w.tenant_id
+          AND pb.id = w.playbook_id
+        WHERE w.tenant_id = $1
+          AND w.id = $2
+        LIMIT 1`,
+      [tenantId, input.workflow_id],
+    );
+    if (!result.rowCount) {
+      return input;
+    }
+
+    const definition = parsePlaybookDefinition(result.rows[0].definition);
+    const requiresOutputReview = definition.review_rules.some(
+      (rule) => rule.required !== false && rule.from_role === roleName,
+    );
+    return {
+      ...input,
+      requires_output_review: requiresOutputReview,
     };
   }
 

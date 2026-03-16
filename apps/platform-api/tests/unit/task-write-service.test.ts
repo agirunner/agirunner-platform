@@ -8,7 +8,126 @@ function isLinkedWorkItemLookup(sql: string) {
     || sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items');
 }
 
+function isPlaybookDefinitionLookup(sql: string) {
+  return sql.includes('JOIN playbooks pb');
+}
+
 describe('TaskWriteService', () => {
+  it('derives output review from playbook rules instead of trusting reviewer task input', async () => {
+    let insertedRequiresOutputReview: boolean | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('JOIN playbooks pb')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                process_instructions: 'Developer implements, reviewer reviews, QA validates.',
+                roles: ['developer', 'reviewer', 'qa'],
+                review_rules: [
+                  {
+                    from_role: 'developer',
+                    reviewed_by: 'reviewer',
+                    required: true,
+                  },
+                ],
+                approval_rules: [],
+                handoff_rules: [
+                  {
+                    from_role: 'reviewer',
+                    to_role: 'qa',
+                    required: true,
+                  },
+                ],
+                checkpoints: [],
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                  entry_column_id: 'planned',
+                },
+                lifecycle: 'planned',
+              },
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedRequiresOutputReview = (values?.[11] as boolean) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'review-task-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              requires_output_review: insertedRequiresOutputReview,
+            }],
+          };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Review implementation',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-review-normalized',
+        role: 'reviewer',
+        type: 'review',
+        requires_output_review: true,
+      },
+    );
+
+    expect(insertedRequiresOutputReview).toBe(false);
+  });
+
   it('defaults workflow task execution context from the workflow repository settings', async () => {
     let insertedEnvironment: Record<string, unknown> | null = null;
     let insertedBindings: string | null = null;
@@ -69,6 +188,9 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -104,9 +226,10 @@ describe('TaskWriteService', () => {
       expect.objectContaining({
         repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
         branch: 'smoke/test/fix',
+        base_branch: 'main',
         git_user_name: 'Smoke Bot',
         git_user_email: 'smoke@example.com',
-        template: 'software-workspace',
+        template: 'execution-workspace',
       }),
     );
     expect(JSON.parse(insertedBindings ?? '[]')).toEqual([
@@ -170,6 +293,9 @@ describe('TaskWriteService', () => {
               environment: insertedEnvironment,
             }],
           };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -255,6 +381,9 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -296,6 +425,9 @@ describe('TaskWriteService', () => {
       pool: {
         query: vi.fn(async (sql: string) => {
           if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+            return { rowCount: 0, rows: [] };
+          }
+          if (isPlaybookDefinitionLookup(sql)) {
             return { rowCount: 0, rows: [] };
           }
           throw new Error(`unexpected query: ${sql}`);
@@ -345,6 +477,9 @@ describe('TaskWriteService', () => {
               input: { scope: 'narrowed' },
             }],
           };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -436,6 +571,9 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -471,9 +609,10 @@ describe('TaskWriteService', () => {
     expect(insertedEnvironment).toEqual({
       repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
       branch: 'smoke/test-branch',
+      base_branch: 'main',
       git_user_name: 'Smoke Bot',
       git_user_email: 'smoke@example.test',
-      template: 'software-workspace',
+      template: 'execution-workspace',
     });
     expect(JSON.parse(insertedBindings ?? '[]')).toEqual([
       {
@@ -616,6 +755,9 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -727,6 +869,9 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -814,6 +959,9 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -900,6 +1048,9 @@ describe('TaskWriteService', () => {
         if (sql.startsWith('INSERT INTO tasks')) {
           return { rowCount: 0, rows: [] };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -980,6 +1131,9 @@ describe('TaskWriteService', () => {
               metadata: {},
             }],
           };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -1079,6 +1233,9 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -1149,6 +1306,9 @@ describe('TaskWriteService', () => {
               requires_approval: true,
             }],
           };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
