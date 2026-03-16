@@ -455,6 +455,13 @@ export class PlaybookWorkflowControlService {
     }
 
     const nextStage = await this.loadStage(identity.tenantId, workflowId, nextStageName, db);
+    await this.completeOpenCheckpointWorkItems(
+      identity.tenantId,
+      workflowId,
+      sourceStage.name,
+      terminalColumnIdFor(definition),
+      db,
+    );
     await db.query(
       `UPDATE workflow_stages
           SET status = 'completed',
@@ -518,6 +525,44 @@ export class PlaybookWorkflowControlService {
       completed_stage: stageName,
       next_stage: nextStage.name,
     };
+  }
+
+  private async completeOpenCheckpointWorkItems(
+    tenantId: string,
+    workflowId: string,
+    checkpointName: string,
+    terminalColumnId: string | null,
+    db: DatabaseClient,
+  ) {
+    if (terminalColumnId) {
+      await db.query(
+        `UPDATE workflow_work_items
+            SET column_id = $4,
+                completed_at = COALESCE(completed_at, now()),
+                next_expected_actor = NULL,
+                next_expected_action = NULL,
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND current_checkpoint = $3
+            AND completed_at IS NULL`,
+        [tenantId, workflowId, checkpointName, terminalColumnId],
+      );
+      return;
+    }
+
+    await db.query(
+      `UPDATE workflow_work_items
+          SET completed_at = COALESCE(completed_at, now()),
+              next_expected_actor = NULL,
+              next_expected_action = NULL,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND current_checkpoint = $3
+          AND completed_at IS NULL`,
+      [tenantId, workflowId, checkpointName],
+    );
   }
 
   private async completeWorkflowInTransaction(
@@ -1201,6 +1246,11 @@ function isIdempotentStageAdvance(
   nextStageName: string,
 ) {
   return sourceStage.status === 'completed' && currentStageName === nextStageName;
+}
+
+function terminalColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition>) {
+  const terminalColumn = definition.board.columns.find((column) => column.is_terminal);
+  return terminalColumn ? terminalColumn.id : null;
 }
 
 function readCompletionSummary(workflow: WorkflowContextRow) {

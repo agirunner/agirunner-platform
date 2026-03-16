@@ -452,6 +452,93 @@ describe('PlaybookWorkflowControlService', () => {
     });
   });
 
+  it('closes open predecessor work items when advancing a planned workflow stage', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              project_id: 'project-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'requirements',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          const stageName = params[2];
+          if (stageName === 'requirements') {
+            return {
+              rowCount: 1,
+              rows: [{
+                id: 'stage-1',
+                name: 'requirements',
+                position: 0,
+                goal: 'Define scope',
+                guidance: null,
+                human_gate: true,
+                status: 'awaiting_gate',
+                gate_status: 'approved',
+                iteration_count: 0,
+                summary: null,
+                metadata: {},
+                started_at: new Date('2026-03-11T00:00:00Z'),
+                completed_at: null,
+                updated_at: new Date('2026-03-11T00:00:00Z'),
+              }],
+            };
+          }
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-2',
+              name: 'implementation',
+              position: 1,
+              goal: 'Ship code',
+              guidance: null,
+              human_gate: false,
+              status: 'pending',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              metadata: {},
+              started_at: null,
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:00:00Z'),
+            }],
+          };
+        }
+        return { rowCount: 1, rows: [] };
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: {
+        recomputeWorkflowState: vi.fn(async () => 'active'),
+      } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    await service.advanceStage(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'requirements',
+      { summary: 'Requirements approved' },
+      pool as never,
+    );
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'requirements', 'done'],
+    );
+  });
+
   it('records a gate decision and queues a follow-on activation', async () => {
     const activationService = {
       enqueueForWorkflow: vi.fn(async () => ({
