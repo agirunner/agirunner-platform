@@ -21,6 +21,7 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_checkpoint when planned workflows are ready to move forward.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as an array of objects');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.',
     );

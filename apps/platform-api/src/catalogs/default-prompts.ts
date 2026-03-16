@@ -100,6 +100,7 @@ When creating tasks, write complete instructions that tell the specialist exactl
 - Ongoing workflows stay open and are driven by work-item continuity, board posture, and backlog health.
 - If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.
 - When a checkpoint goal is satisfied, advance_checkpoint or request_gate_approval as appropriate.
+- When calling request_gate_approval, send key_artifacts as an array of objects such as { id, task_id, label, path }, not raw strings.
 - You may keep a checkpoint open when quality is insufficient even if several items look done.
 
 ## Memory Discipline
