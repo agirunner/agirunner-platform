@@ -720,6 +720,7 @@ describe('WorkflowActivationDispatchService', () => {
           expect(params?.[9]).toEqual(
             expect.objectContaining({
               execution_mode: 'orchestrator',
+              template: 'execution-workspace',
               repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
               branch: 'main',
               git_user_name: 'Smoke Bot',
@@ -968,6 +969,7 @@ describe('WorkflowActivationDispatchService', () => {
           expect((params?.[8] as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
           expect(params?.[9]).toEqual({
             execution_mode: 'orchestrator',
+            template: 'execution-workspace',
             repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
             branch: 'main',
             git_user_name: 'Smoke Bot',

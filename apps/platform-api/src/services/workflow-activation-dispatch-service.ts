@@ -16,6 +16,7 @@ const ACTIVE_ORCHESTRATOR_TASK_STATES = [
 ] as const;
 const ACTIVATION_TASK_REQUEST_ID_PATTERN = /^activation:([^:]+):dispatch:(\d+)$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'execution-workspace';
 
 interface QueuedActivationRow {
   id: string;
@@ -1582,6 +1583,7 @@ function resolveWorkflowRepositoryContext(workflow: WorkflowDispatchRow): Workfl
 function buildActivationEnvironment(repository: WorkflowRepositoryContext): Record<string, unknown> {
   return {
     execution_mode: 'orchestrator',
+    ...(repository.repository_url ? { template: DEFAULT_REPOSITORY_TASK_TEMPLATE } : {}),
     ...(repository.repository_url ? { repository_url: repository.repository_url } : {}),
     ...(repository.base_branch ? { branch: repository.base_branch } : {}),
     ...(repository.git_user_name ? { git_user_name: repository.git_user_name } : {}),
