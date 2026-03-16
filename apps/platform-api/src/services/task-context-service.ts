@@ -412,7 +412,36 @@ async function loadPredecessorHandoff(
       LIMIT 1`,
     [tenantId, workflowId, workItemId, taskId],
   );
-  return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+  if (result.rows[0]) {
+    return result.rows[0] as Record<string, unknown>;
+  }
+
+  const workflowFallback = await db.query(
+    `SELECT id,
+            task_id,
+            role,
+            stage_name,
+            summary,
+            completion,
+            changes,
+            decisions,
+            remaining_items,
+            blockers,
+            review_focus,
+            known_risks,
+            successor_context,
+            role_data,
+            artifact_ids,
+            created_at
+       FROM task_handoffs
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND task_id <> $3
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [tenantId, workflowId, taskId],
+  );
+  return (workflowFallback.rows[0] as Record<string, unknown> | undefined) ?? null;
 }
 
 async function loadWorkflowRelations(

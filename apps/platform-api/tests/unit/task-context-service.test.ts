@@ -316,6 +316,145 @@ describe('buildTaskContext active stage semantics', () => {
     );
   });
 
+  it('falls back to the latest workflow handoff when a new work item has no local predecessor history yet', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows p')) {
+          return {
+            rows: [{
+              id: 'workflow-5',
+              name: 'Planned workflow',
+              lifecycle: 'planned',
+              context: {},
+              git_branch: null,
+              parameters: {},
+              resolved_config: {},
+              instruction_config: {},
+              metadata: {},
+              playbook_id: 'playbook-5',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship a reviewed change',
+              playbook_definition: {
+                lifecycle: 'planned',
+                process_instructions: 'Product defines requirements, architect designs, developer implements, reviewer reviews, QA validates.',
+                board: {
+                  entry_column_id: 'planned',
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                checkpoints: [
+                  { name: 'requirements', goal: 'Clarify requirements', human_gate: true },
+                  { name: 'design', goal: 'Produce a technical design', human_gate: false },
+                ],
+                handoff_rules: [{ from_role: 'product-manager', to_role: 'architect', required: true }],
+              },
+              project_spec_version: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT DISTINCT stage_name')) {
+          return { rows: [{ stage_name: 'design' }] };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY position ASC')) {
+          return {
+            rows: [{
+              id: 'stage-1',
+              name: 'design',
+              position: 1,
+              goal: 'Produce a technical design',
+              guidance: null,
+              human_gate: false,
+              status: 'active',
+              is_active: true,
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+              open_work_item_count: 1,
+              total_work_item_count: 1,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $2')) {
+          return {
+            rows: [{
+              id: 'wi-design',
+              stage_name: 'design',
+              current_checkpoint: 'design',
+              column_id: 'active',
+              title: 'Design hello world',
+              goal: 'Produce the design for hello world',
+              acceptance_criteria: [],
+              owner_role: 'architect',
+              next_expected_actor: 'architect',
+              next_expected_action: 'design',
+              rework_count: 0,
+              latest_handoff_completion: null,
+              unresolved_findings: [],
+              review_focus: [],
+              known_risks: [],
+              priority: 1,
+              notes: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $3')) {
+          return { rows: [] };
+        }
+        if (sql.includes('FROM task_handoffs') && !sql.includes('AND work_item_id = $3')) {
+          return {
+            rows: [{
+              id: 'handoff-requirements',
+              task_id: 'task-pm-1',
+              role: 'product-manager',
+              stage_name: 'requirements',
+              summary: 'Requirements approved for hello world.',
+              completion: 'full',
+              changes: [],
+              decisions: ['Keep the deliverable minimal and operator-readable'],
+              remaining_items: [],
+              blockers: [],
+              review_focus: ['Carry the acceptance criteria into the design'],
+              known_risks: [],
+              successor_context: 'Use the approved requirements as the design input.',
+              role_data: { artifact: 'requirements-doc' },
+              artifact_ids: ['artifact-req-1'],
+              created_at: new Date('2026-03-15T01:00:00Z'),
+            }],
+          };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildTaskContext(db as never, 'tenant-1', {
+      id: 'task-architect-1',
+      workflow_id: 'workflow-5',
+      work_item_id: 'wi-design',
+      role: 'architect',
+      is_orchestrator_task: false,
+      depends_on: [],
+      role_config: { system_prompt: 'Role prompt' },
+      input: { instructions: 'Create the design.' },
+    });
+
+    expect((context.task as Record<string, unknown>).predecessor_handoff).toEqual(
+      expect.objectContaining({
+        id: 'handoff-requirements',
+        role: 'product-manager',
+        stage_name: 'requirements',
+        summary: 'Requirements approved for hello world.',
+      }),
+    );
+    expect(((context.instruction_layers as Record<string, any>).workflow ?? {}).content).toContain(
+      'Requirements approved for hello world.',
+    );
+  });
+
   it('injects board-driven workflow context when no checkpoints are defined', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
