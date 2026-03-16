@@ -72,7 +72,7 @@ describe('FleetService DCM', () => {
             roles: ['developer'],
             board: { columns: [{ id: 'planned', label: 'Planned' }] },
             stages: [],
-            lifecycle: 'standard',
+            lifecycle: 'planned',
             runtime: {
               specialist_pool: {
                 pool_mode: 'warm',
@@ -101,18 +101,24 @@ describe('FleetService DCM', () => {
         }],
         rowCount: 1,
       });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ name: 'developer', capabilities: ['coding', 'testing'] }],
+        rowCount: 1,
+      });
 
       const result = await service.getRuntimeTargets(TENANT_ID);
 
       expect(result).toHaveLength(2);
       expect(result[0].playbook_id).toBe(PLAYBOOK_ID);
       expect(result[0].pool_kind).toBe('orchestrator');
+      expect(result[0].capability_tags).toEqual([]);
       expect(result[0].pool_mode).toBe('warm');
       expect(result[0].max_runtimes).toBe(1);
       expect(result[0].priority).toBe(10);
       expect(result[0].pending_tasks).toBe(1);
       expect(result[0].capability_demand_units).toBe(0);
       expect(result[1].pool_kind).toBe('specialist');
+      expect(result[1].capability_tags).toEqual(['role:developer', 'coding', 'testing']);
       expect(result[1].image).toBe('agirunner-runtime:v1');
       expect(result[1].pending_tasks).toBe(3);
       expect(result[1].tasks_with_capabilities).toBe(2);
@@ -134,7 +140,7 @@ describe('FleetService DCM', () => {
             roles: ['developer'],
             board: { columns: [{ id: 'planned', label: 'Planned' }] },
             stages: [],
-            lifecycle: 'standard',
+            lifecycle: 'planned',
             runtime: {},
           },
           active_workflows: 0,
@@ -146,10 +152,15 @@ describe('FleetService DCM', () => {
         }],
         rowCount: 1,
       });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ name: 'developer', capabilities: ['coding', 'testing'] }],
+        rowCount: 1,
+      });
 
       const result = await service.getRuntimeTargets(TENANT_ID);
 
       expect(result[0].pool_kind).toBe('specialist');
+      expect(result[0].capability_tags).toEqual(['role:developer', 'coding', 'testing']);
       expect(result[0].pool_mode).toBe('warm');
       expect(result[0].max_runtimes).toBe(1);
       expect(result[0].priority).toBe(0);
@@ -182,7 +193,7 @@ describe('FleetService DCM', () => {
             roles: ['developer'],
             board: { columns: [{ id: 'planned', label: 'Planned' }] },
             stages: [],
-            lifecycle: 'standard',
+            lifecycle: 'planned',
             runtime: {},
           },
           active_workflows: 0,
@@ -192,6 +203,10 @@ describe('FleetService DCM', () => {
           specialist_distinct_capability_sets: 0,
           specialist_max_required_capabilities: 0,
         }],
+        rowCount: 1,
+      });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ name: 'developer', capabilities: ['coding', 'testing'] }],
         rowCount: 1,
       });
 
@@ -209,6 +224,8 @@ describe('FleetService DCM', () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       // Second call: playbooks query
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      // Third call: role capability lookup (no roles to resolve)
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.getRuntimeTargets(TENANT_ID);
 
@@ -216,6 +233,7 @@ describe('FleetService DCM', () => {
     });
 
     it('uses shared aggregates instead of repeated correlated task scans', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
@@ -228,6 +246,54 @@ describe('FleetService DCM', () => {
       expect(query).toContain('COUNT(DISTINCT tk.capabilities_required) FILTER');
       expect(query.match(/FROM tasks tk/g)).toHaveLength(1);
       expect(query).not.toContain('(SELECT COUNT(*)::int FROM tasks tk');
+    });
+
+    it('includes all playbook role tags and capabilities for specialist pools', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({
+        rows: [{
+          playbook_id: PLAYBOOK_ID,
+          playbook_name: 'SDLC Pipeline',
+          definition: {
+            roles: ['developer', 'reviewer', 'product-manager'],
+            board: { columns: [{ id: 'planned', label: 'Planned' }] },
+            checkpoints: [],
+            lifecycle: 'planned',
+            runtime: {},
+          },
+          active_workflows: 1,
+          pending_tasks: 3,
+          pending_orchestrator_tasks: 0,
+          specialist_tasks_with_capabilities: 2,
+          specialist_distinct_capability_sets: 1,
+          specialist_max_required_capabilities: 2,
+        }],
+        rowCount: 1,
+      });
+      pool.query.mockResolvedValueOnce({
+        rows: [
+          { name: 'developer', capabilities: ['coding', 'testing'] },
+          { name: 'reviewer', capabilities: ['code-review', 'security-review'] },
+          { name: 'product-manager', capabilities: ['requirements', 'documentation', 'research'] },
+        ],
+        rowCount: 3,
+      });
+
+      const result = await service.getRuntimeTargets(TENANT_ID);
+
+      expect(result).toHaveLength(1);
+      expect(result[0].capability_tags).toEqual([
+        'role:developer',
+        'coding',
+        'testing',
+        'role:reviewer',
+        'code-review',
+        'security-review',
+        'role:product-manager',
+        'requirements',
+        'documentation',
+        'research',
+      ]);
     });
   });
 
@@ -389,7 +455,7 @@ describe('FleetService DCM', () => {
             roles: ['developer'],
             board: { columns: [{ id: 'planned', label: 'Planned' }] },
             stages: [],
-            lifecycle: 'standard',
+            lifecycle: 'planned',
             runtime: {
               orchestrator_pool: { max_runtimes: 1 },
               specialist_pool: { max_runtimes: 3 },
@@ -404,7 +470,12 @@ describe('FleetService DCM', () => {
         }],
         rowCount: 1,
       });
-      // Fifth call: worker pool status
+      // Fifth call: role capabilities for runtime target capabilities
+      pool.query.mockResolvedValueOnce({
+        rows: [{ name: 'developer', capabilities: ['coding', 'testing'] }],
+        rowCount: 1,
+      });
+      // Sixth call: worker pool status
       pool.query.mockResolvedValueOnce({
         rows: [
           {
@@ -426,7 +497,7 @@ describe('FleetService DCM', () => {
         ],
         rowCount: 2,
       });
-      // Sixth call: recent_events
+      // Seventh call: recent_events
       pool.query.mockResolvedValueOnce({
         rows: [{ id: 'evt-1', event_type: 'runtime.started', level: 'info', created_at: new Date() }],
         rowCount: 1,

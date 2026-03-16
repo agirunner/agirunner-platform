@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -131,7 +132,7 @@ func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
 
 // buildDCMEnvironment creates environment variables for a DCM runtime container.
 func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID string) map[string]string {
-	return map[string]string{
+	environment := map[string]string{
 		"AGIRUNNER_RUNTIME_PLATFORM_API_URL":              m.config.PlatformAPIURL,
 		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY":        m.config.PlatformAdminAPIKey,
 		"AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE": targetExecutionMode(target),
@@ -140,6 +141,22 @@ func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID string) ma
 		"AGIRUNNER_RUNTIME_IMAGE":                         target.Image,
 		"DOCKER_HOST":                                     m.config.DockerHost,
 	}
+	if capabilityTags := joinCapabilityTags(target.CapabilityTags); capabilityTags != "" {
+		environment["AGIRUNNER_RUNTIME_PLATFORM_CAPABILITY_TAGS"] = capabilityTags
+	}
+	return environment
+}
+
+func joinCapabilityTags(values []string) string {
+	filtered := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		filtered = append(filtered, trimmed)
+	}
+	return strings.Join(filtered, ",")
 }
 
 // buildDCMLabels creates labels for a DCM-managed runtime container.

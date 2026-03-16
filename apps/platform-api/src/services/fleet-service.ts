@@ -746,9 +746,12 @@ export class FleetService {
       [tenantId],
     );
 
+    const roleCapabilities = await this.loadRoleCapabilities(tenantId, result.rows);
+
     return result.rows.flatMap((row) => {
       const definition = parsePlaybookDefinition(row.definition);
       const poolTargets = readPlaybookRuntimePools(definition);
+      const capabilityTags = resolvePlaybookCapabilityTags(definition.roles, roleCapabilities);
 
       return poolTargets.map((poolTarget) => {
         const runtime = this.validateRuntimeConfig(row.playbook_id, poolTarget.config);
@@ -763,6 +766,7 @@ export class FleetService {
           playbook_id: row.playbook_id,
           playbook_name: row.playbook_name,
           pool_kind: poolTarget.pool_kind,
+          capability_tags: poolTarget.pool_kind === 'specialist' ? capabilityTags : [],
           pool_mode: runtime.pool_mode ?? 'warm',
           max_runtimes: runtime.max_runtimes ?? 1,
           priority: runtime.priority ?? 0,
@@ -786,6 +790,30 @@ export class FleetService {
         };
       });
     });
+  }
+
+  private async loadRoleCapabilities(
+    tenantId: string,
+    rows: RuntimeTargetRow[],
+  ): Promise<Map<string, string[]>> {
+    const roleNames = collectPlaybookRoleNames(rows);
+    if (roleNames.length === 0) {
+      return new Map<string, string[]>();
+    }
+
+    const placeholders = roleNames.map((_, index) => `$${index + 2}`).join(', ');
+    const result = await this.pool.query<RoleCapabilityRow>(
+      `SELECT name, capabilities
+       FROM role_definitions
+       WHERE tenant_id = $1
+         AND is_active = true
+         AND name IN (${placeholders})`,
+      [tenantId, ...roleNames],
+    );
+
+    return new Map<string, string[]>(
+      result.rows.map((row) => [row.name, normalizeCapabilityList(row.capabilities)]),
+    );
   }
 
   async getReconcileSnapshot(tenantId: string): Promise<{
@@ -1163,6 +1191,7 @@ export interface RuntimeTarget {
   playbook_id: string;
   playbook_name: string;
   pool_kind: PlaybookRuntimePoolKind;
+  capability_tags: string[];
   pool_mode: string;
   max_runtimes: number;
   priority: number;
@@ -1191,6 +1220,11 @@ interface RuntimeTargetRow {
   specialist_tasks_with_capabilities: number;
   specialist_distinct_capability_sets: number;
   specialist_max_required_capabilities: number;
+}
+
+interface RoleCapabilityRow {
+  name: string;
+  capabilities: string[];
 }
 
 export interface HeartbeatPayload {
@@ -1320,4 +1354,45 @@ interface WorkerPoolSummaryRow {
 
 function isPoolKind(value: string): value is PlaybookRuntimePoolKind {
   return VALID_POOL_KINDS.has(value);
+}
+
+function collectPlaybookRoleNames(rows: RuntimeTargetRow[]): string[] {
+  const names = new Set<string>();
+  for (const row of rows) {
+    const definition = parsePlaybookDefinition(row.definition);
+    for (const role of definition.roles) {
+      const normalized = role.trim();
+      if (normalized.length > 0) {
+        names.add(normalized);
+      }
+    }
+  }
+  return [...names];
+}
+
+function resolvePlaybookCapabilityTags(
+  roles: string[],
+  roleCapabilities: Map<string, string[]>,
+): string[] {
+  const tags = new Set<string>();
+  for (const role of roles) {
+    const normalizedRole = role.trim();
+    if (normalizedRole.length === 0) {
+      continue;
+    }
+    tags.add(`role:${normalizedRole}`);
+    for (const capability of roleCapabilities.get(normalizedRole) ?? []) {
+      tags.add(capability);
+    }
+  }
+  return [...tags];
+}
+
+function normalizeCapabilityList(values: string[] | null | undefined): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return values
+    .map((value) => String(value).trim())
+    .filter((value) => value.length > 0);
 }

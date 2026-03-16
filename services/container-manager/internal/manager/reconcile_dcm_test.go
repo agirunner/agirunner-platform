@@ -30,6 +30,7 @@ func makeRuntimeTarget(templateID, image string, maxRuntimes, pending, priority 
 		PlaybookID:         templateID,
 		PlaybookName:       "template-" + templateID,
 		PoolKind:           "specialist",
+		CapabilityTags:     []string{"role:developer", "coding", "testing"},
 		PoolMode:           "cold",
 		MaxRuntimes:        maxRuntimes,
 		Priority:           priority,
@@ -351,6 +352,9 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 	env := docker.createdSpecs[0].Environment
 	if env["AGIRUNNER_RUNTIME_PLATFORM_API_URL"] != "http://localhost:8080" {
 		t.Errorf("wrong platform URL: %s", env["AGIRUNNER_RUNTIME_PLATFORM_API_URL"])
+	}
+	if env["AGIRUNNER_RUNTIME_PLATFORM_CAPABILITY_TAGS"] != "role:developer,coding,testing" {
+		t.Errorf("wrong capability tags: %s", env["AGIRUNNER_RUNTIME_PLATFORM_CAPABILITY_TAGS"])
 	}
 	if env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"] != "test-admin-key" {
 		t.Errorf("wrong admin API key: %s", env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"])

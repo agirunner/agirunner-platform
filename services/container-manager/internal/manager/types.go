@@ -87,6 +87,7 @@ type RuntimeTarget struct {
 	PlaybookID              string `json:"playbook_id"`
 	PlaybookName            string `json:"playbook_name"`
 	PoolKind                string `json:"pool_kind"`
+	CapabilityTags          []string `json:"capability_tags"`
 	PoolMode                string `json:"pool_mode"`
 	MaxRuntimes             int    `json:"max_runtimes"`
 	Priority                int    `json:"priority"`
