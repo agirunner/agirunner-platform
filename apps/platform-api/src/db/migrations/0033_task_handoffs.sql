@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS task_handoffs (
   workflow_id uuid NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
   work_item_id uuid REFERENCES workflow_work_items(id) ON DELETE CASCADE,
   task_id uuid NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  task_rework_count integer NOT NULL DEFAULT 0,
   request_id text,
   role text NOT NULL,
   team_name text,
@@ -31,8 +32,8 @@ CREATE INDEX IF NOT EXISTS idx_task_handoffs_work_item
 CREATE INDEX IF NOT EXISTS idx_task_handoffs_workflow
   ON task_handoffs (tenant_id, workflow_id, created_at);
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_task_handoffs_task_id
-  ON task_handoffs (task_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_task_handoffs_task_attempt
+  ON task_handoffs (task_id, task_rework_count);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_task_handoffs_request_id
   ON task_handoffs (tenant_id, workflow_id, request_id)

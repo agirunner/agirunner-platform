@@ -131,11 +131,12 @@ describe('HandoffService', () => {
     });
 
     const insertParams = query.mock.calls[2][1] as unknown[];
-    expect(insertParams[11]).toBe(JSON.stringify(['requirements summary']));
-    expect(insertParams[12]).toBe(JSON.stringify([{ owner: 'developer' }]));
-    expect(insertParams[13]).toBe(JSON.stringify(['review findings']));
-    expect(insertParams[14]).toBe(JSON.stringify(['Need human scope confirmation']));
-    expect(insertParams[18]).toBe(JSON.stringify({ branch: 'feature/hello-world' }));
+    expect(insertParams[4]).toBe(0);
+    expect(insertParams[12]).toBe(JSON.stringify(['requirements summary']));
+    expect(insertParams[13]).toBe(JSON.stringify([{ owner: 'developer' }]));
+    expect(insertParams[14]).toBe(JSON.stringify(['review findings']));
+    expect(insertParams[15]).toBe(JSON.stringify(['Need human scope confirmation']));
+    expect(insertParams[19]).toBe(JSON.stringify({ branch: 'feature/hello-world' }));
   });
 
   it('returns the existing handoff for an idempotent request replay', async () => {
@@ -332,6 +333,41 @@ describe('HandoffService', () => {
         id: 'task-1',
         workflow_id: 'workflow-1',
         role: 'developer',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('requires a fresh structured handoff for the current rework iteration before completion', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            definition: {
+              process_instructions: 'Developer implements and reviewer reviews.',
+              roles: ['developer', 'reviewer'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockImplementationOnce(async (sql: string) => {
+          if (sql.includes('task_rework_count')) {
+            return { rows: [], rowCount: 0 };
+          }
+          return { rows: [{ id: 'handoff-0' }], rowCount: 1 };
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(
+      service.assertRequiredTaskHandoffBeforeCompletion('tenant-1', {
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        role: 'developer',
+        rework_count: 1,
       }),
     ).rejects.toBeInstanceOf(ValidationError);
   });

@@ -20,6 +20,7 @@ export const taskHandoffs = pgTable(
     taskId: uuid('task_id')
       .notNull()
       .references(() => tasks.id),
+    taskReworkCount: integer('task_rework_count').notNull().default(0),
     requestId: text('request_id'),
     role: text('role').notNull(),
     teamName: text('team_name'),
@@ -41,7 +42,7 @@ export const taskHandoffs = pgTable(
   (table) => [
     index('idx_task_handoffs_work_item').on(table.tenantId, table.workItemId, table.sequence),
     index('idx_task_handoffs_workflow').on(table.tenantId, table.workflowId, table.createdAt),
-    uniqueIndex('idx_task_handoffs_task_id').on(table.taskId),
+    uniqueIndex('idx_task_handoffs_task_attempt').on(table.taskId, table.taskReworkCount),
     uniqueIndex('idx_task_handoffs_request_id')
       .on(table.tenantId, table.workflowId, table.requestId)
       .where(sql`${table.requestId} IS NOT NULL`),

@@ -25,6 +25,7 @@ interface TaskContextRow {
   work_item_id: string | null;
   role: string | null;
   stage_name: string | null;
+  rework_count: number | null;
   metadata: Record<string, unknown> | null;
 }
 
@@ -34,6 +35,7 @@ interface TaskHandoffRow extends Record<string, unknown> {
   workflow_id: string;
   work_item_id: string | null;
   task_id: string;
+  task_rework_count: number;
   request_id: string | null;
   role: string;
   team_name: string | null;
@@ -64,6 +66,7 @@ export class HandoffService {
     const taskId = readOptionalString(task.id);
     const workflowId = readOptionalString(task.workflow_id);
     const role = readOptionalString(task.role);
+    const taskReworkCount = readInteger(task.rework_count) ?? 0;
     if (!taskId || !workflowId || !role) {
       return;
     }
@@ -84,8 +87,9 @@ export class HandoffService {
          FROM task_handoffs
         WHERE tenant_id = $1
           AND task_id = $2
+          AND task_rework_count = $3
         LIMIT 1`,
-      [tenantId, taskId],
+      [tenantId, taskId, taskReworkCount],
     );
     if (handoffResult.rowCount) {
       return;
@@ -118,13 +122,13 @@ export class HandoffService {
     );
     const result = await db.query<TaskHandoffRow>(
       `INSERT INTO task_handoffs (
-         tenant_id, workflow_id, work_item_id, task_id, request_id, role, team_name, stage_name, sequence,
+         tenant_id, workflow_id, work_item_id, task_id, task_rework_count, request_id, role, team_name, stage_name, sequence,
          summary, completion, changes, decisions, remaining_items, blockers, review_focus,
          known_risks, successor_context, role_data, artifact_ids
        ) VALUES (
-         $1, $2, $3, $4, $5, $6, $7, $8, $9,
-         $10, $11, $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb, $16::text[],
-         $17::text[], $18, $19::jsonb, $20::uuid[]
+         $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
+         $11, $12, $13::jsonb, $14::jsonb, $15::jsonb, $16::jsonb, $17::text[],
+         $18::text[], $19, $20::jsonb, $21::uuid[]
        )
        ON CONFLICT DO NOTHING
        RETURNING *`,
@@ -133,6 +137,7 @@ export class HandoffService {
         task.workflow_id,
         task.work_item_id,
         task.id,
+        payload.task_rework_count,
         payload.request_id,
         payload.role,
         payload.team_name,
@@ -159,6 +164,7 @@ export class HandoffService {
       tenantId,
       task.workflow_id,
       taskId,
+      payload.task_rework_count,
       input.request_id,
       db,
     );
@@ -235,7 +241,7 @@ export class HandoffService {
     db: DatabaseClient | DatabasePool,
   ) {
     const result = await db.query<TaskContextRow>(
-      `SELECT id, tenant_id, workflow_id, work_item_id, role, stage_name, metadata
+      `SELECT id, tenant_id, workflow_id, work_item_id, role, stage_name, rework_count, metadata
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2
@@ -295,6 +301,7 @@ export class HandoffService {
     tenantId: string,
     workflowId: string,
     taskId: string,
+    taskReworkCount: number,
     requestId: string | undefined,
     db: DatabaseClient | DatabasePool,
   ) {
@@ -318,8 +325,9 @@ export class HandoffService {
          FROM task_handoffs
         WHERE tenant_id = $1
           AND task_id = $2
+          AND task_rework_count = $3
         LIMIT 1`,
-      [tenantId, taskId],
+      [tenantId, taskId, taskReworkCount],
     );
     return byTaskId.rows[0] ?? null;
   }
@@ -327,6 +335,7 @@ export class HandoffService {
 
 function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHandoffInput) {
   return {
+    task_rework_count: readInteger(task.rework_count) ?? 0,
     request_id: input.request_id?.trim() || null,
     role: task.role?.trim() || 'specialist',
     team_name: readOptionalString(task.metadata?.team_name),
@@ -398,4 +407,8 @@ function serializeJsonb(value: unknown) {
 
 function readOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
