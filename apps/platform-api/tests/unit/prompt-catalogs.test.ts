@@ -37,6 +37,9 @@ describe('prompt catalogs', () => {
       'If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Create successor work items and tasks in the successor checkpoint, not the checkpoint that just finished.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Do not end a planned-workflow activation with only a recommendation to advance later.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(

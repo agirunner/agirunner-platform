@@ -119,7 +119,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
     lifecycle: 'planned',
     definition: {
       process_instructions:
-        'Product manager clarifies the goal and acceptance criteria and resolves scope questions with humans when needed. Architect produces or reviews the technical design before implementation begins. Developer implements the change. Reviewer must review every developer-delivered code change, and rejected review returns to developer with concrete findings. QA validates after reviewer approval and records evidence. Product manager confirms the delivered outcome, release notes, and operator communication before the release approval is requested. When a checkpoint deliverable is accepted and the next checkpoint begins, complete the finished checkpoint work item instead of leaving it open. Human approval is required before release and completion, and after final release approval the workflow must be completed.',
+        'Product manager clarifies the goal and acceptance criteria and resolves scope questions with humans when needed. Architect produces or reviews the technical design before implementation begins. Developer implements the change. After developer completion, route the work to review before continuing. Reviewer must review every developer-delivered code change, and rejected review returns to developer with concrete findings. After reviewer approval, route the work to QA verification. QA validates after reviewer approval and records evidence. After QA passes, route the workflow into release and have the product manager confirm the delivered outcome, release notes, and operator communication before requesting release approval. When a checkpoint deliverable is accepted and the next checkpoint begins, complete the finished checkpoint work item instead of leaving it open. Human approval is required before release and completion, and after final release approval the workflow must be completed.',
       parameters: [
         {
           name: 'goal',
@@ -202,12 +202,12 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
         {
           name: 'verification',
           goal: 'QA signoff with test evidence',
-          involves: ['qa', 'developer', 'product-manager'],
+          involves: ['qa', 'developer'],
         },
         {
           name: 'release',
           goal: 'Operator-ready release package and final human approval',
-          involves: ['product-manager', 'qa'],
+          involves: ['product-manager'],
           human_gate: true,
         },
       ],
@@ -254,6 +254,7 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
         {
           from_role: 'developer',
           reviewed_by: 'reviewer',
+          checkpoint: 'implementation',
           required: true,
           on_reject: {
             action: 'return_to_role',
@@ -279,31 +280,37 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
         {
           from_role: 'product-manager',
           to_role: 'architect',
+          checkpoint: 'requirements',
           required: true,
         },
         {
           from_role: 'architect',
           to_role: 'developer',
+          checkpoint: 'design',
           required: true,
         },
         {
           from_role: 'developer',
           to_role: 'reviewer',
+          checkpoint: 'implementation',
           required: true,
         },
         {
           from_role: 'reviewer',
           to_role: 'developer',
+          checkpoint: 'review',
           required: false,
         },
         {
           from_role: 'reviewer',
           to_role: 'qa',
+          checkpoint: 'review',
           required: true,
         },
         {
           from_role: 'qa',
           to_role: 'product-manager',
+          checkpoint: 'verification',
           required: true,
         },
       ],

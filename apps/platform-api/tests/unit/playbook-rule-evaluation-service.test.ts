@@ -21,6 +21,7 @@ describe('evaluatePlaybookRules', () => {
       {
         from_role: 'developer',
         reviewed_by: 'reviewer',
+        checkpoint: 'implementation',
         required: true,
         on_reject: {
           action: 'return_to_role',
@@ -45,6 +46,7 @@ describe('evaluatePlaybookRules', () => {
       {
         from_role: 'reviewer',
         to_role: 'qa',
+        checkpoint: 'verification',
         required: true,
       },
     ],
@@ -110,6 +112,55 @@ describe('evaluatePlaybookRules', () => {
       matchedRuleType: 'handoff',
       nextExpectedActor: 'qa',
       nextExpectedAction: 'handoff',
+    });
+  });
+
+  it('matches scoped rules only at the configured checkpoint', () => {
+    const requirementOnly = parsePlaybookDefinition({
+      process_instructions: 'Requirements route from product manager to architect; release does not.',
+      roles: ['product-manager', 'architect'],
+      board: {
+        entry_column_id: 'planned',
+        columns: [{ id: 'planned', label: 'Planned' }],
+      },
+      checkpoints: [
+        { name: 'requirements', goal: 'Requirements are approved.' },
+        { name: 'release', goal: 'Release is approved.' },
+      ],
+      handoff_rules: [
+        {
+          from_role: 'product-manager',
+          to_role: 'architect',
+          checkpoint: 'requirements',
+          required: true,
+        },
+      ],
+    });
+
+    expect(
+      evaluatePlaybookRules({
+        definition: requirementOnly,
+        event: 'task_completed',
+        role: 'product-manager',
+        checkpointName: 'requirements',
+      }),
+    ).toMatchObject({
+      matchedRuleType: 'handoff',
+      nextExpectedActor: 'architect',
+      nextExpectedAction: 'handoff',
+    });
+
+    expect(
+      evaluatePlaybookRules({
+        definition: requirementOnly,
+        event: 'task_completed',
+        role: 'product-manager',
+        checkpointName: 'release',
+      }),
+    ).toMatchObject({
+      matchedRuleType: null,
+      nextExpectedActor: null,
+      nextExpectedAction: null,
     });
   });
 

@@ -28,6 +28,7 @@ const checkpointSchema = z.object({
 const reviewRuleSchema = z.object({
   from_role: z.string().min(1).max(120),
   reviewed_by: z.string().min(1).max(120),
+  checkpoint: z.string().min(1).max(120).optional(),
   required: z.boolean().optional(),
   on_reject: z
     .object({
@@ -47,6 +48,7 @@ const approvalRuleSchema = z.object({
 const handoffRuleSchema = z.object({
   from_role: z.string().min(1).max(120),
   to_role: z.string().min(1).max(120),
+  checkpoint: z.string().min(1).max(120).optional(),
   required: z.boolean().optional(),
 });
 
@@ -263,13 +265,14 @@ function assertRuleConflicts(definition: PlaybookDefinition): void {
     if (rule.required === false) {
       continue;
     }
-    const existing = mandatoryReviewers.get(rule.from_role);
+    const key = `${rule.from_role}::${rule.checkpoint ?? '*'}`;
+    const existing = mandatoryReviewers.get(key);
     if (existing && existing !== rule.reviewed_by) {
       throw new SchemaValidationFailedError(
         `Conflicting mandatory review rules for role '${rule.from_role}'`,
       );
     }
-    mandatoryReviewers.set(rule.from_role, rule.reviewed_by);
+    mandatoryReviewers.set(key, rule.reviewed_by);
   }
 }
 

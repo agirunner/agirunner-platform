@@ -106,6 +106,7 @@ describe('playbook model runtime pools', () => {
         {
           from_role: 'developer',
           reviewed_by: 'reviewer',
+          checkpoint: 'implementation-complete',
           required: true,
           on_reject: {
             action: 'return_to_role',
@@ -124,6 +125,7 @@ describe('playbook model runtime pools', () => {
         {
           from_role: 'developer',
           to_role: 'reviewer',
+          checkpoint: 'implementation-complete',
           required: true,
         },
       ],
@@ -139,6 +141,8 @@ describe('playbook model runtime pools', () => {
       human_gate: false,
     });
     expect(definition.review_rules[0]?.reviewed_by).toBe('reviewer');
+    expect(definition.review_rules[0]?.checkpoint).toBe('implementation-complete');
+    expect(definition.handoff_rules[0]?.checkpoint).toBe('implementation-complete');
     expect(defaultCheckpointName(definition)).toBe('implementation-complete');
   });
 
@@ -196,6 +200,37 @@ describe('playbook model runtime pools', () => {
         ],
       }),
     ).toThrow(SchemaValidationFailedError);
+  });
+
+  it('allows the same role to route differently at different checkpoints', () => {
+    const definition = parsePlaybookDefinition({
+      process_instructions: 'Route product management differently at requirements and release.',
+      roles: ['product-manager', 'architect', 'human'],
+      board: { columns: [{ id: 'planned', label: 'Planned' }] },
+      checkpoints: [
+        { name: 'requirements', goal: 'Requirements are approved.' },
+        { name: 'release', goal: 'Release is approved.' },
+      ],
+      handoff_rules: [
+        {
+          from_role: 'product-manager',
+          to_role: 'architect',
+          checkpoint: 'requirements',
+          required: true,
+        },
+      ],
+      approval_rules: [
+        {
+          on: 'checkpoint',
+          checkpoint: 'release',
+          approved_by: 'human',
+          required: true,
+        },
+      ],
+    });
+
+    expect(definition.handoff_rules[0]?.checkpoint).toBe('requirements');
+    expect(definition.approval_rules[0]?.checkpoint).toBe('release');
   });
 
   it('derives fallback process instructions for legacy definitions', () => {

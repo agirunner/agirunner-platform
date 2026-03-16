@@ -52,7 +52,12 @@ export function evaluatePlaybookRules(
 function evaluateReviewRule(
   input: EvaluatePlaybookRulesInput,
 ): PlaybookRuleEvaluationResult | null {
-  const rule = input.definition.review_rules.find((candidate) => candidate.from_role === input.role);
+  const rule = input.definition.review_rules.find(
+    (candidate) =>
+      candidate.required !== false
+      && candidate.from_role === input.role
+      && matchesCheckpoint(candidate.checkpoint, input.checkpointName),
+  );
   if (!rule) {
     return null;
   }
@@ -84,6 +89,9 @@ function evaluateApprovalRule(
   input: EvaluatePlaybookRulesInput,
 ): PlaybookRuleEvaluationResult | null {
   const rule = input.definition.approval_rules.find((candidate) => {
+    if (candidate.required === false) {
+      return false;
+    }
     if (candidate.on === 'completion') {
       return input.event === 'completion_requested';
     }
@@ -112,7 +120,12 @@ function evaluateHandoffRule(
     return null;
   }
 
-  const rule = input.definition.handoff_rules.find((candidate) => candidate.from_role === input.role);
+  const rule = input.definition.handoff_rules.find(
+    (candidate) =>
+      candidate.required !== false
+      && candidate.from_role === input.role
+      && matchesCheckpoint(candidate.checkpoint, input.checkpointName),
+  );
   if (!rule) {
     return null;
   }
@@ -124,4 +137,14 @@ function evaluateHandoffRule(
     requiresHumanApproval: false,
     reworkDelta: 0,
   };
+}
+
+function matchesCheckpoint(
+  ruleCheckpoint: string | null | undefined,
+  currentCheckpoint: string | null | undefined,
+) {
+  if (!ruleCheckpoint) {
+    return true;
+  }
+  return ruleCheckpoint === (currentCheckpoint ?? null);
 }

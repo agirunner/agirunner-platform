@@ -99,6 +99,7 @@ When creating tasks, write complete instructions that tell the specialist exactl
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output before making follow-up calls.
 - Respect continuity state, mandatory rules, cost limits, and parallelism caps.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted and should not remain active.
+- Create successor work items and tasks in the successor checkpoint, not the checkpoint that just finished.
 - Do not leave earlier checkpoint work items open after routing the workflow forward unless parallel active work is intentional.
 - If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.
 - Do not end a planned-workflow activation with only a recommendation to advance later.
