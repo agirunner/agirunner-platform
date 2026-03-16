@@ -314,6 +314,26 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 	// Check if existing containers need replacement (image, version, or runtime contract mismatch)
 	for _, c := range existing {
 		if m.needsReplacement(ds, c) {
+			if shouldDeferOrchestratorReplacement(ds, c) {
+				m.logger.Info(
+					"deferring orchestrator replacement while task is active",
+					"container", c.ID,
+					"worker", ds.WorkerName,
+					"task_id", ds.ActiveTaskID,
+				)
+				m.emitLog("container", "container.wds_replace_deferred", "warn", "completed", map[string]any{
+					"action":           "replace_deferred",
+					"worker":           ds.WorkerName,
+					"container_id":     c.ID,
+					"desired_state_id": ds.ID,
+					"image":            ds.RuntimeImage,
+					"version":          ds.Version,
+					"role":             ds.Role,
+					"task_id":          ds.ActiveTaskID,
+					"reason":           "active_task_in_progress",
+				})
+				continue
+			}
 			m.logger.Info("replacing container", "container", c.ID, "reason", "image, version, or contract mismatch")
 			_ = m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout)
 			_ = m.docker.RemoveContainer(ctx, c.ID)
@@ -455,6 +475,16 @@ func (m *Manager) needsReplacement(ds DesiredState, c ContainerInfo) bool {
 		}
 	}
 	return false
+}
+
+func shouldDeferOrchestratorReplacement(ds DesiredState, c ContainerInfo) bool {
+	if !isOrchestratorDesiredState(ds) {
+		return false
+	}
+	if strings.TrimSpace(ds.ActiveTaskID) == "" {
+		return false
+	}
+	return isContainerRunning(c.Status)
 }
 
 func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) ContainerSpec {

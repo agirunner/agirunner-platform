@@ -2,6 +2,7 @@ package manager
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -508,6 +509,51 @@ func TestReconcileOnceOrchestratorContractMismatchReplacesContainer(t *testing.T
 	}
 	if docker.networkConnects[0].ContainerID != "container-1" || docker.networkConnects[0].NetworkName != "agirunner-platform_runtime_internal" {
 		t.Fatalf("expected container-1 connected to internal network, got %#v", docker.networkConnects[0])
+	}
+}
+
+func TestReconcileOnceOrchestratorContractMismatchDefersReplacementWhenActiveTaskPresent(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeContainerInfo("c-1", "orchestrator-primary", "agirunner-runtime:local", "ds-1", 1),
+	}
+	var ds DesiredState
+	if err := json.Unmarshal([]byte(`{
+		"id":"ds-1",
+		"worker_name":"orchestrator-primary",
+		"role":"orchestrator",
+		"pool_kind":"orchestrator",
+		"runtime_image":"agirunner-runtime:local",
+		"replicas":1,
+		"enabled":true,
+		"version":1,
+		"active_task_id":"task-123"
+	}`), &ds); err != nil {
+		t.Fatalf("expected desired state json to parse, got %v", err)
+	}
+	platform := &mockPlatformClient{
+		desiredStates: []DesiredState{ds},
+	}
+	manager := newTestManager(docker, platform)
+	manager.config.PlatformAPIURL = "http://platform-api:8080"
+	manager.config.PlatformAdminAPIKey = "test-admin-key"
+	manager.config.DockerHost = "tcp://socket-proxy:2375"
+	manager.config.RuntimeNetwork = "agirunner-platform_platform_net"
+	manager.config.RuntimeInternalNetwork = "agirunner-platform_runtime_internal"
+
+	err := manager.reconcileOnce(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.stoppedIDs) != 0 {
+		t.Fatalf("expected no stop while orchestrator has active task, got %v", docker.stoppedIDs)
+	}
+	if len(docker.removedIDs) != 0 {
+		t.Fatalf("expected no removal while orchestrator has active task, got %v", docker.removedIDs)
+	}
+	if len(docker.createdSpecs) != 0 {
+		t.Fatalf("expected no replacement create while orchestrator has active task, got %d", len(docker.createdSpecs))
 	}
 }
 

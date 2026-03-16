@@ -21,6 +21,7 @@ type DesiredState struct {
 	Enabled            bool                   `json:"enabled"`
 	RestartRequested   bool                   `json:"restart_requested"`
 	Draining           bool                   `json:"draining"`
+	ActiveTaskID       string                 `json:"active_task_id,omitempty"`
 	Version            int                    `json:"version"`
 }
 

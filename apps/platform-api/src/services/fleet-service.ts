@@ -91,6 +91,7 @@ interface DesiredStateRow {
   created_at: Date;
   updated_at: Date;
   updated_by: string | null;
+  active_task_id?: string | null;
 }
 
 interface PublicDesiredStateRow extends Omit<DesiredStateRow, 'environment' | 'llm_api_key_secret_ref'> {
@@ -149,6 +150,8 @@ function toPublicDesiredStateRow(row: DesiredStateRow): PublicDesiredStateRow {
       typeof llmApiKeySecretRef === 'string' && llmApiKeySecretRef.trim().length > 0,
   };
 }
+
+const ACTIVE_WORKER_TASK_STATES = ['claimed', 'in_progress'] as const;
 
 function redactEnvironmentSecrets(
   environment: Record<string, unknown>,
@@ -359,11 +362,15 @@ export class FleetService {
         actualByDesiredState.set(row.desired_state_id, [row]);
       }
     }
+    const activeTaskByDesiredState = await this.loadDesiredStateActiveTasks(tenantId, desiredStateIds);
 
     const views: FleetWorkerView[] = [];
     for (const d of desired) {
       views.push({
-        ...toPublicDesiredStateRow(d),
+        ...toPublicDesiredStateRow({
+          ...d,
+          active_task_id: activeTaskByDesiredState.get(d.id) ?? null,
+        }),
         actual: actualByDesiredState.get(d.id) ?? [],
       });
     }
@@ -379,7 +386,14 @@ export class FleetService {
       'SELECT * FROM worker_actual_state WHERE desired_state_id = $1',
       [id],
     );
-    return { ...toPublicDesiredStateRow(row), actual: actual.rows };
+    const activeTaskByDesiredState = await this.loadDesiredStateActiveTasks(tenantId, [id]);
+    return {
+      ...toPublicDesiredStateRow({
+        ...row,
+        active_task_id: activeTaskByDesiredState.get(id) ?? null,
+      }),
+      actual: actual.rows,
+    };
   }
 
   async createWorker(tenantId: string, input: CreateDesiredStateInput): Promise<PublicDesiredStateRow> {
@@ -838,6 +852,39 @@ export class FleetService {
       runtime_targets: runtimeTargets,
       heartbeats,
     };
+  }
+
+  private async loadDesiredStateActiveTasks(
+    tenantId: string,
+    desiredStateIds: string[],
+  ): Promise<Map<string, string>> {
+    if (desiredStateIds.length === 0) {
+      return new Map<string, string>();
+    }
+
+    const result = await this.pool.query<{ desired_state_id: string; active_task_id: string }>(
+      `SELECT DISTINCT ON (was.desired_state_id)
+              was.desired_state_id,
+              t.id AS active_task_id
+         FROM worker_actual_state was
+         JOIN workers w
+           ON w.tenant_id = $1
+          AND COALESCE(w.metadata->>'instance_id', '') <> ''
+          AND was.container_id LIKE (w.metadata->>'instance_id') || '%'
+         JOIN tasks t
+           ON t.tenant_id = $1
+          AND t.assigned_worker_id = w.id
+          AND t.state = ANY($3::task_state[])
+        WHERE was.desired_state_id = ANY($2::uuid[])
+        ORDER BY was.desired_state_id ASC, t.updated_at DESC`,
+      [tenantId, desiredStateIds, [...ACTIVE_WORKER_TASK_STATES]],
+    );
+
+    return new Map<string, string>(
+      result.rows
+        .filter((row) => row.active_task_id.trim().length > 0)
+        .map((row) => [row.desired_state_id, row.active_task_id]),
+    );
   }
 
   private async loadDesiredStateRow(tenantId: string, id: string): Promise<DesiredStateRow> {

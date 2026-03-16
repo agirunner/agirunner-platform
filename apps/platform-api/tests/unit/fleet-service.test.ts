@@ -63,6 +63,11 @@ const sampleActualState = {
   last_updated: new Date(),
 };
 
+const sampleActiveTaskState = {
+  desired_state_id: WORKER_ID,
+  active_task_id: '00000000-0000-0000-0000-000000000123',
+};
+
 describe('FleetService', () => {
   let pool: ReturnType<typeof createMockPool>;
   let service: FleetService;
@@ -76,21 +81,23 @@ describe('FleetService', () => {
     it('returns workers with actual state', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [sampleDesiredState], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.listWorkers(TENANT_ID);
 
       expect(result).toHaveLength(1);
       expect(result[0].worker_name).toBe('test-worker');
       expect(result[0].actual).toEqual([sampleActualState]);
-      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect(pool.query).toHaveBeenCalledTimes(3);
       expect((pool.query.mock.calls[1]?.[0] as string)).toContain('WHERE desired_state_id = ANY($1::uuid[])');
     });
 
     it('filters to enabled workers when requested', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [sampleDesiredState], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.listWorkers(TENANT_ID, { enabledOnly: true });
 
@@ -110,7 +117,8 @@ describe('FleetService', () => {
     it('redacts secret-bearing environment values and secret refs in worker reads', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [sampleDesiredStateWithSecrets], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.listWorkers(TENANT_ID);
 
@@ -144,14 +152,26 @@ describe('FleetService', () => {
       };
       pool.query
         .mockResolvedValueOnce({ rows: [sampleDesiredState, secondWorker], rowCount: 2 })
-        .mockResolvedValueOnce({ rows: [sampleActualState, secondActualState], rowCount: 2 });
+        .mockResolvedValueOnce({ rows: [sampleActualState, secondActualState], rowCount: 2 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.listWorkers(TENANT_ID);
 
       expect(result).toHaveLength(2);
       expect(result[0].actual).toEqual([sampleActualState]);
       expect(result[1].actual).toEqual([secondActualState]);
-      expect(pool.query).toHaveBeenCalledTimes(2);
+      expect(pool.query).toHaveBeenCalledTimes(3);
+    });
+
+    it('includes active task context for desired-state containers that are executing work', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [sampleDesiredState], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [sampleActiveTaskState], rowCount: 1 });
+
+      const result = await service.listWorkers(TENANT_ID);
+
+      expect(result[0]?.active_task_id).toBe(sampleActiveTaskState.active_task_id);
     });
   });
 
@@ -159,7 +179,8 @@ describe('FleetService', () => {
     it('returns worker with actual state', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [sampleDesiredState], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.getWorker(TENANT_ID, WORKER_ID);
 
@@ -170,7 +191,8 @@ describe('FleetService', () => {
     it('does not expose llm api key secret refs on single-worker reads', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [sampleDesiredStateWithSecrets], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });
+        .mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
       const result = await service.getWorker(TENANT_ID, WORKER_ID);
 
