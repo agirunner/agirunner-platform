@@ -122,8 +122,10 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       release: vi.fn(),
     };
 
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+
     const service = new TaskLifecycleService({
-      pool: { connect: vi.fn(async () => client) } as never,
+      pool: pool as never,
       eventService: { emit: vi.fn() } as never,
       workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
@@ -171,7 +173,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               {
                 id: 'task-review',
                 state: 'output_pending_review',
-                workflow_id: null,
+                workflow_id: 'wf-1',
                 assigned_agent_id: null,
                 assigned_worker_id: null,
                 output: { missing: true },
@@ -224,6 +226,93 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
 
     expect(result.state).toBe('output_pending_review');
+  });
+
+  it('completes reviewer tasks immediately when the structured handoff approves the review outcome', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          expect(values).toEqual(['tenant-1', 'task-reviewer-approved', 0]);
+          return {
+            rows: [{ review_outcome: 'approved' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          expect(values?.[2]).toBe('completed');
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-reviewer-approved',
+                state: 'completed',
+                workflow_id: 'workflow-1',
+                work_item_id: 'work-item-1',
+                stage_name: 'implementation',
+                role: 'reviewer',
+                output: { review_outcome: 'approved' },
+                metadata: {},
+              },
+            ],
+          };
+        }
+        if (sql === 'SELECT playbook_id FROM workflows WHERE tenant_id = $1 AND id = $2') {
+          return { rows: [], rowCount: 0 };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const handoffService = {
+      assertRequiredTaskHandoffBeforeCompletion: vi.fn(async () => undefined),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+      query: client.query,
+    };
+
+    const service = new TaskLifecycleService({
+      pool: pool as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-reviewer-approved',
+        state: 'in_progress',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+        role: 'reviewer',
+        requires_output_review: true,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        rework_count: 0,
+        role_config: {},
+      }),
+      toTaskResponse: (task) => task,
+      handoffService: handoffService as never,
+    });
+
+    const result = await service.completeTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-reviewer-approved',
+      {
+        output: { review_outcome: 'approved' },
+        verification: { passed: true },
+      },
+    );
+
+    expect(result.state).toBe('completed');
   });
 
   it('fails completion before state transition when a required handoff is missing', async () => {

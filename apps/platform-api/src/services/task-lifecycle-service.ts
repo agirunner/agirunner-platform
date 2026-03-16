@@ -119,6 +119,18 @@ function isJsonEquivalent(left: unknown, right: unknown): boolean {
   return areJsonValuesEquivalent(left, right);
 }
 
+function readOptionalText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) ? value : null;
+}
+
+function normalizeReviewOutcome(value: unknown): 'approved' | null {
+  return readOptionalText(value) === 'approved' ? 'approved' : null;
+}
+
 function matchesReviewMetadata(
   task: Record<string, unknown>,
   expected: {
@@ -679,6 +691,12 @@ export class TaskLifecycleService {
       existingClient,
     );
 
+    const approvedReviewerHandoff = await this.readApprovedReviewerHandoffOutcome(
+      identity.tenantId,
+      task,
+      existingClient,
+    );
+
     const outputValidation = validateOutputSchema(payload.output, this.extractOutputSchema(task));
     const verificationPassed = this.readVerificationPassed(payload.verification, payload.metrics);
     const persisted = this.deps.artifactService
@@ -696,7 +714,9 @@ export class TaskLifecycleService {
         };
 
     const shouldMoveToOutputReview =
-      Boolean(task.requires_output_review) || !outputValidation.valid || verificationPassed === false;
+      (Boolean(task.requires_output_review) && !approvedReviewerHandoff)
+      || !outputValidation.valid
+      || verificationPassed === false;
 
     try {
       return shouldMoveToOutputReview
@@ -741,6 +761,47 @@ export class TaskLifecycleService {
         }
       }
       throw error;
+    }
+  }
+
+  private async readApprovedReviewerHandoffOutcome(
+    tenantId: string,
+    task: Record<string, unknown>,
+    db?: DatabaseClient,
+  ) {
+    if (readOptionalText(task.role) !== 'reviewer') {
+      return false;
+    }
+
+    const taskId = readOptionalText(task.id);
+    if (!taskId) {
+      return false;
+    }
+
+    const taskReworkCount = readInteger(task.rework_count) ?? 0;
+    const queryClient = db
+      ?? ('query' in this.deps.pool && typeof this.deps.pool.query === 'function'
+        ? this.deps.pool
+        : await this.deps.pool.connect());
+    const ownsClient = db == null && queryClient !== this.deps.pool;
+
+    try {
+      const result = await queryClient.query<{ review_outcome: unknown }>(
+        `SELECT role_data->>'review_outcome' AS review_outcome
+         FROM task_handoffs
+        WHERE tenant_id = $1
+          AND task_id = $2
+          AND task_rework_count = $3
+        ORDER BY sequence DESC, created_at DESC
+        LIMIT 1`,
+        [tenantId, taskId, taskReworkCount],
+      );
+
+      return normalizeReviewOutcome(result.rows[0]?.review_outcome) === 'approved';
+    } finally {
+      if (ownsClient && 'release' in queryClient && typeof queryClient.release === 'function') {
+        queryClient.release();
+      }
     }
   }
 
