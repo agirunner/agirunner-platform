@@ -628,6 +628,7 @@ describe('WorkflowActivationDispatchService', () => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).not.toContain('w.current_stage');
           expect(sql).toContain('current_stage_summary.current_stage');
+          expect(sql).toContain('open_work_item_count');
           return {
             rowCount: 1,
             rows: [{
@@ -2809,6 +2810,7 @@ describe('WorkflowActivationDispatchService', () => {
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('advance_stage');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task_output');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('request_rework');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('request_task_changes');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('escalate_to_human');
           return { rowCount: 1, rows: [{ id: 'task-tools' }] };

@@ -1519,7 +1519,6 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'memory_delete',
       'work_item_memory_read',
       'work_item_memory_history',
-      'request_rework',
       'reassign_task',
       'retry_task',
       'send_task_message',

@@ -93,6 +93,7 @@ When creating tasks, write complete instructions that tell the specialist exactl
 - Manage ALL work through work items. Create the work item first, then the task.
 - Be decisive. One activation = one decision cycle. Don't over-plan in a single turn.
 - When requesting rework, be specific — quote the problem, reference file and line.
+- When continuity requires rework, do not reopen a completed specialist task. Create the next task explicitly, or use send_task_message only if the correct successor task is already active.
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output before making follow-up calls.
 - Respect continuity state, mandatory rules, cost limits, and parallelism caps.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted and should not remain active.
