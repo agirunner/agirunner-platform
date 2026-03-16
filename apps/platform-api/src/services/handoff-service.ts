@@ -25,6 +25,7 @@ interface TaskContextRow {
   work_item_id: string | null;
   role: string | null;
   stage_name: string | null;
+  state: string | null;
   rework_count: number | null;
   metadata: Record<string, unknown> | null;
 }
@@ -114,12 +115,34 @@ export class HandoffService {
     }
 
     const payload = buildNormalizedHandoffPayload(task, input);
-    const sequence = await this.loadNextSequence(
+    const replayMatch = await this.loadExistingHandoff(
       tenantId,
       task.workflow_id,
-      task.work_item_id,
+      payload.request_id,
       db,
     );
+    if (replayMatch) {
+      assertMatchingHandoffReplay(replayMatch, payload);
+      return toTaskHandoffResponse(replayMatch);
+    }
+
+    const existingTaskAttempt = await this.loadTaskAttemptHandoff(
+      tenantId,
+      taskId,
+      payload.task_rework_count,
+      db,
+    );
+    if (existingTaskAttempt) {
+      if (matchesHandoffReplay(existingTaskAttempt, payload)) {
+        return toTaskHandoffResponse(existingTaskAttempt);
+      }
+      if (!isEditableTaskState(task.state)) {
+        throw new ConflictError('task handoff request replay does not match the existing handoff');
+      }
+      return this.updateExistingHandoff(existingTaskAttempt.id, payload, db);
+    }
+
+    const sequence = await this.loadNextSequence(tenantId, task.workflow_id, task.work_item_id, db);
     const result = await db.query<TaskHandoffRow>(
       `INSERT INTO task_handoffs (
          tenant_id, workflow_id, work_item_id, task_id, task_rework_count, request_id, role, team_name, stage_name, sequence,
@@ -160,19 +183,17 @@ export class HandoffService {
       return toTaskHandoffResponse(result.rows[0]);
     }
 
-    const existing = await this.loadExistingHandoff(
-      tenantId,
-      task.workflow_id,
-      taskId,
-      payload.task_rework_count,
-      input.request_id,
-      db,
-    );
+    const existing = await this.loadTaskAttemptHandoff(tenantId, taskId, payload.task_rework_count, db);
     if (!existing) {
       throw new ConflictError('Task handoff conflicted but no matching row could be loaded');
     }
-    assertMatchingHandoffReplay(existing, payload);
-    return toTaskHandoffResponse(existing);
+    if (matchesHandoffReplay(existing, payload)) {
+      return toTaskHandoffResponse(existing);
+    }
+    if (!isEditableTaskState(task.state)) {
+      throw new ConflictError('task handoff request replay does not match the existing handoff');
+    }
+    return this.updateExistingHandoff(existing.id, payload, db);
   }
 
   async listWorkItemHandoffs(
@@ -241,7 +262,7 @@ export class HandoffService {
     db: DatabaseClient | DatabasePool,
   ) {
     const result = await db.query<TaskContextRow>(
-      `SELECT id, tenant_id, workflow_id, work_item_id, role, stage_name, rework_count, metadata
+      `SELECT id, tenant_id, workflow_id, work_item_id, role, stage_name, state, rework_count, metadata
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2
@@ -300,26 +321,30 @@ export class HandoffService {
   private async loadExistingHandoff(
     tenantId: string,
     workflowId: string,
-    taskId: string,
-    taskReworkCount: number,
-    requestId: string | undefined,
+    requestId: string | null,
     db: DatabaseClient | DatabasePool,
   ) {
-    if (requestId?.trim()) {
-      const byRequestId = await db.query<TaskHandoffRow>(
-        `SELECT *
-           FROM task_handoffs
-          WHERE tenant_id = $1
-            AND workflow_id = $2
-            AND request_id = $3
-          LIMIT 1`,
-        [tenantId, workflowId, requestId.trim()],
-      );
-      if (byRequestId.rowCount) {
-        return byRequestId.rows[0];
-      }
+    if (!requestId?.trim()) {
+      return null;
     }
+    const byRequestId = await db.query<TaskHandoffRow>(
+      `SELECT *
+         FROM task_handoffs
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND request_id = $3
+        LIMIT 1`,
+      [tenantId, workflowId, requestId.trim()],
+    );
+    return byRequestId.rows[0] ?? null;
+  }
 
+  private async loadTaskAttemptHandoff(
+    tenantId: string,
+    taskId: string,
+    taskReworkCount: number,
+    db: DatabaseClient | DatabasePool,
+  ) {
     const byTaskId = await db.query<TaskHandoffRow>(
       `SELECT *
          FROM task_handoffs
@@ -330,6 +355,55 @@ export class HandoffService {
       [tenantId, taskId, taskReworkCount],
     );
     return byTaskId.rows[0] ?? null;
+  }
+
+  private async updateExistingHandoff(
+    handoffId: string,
+    payload: ReturnType<typeof buildNormalizedHandoffPayload>,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const result = await db.query<TaskHandoffRow>(
+      `UPDATE task_handoffs
+          SET request_id = $2,
+              role = $3,
+              team_name = $4,
+              stage_name = $5,
+              summary = $6,
+              completion = $7,
+              changes = $8::jsonb,
+              decisions = $9::jsonb,
+              remaining_items = $10::jsonb,
+              blockers = $11::jsonb,
+              review_focus = $12::text[],
+              known_risks = $13::text[],
+              successor_context = $14,
+              role_data = $15::jsonb,
+              artifact_ids = $16::uuid[]
+        WHERE id = $1
+        RETURNING *`,
+      [
+        handoffId,
+        payload.request_id,
+        payload.role,
+        payload.team_name,
+        payload.stage_name,
+        payload.summary,
+        payload.completion,
+        serializeJsonb(payload.changes),
+        serializeJsonb(payload.decisions),
+        serializeJsonb(payload.remaining_items),
+        serializeJsonb(payload.blockers),
+        payload.review_focus,
+        payload.known_risks,
+        payload.successor_context,
+        serializeJsonb(payload.role_data),
+        payload.artifact_ids,
+      ],
+    );
+    if (!result.rowCount) {
+      throw new ConflictError('Task handoff conflicted but could not be updated');
+    }
+    return toTaskHandoffResponse(result.rows[0]);
   }
 }
 
@@ -358,7 +432,16 @@ function assertMatchingHandoffReplay(
   existing: TaskHandoffRow,
   expected: ReturnType<typeof buildNormalizedHandoffPayload>,
 ) {
-  if (
+  if (!matchesHandoffReplay(existing, expected)) {
+    throw new ConflictError('task handoff request replay does not match the existing handoff');
+  }
+}
+
+function matchesHandoffReplay(
+  existing: TaskHandoffRow,
+  expected: ReturnType<typeof buildNormalizedHandoffPayload>,
+) {
+  return !(
     existing.role !== expected.role ||
     (existing.team_name ?? null) !== expected.team_name ||
     (existing.stage_name ?? null) !== expected.stage_name ||
@@ -373,9 +456,7 @@ function assertMatchingHandoffReplay(
     (existing.successor_context ?? null) !== expected.successor_context ||
     !areJsonValuesEquivalent(existing.role_data, expected.role_data) ||
     !areJsonValuesEquivalent(existing.artifact_ids, expected.artifact_ids)
-  ) {
-    throw new ConflictError('task handoff request replay does not match the existing handoff');
-  }
+  );
 }
 
 function toTaskHandoffResponse(row: TaskHandoffRow) {
@@ -411,4 +492,8 @@ function readOptionalString(value: unknown): string | null {
 
 function readInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
+}
+
+function isEditableTaskState(state: string | null) {
+  return state === 'pending' || state === 'claimed' || state === 'in_progress';
 }

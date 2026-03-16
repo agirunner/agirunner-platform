@@ -16,10 +16,14 @@ describe('HandoffService', () => {
             work_item_id: 'work-item-1',
             role: 'developer',
             stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 0,
             metadata: { team_name: 'delivery' },
           }],
           rowCount: 1,
         })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [{ next_sequence: 3 }], rowCount: 1 })
         .mockResolvedValueOnce({
           rows: [{
@@ -81,10 +85,14 @@ describe('HandoffService', () => {
           work_item_id: 'work-item-1',
           role: 'developer',
           stage_name: 'implementation',
+          state: 'in_progress',
+          rework_count: 0,
           metadata: { team_name: 'delivery' },
         }],
         rowCount: 1,
       })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [{ next_sequence: 0 }], rowCount: 1 })
       .mockResolvedValueOnce({
         rows: [{
@@ -130,7 +138,7 @@ describe('HandoffService', () => {
       role_data: { branch: 'feature/hello-world' },
     });
 
-    const insertParams = query.mock.calls[2][1] as unknown[];
+    const insertParams = query.mock.calls[4][1] as unknown[];
     expect(insertParams[4]).toBe(0);
     expect(insertParams[12]).toBe(JSON.stringify(['requirements summary']));
     expect(insertParams[13]).toBe(JSON.stringify([{ owner: 'developer' }]));
@@ -151,12 +159,12 @@ describe('HandoffService', () => {
             work_item_id: 'work-item-1',
             role: 'developer',
             stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 0,
             metadata: { team_name: 'delivery' },
           }],
           rowCount: 1,
         })
-        .mockResolvedValueOnce({ rows: [{ next_sequence: 0 }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({
           rows: [{
             id: 'handoff-1',
@@ -211,12 +219,12 @@ describe('HandoffService', () => {
             work_item_id: 'work-item-1',
             role: 'developer',
             stage_name: 'implementation',
+            state: 'completed',
+            rework_count: 0,
             metadata: { team_name: 'delivery' },
           }],
           rowCount: 1,
         })
-        .mockResolvedValueOnce({ rows: [{ next_sequence: 0 }], rowCount: 1 })
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({
           rows: [{
             id: 'handoff-1',
@@ -269,6 +277,8 @@ describe('HandoffService', () => {
             work_item_id: 'work-item-1',
             role: 'reviewer',
             stage_name: 'review',
+            state: 'in_progress',
+            rework_count: 0,
             metadata: {},
           }],
           rowCount: 1,
@@ -306,6 +316,100 @@ describe('HandoffService', () => {
     const result = await service.getPredecessorHandoff('tenant-1', 'task-2');
 
     expect(result).toEqual(expect.objectContaining({ id: 'handoff-1', role: 'developer' }));
+  });
+
+  it('updates the existing handoff for the same active task attempt when the payload changes', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'task-1',
+          tenant_id: 'tenant-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          role: 'reviewer',
+          stage_name: 'implementation',
+          state: 'in_progress',
+          rework_count: 0,
+          metadata: { team_name: 'delivery' },
+        }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'handoff-1',
+          tenant_id: 'tenant-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          task_rework_count: 0,
+          request_id: 'req-1',
+          role: 'reviewer',
+          team_name: 'delivery',
+          stage_name: 'implementation',
+          sequence: 0,
+          summary: 'Interim review note.',
+          completion: 'partial',
+          changes: [],
+          decisions: [],
+          remaining_items: ['confirm tests'],
+          blockers: [],
+          review_focus: [],
+          known_risks: [],
+          successor_context: null,
+          role_data: {},
+          artifact_ids: [],
+          created_at: new Date('2026-03-15T12:00:00Z'),
+        }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'handoff-1',
+          tenant_id: 'tenant-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          task_rework_count: 0,
+          request_id: 'req-2',
+          role: 'reviewer',
+          team_name: 'delivery',
+          stage_name: 'implementation',
+          sequence: 0,
+          summary: 'Approved after verification.',
+          completion: 'full',
+          changes: ['Ran Hello World command.'],
+          decisions: ['APPROVED'],
+          remaining_items: [],
+          blockers: [],
+          review_focus: ['handoff to qa'],
+          known_risks: [],
+          successor_context: 'QA should confirm tests and release posture.',
+          role_data: { verdict: 'APPROVED' },
+          artifact_ids: [],
+          created_at: new Date('2026-03-15T12:00:00Z'),
+        }],
+        rowCount: 1,
+      });
+
+    const service = new HandoffService({ query } as never);
+
+    const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-2',
+      summary: 'Approved after verification.',
+      completion: 'full',
+      changes: ['Ran Hello World command.'],
+      decisions: ['APPROVED'],
+      review_focus: ['handoff to qa'],
+      successor_context: 'QA should confirm tests and release posture.',
+      role_data: { verdict: 'APPROVED' },
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({ id: 'handoff-1', request_id: 'req-2', completion: 'full' }),
+    );
+    expect(query.mock.calls[3]?.[0]).toContain('UPDATE task_handoffs');
   });
 
   it('requires a structured handoff before completion when the playbook mandates it', async () => {

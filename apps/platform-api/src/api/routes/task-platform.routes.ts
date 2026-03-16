@@ -9,6 +9,7 @@ import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ArtifactCatalogService } from '../../services/artifact-catalog-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
+import { ProjectMemoryScopeService } from '../../services/project-memory-scope-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 import { runIdempotentTaskRouteAction } from './task-route-idempotency.js';
@@ -32,7 +33,7 @@ const memoryPatchSchema = z.union([
 ]);
 
 const taskHandoffSchema = z.object({
-  request_id: z.string().min(1).max(255).optional(),
+  request_id: z.string().min(1).max(255),
   summary: z.string().min(1).max(4000),
   completion: z.enum(['full', 'partial', 'blocked']),
   changes: z.array(z.unknown()).max(200).optional(),
@@ -57,6 +58,7 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
   const toolResultService = new WorkflowToolResultService(app.pgPool);
   const handoffService = new HandoffService(app.pgPool);
+  const projectMemoryScopeService = new ProjectMemoryScopeService(app.pgPool);
   const artifactCatalogService = new ArtifactCatalogService(
     app.pgPool,
     createArtifactStorage(buildArtifactStorageConfig(app.config)),
@@ -75,9 +77,15 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
         throw new ValidationError('Task is not linked to a project');
       }
       const project = await app.projectService.getProject(request.auth!.tenantId, task.project_id);
-      const memory = project.memory ?? {};
+      const memory = await projectMemoryScopeService.filterVisibleTaskMemory({
+        tenantId: request.auth!.tenantId,
+        projectId: task.project_id as string,
+        workflowId: task.workflow_id as string,
+        workItemId: task.work_item_id,
+        currentMemory: (project.memory ?? {}) as Record<string, unknown>,
+      });
       if (query.key) {
-        return { data: { key: query.key, value: (memory as Record<string, unknown>)[query.key] } };
+        return { data: { key: query.key, value: memory[query.key] } };
       }
       return { data: { memory } };
     },

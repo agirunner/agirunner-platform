@@ -25,7 +25,9 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Repository-backed tasks MUST commit and push relevant work before escalation.
 - Non-repository tasks MUST upload the required artifacts before escalation.
 - Before task completion, you MUST call submit_handoff with a structured summary for the next actor.
+- submit_handoff is a mutating tool call and MUST include a unique request_id.
 - The platform rejects task completion without a structured handoff.
+- Do not use submit_handoff as a scratch note or interim progress marker. Call it when the final handoff for the current task attempt is ready.
 - Leave a structured handoff that tells the next actor what changed, what remains, and what to inspect next.
 
 ## Memory

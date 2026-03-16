@@ -48,7 +48,7 @@ const PREDECESSOR_HANDOFF_INSTRUCTION =
 const SHARED_ROLE_WORKFLOW_TOOLS = ['submit_handoff', 'read_predecessor_handoff'] as const;
 
 function withSharedRoleDiscipline(prompt: string): string {
-  return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Before completing the task, you MUST call submit_handoff.\n- The platform will reject completion without a structured handoff.\n- Leave a structured handoff that tells the next actor what changed, what remains, and what they should inspect next.`;
+  return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Before completing the task, you MUST call submit_handoff with a unique request_id.\n- Call submit_handoff once, when the final handoff for the current task attempt is ready.\n- The platform will reject completion without a structured handoff.\n- Leave a structured handoff that tells the next actor what changed, what remains, and what they should inspect next.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['coding', 'testing'],
+      capabilities: ['coding', 'testing', 'git', 'python'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -107,7 +107,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['code-review', 'security-review'],
+      capabilities: ['code-review', 'security-review', 'git'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -133,7 +133,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['architecture', 'research', 'documentation'],
+      capabilities: ['architecture', 'research', 'documentation', 'git'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -156,7 +156,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['testing', 'security-review', 'requirements'],
+      capabilities: ['testing', 'security-review', 'requirements', 'git', 'python'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -179,7 +179,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['requirements', 'documentation', 'research'],
+      capabilities: ['requirements', 'documentation', 'research', 'git'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },

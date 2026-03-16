@@ -12,7 +12,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before escalation.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before task completion, you MUST call submit_handoff');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff is a mutating tool call and MUST include a unique request_id');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects task completion without a structured handoff');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or interim progress marker');
   });
 
   it('keeps orchestrator prompt aligned with continuity, budget, and checkpoint guidance', () => {
@@ -53,7 +55,8 @@ describe('prompt catalogs', () => {
     expect(roles.length).toBeGreaterThan(0);
     for (const role of roles) {
       expect(role.systemPrompt).toContain('If predecessor handoff exists in your task context, read it first');
-      expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff');
+      expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff with a unique request_id');
+      expect(role.systemPrompt).toContain('Call submit_handoff once, when the final handoff for the current task attempt is ready.');
       expect(role.systemPrompt).toContain('The platform will reject completion without a structured handoff');
     }
   });

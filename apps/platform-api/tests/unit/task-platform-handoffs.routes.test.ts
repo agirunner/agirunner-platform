@@ -60,12 +60,20 @@ describe('task platform handoff routes', () => {
               work_item_id: 'work-item-1',
               role: 'developer',
               stage_name: 'implementation',
+              state: 'in_progress',
+              rework_count: 0,
               metadata: { team_name: 'delivery' },
             }],
           };
         }
         if (sql.includes('SELECT COALESCE(MAX(sequence)')) {
           return { rowCount: 1, rows: [{ next_sequence: 0 }] };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('request_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count')) {
+          return { rowCount: 0, rows: [] };
         }
         if (sql.includes('INSERT INTO task_handoffs')) {
           return {
@@ -178,6 +186,53 @@ describe('task platform handoff routes', () => {
     expect(response.statusCode).toBe(422);
   });
 
+  it('rejects handoff submissions that omit request_id', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              activation_id: null,
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: false,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as never);
+    app.decorate('projectService', {} as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-1/handoff',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        summary: 'Implemented auth flow.',
+        completion: 'full',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+  });
+
   it('returns the predecessor handoff for the active task owner', async () => {
     app = fastify();
     registerErrorHandler(app);
@@ -209,6 +264,8 @@ describe('task platform handoff routes', () => {
               work_item_id: 'work-item-1',
               role: 'reviewer',
               stage_name: 'review',
+              state: 'in_progress',
+              rework_count: 0,
               metadata: {},
             }],
           };
