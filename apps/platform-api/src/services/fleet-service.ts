@@ -37,6 +37,12 @@ const VALID_FLEET_EVENT_TYPES = new Set([
   'container.created',
   'container.destroyed',
   'orphan.cleaned',
+  'runtime_created',
+  'runtime_draining',
+  'runtime_hung',
+  'runtime_orphan_cleaned',
+  'runtime_preempted',
+  'image_drift_detected',
 ]);
 
 const VALID_FLEET_EVENT_LEVELS = new Set(['debug', 'info', 'warn', 'error']);

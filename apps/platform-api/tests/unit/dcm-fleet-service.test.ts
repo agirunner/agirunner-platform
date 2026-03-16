@@ -703,6 +703,12 @@ describe('FleetService DCM', () => {
         'container.created',
         'container.destroyed',
         'orphan.cleaned',
+        'runtime_created',
+        'runtime_draining',
+        'runtime_hung',
+        'runtime_orphan_cleaned',
+        'runtime_preempted',
+        'image_drift_detected',
       ];
 
       for (const eventType of validTypes) {
