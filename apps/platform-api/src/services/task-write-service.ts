@@ -79,9 +79,10 @@ export class TaskWriteService {
       resource_bindings: input.resource_bindings,
       metadata: input.metadata,
     });
-    let normalizedInput = input.parent_id
-      ? await this.applyParentTaskPolicies(identity, input)
-      : input;
+    let normalizedInput = stripRedactedTaskSecretPlaceholders(input);
+    normalizedInput = normalizedInput.parent_id
+      ? await this.applyParentTaskPolicies(identity, normalizedInput)
+      : normalizedInput;
     normalizedInput = await this.applyLinkedWorkItemDefaults(identity.tenantId, normalizedInput, db);
     this.assertWorkflowTaskLinkage(normalizedInput);
     await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
@@ -769,11 +770,17 @@ function mergeWorkflowGitBinding(
   repositoryURL: string | null,
   gitTokenSecretRef: string | null,
 ): Record<string, unknown>[] {
-  if (!repositoryURL || !gitTokenSecretRef || bindings.some(isGitRepositoryBinding)) {
+  if (!repositoryURL || !gitTokenSecretRef) {
     return bindings;
   }
+  const patchedBindings = bindings.map((binding) =>
+    patchIncompleteGitRepositoryBinding(binding, repositoryURL, gitTokenSecretRef),
+  );
+  if (patchedBindings.some(hasUsableGitRepositoryBinding)) {
+    return patchedBindings;
+  }
   return [
-    ...bindings,
+    ...patchedBindings,
     {
       type: 'git_repository',
       repository_url: repositoryURL,
@@ -795,6 +802,46 @@ function isGitRepositoryBinding(binding: Record<string, unknown>): boolean {
   return asNullableString(binding.type) === 'git_repository';
 }
 
+function patchIncompleteGitRepositoryBinding(
+  binding: Record<string, unknown>,
+  repositoryURL: string,
+  gitTokenSecretRef: string,
+): Record<string, unknown> {
+  if (!isGitRepositoryBinding(binding)) {
+    return binding;
+  }
+  if (hasUsableGitRepositoryBinding(binding)) {
+    return binding;
+  }
+  const credentials = asRecord(binding.credentials);
+  return {
+    ...binding,
+    repository_url: asNullableString(binding.repository_url) ?? repositoryURL,
+    credentials: {
+      ...credentials,
+      token: gitTokenSecretRef,
+    },
+  };
+}
+
+function hasUsableGitRepositoryBinding(binding: Record<string, unknown>): boolean {
+  if (!isGitRepositoryBinding(binding)) {
+    return false;
+  }
+  return hasUsableGitCredential(binding) || hasUsableGitCredential(asRecord(binding.credentials));
+}
+
+function hasUsableGitCredential(binding: Record<string, unknown>): boolean {
+  return [
+    binding.token,
+    binding.git_token,
+    binding.access_token,
+    binding.git_ssh_private_key,
+    binding.ssh_private_key,
+    binding.private_key,
+  ].some((value) => isUsableSecretValue(value));
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -810,6 +857,11 @@ function isClosedPlannedStage(workItem: LinkedWorkItemRow) {
 
 function asNullableString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function isUsableSecretValue(value: unknown): boolean {
+  const normalized = asNullableString(value);
+  return normalized !== null && !normalized.startsWith('redacted://');
 }
 
 function asNullableNumber(value: unknown): number | null {
@@ -948,4 +1000,42 @@ function isAllowedSecretReference(value: string): boolean {
 
 function isSecretLikeKey(key: string): boolean {
   return secretLikeKeyPattern.test(key);
+}
+
+function stripRedactedTaskSecretPlaceholders<T>(value: T): T {
+  const sanitized = stripRedactedSecretPlaceholders(value, false);
+  return (sanitized ?? value) as T;
+}
+
+function stripRedactedSecretPlaceholders(value: unknown, inheritedSecret: boolean): unknown {
+  if (typeof value === 'string') {
+    if (inheritedSecret && isRedactedSecretPlaceholder(value)) {
+      return undefined;
+    }
+    return value;
+  }
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => stripRedactedSecretPlaceholders(item, inheritedSecret))
+      .filter((item) => item !== undefined);
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const next: Record<string, unknown> = {};
+  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
+    const sanitized = stripRedactedSecretPlaceholders(
+      nestedValue,
+      inheritedSecret || isSecretLikeKey(key),
+    );
+    if (sanitized !== undefined) {
+      next[key] = sanitized;
+    }
+  }
+  return next;
+}
+
+function isRedactedSecretPlaceholder(value: string): boolean {
+  return value.trim().startsWith('redacted://');
 }
