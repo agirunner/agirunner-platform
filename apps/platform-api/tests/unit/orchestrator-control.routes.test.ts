@@ -332,7 +332,8 @@ describe('orchestratorControlRoutes', () => {
       }),
       client,
     );
-    expect(workflowService.createWorkflowWorkItem.mock.calls[0]?.[2]).not.toHaveProperty('column_id');
+    const createWorkItemPayload = (workflowService.createWorkflowWorkItem as any).mock.calls[0]?.[2];
+    expect(createWorkItemPayload).not.toHaveProperty('column_id');
   });
 
   it('writes orchestrator memory into an explicitly targeted work-item scope', async () => {
