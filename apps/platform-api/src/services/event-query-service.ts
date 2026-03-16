@@ -82,7 +82,7 @@ export class EventQueryService {
       );
     }
 
-    this.addArrayFilter(conditions, values, filters.entityTypes, 'entity_type');
+    this.addArrayFilter(conditions, values, filters.entityTypes, 'entity_type::text');
     this.addExactFilter(conditions, values, filters.entityId, 'entity_id');
     this.addExactFilter(conditions, values, filters.projectId, PROJECT_ID_SQL);
     this.addExactFilter(conditions, values, filters.workflowId, WORKFLOW_ID_SQL);

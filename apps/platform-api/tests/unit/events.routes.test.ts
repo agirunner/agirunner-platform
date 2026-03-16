@@ -63,7 +63,7 @@ describe('events routes', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/events?workflow_id=wf-1&work_item_id=wi-1&stage_name=implementation&activation_id=activation-1&gate_id=gate-1&types=work_item.updated&after=20&limit=10',
+      url: '/api/v1/events?entity_type=work_item&workflow_id=wf-1&work_item_id=wi-1&stage_name=implementation&activation_id=activation-1&gate_id=gate-1&types=work_item.updated&after=20&limit=10',
       headers: { authorization: 'Bearer test' },
     });
 
@@ -79,11 +79,13 @@ describe('events routes', () => {
     expect(selectSql).toContain("COALESCE(data->>'stage_name', '') = $");
     expect(selectSql).toContain("COALESCE(data->>'activation_id', '') = $");
     expect(selectSql).toContain("COALESCE(data->>'gate_id', CASE WHEN entity_type = 'gate' THEN entity_id::text ELSE '' END) = $");
+    expect(selectSql).toContain('entity_type::text = ANY(');
     expect(selectSql).toContain('type = ANY(');
     expect(selectSql).toContain('id < $');
     expect(selectSql).toContain('ORDER BY id DESC');
     expect(selectParams).toEqual([
       'tenant-1',
+      ['work_item'],
       'wf-1',
       'wi-1',
       'implementation',
