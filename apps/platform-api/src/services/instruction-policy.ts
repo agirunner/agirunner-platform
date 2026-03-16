@@ -24,7 +24,11 @@ export function normalizeInstructionDocument(
     return validateInstructionDocument({ content: value, format: 'text' }, fieldName, maxLength);
   }
 
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+  if (Array.isArray(value)) {
+    return normalizeInstructionArray(value, fieldName, maxLength);
+  }
+
+  if (!value || typeof value !== 'object') {
     throw new ValidationError(`${fieldName} must be a string or object`);
   }
 
@@ -33,6 +37,38 @@ export function normalizeInstructionDocument(
     : '';
   const format = ((value as Record<string, unknown>).format ?? 'text') as InstructionFormat;
   return validateInstructionDocument({ content, format }, fieldName, maxLength);
+}
+
+function normalizeInstructionArray(
+  value: unknown[],
+  fieldName: string,
+  maxLength: number,
+): InstructionDocument | null {
+  const entries = value.flatMap((entry) => {
+    if (typeof entry !== 'string') {
+      throw new ValidationError(`${fieldName} array entries must be strings`);
+    }
+
+    const trimmed = entry.trim();
+    return trimmed.length > 0 ? [trimmed] : [];
+  });
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  if (entries.length === 1) {
+    return validateInstructionDocument({ content: entries[0], format: 'text' }, fieldName, maxLength);
+  }
+
+  return validateInstructionDocument(
+    {
+      content: entries.map((entry) => `- ${entry}`).join('\n'),
+      format: 'markdown',
+    },
+    fieldName,
+    maxLength,
+  );
 }
 
 function validateInstructionDocument(
