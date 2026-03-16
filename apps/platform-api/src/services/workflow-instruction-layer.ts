@@ -113,6 +113,7 @@ function buildOrchestratorSections(params: {
   }
 
   sections.push(`## Rule Results\n${formatRuleResults(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem)}`);
+  sections.push('## Activation Discipline\nAfter you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish this activation and wait for the next workflow event. Do not poll running tasks in a loop.');
 
   const orchestrator = params.definition.orchestrator ?? {};
   const parallelLines = [
@@ -185,11 +186,11 @@ function progressModelGuidance(
 function outputProtocol(repoBacked: boolean, orchestrator: boolean) {
   if (repoBacked) {
     return orchestrator
-      ? 'Repository-backed workflow. Inspect files, diffs, and git state before deciding.'
+      ? 'Repository-backed workflow. Inspect files, diffs, and git state before deciding. Once required work is dispatched or active subordinate work is already in flight, finish the activation and wait for the next event instead of polling.'
       : 'Repository-backed workflow. Read predecessor context first, inspect the repository before changing it, and Commit and push required work before completion or escalation.';
   }
   return orchestrator
-    ? 'Non-repository workflow. Evaluate artifacts and task outputs directly, and require clear uploaded evidence before accepting completion.'
+    ? 'Non-repository workflow. Evaluate artifacts and task outputs directly, and require clear uploaded evidence before accepting completion. Once required work is dispatched or active subordinate work is already in flight, finish the activation and wait for the next event instead of polling.'
     : 'Non-repository task. Base your completion on artifacts, outputs, and recorded evidence. Upload required artifacts before completion or escalation and leave a clear structured handoff for the next step.';
 }
 

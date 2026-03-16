@@ -63,9 +63,12 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');
     expect(layer!.content).toContain('Human approval required before completion.');
+    expect(layer!.content).toContain('## Activation Discipline');
+    expect(layer!.content).toContain('finish this activation and wait for the next workflow event');
+    expect(layer!.content).toContain('Do not poll running tasks in a loop.');
     expect(layer!.content).toContain('## Parallelism');
     expect(layer!.content).toContain('Max active tasks: 4');
-    expect(layer!.content).toContain('Repository-backed workflow. Inspect files, diffs, and git state before deciding.');
+    expect(layer!.content).toContain('Repository-backed workflow. Inspect files, diffs, and git state before deciding. Once required work is dispatched');
   });
 
   it('builds ongoing specialist guidance with board-driven progression and predecessor context', () => {
