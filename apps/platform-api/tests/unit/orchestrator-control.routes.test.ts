@@ -560,6 +560,68 @@ describe('orchestratorControlRoutes', () => {
     });
   });
 
+  it('rejects orchestrator memory writes that try to persist workflow status', async () => {
+    const projectService = {
+      patchProjectMemory: vi.fn(),
+      patchProjectMemoryEntries: vi.fn(),
+      removeProjectMemory: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-memory']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-memory',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'requirements',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { getWorkflowWorkItem: vi.fn(), createWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('projectService', projectService);
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-memory/memory',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'memory-status-1',
+        updates: {
+          requirements_gate_status: {
+            state: 'awaiting_human_approval',
+            checkpoint: 'requirements',
+            work_item_id: 'work-item-1',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(projectService.patchProjectMemoryEntries).not.toHaveBeenCalled();
+  });
+
   it('rejects memory_delete without request_id', async () => {
     app = fastify();
     registerErrorHandler(app);

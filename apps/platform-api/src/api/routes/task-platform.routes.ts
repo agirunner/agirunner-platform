@@ -9,6 +9,7 @@ import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ArtifactCatalogService } from '../../services/artifact-catalog-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
+import { assertProjectMemoryWritesAreDurableKnowledge } from '../../services/project-memory-write-guard.js';
 import { ProjectMemoryScopeService } from '../../services/project-memory-scope-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
@@ -131,6 +132,11 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
       if (!task.project_id) {
         throw new ValidationError('Task is not linked to a project');
       }
+      const memoryEntries =
+        'updates' in body
+          ? Object.entries(body.updates).map(([key, value]) => ({ key, value }))
+          : [{ key: body.key, value: body.value }];
+      assertProjectMemoryWritesAreDurableKnowledge(memoryEntries);
       const projectId = task.project_id;
       const context = {
         workflow_id: task.workflow_id,

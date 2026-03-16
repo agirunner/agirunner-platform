@@ -8,6 +8,7 @@ import { WorkflowActivationService } from '../../services/workflow-activation-se
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { OrchestratorTaskMessageService } from '../../services/orchestrator-task-message-service.js';
+import { assertProjectMemoryWritesAreDurableKnowledge } from '../../services/project-memory-write-guard.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
@@ -774,6 +775,11 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
       if (!taskScope.project_id) {
         throw new ValidationError('This workflow is not linked to a project');
       }
+      const memoryEntries =
+        'updates' in body
+          ? Object.entries(body.updates).map(([key, value]) => ({ key, value }))
+          : [{ key: body.key, value: body.value }];
+      assertProjectMemoryWritesAreDurableKnowledge(memoryEntries);
       if (body.work_item_id) {
         await app.workflowService.getWorkflowWorkItem(
           request.auth!.tenantId,

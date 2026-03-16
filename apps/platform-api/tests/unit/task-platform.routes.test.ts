@@ -203,6 +203,139 @@ describe('task platform routes', () => {
     });
   });
 
+  it('rejects task memory patches that try to persist workflow status', async () => {
+    const patchProjectMemoryEntries = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [{
+          id: 'task-1',
+          workflow_id: 'workflow-1',
+          project_id: 'project-1',
+          work_item_id: 'work-item-1',
+          stage_name: 'design',
+          activation_id: null,
+          assigned_agent_id: 'agent-1',
+          is_orchestrator_task: false,
+          state: 'in_progress',
+        }],
+      }),
+    } as never);
+    app.decorate('projectService', {
+      patchProjectMemory: vi.fn(),
+      patchProjectMemoryEntries,
+    } as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/api/v1/tasks/task-1/memory',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        updates: {
+          requirements_gate_status: {
+            state: 'awaiting_human_approval',
+            checkpoint: 'requirements',
+            work_item_id: 'work-item-1',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.code).toBe('VALIDATION_ERROR');
+    expect(patchProjectMemoryEntries).not.toHaveBeenCalled();
+  });
+
+  it('filters task memory reads to the current workflow and work item scope', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT id, workflow_id, project_id')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'requirements',
+              activation_id: null,
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: false,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM events')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 21,
+                type: 'project.memory_updated',
+                actor_type: 'agent',
+                actor_id: 'agent:key',
+                created_at: '2026-03-16T08:00:00.000Z',
+                data: { key: 'global_note' },
+              },
+              {
+                id: 22,
+                type: 'project.memory_updated',
+                actor_type: 'agent',
+                actor_id: 'agent:key',
+                created_at: '2026-03-16T08:01:00.000Z',
+                data: { key: 'stale_dispatch', workflow_id: 'workflow-old' },
+              },
+            ],
+          };
+        }
+        throw new Error(`Unexpected SQL in task memory read test: ${sql}`);
+      }),
+    } as never);
+    app.decorate('projectService', {
+      getProject: vi.fn().mockResolvedValue({
+        id: 'project-1',
+        memory: {
+          global_note: 'keep this',
+          stale_dispatch: 'hide this',
+        },
+      }),
+      patchProjectMemory: vi.fn(),
+      patchProjectMemoryEntries: vi.fn(),
+    } as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tasks/task-1/memory',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.memory).toEqual({
+      global_note: 'keep this',
+    });
+  });
+
   it('deduplicates repeated task memory patch requests by request_id', async () => {
     const patchProjectMemoryEntries = vi.fn().mockResolvedValue({
       id: 'project-1',
