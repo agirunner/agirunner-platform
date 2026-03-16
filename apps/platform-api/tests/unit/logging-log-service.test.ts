@@ -51,7 +51,7 @@ describe('LogService', () => {
         actorId: 'user-1',
         actorName: 'Mark',
         resourceType: 'project',
-        resourceId: 'proj-1',
+        resourceId: '00000000-0000-0000-0000-000000000111',
         resourceName: 'My Project',
       });
 
@@ -401,7 +401,7 @@ describe('LogService', () => {
       }));
 
       const result = await service.insertBatch(entries);
-      expect(result).toEqual({ accepted: 3, rejected: 0 });
+      expect(result).toEqual({ accepted: 3, rejected: 0, rejection_details: [] });
       expect(getPartitionCalls(pool)).toHaveLength(1);
       expect(pool.query).toHaveBeenCalledTimes(4);
     });
@@ -426,14 +426,25 @@ describe('LogService', () => {
       }));
 
       const result = await service.insertBatch(entries);
-      expect(result).toEqual({ accepted: 2, rejected: 1 });
+      expect(result).toEqual({
+        accepted: 2,
+        rejected: 1,
+        rejection_details: [
+          {
+            index: 0,
+            trace_id: 'trace-0',
+            operation: 'llm.chat_stream',
+            reason: 'constraint violation',
+          },
+        ],
+      });
     });
 
     it('returnsZerosForEmptyBatch', async () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
       const result = await service.insertBatch([]);
-      expect(result).toEqual({ accepted: 0, rejected: 0 });
+      expect(result).toEqual({ accepted: 0, rejected: 0, rejection_details: [] });
       expect(pool.query).not.toHaveBeenCalled();
     });
 
@@ -546,6 +557,56 @@ describe('LogService', () => {
       const payload = JSON.parse(params[10] as string);
       expect(payload.input).toBe('[REDACTED]');
       expect(payload.output).toBe('success');
+    });
+
+    it('sanitizes null bytes in payload and error fields before insert', async () => {
+      const pool = createMockPool();
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'runtime' as const,
+        category: 'llm' as const,
+        level: 'info' as const,
+        operation: 'llm.chat_stream',
+        status: 'completed' as const,
+        payload: {
+          prompt_summary: 'hello\u0000world',
+          nested: { response_summary: 'good\u0000bye' },
+        },
+        error: { message: 'bad\u0000news' },
+      });
+
+      const [, params] = getInsertCall(pool)!;
+      const payload = JSON.parse(params[10] as string);
+      const error = JSON.parse(params[11] as string);
+      expect(payload.prompt_summary).toBe('helloworld');
+      expect(payload.nested.response_summary).toBe('goodbye');
+      expect(error.message).toBe('badnews');
+    });
+
+    it('moves non-uuid resource identifiers into resource_name instead of rejecting the row', async () => {
+      const pool = createMockPool();
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'runtime' as const,
+        category: 'container' as const,
+        level: 'info' as const,
+        operation: 'container.exec',
+        status: 'completed' as const,
+        resourceType: 'container',
+        resourceId: 'runtime-a59dbff2-b12b9434',
+      });
+
+      const [, params] = getInsertCall(pool)!;
+      expect(params[27]).toBeNull();
+      expect(params[28]).toBe('runtime-a59dbff2-b12b9434');
     });
 
     it('redactsEncryptedAndReferencedSecretsInNestedArraysAndErrors', async () => {

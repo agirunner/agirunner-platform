@@ -161,6 +161,13 @@ export interface OperationCount {
   count: number;
 }
 
+export interface LogBatchRejectionDetail {
+  index: number;
+  trace_id: string;
+  operation: string;
+  reason: string;
+}
+
 export interface ActorInfo {
   actor_type: string;
   actor_id: string;
@@ -171,6 +178,9 @@ export interface ActorInfo {
 const DEFAULT_PER_PAGE = 100;
 const MAX_PER_PAGE = 500;
 const MAX_BATCH_SIZE = 100;
+const MAX_REJECTION_DETAILS = 10;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function encodeCursor(id: string, createdAt: string): string {
   return Buffer.from(JSON.stringify({ id, created_at: createdAt })).toString('base64url');
@@ -224,23 +234,36 @@ export class LogService {
     }
   }
 
-  async insertBatch(entries: ExecutionLogEntry[]): Promise<{ accepted: number; rejected: number }> {
-    if (entries.length === 0) return { accepted: 0, rejected: 0 };
+  async insertBatch(entries: ExecutionLogEntry[]): Promise<{
+    accepted: number;
+    rejected: number;
+    rejection_details: LogBatchRejectionDetail[];
+  }> {
+    if (entries.length === 0) return { accepted: 0, rejected: 0, rejection_details: [] };
 
     const batch = entries.slice(0, MAX_BATCH_SIZE);
     let accepted = 0;
     let rejected = 0;
+    const rejectionDetails: LogBatchRejectionDetail[] = [];
 
-    for (const entry of batch) {
+    for (const [index, entry] of batch.entries()) {
       try {
         await this.insert(entry);
         accepted += 1;
-      } catch {
+      } catch (error) {
         rejected += 1;
+        if (rejectionDetails.length < MAX_REJECTION_DETAILS) {
+          rejectionDetails.push({
+            index,
+            trace_id: entry.traceId,
+            operation: entry.operation,
+            reason: formatBatchInsertError(error),
+          });
+        }
       }
     }
 
-    return { accepted, rejected };
+    return { accepted, rejected, rejection_details: rejectionDetails };
   }
 
   async query(tenantId: string, filters: LogFilters): Promise<KeysetPage<LogRow>> {
@@ -471,6 +494,13 @@ export class LogService {
     projectName: string | null,
     stageName: string | null,
   ): Promise<void> {
+    const payload = sanitizeLogValue(redactPayload(entry.payload) ?? {}) as Record<string, unknown>;
+    const error = entry.error
+      ? sanitizeLogValue(redactError(entry.error)) as { code?: string; message: string; stack?: string }
+      : null;
+    const resourceId = normalizeLogResourceId(entry.resourceId);
+    const resourceName = normalizeLogResourceName(entry.resourceName, entry.resourceId, resourceId);
+
     await this.pool.query(
       `INSERT INTO execution_logs (
         tenant_id, trace_id, span_id, parent_span_id,
@@ -501,28 +531,28 @@ export class LogService {
         entry.source,
         entry.category,
         entry.level,
-        entry.operation,
+        sanitizeRequiredLogText(entry.operation),
         entry.status,
         entry.durationMs ?? null,
-        JSON.stringify(redactPayload(entry.payload) ?? {}),
-        entry.error ? JSON.stringify(redactError(entry.error)) : null,
+        JSON.stringify(payload),
+        error ? JSON.stringify(error) : null,
         entry.projectId ?? null,
         entry.workflowId ?? null,
-        workflowName,
-        projectName,
+        sanitizeOptionalLogText(workflowName),
+        sanitizeOptionalLogText(projectName),
         entry.taskId ?? null,
         entry.workItemId ?? null,
         entry.activationId ?? null,
-        entry.taskTitle ?? null,
-        stageName,
+        sanitizeOptionalLogText(entry.taskTitle),
+        sanitizeOptionalLogText(stageName),
         entry.isOrchestratorTask ?? false,
-        entry.role ?? null,
-        entry.actorType ?? null,
-        entry.actorId ?? null,
-        entry.actorName ?? null,
-        entry.resourceType ?? null,
-        entry.resourceId ?? null,
-        entry.resourceName ?? null,
+        sanitizeOptionalLogText(entry.role),
+        sanitizeOptionalLogText(entry.actorType),
+        sanitizeOptionalLogText(entry.actorId),
+        sanitizeOptionalLogText(entry.actorName),
+        sanitizeOptionalLogText(entry.resourceType),
+        resourceId,
+        resourceName,
         entry.createdAt ?? null,
       ],
     );
@@ -773,6 +803,58 @@ function redactString(key: string, value: string): string {
   return SECRET_PATTERN.test(value) || SECRET_VALUE_PATTERN.test(value) ? '[REDACTED]' : value;
 }
 
+function sanitizeLogValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    return sanitizeRequiredLogText(value);
+  }
+  if (Array.isArray(value)) {
+    return value.map((item) => sanitizeLogValue(item));
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const sanitized: Record<string, unknown> = {};
+  for (const [key, child] of Object.entries(value)) {
+    sanitized[key] = sanitizeLogValue(child);
+  }
+  return sanitized;
+}
+
+function sanitizeRequiredLogText(value: string): string {
+  return value.replaceAll('\u0000', '');
+}
+
+function sanitizeOptionalLogText(value: string | null | undefined): string | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  return sanitizeRequiredLogText(value);
+}
+
+function normalizeLogResourceId(value: string | null | undefined): string | null {
+  const sanitized = sanitizeOptionalLogText(value);
+  if (!sanitized) {
+    return null;
+  }
+  return UUID_PATTERN.test(sanitized) ? sanitized : null;
+}
+
+function normalizeLogResourceName(
+  resourceName: string | null | undefined,
+  resourceId: string | null | undefined,
+  normalizedResourceId: string | null,
+): string | null {
+  const explicitName = sanitizeOptionalLogText(resourceName);
+  if (explicitName) {
+    return explicitName;
+  }
+  if (normalizedResourceId !== null) {
+    return null;
+  }
+  return sanitizeOptionalLogText(resourceId);
+}
+
 function partitionDateFor(createdAt: string | null | undefined): string {
   const value = createdAt ? new Date(createdAt) : new Date();
   if (Number.isNaN(value.getTime())) {
@@ -818,6 +900,34 @@ function getDatabaseErrorDetails(error: unknown): { message: string; code?: stri
     ? (error as { code: string }).code
     : undefined;
   return { message, code };
+}
+
+function formatBatchInsertError(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return 'unknown insert failure';
+  }
+
+  const code = typeof (error as { code?: unknown }).code === 'string' ? (error as { code: string }).code : null;
+  const constraint =
+    typeof (error as { constraint?: unknown }).constraint === 'string'
+      ? (error as { constraint: string }).constraint
+      : null;
+  const message =
+    typeof (error as { message?: unknown }).message === 'string'
+      ? normalizeErrorMessage((error as { message: string }).message)
+      : 'insert failed';
+
+  if (code && constraint) {
+    return `${message} (code=${code}, constraint=${constraint})`;
+  }
+  if (code) {
+    return `${message} (code=${code})`;
+  }
+  return message;
+}
+
+function normalizeErrorMessage(message: string): string {
+  return message.replace(/\s+/g, ' ').trim().slice(0, 240);
 }
 
 function buildAgg(row: {
