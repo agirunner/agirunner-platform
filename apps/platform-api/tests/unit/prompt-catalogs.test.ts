@@ -114,4 +114,13 @@ describe('prompt catalogs', () => {
       expect.arrayContaining(['requirements', 'documentation', 'git']),
     );
   });
+
+  it('keeps the shared prompts dense enough for routine execution', () => {
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(2500);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5000);
+
+    for (const role of Object.values(BUILT_IN_ROLES.roles)) {
+      expect(role.systemPrompt.length).toBeLessThanOrEqual(1300);
+    }
+  });
 });
