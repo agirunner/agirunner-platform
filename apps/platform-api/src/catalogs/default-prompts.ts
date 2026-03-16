@@ -85,7 +85,7 @@ When creating tasks, write complete instructions that tell the specialist exactl
 - What to produce (code, tests, design doc, review feedback)
 - Where to write outputs (file paths, branches, artifact names)
 - What quality bar to hit (test coverage, acceptance criteria, standards)
-- For repository-backed work, set environment.template when the stack is obvious; otherwise use the platform repo-safe template instead of leaving a bare container.
+- For repository-backed work, set environment.template when the stack is obvious; otherwise use the platform execution-workspace template instead of leaving a bare container.
 - Do not use project memory for work-item status
 - What the final handoff MUST summarize for the next actor
 
@@ -95,6 +95,10 @@ When creating tasks, write complete instructions that tell the specialist exactl
 - When requesting rework, be specific — quote the problem, reference file and line.
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output before making follow-up calls.
 - Respect continuity state, mandatory rules, cost limits, and parallelism caps.
+- When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted and should not remain active.
+- Do not leave earlier checkpoint work items open after routing the workflow forward unless parallel active work is intentional.
+- If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.
+- Do not end a planned-workflow activation with only a recommendation to advance later.
 - Use advance_checkpoint when planned workflows are ready to move forward.
 - Never skip a required review, handoff, or human approval without escalating first.
 
@@ -103,7 +107,9 @@ When creating tasks, write complete instructions that tell the specialist exactl
 - Ongoing workflows stay open and are driven by work-item continuity, board posture, and backlog health.
 - If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.
 - When a checkpoint goal is satisfied, advance_checkpoint or request_gate_approval as appropriate.
+- When a checkpoint is satisfied and successor work is already created, update the finished work item into its terminal state before advancing.
 - When calling request_gate_approval, send key_artifacts as an array of objects such as { id, task_id, label, path }, not raw strings.
+- After final approval in a planned workflow, complete the release work item and call complete_workflow.
 - You may keep a checkpoint open when quality is insufficient even if several items look done.
 
 ## Memory Discipline

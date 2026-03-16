@@ -843,12 +843,41 @@ export class WorkflowActivationDispatchService {
              ) AS active_stage_names
          ) AS active_work_items ON true
          LEFT JOIN LATERAL (
-           SELECT ws_current.name AS current_stage
-             FROM workflow_stages ws_current
-            WHERE ws_current.tenant_id = w.tenant_id
-              AND ws_current.workflow_id = w.id
-              AND ws_current.status IN ('active', 'awaiting_gate', 'blocked')
-            ORDER BY ws_current.position ASC
+           SELECT current_stage_view.name AS current_stage
+             FROM (
+               SELECT ws_current.name,
+                      ws_current.position,
+                      CASE
+                        WHEN ws_current.gate_status = 'awaiting_approval' THEN 'awaiting_gate'
+                        WHEN ws_current.gate_status = 'rejected' THEN 'blocked'
+                        WHEN COALESCE(work_item_summary.open_work_item_count, 0) > 0
+                          OR ws_current.gate_status = 'changes_requested' THEN 'active'
+                        WHEN COALESCE(work_item_summary.total_work_item_count, 0) > 0
+                          OR ws_current.status = 'completed' THEN 'completed'
+                        WHEN ws_current.status IN ('active', 'awaiting_gate', 'blocked') THEN ws_current.status
+                        ELSE 'pending'
+                      END AS derived_status
+                 FROM workflow_stages ws_current
+                 LEFT JOIN LATERAL (
+                   SELECT COUNT(*) FILTER (WHERE wi.completed_at IS NULL)::int AS open_work_item_count,
+                          COUNT(*)::int AS total_work_item_count
+                     FROM workflow_work_items wi
+                    WHERE wi.tenant_id = ws_current.tenant_id
+                      AND wi.workflow_id = ws_current.workflow_id
+                      AND wi.stage_name = ws_current.name
+                 ) AS work_item_summary
+                   ON true
+                WHERE w.lifecycle <> 'ongoing'
+                  AND ws_current.tenant_id = w.tenant_id
+                  AND ws_current.workflow_id = w.id
+             ) AS current_stage_view
+            WHERE current_stage_view.derived_status IN ('active', 'awaiting_gate', 'blocked')
+            ORDER BY CASE current_stage_view.derived_status
+                       WHEN 'awaiting_gate' THEN 0
+                       WHEN 'blocked' THEN 1
+                       ELSE 2
+                     END,
+                     current_stage_view.position ASC
             LIMIT 1
          ) AS current_stage_summary ON true
         WHERE w.tenant_id = $1
@@ -1386,6 +1415,7 @@ function buildActivationTaskInput(
       'Every mutating workflow management tool call must include a unique request_id.',
       'Repository-backed specialist tasks must include repository execution context so the runtime can clone, validate, commit, and push safely.',
       'Use the repository, git, shell, artifact, and escalation tools to validate the situation before acting.',
+      'If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation instead of stopping at a recommendation.',
       'Return a concise operator-facing summary of what changed, what is blocked, and the next action you recommend.',
     ]
       .filter((line): line is string => Boolean(line))
@@ -1451,6 +1481,7 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'Assess workflow state, inspect repository artifacts when needed, and take the next management action directly through the workflow control tools.',
       'Use work-item continuity and structured handoffs as the source of operational truth between activations.',
       'After you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish the activation and wait for the next event.',
+      'If no subordinate work is active and the workflow should progress, perform the workflow mutation now rather than ending with only a recommendation.',
       'Do not poll running tasks in a loop.',
       'If a stage already awaits approval, do not request another gate; finish the activation and wait for the decision event.',
       'Always include a unique request_id on mutating workflow control tool calls.',

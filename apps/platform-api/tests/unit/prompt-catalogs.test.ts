@@ -19,11 +19,23 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Operational continuity lives in work items, rule posture, and structured handoffs.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Check workflow budget posture when cost, time, or token pressure matters');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_checkpoint when planned workflows are ready to move forward.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'complete the predecessor work item if its deliverable is accepted',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'After final approval in a planned workflow, complete the release work item and call complete_workflow.',
+    );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as an array of objects');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Do not end a planned-workflow activation with only a recommendation to advance later.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids',
@@ -32,7 +44,7 @@ describe('prompt catalogs', () => {
       'Avoid setting specialist token_budget unless you have a concrete budget reason',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'For repository-backed work, set environment.template when the stack is obvious',
+      'execution-workspace template',
     );
   });
 
@@ -66,5 +78,23 @@ describe('prompt catalogs', () => {
       expect(role.escalationTarget).toBe('human');
       expect(role.maxEscalationDepth).toBe(5);
     }
+  });
+
+  it('aligns built-in SDLC role capabilities with repo-backed execution needs', () => {
+    expect(BUILT_IN_ROLES.roles.developer.capabilities).toEqual(
+      expect.arrayContaining(['coding', 'testing', 'git', 'python']),
+    );
+    expect(BUILT_IN_ROLES.roles.reviewer.capabilities).toEqual(
+      expect.arrayContaining(['code-review', 'security-review', 'git']),
+    );
+    expect(BUILT_IN_ROLES.roles.architect.capabilities).toEqual(
+      expect.arrayContaining(['architecture', 'documentation', 'git']),
+    );
+    expect(BUILT_IN_ROLES.roles.qa.capabilities).toEqual(
+      expect.arrayContaining(['testing', 'requirements', 'git', 'python']),
+    );
+    expect(BUILT_IN_ROLES.roles['product-manager'].capabilities).toEqual(
+      expect.arrayContaining(['requirements', 'documentation', 'git']),
+    );
   });
 });

@@ -66,6 +66,8 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Activation Discipline');
     expect(layer!.content).toContain('finish this activation and wait for the next workflow event');
     expect(layer!.content).toContain('Do not poll running tasks in a loop.');
+    expect(layer!.content).toContain('If no subordinate work is active and the workflow should progress, perform the workflow mutation now.');
+    expect(layer!.content).toContain('A recommendation without the required workflow mutation does not complete the activation.');
     expect(layer!.content).toContain('## Parallelism');
     expect(layer!.content).toContain('Max active tasks: 4');
     expect(layer!.content).toContain('Repository-backed workflow. Inspect files, diffs, and git state before deciding. Once required work is dispatched');

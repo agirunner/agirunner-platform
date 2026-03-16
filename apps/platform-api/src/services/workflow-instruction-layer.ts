@@ -113,7 +113,9 @@ function buildOrchestratorSections(params: {
   }
 
   sections.push(`## Rule Results\n${formatRuleResults(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem)}`);
-  sections.push('## Activation Discipline\nAfter you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish this activation and wait for the next workflow event. Do not poll running tasks in a loop.');
+  sections.push(
+    '## Activation Discipline\nAfter you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish this activation and wait for the next workflow event. Do not poll running tasks in a loop. If no subordinate work is active and the workflow should progress, perform the workflow mutation now. A recommendation without the required workflow mutation does not complete the activation.',
+  );
 
   const orchestrator = params.definition.orchestrator ?? {};
   const parallelLines = [
@@ -171,7 +173,7 @@ function workflowModeGuidance(lifecycle: 'planned' | 'ongoing') {
   if (lifecycle === 'ongoing') {
     return 'This workflow stays open and accepts work over time. Prioritize per-work-item continuity and backlog health over any single global checkpoint.';
   }
-  return 'This workflow is bounded. Move work through the required checkpoints and finish only after mandatory reviews and approvals are satisfied.';
+  return 'This workflow is bounded. Move work through the required checkpoints, close finished predecessor work items when routing to successor checkpoint work, and finish only after mandatory reviews and approvals are satisfied.';
 }
 
 function progressModelGuidance(
