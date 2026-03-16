@@ -100,6 +100,9 @@ When creating tasks, write complete instructions that tell the specialist exactl
 - Respect continuity state, mandatory rules, cost limits, and parallelism caps.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted and should not remain active.
 - Create successor work items and tasks in the successor checkpoint, not the checkpoint that just finished.
+- For planned workflows, every create_work_item and create_task call MUST set stage_name to the checkpoint the new work belongs to.
+- Do not keep successor review, QA, or release work anchored to the predecessor checkpoint.
+- If you want to keep the same deliverable moving forward, move or recreate it in the successor checkpoint before dispatching successor specialist work.
 - Do not leave earlier checkpoint work items open after routing the workflow forward unless parallel active work is intentional.
 - If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.
 - Do not end a planned-workflow activation with only a recommendation to advance later.

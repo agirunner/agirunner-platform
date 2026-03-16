@@ -40,6 +40,12 @@ describe('prompt catalogs', () => {
       'Create successor work items and tasks in the successor checkpoint, not the checkpoint that just finished.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'every create_work_item and create_task call MUST set stage_name to the checkpoint the new work belongs to.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Do not keep successor review, QA, or release work anchored to the predecessor checkpoint.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Do not end a planned-workflow activation with only a recommendation to advance later.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(

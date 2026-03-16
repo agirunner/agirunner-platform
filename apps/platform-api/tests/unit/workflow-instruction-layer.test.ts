@@ -24,6 +24,15 @@ describe('buildWorkflowInstructionLayer', () => {
             checkpoints: [
               { name: 'implementation', goal: 'Build the change' },
               { name: 'review', goal: 'Ensure reviewer sign-off', human_gate: true },
+              { name: 'verification', goal: 'QA validates the change' },
+            ],
+            review_rules: [
+              { from_role: 'developer', reviewed_by: 'reviewer', checkpoint: 'implementation', required: true },
+              { from_role: 'reviewer', reviewed_by: 'qa', checkpoint: 'review', required: true },
+            ],
+            handoff_rules: [
+              { from_role: 'developer', to_role: 'reviewer', checkpoint: 'implementation', required: true },
+              { from_role: 'reviewer', to_role: 'qa', checkpoint: 'review', required: true },
             ],
             approval_rules: [
               { on: 'checkpoint', checkpoint: 'review', approved_by: 'human', required: true },
@@ -59,10 +68,16 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Progress Model\nCheckpoint-driven');
     expect(layer!.content).toContain('## Current Checkpoint\nreview');
     expect(layer!.content).toContain('Human gate: yes');
+    expect(layer!.content).toContain('## Checkpoint Routing');
+    expect(layer!.content).toContain('Successor checkpoint after acceptance: verification');
     expect(layer!.content).toContain('## Rule Results');
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');
     expect(layer!.content).toContain('Human approval required before completion.');
+    expect(layer!.content).toContain('Required review: reviewer -> qa');
+    expect(layer!.content).toContain('Required handoff: reviewer -> qa');
+    expect(layer!.content).not.toContain('Required review: developer -> reviewer');
+    expect(layer!.content).not.toContain('Required handoff: developer -> reviewer');
     expect(layer!.content).toContain('## Activation Discipline');
     expect(layer!.content).toContain('finish this activation and wait for the next workflow event');
     expect(layer!.content).toContain('Do not poll running tasks in a loop.');

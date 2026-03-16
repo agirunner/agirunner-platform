@@ -104,6 +104,10 @@ function buildOrchestratorSections(params: {
     sections.push(
       `## Current Checkpoint\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}\nHuman gate: ${params.checkpoint.human_gate ? 'yes' : 'no'}`,
     );
+    const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
+    if (params.lifecycle === 'planned') {
+      sections.push(`## Checkpoint Routing\n${formatCheckpointRouting(params.checkpoint.name, successorCheckpoint)}`);
+    }
   } else if (params.boardColumn) {
     sections.push(`## Current Board Focus\n${params.boardColumn.label}`);
   }
@@ -149,6 +153,10 @@ function buildSpecialistSections(params: {
     sections.push(
       `## Current Checkpoint\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}`,
     );
+    const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
+    if (params.lifecycle === 'planned') {
+      sections.push(`## Checkpoint Routing\n${formatCheckpointRouting(params.checkpoint.name, successorCheckpoint)}`);
+    }
   }
 
   if (params.boardColumn) {
@@ -217,13 +225,22 @@ function formatRuleResults(
   if (requiresHumanApproval(definition, checkpointName)) {
     lines.push('Human approval required before completion.');
   }
-  for (const rule of definition.review_rules.filter((entry) => entry.required !== false)) {
+  for (const rule of definition.review_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
+    if (rule.required === false) {
+      continue;
+    }
     lines.push(`Required review: ${rule.from_role} -> ${rule.reviewed_by}`);
   }
-  for (const rule of definition.handoff_rules.filter((entry) => entry.required !== false)) {
+  for (const rule of definition.handoff_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
+    if (rule.required === false) {
+      continue;
+    }
     lines.push(`Required handoff: ${rule.from_role} -> ${rule.to_role}`);
   }
-  for (const rule of definition.approval_rules.filter((entry) => entry.required !== false)) {
+  for (const rule of definition.approval_rules.filter((entry) => approvalRuleAppliesToCheckpoint(entry, checkpointName))) {
+    if (rule.required === false) {
+      continue;
+    }
     if (rule.on === 'completion') {
       lines.push('Human approval: required before completion');
       continue;
@@ -241,12 +258,16 @@ function formatReviewExpectations(
 ) {
   const lines: string[] = [];
   const roleName = role ?? readString(workItem.owner_role);
-  const incomingReviewRule = definition.review_rules.find((entry) => entry.reviewed_by === roleName);
+  const incomingReviewRule = definition.review_rules.find(
+    (entry) => entry.reviewed_by === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition),
+  );
   if (incomingReviewRule && incomingReviewRule.required !== false && roleName) {
     lines.push(`Review required from ${roleName}`);
     lines.push(`Mandatory review: ${roleName} should review the current output before completion.`);
   } else {
-    const outgoingReviewRule = definition.review_rules.find((entry) => entry.from_role === roleName);
+    const outgoingReviewRule = definition.review_rules.find(
+      (entry) => entry.from_role === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition),
+    );
     if (outgoingReviewRule && outgoingReviewRule.required !== false) {
       lines.push(`Review required from ${outgoingReviewRule.reviewed_by}`);
       lines.push(`Mandatory review: ${outgoingReviewRule.reviewed_by} should review the current output before completion.`);
@@ -272,15 +293,63 @@ function requiresHumanApproval(
   definition: ReturnType<typeof parsePlaybookDefinition>,
   checkpointName: string | null,
 ) {
-  return definition.approval_rules.some((entry) => {
-    if (entry.required === false) {
-      return false;
-    }
-    if (entry.on === 'completion') {
-      return true;
-    }
-    return Boolean(checkpointName) && entry.checkpoint === checkpointName;
-  });
+  return definition.approval_rules.some((entry) => approvalRuleAppliesToCheckpoint(entry, checkpointName));
+}
+
+function formatCheckpointRouting(
+  currentCheckpointName: string,
+  successorCheckpointName: string | null,
+) {
+  if (!successorCheckpointName) {
+    return [
+      `Current checkpoint: ${currentCheckpointName}`,
+      'This is the final checkpoint. After the checkpoint deliverable is accepted and any required human approval is satisfied, complete the release work item and then complete the workflow.',
+    ].join('\n');
+  }
+
+  return [
+    `Current checkpoint: ${currentCheckpointName}`,
+    `Successor checkpoint after acceptance: ${successorCheckpointName}`,
+    `When you create successor work in a planned workflow, set stage_name to "${successorCheckpointName}" and close the predecessor work item instead of leaving successor work anchored to "${currentCheckpointName}".`,
+  ].join('\n');
+}
+
+function nextCheckpointName(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  checkpointName: string | null,
+) {
+  if (!checkpointName) {
+    return null;
+  }
+  const checkpointIndex = definition.checkpoints.findIndex((entry) => entry.name === checkpointName);
+  if (checkpointIndex < 0) {
+    return null;
+  }
+  return definition.checkpoints[checkpointIndex + 1]?.name ?? null;
+}
+
+function ruleAppliesToCheckpoint(
+  ruleCheckpoint: string | undefined,
+  checkpointName: string | null,
+  _definition: ReturnType<typeof parsePlaybookDefinition>,
+) {
+  if (!ruleCheckpoint) {
+    return true;
+  }
+  return checkpointName === ruleCheckpoint;
+}
+
+function approvalRuleAppliesToCheckpoint(
+  rule: { on: 'checkpoint' | 'completion'; checkpoint?: string | undefined; required?: boolean | undefined },
+  checkpointName: string | null,
+) {
+  if (rule.required === false) {
+    return false;
+  }
+  if (rule.on === 'completion') {
+    return true;
+  }
+  return Boolean(checkpointName) && rule.checkpoint === checkpointName;
 }
 
 function selectFocusedWorkItem(orchestratorContext: Record<string, unknown> | null | undefined) {
