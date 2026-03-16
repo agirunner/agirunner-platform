@@ -1380,6 +1380,7 @@ function resolvePlaybookCapabilityTags(
     if (normalizedRole.length === 0) {
       continue;
     }
+    tags.add(normalizedRole);
     tags.add(`role:${normalizedRole}`);
     for (const capability of roleCapabilities.get(normalizedRole) ?? []) {
       tags.add(capability);

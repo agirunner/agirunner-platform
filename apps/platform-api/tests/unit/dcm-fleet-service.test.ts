@@ -118,7 +118,7 @@ describe('FleetService DCM', () => {
       expect(result[0].pending_tasks).toBe(1);
       expect(result[0].capability_demand_units).toBe(0);
       expect(result[1].pool_kind).toBe('specialist');
-      expect(result[1].capability_tags).toEqual(['role:developer', 'coding', 'testing']);
+      expect(result[1].capability_tags).toEqual(['developer', 'role:developer', 'coding', 'testing']);
       expect(result[1].image).toBe('agirunner-runtime:v1');
       expect(result[1].pending_tasks).toBe(3);
       expect(result[1].tasks_with_capabilities).toBe(2);
@@ -160,7 +160,7 @@ describe('FleetService DCM', () => {
       const result = await service.getRuntimeTargets(TENANT_ID);
 
       expect(result[0].pool_kind).toBe('specialist');
-      expect(result[0].capability_tags).toEqual(['role:developer', 'coding', 'testing']);
+      expect(result[0].capability_tags).toEqual(['developer', 'role:developer', 'coding', 'testing']);
       expect(result[0].pool_mode).toBe('warm');
       expect(result[0].max_runtimes).toBe(1);
       expect(result[0].priority).toBe(0);
@@ -283,12 +283,15 @@ describe('FleetService DCM', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0].capability_tags).toEqual([
+        'developer',
         'role:developer',
         'coding',
         'testing',
+        'reviewer',
         'role:reviewer',
         'code-review',
         'security-review',
+        'product-manager',
         'role:product-manager',
         'requirements',
         'documentation',
