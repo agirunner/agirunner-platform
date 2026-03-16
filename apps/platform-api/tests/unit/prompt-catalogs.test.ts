@@ -65,6 +65,7 @@ describe('prompt catalogs', () => {
     for (const role of roles) {
       expect(role.systemPrompt).toContain('If predecessor handoff exists in your task context, read it first');
       expect(role.systemPrompt).toContain('Treat predecessor handoffs, current task input, project memory, and the current branch diff as authoritative');
+      expect(role.systemPrompt).toContain('Treat the workflow brief and launch inputs as authoritative for the requested deliverable');
       expect(role.systemPrompt).toContain('Do not infer behavior from legacy package names, file names, or stale repository terminology');
       expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff with a unique request_id');
       expect(role.systemPrompt).toContain('Call submit_handoff once, when the final handoff for the current task attempt is ready.');

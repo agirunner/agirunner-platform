@@ -58,6 +58,7 @@ export function buildWorkflowInstructionLayer(
     ? buildOrchestratorSections({
         lifecycle,
         definition,
+        workflow,
         checkpoint,
         boardColumn,
         focusedWorkItem,
@@ -67,6 +68,7 @@ export function buildWorkflowInstructionLayer(
     : buildSpecialistSections({
         lifecycle,
         definition,
+        workflow,
         checkpoint,
         boardColumn,
         focusedWorkItem,
@@ -88,6 +90,7 @@ export function buildWorkflowInstructionLayer(
 function buildOrchestratorSections(params: {
   lifecycle: 'planned' | 'ongoing';
   definition: ReturnType<typeof parsePlaybookDefinition>;
+  workflow: Record<string, unknown>;
   checkpoint: { name: string; goal: string; human_gate?: boolean } | null;
   boardColumn?: { label: string } | null;
   focusedWorkItem: Record<string, unknown>;
@@ -96,6 +99,7 @@ function buildOrchestratorSections(params: {
 }) {
   const sections = [
     `## Workflow Mode: ${params.lifecycle}\n${workflowModeGuidance(params.lifecycle)}`,
+    buildWorkflowBriefSection(params.workflow),
     `## Process Instructions\n${params.definition.process_instructions}`,
     `## Progress Model\n${progressModelGuidance(params.definition)}`,
   ];
@@ -130,12 +134,13 @@ function buildOrchestratorSections(params: {
   sections.push(`## Parallelism\n${parallelLines.join('\n')}`);
 
   sections.push(`## Output Protocol\n${outputProtocol(params.repoBacked, true)}`);
-  return sections;
+  return sections.filter((section) => section.trim().length > 0);
 }
 
 function buildSpecialistSections(params: {
   lifecycle: 'planned' | 'ongoing';
   definition: ReturnType<typeof parsePlaybookDefinition>;
+  workflow: Record<string, unknown>;
   checkpoint: { name: string; goal: string; human_gate?: boolean } | null;
   boardColumn?: { label: string } | null;
   focusedWorkItem: Record<string, unknown>;
@@ -145,6 +150,7 @@ function buildSpecialistSections(params: {
 }) {
   const sections = [
     `## Workflow Mode: ${params.lifecycle}\n${workflowModeGuidance(params.lifecycle)}`,
+    buildWorkflowBriefSection(params.workflow),
     `## Process Instructions\n${params.definition.process_instructions}`,
     `## Progress Model\n${progressModelGuidance(params.definition)}`,
   ];
@@ -174,7 +180,86 @@ function buildSpecialistSections(params: {
     );
   }
 
-  return sections;
+  return sections.filter((section) => section.trim().length > 0);
+}
+
+function buildWorkflowBriefSection(workflow: Record<string, unknown>) {
+  const brief = compactWorkflowBriefVariables(asRecord(workflow.variables));
+  if (!brief.goal && brief.inputs.length === 0) {
+    return '';
+  }
+
+  const lines: string[] = [];
+  if (brief.goal) {
+    lines.push(`Goal: ${brief.goal}`);
+  }
+  if (brief.inputs.length > 0) {
+    lines.push('Launch inputs:');
+    lines.push(...brief.inputs.map((entry) => `- ${entry.key}: ${entry.value}`));
+  }
+  if (brief.omittedCount > 0) {
+    lines.push(`- ...and ${brief.omittedCount} more launch inputs`);
+  }
+  return `## Workflow Brief\n${lines.join('\n')}`;
+}
+
+function compactWorkflowBriefVariables(variables: Record<string, unknown>) {
+  const preferredGoalKeys = new Set(['goal', 'objective', 'outcome', 'brief', 'deliverable']);
+  const visibleEntries = Object.entries(variables)
+    .filter(([key, value]) => shouldExposeWorkflowVariable(key, value))
+    .map(([key, value]) => ({ key, value: formatWorkflowVariable(value) }))
+    .filter((entry): entry is { key: string; value: string } => entry.value !== null);
+
+  const goalEntry = visibleEntries.find((entry) => preferredGoalKeys.has(entry.key));
+  const nonGoalEntries = visibleEntries.filter((entry) => !preferredGoalKeys.has(entry.key));
+  const maxInputs = 8;
+
+  return {
+    goal: goalEntry?.value ?? null,
+    inputs: nonGoalEntries.slice(0, maxInputs),
+    omittedCount: Math.max(nonGoalEntries.length - maxInputs, 0),
+  };
+}
+
+function shouldExposeWorkflowVariable(key: string, value: unknown) {
+  if (isSecretLikeKey(key) || isSecretLikeValue(value)) {
+    return false;
+  }
+  if (value === null || value === undefined) {
+    return false;
+  }
+  if (typeof value === 'string') {
+    return value.trim().length > 0;
+  }
+  return typeof value === 'number' || typeof value === 'boolean';
+}
+
+function formatWorkflowVariable(value: unknown) {
+  if (typeof value === 'string') {
+    return truncateInlineValue(value.trim(), 240);
+  }
+  if (typeof value === 'number' || typeof value === 'boolean') {
+    return String(value);
+  }
+  return null;
+}
+
+function truncateInlineValue(value: string, maxLength: number) {
+  if (value.length <= maxLength) {
+    return value;
+  }
+  return `${value.slice(0, maxLength - 1)}…`;
+}
+
+function isSecretLikeKey(key: string) {
+  return /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts|webhook_url)/i.test(key);
+}
+
+function isSecretLikeValue(value: unknown) {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  return /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$)/i.test(value.trim());
 }
 
 function workflowModeGuidance(lifecycle: 'planned' | 'ongoing') {

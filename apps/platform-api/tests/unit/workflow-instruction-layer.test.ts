@@ -139,4 +139,51 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('The design is ready for implementation.');
     expect(layer!.content).toContain('Upload required artifacts before completion or escalation');
   });
+
+  it('surfaces the workflow goal and launch inputs without echoing secret-like values', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: false,
+      role: 'developer',
+      workflow: {
+        lifecycle: 'planned',
+        variables: {
+          goal: 'Deliver a Hello World CLI with automated tests.',
+          repository_url: 'https://github.com/example/repo',
+          branch: 'feature/hello-world',
+          git_token_secret_ref: 'secret:GITHUB_TOKEN',
+        },
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions: 'Implement the requested deliverable exactly and route code through review.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            checkpoints: [
+              { name: 'implementation', goal: 'Build the requested deliverable' },
+            ],
+            review_rules: [
+              { from_role: 'developer', reviewed_by: 'reviewer', checkpoint: 'implementation', required: true },
+            ],
+          },
+        },
+      },
+      workItem: {
+        current_checkpoint: 'implementation',
+        column_id: 'planned',
+        owner_role: 'developer',
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Workflow Brief');
+    expect(layer!.content).toContain('Goal: Deliver a Hello World CLI with automated tests.');
+    expect(layer!.content).toContain('- repository_url: https://github.com/example/repo');
+    expect(layer!.content).toContain('- branch: feature/hello-world');
+    expect(layer!.content).not.toContain('git_token_secret_ref');
+    expect(layer!.content).not.toContain('secret:GITHUB_TOKEN');
+  });
 });
