@@ -70,6 +70,74 @@ describe('HandoffService', () => {
     );
   });
 
+  it('serializes jsonb handoff fields before inserting them', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'task-1',
+          tenant_id: 'tenant-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          role: 'developer',
+          stage_name: 'implementation',
+          metadata: { team_name: 'delivery' },
+        }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [{ next_sequence: 0 }], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'handoff-1',
+          tenant_id: 'tenant-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          request_id: 'req-2',
+          role: 'developer',
+          team_name: 'delivery',
+          stage_name: 'implementation',
+          sequence: 0,
+          summary: 'Captured implementation handoff.',
+          completion: 'partial',
+          changes: ['requirements summary'],
+          decisions: [{ owner: 'developer' }],
+          remaining_items: ['review findings'],
+          blockers: ['Need human scope confirmation'],
+          review_focus: ['edge cases'],
+          known_risks: ['late requirement drift'],
+          successor_context: 'Keep the release scope minimal.',
+          role_data: { branch: 'feature/hello-world' },
+          artifact_ids: [],
+          created_at: new Date('2026-03-15T12:00:00Z'),
+        }],
+        rowCount: 1,
+      });
+
+    const service = new HandoffService({ query } as never);
+
+    await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-2',
+      summary: 'Captured implementation handoff.',
+      completion: 'partial',
+      changes: ['requirements summary'],
+      decisions: [{ owner: 'developer' }],
+      remaining_items: ['review findings'],
+      blockers: ['Need human scope confirmation'],
+      review_focus: ['edge cases'],
+      known_risks: ['late requirement drift'],
+      successor_context: 'Keep the release scope minimal.',
+      role_data: { branch: 'feature/hello-world' },
+    });
+
+    const insertParams = query.mock.calls[2][1] as unknown[];
+    expect(insertParams[11]).toBe(JSON.stringify(['requirements summary']));
+    expect(insertParams[12]).toBe(JSON.stringify([{ owner: 'developer' }]));
+    expect(insertParams[13]).toBe(JSON.stringify(['review findings']));
+    expect(insertParams[14]).toBe(JSON.stringify(['Need human scope confirmation']));
+    expect(insertParams[18]).toBe(JSON.stringify({ branch: 'feature/hello-world' }));
+  });
+
   it('returns the existing handoff for an idempotent request replay', async () => {
     const pool = {
       query: vi

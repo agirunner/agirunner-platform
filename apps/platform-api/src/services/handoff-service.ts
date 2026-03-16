@@ -140,14 +140,14 @@ export class HandoffService {
         sequence,
         payload.summary,
         payload.completion,
-        payload.changes,
-        payload.decisions,
-        payload.remaining_items,
-        payload.blockers,
+        serializeJsonb(payload.changes),
+        serializeJsonb(payload.decisions),
+        serializeJsonb(payload.remaining_items),
+        serializeJsonb(payload.blockers),
         payload.review_focus,
         payload.known_risks,
         payload.successor_context,
-        payload.role_data,
+        serializeJsonb(payload.role_data),
         payload.artifact_ids,
       ],
     );
@@ -390,6 +390,10 @@ function normalizeRecord(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function serializeJsonb(value: unknown) {
+  return JSON.stringify(value);
 }
 
 function readOptionalString(value: unknown): string | null {
