@@ -1051,6 +1051,18 @@ export class PlaybookWorkflowControlService {
       ],
     );
 
+    await db.query(
+      `UPDATE workflow_work_items
+          SET next_expected_actor = NULL,
+              next_expected_action = NULL,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND current_checkpoint = $3
+          AND next_expected_action = 'approve'`,
+      [identity.tenantId, workflowId, stage.name],
+    );
+
     await this.deps.eventService.emit(
       {
         tenantId: identity.tenantId,

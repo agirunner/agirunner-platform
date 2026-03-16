@@ -90,6 +90,10 @@ export class WorkItemContinuityService {
       }),
       db,
     );
+    const normalizedEvaluation =
+      event === 'task_completed'
+        ? gateApprovalTakesPrecedence(definition, checkpointName, evaluation)
+        : evaluation;
 
     await db.query(
       `UPDATE workflow_work_items
@@ -106,13 +110,13 @@ export class WorkItemContinuityService {
         context.workflow_id,
         context.work_item_id,
         checkpointName,
-        evaluation.nextExpectedActor,
-        evaluation.nextExpectedAction,
-        evaluation.reworkDelta,
+        normalizedEvaluation.nextExpectedActor,
+        normalizedEvaluation.nextExpectedAction,
+        normalizedEvaluation.reworkDelta,
       ],
     );
 
-    return evaluation;
+    return normalizedEvaluation;
   }
 
   private async resolveEvaluation(
@@ -214,4 +218,39 @@ function readCheckpointName(
 
 function readOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function gateApprovalTakesPrecedence(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  checkpointName: string | null,
+  evaluation: PlaybookRuleEvaluationResult,
+): PlaybookRuleEvaluationResult {
+  if (!checkpointRequiresHumanApproval(definition, checkpointName)) {
+    return evaluation;
+  }
+  return {
+    matchedRuleType: 'approval',
+    nextExpectedActor: 'human',
+    nextExpectedAction: 'approve',
+    requiresHumanApproval: true,
+    reworkDelta: evaluation.reworkDelta,
+  };
+}
+
+function checkpointRequiresHumanApproval(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  checkpointName: string | null,
+) {
+  if (!checkpointName) {
+    return false;
+  }
+  if (definition.checkpoints.some((checkpoint) => checkpoint.name === checkpointName && checkpoint.human_gate)) {
+    return true;
+  }
+  return definition.approval_rules.some((rule) => {
+    if (rule.required === false || rule.on !== 'checkpoint') {
+      return false;
+    }
+    return rule.checkpoint === checkpointName;
+  });
 }

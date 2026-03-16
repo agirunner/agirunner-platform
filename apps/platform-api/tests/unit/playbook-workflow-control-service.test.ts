@@ -21,7 +21,7 @@ describe('PlaybookWorkflowControlService', () => {
   it('wraps gate requests in a transaction when no client is provided', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
           return { rowCount: 0, rows: [] };
         }
@@ -109,6 +109,10 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rowCount: 1, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
       release: vi.fn(),
@@ -150,7 +154,7 @@ describe('PlaybookWorkflowControlService', () => {
 
   it('rolls back gate decisions when a later step fails without an outer client', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
@@ -258,6 +262,10 @@ describe('PlaybookWorkflowControlService', () => {
               updated_at: new Date('2026-03-11T00:31:00Z'),
             }],
           };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rowCount: 1, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -397,7 +405,7 @@ describe('PlaybookWorkflowControlService', () => {
       dispatchActivation: vi.fn(async () => 'task-2'),
     };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
@@ -509,10 +517,11 @@ describe('PlaybookWorkflowControlService', () => {
     );
   });
 
-  it('acts on a gate directly by gate id and returns the updated gate', async () => {
+  it('acts on a gate directly by gate id, clears approval expectations, and returns the updated gate', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
+    let clearedApprovalExpectation = false;
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2') && sql.includes('FROM workflow_stage_gates')) {
           return {
             rowCount: 1,
@@ -618,6 +627,11 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          clearedApprovalExpectation = true;
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rowCount: 1, rows: [] };
+        }
         return { rowCount: 1, rows: [] };
       }),
     };
@@ -680,6 +694,7 @@ describe('PlaybookWorkflowControlService', () => {
       }),
       pool,
     );
+    expect(clearedApprovalExpectation).toBe(true);
   });
 
   it('treats a repeated gate-id decision as idempotent once the gate is already decided', async () => {
@@ -687,7 +702,7 @@ describe('PlaybookWorkflowControlService', () => {
     const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-3' })) };
     const dispatchService = { dispatchActivation: vi.fn(async () => 'task-3') };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("AND status = 'awaiting_approval'")) {
           return { rowCount: 0, rows: [] };
         }
@@ -714,6 +729,10 @@ describe('PlaybookWorkflowControlService', () => {
               decided_at: new Date('2026-03-11T00:31:00Z'),
             }],
           };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rowCount: 1, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -750,7 +769,7 @@ describe('PlaybookWorkflowControlService', () => {
     const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-3' })) };
     const dispatchService = { dispatchActivation: vi.fn(async () => 'task-3') };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("AND status = 'awaiting_approval'")) {
           return { rowCount: 0, rows: [] };
         }
@@ -777,6 +796,10 @@ describe('PlaybookWorkflowControlService', () => {
               decided_at: new Date('2026-03-11T00:31:00Z'),
             }],
           };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rowCount: 1, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -813,7 +836,7 @@ describe('PlaybookWorkflowControlService', () => {
     const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-4' })) };
     const dispatchService = { dispatchActivation: vi.fn(async () => 'task-4') };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
@@ -877,6 +900,10 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rowCount: 1, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -912,7 +939,7 @@ describe('PlaybookWorkflowControlService', () => {
     const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-4', state: 'queued', event_type: 'stage.gate.approve', reason: 'stage.gate.approve', queued_at: null, started_at: null, completed_at: null, summary: null, error: null })) };
     const dispatchService = { dispatchActivation: vi.fn(async () => 'task-4') };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("AND status = 'awaiting_approval'")) {
           return { rowCount: 0, rows: [] };
         }
@@ -1021,6 +1048,10 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rowCount: 1, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -1062,7 +1093,7 @@ describe('PlaybookWorkflowControlService', () => {
     const activationService = { enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-4', activation_id: 'activation-4', state: 'queued', event_type: 'stage.gate.approve', reason: 'stage.gate.approve', queued_at: null, started_at: null, completed_at: null, summary: null, error: null })) };
     const dispatchService = { dispatchActivation: vi.fn(async () => 'task-4') };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           return {
             rowCount: 1,
@@ -1171,6 +1202,10 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rowCount: 1, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -1219,7 +1254,7 @@ describe('PlaybookWorkflowControlService', () => {
       recomputeWorkflowState: vi.fn(async () => 'active'),
     };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
@@ -1371,7 +1406,7 @@ describe('PlaybookWorkflowControlService', () => {
     };
     const updatedAt = new Date('2026-03-11T00:00:00Z');
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
@@ -1459,7 +1494,7 @@ describe('PlaybookWorkflowControlService', () => {
 
   it('rejects reparenting a work item under one of its descendants', async () => {
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
@@ -1525,7 +1560,7 @@ describe('PlaybookWorkflowControlService', () => {
 
   it('requests a human gate with the schema-valid awaiting_approval status', async () => {
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
@@ -1637,7 +1672,7 @@ describe('PlaybookWorkflowControlService', () => {
     const activationService = { enqueueForWorkflow: vi.fn() };
     const dispatchService = { dispatchActivation: vi.fn() };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
@@ -1723,7 +1758,7 @@ describe('PlaybookWorkflowControlService', () => {
 
   it('rejects a second pending gate request for the same stage', async () => {
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {

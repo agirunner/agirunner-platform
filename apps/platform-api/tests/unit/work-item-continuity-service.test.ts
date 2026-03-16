@@ -182,4 +182,49 @@ describe('WorkItemContinuityService', () => {
       ['tenant-1', 'workflow-1', 'work-item-1', 'implementation'],
     );
   });
+
+  it('prioritizes checkpoint approval over downstream handoff routing', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'requirements',
+            current_checkpoint: 'requirements',
+            owner_role: 'product-manager',
+            definition: {
+              process_instructions: 'Product manager defines requirements and architecture starts only after approval.',
+              roles: ['product-manager', 'architect'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              checkpoints: [{ name: 'requirements', goal: 'Requirements are approved', human_gate: true }],
+              handoff_rules: [{ from_role: 'product-manager', to_role: 'architect', required: true }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordTaskCompleted('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'product-manager',
+      stage_name: 'requirements',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'approval',
+      nextExpectedActor: 'human',
+      nextExpectedAction: 'approve',
+      requiresHumanApproval: true,
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'requirements', 'human', 'approve', 0],
+    );
+  });
 });
