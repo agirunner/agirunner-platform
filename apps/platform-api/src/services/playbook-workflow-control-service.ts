@@ -11,6 +11,7 @@ import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
+import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.js';
 import { toGateResponse, type WorkflowStageGateRecord } from './workflow-stage-gate-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 
@@ -571,7 +572,7 @@ export class PlaybookWorkflowControlService {
     input: CompleteWorkflowInput,
     db: DatabaseClient,
   ) {
-    const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
+    let workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
     if (workflow.lifecycle !== 'planned') {
       throw new ConflictError('Only planned playbook workflows can be completed by the orchestrator');
     }
@@ -583,6 +584,9 @@ export class PlaybookWorkflowControlService {
         final_artifacts: readCompletionArtifacts(workflow),
       };
     }
+
+    await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
+    workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
 
     const finalArtifacts = normalizeStringArray(input.final_artifacts);
     if (workflow.active_stage_name) {
@@ -853,6 +857,9 @@ export class PlaybookWorkflowControlService {
     );
 
     const updatedWorkItem = result.rows[0];
+    if (workflow.lifecycle === 'planned') {
+      await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
+    }
     await emitWorkItemUpdateEvents(this.deps, identity, workflowId, workItem, updatedWorkItem, db);
     const activation = await this.deps.activationService.enqueueForWorkflow(
       {

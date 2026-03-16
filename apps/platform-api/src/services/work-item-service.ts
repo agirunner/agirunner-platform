@@ -18,6 +18,7 @@ import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
+import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.js';
 
 export interface CreateWorkItemInput {
   request_id?: string;
@@ -331,6 +332,10 @@ export class WorkItemService {
 
       const workItem = result.rows[0];
       const actorType = actorTypeForIdentity(identity);
+
+      if (workflow.lifecycle === 'planned') {
+        await reconcilePlannedWorkflowStages(client, identity.tenantId, workflowId);
+      }
 
       await this.eventService.emit(
         {

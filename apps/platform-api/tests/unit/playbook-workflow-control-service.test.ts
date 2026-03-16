@@ -1469,6 +1469,57 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('SELECT ws.id') && sql.includes('FROM workflow_stages ws')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 'stage-1',
+                lifecycle: 'planned',
+                name: 'requirements',
+                position: 0,
+                goal: 'Define scope',
+                guidance: null,
+                human_gate: true,
+                status: 'active',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: new Date('2026-03-11T00:00:00Z'),
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-11T00:00:00Z'),
+                last_completed_work_item_at: new Date('2026-03-11T01:00:00Z'),
+              },
+              {
+                id: 'stage-2',
+                lifecycle: 'planned',
+                name: 'implementation',
+                position: 1,
+                goal: 'Ship code',
+                guidance: null,
+                human_gate: false,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 0,
+                first_work_item_at: null,
+                last_completed_work_item_at: null,
+              },
+            ],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages') && params?.[2] === 'stage-1') {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE workflows') && !sql.includes('orchestration_state')) {
+          return { rowCount: 1, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -2121,8 +2172,57 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('SELECT ws.id') && sql.includes('FROM workflow_stages ws')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 'stage-1',
+                lifecycle: 'planned',
+                name: 'requirements',
+                position: 0,
+                goal: 'Define scope',
+                guidance: null,
+                human_gate: true,
+                status: 'completed',
+                gate_status: 'approved',
+                iteration_count: 0,
+                summary: 'Scope approved',
+                started_at: new Date('2026-03-11T00:00:00Z'),
+                completed_at: new Date('2026-03-11T00:30:00Z'),
+                open_work_item_count: 0,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-11T00:00:00Z'),
+                last_completed_work_item_at: new Date('2026-03-11T00:30:00Z'),
+              },
+              {
+                id: 'stage-2',
+                lifecycle: 'planned',
+                name: 'implementation',
+                position: 1,
+                goal: 'Ship the feature',
+                guidance: null,
+                human_gate: false,
+                status: 'active',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: new Date('2026-03-11T01:00:00Z'),
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 0,
+                first_work_item_at: null,
+                last_completed_work_item_at: null,
+              },
+            ],
+          };
+        }
         if (sql.includes('UPDATE workflow_stages')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation', 'Ship it']);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE workflows') && !sql.includes('orchestration_state')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation']);
           return { rowCount: 1, rows: [] };
         }
         if (sql.includes('SELECT name') && sql.includes('FROM workflow_stages')) {
@@ -2187,6 +2287,167 @@ describe('PlaybookWorkflowControlService', () => {
           summary: 'Ship it',
           final_artifacts: ['artifacts/release-notes.md', 'artifacts/test-report.json'],
         },
+      }),
+      pool,
+    );
+  });
+
+  it('reconciles completed planned stages before checking workflow completion', async () => {
+    const emit = vi.fn(async () => undefined);
+    const recomputeWorkflowState = vi.fn(async () => 'completed');
+    let workflowLoadCount = 0;
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          workflowLoadCount += 1;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              project_id: 'project-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: workflowLoadCount === 1 ? 'requirements' : null,
+              state: 'active',
+              orchestration_state: {},
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'completed',
+              gate_status: 'approved',
+              iteration_count: 0,
+              summary: 'Approved requirements',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: new Date('2026-03-11T00:30:00Z'),
+              updated_at: new Date('2026-03-11T00:30:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('SELECT ws.id') && sql.includes('FROM workflow_stages ws')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 'stage-1',
+                lifecycle: 'planned',
+                name: 'requirements',
+                position: 0,
+                goal: 'Define scope',
+                guidance: null,
+                human_gate: true,
+                status: 'active',
+                gate_status: 'approved',
+                iteration_count: 0,
+                summary: 'Approved requirements',
+                started_at: new Date('2026-03-11T00:00:00Z'),
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-11T00:00:00Z'),
+                last_completed_work_item_at: new Date('2026-03-11T00:30:00Z'),
+              },
+              {
+                id: 'stage-2',
+                lifecycle: 'planned',
+                name: 'implementation',
+                position: 1,
+                goal: 'Ship the feature',
+                guidance: null,
+                human_gate: false,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-11T01:00:00Z'),
+                last_completed_work_item_at: new Date('2026-03-11T01:30:00Z'),
+              },
+            ],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages') && params?.[2] === 'stage-1') {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'stage-1',
+            'completed',
+            '2026-03-11T00:00:00.000Z',
+            '2026-03-11T00:30:00.000Z',
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE workflow_stages') && params?.[2] === 'stage-2') {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'stage-2',
+            'completed',
+            '2026-03-11T01:00:00.000Z',
+            '2026-03-11T01:30:00.000Z',
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE workflows') && !sql.includes('orchestration_state')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', null]);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT name') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE workflows') && sql.includes('orchestration_state')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'Ship it',
+            JSON.stringify([]),
+          ]);
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: { emit } as never,
+      stateService: { recomputeWorkflowState } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    const result = await service.completeWorkflow(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      { summary: 'Ship it' },
+      pool as never,
+    );
+
+    expect(result).toEqual({
+      workflow_id: 'workflow-1',
+      state: 'completed',
+      summary: 'Ship it',
+      final_artifacts: [],
+    });
+    expect(emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.completed',
+        data: { summary: 'Ship it', final_artifacts: [] },
       }),
       pool,
     );
