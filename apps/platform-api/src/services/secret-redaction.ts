@@ -36,6 +36,10 @@ function sanitizeValue(
   redactionValue: string,
   allowSecretReferences: boolean,
 ): unknown {
+  if (value instanceof Date) {
+    return value;
+  }
+
   if (typeof value === 'string') {
     return shouldRedactString(value, inheritedSecret, allowSecretReferences) ? redactionValue : value;
   }

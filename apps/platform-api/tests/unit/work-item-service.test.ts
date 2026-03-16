@@ -635,6 +635,55 @@ describe('WorkItemService', () => {
     expect((event as Record<string, any>).data.secret_ref).toBe('redacted://work-item-secret');
   });
 
+  it('preserves timestamp fields while redacting work-item secrets', async () => {
+    const completedAt = new Date('2026-03-16T11:42:54.378Z');
+    const createdAt = new Date('2026-03-16T11:40:00.000Z');
+    const updatedAt = new Date('2026-03-16T11:42:54.378Z');
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_work_items wi')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return {
+            rows: [
+              {
+                id: 'work-item-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                stage_name: 'requirements',
+                current_checkpoint: 'requirements',
+                column_id: 'done',
+                completed_at: completedAt,
+                created_at: createdAt,
+                updated_at: updatedAt,
+                metadata: {
+                  webhook_secret: 'plaintext-secret',
+                },
+                task_count: '0',
+                children_count: '0',
+                children_completed: '0',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { enqueueForWorkflow: vi.fn() } as never,
+      { dispatchActivation: vi.fn() } as never,
+    );
+
+    const [workItem] = await service.listWorkflowWorkItems('tenant-1', 'workflow-1');
+
+    expect((workItem as Record<string, any>).metadata.webhook_secret).toBe('redacted://work-item-secret');
+    expect((workItem as Record<string, any>).completed_at).toEqual(completedAt);
+    expect((workItem as Record<string, any>).created_at).toEqual(createdAt);
+    expect((workItem as Record<string, any>).updated_at).toEqual(updatedAt);
+  });
+
   it('lists milestone-aware work items with filters and grouped children', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
