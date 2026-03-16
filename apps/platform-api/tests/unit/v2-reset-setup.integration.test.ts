@@ -83,7 +83,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         ($1, 'default_reasoning_config', $2, 'string', 'Configured on the LLM Providers page')`,
       [
         '00000000-0000-0000-0000-000000000001',
-        JSON.stringify({ reasoning_effort: 'medium' }),
+        JSON.stringify({ reasoning_effort: 'low' }),
       ],
     );
     await pool.query(
@@ -127,7 +127,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
       { config_key: 'default_model_id', config_value: '20000000-0000-0000-0000-000000000001' },
       {
         config_key: 'default_reasoning_config',
-        config_value: JSON.stringify({ reasoning_effort: 'medium' }),
+        config_value: JSON.stringify({ reasoning_effort: 'low' }),
       },
     ]);
     expect(Number(projectCount.rows[0]?.count ?? '0')).toBe(0);

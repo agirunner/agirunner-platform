@@ -65,7 +65,7 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
       [
         '00000000-0000-0000-0000-000000000001',
         modelId,
-        JSON.stringify({ reasoning_effort: 'medium' }),
+        JSON.stringify({ reasoning_effort: 'low' }),
       ],
     );
     await pool.query(
@@ -143,7 +143,7 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
       { config_key: 'default_model_id', config_value: modelId },
       {
         config_key: 'default_reasoning_config',
-        config_value: JSON.stringify({ reasoning_effort: 'medium' }),
+        config_value: JSON.stringify({ reasoning_effort: 'low' }),
       },
     ]);
     expect(playbooks.rows.some((row) => row.slug === 'custom-redesign-reset')).toBe(false);
