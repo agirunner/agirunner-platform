@@ -152,6 +152,72 @@ describe('PlaybookWorkflowControlService', () => {
     expect(client.release).toHaveBeenCalledTimes(1);
   });
 
+  it('treats late duplicate gate requests as a no-op after a gate was already approved', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              project_id: 'project-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'requirements',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'awaiting_gate',
+              gate_status: 'approved',
+              iteration_count: 0,
+              summary: 'Already approved',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:31:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stage_gates')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    const stage = await service.requestStageGateApproval(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'requirements',
+      { summary: 'Ready for gate review' },
+      pool as never,
+    );
+
+    expect(stage.gate_status).toBe('approved');
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(pool.query).not.toHaveBeenCalledWith(expect.stringContaining('INSERT INTO workflow_stage_gates'));
+  });
+
   it('rolls back gate decisions when a later step fails without an outer client', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

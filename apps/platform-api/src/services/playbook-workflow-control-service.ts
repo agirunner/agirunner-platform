@@ -261,6 +261,9 @@ export class PlaybookWorkflowControlService {
     if (!stage.human_gate) {
       throw new ValidationError(`Stage '${stageName}' does not require a human gate`);
     }
+    if (stage.gate_status === 'approved') {
+      return toStageResponse(stage);
+    }
 
     const existingGate = await this.loadAwaitingGate(identity.tenantId, workflowId, stage.id, db);
     if (existingGate) {

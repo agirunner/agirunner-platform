@@ -353,7 +353,7 @@ describe('gate routes', () => {
         key_artifacts: [
           expect.objectContaining({
             note: 'redacted://gate-secret',
-            link: 'secret:SAFE_LINK',
+            link: 'redacted://gate-secret',
           }),
         ],
         decision_history: [
