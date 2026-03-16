@@ -267,10 +267,7 @@ export class PlaybookWorkflowControlService {
 
     const existingGate = await this.loadAwaitingGate(identity.tenantId, workflowId, stage.id, db);
     if (existingGate) {
-      if (isIdempotentGateRequest(existingGate, input)) {
-        return toStageResponse(stage);
-      }
-      throw new ConflictError(`Stage '${stageName}' already has a pending gate approval`);
+      return toStageResponse(stage);
     }
 
     const recommendation = nullableText(input.recommendation);

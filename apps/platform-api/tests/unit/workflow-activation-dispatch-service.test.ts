@@ -958,6 +958,13 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
+          expect(params?.[8]).toEqual(
+            expect.objectContaining({
+              system_prompt: expect.stringContaining('finish the activation and wait for the next event'),
+            }),
+          );
+          expect((params?.[8] as { system_prompt: string }).system_prompt).toContain('Do not poll running tasks in a loop.');
+          expect((params?.[8] as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
           expect(params?.[9]).toEqual({
             execution_mode: 'orchestrator',
             repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
@@ -2791,7 +2798,6 @@ describe('WorkflowActivationDispatchService', () => {
                 'update_task_input',
                 'cancel_task',
                 'reassign_task',
-                'escalate_to_human',
                 'work_item_memory_read',
                 'work_item_memory_history',
                 'artifact_document_read',
@@ -2804,6 +2810,7 @@ describe('WorkflowActivationDispatchService', () => {
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task_output');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('request_task_changes');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('escalate_to_human');
           return { rowCount: 1, rows: [{ id: 'task-tools' }] };
         }
         throw new Error(`unexpected query: ${sql}`);

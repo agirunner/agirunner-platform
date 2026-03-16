@@ -1822,7 +1822,10 @@ describe('PlaybookWorkflowControlService', () => {
     expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
   });
 
-  it('rejects a second pending gate request for the same stage', async () => {
+  it('treats a second pending gate request for the same stage as a no-op', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = { enqueueForWorkflow: vi.fn() };
+    const dispatchService = { dispatchActivation: vi.fn() };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
@@ -1879,21 +1882,29 @@ describe('PlaybookWorkflowControlService', () => {
     };
     const service = new PlaybookWorkflowControlService({
       pool: pool as never,
-      eventService: { emit: vi.fn(async () => undefined) } as never,
+      eventService: eventService as never,
       stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
-      activationService: { enqueueForWorkflow: vi.fn() } as never,
-      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
     });
 
-    await expect(
-      service.requestStageGateApproval(
-        { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
-        'workflow-1',
-        'requirements',
-        { summary: 'Ready for gate review' },
-        pool as never,
-      ),
-    ).rejects.toBeInstanceOf(ConflictError);
+    const stage = await service.requestStageGateApproval(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'requirements',
+      { summary: 'Ready for gate review' },
+      pool as never,
+    );
+
+    expect(stage).toEqual(
+      expect.objectContaining({
+        name: 'requirements',
+        gate_status: 'awaiting_approval',
+      }),
+    );
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
   });
 
   it('treats a repeated stage advance as idempotent once the next stage is already current', async () => {
