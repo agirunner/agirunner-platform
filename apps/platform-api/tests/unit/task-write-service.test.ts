@@ -38,6 +38,14 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
           return { rowCount: 0, rows: [] };
         }
@@ -118,6 +126,14 @@ describe('TaskWriteService', () => {
           };
         }
         if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
           return { rowCount: 0, rows: [] };
         }
         if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
@@ -289,6 +305,14 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
           return { rowCount: 0, rows: [] };
         }
@@ -441,6 +465,90 @@ describe('TaskWriteService', () => {
     expect(pool.query).toHaveBeenCalledTimes(3);
   });
 
+  it('returns the existing active task when the same work item and role already have in-flight work', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'requirements' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('workflow_id = $2') &&
+          sql.includes('request_id = $3')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          expect(values).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'work-item-1',
+            'product-manager',
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'escalated'],
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-existing-active',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              request_id: 'request-existing-active',
+              role: 'product-manager',
+              stage_name: 'requirements',
+              state: 'in_progress',
+              metadata: {},
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: eventService as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const result = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Duplicate requirements clarification task',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-new-active',
+        role: 'product-manager',
+      },
+    );
+
+    expect(result.id).toBe('task-existing-active');
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
   it('clamps low specialist token budgets to the configured minimum before insert and replay matching', async () => {
     let insertedTokenBudget: number | null = null;
     const pool = {
@@ -487,7 +595,15 @@ describe('TaskWriteService', () => {
               max_retries: 0,
               metadata: {},
             }],
-          };
+              };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
         }
         if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
           return { rowCount: 0, rows: [] };

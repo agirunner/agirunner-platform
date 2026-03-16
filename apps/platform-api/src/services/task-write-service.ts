@@ -37,6 +37,15 @@ interface ParentTaskRow {
 const DEFAULT_MAX_SUBTASK_DEPTH = 3;
 const DEFAULT_MAX_SUBTASKS_PER_PARENT = 20;
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
+const ACTIVE_TASK_DUPLICATE_GUARD_STATES = [
+  'pending',
+  'ready',
+  'claimed',
+  'in_progress',
+  'awaiting_approval',
+  'output_pending_review',
+  'escalated',
+] as const;
 
 export class TaskWriteService {
   constructor(private readonly deps: TaskWriteDependencies) {}
@@ -106,6 +115,15 @@ export class TaskWriteService {
     }
 
     await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
+
+    const existingActiveTask = await this.findExistingActiveTaskForWorkItemRole(
+      identity.tenantId,
+      normalizedInput,
+      db,
+    );
+    if (existingActiveTask) {
+      return this.deps.toTaskResponse(existingActiveTask);
+    }
 
     const initialState = await this.resolveInitialState(identity.tenantId, normalizedInput, dependencies.length);
 
@@ -182,6 +200,52 @@ export class TaskWriteService {
     }, 'release' in db ? db : undefined);
 
     return this.deps.toTaskResponse(task);
+  }
+
+  private async findExistingActiveTaskForWorkItemRole(
+    tenantId: string,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (
+      input.is_orchestrator_task ||
+      !input.workflow_id ||
+      !input.work_item_id ||
+      !input.role?.trim()
+    ) {
+      return null;
+    }
+
+    const result = await db.query(
+      `SELECT *
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id = $3
+          AND role = $4
+          AND state = ANY($5::task_state[])
+        ORDER BY
+          CASE state
+            WHEN 'in_progress' THEN 0
+            WHEN 'claimed' THEN 1
+            WHEN 'ready' THEN 2
+            WHEN 'awaiting_approval' THEN 3
+            WHEN 'output_pending_review' THEN 4
+            WHEN 'pending' THEN 5
+            WHEN 'escalated' THEN 6
+            ELSE 7
+          END,
+          created_at ASC
+        LIMIT 1`,
+      [
+        tenantId,
+        input.workflow_id,
+        input.work_item_id,
+        input.role.trim(),
+        ACTIVE_TASK_DUPLICATE_GUARD_STATES,
+      ],
+    );
+    return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
   }
 
   private async findExistingByRequestId(

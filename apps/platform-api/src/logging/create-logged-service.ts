@@ -93,11 +93,16 @@ export function createLoggedService<T extends object>(
           const context = resolveLogContext(result, args, config.nameField, config.entityType);
 
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
+          const records = collectContextRecords(result, args);
 
           const payload: Record<string, unknown> = {
             method: prop,
             action: methodToAction(prop),
           };
+          const requestId = pickString(records, ['requestId', 'request_id']);
+          if (requestId) {
+            payload.request_id = requestId;
+          }
           if (isRecord(result)) {
             if (result.status) payload.entity_status = result.status;
             if (result[config.nameField]) payload.entity_name = result[config.nameField];
@@ -148,7 +153,17 @@ export function createLoggedService<T extends object>(
           const durationMs = Math.round(performance.now() - start);
           const operation = `${config.category}.${config.entityType}.${methodToAction(prop)}`;
           const errorObj = err instanceof Error ? err : new Error(String(err));
+          const records = collectContextRecords(undefined, args);
           const context = resolveLogContext(undefined, args, config.nameField, config.entityType);
+          const payload: Record<string, unknown> = {
+            method: prop,
+            action: methodToAction(prop),
+            error_message: errorObj.message,
+          };
+          const requestId = pickString(records, ['requestId', 'request_id']);
+          if (requestId) {
+            payload.request_id = requestId;
+          }
 
           void logService
             .insert({
@@ -161,11 +176,7 @@ export function createLoggedService<T extends object>(
               operation,
               status: 'failed',
               durationMs,
-              payload: {
-                method: prop,
-                action: methodToAction(prop),
-                error_message: errorObj.message,
-              },
+              payload,
               error: {
                 code: (errorObj as Error & { code?: string }).code ?? 'unknown',
                 message: errorObj.message,

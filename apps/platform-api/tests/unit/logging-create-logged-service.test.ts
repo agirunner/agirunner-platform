@@ -173,4 +173,43 @@ describe('createLoggedService', () => {
     );
     expect(logInsert.mock.calls[0][0].stageName).toBe('implementation');
   });
+
+  it('logsFailedTaskMutationsWithTaskContextAndRequestId', async () => {
+    const error = new Error('invalid input value for enum task_state: "paused"');
+    const service = {
+      createTask: vi.fn().mockRejectedValue(error),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'TaskService', logService as never);
+
+    await expect(
+      wrapped.createTask({
+        request_id: 'req-task-create-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'requirements',
+        role: 'product-manager',
+      }),
+    ).rejects.toThrow('invalid input value for enum task_state: "paused"');
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'error',
+        status: 'failed',
+        workflowId: 'workflow-1',
+        workItemId: 'work-item-1',
+        stageName: 'requirements',
+        role: 'product-manager',
+        payload: expect.objectContaining({
+          method: 'createTask',
+          request_id: 'req-task-create-1',
+          error_message: 'invalid input value for enum task_state: "paused"',
+        }),
+      }),
+    );
+  });
 });
