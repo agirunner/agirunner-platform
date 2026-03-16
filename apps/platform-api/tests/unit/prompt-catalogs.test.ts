@@ -15,7 +15,7 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before task completion, you MUST call submit_handoff');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff is a mutating tool call and MUST include a unique request_id');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects task completion without a structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or interim progress marker');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
@@ -74,15 +74,13 @@ describe('prompt catalogs', () => {
     expect(roles.length).toBeGreaterThan(0);
     for (const role of roles) {
       expect(role.systemPrompt).toContain('If predecessor handoff exists in your task context, read it first');
-      expect(role.systemPrompt).toContain('Treat predecessor handoffs, task input, project memory, and the current branch diff as authoritative');
-      expect(role.systemPrompt).toContain('Treat the workflow brief and launch inputs as authoritative');
+      expect(role.systemPrompt).toContain('Treat predecessor handoffs, task input, project memory, the workflow brief, launch inputs, and the current branch diff as authoritative');
       expect(role.systemPrompt).toContain(
         'assume only the prepared repository workspace, git, and a minimal shell are guaranteed',
       );
       expect(role.systemPrompt).toContain('Install missing runtimes/tools yourself in the task container');
-      expect(role.systemPrompt).toContain('Do not infer behavior from stale package names, file names, or repository terminology');
-      expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff with a unique request_id');
-      expect(role.systemPrompt).toContain('Call submit_handoff once, when the final handoff for the current task attempt is ready.');
+      expect(role.systemPrompt).toContain('Do not infer behavior from stale names or terminology');
+      expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff once with a unique request_id');
       expect(role.systemPrompt).toContain('The platform will reject completion without a structured handoff');
     }
   });
@@ -131,11 +129,11 @@ describe('prompt catalogs', () => {
   });
 
   it('keeps the shared prompts dense enough for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(2500);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5000);
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(2350);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(4800);
 
     for (const role of Object.values(BUILT_IN_ROLES.roles)) {
-      expect(role.systemPrompt.length).toBeLessThanOrEqual(1300);
+      expect(role.systemPrompt.length).toBeLessThanOrEqual(1150);
     }
   });
 });
