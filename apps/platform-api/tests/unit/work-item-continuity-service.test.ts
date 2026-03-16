@@ -14,6 +14,8 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'implementation',
             current_checkpoint: 'implementation',
             owner_role: 'developer',
+            next_expected_actor: null,
+            next_expected_action: null,
             definition: {
               process_instructions: 'Developer implements and reviewer reviews.',
               roles: ['developer', 'reviewer'],
@@ -40,6 +42,7 @@ describe('WorkItemContinuityService', () => {
       matchedRuleType: 'review',
       nextExpectedActor: 'reviewer',
       nextExpectedAction: 'review',
+      satisfiedReviewExpectation: false,
     });
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
@@ -58,6 +61,8 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'implementation',
             current_checkpoint: 'implementation',
             owner_role: 'developer',
+            next_expected_actor: null,
+            next_expected_action: null,
             definition: {
               process_instructions: 'Developer implements and reviewer reviews.',
               roles: ['developer', 'reviewer'],
@@ -108,6 +113,8 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'review',
             current_checkpoint: 'review',
             owner_role: 'reviewer',
+            next_expected_actor: null,
+            next_expected_action: null,
             definition: {
               process_instructions: 'Developer implements, reviewer reviews, rejected review returns to developer.',
               roles: ['developer', 'reviewer'],
@@ -162,6 +169,8 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'implementation',
             current_checkpoint: 'implementation',
             owner_role: 'developer',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
             definition: { process_instructions: 'Developer implements.' },
           }],
           rowCount: 1,
@@ -194,6 +203,8 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'requirements',
             current_checkpoint: 'requirements',
             owner_role: 'product-manager',
+            next_expected_actor: null,
+            next_expected_action: null,
             definition: {
               process_instructions: 'Product manager defines requirements and architecture starts only after approval.',
               roles: ['product-manager', 'architect'],
@@ -226,5 +237,48 @@ describe('WorkItemContinuityService', () => {
       expect.stringContaining('UPDATE workflow_work_items'),
       ['tenant-1', 'workflow-1', 'work-item-1', 'requirements', 'human', 'approve', 0],
     );
+  });
+
+  it('flags when a task completion satisfies the active review expectation', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            current_checkpoint: 'implementation',
+            owner_role: 'developer',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            definition: {
+              process_instructions: 'Developer implements, reviewer approves, then QA validates.',
+              roles: ['developer', 'reviewer', 'qa'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              checkpoints: [{ name: 'implementation', goal: 'Implementation is reviewed', human_gate: false }],
+              handoff_rules: [{ from_role: 'reviewer', to_role: 'qa', required: true }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordTaskCompleted('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'reviewer',
+      stage_name: 'implementation',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'handoff',
+      nextExpectedActor: 'qa',
+      nextExpectedAction: 'handoff',
+      satisfiedReviewExpectation: true,
+    });
   });
 });

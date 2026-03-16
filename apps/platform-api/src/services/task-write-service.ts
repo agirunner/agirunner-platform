@@ -34,9 +34,17 @@ interface ParentTaskRow {
   parent_id: string | null;
 }
 
+interface LinkedWorkItemRow {
+  workflow_id: string;
+  stage_name: string;
+  workflow_lifecycle: string | null;
+  stage_status: string | null;
+  stage_gate_status: string | null;
+}
+
 const DEFAULT_MAX_SUBTASK_DEPTH = 3;
 const DEFAULT_MAX_SUBTASKS_PER_PARENT = 20;
-const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'repo-safe';
+const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'software-workspace';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 const ACTIVE_TASK_DUPLICATE_GUARD_STATES = [
   'pending',
@@ -71,6 +79,7 @@ export class TaskWriteService {
       : input;
     normalizedInput = await this.applyLinkedWorkItemDefaults(identity.tenantId, normalizedInput, db);
     this.assertWorkflowTaskLinkage(normalizedInput);
+    await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyWorkflowExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = this.applySpecialistTokenBudgetFloor(normalizedInput);
     normalizedInput = await this.applyRoleCapabilityDefaults(identity.tenantId, normalizedInput);
@@ -114,8 +123,6 @@ export class TaskWriteService {
       if (check.rowCount !== dependencies.length)
         throw new NotFoundError('One or more dependency tasks were not found');
     }
-
-    await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
 
     const existingActiveTask = await this.findExistingActiveTaskForWorkItemRole(
       identity.tenantId,
@@ -286,18 +293,17 @@ export class TaskWriteService {
     if (!input.work_item_id) {
       return;
     }
-    const result = await db.query<{ workflow_id: string; stage_name: string }>(
-      'SELECT workflow_id, stage_name FROM workflow_work_items WHERE tenant_id = $1 AND id = $2',
-      [tenantId, input.work_item_id],
-    );
-    if (!result.rowCount) {
-      throw new NotFoundError('Workflow work item not found');
-    }
-    if (input.workflow_id && result.rows[0].workflow_id !== input.workflow_id) {
+    const linkedWorkItem = await this.loadLinkedWorkItem(tenantId, input.work_item_id, db);
+    if (input.workflow_id && linkedWorkItem.workflow_id !== input.workflow_id) {
       throw new ValidationError('work_item_id must belong to workflow_id');
     }
-    if (input.stage_name && result.rows[0].stage_name !== input.stage_name) {
+    if (input.stage_name && linkedWorkItem.stage_name !== input.stage_name) {
       throw new ValidationError('stage_name must match the linked work item stage');
+    }
+    if (isClosedPlannedStage(linkedWorkItem)) {
+      throw new ConflictError(
+        `Cannot create new tasks for planned workflow stage '${linkedWorkItem.stage_name}' after it has been approved or completed`,
+      );
     }
   }
 
@@ -309,18 +315,41 @@ export class TaskWriteService {
     if (!input.work_item_id) {
       return input;
     }
-    const result = await db.query<{ workflow_id: string; stage_name: string }>(
-      'SELECT workflow_id, stage_name FROM workflow_work_items WHERE tenant_id = $1 AND id = $2',
-      [tenantId, input.work_item_id],
+    const linkedWorkItem = await this.loadLinkedWorkItem(tenantId, input.work_item_id, db);
+    return {
+      ...input,
+      workflow_id: input.workflow_id ?? linkedWorkItem.workflow_id,
+      stage_name: input.stage_name ?? linkedWorkItem.stage_name,
+    };
+  }
+
+  private async loadLinkedWorkItem(
+    tenantId: string,
+    workItemId: string,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<LinkedWorkItemRow> {
+    const result = await db.query<LinkedWorkItemRow>(
+      `SELECT wi.workflow_id,
+              wi.stage_name,
+              w.lifecycle AS workflow_lifecycle,
+              ws.status AS stage_status,
+              ws.gate_status AS stage_gate_status
+         FROM workflow_work_items wi
+         JOIN workflows w
+           ON w.tenant_id = wi.tenant_id
+          AND w.id = wi.workflow_id
+         LEFT JOIN workflow_stages ws
+           ON ws.tenant_id = wi.tenant_id
+          AND ws.workflow_id = wi.workflow_id
+          AND ws.name = wi.stage_name
+        WHERE wi.tenant_id = $1
+          AND wi.id = $2`,
+      [tenantId, workItemId],
     );
     if (!result.rowCount) {
       throw new NotFoundError('Workflow work item not found');
     }
-    return {
-      ...input,
-      workflow_id: input.workflow_id ?? result.rows[0].workflow_id,
-      stage_name: input.stage_name ?? result.rows[0].stage_name,
-    };
+    return result.rows[0];
   }
 
   private async applyWorkflowExecutionDefaults(
@@ -720,6 +749,13 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function isClosedPlannedStage(workItem: LinkedWorkItemRow) {
+  if (workItem.workflow_lifecycle !== 'planned') {
+    return false;
+  }
+  return workItem.stage_status === 'completed' || workItem.stage_gate_status === 'approved';
 }
 
 function asNullableString(value: unknown): string | null {

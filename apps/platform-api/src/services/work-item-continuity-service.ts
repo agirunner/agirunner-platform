@@ -11,7 +11,13 @@ interface WorkItemContinuityContextRow {
   stage_name: string | null;
   current_checkpoint: string | null;
   owner_role: string | null;
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
   definition: unknown;
+}
+
+export interface WorkItemCompletionOutcome extends PlaybookRuleEvaluationResult {
+  satisfiedReviewExpectation: boolean;
 }
 
 export class WorkItemContinuityService {
@@ -68,7 +74,7 @@ export class WorkItemContinuityService {
     task: Record<string, unknown>,
     event: 'task_completed' | 'review_rejected',
     db: DatabaseClient | DatabasePool,
-  ): Promise<PlaybookRuleEvaluationResult | null> {
+  ): Promise<WorkItemCompletionOutcome | null> {
     const context = await this.loadContext(tenantId, task, db);
     if (!context) {
       return null;
@@ -94,6 +100,10 @@ export class WorkItemContinuityService {
       event === 'task_completed'
         ? gateApprovalTakesPrecedence(definition, checkpointName, evaluation)
         : evaluation;
+    const satisfiedReviewExpectation =
+      event === 'task_completed'
+      && context.next_expected_action === 'review'
+      && context.next_expected_actor === role;
 
     await db.query(
       `UPDATE workflow_work_items
@@ -116,7 +126,10 @@ export class WorkItemContinuityService {
       ],
     );
 
-    return normalizedEvaluation;
+    return {
+      ...normalizedEvaluation,
+      satisfiedReviewExpectation,
+    };
   }
 
   private async resolveEvaluation(
@@ -167,6 +180,8 @@ export class WorkItemContinuityService {
               wi.stage_name,
               wi.current_checkpoint,
               wi.owner_role,
+              wi.next_expected_actor,
+              wi.next_expected_action,
               pb.definition
          FROM workflow_work_items wi
          JOIN workflows w

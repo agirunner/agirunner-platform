@@ -1,9 +1,13 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient } from '../db/database.js';
 import type { TaskState } from '../orchestration/task-state-machine.js';
+import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
-import type { WorkItemContinuityService } from './work-item-continuity-service.js';
+import type {
+  WorkItemCompletionOutcome,
+  WorkItemContinuityService,
+} from './work-item-continuity-service.js';
 import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
 
 export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
@@ -139,7 +143,18 @@ export async function applyTaskCompletionSideEffects(
     [identity.tenantId, task.workflow_id],
   );
   if (workflowResult.rows[0]?.playbook_id) {
-    await workItemContinuityService?.recordTaskCompleted(identity.tenantId, task, client);
+    const continuityResult = await workItemContinuityService?.recordTaskCompleted(
+      identity.tenantId,
+      task,
+      client,
+    );
+    await maybeResolveReviewedOutput(
+      eventService,
+      identity,
+      task,
+      continuityResult ?? null,
+      client,
+    );
     await enqueueWorkflowActivationRecord(client, eventService, {
       tenantId: identity.tenantId,
       workflowId: String(task.workflow_id),
@@ -158,6 +173,131 @@ export async function applyTaskCompletionSideEffects(
     });
     return;
   }
+}
+
+async function maybeResolveReviewedOutput(
+  eventService: EventService,
+  identity: ApiKeyIdentity,
+  completedTask: Record<string, unknown>,
+  continuityResult: WorkItemCompletionOutcome | null,
+  client: DatabaseClient,
+) {
+  if (!continuityResult?.satisfiedReviewExpectation) {
+    return;
+  }
+
+  const workflowId = asOptionalString(completedTask.workflow_id);
+  const workItemId = asOptionalString(completedTask.work_item_id);
+  const reviewTaskId = asOptionalString(completedTask.id);
+  if (!workflowId || !workItemId || !reviewTaskId) {
+    return;
+  }
+
+  const candidates = await client.query<Record<string, unknown>>(
+    `SELECT *
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND work_item_id = $3
+        AND state = 'output_pending_review'
+        AND id <> $4
+      ORDER BY created_at DESC`,
+    [identity.tenantId, workflowId, workItemId, reviewTaskId],
+  );
+
+  if (candidates.rowCount !== 1) {
+    await eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.review_resolution_skipped',
+        entityType: 'task',
+        entityId: reviewTaskId,
+        actorType: 'system',
+        actorId: 'review_resolver',
+        data: {
+          workflow_id: workflowId,
+          work_item_id: workItemId,
+          candidate_count: candidates.rowCount,
+        },
+      },
+      client,
+    );
+    return;
+  }
+
+  const reviewedTask = candidates.rows[0];
+  const reviewedTaskId = asOptionalString(reviewedTask.id);
+  if (!reviewedTaskId) {
+    return;
+  }
+
+  const updated = await client.query<Record<string, unknown>>(
+    `UPDATE tasks
+        SET state = 'completed',
+            state_changed_at = now(),
+            completed_at = COALESCE(completed_at, now()),
+            error = NULL,
+            metadata = COALESCE(metadata, '{}'::jsonb) || $5::jsonb,
+            updated_at = now()
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND work_item_id = $3
+        AND id = $4
+        AND state = 'output_pending_review'
+      RETURNING *`,
+    [
+      identity.tenantId,
+      workflowId,
+      workItemId,
+      reviewedTaskId,
+      {
+        review_action: 'approve_output',
+        review_updated_at: new Date().toISOString(),
+        review_resolved_by_task_id: reviewTaskId,
+      },
+    ],
+  );
+  if (!updated.rowCount) {
+    await eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.review_resolution_skipped',
+        entityType: 'task',
+        entityId: reviewTaskId,
+        actorType: 'system',
+        actorId: 'review_resolver',
+        data: {
+          workflow_id: workflowId,
+          work_item_id: workItemId,
+          candidate_count: 1,
+          reason: 'candidate_state_changed',
+          candidate_task_id: reviewedTaskId,
+        },
+      },
+      client,
+    );
+    return;
+  }
+
+  const approvedTask = updated.rows[0];
+  await registerTaskOutputDocuments(client, identity.tenantId, approvedTask, approvedTask.output);
+  await eventService.emit(
+    {
+      tenantId: identity.tenantId,
+      type: 'task.state_changed',
+      entityType: 'task',
+      entityId: reviewedTaskId,
+      actorType: 'system',
+      actorId: 'review_resolver',
+      data: {
+        from_state: 'output_pending_review',
+        to_state: 'completed',
+        reason: 'output_review_approved',
+        review_task_id: reviewTaskId,
+      },
+    },
+    client,
+  );
 }
 
 async function shouldQueueDependentTask(
@@ -187,4 +327,8 @@ function asRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function asOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }

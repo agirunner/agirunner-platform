@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { BUILT_IN_PLAYBOOKS } from '../../src/catalogs/built-in-playbooks.js';
 import { parsePlaybookDefinition } from '../../src/orchestration/playbook-model.js';
 import { evaluatePlaybookRules } from '../../src/services/playbook-rule-evaluation-service.js';
 
@@ -127,5 +128,124 @@ describe('evaluatePlaybookRules', () => {
       requiresHumanApproval: false,
       reworkDelta: 0,
     });
+  });
+
+  it('enforces the mandatory reviewer to qa handoff in the built-in sdlc playbook', () => {
+    const sdlc = BUILT_IN_PLAYBOOKS.find((playbook) => playbook.slug === 'sdlc-v2');
+    expect(sdlc).toBeDefined();
+
+    const result = evaluatePlaybookRules({
+      definition: parsePlaybookDefinition(sdlc!.definition),
+      event: 'task_completed',
+      role: 'reviewer',
+      checkpointName: 'review',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'handoff',
+      nextExpectedActor: 'qa',
+      nextExpectedAction: 'handoff',
+    });
+  });
+
+  it('supports the seeded sdlc hello world rule chain from requirements through release', () => {
+    const sdlc = BUILT_IN_PLAYBOOKS.find((playbook) => playbook.slug === 'sdlc-v2');
+    expect(sdlc).toBeDefined();
+    const definition = parsePlaybookDefinition(sdlc!.definition);
+
+    const checkpoints = [
+      evaluatePlaybookRules({
+        definition,
+        event: 'task_completed',
+        role: 'product-manager',
+        checkpointName: 'requirements',
+      }),
+      evaluatePlaybookRules({
+        definition,
+        event: 'checkpoint_reached',
+        role: 'product-manager',
+        checkpointName: 'requirements',
+      }),
+      evaluatePlaybookRules({
+        definition,
+        event: 'task_completed',
+        role: 'architect',
+        checkpointName: 'design',
+      }),
+      evaluatePlaybookRules({
+        definition,
+        event: 'task_completed',
+        role: 'developer',
+        checkpointName: 'implementation',
+      }),
+      evaluatePlaybookRules({
+        definition,
+        event: 'review_rejected',
+        role: 'developer',
+        checkpointName: 'implementation',
+      }),
+      evaluatePlaybookRules({
+        definition,
+        event: 'task_completed',
+        role: 'reviewer',
+        checkpointName: 'review',
+      }),
+      evaluatePlaybookRules({
+        definition,
+        event: 'task_completed',
+        role: 'qa',
+        checkpointName: 'verification',
+      }),
+      evaluatePlaybookRules({
+        definition,
+        event: 'checkpoint_reached',
+        role: 'product-manager',
+        checkpointName: 'release',
+      }),
+    ];
+
+    expect(checkpoints).toEqual([
+      expect.objectContaining({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'architect',
+        nextExpectedAction: 'handoff',
+      }),
+      expect.objectContaining({
+        matchedRuleType: 'approval',
+        nextExpectedActor: 'human',
+        nextExpectedAction: 'approve',
+      }),
+      expect.objectContaining({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'developer',
+        nextExpectedAction: 'handoff',
+      }),
+      expect.objectContaining({
+        matchedRuleType: 'review',
+        nextExpectedActor: 'reviewer',
+        nextExpectedAction: 'review',
+      }),
+      expect.objectContaining({
+        matchedRuleType: 'review',
+        nextExpectedActor: 'developer',
+        nextExpectedAction: 'rework',
+        reworkDelta: 1,
+      }),
+      expect.objectContaining({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'qa',
+        nextExpectedAction: 'handoff',
+      }),
+      expect.objectContaining({
+        matchedRuleType: null,
+        nextExpectedActor: null,
+        nextExpectedAction: null,
+      }),
+      expect.objectContaining({
+        matchedRuleType: 'approval',
+        nextExpectedActor: 'human',
+        nextExpectedAction: 'approve',
+      }),
+    ]);
   });
 });

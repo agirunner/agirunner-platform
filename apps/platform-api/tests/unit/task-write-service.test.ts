@@ -3,6 +3,11 @@ import { describe, expect, it, vi } from 'vitest';
 import { ConflictError } from '../../src/errors/domain-errors.js';
 import { TaskWriteService } from '../../src/services/task-write-service.js';
 
+function isLinkedWorkItemLookup(sql: string) {
+  return sql.includes('FROM workflow_work_items wi')
+    || sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items');
+}
+
 describe('TaskWriteService', () => {
   it('defaults workflow task execution context from the workflow repository settings', async () => {
     let insertedEnvironment: Record<string, unknown> | null = null;
@@ -12,7 +17,7 @@ describe('TaskWriteService', () => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -101,7 +106,7 @@ describe('TaskWriteService', () => {
         branch: 'smoke/test/fix',
         git_user_name: 'Smoke Bot',
         git_user_email: 'smoke@example.com',
-        template: 'repo-safe',
+        template: 'software-workspace',
       }),
     );
     expect(JSON.parse(insertedBindings ?? '[]')).toEqual([
@@ -120,7 +125,7 @@ describe('TaskWriteService', () => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -216,7 +221,7 @@ describe('TaskWriteService', () => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -380,7 +385,7 @@ describe('TaskWriteService', () => {
     let insertedBindings: string | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -468,7 +473,7 @@ describe('TaskWriteService', () => {
       branch: 'smoke/test-branch',
       git_user_name: 'Smoke Bot',
       git_user_email: 'smoke@example.test',
-      template: 'repo-safe',
+      template: 'software-workspace',
     });
     expect(JSON.parse(insertedBindings ?? '[]')).toEqual([
       {
@@ -485,7 +490,7 @@ describe('TaskWriteService', () => {
   it('returns the existing task when request_id is replayed in the same workflow scope', async () => {
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -560,14 +565,14 @@ describe('TaskWriteService', () => {
     );
 
     expect(result.id).toBe('task-1');
-    expect(pool.query).toHaveBeenCalledTimes(3);
+    expect(pool.query).toHaveBeenCalledTimes(4);
   });
 
   it('returns the existing active task when the same work item and role already have in-flight work', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'requirements' }],
@@ -651,7 +656,7 @@ describe('TaskWriteService', () => {
     let insertedTokenBudget: number | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'design' }],
@@ -783,7 +788,7 @@ describe('TaskWriteService', () => {
   it('does not reuse a request_id from a different workflow', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-2', stage_name: 'implementation' }],
@@ -847,7 +852,7 @@ describe('TaskWriteService', () => {
   it('loads the existing task when insert races on request_id', async () => {
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -933,7 +938,7 @@ describe('TaskWriteService', () => {
   it('rejects a request_id replay when the existing task does not match the requested create shape', async () => {
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -1047,7 +1052,7 @@ describe('TaskWriteService', () => {
   it('queues approval-required tasks when playbook parallelism capacity is full', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -1118,7 +1123,7 @@ describe('TaskWriteService', () => {
   it('keeps approval-required tasks in awaiting_approval when capacity is available', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('SELECT workflow_id, stage_name FROM workflow_work_items')) {
+        if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
@@ -1177,5 +1182,59 @@ describe('TaskWriteService', () => {
     );
 
     expect(result.state).toBe('awaiting_approval');
+  });
+
+  it('rejects creating a planned-workflow task once the linked stage gate is already approved', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('LEFT JOIN workflow_stages ws')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_id: 'workflow-1',
+              stage_name: 'requirements',
+              workflow_lifecycle: 'planned',
+              stage_status: 'awaiting_gate',
+              stage_gate_status: 'approved',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        {
+          title: 'Late requirements reroute',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          request_id: 'late-reroute-1',
+          role: 'product-manager',
+          stage_name: 'requirements',
+        },
+      ),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 });
