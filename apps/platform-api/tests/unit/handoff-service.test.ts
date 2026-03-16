@@ -318,6 +318,82 @@ describe('HandoffService', () => {
     expect(result).toEqual(expect.objectContaining({ id: 'handoff-1', role: 'developer' }));
   });
 
+  it('loads the predecessor handoff from the parent-linked work item when the current work item has no local handoff', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
+          return {
+            rows: [{
+              id: 'task-release-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-release',
+              role: 'product-manager',
+              stage_name: 'release',
+              state: 'in_progress',
+              rework_count: 0,
+              metadata: {},
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $3')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id')) {
+          return {
+            rows: [{ parent_work_item_id: 'work-item-verification' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $4')) {
+          return {
+            rows: [{
+              id: 'handoff-qa-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-verification',
+              task_id: 'task-qa-1',
+              request_id: 'req-qa-1',
+              role: 'qa',
+              team_name: null,
+              stage_name: 'verification',
+              sequence: 0,
+              summary: 'QA validated the branch successfully.',
+              completion: 'full',
+              changes: [],
+              decisions: ['Release can proceed'],
+              remaining_items: [],
+              blockers: [],
+              review_focus: ['Human release approval'],
+              known_risks: [],
+              successor_context: 'Use the QA evidence for release approval.',
+              role_data: {},
+              artifact_ids: [],
+              created_at: new Date('2026-03-16T12:00:00Z'),
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('ORDER BY created_at DESC')) {
+          return { rows: [], rowCount: 0 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+
+    const service = new HandoffService(pool as never);
+    const result = await service.getPredecessorHandoff('tenant-1', 'task-release-1');
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'handoff-qa-1',
+        role: 'qa',
+        successor_context: 'Use the QA evidence for release approval.',
+      }),
+    );
+  });
+
   it('updates the existing handoff for the same active task attempt when the payload changes', async () => {
     const query = vi
       .fn()

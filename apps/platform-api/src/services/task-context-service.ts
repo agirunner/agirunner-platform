@@ -3,6 +3,7 @@ import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
+import { loadResolvedPredecessorHandoff } from './predecessor-handoff-resolver.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
 import { currentStageNameFromStages, type WorkflowStageResponse } from './workflow-stage-service.js';
@@ -379,69 +380,7 @@ async function loadPredecessorHandoff(
   tenantId: string,
   task: Record<string, unknown>,
 ) {
-  const taskId = asOptionalString(task.id);
-  const workItemId = asOptionalString(task.work_item_id);
-  const workflowId = asOptionalString(task.workflow_id);
-  if (!taskId || !workItemId || !workflowId) {
-    return null;
-  }
-
-  const result = await db.query(
-    `SELECT id,
-            task_id,
-            role,
-            stage_name,
-            summary,
-            completion,
-            changes,
-            decisions,
-            remaining_items,
-            blockers,
-            review_focus,
-            known_risks,
-            successor_context,
-            role_data,
-            artifact_ids,
-            created_at
-       FROM task_handoffs
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND work_item_id = $3
-        AND task_id <> $4
-      ORDER BY sequence DESC, created_at DESC
-      LIMIT 1`,
-    [tenantId, workflowId, workItemId, taskId],
-  );
-  if (result.rows[0]) {
-    return result.rows[0] as Record<string, unknown>;
-  }
-
-  const workflowFallback = await db.query(
-    `SELECT id,
-            task_id,
-            role,
-            stage_name,
-            summary,
-            completion,
-            changes,
-            decisions,
-            remaining_items,
-            blockers,
-            review_focus,
-            known_risks,
-            successor_context,
-            role_data,
-            artifact_ids,
-            created_at
-       FROM task_handoffs
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND task_id <> $3
-      ORDER BY created_at DESC
-      LIMIT 1`,
-    [tenantId, workflowId, taskId],
-  );
-  return (workflowFallback.rows[0] as Record<string, unknown> | undefined) ?? null;
+  return loadResolvedPredecessorHandoff(db, tenantId, task);
 }
 
 async function loadWorkflowRelations(

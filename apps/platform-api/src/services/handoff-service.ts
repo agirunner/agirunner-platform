@@ -2,6 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
+import { loadResolvedPredecessorHandoff } from './predecessor-handoff-resolver.js';
 
 export interface SubmitTaskHandoffInput {
   request_id?: string;
@@ -239,21 +240,12 @@ export class HandoffService {
     db: DatabaseClient | DatabasePool = this.pool,
   ) {
     const task = await this.loadTask(tenantId, taskId, db);
-    if (!task.workflow_id || !task.work_item_id) {
-      return null;
-    }
-    const result = await db.query<TaskHandoffRow>(
-      `SELECT *
-         FROM task_handoffs
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND work_item_id = $3
-          AND task_id <> $4
-        ORDER BY sequence DESC, created_at DESC
-        LIMIT 1`,
-      [tenantId, task.workflow_id, task.work_item_id, taskId],
+    const handoff = await loadResolvedPredecessorHandoff(
+      db,
+      tenantId,
+      task as unknown as Record<string, unknown>,
     );
-    return result.rows[0] ? toTaskHandoffResponse(result.rows[0]) : null;
+    return handoff ? toTaskHandoffResponse(handoff as TaskHandoffRow) : null;
   }
 
   private async loadTask(
