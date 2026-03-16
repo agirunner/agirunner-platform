@@ -1161,6 +1161,137 @@ describe('WorkflowActivationDispatchService', () => {
     expect(taskId).toBe('task-repo');
   });
 
+  it('treats branch-only workflow input as a feature branch and preserves the project default as base branch', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-branch-only',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-branch-only',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: { stage_name: 'requirements' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-12T00:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow Repo',
+              project_id: 'project-1',
+              lifecycle: 'planned',
+              current_stage: 'requirements',
+              active_stages: [],
+              playbook_id: 'playbook-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship code',
+              project_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              project_settings: {
+                default_branch: 'main',
+                git_user_name: 'Smoke Bot',
+                git_user_email: 'smoke@example.test',
+                credentials: {
+                  git_token: 'secret:GITHUB_PAT',
+                },
+              },
+              workflow_git_branch: null,
+              workflow_parameters: {
+                branch: 'feature/hello-world',
+              },
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-branch-only',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-branch-only',
+              request_id: 'req-branch-only',
+              reason: 'workflow.created',
+              event_type: 'workflow.created',
+              payload: { stage_name: 'requirements' },
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-branch-only',
+              queued_at: new Date('2026-03-12T00:00:00Z'),
+              started_at: new Date('2026-03-12T00:00:01Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          expect(params?.[9]).toEqual({
+            execution_mode: 'orchestrator',
+            template: 'execution-workspace',
+            repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+            branch: 'main',
+            git_user_name: 'Smoke Bot',
+            git_user_email: 'smoke@example.test',
+          });
+          expect(params?.[6]).toEqual(
+            expect.objectContaining({
+              repository: {
+                repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+                base_branch: 'main',
+                feature_branch: 'feature/hello-world',
+                git_user_name: 'Smoke Bot',
+                git_user_email: 'smoke@example.test',
+              },
+            }),
+          );
+          return { rowCount: 1, rows: [{ id: 'task-branch-only' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-branch-only');
+
+    expect(taskId).toBe('task-branch-only');
+  });
+
   it('defers non-immediate activations until the batching delay elapses', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {

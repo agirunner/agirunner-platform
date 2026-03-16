@@ -6,6 +6,7 @@ import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { readProjectRepositorySettings } from './project-settings.js';
+import { resolveRepositoryBranchContext } from './repository-branch-context.js';
 import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
@@ -395,24 +396,19 @@ export class TaskWriteService {
     const parameters = asRecord(workflow.parameters);
     const projectRepository = readProjectRepositorySettings(workflow.settings);
     const environment = asRecord(input.environment);
+    const branchContext = resolveRepositoryBranchContext({
+      environment,
+      parameters,
+      workflowGitBranch: workflow.git_branch,
+      projectDefaultBranch: projectRepository.defaultBranch,
+    });
     const repositoryURL =
       asNullableString(environment.repository_url)
       ?? asNullableString(parameters.repository_url)
       ?? asNullableString(parameters.repo)
       ?? asNullableString(workflow.repository_url);
-    const baseBranch =
-      asNullableString(environment.base_branch)
-      ?? asNullableString(environment.baseBranch)
-      ?? asNullableString(parameters.base_branch)
-      ?? asNullableString(workflow.git_branch)
-      ?? asNullableString(parameters.branch)
-      ?? projectRepository.defaultBranch;
-    const branch =
-      asNullableString(environment.branch)
-      ?? asNullableString(parameters.feature_branch)
-      ?? asNullableString(parameters.target_branch)
-      ?? asNullableString(workflow.git_branch)
-      ?? baseBranch;
+    const baseBranch = branchContext.baseBranch;
+    const branch = branchContext.branch;
     const gitUserName =
       asNullableString(environment.git_user_name)
       ?? asNullableString(environment.gitUserName)

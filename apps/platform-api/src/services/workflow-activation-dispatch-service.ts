@@ -5,6 +5,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
 import { readProjectRepositorySettings } from './project-settings.js';
+import { resolveRepositoryBranchContext } from './repository-branch-context.js';
 
 const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'pending',
@@ -1635,19 +1636,18 @@ interface WorkflowRepositoryContext {
 function resolveWorkflowRepositoryContext(workflow: WorkflowDispatchRow): WorkflowRepositoryContext {
   const parameters = asRecord(workflow.workflow_parameters);
   const projectRepository = readProjectRepositorySettings(workflow.project_settings);
+  const branchContext = resolveRepositoryBranchContext({
+    parameters,
+    workflowGitBranch: workflow.workflow_git_branch,
+    projectDefaultBranch: projectRepository.defaultBranch,
+  });
   return {
     repository_url:
       asNullableString(parameters.repository_url)
       ?? asNullableString(parameters.repo)
       ?? asNullableString(workflow.project_repository_url),
-    base_branch:
-      asNullableString(workflow.workflow_git_branch)
-      ?? asNullableString(parameters.base_branch)
-      ?? asNullableString(parameters.branch)
-      ?? projectRepository.defaultBranch,
-    feature_branch:
-      asNullableString(parameters.feature_branch)
-      ?? asNullableString(parameters.target_branch),
+    base_branch: branchContext.baseBranch,
+    feature_branch: branchContext.featureBranch,
     git_user_name:
       asNullableString(parameters.git_user_name)
       ?? asNullableString(parameters.gitUserName)
