@@ -3,6 +3,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { seedConfigTables } from '../bootstrap/seed.js';
 import {
   DEFAULT_ADMIN_KEY_PREFIX,
+  DEFAULT_TENANT_ID,
   seedDefaultTenant,
 } from '../db/seed.js';
 
@@ -34,7 +35,6 @@ export const PLAYBOOK_REDESIGN_RESET_TABLES = [
   'project_spec_versions',
   'projects',
   'role_definitions',
-  'runtime_defaults',
   'runtime_heartbeats',
   'scheduled_work_item_trigger_invocations',
   'scheduled_work_item_triggers',
@@ -61,6 +61,7 @@ export const PLAYBOOK_REDESIGN_RESET_TABLES = [
   'workflow_work_items',
   'workflows',
 ] as const;
+const PRESERVED_LLM_RUNTIME_DEFAULT_KEYS = ['default_model_id', 'default_reasoning_config'] as const;
 
 interface ResetDependencies {
   seedDefaultTenant: typeof seedDefaultTenant;
@@ -79,6 +80,7 @@ export class PlaybookRedesignResetService {
       await client.query('BEGIN');
       await deleteNonDefaultAdminKeys(client);
       await truncateResetTables(client);
+      await deleteNonLlmRuntimeDefaults(client);
       await this.deps.seedDefaultTenant(client as never, source);
       const adminEmail = source.AGIRUNNER_ADMIN_EMAIL;
       const config = adminEmail
@@ -104,8 +106,17 @@ async function truncateResetTables(client: DatabaseClient): Promise<void> {
 async function deleteNonDefaultAdminKeys(client: DatabaseClient): Promise<void> {
   await client.query(
     `DELETE FROM api_keys
-      WHERE tenant_id = '00000000-0000-0000-0000-000000000001'
+      WHERE tenant_id = $2
         AND key_prefix <> $1`,
-    [DEFAULT_ADMIN_KEY_PREFIX],
+    [DEFAULT_ADMIN_KEY_PREFIX, DEFAULT_TENANT_ID],
+  );
+}
+
+async function deleteNonLlmRuntimeDefaults(client: DatabaseClient): Promise<void> {
+  await client.query(
+    `DELETE FROM runtime_defaults
+      WHERE tenant_id = $1
+        AND config_key <> ALL($2::text[])`,
+    [DEFAULT_TENANT_ID, [...PRESERVED_LLM_RUNTIME_DEFAULT_KEYS]],
   );
 }

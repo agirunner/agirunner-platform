@@ -333,6 +333,16 @@ describe('ModelCatalogService — LLM config enhancements', () => {
   });
 
   describe('resolveRoleConfig', () => {
+    it('fails closed when neither a role assignment nor a system default is configured', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      const resolved = await service.resolveRoleConfig(TENANT_ID, 'developer');
+
+      expect(resolved).toBeNull();
+    });
+
     it('keeps stored provider api keys encrypted in resolved role config', async () => {
       const encryptedProvider = {
         ...sampleProvider,

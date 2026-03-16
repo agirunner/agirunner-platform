@@ -15,7 +15,7 @@ const DEFAULT_ADMIN_API_KEY = 'ar_admin_def_seed_llm_defaults_key';
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const canRunIntegration = isContainerRuntimeAvailable();
 
-describe.runIf(canRunIntegration)('seedDefaultModelAssignment integration', () => {
+describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', () => {
   let db: TestDatabase | null = null;
 
   beforeAll(async () => {
@@ -28,7 +28,7 @@ describe.runIf(canRunIntegration)('seedDefaultModelAssignment integration', () =
     }
   });
 
-  it('seeds the visible system default to OpenAI api-key gpt-5.4 with medium reasoning', async () => {
+  it('does not invent a system default when operators have not configured one', async () => {
     expect(db).not.toBeNull();
     const pool = db!.pool;
 
@@ -89,15 +89,6 @@ describe.runIf(canRunIntegration)('seedDefaultModelAssignment integration', () =
       [DEFAULT_TENANT_ID],
     );
 
-    expect(defaults.rows).toEqual([
-      {
-        config_key: 'default_model_id',
-        config_value: apiKeyGpt54ModelId,
-      },
-      {
-        config_key: 'default_reasoning_config',
-        config_value: JSON.stringify({ reasoning_effort: 'medium' }),
-      },
-    ]);
+    expect(defaults.rows).toEqual([]);
   }, 120_000);
 });

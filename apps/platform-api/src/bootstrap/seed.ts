@@ -23,16 +23,17 @@ import {
   DEFAULT_ADMIN_KEY_PREFIX,
   DEFAULT_TENANT_ID,
 } from '../db/seed.js';
-import { seedDefaultModelAssignment } from './seed-llm-defaults.js';
 
 const REDESIGN_RESET_PRESERVED_TABLES = new Set([
   'api_keys',
   'llm_providers',
   'llm_models',
   'role_model_assignments',
+  'runtime_defaults',
   'schema_migrations',
   'tenants',
 ]);
+const PRESERVED_LLM_RUNTIME_DEFAULT_KEYS = ['default_model_id', 'default_reasoning_config'] as const;
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -43,7 +44,6 @@ export async function seedConfigTables(
   config?: Pick<AppEnv, 'AGIRUNNER_ADMIN_EMAIL'>,
 ): Promise<void> {
   await seedRolesAndDefaults(db);
-  await seedDefaultModelAssignment(db);
   await seedOrchestratorWorker(db);
   await seedAdminUser(db, config?.AGIRUNNER_ADMIN_EMAIL);
   await seedBuiltInPlaybooks(db);
@@ -69,6 +69,7 @@ export async function resetPlaybookRedesignState(pool: pg.Pool): Promise<void> {
     .filter((tableName: string) => !REDESIGN_RESET_PRESERVED_TABLES.has(tableName));
 
   if (tablesToReset.length === 0) {
+    await deleteNonLlmRuntimeDefaults(pool);
     return;
   }
 
@@ -76,6 +77,7 @@ export async function resetPlaybookRedesignState(pool: pg.Pool): Promise<void> {
     .map((tableName: string) => `"public"."${tableName}"`)
     .join(', ');
   await pool.query(`TRUNCATE TABLE ${qualifiedTables} RESTART IDENTITY CASCADE`);
+  await deleteNonLlmRuntimeDefaults(pool);
 }
 
 // ---------------------------------------------------------------------------
@@ -231,6 +233,15 @@ async function seedRuntimeDefaults(
     description: 'Default grace period in seconds before forced container shutdown',
   });
 
+}
+
+async function deleteNonLlmRuntimeDefaults(db: DatabaseQueryable): Promise<void> {
+  await db.query(
+    `DELETE FROM runtime_defaults
+      WHERE tenant_id = $1
+        AND config_key <> ALL($2::text[])`,
+    [DEFAULT_TENANT_ID, [...PRESERVED_LLM_RUNTIME_DEFAULT_KEYS]],
+  );
 }
 
 // ---------------------------------------------------------------------------

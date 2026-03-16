@@ -28,7 +28,7 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
     }
   });
 
-  it('preserves admin + model config while wiping and reseeding redesign state', async () => {
+  it('preserves admin + explicit llm page defaults while wiping and reseeding redesign state', async () => {
     expect(db).not.toBeNull();
     const pool = db!.pool;
 
@@ -56,6 +56,17 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
       `INSERT INTO role_model_assignments (id, tenant_id, role_name, primary_model_id)
        VALUES ($1, $2, 'developer', $3)`,
       [assignmentId, '00000000-0000-0000-0000-000000000001', modelId],
+    );
+    await pool.query(
+      `INSERT INTO runtime_defaults (tenant_id, config_key, config_value, config_type, description)
+       VALUES
+        ($1, 'default_model_id', $2, 'string', 'Configured on the LLM Providers page'),
+        ($1, 'default_reasoning_config', $3, 'string', 'Configured on the LLM Providers page')`,
+      [
+        '00000000-0000-0000-0000-000000000001',
+        modelId,
+        JSON.stringify({ reasoning_effort: 'medium' }),
+      ],
     );
     await pool.query(
       `INSERT INTO api_keys (tenant_id, key_hash, key_lookup_hash, key_prefix, scope, owner_type, label, expires_at)
@@ -109,7 +120,8 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
       pool.query<{ config_key: string; config_value: string }>(
         `SELECT config_key, config_value
            FROM runtime_defaults
-          WHERE config_key = 'default_model_id'`,
+          WHERE config_key IN ('default_model_id', 'default_reasoning_config')
+          ORDER BY config_key ASC`,
       ),
       pool.query<{ slug: string }>('SELECT slug FROM playbooks ORDER BY slug ASC'),
       pool.query<{ id: string }>('SELECT id FROM workflows ORDER BY id ASC'),
@@ -127,7 +139,13 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
     expect(providers.rows).toEqual([{ id: providerId }]);
     expect(models.rows).toEqual([{ id: modelId }]);
     expect(assignments.rows).toEqual([{ id: assignmentId, role_name: 'developer' }]);
-    expect(defaults.rows).toEqual([{ config_key: 'default_model_id', config_value: modelId }]);
+    expect(defaults.rows).toEqual([
+      { config_key: 'default_model_id', config_value: modelId },
+      {
+        config_key: 'default_reasoning_config',
+        config_value: JSON.stringify({ reasoning_effort: 'medium' }),
+      },
+    ]);
     expect(playbooks.rows.some((row) => row.slug === 'custom-redesign-reset')).toBe(false);
     expect(workflows.rows).toHaveLength(0);
     expect(tasks.rows).toHaveLength(0);
