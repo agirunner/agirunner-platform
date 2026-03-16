@@ -48,7 +48,7 @@ const PREDECESSOR_HANDOFF_INSTRUCTION =
 const SHARED_ROLE_WORKFLOW_TOOLS = ['submit_handoff', 'read_predecessor_handoff'] as const;
 
 function withSharedRoleDiscipline(prompt: string): string {
-  return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Before completing the task, you MUST call submit_handoff with a unique request_id.\n- Call submit_handoff once, when the final handoff for the current task attempt is ready.\n- The platform will reject completion without a structured handoff.\n- Leave a structured handoff that tells the next actor what changed, what remains, and what they should inspect next.`;
+  return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Treat predecessor handoffs, current task input, project memory, and the current branch diff as authoritative over older repository narrative docs. If older docs conflict or look stale, call that out and do not repeat them as fact.\n- Describe delivered behavior from observed outputs, tests, and the current branch content. Do not infer behavior from legacy package names, file names, or stale repository terminology.\n- Before completing the task, you MUST call submit_handoff with a unique request_id.\n- Call submit_handoff once, when the final handoff for the current task attempt is ready.\n- The platform will reject completion without a structured handoff.\n- Leave a structured handoff that tells the next actor what changed, what remains, and what they should inspect next.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -169,6 +169,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         '- Dig into the why behind requests. Surface hidden assumptions and edge cases.\n' +
         '- Prioritize with MoSCoW (Must/Should/Could/Won\'t).\n' +
         '- Validate deliverables against requirements in UAT — every criterion gets PASS/FAIL with evidence.\n' +
+        '- In release or UAT summaries, quote the exact approved user-facing behavior from QA evidence and current branch content; if repository docs disagree, mark them stale and recommend cleanup instead of repeating them.\n' +
         '- Flag scope creep immediately. Escalate when requirements are unclear.\n' +
         '- In your handoff, summarize acceptance criteria, scope decisions, and any required human follow-up.',
       ),

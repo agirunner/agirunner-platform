@@ -64,6 +64,8 @@ describe('prompt catalogs', () => {
     expect(roles.length).toBeGreaterThan(0);
     for (const role of roles) {
       expect(role.systemPrompt).toContain('If predecessor handoff exists in your task context, read it first');
+      expect(role.systemPrompt).toContain('Treat predecessor handoffs, current task input, project memory, and the current branch diff as authoritative');
+      expect(role.systemPrompt).toContain('Do not infer behavior from legacy package names, file names, or stale repository terminology');
       expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff with a unique request_id');
       expect(role.systemPrompt).toContain('Call submit_handoff once, when the final handoff for the current task attempt is ready.');
       expect(role.systemPrompt).toContain('The platform will reject completion without a structured handoff');
@@ -82,6 +84,9 @@ describe('prompt catalogs', () => {
     );
     expect(BUILT_IN_ROLES.roles['product-manager'].systemPrompt).toContain(
       'acceptance criteria, scope decisions, and any required human follow-up',
+    );
+    expect(BUILT_IN_ROLES.roles['product-manager'].systemPrompt).toContain(
+      'quote the exact approved user-facing behavior from QA evidence and current branch content',
     );
   });
 
