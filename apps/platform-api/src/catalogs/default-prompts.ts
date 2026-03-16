@@ -24,6 +24,8 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Before escalating, leave the work in a clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before escalation.
 - Non-repository tasks MUST upload the required artifacts before escalation.
+- Before task completion, you MUST call submit_handoff with a structured summary for the next actor.
+- The platform rejects task completion without a structured handoff.
 - Leave a structured handoff that tells the next actor what changed, what remains, and what to inspect next.
 
 ## Memory

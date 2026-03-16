@@ -46,7 +46,7 @@ const PREDECESSOR_HANDOFF_INSTRUCTION =
 const SHARED_ROLE_WORKFLOW_TOOLS = ['submit_handoff', 'read_predecessor_handoff'] as const;
 
 function withSharedRoleDiscipline(prompt: string): string {
-  return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Leave a structured handoff that tells the next actor what changed, what remains, and what they should inspect next.`;
+  return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Before completing the task, you MUST call submit_handoff.\n- The platform will reject completion without a structured handoff.\n- Leave a structured handoff that tells the next actor what changed, what remains, and what they should inspect next.`;
 }
 
 // ---------------------------------------------------------------------------
