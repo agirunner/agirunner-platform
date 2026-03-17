@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
+import { applyTenantLoggingLevel } from '../../logging/platform-log-level.js';
 const retentionPolicySchema = z
   .object({
     task_archive_after_days: z.number().int().min(1).optional(),
@@ -57,6 +58,11 @@ export const governanceRoutes: FastifyPluginAsync = async (app) => {
       const body = parseOrThrow(loggingConfigSchema.safeParse(request.body ?? {}));
       const level = await governanceService.setLoggingLevel(request.auth!, body.level);
       app.logLevelCache.invalidate(request.auth!.tenantId);
+      await applyTenantLoggingLevel({
+        tenantId: request.auth!.tenantId,
+        governanceService,
+        logger: app.log,
+      });
       return { data: { level } };
     },
   );

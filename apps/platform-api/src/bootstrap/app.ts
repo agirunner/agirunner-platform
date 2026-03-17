@@ -53,6 +53,7 @@ import { registerRoutes } from './routes.js';
 import { registerWebsocketGateway } from './websocket.js';
 import { configureApiKeyLogging } from '../auth/api-key.js';
 import { configureProviderSecretEncryptionKey } from '../lib/oauth-crypto.js';
+import { applyDefaultTenantLoggingLevel } from '../logging/platform-log-level.js';
 
 const DEFAULT_PROCESS_LOG_LEVEL = 'info';
 const DEFAULT_GOVERNANCE_LOG_LEVEL = 'info';
@@ -128,6 +129,10 @@ export async function buildApp() {
   const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
   const taskService = new TaskService(pool, eventService, config, workerConnectionHub, logService);
   const governanceService = new GovernanceService(pool, config);
+  await applyDefaultTenantLoggingLevel({
+    governanceService,
+    logger: app.log,
+  });
   const integrationActionService = new IntegrationActionService(pool, taskService, config);
   const integrationAdapterService = new IntegrationAdapterService(
     pool,
