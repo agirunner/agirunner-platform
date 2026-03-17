@@ -1,9 +1,12 @@
 import type { DatabaseQueryable } from '../db/database.js';
 
 const PREDECESSOR_HANDOFF_FIELDS = `id,
+            workflow_id,
+            work_item_id,
             task_id,
             role,
             stage_name,
+            sequence,
             summary,
             completion,
             changes,

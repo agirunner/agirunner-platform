@@ -377,6 +377,8 @@ describe('task query service git activity (FR-055)', () => {
           rowCount: 1,
           rows: [{
             id: 'handoff-ctx-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'wi-1',
             task_id: 'task-upstream-1',
             role: 'developer',
             stage_name: 'implementation',
@@ -454,10 +456,18 @@ describe('task query service git activity (FR-055)', () => {
         workflowId: 'workflow-1',
         workItemId: 'wi-1',
         payload: expect.objectContaining({
+          current_workflow_id: 'workflow-1',
+          current_work_item_id: 'wi-1',
+          current_task_id: taskId,
           resolution_source: 'local_work_item',
           has_predecessor_handoff: true,
+          candidate_handoff_ids: ['handoff-ctx-1'],
+          candidate_task_ids: ['task-upstream-1'],
           selected_handoff_id: 'handoff-ctx-1',
+          selected_handoff_workflow_id: 'workflow-1',
+          selected_handoff_work_item_id: 'wi-1',
           selected_handoff_role: 'developer',
+          selected_handoff_sequence: 4,
         }),
       }),
     );

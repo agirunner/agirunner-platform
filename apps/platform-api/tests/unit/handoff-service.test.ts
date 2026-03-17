@@ -447,10 +447,18 @@ describe('HandoffService', () => {
         stageName: 'review',
         role: 'reviewer',
         payload: expect.objectContaining({
+          current_workflow_id: 'workflow-1',
+          current_work_item_id: 'work-item-1',
+          current_task_id: 'task-2',
           resolution_source: 'local_work_item',
           has_predecessor_handoff: true,
+          candidate_handoff_ids: ['handoff-1'],
+          candidate_task_ids: ['task-1'],
           selected_handoff_id: 'handoff-1',
+          selected_handoff_workflow_id: 'workflow-1',
+          selected_handoff_work_item_id: 'work-item-1',
           selected_handoff_role: 'developer',
+          selected_handoff_sequence: 0,
         }),
       }),
     );

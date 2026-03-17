@@ -23,6 +23,12 @@ export async function logPredecessorHandoffResolution(
   const requestContext = getRequestContext();
   const actor = actorFromAuth(requestContext?.auth);
   const selectedHandoff = input.resolution.handoffs[0] ?? null;
+  const candidateHandoffIds = input.resolution.handoffs
+    .map((handoff) => readOptionalString(handoff.id))
+    .filter((handoffId): handoffId is string => handoffId !== null);
+  const candidateTaskIds = input.resolution.handoffs
+    .map((handoff) => readOptionalString(handoff.task_id))
+    .filter((taskId): taskId is string => taskId !== null);
 
   await logService.insert({
     tenantId: input.tenantId,
@@ -34,6 +40,9 @@ export async function logPredecessorHandoffResolution(
     operation: input.operation,
     status: 'completed',
     payload: {
+      current_workflow_id: readOptionalString(input.task.workflow_id),
+      current_work_item_id: readOptionalString(input.task.work_item_id),
+      current_task_id: readOptionalString(input.task.id),
       resolution_source: input.resolution.source,
       has_predecessor_handoff: Boolean(selectedHandoff),
       source_work_item_id: input.resolution.source_work_item_id,
@@ -47,11 +56,16 @@ export async function logPredecessorHandoffResolution(
         input.resolution.source === 'parent_work_item'
           ? input.resolution.handoffs.length
           : 0,
+      candidate_handoff_ids: candidateHandoffIds,
+      candidate_task_ids: candidateTaskIds,
       selected_handoff_id: readOptionalString(selectedHandoff?.id),
+      selected_handoff_workflow_id: readOptionalString(selectedHandoff?.workflow_id),
+      selected_handoff_work_item_id: readOptionalString(selectedHandoff?.work_item_id),
       selected_handoff_task_id: readOptionalString(selectedHandoff?.task_id),
       selected_handoff_role: readOptionalString(selectedHandoff?.role),
       selected_handoff_stage_name: readOptionalString(selectedHandoff?.stage_name),
       selected_handoff_sequence: readOptionalNumber(selectedHandoff?.sequence),
+      selected_handoff_created_at: readOptionalTimestamp(selectedHandoff?.created_at),
     },
     workflowId: readOptionalString(input.task.workflow_id),
     taskId: readOptionalString(input.task.id),
@@ -79,4 +93,15 @@ function readOptionalNumber(value: unknown): number | null {
 
 function readOptionalBoolean(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
+}
+
+function readOptionalTimestamp(value: unknown): string | null {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  const timestamp = Date.parse(value);
+  return Number.isNaN(timestamp) ? value : new Date(timestamp).toISOString();
 }
