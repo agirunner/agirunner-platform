@@ -58,6 +58,7 @@ describe('runtime defaults page source', () => {
         'platform.task_cancel_signal_grace_period_ms',
         'container_manager.reconcile_interval_seconds',
         'platform.worker_dispatch_ack_timeout_ms',
+        'platform.worker_key_expiry_ms',
         'platform.agent_heartbeat_threshold_multiplier',
         'platform.worker_offline_threshold_multiplier',
         'platform.lifecycle_dispatch_loop_interval_ms',

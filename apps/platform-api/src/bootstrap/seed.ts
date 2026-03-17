@@ -347,6 +347,13 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_key_expiry_ms',
+    configValue: '31536000000',
+    configType: 'number',
+    description: 'Default API key lifetime in milliseconds for newly registered workers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.agent_default_heartbeat_interval_seconds',
     configValue: '60',
     configType: 'number',

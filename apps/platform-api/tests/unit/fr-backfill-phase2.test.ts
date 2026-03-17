@@ -411,13 +411,16 @@ describe('FR-744: BYOK model for built-in worker', () => {
     expect(typeof registerWorker).toBe('function');
   });
 
-  it('loadEnv provides WORKER_API_KEY_TTL_MS with a positive default', () => {
+  it('loadEnv no longer exposes worker or agent api-key ttl env knobs once runtime defaults own them', () => {
     const env = loadEnv({
       DATABASE_URL: 'postgres://x',
       JWT_SECRET: 'a'.repeat(32),
       WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+      WORKER_API_KEY_TTL_MS: '60000',
+      AGENT_API_KEY_TTL_MS: '60000',
     });
-    expect(env.WORKER_API_KEY_TTL_MS).toBeGreaterThan(0);
+    expect('WORKER_API_KEY_TTL_MS' in env).toBe(false);
+    expect('AGENT_API_KEY_TTL_MS' in env).toBe(false);
   });
 });
 

@@ -16,6 +16,15 @@ export async function registerWorker(
     throw new ValidationError('worker name is required');
   }
 
+  const workerKeyExpiryMs = requireRuntimeDefaultNumber(
+    context.config.WORKER_API_KEY_TTL_MS,
+    'platform.worker_key_expiry_ms',
+  );
+  const agentKeyExpiryMs = requireRuntimeDefaultNumber(
+    context.config.AGENT_API_KEY_TTL_MS,
+    'platform.agent_key_expiry_ms',
+  );
+
   const workerRes = await context.pool.query(
     `INSERT INTO workers (
       tenant_id, name, status, connection_mode, runtime_type, capabilities,
@@ -41,7 +50,7 @@ export async function registerWorker(
     ownerType: 'worker',
     ownerId: worker.id,
     label: `worker:${worker.name}`,
-    expiresAt: new Date(Date.now() + context.config.WORKER_API_KEY_TTL_MS),
+    expiresAt: new Date(Date.now() + workerKeyExpiryMs),
   });
 
   const createdAgents: Array<{ id: string; name: string; api_key: string; capabilities: string[] }> = [];
@@ -80,7 +89,7 @@ export async function registerWorker(
       ownerType: 'agent',
       ownerId: agentRow.id,
       label: `agent:${agentRow.name}`,
-      expiresAt: new Date(Date.now() + context.config.AGENT_API_KEY_TTL_MS),
+      expiresAt: new Date(Date.now() + agentKeyExpiryMs),
     });
 
     createdAgents.push({
@@ -119,6 +128,13 @@ function normalizeWorkerAgentCapabilities(
     values.add('orchestrator');
   }
   return [...values];
+}
+
+function requireRuntimeDefaultNumber(value: number | undefined, runtimeKey: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 1) {
+    throw new ValidationError(`Missing runtime default "${runtimeKey}"`);
+  }
+  return value;
 }
 
 export async function listWorkers(context: WorkerServiceContext, tenantId: string) {

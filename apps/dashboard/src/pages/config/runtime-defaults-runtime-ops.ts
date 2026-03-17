@@ -522,6 +522,17 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
       step: 1000,
     },
     {
+      key: 'platform.worker_key_expiry_ms',
+      label: 'Worker API key lifetime (ms)',
+      description: 'Default lifetime applied to API keys issued for newly registered workers.',
+      configType: 'number',
+      placeholder: '31536000000',
+      section: 'worker_supervision',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
       key: 'platform.worker_default_heartbeat_interval_seconds',
       label: 'Default worker heartbeat interval (seconds)',
       description: 'Default heartbeat cadence assigned to new workers when the registration payload omits it.',

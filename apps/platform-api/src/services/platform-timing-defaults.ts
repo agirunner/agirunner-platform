@@ -11,6 +11,7 @@ export const WORKFLOW_ACTIVATION_STALE_AFTER_MS_RUNTIME_KEY =
 export const TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS_RUNTIME_KEY =
   'platform.task_cancel_signal_grace_period_ms';
 export const WORKER_DISPATCH_ACK_TIMEOUT_MS_RUNTIME_KEY = 'platform.worker_dispatch_ack_timeout_ms';
+export const WORKER_KEY_EXPIRY_MS_RUNTIME_KEY = 'platform.worker_key_expiry_ms';
 export const AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS_RUNTIME_KEY =
   'platform.agent_default_heartbeat_interval_seconds';
 export const AGENT_HEARTBEAT_GRACE_PERIOD_MS_RUNTIME_KEY =
@@ -49,6 +50,7 @@ export interface WorkerSupervisionTimingDefaults {
   offlineGracePeriodMs: number;
   offlineThresholdMultiplier: number;
   degradedThresholdMultiplier: number;
+  keyExpiryMs: number;
 }
 
 export interface AgentSupervisionTimingDefaults {
@@ -177,6 +179,7 @@ export async function readWorkerSupervisionTimingDefaults(
     offlineGracePeriodMs,
     offlineThresholdMultiplier,
     degradedThresholdMultiplier,
+    keyExpiryMs,
   ] = await Promise.all([
     readPositiveNumberDefault(
       db,
@@ -208,6 +211,12 @@ export async function readWorkerSupervisionTimingDefaults(
       WORKER_DEGRADED_THRESHOLD_MULTIPLIER_RUNTIME_KEY,
       1,
     ),
+    readPositiveNumberDefault(
+      db,
+      tenantId,
+      WORKER_KEY_EXPIRY_MS_RUNTIME_KEY,
+      1,
+    ),
   ]);
 
   return {
@@ -216,6 +225,7 @@ export async function readWorkerSupervisionTimingDefaults(
     offlineGracePeriodMs,
     offlineThresholdMultiplier,
     degradedThresholdMultiplier,
+    keyExpiryMs,
   };
 }
 

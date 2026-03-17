@@ -209,6 +209,14 @@ describe('RuntimeDefaultsService', () => {
 
       await expect(
         service.createDefault(TENANT_ID, {
+          configKey: 'platform.worker_key_expiry_ms',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.worker_key_expiry_ms must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
           configKey: 'platform.agent_key_expiry_ms',
           configValue: '0',
           configType: 'number',

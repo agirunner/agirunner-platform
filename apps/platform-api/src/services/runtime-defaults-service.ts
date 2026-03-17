@@ -29,6 +29,7 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['platform.workflow_activation_stale_after_ms', { min: 1 }],
   ['platform.task_cancel_signal_grace_period_ms', { min: 1 }],
   ['platform.worker_dispatch_ack_timeout_ms', { min: 1 }],
+  ['platform.worker_key_expiry_ms', { min: 1 }],
   ['platform.agent_default_heartbeat_interval_seconds', { min: 1 }],
   ['platform.agent_heartbeat_grace_period_ms', { min: 0 }],
   ['platform.agent_key_expiry_ms', { min: 1 }],

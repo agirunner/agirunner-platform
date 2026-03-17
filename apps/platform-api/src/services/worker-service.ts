@@ -3,7 +3,10 @@ import type { DatabasePool } from '../db/database.js';
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
-import { readWorkerSupervisionTimingDefaults } from './platform-timing-defaults.js';
+import {
+  readAgentSupervisionTimingDefaults,
+  readWorkerSupervisionTimingDefaults,
+} from './platform-timing-defaults.js';
 import { WorkerConnectionHub } from './worker-connection-hub.js';
 import {
   acknowledgeTask,
@@ -47,15 +50,24 @@ export interface WorkerSignalInput {
   data?: Record<string, unknown>;
 }
 
-export interface WorkerServiceContext {
+type WorkerRuntimeConfig = AppEnv & {
+  WORKER_API_KEY_TTL_MS?: number;
+  AGENT_API_KEY_TTL_MS?: number;
+};
+
+interface WorkerServiceBaseContext {
   pool: DatabasePool;
   eventService: EventService;
   connectionHub: WorkerConnectionHub;
   config: AppEnv;
 }
 
+export interface WorkerServiceContext extends Omit<WorkerServiceBaseContext, 'config'> {
+  config: WorkerRuntimeConfig;
+}
+
 export class WorkerService {
-  private readonly context: WorkerServiceContext;
+  private readonly context: WorkerServiceBaseContext;
 
   constructor(pool: DatabasePool, eventService: EventService, connectionHub: WorkerConnectionHub, config: AppEnv) {
     this.context = { pool, eventService, connectionHub, config };
@@ -106,17 +118,22 @@ export class WorkerService {
   }
 
   private async buildWorkerTimingContext(): Promise<WorkerServiceContext> {
-    const timingDefaults = await readWorkerSupervisionTimingDefaults(this.context.pool);
+    const [workerTimingDefaults, agentTimingDefaults] = await Promise.all([
+      readWorkerSupervisionTimingDefaults(this.context.pool),
+      readAgentSupervisionTimingDefaults(this.context.pool),
+    ]);
 
     return {
       ...this.context,
       config: {
         ...this.context.config,
-        WORKER_DISPATCH_ACK_TIMEOUT_MS: timingDefaults.dispatchAckTimeoutMs,
-        WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: timingDefaults.defaultHeartbeatIntervalSeconds,
-        WORKER_OFFLINE_GRACE_PERIOD_MS: timingDefaults.offlineGracePeriodMs,
-        WORKER_OFFLINE_THRESHOLD_MULTIPLIER: timingDefaults.offlineThresholdMultiplier,
-        WORKER_DEGRADED_THRESHOLD_MULTIPLIER: timingDefaults.degradedThresholdMultiplier,
+        WORKER_API_KEY_TTL_MS: workerTimingDefaults.keyExpiryMs,
+        AGENT_API_KEY_TTL_MS: agentTimingDefaults.keyExpiryMs,
+        WORKER_DISPATCH_ACK_TIMEOUT_MS: workerTimingDefaults.dispatchAckTimeoutMs,
+        WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: workerTimingDefaults.defaultHeartbeatIntervalSeconds,
+        WORKER_OFFLINE_GRACE_PERIOD_MS: workerTimingDefaults.offlineGracePeriodMs,
+        WORKER_OFFLINE_THRESHOLD_MULTIPLIER: workerTimingDefaults.offlineThresholdMultiplier,
+        WORKER_DEGRADED_THRESHOLD_MULTIPLIER: workerTimingDefaults.degradedThresholdMultiplier,
       },
     };
   }

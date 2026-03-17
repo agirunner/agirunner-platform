@@ -65,6 +65,9 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('worker_supervision').map((field) => field.key)).toContain(
       'platform.worker_dispatch_ack_timeout_ms',
     );
+    expect(fieldsForSection('worker_supervision').map((field) => field.key)).toContain(
+      'platform.worker_key_expiry_ms',
+    );
     expect(fieldsForSection('agent_supervision').map((field) => field.key)).toContain(
       'platform.agent_heartbeat_threshold_multiplier',
     );

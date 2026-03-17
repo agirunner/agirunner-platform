@@ -53,6 +53,9 @@ describe('platform timing defaults', () => {
     await expect(readAgentSupervisionTimingDefaults(pool as never, 'tenant-1')).rejects.toThrow(
       'Missing runtime default "platform.agent_default_heartbeat_interval_seconds"',
     );
+    await expect(readWorkerSupervisionTimingDefaults(pool as never, 'tenant-1')).rejects.toThrow(
+      'Missing runtime default "platform.worker_dispatch_ack_timeout_ms"',
+    );
   });
 
   it('reads worker dispatch-ack timeout from runtime defaults storage', async () => {
@@ -62,11 +65,34 @@ describe('platform timing defaults', () => {
         if (key === 'platform.worker_dispatch_ack_timeout_ms') {
           return { rowCount: 1, rows: [{ config_value: '17000' }] };
         }
+        if (key === 'platform.worker_default_heartbeat_interval_seconds') {
+          return { rowCount: 1, rows: [{ config_value: '30' }] };
+        }
+        if (key === 'platform.worker_offline_grace_period_ms') {
+          return { rowCount: 1, rows: [{ config_value: '300000' }] };
+        }
+        if (key === 'platform.worker_offline_threshold_multiplier') {
+          return { rowCount: 1, rows: [{ config_value: '2' }] };
+        }
+        if (key === 'platform.worker_degraded_threshold_multiplier') {
+          return { rowCount: 1, rows: [{ config_value: '1.5' }] };
+        }
+        if (key === 'platform.worker_key_expiry_ms') {
+          return { rowCount: 1, rows: [{ config_value: '86400000' }] };
+        }
         throw new Error(`Unexpected runtime-default key: ${String(key)}`);
       }),
     };
 
     await expect(readWorkerDispatchAckTimeoutMs(pool as never, 'tenant-1')).resolves.toBe(17_000);
+    await expect(readWorkerSupervisionTimingDefaults(pool as never, 'tenant-1')).resolves.toEqual({
+      dispatchAckTimeoutMs: 17_000,
+      defaultHeartbeatIntervalSeconds: 30,
+      offlineGracePeriodMs: 300_000,
+      offlineThresholdMultiplier: 2,
+      degradedThresholdMultiplier: 1.5,
+      keyExpiryMs: 86_400_000,
+    });
   });
 
   it('reads agent supervision timings from runtime defaults storage', async () => {

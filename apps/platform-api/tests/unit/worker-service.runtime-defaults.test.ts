@@ -7,11 +7,24 @@ import * as workerRegistrationModule from '../../src/services/worker-registratio
 import { WorkerService } from '../../src/services/worker-service.js';
 
 function buildRuntimeDefaultPool(overrides: Record<string, string>) {
+  const values: Record<string, string> = {
+    'platform.worker_dispatch_ack_timeout_ms': '15000',
+    'platform.worker_default_heartbeat_interval_seconds': '30',
+    'platform.worker_offline_grace_period_ms': '300000',
+    'platform.worker_offline_threshold_multiplier': '2',
+    'platform.worker_degraded_threshold_multiplier': '1',
+    'platform.worker_key_expiry_ms': '60000',
+    'platform.agent_default_heartbeat_interval_seconds': '30',
+    'platform.agent_heartbeat_grace_period_ms': '300000',
+    'platform.agent_heartbeat_threshold_multiplier': '2',
+    'platform.agent_key_expiry_ms': '60000',
+    ...overrides,
+  };
   return {
     query: vi.fn(async (_sql: string, params?: unknown[]) => {
       const key = String(params?.[1] ?? '');
-      return overrides[key]
-        ? { rowCount: 1, rows: [{ config_value: overrides[key] }] }
+      return values[key]
+        ? { rowCount: 1, rows: [{ config_value: values[key] }] }
         : { rowCount: 0, rows: [] };
     }),
   };
@@ -25,11 +38,15 @@ describe('WorkerService runtime-default timing overrides', () => {
   it('uses the runtime default worker heartbeat interval when registering workers', async () => {
     const pool = buildRuntimeDefaultPool({
       'platform.worker_default_heartbeat_interval_seconds': '45',
+      'platform.worker_key_expiry_ms': '120000',
+      'platform.agent_key_expiry_ms': '180000',
     });
     const registerSpy = vi.spyOn(workerRegistrationModule, 'registerWorker').mockImplementation(
       async (context) => {
         expect(context.config.WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS).toBe(45);
         expect(context.config.WORKER_DISPATCH_ACK_TIMEOUT_MS).toBe(15_000);
+        expect(context.config.WORKER_API_KEY_TTL_MS).toBe(120_000);
+        expect(context.config.AGENT_API_KEY_TTL_MS).toBe(180_000);
         return {
           worker_id: 'worker-1',
           worker_api_key: 'wk',
@@ -103,6 +120,8 @@ describe('WorkerService runtime-default timing overrides', () => {
       'platform.worker_offline_grace_period_ms': '450000',
       'platform.worker_offline_threshold_multiplier': '3',
       'platform.worker_degraded_threshold_multiplier': '1.5',
+      'platform.worker_key_expiry_ms': '60000',
+      'platform.agent_key_expiry_ms': '90000',
     });
     const heartbeatSpy = vi.spyOn(workerHeartbeatModule, 'enforceHeartbeatTimeouts').mockImplementation(
       async (context, now) => {

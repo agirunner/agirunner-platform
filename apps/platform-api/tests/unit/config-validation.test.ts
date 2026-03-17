@@ -38,6 +38,21 @@ describe('config validation', () => {
     expect('AGENT_KEY_EXPIRY_MS' in env).toBe(false);
   });
 
+  it('does not surface deprecated worker or worker-agent API key lifetime env keys once runtime defaults own them', () => {
+    const env = loadEnv({
+      NODE_ENV: 'test',
+      PORT: '9999',
+      DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+      JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+      WORKER_API_KEY_TTL_MS: '120000',
+      AGENT_API_KEY_TTL_MS: '180000',
+    });
+
+    expect('WORKER_API_KEY_TTL_MS' in env).toBe(false);
+    expect('AGENT_API_KEY_TTL_MS' in env).toBe(false);
+  });
+
   it('rejects invalid configuration', () => {
     expect(() =>
       loadEnv({
