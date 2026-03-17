@@ -1,4 +1,19 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { readRequiredPositiveIntegerRuntimeDefaultMock } = vi.hoisted(() => ({
+  readRequiredPositiveIntegerRuntimeDefaultMock: vi.fn(async () => 30),
+}));
+
+vi.mock('../../src/services/runtime-default-values.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../src/services/runtime-default-values.js')>(
+      '../../src/services/runtime-default-values.js',
+    );
+  return {
+    ...actual,
+    readRequiredPositiveIntegerRuntimeDefault: readRequiredPositiveIntegerRuntimeDefaultMock,
+  };
+});
 
 import { ConflictError } from '../../src/errors/domain-errors.js';
 import { TaskWriteService } from '../../src/services/task-write-service.js';
@@ -13,16 +28,15 @@ function isPlaybookDefinitionLookup(sql: string) {
 }
 
 describe('TaskWriteService', () => {
+  beforeEach(() => {
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockReset();
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockResolvedValue(30);
+  });
+
   it('uses the runtime default task timeout when input omits one', async () => {
     let insertedTimeoutMinutes: number | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.includes('FROM runtime_defaults') && sql.includes('config_key = $2')) {
-          return {
-            rowCount: 1,
-            rows: [{ config_value: '45' }],
-          };
-        }
         if (sql.startsWith('INSERT INTO tasks')) {
           insertedTimeoutMinutes = (values?.[21] as number) ?? null;
           return {
@@ -50,6 +64,8 @@ describe('TaskWriteService', () => {
       } as never,
     });
 
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockResolvedValueOnce(45);
+
     await service.createTask(
       {
         tenantId: 'tenant-1',
@@ -62,6 +78,46 @@ describe('TaskWriteService', () => {
     );
 
     expect(insertedTimeoutMinutes).toBe(45);
+  });
+
+  it('fails fast when the runtime default task timeout is missing', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.startsWith('INSERT INTO tasks')) {
+          throw new Error('task insert should not run without a default timeout');
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {} as never,
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockRejectedValueOnce(
+      new Error('Missing runtime default "tasks.default_timeout_minutes"'),
+    );
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        {
+          title: 'Implement hello world',
+        },
+      ),
+    ).rejects.toThrow('Missing runtime default "tasks.default_timeout_minutes"');
   });
 
   it('derives output review from playbook rules instead of trusting reviewer task input', async () => {

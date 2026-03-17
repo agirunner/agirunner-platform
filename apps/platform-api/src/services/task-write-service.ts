@@ -235,14 +235,6 @@ export class TaskWriteService {
       return input.timeout_minutes;
     }
 
-    if (
-      typeof this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES === 'number'
-      && Number.isInteger(this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES)
-      && this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES > 0
-    ) {
-      return this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES;
-    }
-
     return readRequiredPositiveIntegerRuntimeDefault(
       db,
       tenantId,
