@@ -632,6 +632,116 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('enqueues a workflow activation when approving a playbook-backed task', async () => {
+    const eventService = { emit: vi.fn() };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-approve',
+              state: 'ready',
+              workflow_id: 'workflow-1',
+              role: 'reviewer',
+              title: 'Approve deliverable',
+              work_item_id: 'work-item-1',
+              stage_name: 'approval',
+              is_orchestrator_task: false,
+              metadata: { review_action: 'approve' },
+              updated_at: new Date('2026-03-17T10:00:00Z'),
+            }],
+          };
+        }
+        if (sql.startsWith('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-approved:task-approve:Tue Mar 17 2026 10:00:00 GMT+0000 (Coordinated Universal Time)',
+              reason: 'task.approved',
+              event_type: 'task.approved',
+              payload: { task_id: 'task-approve' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-17T10:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-approve',
+        state: 'awaiting_approval',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'approval',
+        role: 'reviewer',
+        title: 'Approve deliverable',
+        is_orchestrator_task: false,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: { clearReviewExpectation: vi.fn() } as never,
+    });
+
+    const result = await service.approveTask(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-approve',
+    );
+
+    expect(result.state).toBe('ready');
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workflow_activations'),
+      expect.arrayContaining([
+        'tenant-1',
+        'workflow-1',
+        expect.stringContaining('task-approved:task-approve:'),
+        'task.approved',
+        'task.approved',
+      ]),
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.activation_queued',
+        entityType: 'workflow',
+        entityId: 'workflow-1',
+        data: expect.objectContaining({
+          event_type: 'task.approved',
+          reason: 'task.approved',
+        }),
+      }),
+      expect.anything(),
+    );
+  });
+
   it('records review metadata when requesting task changes', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
@@ -701,6 +811,124 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         expect.objectContaining({ review_feedback: 'Fix the failing assertions' }),
         expect.objectContaining({ review_action: 'request_changes', preferred_agent_id: 'agent-2' }),
       ]),
+    );
+  });
+
+  it('enqueues a workflow activation when review requests changes on a playbook-backed task', async () => {
+    const eventService = { emit: vi.fn() };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-review-loop',
+              state: 'ready',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'review',
+              role: 'reviewer',
+              title: 'Review deliverable',
+              is_orchestrator_task: false,
+              input: { review_feedback: 'Fix the failing assertions' },
+              metadata: { review_action: 'request_changes', preferred_agent_id: 'agent-2' },
+              rework_count: 1,
+              updated_at: new Date('2026-03-17T10:15:00Z'),
+            }],
+          };
+        }
+        if (sql.startsWith('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.startsWith('INSERT INTO workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-2',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-review-requested:task-review-loop:Tue Mar 17 2026 10:15:00 GMT+0000 (Coordinated Universal Time)',
+              reason: 'task.review_requested_changes',
+              event_type: 'task.review_requested_changes',
+              payload: { task_id: 'task-review-loop' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-17T10:15:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-review-loop',
+        state: 'output_pending_review',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'review',
+        role: 'reviewer',
+        title: 'Review deliverable',
+        is_orchestrator_task: false,
+        input: { summary: 'old output' },
+        rework_count: 0,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: { recordReviewRejected: vi.fn() } as never,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-review-loop',
+      {
+        feedback: 'Fix the failing assertions',
+        preferred_agent_id: 'agent-2',
+      },
+    );
+
+    expect(result.state).toBe('ready');
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workflow_activations'),
+      expect.arrayContaining([
+        'tenant-1',
+        'workflow-1',
+        expect.stringContaining('task-review-requested:task-review-loop:'),
+        'task.review_requested_changes',
+        'task.review_requested_changes',
+      ]),
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.activation_queued',
+        entityType: 'workflow',
+        entityId: 'workflow-1',
+        data: expect.objectContaining({
+          event_type: 'task.review_requested_changes',
+          reason: 'task.review_requested_changes',
+        }),
+      }),
+      expect.anything(),
     );
   });
 

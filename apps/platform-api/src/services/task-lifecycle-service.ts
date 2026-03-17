@@ -493,22 +493,26 @@ export class TaskLifecycleService {
       if (
         !updatedTask.is_orchestrator_task &&
         task.workflow_id &&
-        (resolvedNextState === 'failed' || resolvedNextState === 'output_pending_review') &&
+        (buildWorkflowActivationForTaskTransition(taskId, task, updatedTask, resolvedNextState, options.reason)) &&
         (await isPlaybookWorkflow(client, identity.tenantId, task.workflow_id as string))
       ) {
+        const activation = buildWorkflowActivationForTaskTransition(
+          taskId,
+          task,
+          updatedTask,
+          resolvedNextState,
+          options.reason,
+        );
+        if (!activation) {
+          throw new Error('workflow activation contract unexpectedly missing for task transition');
+        }
         await enqueueWorkflowActivationRecord(client, this.deps.eventService, {
           tenantId: identity.tenantId,
           workflowId: task.workflow_id as string,
-          requestId: `task-${resolvedNextState}:${taskId}:${String(updatedTask.updated_at ?? updatedTask.completed_at ?? '')}`,
-          reason: `task.${resolvedNextState}`,
-          eventType: `task.${resolvedNextState}`,
-          payload: {
-            task_id: taskId,
-            task_role: task.role ?? null,
-            task_title: task.title ?? null,
-            work_item_id: task.work_item_id ?? null,
-            stage_name: task.stage_name ?? null,
-          },
+          requestId: activation.requestId,
+          reason: activation.reason,
+          eventType: activation.eventType,
+          payload: activation.payload,
           actorType: 'system',
           actorId: 'task_lifecycle_service',
         });
@@ -2249,4 +2253,67 @@ function releasesParallelismSlot(previousState: TaskState, nextState: TaskState)
     ACTIVE_PARALLELISM_SLOT_STATES.includes(previousState) &&
     !ACTIVE_PARALLELISM_SLOT_STATES.includes(nextState)
   );
+}
+
+interface WorkflowActivationTransition {
+  requestId: string;
+  reason: string;
+  eventType: string;
+  payload: Record<string, unknown>;
+}
+
+function buildWorkflowActivationForTaskTransition(
+  taskId: string,
+  previousTask: Record<string, unknown>,
+  updatedTask: Record<string, unknown>,
+  nextState: TaskState,
+  transitionReason?: string,
+): WorkflowActivationTransition | null {
+  const reason = resolveWorkflowActivationTransitionReason(nextState, transitionReason);
+  if (!reason) {
+    return null;
+  }
+  return {
+    requestId: `${reason.requestPrefix}:${taskId}:${String(updatedTask.updated_at ?? updatedTask.completed_at ?? '')}`,
+    reason: reason.eventType,
+    eventType: reason.eventType,
+    payload: {
+      task_id: taskId,
+      task_role: previousTask.role ?? null,
+      task_title: previousTask.title ?? null,
+      work_item_id: previousTask.work_item_id ?? null,
+      stage_name: previousTask.stage_name ?? null,
+    },
+  };
+}
+
+function resolveWorkflowActivationTransitionReason(
+  nextState: TaskState,
+  transitionReason?: string,
+): { requestPrefix: string; eventType: string } | null {
+  if (nextState === 'failed') {
+    return {
+      requestPrefix: 'task-failed',
+      eventType: 'task.failed',
+    };
+  }
+  if (nextState === 'output_pending_review') {
+    return {
+      requestPrefix: 'task-output-pending-review',
+      eventType: 'task.output_pending_review',
+    };
+  }
+  if ((nextState === 'ready' || nextState === 'pending') && transitionReason === 'approved') {
+    return {
+      requestPrefix: 'task-approved',
+      eventType: 'task.approved',
+    };
+  }
+  if ((nextState === 'ready' || nextState === 'pending') && transitionReason === 'review_requested_changes') {
+    return {
+      requestPrefix: 'task-review-requested',
+      eventType: 'task.review_requested_changes',
+    };
+  }
+  return null;
 }
