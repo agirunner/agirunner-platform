@@ -28,6 +28,9 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['platform.workflow_activation_heartbeat_interval_ms', { min: 1 }],
   ['platform.workflow_activation_stale_after_ms', { min: 1 }],
   ['platform.task_cancel_signal_grace_period_ms', { min: 1 }],
+  ['platform.worker_dispatch_ack_timeout_ms', { min: 1 }],
+  ['platform.worker_default_heartbeat_interval_seconds', { min: 1 }],
+  ['platform.worker_offline_grace_period_ms', { min: 0 }],
   ['container_manager.reconcile_interval_seconds', { min: 1 }],
   ['container_manager.stop_timeout_seconds', { min: 1 }],
   ['container_manager.shutdown_task_stop_timeout_seconds', { min: 1 }],
@@ -74,6 +77,8 @@ const INTEGER_DEFAULT_RULES = new Map([
 const DECIMAL_DEFAULT_RULES = new Map([
   ['agent.context_compaction_threshold', { min: 0, max: 1 }],
   ['agent.orchestrator_context_compaction_threshold', { min: 0, max: 1 }],
+  ['platform.worker_offline_threshold_multiplier', { min: 1 }],
+  ['platform.worker_degraded_threshold_multiplier', { min: 1 }],
 ]);
 const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
   ['default_pull_policy', ['always', 'if-not-present', 'never']],
@@ -285,9 +290,13 @@ function validateNumericRuntimeDefault(input: CreateRuntimeDefaultInput): void {
   if (!Number.isFinite(parsed)) {
     throw new Error(`${input.configKey} must be a number`);
   }
-  if (parsed < decimalRule.min || parsed > decimalRule.max) {
-    throw new Error(
-      `${input.configKey} must be between ${decimalRule.min} and ${decimalRule.max}`,
-    );
+  if (parsed < decimalRule.min) {
+    if (decimalRule.max !== undefined) {
+      throw new Error(`${input.configKey} must be between ${decimalRule.min} and ${decimalRule.max}`);
+    }
+    throw new Error(`${input.configKey} must be at least ${decimalRule.min}`);
+  }
+  if (decimalRule.max !== undefined && parsed > decimalRule.max) {
+    throw new Error(`${input.configKey} must be between ${decimalRule.min} and ${decimalRule.max}`);
   }
 }

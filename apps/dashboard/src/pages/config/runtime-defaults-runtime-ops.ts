@@ -47,6 +47,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Control fleet reconcile cadence and stop/remove grace periods for the manager service.',
   },
   {
+    key: 'worker_supervision',
+    title: 'Worker supervision',
+    description: 'Tune worker heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
+  },
+  {
     key: 'workspace_timeouts',
     title: 'Workspace timeouts',
     description: 'Bound repo bootstrap, identity setup, and context injection steps before work begins.',
@@ -119,6 +124,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   ...buildConnectedPlatformFields(),
   ...buildWorkflowActivationFields(),
   ...buildContainerManagerFields(),
+  ...buildWorkerSupervisionFields(),
   ...buildWorkspaceTimeoutFields(),
   {
     key: 'capture.push_timeout_seconds',
@@ -428,6 +434,66 @@ function buildWorkflowActivationFields(): FieldDefinition[] {
       inputMode: 'numeric',
       min: 1,
       step: 1000,
+    },
+  ];
+}
+
+function buildWorkerSupervisionFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'platform.worker_dispatch_ack_timeout_ms',
+      label: 'Dispatch acknowledgement timeout (ms)',
+      description: 'Maximum time a worker has to acknowledge an assigned task before dispatch is released.',
+      configType: 'number',
+      placeholder: '15000',
+      section: 'worker_supervision',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.worker_default_heartbeat_interval_seconds',
+      label: 'Default worker heartbeat interval (seconds)',
+      description: 'Default heartbeat cadence assigned to new workers when the registration payload omits it.',
+      configType: 'number',
+      placeholder: '30',
+      section: 'worker_supervision',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'platform.worker_offline_grace_period_ms',
+      label: 'Offline grace period (ms)',
+      description: 'Additional grace after the offline threshold before the platform declares a worker fully offline.',
+      configType: 'number',
+      placeholder: '300000',
+      section: 'worker_supervision',
+      inputMode: 'numeric',
+      min: 0,
+      step: 1000,
+    },
+    {
+      key: 'platform.worker_offline_threshold_multiplier',
+      label: 'Offline threshold multiplier',
+      description: 'Multiplier applied to worker heartbeat intervals when deciding the offline cutoff.',
+      configType: 'number',
+      placeholder: '2',
+      section: 'worker_supervision',
+      inputMode: 'decimal',
+      min: 1,
+      step: 0.1,
+    },
+    {
+      key: 'platform.worker_degraded_threshold_multiplier',
+      label: 'Degraded threshold multiplier',
+      description: 'Multiplier applied to worker heartbeat intervals when deciding the degraded or disconnected cutoff.',
+      configType: 'number',
+      placeholder: '1',
+      section: 'worker_supervision',
+      inputMode: 'decimal',
+      min: 1,
+      step: 0.1,
     },
   ];
 }

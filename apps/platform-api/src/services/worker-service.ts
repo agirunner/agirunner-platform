@@ -3,6 +3,7 @@ import type { DatabasePool } from '../db/database.js';
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
+import { readWorkerSupervisionTimingDefaults } from './platform-timing-defaults.js';
 import { WorkerConnectionHub } from './worker-connection-hub.js';
 import {
   acknowledgeTask,
@@ -60,8 +61,8 @@ export class WorkerService {
     this.context = { pool, eventService, connectionHub, config };
   }
 
-  registerWorker(identity: ApiKeyIdentity, input: RegisterWorkerInput) {
-    return registerWorker(this.context, identity, input);
+  async registerWorker(identity: ApiKeyIdentity, input: RegisterWorkerInput) {
+    return registerWorker(await this.buildWorkerTimingContext(), identity, input);
   }
 
   listWorkers(tenantId: string) {
@@ -88,8 +89,8 @@ export class WorkerService {
     return acknowledgeSignal(this.context, identity, workerId, signalId);
   }
 
-  dispatchReadyTasks(limit?: number): Promise<number> {
-    return dispatchReadyTasks(this.context, limit);
+  async dispatchReadyTasks(limit?: number): Promise<number> {
+    return dispatchReadyTasks(await this.buildWorkerTimingContext(), limit);
   }
 
   acknowledgeTask(workerIdentity: ApiKeyIdentity, taskId: string, agentId?: string): Promise<void> {
@@ -100,8 +101,33 @@ export class WorkerService {
     return releaseExpiredDispatches(this.context);
   }
 
-  enforceHeartbeatTimeouts(now = new Date()): Promise<number> {
-    return enforceHeartbeatTimeouts(this.context, now);
+  async enforceHeartbeatTimeouts(now = new Date()): Promise<number> {
+    return enforceHeartbeatTimeouts(await this.buildWorkerTimingContext(), now);
+  }
+
+  private async buildWorkerTimingContext(): Promise<WorkerServiceContext> {
+    const timingDefaults = await readWorkerSupervisionTimingDefaults(
+      this.context.pool,
+      {
+        dispatchAckTimeoutMs: this.context.config.WORKER_DISPATCH_ACK_TIMEOUT_MS,
+        defaultHeartbeatIntervalSeconds: this.context.config.WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+        offlineGracePeriodMs: this.context.config.WORKER_OFFLINE_GRACE_PERIOD_MS,
+        offlineThresholdMultiplier: this.context.config.WORKER_OFFLINE_THRESHOLD_MULTIPLIER,
+        degradedThresholdMultiplier: this.context.config.WORKER_DEGRADED_THRESHOLD_MULTIPLIER,
+      },
+    );
+
+    return {
+      ...this.context,
+      config: {
+        ...this.context.config,
+        WORKER_DISPATCH_ACK_TIMEOUT_MS: timingDefaults.dispatchAckTimeoutMs,
+        WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: timingDefaults.defaultHeartbeatIntervalSeconds,
+        WORKER_OFFLINE_GRACE_PERIOD_MS: timingDefaults.offlineGracePeriodMs,
+        WORKER_OFFLINE_THRESHOLD_MULTIPLIER: timingDefaults.offlineThresholdMultiplier,
+        WORKER_DEGRADED_THRESHOLD_MULTIPLIER: timingDefaults.degradedThresholdMultiplier,
+      },
+    };
   }
 }
 

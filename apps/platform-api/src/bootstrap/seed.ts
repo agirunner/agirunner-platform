@@ -284,6 +284,41 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_dispatch_ack_timeout_ms',
+    configValue: '15000',
+    configType: 'number',
+    description: 'Maximum time in milliseconds a worker has to acknowledge a dispatch before it is released',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_default_heartbeat_interval_seconds',
+    configValue: '30',
+    configType: 'number',
+    description: 'Default heartbeat interval in seconds assigned to newly registered workers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_offline_grace_period_ms',
+    configValue: '300000',
+    configType: 'number',
+    description: 'Additional grace period in milliseconds before disconnected workers are marked fully offline',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_offline_threshold_multiplier',
+    configValue: '2',
+    configType: 'number',
+    description: 'Heartbeat interval multiplier used when determining the offline cutoff for workers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_degraded_threshold_multiplier',
+    configValue: '1',
+    configType: 'number',
+    description: 'Heartbeat interval multiplier used when determining the degraded or disconnected cutoff for workers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.reconcile_interval_seconds',
     configValue: '5',
     configType: 'number',

@@ -219,6 +219,26 @@ describe('RuntimeDefaultsService', () => {
         }),
       ).rejects.toThrow('container_manager.reconcile_interval_seconds must be at least 1');
     });
+
+    it('rejects invalid worker supervision defaults', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'platform.worker_dispatch_ack_timeout_ms',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.worker_dispatch_ack_timeout_ms must be at least 1');
+
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'platform.worker_offline_threshold_multiplier',
+          configValue: '0.5',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.worker_offline_threshold_multiplier must be at least 1');
+    });
   });
 
   describe('updateDefault', () => {

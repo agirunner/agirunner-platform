@@ -20,6 +20,7 @@ export interface FieldDefinition {
     | 'connected_platform'
     | 'workflow_activation'
     | 'container_manager'
+    | 'worker_supervision'
     | 'task_timeouts'
     | 'container_timeouts'
     | 'lifecycle_timeouts'
