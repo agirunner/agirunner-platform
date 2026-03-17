@@ -10,13 +10,13 @@ describe('config validation', () => {
       DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
       JWT_SECRET: 'a'.repeat(32),
       WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
-      LOG_LEVEL: 'info',
     });
 
     expect(env.PORT).toBe(9999);
     expect(env.NODE_ENV).toBe('test');
     expect(env.CORS_ORIGIN).toBe('http://localhost:5173');
     expect(env.ARTIFACT_STORAGE_BACKEND).toBe('local');
+    expect('LOG_LEVEL' in env).toBe(false);
   });
 
   it('rejects invalid configuration', () => {
@@ -27,7 +27,6 @@ describe('config validation', () => {
         DATABASE_URL: '',
         JWT_SECRET: 'short',
         WEBHOOK_ENCRYPTION_KEY: 'tiny',
-        LOG_LEVEL: 'info',
       }),
     ).toThrowError();
   });
@@ -40,7 +39,6 @@ describe('config validation', () => {
         DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
         JWT_SECRET: 'a'.repeat(32),
         WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
-        LOG_LEVEL: 'info',
         ARTIFACT_STORAGE_BACKEND: 's3',
       }),
     ).toThrowError(/ARTIFACT_S3_BUCKET/);
@@ -54,7 +52,6 @@ describe('config validation', () => {
         DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
         JWT_SECRET: 'a'.repeat(32),
         WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
-        LOG_LEVEL: 'info',
         ARTIFACT_STORAGE_BACKEND: 'gcs',
       }),
     ).toThrowError(/ARTIFACT_GCS_BUCKET/);
@@ -68,7 +65,6 @@ describe('config validation', () => {
         DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
         JWT_SECRET: 'a'.repeat(32),
         WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
-        LOG_LEVEL: 'info',
         ARTIFACT_STORAGE_BACKEND: 'azure',
         ARTIFACT_AZURE_ACCOUNT_NAME: 'storage-account',
         ARTIFACT_AZURE_CONTAINER: 'artifacts',

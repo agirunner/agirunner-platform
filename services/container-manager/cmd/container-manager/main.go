@@ -20,7 +20,7 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: parseLogLevel()}))
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: defaultProcessLogLevel()}))
 
 	cfg := manager.Config{
 		PlatformAPIURL:           envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
@@ -125,17 +125,8 @@ func parseIntWithAlias(primary, fallback string, defaultValue int) int {
 	return parseInt(fallback, defaultValue)
 }
 
-func parseLogLevel() slog.Level {
-	switch strings.ToLower(os.Getenv("LOG_LEVEL")) {
-	case "debug":
-		return slog.LevelDebug
-	case "warn", "warning":
-		return slog.LevelWarn
-	case "error":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
+func defaultProcessLogLevel() slog.Level {
+	return slog.LevelInfo
 }
 
 func parseDuration(envKey string, defaultSeconds int) time.Duration {
@@ -149,6 +140,7 @@ func parseDuration(envKey string, defaultSeconds int) time.Duration {
 	}
 	return time.Duration(seconds) * time.Second
 }
+
 
 // noopDockerClient is a placeholder until the real Docker client is wired.
 type noopDockerClient struct {

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"testing"
 )
 
@@ -63,5 +64,13 @@ func TestEnvWithAliasFallsBackToDefault(t *testing.T) {
 	result := envWithAlias("AGIRUNNER_NOPE_X", "ALSO_NOPE_X", "fallback_default")
 	if result != "fallback_default" {
 		t.Errorf("expected fallback_default, got %s", result)
+	}
+}
+
+func TestDefaultProcessLogLevelAlwaysUsesInfo(t *testing.T) {
+	t.Setenv("LOG_LEVEL", "debug")
+
+	if level := defaultProcessLogLevel(); level != slog.LevelInfo {
+		t.Fatalf("expected slog.LevelInfo, got %v", level)
 	}
 }

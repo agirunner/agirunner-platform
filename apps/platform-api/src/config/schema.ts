@@ -14,7 +14,6 @@ export const envSchema = z
     WEBHOOK_ENCRYPTION_KEY: z
       .string()
       .min(32, 'WEBHOOK_ENCRYPTION_KEY must be at least 32 characters long'),
-    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
     JWT_EXPIRES_IN: z.string().default('1h'),
     JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
     RATE_LIMIT_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(100),

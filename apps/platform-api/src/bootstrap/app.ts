@@ -54,6 +54,9 @@ import { registerWebsocketGateway } from './websocket.js';
 import { configureApiKeyLogging } from '../auth/api-key.js';
 import { configureProviderSecretEncryptionKey } from '../lib/oauth-crypto.js';
 
+const DEFAULT_PROCESS_LOG_LEVEL = 'info';
+const DEFAULT_GOVERNANCE_LOG_LEVEL = 'info';
+
 function requireSecretValue(source: NodeJS.ProcessEnv, envName: 'JWT_SECRET' | 'WEBHOOK_ENCRYPTION_KEY'): string {
   const secretValue = source[envName];
 
@@ -94,11 +97,11 @@ export async function buildApp() {
 
   assertRequiredStartupSecrets();
   const config = loadEnv(process.env);
-  configureApiKeyLogging(config.LOG_LEVEL);
+  configureApiKeyLogging(DEFAULT_PROCESS_LOG_LEVEL);
   configureProviderSecretEncryptionKey(config.WEBHOOK_ENCRYPTION_KEY);
   const app = Fastify({
     logger: {
-      level: config.LOG_LEVEL,
+      level: DEFAULT_PROCESS_LOG_LEVEL,
     },
   });
 
@@ -114,7 +117,7 @@ export async function buildApp() {
   await eventStreamService.start();
 
   const logService = new LogService(pool);
-  const logLevelCache = new LogLevelCache(pool, config.LOG_LEVEL);
+  const logLevelCache = new LogLevelCache(pool, DEFAULT_GOVERNANCE_LOG_LEVEL);
   logService.setLevelFilter(logLevelCache);
   const logStreamService = new LogStreamService(pool);
   await logStreamService.start();
