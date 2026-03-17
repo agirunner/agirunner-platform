@@ -1467,14 +1467,6 @@ export class WorkflowActivationDispatchService {
     tenantId: string,
     client: DatabaseClient,
   ): Promise<number> {
-    if (
-      typeof this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES === 'number'
-      && Number.isInteger(this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES)
-      && this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES > 0
-    ) {
-      return this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES;
-    }
-
     return readRequiredPositiveIntegerRuntimeDefault(
       client,
       tenantId,

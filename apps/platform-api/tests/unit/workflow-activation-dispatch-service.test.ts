@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const { readRequiredPositiveIntegerRuntimeDefaultMock } = vi.hoisted(() => ({
+  readRequiredPositiveIntegerRuntimeDefaultMock: vi.fn(async () => 30),
+}));
 
 vi.mock('../../src/services/platform-timing-defaults.js', () => ({
   readWorkflowActivationTimingDefaults: vi.fn(async () => ({
@@ -8,9 +12,25 @@ vi.mock('../../src/services/platform-timing-defaults.js', () => ({
   })),
 }));
 
+vi.mock('../../src/services/runtime-default-values.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../src/services/runtime-default-values.js')>(
+      '../../src/services/runtime-default-values.js',
+    );
+  return {
+    ...actual,
+    readRequiredPositiveIntegerRuntimeDefault: readRequiredPositiveIntegerRuntimeDefaultMock,
+  };
+});
+
 import { WorkflowActivationDispatchService } from '../../src/services/workflow-activation-dispatch-service.js';
 
 describe('WorkflowActivationDispatchService', () => {
+  beforeEach(() => {
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockReset();
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockResolvedValue(30);
+  });
+
   it('enqueues only fresh heartbeat activations for idle workflows', async () => {
     const now = vi.spyOn(Date, 'now').mockReturnValue(new Date('2026-03-13T12:00:00Z').getTime());
     const eventService = { emit: vi.fn(async () => undefined) };
@@ -537,12 +557,6 @@ describe('WorkflowActivationDispatchService', () => {
             }],
           };
         }
-        if (sql.includes('FROM runtime_defaults') && sql.includes('config_key = $2')) {
-          return {
-            rowCount: 1,
-            rows: [{ config_value: '45' }],
-          };
-        }
         if (sql.includes('INSERT INTO tasks')) {
           expect(params?.[13]).toBe(45);
           return { rowCount: 1, rows: [{ id: 'task-runtime-default' }] };
@@ -560,9 +574,117 @@ describe('WorkflowActivationDispatchService', () => {
       } as never,
     });
 
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockResolvedValueOnce(45);
+
     const taskId = await service.dispatchActivation('tenant-1', 'activation-runtime-default');
 
     expect(taskId).toBe('task-runtime-default');
+  });
+
+  it('fails fast when the runtime default task timeout is missing during activation dispatch', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-missing-default',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-missing-default',
+              reason: 'task.approved',
+              event_type: 'task.approved',
+              payload: { task_id: 'task-9', work_item_id: 'work-item-9' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(Date.now() - 5_000),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              project_id: 'project-1',
+              lifecycle: 'ongoing',
+              current_stage: null,
+              active_stages: ['triage'],
+              playbook_id: 'playbook-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship tested code',
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-missing-default',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-missing-default',
+              request_id: 'req-missing-default',
+              reason: 'task.approved',
+              event_type: 'task.approved',
+              payload: { task_id: 'task-9', work_item_id: 'work-item-9' },
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-missing-default',
+              queued_at: new Date(Date.now() - 5_000),
+              started_at: new Date(),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          throw new Error('activation task insert should not run without a default timeout');
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      config: {
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      } as never,
+    });
+
+    readRequiredPositiveIntegerRuntimeDefaultMock.mockRejectedValueOnce(
+      new Error('Missing runtime default "tasks.default_timeout_minutes"'),
+    );
+
+    await expect(service.dispatchActivation('tenant-1', 'activation-missing-default')).rejects.toThrow(
+      'Missing runtime default "tasks.default_timeout_minutes"',
+    );
   });
 
   it('completes heartbeat-only activations without dispatch when specialist work is still running', async () => {
