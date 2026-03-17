@@ -239,6 +239,17 @@ describe('RuntimeDefaultsService', () => {
         }),
       ).rejects.toThrow('platform.worker_offline_threshold_multiplier must be at least 1');
     });
+
+    it('rejects non-positive lifecycle loop defaults', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'platform.lifecycle_dispatch_loop_interval_ms',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.lifecycle_dispatch_loop_interval_ms must be at least 1');
+    });
   });
 
   describe('updateDefault', () => {

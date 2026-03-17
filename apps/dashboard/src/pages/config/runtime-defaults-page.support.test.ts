@@ -24,6 +24,7 @@ describe('runtime defaults page support', () => {
       'workflow_activation',
       'container_manager',
       'worker_supervision',
+      'platform_loops',
       'workspace_timeouts',
       'capture_timeouts',
       'secrets_timeouts',
@@ -54,6 +55,9 @@ describe('runtime defaults page support', () => {
     );
     expect(fieldsForSection('worker_supervision').map((field) => field.key)).toContain(
       'platform.worker_dispatch_ack_timeout_ms',
+    );
+    expect(fieldsForSection('platform_loops').map((field) => field.key)).toContain(
+      'platform.lifecycle_dispatch_loop_interval_ms',
     );
     expect(fieldsForSection('task_timeouts').map((field) => field.key)).toContain(
       'tasks.default_timeout_minutes',

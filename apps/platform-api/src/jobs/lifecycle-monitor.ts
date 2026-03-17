@@ -1,9 +1,11 @@
 import type { FastifyBaseLogger } from 'fastify';
+import type { DatabasePool } from '../db/database.js';
 
 import type { AppEnv } from '../config/schema.js';
 import { AgentService } from '../services/agent-service.js';
 import { FleetService } from '../services/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
+import { readLifecycleMonitorTimingDefaults } from '../services/platform-timing-defaults.js';
 import { ScheduledWorkItemTriggerService } from '../services/scheduled-work-item-trigger-service.js';
 import { TaskService } from '../services/task-service.js';
 import { WorkerService } from '../services/worker-service.js';
@@ -11,6 +13,10 @@ import { WorkflowActivationDispatchService } from '../services/workflow-activati
 
 export interface LifecycleMonitor {
   stop: () => void;
+}
+
+interface LifecycleTimingResolver {
+  resolve: () => Promise<number>;
 }
 
 export async function runAgentHeartbeatTick(
@@ -133,6 +139,7 @@ export async function runGovernanceRetentionTick(
 
 export function startLifecycleMonitor(
   logger: FastifyBaseLogger,
+  pool: DatabasePool,
   config: AppEnv,
   agentService: AgentService,
   taskService: TaskService,
@@ -142,67 +149,120 @@ export function startLifecycleMonitor(
   fleetService?: FleetService,
   governanceService?: GovernanceService,
 ): LifecycleMonitor {
-  const heartbeatTimer = setInterval(async () => {
-    try {
-      await runAgentHeartbeatTick(logger, agentService);
-    } catch (error) {
-      logger.error({ err: error }, 'heartbeat_monitor_failed');
-    }
-  }, config.LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS);
-
-  const workerHeartbeatTimer = setInterval(async () => {
-    try {
-      await runWorkerHeartbeatTick(logger, workerService);
-    } catch (error) {
-      logger.error({ err: error }, 'worker_heartbeat_monitor_failed');
-    }
-  }, config.LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS);
-
-  const timeoutTimer = setInterval(async () => {
-    try {
-      await runTaskTimeoutTick(logger, taskService);
-    } catch (error) {
-      logger.error({ err: error }, 'task_timeout_monitor_failed');
-    }
-  }, config.LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS);
-
-  const dispatchTimer = setInterval(async () => {
-    try {
-      await runDispatchTick(
-        logger,
-        workerService,
-        workflowActivationDispatchService,
-        scheduledWorkItemTriggerService,
-      );
-    } catch (error) {
-      logger.error({ err: error }, 'worker_dispatch_monitor_failed');
-    }
-  }, config.LIFECYCLE_DISPATCH_LOOP_INTERVAL_MS);
-
-  const heartbeatPruneTimer = setInterval(async () => {
-    try {
-      await runHeartbeatPruneTick(logger, fleetService);
-    } catch (error) {
-      logger.error({ err: error }, 'heartbeat_prune_failed');
-    }
-  }, 60_000);
-
-  const retentionTimer = setInterval(async () => {
-    try {
-      await runGovernanceRetentionTick(logger, governanceService);
-    } catch (error) {
-      logger.error({ err: error }, 'governance_retention_monitor_failed');
-    }
-  }, config.GOVERNANCE_RETENTION_JOB_INTERVAL_MS);
+  const timingFallback = {
+    agentHeartbeatIntervalMs: config.LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS,
+    workerHeartbeatIntervalMs: config.LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS,
+    taskTimeoutIntervalMs: config.LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS,
+    dispatchLoopIntervalMs: config.LIFECYCLE_DISPATCH_LOOP_INTERVAL_MS,
+    heartbeatPruneIntervalMs: 60_000,
+    governanceRetentionIntervalMs: config.GOVERNANCE_RETENTION_JOB_INTERVAL_MS,
+  };
+  const readTimingDefaults = () => readLifecycleMonitorTimingDefaults(pool, timingFallback);
+  const stopHeartbeatLoop = startRecurringLoop(
+    { resolve: async () => (await readTimingDefaults()).agentHeartbeatIntervalMs },
+    async () => {
+      try {
+        await runAgentHeartbeatTick(logger, agentService);
+      } catch (error) {
+        logger.error({ err: error }, 'heartbeat_monitor_failed');
+      }
+    },
+  );
+  const stopWorkerHeartbeatLoop = startRecurringLoop(
+    { resolve: async () => (await readTimingDefaults()).workerHeartbeatIntervalMs },
+    async () => {
+      try {
+        await runWorkerHeartbeatTick(logger, workerService);
+      } catch (error) {
+        logger.error({ err: error }, 'worker_heartbeat_monitor_failed');
+      }
+    },
+  );
+  const stopTimeoutLoop = startRecurringLoop(
+    { resolve: async () => (await readTimingDefaults()).taskTimeoutIntervalMs },
+    async () => {
+      try {
+        await runTaskTimeoutTick(logger, taskService);
+      } catch (error) {
+        logger.error({ err: error }, 'task_timeout_monitor_failed');
+      }
+    },
+  );
+  const stopDispatchLoop = startRecurringLoop(
+    { resolve: async () => (await readTimingDefaults()).dispatchLoopIntervalMs },
+    async () => {
+      try {
+        await runDispatchTick(
+          logger,
+          workerService,
+          workflowActivationDispatchService,
+          scheduledWorkItemTriggerService,
+        );
+      } catch (error) {
+        logger.error({ err: error }, 'worker_dispatch_monitor_failed');
+      }
+    },
+  );
+  const stopHeartbeatPruneLoop = startRecurringLoop(
+    { resolve: async () => (await readTimingDefaults()).heartbeatPruneIntervalMs },
+    async () => {
+      try {
+        await runHeartbeatPruneTick(logger, fleetService);
+      } catch (error) {
+        logger.error({ err: error }, 'heartbeat_prune_failed');
+      }
+    },
+  );
+  const stopRetentionLoop = startRecurringLoop(
+    { resolve: async () => (await readTimingDefaults()).governanceRetentionIntervalMs },
+    async () => {
+      try {
+        await runGovernanceRetentionTick(logger, governanceService);
+      } catch (error) {
+        logger.error({ err: error }, 'governance_retention_monitor_failed');
+      }
+    },
+  );
 
   return {
     stop: () => {
-      clearInterval(heartbeatTimer);
-      clearInterval(workerHeartbeatTimer);
-      clearInterval(timeoutTimer);
-      clearInterval(dispatchTimer);
-      clearInterval(heartbeatPruneTimer);
-      clearInterval(retentionTimer);
+      stopHeartbeatLoop();
+      stopWorkerHeartbeatLoop();
+      stopTimeoutLoop();
+      stopDispatchLoop();
+      stopHeartbeatPruneLoop();
+      stopRetentionLoop();
     },
+  };
+}
+
+function startRecurringLoop(
+  timing: LifecycleTimingResolver,
+  runOnce: () => Promise<void>,
+): () => void {
+  let stopped = false;
+  let timer: NodeJS.Timeout | undefined;
+
+  const scheduleNext = async () => {
+    if (stopped) {
+      return;
+    }
+    const intervalMs = await timing.resolve();
+    timer = setTimeout(async () => {
+      try {
+        await runOnce();
+      } finally {
+        await scheduleNext();
+      }
+    }, intervalMs);
+  };
+
+  void scheduleNext();
+
+  return () => {
+    stopped = true;
+    if (timer) {
+      clearTimeout(timer);
+    }
   };
 }

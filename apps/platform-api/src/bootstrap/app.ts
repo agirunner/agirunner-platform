@@ -230,6 +230,7 @@ export async function buildApp() {
 
   const lifecycleMonitor = startLifecycleMonitor(
     app.log,
+    pool,
     config,
     app.agentService,
     app.taskService,

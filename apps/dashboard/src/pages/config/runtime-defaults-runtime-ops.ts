@@ -52,6 +52,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Tune worker heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
   },
   {
+    key: 'platform_loops',
+    title: 'Platform loops',
+    description: 'Control the cadence of background platform enforcement, dispatch, pruning, and retention sweeps.',
+  },
+  {
     key: 'workspace_timeouts',
     title: 'Workspace timeouts',
     description: 'Bound repo bootstrap, identity setup, and context injection steps before work begins.',
@@ -125,6 +130,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   ...buildWorkflowActivationFields(),
   ...buildContainerManagerFields(),
   ...buildWorkerSupervisionFields(),
+  ...buildPlatformLoopFields(),
   ...buildWorkspaceTimeoutFields(),
   {
     key: 'capture.push_timeout_seconds',
@@ -494,6 +500,77 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
       inputMode: 'decimal',
       min: 1,
       step: 0.1,
+    },
+  ];
+}
+
+function buildPlatformLoopFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'platform.lifecycle_agent_heartbeat_check_interval_ms',
+      label: 'Agent heartbeat sweep interval (ms)',
+      description: 'How often the platform checks for stale agent heartbeats.',
+      configType: 'number',
+      placeholder: '15000',
+      section: 'platform_loops',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.lifecycle_worker_heartbeat_check_interval_ms',
+      label: 'Worker heartbeat sweep interval (ms)',
+      description: 'How often the platform checks for stale worker heartbeats.',
+      configType: 'number',
+      placeholder: '15000',
+      section: 'platform_loops',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.lifecycle_task_timeout_check_interval_ms',
+      label: 'Task timeout sweep interval (ms)',
+      description: 'How often the platform enforces task timeouts and graceful workflow cancellation windows.',
+      configType: 'number',
+      placeholder: '60000',
+      section: 'platform_loops',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.lifecycle_dispatch_loop_interval_ms',
+      label: 'Dispatch loop interval (ms)',
+      description: 'How often the platform runs the ready-task and workflow-activation dispatch loop.',
+      configType: 'number',
+      placeholder: '2000',
+      section: 'platform_loops',
+      inputMode: 'numeric',
+      min: 1,
+      step: 100,
+    },
+    {
+      key: 'platform.heartbeat_prune_interval_ms',
+      label: 'Heartbeat prune interval (ms)',
+      description: 'How often stale fleet heartbeat rows are pruned from platform state.',
+      configType: 'number',
+      placeholder: '60000',
+      section: 'platform_loops',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.governance_retention_job_interval_ms',
+      label: 'Retention sweep interval (ms)',
+      description: 'How often the platform runs governance retention and log-partition maintenance.',
+      configType: 'number',
+      placeholder: '3600000',
+      section: 'platform_loops',
+      inputMode: 'numeric',
+      min: 1000,
+      step: 1000,
     },
   ];
 }

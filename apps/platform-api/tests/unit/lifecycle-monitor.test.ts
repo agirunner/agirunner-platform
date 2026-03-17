@@ -1,9 +1,27 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../src/services/platform-timing-defaults.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/services/platform-timing-defaults.js')>(
+    '../../src/services/platform-timing-defaults.js',
+  );
+  return {
+    ...actual,
+    readLifecycleMonitorTimingDefaults: vi.fn(async () => ({
+      agentHeartbeatIntervalMs: 60_000,
+      workerHeartbeatIntervalMs: 60_000,
+      taskTimeoutIntervalMs: 60_000,
+      dispatchLoopIntervalMs: 1_000,
+      heartbeatPruneIntervalMs: 60_000,
+      governanceRetentionIntervalMs: 60_000,
+    })),
+  };
+});
+
 import {
   runWorkflowActivationDispatchTick,
   startLifecycleMonitor,
 } from '../../src/jobs/lifecycle-monitor.js';
+import { readLifecycleMonitorTimingDefaults } from '../../src/services/platform-timing-defaults.js';
 
 describe('startLifecycleMonitor', () => {
   afterEach(() => {
@@ -60,6 +78,7 @@ describe('startLifecycleMonitor', () => {
 
     const monitor = startLifecycleMonitor(
       logger as never,
+      { query: vi.fn() } as never,
       {
         LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS: 60_000,
         LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS: 60_000,
@@ -108,6 +127,70 @@ describe('startLifecycleMonitor', () => {
       'workflow_activation_heartbeats_enqueued',
     );
     expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(1);
+
+    monitor.stop();
+  });
+
+  it('re-reads dispatch loop timing between cycles', async () => {
+    vi.useFakeTimers();
+    const readTimingDefaults = vi.mocked(readLifecycleMonitorTimingDefaults);
+    let dispatchLoopIntervalMs = 1_000;
+    readTimingDefaults.mockImplementation(async () => ({
+      agentHeartbeatIntervalMs: 60_000,
+      workerHeartbeatIntervalMs: 60_000,
+      taskTimeoutIntervalMs: 60_000,
+      dispatchLoopIntervalMs,
+      heartbeatPruneIntervalMs: 60_000,
+      governanceRetentionIntervalMs: 60_000,
+    }));
+
+    const workerService = {
+      enforceHeartbeatTimeouts: vi.fn(async () => 0),
+      releaseExpiredDispatches: vi.fn(async () => undefined),
+      dispatchReadyTasks: vi.fn(async () => undefined),
+    };
+    const workflowActivationDispatchService = {
+      recoverStaleActivations: vi.fn(async () => ({
+        requeued: 0,
+        redispatched: 0,
+        reported: 0,
+        details: [],
+      })),
+      enqueueHeartbeatActivations: vi.fn(async () => 0),
+      dispatchQueuedActivations: vi.fn(async () => 0),
+    };
+
+    const monitor = startLifecycleMonitor(
+      { info: vi.fn(), error: vi.fn() } as never,
+      { query: vi.fn() } as never,
+      {
+        LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS: 60_000,
+        LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS: 60_000,
+        LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS: 60_000,
+        LIFECYCLE_DISPATCH_LOOP_INTERVAL_MS: 1_000,
+        GOVERNANCE_RETENTION_JOB_INTERVAL_MS: 60_000,
+      } as never,
+      { enforceHeartbeatTimeouts: vi.fn(async () => 0) } as never,
+      {
+        failTimedOutTasks: vi.fn(async () => 0),
+        finalizeGracefulWorkflowCancellations: vi.fn(async () => 0),
+      } as never,
+      workerService as never,
+      workflowActivationDispatchService as never,
+    );
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(1);
+
+    dispatchLoopIntervalMs = 5_000;
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(4_000);
+    expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(3);
 
     monitor.stop();
   });

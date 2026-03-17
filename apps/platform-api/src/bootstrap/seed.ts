@@ -319,6 +319,48 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.lifecycle_agent_heartbeat_check_interval_ms',
+    configValue: '15000',
+    configType: 'number',
+    description: 'Interval in milliseconds between platform agent heartbeat enforcement sweeps',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.lifecycle_worker_heartbeat_check_interval_ms',
+    configValue: '15000',
+    configType: 'number',
+    description: 'Interval in milliseconds between platform worker heartbeat enforcement sweeps',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.lifecycle_task_timeout_check_interval_ms',
+    configValue: '60000',
+    configType: 'number',
+    description: 'Interval in milliseconds between platform task-timeout and workflow-cancellation sweeps',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.lifecycle_dispatch_loop_interval_ms',
+    configValue: '2000',
+    configType: 'number',
+    description: 'Interval in milliseconds between platform dispatch loop executions',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.heartbeat_prune_interval_ms',
+    configValue: '60000',
+    configType: 'number',
+    description: 'Interval in milliseconds between stale-heartbeat prune sweeps',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.governance_retention_job_interval_ms',
+    configValue: '3600000',
+    configType: 'number',
+    description: 'Interval in milliseconds between governance retention and log partition sweeps',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.reconcile_interval_seconds',
     configValue: '5',
     configType: 'number',

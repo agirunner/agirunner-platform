@@ -21,6 +21,7 @@ export interface FieldDefinition {
     | 'workflow_activation'
     | 'container_manager'
     | 'worker_supervision'
+    | 'platform_loops'
     | 'task_timeouts'
     | 'container_timeouts'
     | 'lifecycle_timeouts'
