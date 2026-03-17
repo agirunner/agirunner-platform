@@ -464,6 +464,28 @@ describe('FleetService DCM', () => {
         global_max_runtimes: 12,
       });
     });
+
+    it('fails closed when required container-manager runtime defaults are missing', async () => {
+      pool.query.mockImplementation(async (query: string) => {
+        if (query.includes('FROM worker_desired_state')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (query.includes('SELECT config_key, config_value FROM runtime_defaults')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (query.includes('FROM playbooks p')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (query.includes('FROM runtime_heartbeats')) {
+          return { rows: [], rowCount: 0 };
+        }
+        throw new Error(`Unexpected query in getReconcileSnapshot test: ${query}`);
+      });
+
+      await expect(service.getReconcileSnapshot(TENANT_ID)).rejects.toThrow(
+        /Missing runtime default "container_manager\.reconcile_interval_seconds"/,
+      );
+    });
   });
 
   describe('drainRuntime', () => {
@@ -490,7 +512,7 @@ describe('FleetService DCM', () => {
     it('aggregates runtime states across playbooks', async () => {
       // First call: global_max_runtimes config
       pool.query.mockResolvedValueOnce({
-        rows: [{ config_value: '10' }],
+        rows: [{ config_key: 'global_max_runtimes', config_value: '10' }],
         rowCount: 1,
       });
       // Second call: heartbeats
@@ -591,20 +613,12 @@ describe('FleetService DCM', () => {
       expect(result.recent_events[0].event_type).toBe('runtime.started');
     });
 
-    it('uses default global_max_runtimes when not configured', async () => {
+    it('fails closed when global_max_runtimes is not configured', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // global_max_runtimes
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // playbooks query
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // worker pool status
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // recent_events
 
-      const result = await service.getFleetStatus(TENANT_ID);
-
-      expect(result.global_max_runtimes).toBe(10);
-      expect(result.total_running).toBe(0);
-      expect(result.worker_pools).toEqual([]);
-      expect(result.recent_events).toEqual([]);
+      await expect(service.getFleetStatus(TENANT_ID)).rejects.toThrow(
+        /Missing runtime default "global_max_runtimes"/,
+      );
     });
   });
 
@@ -885,7 +899,10 @@ describe('FleetService DCM', () => {
 
   describe('getFleetStatus recent_events', () => {
     it('includes recent fleet events in status response', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ config_value: '5' }], rowCount: 1 }); // global_max
+      pool.query.mockResolvedValueOnce({
+        rows: [{ config_key: 'global_max_runtimes', config_value: '5' }],
+        rowCount: 1,
+      }); // global_max
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // playbooks query
@@ -904,7 +921,10 @@ describe('FleetService DCM', () => {
     });
 
     it('redacts secret-bearing payload values in recent fleet events', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [{ config_value: '5' }], rowCount: 1 });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ config_key: 'global_max_runtimes', config_value: '5' }],
+        rowCount: 1,
+      });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
@@ -940,7 +960,10 @@ describe('FleetService DCM', () => {
     });
 
     it('queries fleet_events with correct tenant and limit', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // global_max
+      pool.query.mockResolvedValueOnce({
+        rows: [{ config_key: 'global_max_runtimes', config_value: '5' }],
+        rowCount: 1,
+      }); // global_max
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // playbooks query
