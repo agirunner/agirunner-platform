@@ -126,11 +126,7 @@ export class WorkflowService {
       eventService,
       stateService,
       resolveCancelSignalGracePeriodMs: async (tenantId: string) =>
-        readTaskCancelSignalGracePeriodMs(
-          pool,
-          tenantId,
-          config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS,
-        ),
+        readTaskCancelSignalGracePeriodMs(pool, tenantId),
       workerConnectionHub: connectionHub,
       getWorkflow: this.getWorkflow.bind(this),
     });

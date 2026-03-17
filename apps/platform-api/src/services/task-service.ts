@@ -72,7 +72,6 @@ export class TaskService {
       const cancelSignalGracePeriodMs = await readTaskCancelSignalGracePeriodMs(
         pool,
         identity.tenantId,
-        config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS,
       );
       const signalPayload = {
         reason,
@@ -207,7 +206,6 @@ export class TaskService {
         readTaskCancelSignalGracePeriodMs(
           pool,
           tenantId,
-          config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS,
         ),
     );
   }

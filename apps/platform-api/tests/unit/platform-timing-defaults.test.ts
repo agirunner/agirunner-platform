@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   readLifecycleMonitorTimingDefaults,
   readTaskCancelSignalGracePeriodMs,
+  readWorkerSupervisionTimingDefaults,
   readWorkflowActivationTimingDefaults,
 } from '../../src/services/platform-timing-defaults.js';
 
@@ -24,11 +25,7 @@ describe('platform timing defaults', () => {
       }),
     };
 
-    const defaults = await readWorkflowActivationTimingDefaults(
-      pool as never,
-      { delayMs: 10_000, heartbeatIntervalMs: 90_000, staleAfterMs: 300_000 },
-      'tenant-1',
-    );
+    const defaults = await readWorkflowActivationTimingDefaults(pool as never, 'tenant-1');
 
     expect(defaults).toEqual({
       activationDelayMs: 15_000,
@@ -37,24 +34,17 @@ describe('platform timing defaults', () => {
     });
   });
 
-  it('falls back to provided values when runtime defaults are absent', async () => {
+  it('fails when required runtime defaults are absent', async () => {
     const pool = {
       query: vi.fn(async () => ({ rowCount: 0, rows: [] })),
     };
 
-    const defaults = await readWorkflowActivationTimingDefaults(
-      pool as never,
-      { delayMs: 11_000, heartbeatIntervalMs: 91_000, staleAfterMs: 301_000 },
-      'tenant-1',
+    await expect(readWorkflowActivationTimingDefaults(pool as never, 'tenant-1')).rejects.toThrow(
+      'Missing runtime default "platform.workflow_activation_delay_ms"',
     );
-    const cancelGraceMs = await readTaskCancelSignalGracePeriodMs(pool as never, 'tenant-1', 75_000);
-
-    expect(defaults).toEqual({
-      activationDelayMs: 11_000,
-      heartbeatIntervalMs: 91_000,
-      staleAfterMs: 301_000,
-    });
-    expect(cancelGraceMs).toBe(75_000);
+    await expect(readTaskCancelSignalGracePeriodMs(pool as never, 'tenant-1')).rejects.toThrow(
+      'Missing runtime default "platform.task_cancel_signal_grace_period_ms"',
+    );
   });
 
   it('reads lifecycle monitor timings from runtime defaults storage', async () => {
@@ -83,18 +73,7 @@ describe('platform timing defaults', () => {
       }),
     };
 
-    const defaults = await readLifecycleMonitorTimingDefaults(
-      pool as never,
-      {
-        agentHeartbeatIntervalMs: 15_000,
-        workerHeartbeatIntervalMs: 15_000,
-        taskTimeoutIntervalMs: 60_000,
-        dispatchLoopIntervalMs: 2_000,
-        heartbeatPruneIntervalMs: 60_000,
-        governanceRetentionIntervalMs: 3_600_000,
-      },
-      'tenant-1',
-    );
+    const defaults = await readLifecycleMonitorTimingDefaults(pool as never, 'tenant-1');
 
     expect(defaults).toEqual({
       agentHeartbeatIntervalMs: 21_000,
@@ -104,5 +83,21 @@ describe('platform timing defaults', () => {
       heartbeatPruneIntervalMs: 45_000,
       governanceRetentionIntervalMs: 5_400_000,
     });
+  });
+
+  it('fails when runtime defaults contain invalid values', async () => {
+    const pool = {
+      query: vi.fn(async (_sql: string, params?: unknown[]) => {
+        const key = params?.[1];
+        if (key === 'platform.worker_offline_threshold_multiplier') {
+          return { rowCount: 1, rows: [{ config_value: '0' }] };
+        }
+        return { rowCount: 1, rows: [{ config_value: '1' }] };
+      }),
+    };
+
+    await expect(readWorkerSupervisionTimingDefaults(pool as never, 'tenant-1')).rejects.toThrow(
+      'Runtime default "platform.worker_offline_threshold_multiplier" must be a finite number greater than or equal to 1',
+    );
   });
 });

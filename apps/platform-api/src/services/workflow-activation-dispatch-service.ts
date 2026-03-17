@@ -1436,15 +1436,7 @@ export class WorkflowActivationDispatchService {
   }
 
   private async readActivationTimingDefaults() {
-    return readWorkflowActivationTimingDefaults(
-      this.deps.pool,
-      {
-        delayMs: this.deps.config.WORKFLOW_ACTIVATION_DELAY_MS,
-        heartbeatIntervalMs: this.deps.config.WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS,
-        staleAfterMs: this.deps.config.WORKFLOW_ACTIVATION_STALE_AFTER_MS,
-      },
-      DEFAULT_TENANT_ID,
-    );
+    return readWorkflowActivationTimingDefaults(this.deps.pool, DEFAULT_TENANT_ID);
   }
 
   private async resolveDefaultTaskTimeoutMinutes(

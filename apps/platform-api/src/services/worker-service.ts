@@ -106,16 +106,7 @@ export class WorkerService {
   }
 
   private async buildWorkerTimingContext(): Promise<WorkerServiceContext> {
-    const timingDefaults = await readWorkerSupervisionTimingDefaults(
-      this.context.pool,
-      {
-        dispatchAckTimeoutMs: this.context.config.WORKER_DISPATCH_ACK_TIMEOUT_MS,
-        defaultHeartbeatIntervalSeconds: this.context.config.WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
-        offlineGracePeriodMs: this.context.config.WORKER_OFFLINE_GRACE_PERIOD_MS,
-        offlineThresholdMultiplier: this.context.config.WORKER_OFFLINE_THRESHOLD_MULTIPLIER,
-        degradedThresholdMultiplier: this.context.config.WORKER_DEGRADED_THRESHOLD_MULTIPLIER,
-      },
-    );
+    const timingDefaults = await readWorkerSupervisionTimingDefaults(this.context.pool);
 
     return {
       ...this.context,

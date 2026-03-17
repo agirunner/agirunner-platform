@@ -149,15 +149,7 @@ export function startLifecycleMonitor(
   fleetService?: FleetService,
   governanceService?: GovernanceService,
 ): LifecycleMonitor {
-  const timingFallback = {
-    agentHeartbeatIntervalMs: config.LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS,
-    workerHeartbeatIntervalMs: config.LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS,
-    taskTimeoutIntervalMs: config.LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS,
-    dispatchLoopIntervalMs: config.LIFECYCLE_DISPATCH_LOOP_INTERVAL_MS,
-    heartbeatPruneIntervalMs: 60_000,
-    governanceRetentionIntervalMs: config.GOVERNANCE_RETENTION_JOB_INTERVAL_MS,
-  };
-  const readTimingDefaults = () => readLifecycleMonitorTimingDefaults(pool, timingFallback);
+  const readTimingDefaults = () => readLifecycleMonitorTimingDefaults(pool);
   const stopHeartbeatLoop = startRecurringLoop(
     { resolve: async () => (await readTimingDefaults()).agentHeartbeatIntervalMs },
     async () => {
