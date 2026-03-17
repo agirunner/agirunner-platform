@@ -3,12 +3,20 @@ import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
-import { loadResolvedPredecessorHandoff } from './predecessor-handoff-resolver.js';
+import { loadRecentRelevantHandoffs } from './predecessor-handoff-resolver.js';
+import { ProjectMemoryScopeService } from './project-memory-scope-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
-import { currentStageNameFromStages, type WorkflowStageResponse } from './workflow-stage-service.js';
+import {
+  currentStageNameFromStages,
+  normalizeWorkflowStageView,
+  type WorkflowStageViewInput,
+} from './workflow-stage-service.js';
 
 const TASK_CONTEXT_SECRET_REDACTION = 'redacted://task-context-secret';
+const TASK_CONTEXT_MEMORY_INDEX_LIMIT = 100;
+const TASK_CONTEXT_ARTIFACT_INDEX_LIMIT = 100;
+const TASK_CONTEXT_RECENT_HANDOFF_LIMIT = 2;
 
 export async function buildTaskContext(
   db: DatabaseQueryable,
@@ -31,7 +39,7 @@ export async function buildTaskContext(
     agent = assignedAgentRes.rows[0] ?? null;
   }
 
-  const [projectRes, workflowRes, depsRes, documents, predecessorHandoff] = await Promise.all([
+  const [projectRes, workflowRes, depsRes, documents, recentHandoffs] = await Promise.all([
     task.project_id
       ? db.query(
           `SELECT id,
@@ -66,8 +74,9 @@ export async function buildTaskContext(
         )
       : Promise.resolve({ rows: [] }),
     listTaskDocuments(db, tenantId, task),
-    loadPredecessorHandoff(db, tenantId, task),
+    loadRecentRelevantHandoffs(db, tenantId, task, TASK_CONTEXT_RECENT_HANDOFF_LIMIT),
   ]);
+  const predecessorHandoff = recentHandoffs[0] ?? null;
 
   const upstreamOutputs = Object.fromEntries(
     depsRes.rows.map((row) => [
@@ -80,6 +89,12 @@ export async function buildTaskContext(
   const continuousWorkflowRow =
     workflowRow && isContinuousWorkflowRow(workflowRow) ? workflowRow : null;
   const workItem = await loadWorkItemContext(db, tenantId, task);
+  const projectContext = await loadProjectContext(
+    db,
+    tenantId,
+    projectRes.rows[0] as Record<string, unknown> | undefined,
+    task,
+  );
   const activeStages = workflowRow
     ? await loadWorkflowActiveStages(
         db,
@@ -132,7 +147,7 @@ export async function buildTaskContext(
     role: asOptionalString(task.role),
     suppressLayers: readSuppressedLayers(workflowRow?.instruction_config),
     workflowContext,
-    project: projectRes.rows[0] as Record<string, unknown> | undefined,
+    project: projectContext ?? undefined,
     workItem,
     predecessorHandoff,
     orchestratorContext: orchestratorContext as Record<string, unknown> | undefined,
@@ -140,7 +155,7 @@ export async function buildTaskContext(
 
   return {
     agent: sanitizeTaskContextValue(agent),
-    project: sanitizeTaskContextValue(projectRes.rows[0] ?? null),
+    project: sanitizeTaskContextValue(projectContext),
     workflow: sanitizeTaskContextValue(workflowContext),
     orchestrator: sanitizeTaskContextValue(orchestratorContext),
     documents: sanitizeTaskContextValue(documents),
@@ -152,6 +167,7 @@ export async function buildTaskContext(
       context: sanitizeTaskContextValue(task.context),
       work_item: sanitizeTaskContextValue(workItem),
       predecessor_handoff: sanitizeTaskContextValue(predecessorHandoff),
+      recent_handoffs: sanitizeTaskContextValue(recentHandoffs),
       failure_mode:
         task.context && typeof task.context === 'object' && !Array.isArray(task.context)
           ? ((task.context as Record<string, unknown>).failure_mode ?? null)
@@ -293,29 +309,45 @@ async function loadWorkflowCurrentStage(
   tenantId: string,
   workflowId: string,
 ): Promise<string | null> {
-  const result = await db.query<WorkflowStageResponse>(
-    `SELECT id,
-            name,
-            position,
-            goal,
-            guidance,
-            human_gate,
-            status,
-            false AS is_active,
-            gate_status,
-            iteration_count,
-            summary,
-            started_at,
-            completed_at,
-            0::int AS open_work_item_count,
-            0::int AS total_work_item_count
-       FROM workflow_stages
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-      ORDER BY position ASC`,
+  const result = await db.query<WorkflowStageViewInput>(
+    `SELECT ws.id,
+            w.lifecycle,
+            ws.name,
+            ws.position,
+            ws.goal,
+            ws.guidance,
+            ws.human_gate,
+            ws.status,
+            ws.gate_status,
+            ws.iteration_count,
+            ws.summary,
+            ws.started_at,
+            ws.completed_at,
+            COALESCE(work_item_summary.open_work_item_count, 0) AS open_work_item_count,
+            COALESCE(work_item_summary.total_work_item_count, 0) AS total_work_item_count,
+            work_item_summary.first_work_item_at,
+            work_item_summary.last_completed_work_item_at
+       FROM workflow_stages ws
+       JOIN workflows w
+         ON w.tenant_id = ws.tenant_id
+        AND w.id = ws.workflow_id
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*) FILTER (WHERE wi.completed_at IS NULL)::int AS open_work_item_count,
+                COUNT(*)::int AS total_work_item_count,
+                MIN(wi.created_at) AS first_work_item_at,
+                MAX(wi.completed_at) AS last_completed_work_item_at
+           FROM workflow_work_items wi
+          WHERE wi.tenant_id = ws.tenant_id
+            AND wi.workflow_id = ws.workflow_id
+            AND wi.stage_name = ws.name
+       ) AS work_item_summary
+         ON true
+      WHERE ws.tenant_id = $1
+        AND ws.workflow_id = $2
+      ORDER BY ws.position ASC`,
     [tenantId, workflowId],
   );
-  return currentStageNameFromStages(result.rows);
+  return currentStageNameFromStages(result.rows.map(normalizeWorkflowStageView));
 }
 
 async function loadWorkItemContext(
@@ -380,7 +412,88 @@ async function loadPredecessorHandoff(
   tenantId: string,
   task: Record<string, unknown>,
 ) {
-  return loadResolvedPredecessorHandoff(db, tenantId, task);
+  return loadRecentRelevantHandoffs(db, tenantId, task, 1).then((records) => records[0] ?? null);
+}
+
+async function loadProjectContext(
+  db: DatabaseQueryable,
+  tenantId: string,
+  projectRow: Record<string, unknown> | undefined,
+  task: Record<string, unknown>,
+) {
+  if (!projectRow) {
+    return null;
+  }
+
+  const project = { ...projectRow };
+  const projectId = asOptionalString(project.id);
+  const workflowId = asOptionalString(task.workflow_id);
+  const workItemId = asOptionalString(task.work_item_id) ?? null;
+  const currentMemory = asRecord(project.memory);
+  if (!projectId || !workflowId) {
+    project.memory = currentMemory;
+    return project;
+  }
+
+  const memoryScope = new ProjectMemoryScopeService(db as DatabaseQueryable & { query: DatabaseQueryable['query'] });
+  const [visibleMemory, memoryIndex, artifactIndex] = await Promise.all([
+    memoryScope.filterVisibleTaskMemory({
+      tenantId,
+      projectId,
+      workflowId,
+      workItemId,
+      currentMemory,
+    }),
+    memoryScope.listVisibleTaskMemoryKeys({
+      tenantId,
+      projectId,
+      workflowId,
+      workItemId,
+      currentMemory,
+      limit: TASK_CONTEXT_MEMORY_INDEX_LIMIT,
+    }),
+    loadProjectArtifactIndex(db, tenantId, projectId),
+  ]);
+
+  project.memory = visibleMemory;
+  project.memory_index = memoryIndex;
+  project.artifact_index = artifactIndex;
+  return project;
+}
+
+async function loadProjectArtifactIndex(
+  db: DatabaseQueryable,
+  tenantId: string,
+  projectId: string,
+) {
+  const result = await db.query<{
+    logical_path: string;
+    task_id: string | null;
+    created_at: string | null;
+    total_count: number;
+  }>(
+    `SELECT logical_path,
+            task_id,
+            created_at,
+            COUNT(*) OVER()::int AS total_count
+       FROM workflow_artifacts
+      WHERE tenant_id = $1
+        AND project_id = $2
+      ORDER BY created_at DESC, id DESC
+      LIMIT $3`,
+    [tenantId, projectId, TASK_CONTEXT_ARTIFACT_INDEX_LIMIT + 1],
+  );
+  const rows = result.rows.slice(0, TASK_CONTEXT_ARTIFACT_INDEX_LIMIT);
+  const total = result.rows[0]?.total_count ?? 0;
+  return {
+    items: rows.map((row) => ({
+      logical_path: row.logical_path,
+      task_id: row.task_id,
+      created_at: row.created_at,
+    })),
+    total,
+    more_available: total > rows.length,
+  };
 }
 
 async function loadWorkflowRelations(

@@ -22,22 +22,33 @@ export async function loadResolvedPredecessorHandoff(
   tenantId: string,
   task: Record<string, unknown>,
 ) {
+  const recent = await loadRecentRelevantHandoffs(db, tenantId, task, 1);
+  return recent[0] ?? null;
+}
+
+export async function loadRecentRelevantHandoffs(
+  db: DatabaseQueryable,
+  tenantId: string,
+  task: Record<string, unknown>,
+  limit = 2,
+) {
   const taskId = readOptionalString(task.id);
   const workItemId = readOptionalString(task.work_item_id);
   const workflowId = readOptionalString(task.workflow_id);
   if (!taskId || !workItemId || !workflowId) {
-    return null;
+    return [];
   }
 
-  const localHandoff = await loadLatestWorkItemHandoff(
+  const localHandoffs = await loadWorkItemHandoffs(
     db,
     tenantId,
     workflowId,
     workItemId,
     taskId,
+    limit,
   );
-  if (localHandoff) {
-    return localHandoff;
+  if (localHandoffs.length > 0) {
+    return localHandoffs;
   }
 
   const parentWorkItemId = await loadParentWorkItemId(
@@ -47,27 +58,26 @@ export async function loadResolvedPredecessorHandoff(
     workItemId,
   );
   if (parentWorkItemId) {
-    const parentHandoff = await loadLinkedWorkItemHandoff(
+    return loadWorkItemHandoffs(
       db,
       tenantId,
       workflowId,
-      taskId,
       parentWorkItemId,
+      taskId,
+      limit,
     );
-    if (parentHandoff) {
-      return parentHandoff;
-    }
   }
 
-  return loadLatestWorkflowHandoff(db, tenantId, workflowId, taskId);
+  return [];
 }
 
-async function loadLatestWorkItemHandoff(
+async function loadWorkItemHandoffs(
   db: DatabaseQueryable,
   tenantId: string,
   workflowId: string,
   workItemId: string,
   taskId: string,
+  limit: number,
 ) {
   const result = await db.query(
     `SELECT ${PREDECESSOR_HANDOFF_FIELDS}
@@ -77,10 +87,10 @@ async function loadLatestWorkItemHandoff(
         AND work_item_id = $3
         AND task_id <> $4
       ORDER BY sequence DESC, created_at DESC
-      LIMIT 1`,
-    [tenantId, workflowId, workItemId, taskId],
+      LIMIT $5`,
+    [tenantId, workflowId, workItemId, taskId, limit],
   );
-  return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+  return result.rows as Record<string, unknown>[];
 }
 
 async function loadParentWorkItemId(
@@ -99,46 +109,6 @@ async function loadParentWorkItemId(
     [tenantId, workflowId, workItemId],
   );
   return readOptionalString(result.rows[0]?.parent_work_item_id) ?? null;
-}
-
-async function loadLinkedWorkItemHandoff(
-  db: DatabaseQueryable,
-  tenantId: string,
-  workflowId: string,
-  taskId: string,
-  linkedWorkItemId: string,
-) {
-  const result = await db.query(
-    `SELECT ${PREDECESSOR_HANDOFF_FIELDS}
-       FROM task_handoffs
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND task_id <> $3
-        AND work_item_id = $4
-      ORDER BY sequence DESC, created_at DESC
-      LIMIT 1`,
-    [tenantId, workflowId, taskId, linkedWorkItemId],
-  );
-  return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
-}
-
-async function loadLatestWorkflowHandoff(
-  db: DatabaseQueryable,
-  tenantId: string,
-  workflowId: string,
-  taskId: string,
-) {
-  const result = await db.query(
-    `SELECT ${PREDECESSOR_HANDOFF_FIELDS}
-       FROM task_handoffs
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND task_id <> $3
-      ORDER BY created_at DESC
-      LIMIT 1`,
-    [tenantId, workflowId, taskId],
-  );
-  return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
 }
 
 function readOptionalString(value: unknown) {

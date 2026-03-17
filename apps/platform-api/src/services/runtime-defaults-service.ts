@@ -20,7 +20,7 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['agent.no_file_change_threshold', { min: 1 }],
   ['agent.max_stuck_interventions', { min: 0 }],
   ['agent.max_iterations', { min: 1 }],
-  ['agent.llm_max_retries', { min: 0 }],
+  ['agent.llm_max_retries', { min: 1 }],
 ]);
 const DECIMAL_DEFAULT_RULES = new Map([
   ['agent.context_compaction_threshold', { min: 0, max: 1 }],

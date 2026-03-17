@@ -358,6 +358,61 @@ describe('ModelCatalogService', () => {
   });
 
   describe('effective model resolution', () => {
+    it('does not invent a reasoning config from model metadata when the llm page did not configure one', async () => {
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'assignment-1',
+            tenant_id: TENANT_ID,
+            role_name: 'developer',
+            primary_model_id: MODEL_ID,
+            reasoning_config: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: MODEL_ID,
+            tenant_id: TENANT_ID,
+            provider_id: PROVIDER_ID,
+            model_id: 'claude-sonnet-4-6',
+            context_window: 200000,
+            max_output_tokens: 8192,
+            supports_tool_use: true,
+            supports_vision: true,
+            input_cost_per_million_usd: '3.00',
+            output_cost_per_million_usd: '15.00',
+            is_enabled: true,
+            endpoint_type: 'chat',
+            reasoning_config: { type: 'effort', default: 'medium' },
+            created_at: new Date(),
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [sampleProvider], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'assignment-1',
+            tenant_id: TENANT_ID,
+            role_name: 'developer',
+            primary_model_id: MODEL_ID,
+            reasoning_config: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      const result = await service.resolveRoleConfig(TENANT_ID, 'developer');
+
+      expect(result).not.toBeNull();
+      expect(result.reasoningConfig).toBeNull();
+      expect(result.model.reasoningConfig).toEqual({ type: 'effort', default: 'medium' });
+    });
+
     it('validates model override references against enabled models', async () => {
       pool.query.mockResolvedValueOnce({ rows: [{ id: MODEL_ID }], rowCount: 1 });
 

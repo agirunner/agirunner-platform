@@ -59,7 +59,7 @@ describe('buildTaskContext active stage semantics', () => {
     expect(context.workflow).not.toHaveProperty('current_stage');
     expect(
       queries.some(
-        (sql) => sql.includes('FROM workflow_stages') && sql.includes('ORDER BY position ASC'),
+        (sql) => sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC'),
       ),
     ).toBe(false);
   });
@@ -96,7 +96,7 @@ describe('buildTaskContext active stage semantics', () => {
         if (sql.includes('SELECT DISTINCT stage_name')) {
           return { rows: [{ stage_name: 'review' }] };
         }
-        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY position ASC')) {
+        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
           return {
             rows: [
               {
@@ -150,6 +150,96 @@ describe('buildTaskContext active stage semantics', () => {
     expect((context.workflow as Record<string, unknown>).current_stage).toBe('review');
   });
 
+  it('derives standard workflow current stage from open work items instead of stale stored stage status', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows p')) {
+          return {
+            rows: [{
+              id: 'workflow-derivation',
+              name: 'Derived workflow',
+              lifecycle: 'planned',
+              context: {},
+              git_branch: 'main',
+              parameters: {},
+              resolved_config: {},
+              instruction_config: {},
+              metadata: {},
+              playbook_id: 'playbook-derived',
+              playbook_name: 'Derived playbook',
+              playbook_outcome: 'Deliver the change',
+              playbook_definition: {
+                lifecycle: 'planned',
+                checkpoints: [
+                  { name: 'design', goal: 'Design the work' },
+                  { name: 'implementation', goal: 'Build the work' },
+                ],
+              },
+              project_spec_version: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT DISTINCT stage_name')) {
+          return { rows: [{ stage_name: 'implementation' }] };
+        }
+        if (sql.includes('JOIN workflows w') && sql.includes('ORDER BY ws.position ASC')) {
+          return {
+            rows: [
+              {
+                id: 'stage-design',
+                lifecycle: 'planned',
+                name: 'design',
+                position: 0,
+                goal: 'Design the work',
+                guidance: null,
+                human_gate: false,
+                status: 'active',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 1,
+                first_work_item_at: null,
+                last_completed_work_item_at: new Date('2026-03-16T00:00:00Z'),
+              },
+              {
+                id: 'stage-implementation',
+                lifecycle: 'planned',
+                name: 'implementation',
+                position: 1,
+                goal: 'Build the work',
+                guidance: null,
+                human_gate: false,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 1,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-16T00:05:00Z'),
+                last_completed_work_item_at: null,
+              },
+            ],
+          };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildTaskContext(db as never, 'tenant-1', {
+      id: 'task-derived',
+      workflow_id: 'workflow-derivation',
+      depends_on: [],
+    });
+
+    expect((context.workflow as Record<string, unknown>).active_stages).toEqual(['implementation']);
+    expect((context.workflow as Record<string, unknown>).current_stage).toBe('implementation');
+  });
+
   it('injects checkpoint-driven workflow context for specialist tasks', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
@@ -194,7 +284,7 @@ describe('buildTaskContext active stage semantics', () => {
         if (sql.includes('SELECT DISTINCT stage_name')) {
           return { rows: [{ stage_name: 'implementation' }] };
         }
-        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY position ASC')) {
+        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
           return {
             rows: [{
               id: 'stage-1',
@@ -314,9 +404,16 @@ describe('buildTaskContext active stage semantics', () => {
         role_data: { module: 'auth' },
       }),
     );
+    expect((context.task as Record<string, unknown>).recent_handoffs).toEqual([
+      expect.objectContaining({
+        id: 'handoff-1',
+        role: 'developer',
+        summary: 'Implementation is ready for review.',
+      }),
+    ]);
   });
 
-  it('falls back to the latest workflow handoff when a new work item has no local predecessor history yet', async () => {
+  it('returns no predecessor handoff when a new work item has no local or linked predecessor history', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows p')) {
@@ -358,7 +455,7 @@ describe('buildTaskContext active stage semantics', () => {
         if (sql.includes('SELECT DISTINCT stage_name')) {
           return { rows: [{ stage_name: 'design' }] };
         }
-        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY position ASC')) {
+        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
           return {
             rows: [{
               id: 'stage-1',
@@ -405,28 +502,6 @@ describe('buildTaskContext active stage semantics', () => {
         if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $3')) {
           return { rows: [] };
         }
-        if (sql.includes('FROM task_handoffs') && !sql.includes('AND work_item_id = $3')) {
-          return {
-            rows: [{
-              id: 'handoff-requirements',
-              task_id: 'task-pm-1',
-              role: 'product-manager',
-              stage_name: 'requirements',
-              summary: 'Requirements approved for hello world.',
-              completion: 'full',
-              changes: [],
-              decisions: ['Keep the deliverable minimal and operator-readable'],
-              remaining_items: [],
-              blockers: [],
-              review_focus: ['Carry the acceptance criteria into the design'],
-              known_risks: [],
-              successor_context: 'Use the approved requirements as the design input.',
-              role_data: { artifact: 'requirements-doc' },
-              artifact_ids: ['artifact-req-1'],
-              created_at: new Date('2026-03-15T01:00:00Z'),
-            }],
-          };
-        }
         return { rows: [] };
       }),
     };
@@ -442,22 +517,15 @@ describe('buildTaskContext active stage semantics', () => {
       input: { instructions: 'Create the design.' },
     });
 
-    expect((context.task as Record<string, unknown>).predecessor_handoff).toEqual(
-      expect.objectContaining({
-        id: 'handoff-requirements',
-        role: 'product-manager',
-        stage_name: 'requirements',
-        summary: 'Requirements approved for hello world.',
-      }),
-    );
-    expect(((context.instruction_layers as Record<string, any>).workflow ?? {}).content).toContain(
+    expect((context.task as Record<string, unknown>).predecessor_handoff).toBeNull();
+    expect(((context.instruction_layers as Record<string, any>).workflow ?? {}).content).not.toContain(
       'Requirements approved for hello world.',
     );
   });
 
   it('prefers the parent-linked predecessor handoff over a later unrelated workflow handoff', async () => {
     const db = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows p')) {
           return {
             rows: [{
@@ -497,6 +565,26 @@ describe('buildTaskContext active stage semantics', () => {
         if (sql.includes('SELECT DISTINCT stage_name')) {
           return { rows: [{ stage_name: 'release' }] };
         }
+        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
+          return {
+            rows: [{
+              id: 'stage-release',
+              name: 'release',
+              position: 1,
+              goal: 'Confirm release readiness',
+              guidance: null,
+              human_gate: true,
+              status: 'active',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+              open_work_item_count: 1,
+              total_work_item_count: 1,
+            }],
+          };
+        }
         if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $2')) {
           return {
             rows: [{
@@ -520,7 +608,12 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $3')) {
+        if (
+          sql.includes('FROM task_handoffs') &&
+          sql.includes('AND work_item_id = $3') &&
+          Array.isArray(params) &&
+          params[2] === 'wi-release'
+        ) {
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id')) {
@@ -529,7 +622,12 @@ describe('buildTaskContext active stage semantics', () => {
             rowCount: 1,
           };
         }
-        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $4')) {
+        if (
+          sql.includes('FROM task_handoffs') &&
+          sql.includes('AND work_item_id = $3') &&
+          Array.isArray(params) &&
+          params[2] === 'wi-verification'
+        ) {
           return {
             rows: [{
               id: 'handoff-qa',
@@ -687,5 +785,202 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('Use board lane posture');
     expect(workflowLayer.content).toContain('## Board Position\nLane: Active');
     expect(workflowLayer.content).toContain('Upload required artifacts before completion or escalation');
+  });
+
+  it('attaches filtered project memory and compact project indexes to specialist task context', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM projects')) {
+          return {
+            rows: [{
+              id: 'project-ctx-1',
+              name: 'Hello World',
+              description: 'Test project',
+              repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
+              settings: {},
+              memory: {
+                shared_note: 'visible',
+                release_note: 'visible in workflow',
+                old_private_note: 'should be hidden',
+              },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows p')) {
+          return {
+            rows: [{
+              id: 'workflow-ctx-1',
+              name: 'Planned workflow',
+              lifecycle: 'planned',
+              context: {},
+              git_branch: 'main',
+              parameters: {},
+              resolved_config: {},
+              instruction_config: {},
+              metadata: {},
+              playbook_id: 'playbook-ctx-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship the change',
+              playbook_definition: {
+                lifecycle: 'planned',
+                process_instructions: 'Developer implements then reviewer reviews.',
+                board: {
+                  entry_column_id: 'planned',
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'active', label: 'Active' },
+                    { id: 'review', label: 'In Review' },
+                  ],
+                },
+                checkpoints: [{ name: 'implementation', goal: 'Implement the change' }],
+              },
+              project_spec_version: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT DISTINCT stage_name')) {
+          return { rows: [{ stage_name: 'implementation' }] };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
+          return {
+            rows: [{
+              id: 'stage-implementation',
+              lifecycle: 'planned',
+              name: 'implementation',
+              position: 0,
+              goal: 'Implement the change',
+              guidance: null,
+              human_gate: false,
+              status: 'active',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+              open_work_item_count: 1,
+              total_work_item_count: 1,
+              first_work_item_at: null,
+              last_completed_work_item_at: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $2')) {
+          return {
+            rows: [{
+              id: 'wi-ctx-1',
+              stage_name: 'implementation',
+              current_checkpoint: 'implementation',
+              column_id: 'active',
+              title: 'Implement hello world',
+              goal: 'Implement hello world',
+              acceptance_criteria: [],
+              owner_role: 'developer',
+              next_expected_actor: 'developer',
+              next_expected_action: 'implement',
+              rework_count: 0,
+              latest_handoff_completion: null,
+              unresolved_findings: [],
+              review_focus: [],
+              known_risks: [],
+              priority: 1,
+              notes: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM events") && sql.includes("entity_type = 'project'")) {
+          return {
+            rows: [
+              {
+                id: 11,
+                type: 'project.memory_updated',
+                actor_type: 'agent',
+                actor_id: 'agent:key',
+                created_at: '2026-03-16T08:00:00.000Z',
+                data: { key: 'shared_note' },
+              },
+              {
+                id: 12,
+                type: 'project.memory_updated',
+                actor_type: 'agent',
+                actor_id: 'agent:key',
+                created_at: '2026-03-16T08:01:00.000Z',
+                data: { key: 'release_note', workflow_id: 'workflow-ctx-1' },
+              },
+              {
+                id: 13,
+                type: 'project.memory_updated',
+                actor_type: 'agent',
+                actor_id: 'agent:key',
+                created_at: '2026-03-16T08:02:00.000Z',
+                data: { key: 'old_private_note', workflow_id: 'workflow-old' },
+              },
+            ],
+            rowCount: 3,
+          };
+        }
+        if (sql.includes('FROM workflow_artifacts')) {
+          return {
+            rows: [
+              {
+                logical_path: 'docs/requirements.md',
+                task_id: 'task-pm-1',
+                created_at: '2026-03-16T09:00:00.000Z',
+                total_count: 2,
+              },
+              {
+                logical_path: 'docs/design.md',
+                task_id: 'task-arch-1',
+                created_at: '2026-03-16T09:30:00.000Z',
+                total_count: 2,
+              },
+            ],
+            rowCount: 2,
+          };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          return { rows: [], rowCount: 0 };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildTaskContext(db as never, 'tenant-1', {
+      id: 'task-dev-ctx-1',
+      project_id: 'project-ctx-1',
+      workflow_id: 'workflow-ctx-1',
+      work_item_id: 'wi-ctx-1',
+      role: 'developer',
+      is_orchestrator_task: false,
+      depends_on: [],
+      role_config: { system_prompt: 'Role prompt' },
+      input: { instructions: 'Implement the task.' },
+    });
+
+    const project = context.project as Record<string, unknown>;
+    expect(project.memory).toEqual({
+      shared_note: 'visible',
+      release_note: 'visible in workflow',
+    });
+    expect(project.memory_index).toEqual({
+      keys: ['release_note', 'shared_note'],
+      total: 2,
+      more_available: false,
+    });
+    expect(project.artifact_index).toEqual({
+      items: [
+        {
+          logical_path: 'docs/requirements.md',
+          task_id: 'task-pm-1',
+          created_at: '2026-03-16T09:00:00.000Z',
+        },
+        {
+          logical_path: 'docs/design.md',
+          task_id: 'task-arch-1',
+          created_at: '2026-03-16T09:30:00.000Z',
+        },
+      ],
+      total: 2,
+      more_available: false,
+    });
   });
 });

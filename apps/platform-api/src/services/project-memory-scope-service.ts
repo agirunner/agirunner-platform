@@ -40,6 +40,44 @@ interface EventRow {
 export class ProjectMemoryScopeService {
   constructor(private readonly pool: DatabasePool) {}
 
+  async filterVisibleTaskMemory(input: {
+    tenantId: string;
+    projectId: string;
+    workflowId: string;
+    workItemId: string | null;
+    currentMemory: Record<string, unknown>;
+  }): Promise<Record<string, unknown>> {
+    const keys = Object.keys(input.currentMemory);
+    if (keys.length === 0) {
+      return {};
+    }
+
+    const result = await this.pool.query<EventRow>(
+      `SELECT DISTINCT ON ((data->>'key'))
+              id, type, actor_type, actor_id, data, created_at
+         FROM events
+        WHERE tenant_id = $1
+          AND entity_type = 'project'
+          AND entity_id = $2
+          AND type = ANY($3::text[])
+          AND data->>'key' = ANY($4::text[])
+        ORDER BY (data->>'key'), created_at DESC, id DESC`,
+      [input.tenantId, input.projectId, [...PROJECT_MEMORY_EVENT_TYPES], keys],
+    );
+
+    const visibleMemory = { ...input.currentMemory };
+    for (const row of result.rows) {
+      const entry = toScopedMemoryEntry(row, input.currentMemory);
+      if (!entry) {
+        continue;
+      }
+      if (!isVisibleToTask(entry, input.workflowId, input.workItemId)) {
+        delete visibleMemory[entry.key];
+      }
+    }
+    return visibleMemory;
+  }
+
   async listWorkItemMemoryEntries(input: {
     tenantId: string;
     projectId: string;
@@ -122,6 +160,46 @@ export class ProjectMemoryScopeService {
       .map((row) => toScopedMemoryEntry(row))
       .filter((entry): entry is WorkItemMemoryHistoryEntry => entry !== null);
   }
+
+  async listVisibleTaskMemoryKeys(input: {
+    tenantId: string;
+    projectId: string;
+    workflowId: string;
+    workItemId: string | null;
+    currentMemory: Record<string, unknown>;
+    limit: number;
+  }): Promise<{ keys: string[]; total: number; more_available: boolean }> {
+    const keys = Object.keys(input.currentMemory);
+    if (keys.length === 0) {
+      return { keys: [], total: 0, more_available: false };
+    }
+
+    const result = await this.pool.query<EventRow>(
+      `SELECT DISTINCT ON ((data->>'key'))
+              id, type, actor_type, actor_id, data, created_at
+         FROM events
+        WHERE tenant_id = $1
+          AND entity_type = 'project'
+          AND entity_id = $2
+          AND type = ANY($3::text[])
+          AND data->>'key' = ANY($4::text[])
+        ORDER BY (data->>'key'), created_at DESC, id DESC`,
+      [input.tenantId, input.projectId, [...PROJECT_MEMORY_EVENT_TYPES], keys],
+    );
+
+    const visibleEntries = result.rows
+      .map((row) => toScopedMemoryEntry(row, input.currentMemory))
+      .filter((entry): entry is WorkItemMemoryHistoryEntry & { key: string } => entry !== null)
+      .filter((entry) => isVisibleToTask(entry, input.workflowId, input.workItemId))
+      .sort(compareMemoryEntriesByRecency);
+
+    const limited = visibleEntries.slice(0, Math.max(0, input.limit));
+    return {
+      keys: limited.map((entry) => entry.key),
+      total: visibleEntries.length,
+      more_available: visibleEntries.length > limited.length,
+    };
+  }
 }
 
 function toScopedMemoryEntry(
@@ -176,4 +254,30 @@ function sanitizeMemoryValue(key: string, value: unknown): unknown {
     { [key]: value },
     { redactionValue: PROJECT_MEMORY_SECRET_REDACTION, allowSecretReferences: false },
   )[key];
+}
+
+function isVisibleToTask(
+  entry: Pick<WorkItemMemoryEntry, 'workflow_id' | 'work_item_id'>,
+  workflowId: string,
+  workItemId: string | null,
+): boolean {
+  if (entry.workflow_id && entry.workflow_id !== workflowId) {
+    return false;
+  }
+  if (entry.work_item_id) {
+    return workItemId !== null && entry.work_item_id === workItemId;
+  }
+  return true;
+}
+
+function compareMemoryEntriesByRecency(
+  left: Pick<WorkItemMemoryHistoryEntry, 'updated_at' | 'event_id'>,
+  right: Pick<WorkItemMemoryHistoryEntry, 'updated_at' | 'event_id'>,
+) {
+  const leftTime = Date.parse(left.updated_at);
+  const rightTime = Date.parse(right.updated_at);
+  if (leftTime !== rightTime) {
+    return rightTime - leftTime;
+  }
+  return right.event_id - left.event_id;
 }

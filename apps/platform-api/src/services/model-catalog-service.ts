@@ -624,7 +624,7 @@ export class ModelCatalogService {
     const systemDefaultReasoning = await this.findDefaultReasoningConfig(tenantId);
     const reasoningConfig = assignment?.reasoning_config
       ?? systemDefaultReasoning
-      ?? this.buildDefaultReasoningValue(model);
+      ?? null;
 
     const authMode = (provider.auth_mode as string) ?? 'api_key';
 
@@ -674,18 +674,6 @@ export class ModelCatalogService {
     );
     return result.rows[0] ?? null;
   }
-
-  private buildDefaultReasoningValue(
-    model: ModelRow,
-  ): Record<string, unknown> | null {
-    const schema = model.reasoning_config as Record<string, unknown> | null;
-    if (!schema) return null;
-
-    const type = schema.type as string;
-    const defaultValue = schema.default;
-    return { [type]: defaultValue };
-  }
-
   async getProviderForOperations(tenantId: string, id: string): Promise<ProviderRow> {
     const provider = await this.getStoredProvider(tenantId, id);
     return {

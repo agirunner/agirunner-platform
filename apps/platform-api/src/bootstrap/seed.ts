@@ -233,6 +233,20 @@ async function seedRuntimeDefaults(
     description: 'Default grace period in seconds before forced container shutdown',
   });
 
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'agent.max_iterations',
+    configValue: '100',
+    configType: 'number',
+    description: 'Default maximum agent loop iterations for a single task',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'agent.llm_max_retries',
+    configValue: '5',
+    configType: 'number',
+    description: 'Default maximum retries for failed model calls before the task errors',
+  });
+
 }
 
 async function deleteNonLlmRuntimeDefaults(db: DatabaseQueryable): Promise<void> {
