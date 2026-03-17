@@ -97,6 +97,18 @@ export async function readTaskCancelSignalGracePeriodMs(
   );
 }
 
+export async function readWorkerDispatchAckTimeoutMs(
+  db: DatabaseClient | DatabasePool,
+  tenantId = DEFAULT_TENANT_ID,
+): Promise<number> {
+  return readPositiveNumberDefault(
+    db,
+    tenantId,
+    WORKER_DISPATCH_ACK_TIMEOUT_MS_RUNTIME_KEY,
+    1,
+  );
+}
+
 export async function readWorkerSupervisionTimingDefaults(
   db: DatabaseClient | DatabasePool,
   tenantId = DEFAULT_TENANT_ID,

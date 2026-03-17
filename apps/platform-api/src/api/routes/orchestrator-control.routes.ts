@@ -15,6 +15,7 @@ import {
 } from '../../services/task-agent-scope-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
+import { readWorkerDispatchAckTimeoutMs } from '../../services/platform-timing-defaults.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 
 const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'review', 'test', 'docs', 'custom']);
@@ -200,7 +201,9 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     app.pgPool,
     app.eventService,
     app.workerConnectionHub,
-    { staleAfterMs: app.config.ORCHESTRATOR_TASK_MESSAGE_DELIVERY_STALE_AFTER_MS },
+    {
+      readStaleAfterMs: (tenantId) => readWorkerDispatchAckTimeoutMs(app.pgPool, tenantId),
+    },
   );
   const handoffService = new HandoffService(app.pgPool);
   const playbookControlService = new PlaybookWorkflowControlService({

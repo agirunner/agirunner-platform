@@ -54,7 +54,8 @@ interface CreateTaskMessageInput {
 }
 
 interface OrchestratorTaskMessageDeliveryPolicy {
-  staleAfterMs: number;
+  staleAfterMs?: number;
+  readStaleAfterMs?: (tenantId: string) => Promise<number>;
 }
 
 interface MessageDeliveryReservation {
@@ -219,9 +220,12 @@ export class OrchestratorTaskMessageService {
         await client.query('COMMIT');
         return { row: updated, shouldSend: false };
       }
-      if (row.delivery_state === 'delivery_in_progress' && !this.isStaleDeliveryAttempt(row)) {
-        await client.query('COMMIT');
-        return { row, shouldSend: false };
+      if (row.delivery_state === 'delivery_in_progress') {
+        const isStaleAttempt = await this.isStaleDeliveryAttempt(tenantId, row);
+        if (!isStaleAttempt) {
+          await client.query('COMMIT');
+          return { row, shouldSend: false };
+        }
       }
 
       const reserved = await client.query<TaskMessageRow>(
@@ -252,19 +256,34 @@ export class OrchestratorTaskMessageService {
     }
   }
 
-  private isStaleDeliveryAttempt(row: TaskMessageRow): boolean {
+  private async isStaleDeliveryAttempt(tenantId: string, row: TaskMessageRow): Promise<boolean> {
     if (row.delivery_state !== 'delivery_in_progress') {
       return false;
     }
     if (!row.last_delivery_attempt_at) {
       return true;
     }
-    const staleAfterMs = this.deliveryPolicy?.staleAfterMs;
+    const staleAfterMs = await this.resolveDeliveryStaleAfterMs(tenantId);
     if (!staleAfterMs || staleAfterMs <= 0) {
       return false;
     }
     const ageMs = Date.now() - row.last_delivery_attempt_at.getTime();
     return ageMs >= staleAfterMs;
+  }
+
+  private async resolveDeliveryStaleAfterMs(tenantId: string): Promise<number | null> {
+    const explicitStaleAfterMs = this.deliveryPolicy?.staleAfterMs;
+    if (typeof explicitStaleAfterMs === 'number') {
+      if (explicitStaleAfterMs <= 0) {
+        throw new Error('orchestrator task message stale-after must be greater than 0');
+      }
+      return explicitStaleAfterMs;
+    }
+    const reader = this.deliveryPolicy?.readStaleAfterMs;
+    if (!reader) {
+      return null;
+    }
+    return reader(tenantId);
   }
 
   private async finalizeDelivery(

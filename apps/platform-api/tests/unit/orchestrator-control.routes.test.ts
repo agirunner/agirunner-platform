@@ -1525,6 +1525,13 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM runtime_defaults')) {
+          expect(params).toEqual(['tenant-1', 'platform.worker_dispatch_ack_timeout_ms']);
+          return {
+            rowCount: 1,
+            rows: [{ config_value: '15000' }],
+          };
+        }
         if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orch-message']);
           return {
@@ -1735,6 +1742,13 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM runtime_defaults')) {
+          expect(params).toEqual(['tenant-1', 'platform.worker_dispatch_ack_timeout_ms']);
+          return {
+            rowCount: 1,
+            rows: [{ config_value: '15000' }],
+          };
+        }
         if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orch-message']);
           return {
@@ -1910,6 +1924,13 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM runtime_defaults')) {
+          expect(params).toEqual(['tenant-1', 'platform.worker_dispatch_ack_timeout_ms']);
+          return {
+            rowCount: 1,
+            rows: [{ config_value: '15000' }],
+          };
+        }
         if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orch-message']);
           return {
@@ -1941,7 +1962,6 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('pgPool', pool);
     app.decorate('config', {
       TASK_DEFAULT_TIMEOUT_MINUTES: 30,
-      ORCHESTRATOR_TASK_MESSAGE_DELIVERY_STALE_AFTER_MS: 15000,
     });
     app.decorate('eventService', { emit });
     app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
@@ -2084,6 +2104,13 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM runtime_defaults')) {
+          expect(params).toEqual(['tenant-1', 'platform.worker_dispatch_ack_timeout_ms']);
+          return {
+            rowCount: 1,
+            rows: [{ config_value: '15000' }],
+          };
+        }
         if (sql.includes('FROM tasks') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orch-message']);
           return {

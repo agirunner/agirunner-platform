@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  readWorkerDispatchAckTimeoutMs,
   readLifecycleMonitorTimingDefaults,
   readTaskCancelSignalGracePeriodMs,
   readWorkerSupervisionTimingDefaults,
@@ -45,6 +46,23 @@ describe('platform timing defaults', () => {
     await expect(readTaskCancelSignalGracePeriodMs(pool as never, 'tenant-1')).rejects.toThrow(
       'Missing runtime default "platform.task_cancel_signal_grace_period_ms"',
     );
+    await expect(readWorkerDispatchAckTimeoutMs(pool as never, 'tenant-1')).rejects.toThrow(
+      'Missing runtime default "platform.worker_dispatch_ack_timeout_ms"',
+    );
+  });
+
+  it('reads worker dispatch-ack timeout from runtime defaults storage', async () => {
+    const pool = {
+      query: vi.fn(async (_sql: string, params?: unknown[]) => {
+        const key = params?.[1];
+        if (key === 'platform.worker_dispatch_ack_timeout_ms') {
+          return { rowCount: 1, rows: [{ config_value: '17000' }] };
+        }
+        throw new Error(`Unexpected runtime-default key: ${String(key)}`);
+      }),
+    };
+
+    await expect(readWorkerDispatchAckTimeoutMs(pool as never, 'tenant-1')).resolves.toBe(17_000);
   });
 
   it('reads lifecycle monitor timings from runtime defaults storage', async () => {
