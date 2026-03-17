@@ -551,7 +551,15 @@ export class TaskClaimService {
     const fallbackResolved = this.deps.resolveRoleConfig && roleName
       ? await this.deps.resolveRoleConfig(tenantId, roleName)
       : null;
-    const resolved = directResolved ?? fallbackResolved;
+    const resolved = directResolved
+      ? {
+          ...directResolved,
+          reasoningConfig:
+            readExplicitTaskReasoningConfig(existingRoleConfig)
+            ?? fallbackResolved?.reasoningConfig
+            ?? null,
+        }
+      : fallbackResolved;
     if (!resolved) {
       throw buildMissingTaskModelConfigError(roleName);
     }
@@ -747,6 +755,13 @@ export class TaskClaimService {
       throw new ForbiddenError('Agent cannot resolve claim credentials for a different task.');
     }
   }
+}
+
+function readExplicitTaskReasoningConfig(
+  roleConfig: Record<string, unknown>,
+): Record<string, unknown> | null {
+  const value = roleConfig.llm_reasoning_config;
+  return isRecord(value) ? value : null;
 }
 
 function mergeSystemPrompt(
