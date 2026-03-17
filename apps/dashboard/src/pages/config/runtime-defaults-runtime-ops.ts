@@ -322,6 +322,17 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       step: 1,
     },
     {
+      key: 'platform.log_ingest_timeout_seconds',
+      label: 'Log ingest timeout (seconds)',
+      description: 'How long a connected runtime waits while flushing execution logs back to the platform ingest endpoint.',
+      configType: 'number',
+      placeholder: '10',
+      section: 'connected_platform',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
       key: 'platform.heartbeat_max_failures',
       label: 'Heartbeat failure budget',
       description: 'How many consecutive heartbeat failures a connected runtime tolerates before self-termination.',

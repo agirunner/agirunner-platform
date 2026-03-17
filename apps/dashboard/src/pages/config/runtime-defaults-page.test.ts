@@ -46,6 +46,7 @@ describe('runtime defaults page source', () => {
         'tasks.default_timeout_minutes',
         'platform.claim_poll_seconds',
         'platform.api_request_timeout_seconds',
+        'platform.log_ingest_timeout_seconds',
         'platform.cancellation_report_timeout_seconds',
         'platform.self_terminate_cleanup_timeout_seconds',
         'platform.heartbeat_max_failures',

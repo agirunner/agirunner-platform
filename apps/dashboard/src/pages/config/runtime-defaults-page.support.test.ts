@@ -50,6 +50,9 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toContain(
       'platform.api_request_timeout_seconds',
     );
+    expect(fieldsForSection('connected_platform').map((field) => field.key)).toContain(
+      'platform.log_ingest_timeout_seconds',
+    );
     expect(fieldsForSection('workflow_activation').map((field) => field.key)).toContain(
       'platform.workflow_activation_delay_ms',
     );
@@ -205,7 +208,7 @@ describe('runtime defaults page support', () => {
           key: 'connected_platform',
           title: 'Connected platform',
           configuredCount: 0,
-          fieldCount: 6,
+          fieldCount: 7,
           errorCount: 0,
         },
         {

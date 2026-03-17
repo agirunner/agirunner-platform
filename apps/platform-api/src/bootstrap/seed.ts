@@ -270,6 +270,13 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.log_ingest_timeout_seconds',
+    configValue: '10',
+    configType: 'number',
+    description: 'How long connected runtimes wait when flushing execution logs back to the platform ingest endpoint',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.heartbeat_max_failures',
     configValue: '24',
     configType: 'number',
