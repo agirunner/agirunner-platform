@@ -68,6 +68,8 @@ interface DirectModelLookupRow {
   model_max_output_tokens: number | null;
   model_endpoint_type: string | null;
   model_reasoning_config: Record<string, unknown> | null;
+  model_input_cost_per_million_usd: string | null;
+  model_output_cost_per_million_usd: string | null;
 }
 
 interface RetryReadyTaskRow {
@@ -488,7 +490,9 @@ export class TaskClaimService {
           m.context_window AS model_context_window,
           m.max_output_tokens AS model_max_output_tokens,
           m.endpoint_type AS model_endpoint_type,
-          m.reasoning_config AS model_reasoning_config
+          m.reasoning_config AS model_reasoning_config,
+          m.input_cost_per_million_usd AS model_input_cost_per_million_usd,
+          m.output_cost_per_million_usd AS model_output_cost_per_million_usd
         FROM llm_models m
         JOIN llm_providers p
           ON p.id = m.provider_id
@@ -525,6 +529,8 @@ export class TaskClaimService {
         maxOutputTokens: row.model_max_output_tokens,
         endpointType: row.model_endpoint_type,
         reasoningConfig: row.model_reasoning_config,
+        inputCostPerMillionUsd: readNullableFloat(row.model_input_cost_per_million_usd),
+        outputCostPerMillionUsd: readNullableFloat(row.model_output_cost_per_million_usd),
       },
       reasoningConfig: row.model_reasoning_config,
     };
@@ -602,6 +608,8 @@ export class TaskClaimService {
       llm_context_window: resolved.model.contextWindow,
       llm_max_output_tokens: resolved.model.maxOutputTokens,
       llm_reasoning_config: resolved.reasoningConfig,
+      llm_input_cost_per_million_usd: resolved.model.inputCostPerMillionUsd,
+      llm_output_cost_per_million_usd: resolved.model.outputCostPerMillionUsd,
       llm_base_url: oauthToken.baseUrl,
       llm_endpoint_type: oauthToken.endpointType,
       llm_auth_mode: 'oauth',
@@ -639,6 +647,8 @@ export class TaskClaimService {
       llm_context_window: resolved.model.contextWindow,
       llm_max_output_tokens: resolved.model.maxOutputTokens,
       llm_reasoning_config: resolved.reasoningConfig,
+      llm_input_cost_per_million_usd: resolved.model.inputCostPerMillionUsd,
+      llm_output_cost_per_million_usd: resolved.model.outputCostPerMillionUsd,
     };
     if (resolved.provider.baseUrl) {
       llmFields.llm_base_url = resolved.provider.baseUrl;
@@ -810,6 +820,17 @@ function readPositiveInteger(value: unknown): number | null {
     }
   }
   return null;
+}
+
+function readNullableFloat(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function stripClaimSecretEchoes(task: Record<string, unknown>): Record<string, unknown> {

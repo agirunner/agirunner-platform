@@ -490,6 +490,8 @@ describe('ModelCatalogService', () => {
           maxOutputTokens: 8192,
           supportsToolUse: true,
           supportsVision: true,
+          inputCostPerMillionUsd: 15,
+          outputCostPerMillionUsd: 75,
           endpointType: 'chat',
           reasoningConfig: { type: 'effort', default: 'medium' },
         },

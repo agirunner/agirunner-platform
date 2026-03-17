@@ -69,6 +69,8 @@ export interface EffectiveModelResolution {
     supportsVision: boolean;
     endpointType: string | null;
     reasoningConfig: Record<string, unknown> | null;
+    inputCostPerMillionUsd?: number | null;
+    outputCostPerMillionUsd?: number | null;
   } | null;
 }
 
@@ -645,6 +647,8 @@ export class ModelCatalogService {
         maxOutputTokens: model.max_output_tokens,
         endpointType: model.endpoint_type,
         reasoningConfig: model.reasoning_config,
+        inputCostPerMillionUsd: parseNullableCost(model.input_cost_per_million_usd),
+        outputCostPerMillionUsd: parseNullableCost(model.output_cost_per_million_usd),
       },
       reasoningConfig,
     };
@@ -731,6 +735,8 @@ export class ModelCatalogService {
       supportsVision: row.supports_vision,
       endpointType: row.endpoint_type,
       reasoningConfig: row.reasoning_config,
+      inputCostPerMillionUsd: parseNullableCost(row.input_cost_per_million_usd),
+      outputCostPerMillionUsd: parseNullableCost(row.output_cost_per_million_usd),
     };
   }
 }
@@ -750,8 +756,21 @@ export interface ResolvedRoleConfig {
     maxOutputTokens: number | null;
     endpointType: string | null;
     reasoningConfig: Record<string, unknown> | null;
+    inputCostPerMillionUsd?: number | null;
+    outputCostPerMillionUsd?: number | null;
   };
   reasoningConfig: Record<string, unknown> | null;
+}
+
+function parseNullableCost(value: string | number | null | undefined): number | null {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  const parsed = Number.parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function normalizeSecretValue(value?: string | null) {
