@@ -1,9 +1,9 @@
 import type { DatabasePool } from '../db/database.js';
 
 import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
-import type { AppEnv } from '../config/schema.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
+import { readAgentSupervisionTimingDefaults } from './platform-timing-defaults.js';
 
 const AGENT_SECRET_REDACTION = 'redacted://agent-secret';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
@@ -27,22 +27,14 @@ interface RegisterAgentInput {
   profile?: Record<string, unknown>;
 }
 
-type AgentServiceConfig = Pick<
-  AppEnv,
-  | 'AGENT_HEARTBEAT_GRACE_PERIOD_MS'
-  | 'AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS'
-  | 'AGENT_KEY_EXPIRY_MS'
-  | 'AGENT_HEARTBEAT_TOLERANCE_MS'
->;
-
 export class AgentService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
-    private readonly config: AgentServiceConfig,
   ) {}
 
   async registerAgent(identity: ApiKeyIdentity, input: RegisterAgentInput) {
+    const timingDefaults = await readAgentSupervisionTimingDefaults(this.pool);
     const executionMode = input.execution_mode ?? 'specialist';
     const capabilities = normalizeAgentCapabilities(input.capabilities ?? [], executionMode);
     const metadata = {
@@ -64,7 +56,7 @@ export class AgentService {
         input.worker_id ?? null,
         input.name,
         capabilities,
-        input.heartbeat_interval_seconds ?? this.config.AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
+        input.heartbeat_interval_seconds ?? timingDefaults.defaultHeartbeatIntervalSeconds,
         metadata,
       ],
     );
@@ -76,7 +68,7 @@ export class AgentService {
       ownerType: 'agent',
       ownerId: agent.id,
       label: `agent:${agent.name}`,
-      expiresAt: new Date(Date.now() + this.config.AGENT_KEY_EXPIRY_MS),
+      expiresAt: new Date(Date.now() + timingDefaults.keyExpiryMs),
     });
 
     await this.eventService.emit({
@@ -133,16 +125,16 @@ export class AgentService {
   }
 
   async enforceHeartbeatTimeouts(now = new Date()): Promise<number> {
+    const timingDefaults = await readAgentSupervisionTimingDefaults(this.pool);
     const staleAgents = await this.pool.query(
       `SELECT id, tenant_id, status, heartbeat_interval_seconds, last_heartbeat_at, current_task_id
        FROM agents
        WHERE (
          status IN ('active', 'idle', 'busy', 'degraded')
-         OR (status = 'inactive' AND current_task_id IS NOT NULL)
        )
          AND last_heartbeat_at IS NOT NULL
-         AND last_heartbeat_at < ($1::timestamptz - (heartbeat_interval_seconds * $2::double precision * INTERVAL '1 millisecond'))`,
-      [now, this.config.AGENT_HEARTBEAT_TOLERANCE_MS],
+         AND last_heartbeat_at < ($1::timestamptz - (heartbeat_interval_seconds * $2::double precision * INTERVAL '1 second'))`,
+      [now, timingDefaults.heartbeatThresholdMultiplier],
     );
 
     let affected = 0;
@@ -170,9 +162,10 @@ export class AgentService {
       }
 
       if (agent.current_task_id) {
-        const heartbeatCutoffMs = Number(agent.heartbeat_interval_seconds) * this.config.AGENT_HEARTBEAT_TOLERANCE_MS;
+        const heartbeatCutoffMs =
+          Number(agent.heartbeat_interval_seconds) * timingDefaults.heartbeatThresholdMultiplier * 1000;
         const lastHeartbeatMs = new Date(agent.last_heartbeat_at as string | Date).getTime();
-        const failAfterMs = lastHeartbeatMs + heartbeatCutoffMs + this.config.AGENT_HEARTBEAT_GRACE_PERIOD_MS;
+        const failAfterMs = lastHeartbeatMs + heartbeatCutoffMs + timingDefaults.heartbeatGracePeriodMs;
 
         if (now.getTime() >= failAfterMs) {
           await this.pool.query(

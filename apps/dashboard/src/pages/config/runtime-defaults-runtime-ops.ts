@@ -57,6 +57,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Tune worker heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
   },
   {
+    key: 'agent_supervision',
+    title: 'Agent supervision',
+    description: 'Tune standalone agent heartbeat defaults, stale-task grace periods, and issued agent key lifetimes.',
+  },
+  {
     key: 'platform_loops',
     title: 'Platform loops',
     description: 'Control the cadence of background platform enforcement, dispatch, pruning, and retention sweeps.',
@@ -144,6 +149,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   ...buildWorkflowActivationFields(),
   ...buildContainerManagerFields(),
   ...buildWorkerSupervisionFields(),
+  ...buildAgentSupervisionFields(),
   ...buildPlatformLoopFields(),
   ...buildWorkspaceTimeoutFields(),
   {
@@ -558,6 +564,55 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
       inputMode: 'decimal',
       min: 1,
       step: 0.1,
+    },
+  ];
+}
+
+function buildAgentSupervisionFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'platform.agent_default_heartbeat_interval_seconds',
+      label: 'Default agent heartbeat interval (seconds)',
+      description: 'Default heartbeat cadence assigned to new standalone agents when registration omits it.',
+      configType: 'number',
+      placeholder: '60',
+      section: 'agent_supervision',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'platform.agent_heartbeat_grace_period_ms',
+      label: 'Agent heartbeat grace period (ms)',
+      description: 'Additional grace period before a stale standalone agent fails claimed work.',
+      configType: 'number',
+      placeholder: '300000',
+      section: 'agent_supervision',
+      inputMode: 'numeric',
+      min: 0,
+      step: 1000,
+    },
+    {
+      key: 'platform.agent_heartbeat_threshold_multiplier',
+      label: 'Agent heartbeat stale multiplier',
+      description: 'Multiplier applied to agent heartbeat intervals when deciding that a standalone agent is stale.',
+      configType: 'number',
+      placeholder: '2',
+      section: 'agent_supervision',
+      inputMode: 'decimal',
+      min: 1,
+      step: 0.1,
+    },
+    {
+      key: 'platform.agent_key_expiry_ms',
+      label: 'Agent API key lifetime (ms)',
+      description: 'Default lifetime applied to API keys issued for newly registered standalone agents.',
+      configType: 'number',
+      placeholder: '31536000000',
+      section: 'agent_supervision',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
     },
   ];
 }

@@ -347,6 +347,34 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.agent_default_heartbeat_interval_seconds',
+    configValue: '60',
+    configType: 'number',
+    description: 'Default heartbeat interval in seconds assigned to newly registered standalone agents',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.agent_heartbeat_grace_period_ms',
+    configValue: '300000',
+    configType: 'number',
+    description: 'Additional grace period in milliseconds before stale standalone agents fail claimed work',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.agent_heartbeat_threshold_multiplier',
+    configValue: '2',
+    configType: 'number',
+    description: 'Heartbeat interval multiplier used when determining when standalone agent heartbeats are stale',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.agent_key_expiry_ms',
+    configValue: '31536000000',
+    configType: 'number',
+    description: 'Default API key lifetime in milliseconds for newly registered standalone agents',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.worker_default_heartbeat_interval_seconds',
     configValue: '30',
     configType: 'number',

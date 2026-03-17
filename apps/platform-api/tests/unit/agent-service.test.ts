@@ -8,47 +8,79 @@ import { createApiKey } from '../../src/auth/api-key.js';
 import { AgentService } from '../../src/services/agent-service.js';
 
 const mockedCreateApiKey = vi.mocked(createApiKey);
+const DEFAULT_AGENT_RUNTIME_DEFAULTS = {
+  'platform.agent_default_heartbeat_interval_seconds': '30',
+  'platform.agent_heartbeat_grace_period_ms': '60000',
+  'platform.agent_heartbeat_threshold_multiplier': '2',
+  'platform.agent_key_expiry_ms': '60000',
+} satisfies Record<string, string>;
+
+function createAgentPool(
+  runtimeDefaults: Record<string, string>,
+  handler: (sql: string, params?: unknown[]) => Promise<{ rowCount: number; rows: unknown[] }>,
+) {
+  return {
+    query: vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql.includes('FROM runtime_defaults')) {
+        const key = String(params?.[1] ?? '');
+        const value = runtimeDefaults[key];
+        return value
+          ? { rowCount: 1, rows: [{ config_value: value }] }
+          : { rowCount: 0, rows: [] };
+      }
+      return handler(sql, params);
+    }),
+  };
+}
 
 describe('AgentService secret redaction', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
   it('redacts secret-bearing metadata and tools on register responses', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-03-17T12:00:00.000Z'));
     mockedCreateApiKey.mockResolvedValueOnce({ apiKey: 'agent-api-key', keyPrefix: 'ag-prefix' });
 
-    const pool = {
-      query: vi.fn().mockResolvedValue({
-        rowCount: 1,
-        rows: [
-          {
-            id: 'agent-1',
-            name: 'coder-01',
-            capabilities: ['coding'],
-            status: 'active',
-            metadata: {
-              api_key: 'sk-secret-value',
-              tools: {
-                required: ['shell'],
-                authorization: 'Bearer top-secret-token',
-              },
-      profile: {
-        secret_ref: 'secret:AGENT_PROFILE',
+    const pool = createAgentPool(
+      {
+        ...DEFAULT_AGENT_RUNTIME_DEFAULTS,
+        'platform.agent_default_heartbeat_interval_seconds': '45',
+        'platform.agent_key_expiry_ms': '90000',
       },
-            },
-          },
-        ],
-      }),
-    };
+      async (sql: string, params?: unknown[]) => {
+        if (sql.includes('INSERT INTO agents')) {
+          expect(params?.[4]).toBe(45);
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'agent-1',
+                name: 'coder-01',
+                capabilities: ['coding'],
+                status: 'active',
+                metadata: {
+                  api_key: 'sk-secret-value',
+                  tools: {
+                    required: ['shell'],
+                    authorization: 'Bearer top-secret-token',
+                  },
+                  profile: {
+                    secret_ref: 'secret:AGENT_PROFILE',
+                  },
+                },
+              },
+            ],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      },
+    );
     const service = new AgentService(
       pool as never,
       { emit: vi.fn().mockResolvedValue(undefined) } as never,
-      {
-        AGENT_HEARTBEAT_GRACE_PERIOD_MS: 60_000,
-        AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: 30,
-        AGENT_KEY_EXPIRY_MS: 60_000,
-        AGENT_HEARTBEAT_TOLERANCE_MS: 60_000,
-      } as never,
     );
 
     const result = await service.registerAgent(
@@ -80,6 +112,12 @@ describe('AgentService secret redaction', () => {
       required: ['shell'],
       authorization: 'redacted://agent-secret',
     });
+    expect(mockedCreateApiKey).toHaveBeenCalledWith(
+      pool,
+      expect.objectContaining({
+        expiresAt: new Date('2026-03-17T12:01:30.000Z'),
+      }),
+    );
   });
 
   it('redacts secret-bearing metadata on agent list reads', async () => {
@@ -105,12 +143,6 @@ describe('AgentService secret redaction', () => {
     const service = new AgentService(
       pool as never,
       { emit: vi.fn().mockResolvedValue(undefined) } as never,
-      {
-        AGENT_HEARTBEAT_GRACE_PERIOD_MS: 60_000,
-        AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: 30,
-        AGENT_KEY_EXPIRY_MS: 60_000,
-        AGENT_HEARTBEAT_TOLERANCE_MS: 60_000,
-      } as never,
     );
 
     const result = await service.listAgents('tenant-1');
@@ -134,47 +166,29 @@ describe('AgentService secret redaction', () => {
 
 describe('AgentService heartbeat enforcement', () => {
   it('does not rescan inactive agents that have no task cleanup left', async () => {
-    const pool = {
-      query: vi.fn(async (sql: string) => {
+    const pool = createAgentPool(
+      DEFAULT_AGENT_RUNTIME_DEFAULTS,
+      async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM agents')) {
-          if (sql.includes("status IN ('active', 'idle', 'busy', 'degraded', 'inactive')")) {
-            return {
-              rowCount: 1,
-              rows: [
-                {
-                  id: 'agent-1',
-                  tenant_id: 'tenant-1',
-                  status: 'inactive',
-                  heartbeat_interval_seconds: 30,
-                  last_heartbeat_at: '2026-03-05T00:00:00.000Z',
-                  current_task_id: null,
-                },
-              ],
-            };
-          }
-
+          expect(params?.[1]).toBe(2);
+          expect(sql).toContain("status IN ('active', 'idle', 'busy', 'degraded')");
+          expect(sql).not.toContain("status = 'inactive'");
           return { rowCount: 0, rows: [] };
         }
 
         throw new Error(`Unexpected SQL: ${sql}`);
-      }),
-    };
+      },
+    );
     const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
     const service = new AgentService(
       pool as never,
       eventService as never,
-      {
-        AGENT_HEARTBEAT_GRACE_PERIOD_MS: 60_000,
-        AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS: 30,
-        AGENT_KEY_EXPIRY_MS: 60_000,
-        AGENT_HEARTBEAT_TOLERANCE_MS: 60_000,
-      } as never,
     );
 
     const affected = await service.enforceHeartbeatTimeouts(new Date('2026-03-05T00:10:00.000Z'));
 
     expect(affected).toBe(0);
-    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(pool.query).toHaveBeenCalledTimes(5);
     expect(eventService.emit).not.toHaveBeenCalled();
   });
 });

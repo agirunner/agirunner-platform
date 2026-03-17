@@ -29,6 +29,9 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['platform.workflow_activation_stale_after_ms', { min: 1 }],
   ['platform.task_cancel_signal_grace_period_ms', { min: 1 }],
   ['platform.worker_dispatch_ack_timeout_ms', { min: 1 }],
+  ['platform.agent_default_heartbeat_interval_seconds', { min: 1 }],
+  ['platform.agent_heartbeat_grace_period_ms', { min: 0 }],
+  ['platform.agent_key_expiry_ms', { min: 1 }],
   ['platform.worker_default_heartbeat_interval_seconds', { min: 1 }],
   ['platform.worker_offline_grace_period_ms', { min: 0 }],
   ['platform.lifecycle_agent_heartbeat_check_interval_ms', { min: 1 }],
@@ -89,6 +92,7 @@ const DECIMAL_DEFAULT_RULES = new Map([
   ['agent.orchestrator_context_compaction_threshold', { min: 0, max: 1 }],
   ['platform.worker_offline_threshold_multiplier', { min: 1 }],
   ['platform.worker_degraded_threshold_multiplier', { min: 1 }],
+  ['platform.agent_heartbeat_threshold_multiplier', { min: 1 }],
 ]);
 const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
   ['default_pull_policy', ['always', 'if-not-present', 'never']],

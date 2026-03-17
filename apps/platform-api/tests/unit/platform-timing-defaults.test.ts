@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  readAgentSupervisionTimingDefaults,
   readWorkerDispatchAckTimeoutMs,
   readLifecycleMonitorTimingDefaults,
   readTaskCancelSignalGracePeriodMs,
@@ -49,6 +50,9 @@ describe('platform timing defaults', () => {
     await expect(readWorkerDispatchAckTimeoutMs(pool as never, 'tenant-1')).rejects.toThrow(
       'Missing runtime default "platform.worker_dispatch_ack_timeout_ms"',
     );
+    await expect(readAgentSupervisionTimingDefaults(pool as never, 'tenant-1')).rejects.toThrow(
+      'Missing runtime default "platform.agent_default_heartbeat_interval_seconds"',
+    );
   });
 
   it('reads worker dispatch-ack timeout from runtime defaults storage', async () => {
@@ -63,6 +67,34 @@ describe('platform timing defaults', () => {
     };
 
     await expect(readWorkerDispatchAckTimeoutMs(pool as never, 'tenant-1')).resolves.toBe(17_000);
+  });
+
+  it('reads agent supervision timings from runtime defaults storage', async () => {
+    const pool = {
+      query: vi.fn(async (_sql: string, params?: unknown[]) => {
+        const key = params?.[1];
+        if (key === 'platform.agent_default_heartbeat_interval_seconds') {
+          return { rowCount: 1, rows: [{ config_value: '45' }] };
+        }
+        if (key === 'platform.agent_heartbeat_grace_period_ms') {
+          return { rowCount: 1, rows: [{ config_value: '90000' }] };
+        }
+        if (key === 'platform.agent_heartbeat_threshold_multiplier') {
+          return { rowCount: 1, rows: [{ config_value: '2.5' }] };
+        }
+        if (key === 'platform.agent_key_expiry_ms') {
+          return { rowCount: 1, rows: [{ config_value: '86400000' }] };
+        }
+        throw new Error(`Unexpected runtime-default key: ${String(key)}`);
+      }),
+    };
+
+    await expect(readAgentSupervisionTimingDefaults(pool as never, 'tenant-1')).resolves.toEqual({
+      defaultHeartbeatIntervalSeconds: 45,
+      heartbeatGracePeriodMs: 90_000,
+      heartbeatThresholdMultiplier: 2.5,
+      keyExpiryMs: 86_400_000,
+    });
   });
 
   it('reads lifecycle monitor timings from runtime defaults storage', async () => {

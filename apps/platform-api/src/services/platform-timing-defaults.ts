@@ -11,6 +11,13 @@ export const WORKFLOW_ACTIVATION_STALE_AFTER_MS_RUNTIME_KEY =
 export const TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS_RUNTIME_KEY =
   'platform.task_cancel_signal_grace_period_ms';
 export const WORKER_DISPATCH_ACK_TIMEOUT_MS_RUNTIME_KEY = 'platform.worker_dispatch_ack_timeout_ms';
+export const AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS_RUNTIME_KEY =
+  'platform.agent_default_heartbeat_interval_seconds';
+export const AGENT_HEARTBEAT_GRACE_PERIOD_MS_RUNTIME_KEY =
+  'platform.agent_heartbeat_grace_period_ms';
+export const AGENT_HEARTBEAT_THRESHOLD_MULTIPLIER_RUNTIME_KEY =
+  'platform.agent_heartbeat_threshold_multiplier';
+export const AGENT_KEY_EXPIRY_MS_RUNTIME_KEY = 'platform.agent_key_expiry_ms';
 export const WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS_RUNTIME_KEY =
   'platform.worker_default_heartbeat_interval_seconds';
 export const WORKER_OFFLINE_GRACE_PERIOD_MS_RUNTIME_KEY = 'platform.worker_offline_grace_period_ms';
@@ -42,6 +49,13 @@ export interface WorkerSupervisionTimingDefaults {
   offlineGracePeriodMs: number;
   offlineThresholdMultiplier: number;
   degradedThresholdMultiplier: number;
+}
+
+export interface AgentSupervisionTimingDefaults {
+  defaultHeartbeatIntervalSeconds: number;
+  heartbeatGracePeriodMs: number;
+  heartbeatThresholdMultiplier: number;
+  keyExpiryMs: number;
 }
 
 export interface LifecycleMonitorTimingDefaults {
@@ -107,6 +121,50 @@ export async function readWorkerDispatchAckTimeoutMs(
     WORKER_DISPATCH_ACK_TIMEOUT_MS_RUNTIME_KEY,
     1,
   );
+}
+
+export async function readAgentSupervisionTimingDefaults(
+  db: DatabaseClient | DatabasePool,
+  tenantId = DEFAULT_TENANT_ID,
+): Promise<AgentSupervisionTimingDefaults> {
+  const [
+    defaultHeartbeatIntervalSeconds,
+    heartbeatGracePeriodMs,
+    heartbeatThresholdMultiplier,
+    keyExpiryMs,
+  ] = await Promise.all([
+    readPositiveNumberDefault(
+      db,
+      tenantId,
+      AGENT_DEFAULT_HEARTBEAT_INTERVAL_SECONDS_RUNTIME_KEY,
+      1,
+    ),
+    readPositiveNumberDefault(
+      db,
+      tenantId,
+      AGENT_HEARTBEAT_GRACE_PERIOD_MS_RUNTIME_KEY,
+      0,
+    ),
+    readPositiveNumberDefault(
+      db,
+      tenantId,
+      AGENT_HEARTBEAT_THRESHOLD_MULTIPLIER_RUNTIME_KEY,
+      1,
+    ),
+    readPositiveNumberDefault(
+      db,
+      tenantId,
+      AGENT_KEY_EXPIRY_MS_RUNTIME_KEY,
+      1,
+    ),
+  ]);
+
+  return {
+    defaultHeartbeatIntervalSeconds,
+    heartbeatGracePeriodMs,
+    heartbeatThresholdMultiplier,
+    keyExpiryMs,
+  };
 }
 
 export async function readWorkerSupervisionTimingDefaults(

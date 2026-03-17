@@ -165,7 +165,7 @@ export async function buildApp() {
   const oauthService = new OAuthService(pool);
   const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
   const toolTagService = new ToolTagService(pool);
-  const agentService = new AgentService(pool, eventService, config);
+  const agentService = new AgentService(pool, eventService);
   const acpSessionService = new AcpSessionService(pool, eventService);
   const webhookWorkItemTriggerService = new WebhookWorkItemTriggerService(
     pool,

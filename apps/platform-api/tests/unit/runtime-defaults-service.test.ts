@@ -206,6 +206,24 @@ describe('RuntimeDefaultsService', () => {
           configType: 'number',
         }),
       ).rejects.toThrow('platform.log_ingest_timeout_seconds must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'platform.agent_key_expiry_ms',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.agent_key_expiry_ms must be at least 1');
+    });
+
+    it('rejects invalid agent supervision threshold defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'platform.agent_heartbeat_threshold_multiplier',
+          configValue: '0.5',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.agent_heartbeat_threshold_multiplier must be at least 1');
     });
 
     it('rejects invalid runtime process log levels', async () => {
