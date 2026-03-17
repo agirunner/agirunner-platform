@@ -3,7 +3,7 @@ import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
-import { loadRecentRelevantHandoffs } from './predecessor-handoff-resolver.js';
+import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { ProjectMemoryScopeService } from './project-memory-scope-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
@@ -39,7 +39,7 @@ export async function buildTaskContext(
     agent = assignedAgentRes.rows[0] ?? null;
   }
 
-  const [projectRes, workflowRes, depsRes, documents, recentHandoffs] = await Promise.all([
+  const [projectRes, workflowRes, depsRes, documents, handoffResolution] = await Promise.all([
     task.project_id
       ? db.query(
           `SELECT id,
@@ -74,8 +74,9 @@ export async function buildTaskContext(
         )
       : Promise.resolve({ rows: [] }),
     listTaskDocuments(db, tenantId, task),
-    loadRecentRelevantHandoffs(db, tenantId, task, TASK_CONTEXT_RECENT_HANDOFF_LIMIT),
+    resolveRelevantHandoffs(db, tenantId, task, TASK_CONTEXT_RECENT_HANDOFF_LIMIT),
   ]);
+  const recentHandoffs = handoffResolution.handoffs;
   const predecessorHandoff = recentHandoffs[0] ?? null;
 
   const upstreamOutputs = Object.fromEntries(
@@ -167,6 +168,7 @@ export async function buildTaskContext(
       context: sanitizeTaskContextValue(task.context),
       work_item: sanitizeTaskContextValue(workItem),
       predecessor_handoff: sanitizeTaskContextValue(predecessorHandoff),
+      predecessor_handoff_resolution: sanitizeTaskContextValue(handoffResolution),
       recent_handoffs: sanitizeTaskContextValue(recentHandoffs),
       failure_mode:
         task.context && typeof task.context === 'object' && !Array.isArray(task.context)
@@ -405,14 +407,6 @@ async function loadWorkItemContext(
     [tenantId, workItemId],
   );
   return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
-}
-
-async function loadPredecessorHandoff(
-  db: DatabaseQueryable,
-  tenantId: string,
-  task: Record<string, unknown>,
-) {
-  return loadRecentRelevantHandoffs(db, tenantId, task, 1).then((records) => records[0] ?? null);
 }
 
 async function loadProjectContext(

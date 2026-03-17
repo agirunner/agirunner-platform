@@ -22,8 +22,8 @@ export async function loadResolvedPredecessorHandoff(
   tenantId: string,
   task: Record<string, unknown>,
 ) {
-  const recent = await loadRecentRelevantHandoffs(db, tenantId, task, 1);
-  return recent[0] ?? null;
+  const resolution = await resolveRelevantHandoffs(db, tenantId, task, 1);
+  return resolution.handoffs[0] ?? null;
 }
 
 export async function loadRecentRelevantHandoffs(
@@ -32,11 +32,29 @@ export async function loadRecentRelevantHandoffs(
   task: Record<string, unknown>,
   limit = 2,
 ) {
+  const resolution = await resolveRelevantHandoffs(db, tenantId, task, limit);
+  return resolution.handoffs;
+}
+
+export interface RelevantHandoffResolution {
+  handoffs: Record<string, unknown>[];
+  source: 'local_work_item' | 'parent_work_item' | 'ambiguous_parent_work_item' | 'none';
+  source_work_item_id: string | null;
+  parent_work_item_id: string | null;
+  sibling_count: number | null;
+}
+
+export async function resolveRelevantHandoffs(
+  db: DatabaseQueryable,
+  tenantId: string,
+  task: Record<string, unknown>,
+  limit = 2,
+): Promise<RelevantHandoffResolution> {
   const taskId = readOptionalString(task.id);
   const workItemId = readOptionalString(task.work_item_id);
   const workflowId = readOptionalString(task.workflow_id);
   if (!taskId || !workItemId || !workflowId) {
-    return [];
+    return buildEmptyResolution();
   }
 
   const localHandoffs = await loadWorkItemHandoffs(
@@ -48,7 +66,13 @@ export async function loadRecentRelevantHandoffs(
     limit,
   );
   if (localHandoffs.length > 0) {
-    return localHandoffs;
+    return {
+      handoffs: localHandoffs,
+      source: 'local_work_item',
+      source_work_item_id: workItemId,
+      parent_work_item_id: null,
+      sibling_count: null,
+    };
   }
 
   const parentWorkItemId = await loadParentWorkItemId(
@@ -58,17 +82,38 @@ export async function loadRecentRelevantHandoffs(
     workItemId,
   );
   if (parentWorkItemId) {
-    return loadWorkItemHandoffs(
+    const siblingCount = await countSiblingWorkItems(
       db,
       tenantId,
       workflowId,
       parentWorkItemId,
-      taskId,
-      limit,
     );
+    if (siblingCount > 1) {
+      return {
+        handoffs: [],
+        source: 'ambiguous_parent_work_item',
+        source_work_item_id: null,
+        parent_work_item_id: parentWorkItemId,
+        sibling_count: siblingCount,
+      };
+    }
+    return {
+      handoffs: await loadWorkItemHandoffs(
+        db,
+        tenantId,
+        workflowId,
+        parentWorkItemId,
+        taskId,
+        limit,
+      ),
+      source: 'parent_work_item',
+      source_work_item_id: parentWorkItemId,
+      parent_work_item_id: parentWorkItemId,
+      sibling_count: siblingCount,
+    };
   }
 
-  return [];
+  return buildEmptyResolution();
 }
 
 async function loadWorkItemHandoffs(
@@ -109,6 +154,33 @@ async function loadParentWorkItemId(
     [tenantId, workflowId, workItemId],
   );
   return readOptionalString(result.rows[0]?.parent_work_item_id) ?? null;
+}
+
+async function countSiblingWorkItems(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  parentWorkItemId: string,
+) {
+  const result = await db.query<{ sibling_count: number }>(
+    `SELECT COUNT(*)::int AS sibling_count
+       FROM workflow_work_items
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND parent_work_item_id = $3`,
+    [tenantId, workflowId, parentWorkItemId],
+  );
+  return result.rows[0]?.sibling_count ?? 0;
+}
+
+function buildEmptyResolution(): RelevantHandoffResolution {
+  return {
+    handoffs: [],
+    source: 'none',
+    source_work_item_id: null,
+    parent_work_item_id: null,
+    sibling_count: null,
+  };
 }
 
 function readOptionalString(value: unknown) {

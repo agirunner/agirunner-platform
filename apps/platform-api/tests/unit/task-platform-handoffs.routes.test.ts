@@ -143,7 +143,7 @@ describe('task platform handoff routes', () => {
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
           return {
             rowCount: 1,
@@ -190,7 +190,7 @@ describe('task platform handoff routes', () => {
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
           return {
             rowCount: 1,
@@ -237,7 +237,7 @@ describe('task platform handoff routes', () => {
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
           return {
             rowCount: 1,
@@ -331,7 +331,7 @@ describe('task platform handoff routes', () => {
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
           return {
             rowCount: 1,
@@ -364,8 +364,19 @@ describe('task platform handoff routes', () => {
             }],
           };
         }
-        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $3')) {
+        if (
+          sql.includes('FROM task_handoffs') &&
+          sql.includes('AND work_item_id = $3') &&
+          Array.isArray(params) &&
+          params[2] === 'work-item-release'
+        ) {
           return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('COUNT(*)::int AS sibling_count')) {
+          return {
+            rowCount: 1,
+            rows: [{ sibling_count: 1 }],
+          };
         }
         if (sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id')) {
           return {
@@ -373,7 +384,12 @@ describe('task platform handoff routes', () => {
             rows: [{ parent_work_item_id: 'work-item-verification' }],
           };
         }
-        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $4')) {
+        if (
+          sql.includes('FROM task_handoffs') &&
+          sql.includes('AND work_item_id = $3') &&
+          Array.isArray(params) &&
+          params[2] === 'work-item-verification'
+        ) {
           return {
             rowCount: 1,
             rows: [{
@@ -432,5 +448,80 @@ describe('task platform handoff routes', () => {
         successor_context: 'Use the QA evidence for release approval.',
       }),
     );
+  });
+
+  it('returns null when parent fallback is ambiguous across sibling work items', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('assigned_agent_id')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-release-2',
+              workflow_id: 'workflow-1',
+              project_id: 'project-1',
+              work_item_id: 'work-item-release',
+              stage_name: 'release',
+              activation_id: null,
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: false,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-release-2',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-release',
+              role: 'product-manager',
+              stage_name: 'release',
+              state: 'in_progress',
+              rework_count: 0,
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('COUNT(*)::int AS sibling_count')) {
+          return {
+            rowCount: 1,
+            rows: [{ sibling_count: 2 }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id')) {
+          return {
+            rowCount: 1,
+            rows: [{ parent_work_item_id: 'work-item-verification' }],
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    } as never);
+    app.decorate('projectService', {} as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tasks/task-release-2/predecessor-handoff',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toBeNull();
   });
 });
