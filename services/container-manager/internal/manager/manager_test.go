@@ -198,9 +198,10 @@ func (m *mockPlatformClient) FetchReconcileSnapshot() (*ReconcileSnapshot, error
 		return m.snapshot, nil
 	}
 	return &ReconcileSnapshot{
-		DesiredStates:  m.desiredStates,
-		RuntimeTargets: m.runtimeTargets,
-		Heartbeats:     m.heartbeats,
+		DesiredStates:          m.desiredStates,
+		RuntimeTargets:         m.runtimeTargets,
+		Heartbeats:             m.heartbeats,
+		ContainerManagerConfig: defaultTestContainerManagerConfig(),
 	}, nil
 }
 
@@ -263,9 +264,21 @@ func newTestManager(docker *mockDockerClient, platform *mockPlatformClient) *Man
 		ReconcileInterval:        5 * time.Second,
 		StopTimeout:              10 * time.Second,
 		ShutdownTaskStopTimeout:  2 * time.Second,
+		DockerActionBuffer:       15 * time.Second,
+		GlobalMaxRuntimes:        10,
 		RuntimeOrphanGraceCycles: 3,
 	}
 	return NewWithPlatform(cfg, docker, platform, logger)
+}
+
+func defaultTestContainerManagerConfig() ContainerManagerConfig {
+	return ContainerManagerConfig{
+		ReconcileIntervalSeconds:       5,
+		StopTimeoutSeconds:             10,
+		ShutdownTaskStopTimeoutSeconds: 2,
+		DockerActionBufferSeconds:      15,
+		GlobalMaxRuntimes:              10,
+	}
 }
 
 func makeDesiredState(id, workerName, image string, version, replicas int) DesiredState {

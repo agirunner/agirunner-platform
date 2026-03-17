@@ -161,7 +161,14 @@ func (m *Manager) Run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("fetch initial reconcile snapshot: %w", err)
 	}
-	m.applySnapshotConfig(initialSnapshot)
+	if _, err := m.applySnapshotConfig(initialSnapshot); err != nil {
+		m.logger.Error("invalid initial reconcile snapshot config", "error", err)
+		m.emitLogError("container", "config.apply", map[string]any{
+			"action": "apply_snapshot_config",
+			"phase":  "startup",
+		}, err.Error())
+		return fmt.Errorf("apply initial reconcile snapshot config: %w", err)
+	}
 	m.logger.Info("container-manager started", "interval", m.config.ReconcileInterval)
 
 	if err := m.startupSweepWithTargets(ctx, initialSnapshot.RuntimeTargets); err != nil {
@@ -210,12 +217,22 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 		m.logger.Error("WDS reconcile cycle failed", "error", wdsErr)
 		m.logger.Error("DCM reconcile cycle failed", "error", dcmErr)
 	} else {
-		m.applySnapshotConfig(snapshot)
-		if wdsErr = m.reconcileOnceWithDesired(ctx, snapshot.DesiredStates); wdsErr != nil {
-			m.logger.Error("WDS reconcile cycle failed", "error", wdsErr)
-		}
-		if dcmErr = m.reconcileDCMWithSnapshot(ctx, snapshot.RuntimeTargets, snapshot.Heartbeats); dcmErr != nil {
-			m.logger.Error("DCM reconcile cycle failed", "error", dcmErr)
+		if _, configErr := m.applySnapshotConfig(snapshot); configErr != nil {
+			wdsErr = fmt.Errorf("apply reconcile snapshot config: %w", configErr)
+			dcmErr = wdsErr
+			m.logger.Error("reconcile snapshot config invalid", "error", configErr)
+			m.emitLogError("container", "config.apply", map[string]any{
+				"action": "apply_snapshot_config",
+				"phase":  "reconcile",
+				"cycle":  m.cycleCount,
+			}, configErr.Error())
+		} else {
+			if wdsErr = m.reconcileOnceWithDesired(ctx, snapshot.DesiredStates); wdsErr != nil {
+				m.logger.Error("WDS reconcile cycle failed", "error", wdsErr)
+			}
+			if dcmErr = m.reconcileDCMWithSnapshot(ctx, snapshot.RuntimeTargets, snapshot.Heartbeats); dcmErr != nil {
+				m.logger.Error("DCM reconcile cycle failed", "error", dcmErr)
+			}
 		}
 	}
 

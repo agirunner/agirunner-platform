@@ -1,24 +1,22 @@
 package manager
 
-import "time"
-
-const (
-	defaultReconcileIntervalSeconds       = 5
-	defaultStopTimeoutSeconds             = 30
-	defaultShutdownTaskStopTimeoutSeconds = 2
-	defaultDockerActionBufferSeconds      = 15
-	defaultGlobalMaxRuntimes              = 10
+import (
+	"fmt"
+	"time"
 )
 
-func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) bool {
+func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error) {
 	if snapshot == nil {
-		return false
+		return false, nil
 	}
 
-	next := normalizeContainerManagerConfig(snapshot.ContainerManagerConfig)
+	next, err := validateContainerManagerConfig(snapshot.ContainerManagerConfig)
+	if err != nil {
+		return false, err
+	}
 	current := m.currentContainerManagerConfig()
 	if current == next {
-		return false
+		return false, nil
 	}
 
 	m.config.ReconcileInterval = next.ReconcileInterval
@@ -43,7 +41,7 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) bool {
 		"docker_action_buffer_seconds":       int(next.DockerActionBuffer / time.Second),
 		"global_max_runtimes":                next.GlobalMaxRuntimes,
 	})
-	return true
+	return true, nil
 }
 
 func (m *Manager) currentContainerManagerConfig() Config {
@@ -56,23 +54,48 @@ func (m *Manager) currentContainerManagerConfig() Config {
 	}
 }
 
-func normalizeContainerManagerConfig(config ContainerManagerConfig) Config {
+func validateContainerManagerConfig(config ContainerManagerConfig) (Config, error) {
+	reconcileInterval, err := readRequiredDuration(config.ReconcileIntervalSeconds, "container_manager.reconcile_interval_seconds")
+	if err != nil {
+		return Config{}, err
+	}
+	stopTimeout, err := readRequiredDuration(config.StopTimeoutSeconds, "container_manager.stop_timeout_seconds")
+	if err != nil {
+		return Config{}, err
+	}
+	shutdownTaskStopTimeout, err := readRequiredDuration(config.ShutdownTaskStopTimeoutSeconds, "container_manager.shutdown_task_stop_timeout_seconds")
+	if err != nil {
+		return Config{}, err
+	}
+	dockerActionBuffer, err := readRequiredDuration(config.DockerActionBufferSeconds, "container_manager.docker_action_buffer_seconds")
+	if err != nil {
+		return Config{}, err
+	}
+	globalMaxRuntimes, err := readRequiredPositiveInt(config.GlobalMaxRuntimes, "global_max_runtimes")
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
-		ReconcileInterval:       durationOrDefault(config.ReconcileIntervalSeconds, defaultReconcileIntervalSeconds),
-		StopTimeout:             durationOrDefault(config.StopTimeoutSeconds, defaultStopTimeoutSeconds),
-		ShutdownTaskStopTimeout: durationOrDefault(config.ShutdownTaskStopTimeoutSeconds, defaultShutdownTaskStopTimeoutSeconds),
-		DockerActionBuffer:      durationOrDefault(config.DockerActionBufferSeconds, defaultDockerActionBufferSeconds),
-		GlobalMaxRuntimes:       intOrDefault(config.GlobalMaxRuntimes, defaultGlobalMaxRuntimes),
+		ReconcileInterval:       reconcileInterval,
+		StopTimeout:             stopTimeout,
+		ShutdownTaskStopTimeout: shutdownTaskStopTimeout,
+		DockerActionBuffer:      dockerActionBuffer,
+		GlobalMaxRuntimes:       globalMaxRuntimes,
+	}, nil
+}
+
+func readRequiredDuration(seconds int, key string) (time.Duration, error) {
+	value, err := readRequiredPositiveInt(seconds, key)
+	if err != nil {
+		return 0, err
 	}
+	return time.Duration(value) * time.Second, nil
 }
 
-func durationOrDefault(seconds int, fallbackSeconds int) time.Duration {
-	return time.Duration(intOrDefault(seconds, fallbackSeconds)) * time.Second
-}
-
-func intOrDefault(value int, fallback int) int {
+func readRequiredPositiveInt(value int, key string) (int, error) {
 	if value > 0 {
-		return value
+		return value, nil
 	}
-	return fallback
+	return 0, fmt.Errorf("missing container-manager config %q", key)
 }
