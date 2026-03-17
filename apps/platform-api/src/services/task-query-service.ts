@@ -3,11 +3,12 @@ import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import type { LogService } from '../logging/log-service.js';
 import { logPredecessorHandoffResolution } from '../logging/predecessor-handoff-log.js';
+import { logTaskContextAttachments } from '../logging/task-context-log.js';
 import {
   normalizeTaskState,
 } from '../orchestration/task-state-machine.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
-import { buildTaskContext } from './task-context-service.js';
+import { buildTaskContext, summarizeTaskContextAttachments } from './task-context-service.js';
 import type { ListTaskQuery } from './task-service.types.js';
 import type { RelevantHandoffResolution } from './predecessor-handoff-resolver.js';
 
@@ -140,6 +141,11 @@ export class TaskQueryService {
         resolution,
       });
     }
+    await logTaskContextAttachments(this.logService, {
+      tenantId,
+      task,
+      summary: summarizeTaskContextAttachments(context),
+    });
     return context;
   }
 

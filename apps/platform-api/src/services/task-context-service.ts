@@ -760,6 +760,45 @@ export function flattenInstructionLayers(
   return sections.join('\n\n');
 }
 
+export function summarizeTaskContextAttachments(
+  context: Record<string, unknown>,
+): Record<string, unknown> {
+  const task = asRecord(context.task);
+  const project = asRecord(context.project);
+  const predecessorHandoff = asRecord(task.predecessor_handoff);
+  const predecessorResolution = asRecord(task.predecessor_handoff_resolution);
+  const recentHandoffs = Array.isArray(task.recent_handoffs)
+    ? task.recent_handoffs as unknown[]
+    : [];
+  const workItem = asRecord(task.work_item);
+  const memoryIndex = asRecord(project.memory_index);
+  const artifactIndex = asRecord(project.artifact_index);
+  const memoryKeys = Array.isArray(memoryIndex.keys)
+    ? memoryIndex.keys as unknown[]
+    : [];
+  const artifactItems = Array.isArray(artifactIndex.items)
+    ? artifactIndex.items as unknown[]
+    : [];
+  const documents = Array.isArray(context.documents)
+    ? context.documents as unknown[]
+    : [];
+
+  return {
+    predecessor_handoff_present: Object.keys(predecessorHandoff).length > 0,
+    predecessor_handoff_resolution_present: Object.keys(predecessorResolution).length > 0,
+    predecessor_handoff_source: asOptionalString(predecessorResolution.source) ?? null,
+    recent_handoff_count: recentHandoffs.length,
+    work_item_continuity_present: Object.keys(workItem).length > 0,
+    project_memory_index_present: Object.keys(memoryIndex).length > 0,
+    project_memory_index_count: memoryKeys.length,
+    project_memory_more_available: memoryIndex.more_available === true,
+    project_artifact_index_present: Object.keys(artifactIndex).length > 0,
+    project_artifact_index_count: artifactItems.length,
+    project_artifact_more_available: artifactIndex.more_available === true,
+    document_count: documents.length,
+  };
+}
+
 function readSuppressedLayers(value: unknown): string[] {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return [];

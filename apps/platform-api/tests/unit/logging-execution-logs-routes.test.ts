@@ -310,6 +310,13 @@ describe('execution-logs route helpers', () => {
           secret_ref: 'secret:OPENAI_API_KEY',
           safe: 'visible',
         },
+        predecessor_handoff_resolution_present: true,
+        predecessor_handoff_source: 'local_work_item',
+        project_memory_index_present: true,
+        project_memory_index_count: 2,
+        project_artifact_index_present: true,
+        project_artifact_index_count: 1,
+        max_output_tokens_omission_reason: 'not_supplied_in_task_contract',
       },
       error: {
         code: 'AUTH_FAILED',
@@ -422,6 +429,13 @@ describe('execution-logs route helpers', () => {
       expect(payload.data.id).toBe('1');
       expect(payload.data.payload.nested.safe).toBe('visible');
       expect(payload.data.payload.api_key).toBe('[REDACTED]');
+      expect(payload.data.payload.predecessor_handoff_resolution_present).toBe(true);
+      expect(payload.data.payload.predecessor_handoff_source).toBe('local_work_item');
+      expect(payload.data.payload.project_memory_index_present).toBe(true);
+      expect(payload.data.payload.project_artifact_index_present).toBe(true);
+      expect(payload.data.payload.max_output_tokens_omission_reason).toBe(
+        'not_supplied_in_task_contract',
+      );
     });
 
     it('redacts exported logs on the JSON wire', async () => {

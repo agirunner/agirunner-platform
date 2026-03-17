@@ -446,7 +446,8 @@ describe('task query service git activity (FR-055)', () => {
     expect(((context.instruction_layers as Record<string, any>).task as Record<string, any>).content).toBe(
       'redacted://task-context-secret',
     );
-    expect(logService.insert).toHaveBeenCalledWith(
+    expect(logService.insert).toHaveBeenNthCalledWith(
+      1,
       expect.objectContaining({
         operation: 'task.context.predecessor_handoff.attach',
         taskId,
@@ -457,6 +458,25 @@ describe('task query service git activity (FR-055)', () => {
           has_predecessor_handoff: true,
           selected_handoff_id: 'handoff-ctx-1',
           selected_handoff_role: 'developer',
+        }),
+      }),
+    );
+    expect(logService.insert).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        operation: 'task.context.attachments',
+        taskId,
+        workflowId: 'workflow-1',
+        workItemId: 'wi-1',
+        payload: expect.objectContaining({
+          predecessor_handoff_present: true,
+          predecessor_handoff_resolution_present: true,
+          predecessor_handoff_source: 'local_work_item',
+          recent_handoff_count: 1,
+          work_item_continuity_present: true,
+          project_memory_index_present: true,
+          project_artifact_index_present: true,
+          document_count: 0,
         }),
       }),
     );
