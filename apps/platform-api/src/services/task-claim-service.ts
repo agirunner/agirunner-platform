@@ -96,6 +96,12 @@ interface TaskLoopContract {
   llmMaxRetries: number;
 }
 
+interface TaskModelOverrideSelection {
+  providerName: string;
+  modelId: string;
+  requested: boolean;
+}
+
 export class TaskClaimService {
   constructor(private readonly deps: TaskClaimDependencies) {}
 
@@ -470,15 +476,9 @@ export class TaskClaimService {
 
   private async resolveTaskRoleConfigOverride(
     tenantId: string,
-    roleConfig: Record<string, unknown>,
+    selection: TaskModelOverrideSelection,
   ): Promise<ResolvedRoleConfig | null> {
-    const providerName = typeof roleConfig.llm_provider === 'string'
-      ? roleConfig.llm_provider.trim()
-      : '';
-    const modelId = typeof roleConfig.llm_model === 'string'
-      ? roleConfig.llm_model.trim()
-      : '';
-    if (!providerName || !modelId) {
+    if (!selection.requested) {
       return null;
     }
 
@@ -506,7 +506,7 @@ export class TaskClaimService {
          AND p.is_enabled = true
          AND m.is_enabled = true
        LIMIT 1`,
-      [tenantId, providerName, modelId],
+      [tenantId, selection.providerName, selection.modelId],
     );
     const row = result.rows[0];
     if (!row) {
@@ -547,19 +547,31 @@ export class TaskClaimService {
     const sanitizedTask = stripClaimSecretEchoes(task);
     const roleName = (sanitizedTask.role as string) || '';
     const existingRoleConfig = (sanitizedTask.role_config ?? {}) as Record<string, unknown>;
-    const directResolved = await this.resolveTaskRoleConfigOverride(tenantId, existingRoleConfig);
-    const fallbackResolved = this.deps.resolveRoleConfig && roleName
-      ? await this.deps.resolveRoleConfig(tenantId, roleName)
-      : null;
-    const resolved = directResolved
-      ? {
-          ...directResolved,
-          reasoningConfig:
-            readExplicitTaskReasoningConfig(existingRoleConfig)
-            ?? fallbackResolved?.reasoningConfig
-            ?? null,
-        }
-      : fallbackResolved;
+    const directOverride = readTaskModelOverrideSelection(existingRoleConfig);
+    let resolved: ResolvedRoleConfig | null = null;
+    if (directOverride.requested) {
+      if (!isCompleteTaskModelOverrideSelection(directOverride)) {
+        throw buildInvalidTaskModelOverrideError(directOverride);
+      }
+      const directResolved = await this.resolveTaskRoleConfigOverride(tenantId, directOverride);
+      if (!directResolved) {
+        throw buildInvalidTaskModelOverrideError(directOverride);
+      }
+      const fallbackResolved = this.deps.resolveRoleConfig && roleName
+        ? await this.deps.resolveRoleConfig(tenantId, roleName)
+        : null;
+      resolved = {
+        ...directResolved,
+        reasoningConfig:
+          readExplicitTaskReasoningConfig(existingRoleConfig)
+          ?? fallbackResolved?.reasoningConfig
+          ?? null,
+      };
+    } else {
+      resolved = this.deps.resolveRoleConfig && roleName
+        ? await this.deps.resolveRoleConfig(tenantId, roleName)
+        : null;
+    }
     if (!resolved) {
       throw buildMissingTaskModelConfigError(roleName);
     }
@@ -764,6 +776,28 @@ function readExplicitTaskReasoningConfig(
   return isRecord(value) ? value : null;
 }
 
+function readTaskModelOverrideSelection(
+  roleConfig: Record<string, unknown>,
+): TaskModelOverrideSelection {
+  const providerName = typeof roleConfig.llm_provider === 'string'
+    ? roleConfig.llm_provider.trim()
+    : '';
+  const modelId = typeof roleConfig.llm_model === 'string'
+    ? roleConfig.llm_model.trim()
+    : '';
+  return {
+    providerName,
+    modelId,
+    requested: providerName !== '' || modelId !== '',
+  };
+}
+
+function isCompleteTaskModelOverrideSelection(
+  selection: TaskModelOverrideSelection,
+): boolean {
+  return selection.providerName !== '' && selection.modelId !== '';
+}
+
 function mergeSystemPrompt(
   taskResponse: Record<string, unknown>,
   instructionLayers: Record<string, unknown>,
@@ -795,6 +829,27 @@ function buildMissingTaskModelConfigError(roleName: string): ValidationError {
   return new ValidationError(
     `No LLM model is configured for ${label}. Assign a model to the role or set a default model on the LLM Providers page before claiming tasks.`,
     { role: trimmedRoleName || null },
+  );
+}
+
+function buildInvalidTaskModelOverrideError(
+  selection: TaskModelOverrideSelection,
+): ValidationError {
+  if (!selection.providerName || !selection.modelId) {
+    return new ValidationError(
+      'Explicit task model override is incomplete. Set both llm_provider and llm_model or remove the override so the role/default LLM routing can apply.',
+      {
+        llm_provider: selection.providerName || null,
+        llm_model: selection.modelId || null,
+      },
+    );
+  }
+  return new ValidationError(
+    `Explicit task model override could not be resolved for provider "${selection.providerName}" and model "${selection.modelId}". Configure that model on the LLM Providers page or remove the task-level override.`,
+    {
+      llm_provider: selection.providerName,
+      llm_model: selection.modelId,
+    },
   );
 }
 

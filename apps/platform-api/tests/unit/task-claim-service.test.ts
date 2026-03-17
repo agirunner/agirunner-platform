@@ -1064,6 +1064,144 @@ describe('TaskClaimService', () => {
     });
   });
 
+  it('fails before claiming when an explicit task model override cannot be resolved', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const resolveRoleConfig = vi.fn(async () => defaultResolvedRoleConfig);
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-bad-direct-model',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {
+                llm_provider: 'Missing Provider',
+                llm_model: 'gpt-missing',
+                tools: ['shell'],
+              },
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes("FROM llm_models m") && sql.includes('JOIN llm_providers p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig,
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await expect(service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    })).rejects.toThrow(/explicit task model override/i);
+
+    expect(resolveRoleConfig).not.toHaveBeenCalled();
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining("SET state = 'claimed'"),
+      expect.anything(),
+    );
+  });
+
+  it('fails before claiming when an explicit task model override is incomplete', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const resolveRoleConfig = vi.fn(async () => defaultResolvedRoleConfig);
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-incomplete-direct-model',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {
+                llm_provider: 'Smoke Provider',
+                tools: ['shell'],
+              },
+              metadata: {},
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig,
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await expect(service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    })).rejects.toThrow(/explicit task model override/i);
+
+    expect(resolveRoleConfig).not.toHaveBeenCalled();
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(client.query).not.toHaveBeenCalledWith(
+      expect.stringContaining("SET state = 'claimed'"),
+      expect.anything(),
+    );
+  });
+
   it('fails before claiming when no role assignment or default model is configured', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const resolveRoleConfig = vi.fn(async () => null);
