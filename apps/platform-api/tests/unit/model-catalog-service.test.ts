@@ -20,7 +20,7 @@ const sampleProvider = {
   auth_mode: 'api_key',
   is_enabled: true,
   rate_limit_rpm: null,
-  metadata: {},
+  metadata: { providerType: 'anthropic' },
   created_at: new Date(),
   updated_at: new Date(),
 };
@@ -414,6 +414,62 @@ describe('ModelCatalogService', () => {
       }
       expect(result.reasoningConfig).toBeNull();
       expect(result.model.reasoningConfig).toEqual({ type: 'effort', default: 'medium' });
+    });
+
+    it('fails when the resolved provider is missing explicit provider type metadata', async () => {
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'assignment-1',
+            tenant_id: TENANT_ID,
+            role_name: 'developer',
+            primary_model_id: MODEL_ID,
+            reasoning_config: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: MODEL_ID,
+            tenant_id: TENANT_ID,
+            provider_id: PROVIDER_ID,
+            model_id: 'claude-sonnet-4-6',
+            context_window: 200000,
+            max_output_tokens: 8192,
+            supports_tool_use: true,
+            supports_vision: true,
+            input_cost_per_million_usd: '3.00',
+            output_cost_per_million_usd: '15.00',
+            is_enabled: true,
+            endpoint_type: 'chat',
+            reasoning_config: null,
+            created_at: new Date(),
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ ...sampleProvider, metadata: {} }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'assignment-1',
+            tenant_id: TENANT_ID,
+            role_name: 'developer',
+            primary_model_id: MODEL_ID,
+            reasoning_config: null,
+            created_at: new Date(),
+            updated_at: new Date(),
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await expect(service.resolveRoleConfig(TENANT_ID, 'developer')).rejects.toThrow(
+        /providerType/i,
+      );
     });
 
     it('validates model override references against enabled models', async () => {

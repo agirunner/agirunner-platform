@@ -942,6 +942,101 @@ describe('TaskClaimService', () => {
     });
   });
 
+  it('fails direct task model overrides when provider type metadata is missing', async () => {
+    const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-direct-model-missing-provider-type',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {
+                llm_provider: 'Smoke Provider',
+                llm_model: 'gpt-smoke',
+                tools: ['shell'],
+              },
+              metadata: {},
+            }],
+          };
+        }
+        if (sql.includes("FROM llm_models m") && sql.includes('JOIN llm_providers p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              provider_id: 'provider-override',
+              provider_name: 'Smoke Provider',
+              provider_base_url: 'https://provider.example/v1',
+              provider_api_key_secret_ref: encryptedProviderSecret,
+              provider_auth_mode: 'api_key',
+              provider_metadata: {},
+              model_id: 'gpt-smoke',
+              model_context_window: 64000,
+              model_max_output_tokens: 96000,
+              model_endpoint_type: 'responses',
+              model_reasoning_config: null,
+              model_input_cost_per_million_usd: '1.25',
+              model_output_cost_per_million_usd: '10',
+            }],
+          };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => null),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await expect(
+      service.claimTask(identity, {
+        agent_id: 'agent-1',
+        capabilities: ['coding'],
+      }),
+    ).rejects.toThrow(/providerType/i);
+  });
+
   it('preserves explicit task reasoning for direct task model overrides', async () => {
     const encryptedProviderSecret = storeProviderSecret('override-provider-secret');
     const client = {

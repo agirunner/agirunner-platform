@@ -518,10 +518,7 @@ export class TaskClaimService {
     return {
       provider: {
         name: row.provider_name,
-        providerType:
-          typeof providerMetadata.providerType === 'string'
-            ? providerMetadata.providerType
-            : row.provider_name.toLowerCase(),
+        providerType: readProviderTypeForExecution(providerMetadata, row.provider_name),
         baseUrl: row.provider_base_url ?? '',
         apiKeySecretRef: row.provider_api_key_secret_ref,
         authMode,
@@ -849,6 +846,22 @@ function buildInvalidTaskModelOverrideError(
     {
       llm_provider: selection.providerName,
       llm_model: selection.modelId,
+    },
+  );
+}
+
+function readProviderTypeForExecution(
+  providerMetadata: Record<string, unknown>,
+  providerName: string,
+): string {
+  const providerType = providerMetadata.providerType;
+  if (typeof providerType === 'string' && providerType.trim().length > 0) {
+    return providerType.trim();
+  }
+  throw new ValidationError(
+    `Provider "${providerName}" is missing providerType metadata. Re-save the provider on the LLM Providers page before using it for execution.`,
+    {
+      provider_name: providerName,
     },
   );
 }

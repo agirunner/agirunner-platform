@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
-import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { normalizeStoredProviderSecret, readProviderSecret } from '../lib/oauth-crypto.js';
 import {
   overlayModelOverride,
@@ -630,7 +630,7 @@ export class ModelCatalogService {
 
     const authMode = (provider.auth_mode as string) ?? 'api_key';
 
-    const providerType = (provider.metadata?.providerType as string) ?? provider.name.toLowerCase();
+    const providerType = readProviderTypeOrThrow(provider.metadata, provider.name);
 
     return {
       provider: {
@@ -816,4 +816,17 @@ function asRecord(value: unknown): Record<string, unknown> {
     return {};
   }
   return value as Record<string, unknown>;
+}
+
+function readProviderTypeOrThrow(metadata: unknown, providerName: string): string {
+  const providerType = asRecord(metadata).providerType;
+  if (typeof providerType === 'string' && providerType.trim().length > 0) {
+    return providerType.trim();
+  }
+  throw new ValidationError(
+    `Provider "${providerName}" is missing providerType metadata. Re-save the provider on the LLM Providers page before using it for execution.`,
+    {
+      provider_name: providerName,
+    },
+  );
 }
