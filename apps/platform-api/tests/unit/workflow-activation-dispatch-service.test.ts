@@ -9,9 +9,12 @@ describe('WorkflowActivationDispatchService', () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w')) {
+          expect(sql).toContain('t.is_orchestrator_task = false');
+          expect(sql).toContain("AND t.state = ANY($3::task_state[])");
           expect(params).toEqual([
             ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
             300_000,
+            ['pending', 'ready', 'claimed', 'in_progress'],
             2,
           ]);
           return {
@@ -84,6 +87,41 @@ describe('WorkflowActivationDispatchService', () => {
     } finally {
       now.mockRestore();
     }
+  });
+
+  it('does not enqueue heartbeat candidates while specialist work is actively in flight', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w')) {
+          expect(sql).toContain('t.is_orchestrator_task = false');
+          expect(params).toEqual([
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            300_000,
+            ['pending', 'ready', 'claimed', 'in_progress'],
+            5,
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      connect: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: pool as never,
+      eventService: eventService as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS: 300_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+
+    const enqueued = await service.enqueueHeartbeatActivations(5);
+
+    expect(enqueued).toBe(0);
+    expect(eventService.emit).not.toHaveBeenCalled();
   });
 
   it('dispatches queued activations with a bounded workflow batch and counts only created orchestrator tasks', async () => {

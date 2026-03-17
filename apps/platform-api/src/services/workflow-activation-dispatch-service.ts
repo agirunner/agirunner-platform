@@ -177,6 +177,14 @@ export class WorkflowActivationDispatchService {
           )
           AND NOT EXISTS (
             SELECT 1
+              FROM tasks t
+             WHERE t.tenant_id = w.tenant_id
+               AND t.workflow_id = w.id
+               AND t.is_orchestrator_task = false
+               AND t.state = ANY($3::task_state[])
+          )
+          AND NOT EXISTS (
+            SELECT 1
               FROM workflow_activations wa
              WHERE wa.tenant_id = w.tenant_id
                AND wa.workflow_id = w.id
@@ -184,8 +192,8 @@ export class WorkflowActivationDispatchService {
                AND COALESCE(wa.completed_at, wa.queued_at) >= now() - ($2 * interval '1 millisecond')
           )
         ORDER BY w.updated_at ASC, w.id ASC
-        LIMIT $3`,
-      [ACTIVE_ORCHESTRATOR_TASK_STATES, this.getHeartbeatIntervalMs(), limit],
+        LIMIT $4`,
+      [ACTIVE_ORCHESTRATOR_TASK_STATES, this.getHeartbeatIntervalMs(), ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES, limit],
     );
 
     let enqueued = 0;
