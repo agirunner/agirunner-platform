@@ -365,6 +365,23 @@ describe('PlaybookWorkflowControlService', () => {
   });
 
   it('advances the current stage to the next configured stage', async () => {
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({
+        id: 'activation-advance-1',
+        activation_id: 'activation-advance-1',
+        state: 'queued',
+        event_type: 'stage.started',
+        reason: 'stage.started',
+        queued_at: '2026-03-11T00:31:00.000Z',
+        started_at: null,
+        completed_at: null,
+        summary: null,
+        error: null,
+      })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-advance-1'),
+    };
     const pool = {
       query: vi.fn(async (sql: string, params: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
@@ -434,8 +451,8 @@ describe('PlaybookWorkflowControlService', () => {
       stateService: {
         recomputeWorkflowState: vi.fn(async () => 'active'),
       } as never,
-      activationService: { enqueueForWorkflow: vi.fn() } as never,
-      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
     });
 
     const result = await service.advanceStage(
@@ -450,9 +467,46 @@ describe('PlaybookWorkflowControlService', () => {
       completed_stage: 'requirements',
       next_stage: 'implementation',
     });
+    expect(activationService.enqueueForWorkflow).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        workflowId: 'workflow-1',
+        reason: 'stage.started',
+        eventType: 'stage.started',
+        payload: {
+          stage_name: 'implementation',
+          previous_stage_name: 'requirements',
+        },
+        actorType: 'agent',
+        actorId: 'k1',
+      },
+      pool,
+    );
+    expect(dispatchService.dispatchActivation).toHaveBeenCalledWith(
+      'tenant-1',
+      'activation-advance-1',
+      pool,
+    );
   });
 
   it('closes open predecessor work items when advancing a planned workflow stage', async () => {
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({
+        id: 'activation-advance-2',
+        activation_id: 'activation-advance-2',
+        state: 'queued',
+        event_type: 'stage.started',
+        reason: 'stage.started',
+        queued_at: '2026-03-11T00:32:00.000Z',
+        started_at: null,
+        completed_at: null,
+        summary: null,
+        error: null,
+      })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-advance-2'),
+    };
     const pool = {
       query: vi.fn(async (sql: string, params: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
@@ -521,8 +575,8 @@ describe('PlaybookWorkflowControlService', () => {
       stateService: {
         recomputeWorkflowState: vi.fn(async () => 'active'),
       } as never,
-      activationService: { enqueueForWorkflow: vi.fn() } as never,
-      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
     });
 
     await service.advanceStage(
@@ -536,6 +590,26 @@ describe('PlaybookWorkflowControlService', () => {
     expect(pool.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
       ['tenant-1', 'workflow-1', 'requirements', 'done'],
+    );
+    expect(activationService.enqueueForWorkflow).toHaveBeenCalledWith(
+      {
+        tenantId: 'tenant-1',
+        workflowId: 'workflow-1',
+        reason: 'stage.started',
+        eventType: 'stage.started',
+        payload: {
+          stage_name: 'implementation',
+          previous_stage_name: 'requirements',
+        },
+        actorType: 'agent',
+        actorId: 'k1',
+      },
+      pool,
+    );
+    expect(dispatchService.dispatchActivation).toHaveBeenCalledWith(
+      'tenant-1',
+      'activation-advance-2',
+      pool,
     );
   });
 
@@ -2219,6 +2293,10 @@ describe('PlaybookWorkflowControlService', () => {
         }
         if (sql.includes('UPDATE workflow_stages')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation', 'Ship it']);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation', 'done']);
           return { rowCount: 1, rows: [] };
         }
         if (sql.includes('UPDATE workflows') && !sql.includes('orchestration_state')) {

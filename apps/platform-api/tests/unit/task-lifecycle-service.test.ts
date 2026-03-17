@@ -228,6 +228,117 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(result.state).toBe('output_pending_review');
   });
 
+  it('records continuity expectations when completion routes to output review', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-review-needed',
+              state: 'output_pending_review',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              role: 'developer',
+              output: { summary: 'ready for review' },
+              metadata: {},
+            }],
+          };
+        }
+        if (sql === 'SELECT playbook_id FROM workflows WHERE tenant_id = $1 AND id = $2') {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rows: [{
+              id: 'activation-review-needed',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-output_pending_review:task-review-needed:updated',
+              reason: 'task.output_pending_review',
+              event_type: 'task.output_pending_review',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'review',
+        nextExpectedActor: 'reviewer',
+        nextExpectedAction: 'review',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedReviewExpectation: false,
+      })),
+    };
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-review-needed',
+        state: 'in_progress',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+        role: 'developer',
+        requires_output_review: true,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        role_config: {},
+      }),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: workItemContinuityService as never,
+    });
+
+    const result = await service.completeTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-review-needed',
+      {
+        output: { summary: 'ready for review' },
+        verification: { passed: true },
+      },
+    );
+
+    expect(result.state).toBe('output_pending_review');
+    expect(workItemContinuityService.recordTaskCompleted).toHaveBeenCalledWith(
+      'tenant-1',
+      expect.objectContaining({
+        id: 'task-review-needed',
+        state: 'output_pending_review',
+        work_item_id: 'work-item-1',
+        role: 'developer',
+      }),
+      client,
+    );
+  });
+
   it('completes reviewer tasks immediately when the structured handoff approves the review outcome', async () => {
     const client = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {

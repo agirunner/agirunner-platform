@@ -321,6 +321,91 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(workflow.current_stage).toBeNull();
   });
 
+  it('derives standard workflow current_stage from the stage projection instead of stale stored state', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              id: 'wf-standard',
+              tenant_id: 'tenant-1',
+              playbook_id: 'pb-1',
+              lifecycle: 'planned',
+              current_stage: 'design',
+              metadata: {},
+            },
+          ],
+        })
+        .mockResolvedValueOnce({ rows: [] })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [
+            {
+              definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                stages: [
+                  { name: 'design', goal: 'Design work' },
+                  { name: 'implementation', goal: 'Implement work' },
+                ],
+              },
+            },
+          ],
+        }),
+    };
+
+    const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
+    (service as unknown as { workItemService: { listWorkflowWorkItems: ReturnType<typeof vi.fn> } }).workItemService = {
+      listWorkflowWorkItems: vi.fn().mockResolvedValue([]),
+    };
+    (service as unknown as { activationService: { listWorkflowActivations: ReturnType<typeof vi.fn> } }).activationService = {
+      listWorkflowActivations: vi.fn().mockResolvedValue([]),
+    };
+    (service as unknown as { stageService: { listStages: ReturnType<typeof vi.fn> } }).stageService = {
+      listStages: vi.fn().mockResolvedValue([
+        {
+          id: 'stage-1',
+          name: 'design',
+          position: 0,
+          goal: 'Design work',
+          guidance: null,
+          human_gate: false,
+          status: 'completed',
+          is_active: false,
+          gate_status: 'not_requested',
+          iteration_count: 0,
+          summary: null,
+          started_at: '2026-03-11T00:00:00.000Z',
+          completed_at: '2026-03-11T00:30:00.000Z',
+          open_work_item_count: 0,
+          total_work_item_count: 1,
+        },
+        {
+          id: 'stage-2',
+          name: 'implementation',
+          position: 1,
+          goal: 'Implement work',
+          guidance: null,
+          human_gate: false,
+          status: 'active',
+          is_active: true,
+          gate_status: 'not_requested',
+          iteration_count: 0,
+          summary: null,
+          started_at: '2026-03-11T01:00:00.000Z',
+          completed_at: null,
+          open_work_item_count: 1,
+          total_work_item_count: 1,
+        },
+      ]),
+    };
+
+    const workflow = await service.getWorkflow('tenant-1', 'wf-standard');
+
+    expect(workflow.current_stage).toBe('implementation');
+  });
+
   it('redacts secret-bearing workflow and embedded task payloads on workflow detail reads', async () => {
     const pool = {
       query: vi

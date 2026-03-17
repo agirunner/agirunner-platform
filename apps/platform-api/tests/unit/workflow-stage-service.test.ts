@@ -3,6 +3,99 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowStageService } from '../../src/services/workflow-stage-service.js';
 
 describe('WorkflowStageService', () => {
+  it('derives planned stage status from work-item activity instead of stale stored stage rows', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 'workflow-1' }] })
+        .mockResolvedValueOnce({
+          rowCount: 3,
+          rows: [
+            {
+              id: 'stage-1',
+              lifecycle: 'planned',
+              name: 'design',
+              position: 0,
+              goal: 'Design',
+              guidance: null,
+              human_gate: false,
+              status: 'active',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              open_work_item_count: 0,
+              total_work_item_count: 1,
+              first_work_item_at: new Date('2026-03-11T00:00:00Z'),
+              last_completed_work_item_at: new Date('2026-03-11T00:30:00Z'),
+            },
+            {
+              id: 'stage-2',
+              lifecycle: 'planned',
+              name: 'implementation',
+              position: 1,
+              goal: 'Implement',
+              guidance: null,
+              human_gate: false,
+              status: 'pending',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+              open_work_item_count: 1,
+              total_work_item_count: 1,
+              first_work_item_at: new Date('2026-03-11T01:00:00Z'),
+              last_completed_work_item_at: null,
+            },
+            {
+              id: 'stage-3',
+              lifecycle: 'planned',
+              name: 'release',
+              position: 2,
+              goal: 'Release',
+              guidance: null,
+              human_gate: true,
+              status: 'pending',
+              gate_status: 'awaiting_approval',
+              iteration_count: 0,
+              summary: null,
+              started_at: null,
+              completed_at: null,
+              open_work_item_count: 0,
+              total_work_item_count: 1,
+              first_work_item_at: new Date('2026-03-11T02:00:00Z'),
+              last_completed_work_item_at: null,
+            },
+          ],
+        }),
+    };
+
+    const service = new WorkflowStageService(pool as never);
+    const stages = await service.listStages('tenant-1', 'workflow-1');
+
+    expect(stages).toEqual([
+      expect.objectContaining({
+        name: 'design',
+        status: 'completed',
+        is_active: false,
+        completed_at: '2026-03-11T00:30:00.000Z',
+      }),
+      expect.objectContaining({
+        name: 'implementation',
+        status: 'active',
+        is_active: true,
+        started_at: '2026-03-11T01:00:00.000Z',
+      }),
+      expect.objectContaining({
+        name: 'release',
+        status: 'awaiting_gate',
+        is_active: true,
+      }),
+    ]);
+  });
+
   it('derives continuous stage status from open work items and gate state', async () => {
     const pool = {
       query: vi

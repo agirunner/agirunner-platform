@@ -522,6 +522,27 @@ export class PlaybookWorkflowControlService {
       actorId: identity.keyPrefix,
     });
 
+    const activation = await this.deps.activationService.enqueueForWorkflow(
+      {
+        tenantId: identity.tenantId,
+        workflowId,
+        reason: 'stage.started',
+        eventType: 'stage.started',
+        payload: {
+          stage_name: nextStage.name,
+          previous_stage_name: stageName,
+        },
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+      },
+      db,
+    );
+    await this.deps.activationDispatchService.dispatchActivation(
+      identity.tenantId,
+      String(activation.id),
+      db,
+    );
+
     return {
       completed_stage: stageName,
       next_stage: nextStage.name,
@@ -576,6 +597,7 @@ export class PlaybookWorkflowControlService {
     if (workflow.lifecycle !== 'planned') {
       throw new ConflictError('Only planned playbook workflows can be completed by the orchestrator');
     }
+    const definition = parsePlaybookDefinition(workflow.definition);
     if (workflow.state === 'completed') {
       return {
         workflow_id: workflowId,
@@ -594,6 +616,13 @@ export class PlaybookWorkflowControlService {
       if (stage.human_gate && stage.gate_status !== 'approved') {
         throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`);
       }
+      await this.completeOpenCheckpointWorkItems(
+        identity.tenantId,
+        workflowId,
+        stage.name,
+        terminalColumnIdFor(definition),
+        db,
+      );
       if (stage.status !== 'completed') {
         await db.query(
           `UPDATE workflow_stages

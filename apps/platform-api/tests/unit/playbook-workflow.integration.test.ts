@@ -1,8 +1,9 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { runWorkflowActivationDispatchTick } from '../../src/jobs/lifecycle-monitor.js';
+import { seedConfigTables } from '../../src/bootstrap/seed.js';
 import { ApprovalQueueService } from '../../src/services/approval-queue-service.js';
 import { ScheduledWorkItemTriggerService } from '../../src/services/scheduled-work-item-trigger-service.js';
 import { WebhookWorkItemTriggerService } from '../../src/services/webhook-work-item-trigger-service.js';
@@ -57,14 +58,54 @@ describe('playbook workflow integration', () => {
     harness = createV2Harness(db, { WORKFLOW_ACTIVATION_DELAY_MS: 0 });
     workflowChainingService = new WorkflowChainingService(db.pool, harness.workflowService);
     approvalQueueService = new ApprovalQueueService(db.pool);
-    await harness.roleDefinitionService.createRole(identity.tenantId, {
-      name: 'developer',
-      description: 'Implements playbook specialist tasks in integration tests.',
-      systemPrompt: 'You are a developer.',
-      allowedTools: [],
-      capabilities: ['coding'],
-      isActive: true,
-    });
+    const providerId = randomUUID();
+    const modelId = randomUUID();
+    await db.pool.query(
+      `INSERT INTO llm_providers
+        (id, tenant_id, name, base_url, api_key_secret_ref, auth_mode, is_enabled)
+       VALUES
+        ($1, $2, 'OpenAI', 'https://api.openai.com/v1', 'secret://openai', 'api_key', true)`,
+      [providerId, identity.tenantId],
+    );
+    await db.pool.query(
+      `INSERT INTO llm_models
+        (id, tenant_id, provider_id, model_id, is_enabled, endpoint_type, reasoning_config)
+       VALUES
+        ($1, $2, $3, 'gpt-5.4', true, 'responses', $4::jsonb)`,
+      [
+        modelId,
+        identity.tenantId,
+        providerId,
+        JSON.stringify({
+          type: 'reasoning_effort',
+          options: ['none', 'low', 'medium', 'high', 'xhigh'],
+          default: 'none',
+        }),
+      ],
+    );
+    await db.pool.query(
+      `INSERT INTO runtime_defaults
+        (tenant_id, config_key, config_value, config_type, description)
+       VALUES
+        ($1, 'default_model_id', $2, 'string', 'Configured on the LLM Providers page'),
+        ($1, 'default_reasoning_config', $3::text, 'json', 'Configured on the LLM Providers page')
+       ON CONFLICT (tenant_id, config_key)
+       DO UPDATE SET
+         config_value = EXCLUDED.config_value,
+         config_type = EXCLUDED.config_type,
+         description = EXCLUDED.description,
+         updated_at = now()`,
+      [
+        identity.tenantId,
+        modelId,
+        JSON.stringify({
+          provider: 'openai',
+          model: 'gpt-5.4',
+          reasoning_effort: 'low',
+        }),
+      ],
+    );
+    await seedConfigTables(db.pool);
   }, 120_000);
 
   afterAll(async () => {
@@ -567,6 +608,7 @@ describe('playbook workflow integration', () => {
       'workflow.activation_queued',
       'stage.completed',
       'stage.started',
+      'workflow.activation_queued',
       'stage.completed',
       'workflow.state_changed',
       'workflow.completed',
@@ -613,6 +655,283 @@ describe('playbook workflow integration', () => {
         }),
       ]),
     );
+  }, 120_000);
+
+  it('completes a planned workflow after stage work finishes even when no explicit checkpoint advance was recorded', async (context) => {
+    if (!canRunIntegration) {
+      context.skip();
+    }
+
+    const playbook = await harness.playbookService.createPlaybook(identity.tenantId, {
+      name: 'Implicit Completion Flow',
+      outcome: 'Implicit stage progression still completes',
+      definition: {
+        roles: ['developer'],
+        lifecycle: 'planned',
+        board: {
+          columns: [
+            { id: 'planned', label: 'Planned' },
+            { id: 'done', label: 'Done', is_terminal: true },
+          ],
+        },
+        stages: [
+          { name: 'requirements', goal: 'Define the work' },
+          { name: 'implementation', goal: 'Build the result' },
+          { name: 'release', goal: 'Wrap up delivery' },
+        ],
+      },
+    });
+
+    const workflow = await harness.workflowService.createWorkflow(identity, {
+      playbook_id: String(playbook.id),
+      name: 'Implicit Completion Run',
+    });
+
+    const requirementsItem = await harness.workflowService.createWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      {
+        request_id: 'implicit-complete-req',
+        title: 'Confirm requirements',
+        stage_name: 'requirements',
+        column_id: 'planned',
+      },
+    );
+    await harness.workflowService.updateWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      String(requirementsItem.id),
+      { column_id: 'done' },
+    );
+
+    const implementationItem = await harness.workflowService.createWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      {
+        request_id: 'implicit-complete-impl',
+        title: 'Implement solution',
+        stage_name: 'implementation',
+        column_id: 'planned',
+      },
+    );
+    await harness.workflowService.updateWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      String(implementationItem.id),
+      { column_id: 'done' },
+    );
+
+    const releaseItem = await harness.workflowService.createWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      {
+        request_id: 'implicit-complete-release',
+        title: 'Release the deliverable',
+        stage_name: 'release',
+        column_id: 'planned',
+      },
+    );
+    await harness.workflowService.updateWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      String(releaseItem.id),
+      { column_id: 'done' },
+    );
+
+    const rawStagesBeforeCompletion = await db.pool.query<{ name: string; status: string }>(
+      `SELECT name, status
+         FROM workflow_stages
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+        ORDER BY position ASC`,
+      [identity.tenantId, String(workflow.id)],
+    );
+    expect(rawStagesBeforeCompletion.rows).toEqual([
+      expect.objectContaining({ name: 'requirements', status: 'completed' }),
+      expect.objectContaining({ name: 'implementation', status: 'completed' }),
+      expect.objectContaining({ name: 'release', status: 'completed' }),
+    ]);
+
+    const completedWorkflow = await harness.workflowService.completePlaybookWorkflow(
+      identity,
+      String(workflow.id),
+      {
+        summary: 'All planned stage work finished without explicit checkpoint advances',
+      },
+    );
+
+    expect(completedWorkflow).toEqual({
+      workflow_id: workflow.id,
+      state: 'completed',
+      summary: 'All planned stage work finished without explicit checkpoint advances',
+      final_artifacts: [],
+    });
+
+    const rawStagesAfterCompletion = await db.pool.query<{ name: string; status: string }>(
+      `SELECT name, status
+         FROM workflow_stages
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+        ORDER BY position ASC`,
+      [identity.tenantId, String(workflow.id)],
+    );
+    expect(rawStagesAfterCompletion.rows).toEqual([
+      expect.objectContaining({ name: 'requirements', status: 'completed' }),
+      expect.objectContaining({ name: 'implementation', status: 'completed' }),
+      expect.objectContaining({ name: 'release', status: 'completed' }),
+    ]);
+  }, 120_000);
+
+  it('auto-closes predecessor checkpoint work items and finishes a gated release workflow cleanly', async (context) => {
+    if (!canRunIntegration) {
+      context.skip();
+    }
+
+    const playbook = await harness.playbookService.createPlaybook(identity.tenantId, {
+      name: 'Successor Closure Flow',
+      outcome: 'Planned successor work closes prior checkpoints automatically',
+      definition: {
+        roles: ['product-manager', 'developer'],
+        lifecycle: 'planned',
+        board: {
+          entry_column_id: 'planned',
+          columns: [
+            { id: 'planned', label: 'Planned' },
+            { id: 'done', label: 'Done', is_terminal: true },
+          ],
+        },
+        stages: [
+          { name: 'requirements', goal: 'Scope is confirmed' },
+          { name: 'implementation', goal: 'Code is delivered' },
+          { name: 'release', goal: 'Release package is approved', human_gate: true },
+        ],
+        checkpoints: [
+          { name: 'requirements', goal: 'Scope is confirmed', human_gate: false },
+          { name: 'implementation', goal: 'Code is delivered', human_gate: false },
+          { name: 'release', goal: 'Release package is approved', human_gate: true },
+        ],
+      },
+    });
+
+    const workflow = await harness.workflowService.createWorkflow(identity, {
+      playbook_id: String(playbook.id),
+      name: 'Successor Closure Run',
+    });
+
+    const requirementsItem = await harness.workflowService.createWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      {
+        request_id: 'closure-req',
+        title: 'Confirm hello world requirements',
+        stage_name: 'requirements',
+        column_id: 'planned',
+      },
+    );
+
+    const implementationItem = await harness.workflowService.createWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      {
+        request_id: 'closure-impl',
+        parent_work_item_id: String(requirementsItem.id),
+        title: 'Implement hello world',
+        stage_name: 'implementation',
+        column_id: 'planned',
+      },
+    );
+
+    const requirementsAfterSuccessor = await harness.workflowService.getWorkflowWorkItem(
+      identity.tenantId,
+      String(workflow.id),
+      String(requirementsItem.id),
+    );
+    expect(requirementsAfterSuccessor.completed_at).not.toBeNull();
+    expect(requirementsAfterSuccessor.column_id).toBe('done');
+
+    const releaseItem = await harness.workflowService.createWorkflowWorkItem(
+      identity,
+      String(workflow.id),
+      {
+        request_id: 'closure-release',
+        parent_work_item_id: String(implementationItem.id),
+        title: 'Prepare hello world release',
+        stage_name: 'release',
+        column_id: 'planned',
+      },
+    );
+
+    const implementationAfterSuccessor = await harness.workflowService.getWorkflowWorkItem(
+      identity.tenantId,
+      String(workflow.id),
+      String(implementationItem.id),
+    );
+    expect(implementationAfterSuccessor.completed_at).not.toBeNull();
+    expect(implementationAfterSuccessor.column_id).toBe('done');
+
+    await harness.workflowService.requestStageGateApproval(
+      identity,
+      String(workflow.id),
+      'release',
+      {
+        summary: 'Release package is ready for approval',
+        recommendation: 'approve',
+      },
+    );
+    await harness.workflowService.actOnStageGate(
+      identity,
+      String(workflow.id),
+      'release',
+      {
+        action: 'approve',
+        feedback: 'Release is approved',
+      },
+    );
+
+    const completedWorkflow = await harness.workflowService.completePlaybookWorkflow(
+      identity,
+      String(workflow.id),
+      {
+        summary: 'Hello world release completed cleanly',
+      },
+    );
+
+    expect(completedWorkflow).toEqual({
+      workflow_id: workflow.id,
+      state: 'completed',
+      summary: 'Hello world release completed cleanly',
+      final_artifacts: [],
+    });
+
+    const releaseAfterCompletion = await harness.workflowService.getWorkflowWorkItem(
+      identity.tenantId,
+      String(workflow.id),
+      String(releaseItem.id),
+    );
+    expect(releaseAfterCompletion.completed_at).not.toBeNull();
+    expect(releaseAfterCompletion.column_id).toBe('done');
+
+    const finishedWorkflow = await harness.workflowService.getWorkflow(
+      identity.tenantId,
+      String(workflow.id),
+    );
+    expect(finishedWorkflow.state).toBe('completed');
+    expect(finishedWorkflow.current_stage).toBeNull();
+
+    const finishedStages = Array.isArray(finishedWorkflow.workflow_stages)
+      ? (finishedWorkflow.workflow_stages as Array<Record<string, unknown>>)
+      : [];
+    expect(finishedStages).toEqual([
+      expect.objectContaining({ name: 'requirements', status: 'completed', gate_status: 'not_requested' }),
+      expect.objectContaining({ name: 'implementation', status: 'completed', gate_status: 'not_requested' }),
+      expect.objectContaining({ name: 'release', status: 'completed', gate_status: 'approved' }),
+    ]);
+
+    const finishedWorkItems = Array.isArray(finishedWorkflow.work_items)
+      ? (finishedWorkflow.work_items as Array<Record<string, unknown>>)
+      : [];
+    expect(finishedWorkItems).toHaveLength(3);
+    expect(finishedWorkItems.every((item) => item.completed_at)).toBe(true);
   }, 120_000);
 
   it('projects grouped multi-milestone workflows through grouped reads and board rollups', async (context) => {
@@ -826,7 +1145,7 @@ describe('playbook workflow integration', () => {
       name: 'runtime-v2-harness',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'testing', 'git', 'python'],
       agents: [
         {
           name: 'workflow-orchestrator',
@@ -836,7 +1155,7 @@ describe('playbook workflow integration', () => {
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          capabilities: ['coding', 'testing'],
+          capabilities: ['coding', 'testing', 'git', 'python'],
         },
       ],
     });
@@ -901,7 +1220,7 @@ describe('playbook workflow integration', () => {
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'testing'],
+      capabilities: ['coding', 'testing', 'git', 'python'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1046,12 +1365,12 @@ describe('playbook workflow integration', () => {
       name: 'triggered-run-specialist',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'testing', 'git', 'python'],
       agents: [
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          capabilities: ['coding', 'testing'],
+          capabilities: ['coding', 'testing', 'git', 'python'],
         },
       ],
     });
@@ -1204,7 +1523,7 @@ describe('playbook workflow integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'testing'],
+      capabilities: ['coding', 'testing', 'git', 'python'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1229,7 +1548,7 @@ describe('playbook workflow integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'testing'],
+      capabilities: ['coding', 'testing', 'git', 'python'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1293,7 +1612,7 @@ describe('playbook workflow integration', () => {
       name: 'runtime-child-linkage',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'testing', 'git', 'python'],
       agents: [
         {
           name: 'workflow-orchestrator',

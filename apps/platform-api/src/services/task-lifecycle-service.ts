@@ -478,6 +478,13 @@ export class TaskLifecycleService {
           client,
         );
       }
+      if (resolvedNextState === 'output_pending_review' && !updatedTask.is_orchestrator_task) {
+        await this.deps.workItemContinuityService?.recordTaskCompleted(
+          identity.tenantId,
+          updatedTask,
+          client,
+        );
+      }
       if (
         !updatedTask.is_orchestrator_task &&
         task.workflow_id &&

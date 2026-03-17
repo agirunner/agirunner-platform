@@ -187,16 +187,9 @@ export function currentStageNameFromStages(
 }
 
 function deriveStageView(row: WorkflowStageViewInput) {
-  if (row.lifecycle !== 'ongoing') {
-    return {
-      status: row.status,
-      is_active: isActiveStageStatus(row.status),
-      started_at: row.started_at?.toISOString() ?? null,
-      completed_at: row.completed_at?.toISOString() ?? null,
-    };
-  }
-
-  const status = deriveContinuousStageStatus(row);
+  const status = row.lifecycle === 'ongoing'
+    ? deriveContinuousStageStatus(row)
+    : derivePlannedStageStatus(row);
   const startedAt = row.started_at ?? row.first_work_item_at;
   const completedAt =
     status === 'completed' ? row.completed_at ?? row.last_completed_work_item_at : null;
@@ -206,6 +199,25 @@ function deriveStageView(row: WorkflowStageViewInput) {
     started_at: startedAt?.toISOString() ?? null,
     completed_at: completedAt?.toISOString() ?? null,
   };
+}
+
+function derivePlannedStageStatus(row: WorkflowStageViewInput) {
+  if (row.gate_status === 'awaiting_approval') {
+    return 'awaiting_gate';
+  }
+  if (row.gate_status === 'rejected') {
+    return 'blocked';
+  }
+  if (row.open_work_item_count > 0 || row.gate_status === 'changes_requested') {
+    return 'active';
+  }
+  if (row.total_work_item_count > 0 || row.status === 'completed') {
+    return 'completed';
+  }
+  if (isActiveStageStatus(row.status)) {
+    return row.status;
+  }
+  return 'pending';
 }
 
 function deriveContinuousStageStatus(row: WorkflowStageViewInput) {
