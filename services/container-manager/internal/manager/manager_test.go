@@ -321,6 +321,13 @@ func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
 			DesiredStates:  []DesiredState{},
 			RuntimeTargets: []RuntimeTarget{},
 			Heartbeats:     []RuntimeHeartbeat{},
+			ContainerManagerConfig: ContainerManagerConfig{
+				ReconcileIntervalSeconds:       7,
+				StopTimeoutSeconds:             45,
+				ShutdownTaskStopTimeoutSeconds: 3,
+				DockerActionBufferSeconds:      20,
+				GlobalMaxRuntimes:              12,
+			},
 		},
 	}
 	manager := newTestManager(docker, platform)
@@ -332,6 +339,12 @@ func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
 	}
 	if platform.fetchHBCalls != 0 {
 		t.Fatalf("expected no direct heartbeat fetches during shared snapshot reconcile, got %d", platform.fetchHBCalls)
+	}
+	if manager.config.ReconcileInterval != 7*time.Second {
+		t.Fatalf("expected reconcile interval from snapshot, got %s", manager.config.ReconcileInterval)
+	}
+	if manager.config.GlobalMaxRuntimes != 12 {
+		t.Fatalf("expected global max runtimes from snapshot, got %d", manager.config.GlobalMaxRuntimes)
 	}
 }
 

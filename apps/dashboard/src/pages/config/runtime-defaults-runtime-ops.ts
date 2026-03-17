@@ -37,6 +37,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Tune claim polling and drain behavior when runtimes are attached to the platform fleet.',
   },
   {
+    key: 'container_manager',
+    title: 'Container manager',
+    description: 'Control fleet reconcile cadence and stop/remove grace periods for the manager service.',
+  },
+  {
     key: 'workspace_timeouts',
     title: 'Workspace timeouts',
     description: 'Bound repo bootstrap, identity setup, and context injection steps before work begins.',
@@ -107,6 +112,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   ...buildConnectedPlatformFields(),
+  ...buildContainerManagerFields(),
   ...buildWorkspaceTimeoutFields(),
   {
     key: 'capture.push_timeout_seconds',
@@ -319,6 +325,55 @@ function buildWorkspaceTimeoutFields(): FieldDefinition[] {
     workspaceTimeoutField('workspace.cleanup_git_timeout_seconds', 'Cleanup git timeout', '10'),
     workspaceTimeoutField('workspace.configure_identity_timeout_seconds', 'Configure identity timeout', '10'),
     workspaceTimeoutField('workspace.clone_timeout_seconds', 'Clone timeout', '120'),
+  ];
+}
+
+function buildContainerManagerFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'container_manager.reconcile_interval_seconds',
+      label: 'Reconcile interval (seconds)',
+      description: 'How often the container manager polls the shared fleet snapshot and runs a reconcile cycle.',
+      configType: 'number',
+      placeholder: '5',
+      section: 'container_manager',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'container_manager.stop_timeout_seconds',
+      label: 'Runtime stop timeout (seconds)',
+      description: 'Grace period used when the manager stops runtime containers during normal cleanup.',
+      configType: 'number',
+      placeholder: '30',
+      section: 'container_manager',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'container_manager.shutdown_task_stop_timeout_seconds',
+      label: 'Shutdown task stop timeout (seconds)',
+      description: 'Grace period used for task containers during manager shutdown cleanup.',
+      configType: 'number',
+      placeholder: '2',
+      section: 'container_manager',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'container_manager.docker_action_buffer_seconds',
+      label: 'Docker action buffer (seconds)',
+      description: 'Extra headroom added around stop and remove calls so Docker operations can settle cleanly.',
+      configType: 'number',
+      placeholder: '15',
+      section: 'container_manager',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
   ];
 }
 

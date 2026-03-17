@@ -209,6 +209,16 @@ describe('RuntimeDefaultsService', () => {
         }),
       ).rejects.toThrow('tasks.default_timeout_minutes must be at least 1');
     });
+
+    it('rejects non-positive container manager defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'container_manager.reconcile_interval_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('container_manager.reconcile_interval_seconds must be at least 1');
+    });
   });
 
   describe('updateDefault', () => {

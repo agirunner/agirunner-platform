@@ -157,9 +157,14 @@ func (m *Manager) Close() {
 
 // Run starts the reconcile loop and blocks until the context is cancelled.
 func (m *Manager) Run(ctx context.Context) error {
+	initialSnapshot, err := m.platform.FetchReconcileSnapshot()
+	if err != nil {
+		return fmt.Errorf("fetch initial reconcile snapshot: %w", err)
+	}
+	m.applySnapshotConfig(initialSnapshot)
 	m.logger.Info("container-manager started", "interval", m.config.ReconcileInterval)
 
-	if err := m.startupSweep(ctx); err != nil {
+	if err := m.startupSweepWithTargets(ctx, initialSnapshot.RuntimeTargets); err != nil {
 		m.logger.Error("startup sweep failed", "error", err)
 	}
 
@@ -180,7 +185,11 @@ func (m *Manager) Run(ctx context.Context) error {
 			m.Close()
 			return ctx.Err()
 		case <-ticker.C:
+			previousInterval := m.config.ReconcileInterval
 			m.runReconcileCycle(ctx)
+			if m.config.ReconcileInterval > 0 && m.config.ReconcileInterval != previousInterval {
+				ticker.Reset(m.config.ReconcileInterval)
+			}
 		}
 	}
 }
@@ -201,6 +210,7 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 		m.logger.Error("WDS reconcile cycle failed", "error", wdsErr)
 		m.logger.Error("DCM reconcile cycle failed", "error", dcmErr)
 	} else {
+		m.applySnapshotConfig(snapshot)
 		if wdsErr = m.reconcileOnceWithDesired(ctx, snapshot.DesiredStates); wdsErr != nil {
 			m.logger.Error("WDS reconcile cycle failed", "error", wdsErr)
 		}

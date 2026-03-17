@@ -93,12 +93,13 @@ async function seedRolesAndDefaults(db: DatabaseQueryable): Promise<void> {
 
   if (existingRoles.length === 0) {
     await seedRoleDefinitions(roleService, rolesConfig);
-    await seedRuntimeDefaults(defaultsService);
     console.info('[seed] Role definitions and runtime defaults seeded.');
   } else {
     await seedMissingRoles(roleService, rolesConfig, existingRoles);
     await syncBuiltInRoles(roleService, rolesConfig, existingRoles);
   }
+
+  await seedRuntimeDefaults(defaultsService);
 
   await seedDefaultPrompts(db);
 }
@@ -252,6 +253,34 @@ async function seedRuntimeDefaults(
     configValue: '30',
     configType: 'number',
     description: 'Default timeout in minutes applied to new tasks when the task payload omits one',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.reconcile_interval_seconds',
+    configValue: '5',
+    configType: 'number',
+    description: 'How often the container manager polls the fleet snapshot and reconciles runtime state',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.stop_timeout_seconds',
+    configValue: '30',
+    configType: 'number',
+    description: 'Grace period in seconds used by the container manager when stopping runtime containers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.shutdown_task_stop_timeout_seconds',
+    configValue: '2',
+    configType: 'number',
+    description: 'Grace period in seconds used for task containers during manager shutdown cleanup',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.docker_action_buffer_seconds',
+    configValue: '15',
+    configType: 'number',
+    description: 'Extra seconds the container manager adds around Docker stop/remove actions',
   });
 
 }

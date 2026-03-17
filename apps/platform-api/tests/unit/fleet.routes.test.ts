@@ -162,6 +162,13 @@ describe('fleet routes', () => {
       desired_states: [{ id: 'worker-1', worker_name: 'worker-a' }],
       runtime_targets: [{ playbook_id: 'pb-1', pool_kind: 'orchestrator' }],
       heartbeats: [{ runtime_id: 'rt-1', pool_kind: 'orchestrator', state: 'idle' }],
+      container_manager_config: {
+        reconcile_interval_seconds: 5,
+        stop_timeout_seconds: 30,
+        shutdown_task_stop_timeout_seconds: 2,
+        docker_action_buffer_seconds: 15,
+        global_max_runtimes: 10,
+      },
     });
     app.decorate('fleetService', {
       listWorkers: vi.fn(),
@@ -202,6 +209,13 @@ describe('fleet routes', () => {
       desired_states: [{ id: 'worker-1', worker_name: 'worker-a' }],
       runtime_targets: [{ playbook_id: 'pb-1', pool_kind: 'orchestrator' }],
       heartbeats: [{ runtime_id: 'rt-1', pool_kind: 'orchestrator', state: 'idle' }],
+      container_manager_config: {
+        reconcile_interval_seconds: 5,
+        stop_timeout_seconds: 30,
+        shutdown_task_stop_timeout_seconds: 2,
+        docker_action_buffer_seconds: 15,
+        global_max_runtimes: 10,
+      },
     });
   });
 

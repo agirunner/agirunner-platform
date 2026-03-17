@@ -427,6 +427,45 @@ describe('FleetService DCM', () => {
     });
   });
 
+  describe('getReconcileSnapshot', () => {
+    it('includes typed container manager config from runtime defaults', async () => {
+      pool.query.mockImplementation(async (query: string) => {
+        if (query.includes('FROM worker_desired_state')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (query.includes('SELECT config_key, config_value FROM runtime_defaults')) {
+          return {
+            rows: [
+              { config_key: 'container_manager.reconcile_interval_seconds', config_value: '7' },
+              { config_key: 'container_manager.stop_timeout_seconds', config_value: '45' },
+              { config_key: 'container_manager.shutdown_task_stop_timeout_seconds', config_value: '3' },
+              { config_key: 'container_manager.docker_action_buffer_seconds', config_value: '20' },
+              { config_key: 'global_max_runtimes', config_value: '12' },
+            ],
+            rowCount: 5,
+          };
+        }
+        if (query.includes('FROM playbooks p')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (query.includes('FROM runtime_heartbeats')) {
+          return { rows: [], rowCount: 0 };
+        }
+        throw new Error(`Unexpected query in getReconcileSnapshot test: ${query}`);
+      });
+
+      const result = await service.getReconcileSnapshot(TENANT_ID);
+
+      expect(result.container_manager_config).toEqual({
+        reconcile_interval_seconds: 7,
+        stop_timeout_seconds: 45,
+        shutdown_task_stop_timeout_seconds: 3,
+        docker_action_buffer_seconds: 20,
+        global_max_runtimes: 12,
+      });
+    });
+  });
+
   describe('drainRuntime', () => {
     it('sets drain_requested on existing heartbeat', async () => {
       pool.query.mockResolvedValueOnce({ rows: [{}], rowCount: 1 });

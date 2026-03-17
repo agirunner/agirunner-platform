@@ -21,6 +21,7 @@ describe('runtime defaults page support', () => {
       'lifecycle_timeouts',
       'task_timeouts',
       'connected_platform',
+      'container_manager',
       'workspace_timeouts',
       'capture_timeouts',
       'secrets_timeouts',
@@ -42,6 +43,9 @@ describe('runtime defaults page support', () => {
     );
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toContain(
       'platform.claim_poll_seconds',
+    );
+    expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
+      'container_manager.reconcile_interval_seconds',
     );
     expect(fieldsForSection('task_timeouts').map((field) => field.key)).toContain(
       'tasks.default_timeout_minutes',
@@ -167,6 +171,13 @@ describe('runtime defaults page support', () => {
           configuredCount: 1,
           fieldCount: 16,
           errorCount: 1,
+        },
+        {
+          key: 'container_manager',
+          title: 'Container manager',
+          configuredCount: 0,
+          fieldCount: 4,
+          errorCount: 0,
         },
         {
           key: 'task_timeouts',

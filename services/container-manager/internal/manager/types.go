@@ -116,12 +116,21 @@ type RuntimeHeartbeat struct {
 	ActiveTaskID    string `json:"active_task_id,omitempty"`
 }
 
+type ContainerManagerConfig struct {
+	ReconcileIntervalSeconds       int `json:"reconcile_interval_seconds"`
+	StopTimeoutSeconds             int `json:"stop_timeout_seconds"`
+	ShutdownTaskStopTimeoutSeconds int `json:"shutdown_task_stop_timeout_seconds"`
+	DockerActionBufferSeconds      int `json:"docker_action_buffer_seconds"`
+	GlobalMaxRuntimes              int `json:"global_max_runtimes"`
+}
+
 // ReconcileSnapshot bundles the worker desired state and DCM inputs needed for
 // a single reconcile cycle so the manager can fetch them with one API call.
 type ReconcileSnapshot struct {
-	DesiredStates  []DesiredState     `json:"desired_states"`
-	RuntimeTargets []RuntimeTarget    `json:"runtime_targets"`
-	Heartbeats     []RuntimeHeartbeat `json:"heartbeats"`
+	DesiredStates           []DesiredState         `json:"desired_states"`
+	RuntimeTargets          []RuntimeTarget        `json:"runtime_targets"`
+	Heartbeats              []RuntimeHeartbeat     `json:"heartbeats"`
+	ContainerManagerConfig  ContainerManagerConfig `json:"container_manager_config"`
 }
 
 // ContainerHealthStatus holds health inspection data from Docker.

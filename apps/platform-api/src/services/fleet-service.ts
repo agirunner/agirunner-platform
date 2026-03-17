@@ -840,17 +840,20 @@ export class FleetService {
     desired_states: FleetWorkerView[];
     runtime_targets: RuntimeTarget[];
     heartbeats: HeartbeatListRow[];
+    container_manager_config: ContainerManagerConfig;
   }> {
-    const [desiredStates, runtimeTargets, heartbeats] = await Promise.all([
+    const [desiredStates, runtimeTargets, heartbeats, defaults] = await Promise.all([
       this.listWorkers(tenantId, { enabledOnly: true }),
       this.getRuntimeTargets(tenantId),
       this.listHeartbeats(tenantId),
+      this.loadRuntimeDefaults(tenantId),
     ]);
 
     return {
       desired_states: desiredStates,
       runtime_targets: runtimeTargets,
       heartbeats,
+      container_manager_config: buildContainerManagerConfig(defaults),
     };
   }
 
@@ -1280,6 +1283,53 @@ interface RoleCapabilityRow {
   capabilities: string[];
 }
 
+const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
+  reconcileIntervalSeconds: 'container_manager.reconcile_interval_seconds',
+  stopTimeoutSeconds: 'container_manager.stop_timeout_seconds',
+  shutdownTaskStopTimeoutSeconds: 'container_manager.shutdown_task_stop_timeout_seconds',
+  dockerActionBufferSeconds: 'container_manager.docker_action_buffer_seconds',
+  globalMaxRuntimes: 'global_max_runtimes',
+} as const;
+
+function buildContainerManagerConfig(defaults: Map<string, string>): ContainerManagerConfig {
+  return {
+    reconcile_interval_seconds: readIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.reconcileIntervalSeconds,
+      5,
+    ),
+    stop_timeout_seconds: readIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.stopTimeoutSeconds,
+      30,
+    ),
+    shutdown_task_stop_timeout_seconds: readIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.shutdownTaskStopTimeoutSeconds,
+      2,
+    ),
+    docker_action_buffer_seconds: readIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.dockerActionBufferSeconds,
+      15,
+    ),
+    global_max_runtimes: readIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
+      10,
+    ),
+  };
+}
+
+function readIntegerDefault(
+  defaults: Map<string, string>,
+  key: string,
+  fallbackValue: number,
+): number {
+  const parsed = Number(defaults.get(key) ?? '');
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallbackValue;
+}
+
 export interface HeartbeatPayload {
   runtime_id: string;
   playbook_id: string;
@@ -1338,6 +1388,14 @@ export interface WorkerPoolSummary {
   enabled_workers: number;
   draining_workers: number;
   running_containers: number;
+}
+
+export interface ContainerManagerConfig {
+  reconcile_interval_seconds: number;
+  stop_timeout_seconds: number;
+  shutdown_task_stop_timeout_seconds: number;
+  docker_action_buffer_seconds: number;
+  global_max_runtimes: number;
 }
 
 export interface FleetStatus {

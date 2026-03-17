@@ -12,6 +12,14 @@ const defaultGracePeriodSeconds = 180
 
 // startupSweep adopts or removes DCM-managed containers based on current targets.
 func (m *Manager) startupSweep(ctx context.Context) error {
+	targets, err := m.platform.FetchRuntimeTargets()
+	if err != nil {
+		return fmt.Errorf("fetch runtime targets on startup: %w", err)
+	}
+	return m.startupSweepWithTargets(ctx, targets)
+}
+
+func (m *Manager) startupSweepWithTargets(ctx context.Context, targets []RuntimeTarget) error {
 	containers, err := m.listAllDCMContainers(ctx)
 	if err != nil {
 		return fmt.Errorf("list DCM containers on startup: %w", err)
@@ -20,11 +28,6 @@ func (m *Manager) startupSweep(ctx context.Context) error {
 	if len(containers) == 0 {
 		m.logger.Info("startup sweep: no DCM containers found")
 		return nil
-	}
-
-	targets, err := m.platform.FetchRuntimeTargets()
-	if err != nil {
-		return fmt.Errorf("fetch runtime targets on startup: %w", err)
 	}
 
 	targetMap := buildTargetMap(targets)

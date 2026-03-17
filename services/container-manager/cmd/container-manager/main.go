@@ -27,11 +27,6 @@ func main() {
 		PlatformAPIKey:           envOrFileOrDefault("PLATFORM_API_KEY", "PLATFORM_API_KEY_FILE", ""),
 		PlatformAdminAPIKey:      envOrFileOrDefault("PLATFORM_ADMIN_API_KEY", "PLATFORM_ADMIN_API_KEY_FILE", ""),
 		DockerHost:               envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
-		ReconcileInterval:        parseDuration("RECONCILE_INTERVAL_SECONDS", 5),
-		StopTimeout:              parseDuration("STOP_TIMEOUT_SECONDS", 30),
-		ShutdownTaskStopTimeout:  parseDuration("SHUTDOWN_TASK_STOP_TIMEOUT_SECONDS", 2),
-		DockerActionBuffer:       parseDuration("DOCKER_ACTION_BUFFER_SECONDS", 15),
-		GlobalMaxRuntimes:        parseIntWithAlias("AGIRUNNER_GLOBAL_MAX_RUNTIMES", "GLOBAL_MAX_RUNTIMES", 10),
 		RuntimeOrphanGraceCycles: parseInt("RUNTIME_ORPHAN_GRACE_CYCLES", 3),
 		RuntimeNetwork:           envOrDefault("RUNTIME_NETWORK", ""),
 		RuntimeInternalNetwork:   envOrDefault("RUNTIME_INTERNAL_NETWORK", ""),
@@ -127,18 +122,6 @@ func parseIntWithAlias(primary, fallback string, defaultValue int) int {
 
 func defaultProcessLogLevel() slog.Level {
 	return slog.LevelInfo
-}
-
-func parseDuration(envKey string, defaultSeconds int) time.Duration {
-	v := os.Getenv(envKey)
-	if v == "" {
-		return time.Duration(defaultSeconds) * time.Second
-	}
-	seconds, err := strconv.Atoi(v)
-	if err != nil {
-		return time.Duration(defaultSeconds) * time.Second
-	}
-	return time.Duration(seconds) * time.Second
 }
 
 
