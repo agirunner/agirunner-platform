@@ -1,17 +1,23 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { NotFoundError } from '../errors/domain-errors.js';
+import type { LogService } from '../logging/log-service.js';
+import { logPredecessorHandoffResolution } from '../logging/predecessor-handoff-log.js';
 import {
   normalizeTaskState,
 } from '../orchestration/task-state-machine.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildTaskContext } from './task-context-service.js';
 import type { ListTaskQuery } from './task-service.types.js';
+import type { RelevantHandoffResolution } from './predecessor-handoff-resolver.js';
 
 const SECRET_REDACTION = 'redacted://task-secret';
 
 export class TaskQueryService {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(
+    private readonly pool: DatabasePool,
+    private readonly logService?: LogService,
+  ) {}
 
   async loadTaskOrThrow(tenantId: string, taskId: string, client?: DatabaseClient) {
     const db = client ?? this.pool;
@@ -123,7 +129,18 @@ export class TaskQueryService {
   }
 
   async getTaskContext(tenantId: string, taskId: string, agentId?: string) {
-    return buildTaskContext(this.pool, tenantId, await this.loadTaskOrThrow(tenantId, taskId), agentId);
+    const task = await this.loadTaskOrThrow(tenantId, taskId);
+    const context = await buildTaskContext(this.pool, tenantId, task, agentId);
+    const resolution = readRelevantHandoffResolution(context.task);
+    if (resolution) {
+      await logPredecessorHandoffResolution(this.logService, {
+        tenantId,
+        operation: 'task.context.predecessor_handoff.attach',
+        task,
+        resolution,
+      });
+    }
+    return context;
   }
 
   private async loadLatestTaskHandoff(tenantId: string, taskId: string) {
@@ -183,4 +200,19 @@ function normalizeTaskHandoff(row: Record<string, unknown>) {
         ? row.created_at.toISOString()
         : row.created_at ?? null,
   };
+}
+
+function readRelevantHandoffResolution(taskContext: unknown): RelevantHandoffResolution | null {
+  if (!isRecord(taskContext)) {
+    return null;
+  }
+  const resolution = taskContext.predecessor_handoff_resolution;
+  if (!isRecord(resolution) || !Array.isArray(resolution.handoffs) || typeof resolution.source !== 'string') {
+    return null;
+  }
+  return resolution as unknown as RelevantHandoffResolution;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

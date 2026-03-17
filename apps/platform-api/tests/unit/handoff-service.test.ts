@@ -312,15 +312,31 @@ describe('HandoffService', () => {
         }),
     };
 
-    const service = new HandoffService(pool as never);
+    const logService = { insert: vi.fn().mockResolvedValue(undefined) };
+    const service = new HandoffService(pool as never, logService as never);
     const result = await service.getPredecessorHandoff('tenant-1', 'task-2');
 
     expect(result).toEqual(expect.objectContaining({ id: 'handoff-1', role: 'developer' }));
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.predecessor_handoff.lookup',
+        taskId: 'task-2',
+        workItemId: 'work-item-1',
+        stageName: 'review',
+        role: 'reviewer',
+        payload: expect.objectContaining({
+          resolution_source: 'local_work_item',
+          has_predecessor_handoff: true,
+          selected_handoff_id: 'handoff-1',
+          selected_handoff_role: 'developer',
+        }),
+      }),
+    );
   });
 
   it('loads the predecessor handoff from the parent-linked work item when the current work item has no local handoff', async () => {
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('LIMIT 1')) {
           return {
             rows: [{
@@ -337,7 +353,12 @@ describe('HandoffService', () => {
             rowCount: 1,
           };
         }
-        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $3')) {
+        if (
+          sql.includes('FROM task_handoffs') &&
+          sql.includes('AND work_item_id = $3') &&
+          Array.isArray(params) &&
+          params[2] === 'work-item-release'
+        ) {
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id')) {
@@ -346,7 +367,12 @@ describe('HandoffService', () => {
             rowCount: 1,
           };
         }
-        if (sql.includes('FROM task_handoffs') && sql.includes('AND work_item_id = $4')) {
+        if (
+          sql.includes('FROM task_handoffs') &&
+          sql.includes('AND work_item_id = $3') &&
+          Array.isArray(params) &&
+          params[2] === 'work-item-verification'
+        ) {
           return {
             rows: [{
               id: 'handoff-qa-1',

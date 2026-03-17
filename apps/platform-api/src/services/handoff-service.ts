@@ -1,8 +1,10 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import type { LogService } from '../logging/log-service.js';
+import { logPredecessorHandoffResolution } from '../logging/predecessor-handoff-log.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
-import { loadResolvedPredecessorHandoff } from './predecessor-handoff-resolver.js';
+import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 
 export interface SubmitTaskHandoffInput {
   request_id?: string;
@@ -58,7 +60,10 @@ interface TaskHandoffRow extends Record<string, unknown> {
 }
 
 export class HandoffService {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(
+    private readonly pool: DatabasePool,
+    private readonly logService?: LogService,
+  ) {}
 
   async assertRequiredTaskHandoffBeforeCompletion(
     tenantId: string,
@@ -240,11 +245,19 @@ export class HandoffService {
     db: DatabaseClient | DatabasePool = this.pool,
   ) {
     const task = await this.loadTask(tenantId, taskId, db);
-    const handoff = await loadResolvedPredecessorHandoff(
+    const resolution = await resolveRelevantHandoffs(
       db,
       tenantId,
       task as unknown as Record<string, unknown>,
+      1,
     );
+    await logPredecessorHandoffResolution(this.logService, {
+      tenantId,
+      operation: 'task.predecessor_handoff.lookup',
+      task: task as unknown as Record<string, unknown>,
+      resolution,
+    });
+    const handoff = resolution.handoffs[0] ?? null;
     return handoff ? toTaskHandoffResponse(handoff as TaskHandoffRow) : null;
   }
 

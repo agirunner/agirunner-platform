@@ -110,7 +110,7 @@ export class TaskService {
       return signal.id;
     };
 
-    this.queryService = new TaskQueryService(pool);
+    this.queryService = new TaskQueryService(pool, logService);
     const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);
     const parallelismService = new PlaybookTaskParallelismService(pool);
     const roleDefService = new RoleDefinitionService(pool);
@@ -159,7 +159,7 @@ export class TaskService {
       config,
     });
     const workItemContinuityService = new WorkItemContinuityService(pool);
-    const handoffService = new HandoffService(pool);
+    const handoffService = new HandoffService(pool, logService);
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,

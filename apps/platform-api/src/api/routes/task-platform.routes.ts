@@ -58,7 +58,7 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
   const toolResultService = new WorkflowToolResultService(app.pgPool);
-  const handoffService = new HandoffService(app.pgPool);
+  const handoffService = new HandoffService(app.pgPool, app.logService);
   const projectMemoryScopeService = new ProjectMemoryScopeService(app.pgPool);
   const artifactCatalogService = new ArtifactCatalogService(
     app.pgPool,

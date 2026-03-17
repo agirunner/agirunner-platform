@@ -372,6 +372,30 @@ describe('task query service git activity (FR-055)', () => {
           }],
         };
       }
+      if (sql.includes('FROM task_handoffs')) {
+        return {
+          rowCount: 1,
+          rows: [{
+            id: 'handoff-ctx-1',
+            task_id: 'task-upstream-1',
+            role: 'developer',
+            stage_name: 'implementation',
+            sequence: 4,
+            summary: 'Implementation is ready for review.',
+            completion: 'full',
+            changes: [],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            review_focus: [],
+            known_risks: [],
+            successor_context: null,
+            role_data: {},
+            artifact_ids: [],
+            created_at: new Date('2026-03-15T12:00:00Z'),
+          }],
+        };
+      }
       if (sql.includes('SELECT project_id, project_spec_version') && sql.includes('FROM workflows')) {
         return {
           rowCount: 1,
@@ -401,7 +425,8 @@ describe('task query service git activity (FR-055)', () => {
       }
       return { rows: [] };
     });
-    const service = new TaskQueryService({ query: queries } as never);
+    const logService = { insert: vi.fn().mockResolvedValue(undefined) };
+    const service = new TaskQueryService({ query: queries } as never, logService as never);
 
     const git = await service.getTaskGitActivity(tenantId, taskId);
     const context = await service.getTaskContext(tenantId, taskId);
@@ -420,6 +445,20 @@ describe('task query service git activity (FR-055)', () => {
     );
     expect(((context.instruction_layers as Record<string, any>).task as Record<string, any>).content).toBe(
       'redacted://task-context-secret',
+    );
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.context.predecessor_handoff.attach',
+        taskId,
+        workflowId: 'workflow-1',
+        workItemId: 'wi-1',
+        payload: expect.objectContaining({
+          resolution_source: 'local_work_item',
+          has_predecessor_handoff: true,
+          selected_handoff_id: 'handoff-ctx-1',
+          selected_handoff_role: 'developer',
+        }),
+      }),
     );
   });
 
