@@ -6,6 +6,10 @@ import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
 import { readProjectRepositorySettings } from './project-settings.js';
 import { resolveRepositoryBranchContext } from './repository-branch-context.js';
+import {
+  readRequiredPositiveIntegerRuntimeDefault,
+  TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
+} from './runtime-default-values.js';
 
 const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'pending',
@@ -141,8 +145,9 @@ export interface ActivationRecoveryDetail {
 interface DispatchDependencies {
   pool: DatabasePool;
   eventService: EventService;
-  config: Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
-    Partial<
+  config: {
+    TASK_DEFAULT_TIMEOUT_MINUTES?: number;
+  } & Partial<
       Pick<
         AppEnv,
         | 'WORKFLOW_ACTIVATION_DELAY_MS'
@@ -515,6 +520,10 @@ export class WorkflowActivationDispatchService {
       }
       const taskRequestId = buildActivationTaskRequestId(activationAnchor);
       const taskDefinition = buildActivationTaskDefinition(workflow, activationAnchor, activationBatch);
+      const timeoutMinutes = await this.resolveDefaultTaskTimeoutMinutes(
+        activationAnchor.tenant_id,
+        client,
+      );
       const taskResult = await client.query<ActivationTaskRow>(
         `INSERT INTO tasks (
            tenant_id,
@@ -566,7 +575,7 @@ export class WorkflowActivationDispatchService {
           JSON.stringify(taskDefinition.resourceBindings),
           activationAnchor.id,
           taskRequestId,
-          this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
+          timeoutMinutes,
           taskDefinition.metadata,
         ],
       );
@@ -1413,6 +1422,25 @@ export class WorkflowActivationDispatchService {
 
   private getStaleActivationThresholdMs(): number {
     return this.deps.config.WORKFLOW_ACTIVATION_STALE_AFTER_MS ?? 300_000;
+  }
+
+  private async resolveDefaultTaskTimeoutMinutes(
+    tenantId: string,
+    client: DatabaseClient,
+  ): Promise<number> {
+    if (
+      typeof this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES === 'number'
+      && Number.isInteger(this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES)
+      && this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES > 0
+    ) {
+      return this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES;
+    }
+
+    return readRequiredPositiveIntegerRuntimeDefault(
+      client,
+      tenantId,
+      TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
+    );
   }
 }
 

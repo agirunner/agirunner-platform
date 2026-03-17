@@ -89,7 +89,6 @@ export class WorkflowService {
       pool,
       eventService,
       config: {
-        TASK_DEFAULT_TIMEOUT_MINUTES: config.TASK_DEFAULT_TIMEOUT_MINUTES,
         WORKFLOW_ACTIVATION_DELAY_MS: workflowActivationDelayMs,
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: workflowActivationStaleAfterMs,
       },

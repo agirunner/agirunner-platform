@@ -368,6 +368,114 @@ describe('WorkflowActivationDispatchService', () => {
     );
   });
 
+  it('uses the runtime default task timeout when dispatching orchestrator work', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-runtime-default',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'heartbeat:workflow-1:5911344',
+              reason: 'heartbeat',
+              event_type: 'heartbeat',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              project_id: 'project-1',
+              lifecycle: 'ongoing',
+              current_stage: null,
+              active_stages: ['triage'],
+              playbook_id: 'playbook-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship tested code',
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-runtime-default',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-runtime-default',
+              request_id: 'heartbeat:workflow-1:5911344',
+              reason: 'heartbeat',
+              event_type: 'heartbeat',
+              payload: {},
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-runtime-default',
+              queued_at: new Date('2026-03-13T12:00:00Z'),
+              started_at: new Date('2026-03-13T12:00:05Z'),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM runtime_defaults') && sql.includes('config_key = $2')) {
+          return {
+            rowCount: 1,
+            rows: [{ config_value: '45' }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          expect(params?.[13]).toBe(45);
+          return { rowCount: 1, rows: [{ id: 'task-runtime-default' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      config: {
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      } as never,
+    });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-runtime-default');
+
+    expect(taskId).toBe('task-runtime-default');
+  });
+
   it('completes heartbeat-only activations without dispatch when specialist work is still running', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {

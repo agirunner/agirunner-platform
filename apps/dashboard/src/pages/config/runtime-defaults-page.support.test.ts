@@ -19,6 +19,7 @@ describe('runtime defaults page support', () => {
       'tool_timeouts',
       'container_timeouts',
       'lifecycle_timeouts',
+      'task_timeouts',
       'connected_platform',
       'workspace_timeouts',
       'capture_timeouts',
@@ -41,6 +42,9 @@ describe('runtime defaults page support', () => {
     );
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toContain(
       'platform.claim_poll_seconds',
+    );
+    expect(fieldsForSection('task_timeouts').map((field) => field.key)).toContain(
+      'tasks.default_timeout_minutes',
     );
     expect(fieldsForSection('agent_context').map((field) => field.key)).toContain(
       'agent.history_max_messages',
@@ -163,6 +167,13 @@ describe('runtime defaults page support', () => {
           configuredCount: 1,
           fieldCount: 16,
           errorCount: 1,
+        },
+        {
+          key: 'task_timeouts',
+          title: 'Task timeouts',
+          configuredCount: 0,
+          fieldCount: 1,
+          errorCount: 0,
         },
         {
           key: 'connected_platform',

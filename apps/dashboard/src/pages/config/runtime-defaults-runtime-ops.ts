@@ -27,6 +27,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Control health checks and task-container stop/destroy deadlines.',
   },
   {
+    key: 'task_timeouts',
+    title: 'Task timeouts',
+    description: 'Set the default timeout applied when newly created tasks do not specify one explicitly.',
+  },
+  {
     key: 'connected_platform',
     title: 'Connected platform',
     description: 'Tune claim polling and drain behavior when runtimes are attached to the platform fleet.',
@@ -90,6 +95,17 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   ...buildToolTimeoutFields(),
   ...buildContainerTimeoutFields(),
   ...buildLifecycleTimeoutFields(),
+  {
+    key: 'tasks.default_timeout_minutes',
+    label: 'Default task timeout (minutes)',
+    description: 'Default timeout assigned to new tasks when the task payload does not provide one explicitly.',
+    configType: 'number',
+    placeholder: '30',
+    section: 'task_timeouts',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
   ...buildConnectedPlatformFields(),
   ...buildWorkspaceTimeoutFields(),
   {

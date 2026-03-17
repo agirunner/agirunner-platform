@@ -247,6 +247,13 @@ async function seedRuntimeDefaults(
     description: 'Default maximum retries for failed model calls before the task errors',
   });
 
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'tasks.default_timeout_minutes',
+    configValue: '30',
+    configType: 'number',
+    description: 'Default timeout in minutes applied to new tasks when the task payload omits one',
+  });
+
 }
 
 async function deleteNonLlmRuntimeDefaults(db: DatabaseQueryable): Promise<void> {

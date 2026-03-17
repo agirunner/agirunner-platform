@@ -7,6 +7,10 @@ import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { readProjectRepositorySettings } from './project-settings.js';
 import { resolveRepositoryBranchContext } from './repository-branch-context.js';
+import {
+  readRequiredPositiveIntegerRuntimeDefault,
+  TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
+} from './runtime-default-values.js';
 import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
@@ -143,6 +147,7 @@ export class TaskWriteService {
     }
 
     const initialState = await this.resolveInitialState(identity.tenantId, normalizedInput, dependencies.length);
+    const timeoutMinutes = await this.resolveTimeoutMinutes(identity.tenantId, normalizedInput, db);
 
     const insertResult = await db.query(
       `INSERT INTO tasks (
@@ -174,7 +179,7 @@ export class TaskWriteService {
         normalizedInput.activation_id ?? null,
         normalizedInput.request_id?.trim() ?? null,
         normalizedInput.is_orchestrator_task ?? false,
-        normalizedInput.timeout_minutes ?? this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES,
+        timeoutMinutes,
         normalizedInput.token_budget ?? null,
         normalizedInput.cost_cap_usd ?? null,
         normalizedInput.auto_retry ?? false,
@@ -219,6 +224,30 @@ export class TaskWriteService {
     }, 'release' in db ? db : undefined);
 
     return this.deps.toTaskResponse(task);
+  }
+
+  private async resolveTimeoutMinutes(
+    tenantId: string,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<number> {
+    if (typeof input.timeout_minutes === 'number' && Number.isInteger(input.timeout_minutes) && input.timeout_minutes > 0) {
+      return input.timeout_minutes;
+    }
+
+    if (
+      typeof this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES === 'number'
+      && Number.isInteger(this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES)
+      && this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES > 0
+    ) {
+      return this.deps.config.TASK_DEFAULT_TIMEOUT_MINUTES;
+    }
+
+    return readRequiredPositiveIntegerRuntimeDefault(
+      db,
+      tenantId,
+      TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
+    );
   }
 
   private async findExistingActiveTaskForWorkItemRole(

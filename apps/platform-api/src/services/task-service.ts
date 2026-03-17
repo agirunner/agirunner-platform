@@ -160,7 +160,6 @@ export class TaskService {
       pool,
       eventService,
       config: {
-        TASK_DEFAULT_TIMEOUT_MINUTES: config.TASK_DEFAULT_TIMEOUT_MINUTES,
         WORKFLOW_ACTIVATION_DELAY_MS: workflowActivationDelayMs,
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: workflowActivationStaleAfterMs,
       },
@@ -171,7 +170,6 @@ export class TaskService {
       pool,
       eventService,
       workflowStateService,
-      defaultTaskTimeoutMinutes: config.TASK_DEFAULT_TIMEOUT_MINUTES,
       artifactService,
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),

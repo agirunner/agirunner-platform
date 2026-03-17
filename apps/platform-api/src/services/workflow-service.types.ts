@@ -52,7 +52,11 @@ export interface WorkflowWorkItemSummary {
   active_stage_names: string[];
 }
 
-export type WorkflowServiceConfig = Pick<AppEnv, 'TASK_DEFAULT_TIMEOUT_MINUTES'> &
+type LegacyTaskTimeoutConfig = {
+  TASK_DEFAULT_TIMEOUT_MINUTES?: number;
+};
+
+export type WorkflowServiceConfig = LegacyTaskTimeoutConfig &
   Partial<
     Pick<
       AppEnv,

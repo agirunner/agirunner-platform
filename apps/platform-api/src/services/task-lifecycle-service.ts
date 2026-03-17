@@ -25,6 +25,11 @@ import {
   type LifecyclePolicy,
   type RetryPolicy,
 } from './task-lifecycle-policy.js';
+import {
+  readPositiveInteger,
+  readRequiredPositiveIntegerRuntimeDefault,
+  TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
+} from './runtime-default-values.js';
 import { enqueueWorkflowActivationRecord, isPlaybookWorkflow } from './workflow-activation-record.js';
 
 interface TransitionOptions {
@@ -55,7 +60,7 @@ interface TaskLifecycleDependencies {
   pool: DatabasePool;
   eventService: EventService;
   workflowStateService: WorkflowStateService;
-  defaultTaskTimeoutMinutes: number;
+  defaultTaskTimeoutMinutes?: number;
   loadTaskOrThrow: (
     tenantId: string,
     taskId: string,
@@ -1932,7 +1937,11 @@ export class TaskLifecycleService {
         null,
         null,
         [],
-        Number(sourceTask.timeout_minutes) || this.deps.defaultTaskTimeoutMinutes,
+        await this.resolveInheritedTaskTimeoutMinutes(
+          identity.tenantId,
+          sourceTask.timeout_minutes,
+          client,
+        ),
         null,
         null,
         false,
@@ -2014,7 +2023,11 @@ export class TaskLifecycleService {
         escalationTaskInput.role_config ?? null,
         null,
         [],
-        Number(task.timeout_minutes) || this.deps.defaultTaskTimeoutMinutes,
+        await this.resolveInheritedTaskTimeoutMinutes(
+          identity.tenantId,
+          task.timeout_minutes,
+          client,
+        ),
         null,
         null,
         false,
@@ -2082,6 +2095,31 @@ export class TaskLifecycleService {
         },
       },
       client,
+    );
+  }
+
+  private async resolveInheritedTaskTimeoutMinutes(
+    tenantId: string,
+    explicitValue: unknown,
+    client: DatabaseClient,
+  ): Promise<number> {
+    const directValue = readPositiveInteger(explicitValue);
+    if (directValue !== null) {
+      return directValue;
+    }
+
+    if (
+      typeof this.deps.defaultTaskTimeoutMinutes === 'number'
+      && Number.isInteger(this.deps.defaultTaskTimeoutMinutes)
+      && this.deps.defaultTaskTimeoutMinutes > 0
+    ) {
+      return this.deps.defaultTaskTimeoutMinutes;
+    }
+
+    return readRequiredPositiveIntegerRuntimeDefault(
+      client,
+      tenantId,
+      TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
     );
   }
 }

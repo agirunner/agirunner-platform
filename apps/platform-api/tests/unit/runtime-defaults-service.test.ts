@@ -199,6 +199,16 @@ describe('RuntimeDefaultsService', () => {
         }),
       ).rejects.toThrow('platform.claim_poll_seconds must be at least 1');
     });
+
+    it('rejects non-positive task timeout defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'tasks.default_timeout_minutes',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('tasks.default_timeout_minutes must be at least 1');
+    });
   });
 
   describe('updateDefault', () => {

@@ -23,6 +23,7 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['agent.max_stuck_interventions', { min: 0 }],
   ['agent.max_iterations', { min: 1 }],
   ['agent.llm_max_retries', { min: 1 }],
+  ['tasks.default_timeout_minutes', { min: 1 }],
   ['docker.checker_timeout_ms', { min: 1 }],
   ['docker.stop_timeout_seconds', { min: 1 }],
   ['llm.http_timeout_seconds', { min: 1 }],

@@ -20,6 +20,10 @@ import { EventService } from './event-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
 import { OAuthService } from './oauth-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import {
+  readPositiveInteger,
+  readRequiredPositiveIntegerRuntimeDefault,
+} from './runtime-default-values.js';
 import { flattenInstructionLayers } from './task-context-service.js';
 import { computeToolMatch, readAgentToolRequirements, resolveProjectToolTags } from './tool-tag-service.js';
 
@@ -724,19 +728,7 @@ export class TaskClaimService {
       return directValue;
     }
 
-    const result = await db.query<{ config_value: string }>(
-      `SELECT config_value
-         FROM runtime_defaults
-        WHERE tenant_id = $1
-          AND config_key = $2
-        LIMIT 1`,
-      [tenantId, runtimeDefaultKey],
-    );
-    const fallbackValue = readPositiveInteger(result.rows[0]?.config_value);
-    if (fallbackValue !== null) {
-      return fallbackValue;
-    }
-    throw new ValidationError(`Missing runtime default "${runtimeDefaultKey}"`);
+    return readRequiredPositiveIntegerRuntimeDefault(db, tenantId, runtimeDefaultKey);
   }
 
   private async assertAgentOwnsTask(tenantId: string, taskId: string, agentId: string): Promise<void> {
@@ -807,19 +799,6 @@ function buildExecutionModeCondition(mode: AgentExecutionMode): string {
 
 function buildTaskLoopMode(task: Record<string, unknown>) {
   return task.is_orchestrator_task === true ? 'tpaov' : 'reactive';
-}
-
-function readPositiveInteger(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
-    return value;
-  }
-  if (typeof value === 'string') {
-    const parsed = Number.parseInt(value, 10);
-    if (Number.isInteger(parsed) && parsed > 0) {
-      return parsed;
-    }
-  }
-  return null;
 }
 
 function readNullableFloat(value: unknown): number | null {

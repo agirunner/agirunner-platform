@@ -13,6 +13,57 @@ function isPlaybookDefinitionLookup(sql: string) {
 }
 
 describe('TaskWriteService', () => {
+  it('uses the runtime default task timeout when input omits one', async () => {
+    let insertedTimeoutMinutes: number | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('FROM runtime_defaults') && sql.includes('config_key = $2')) {
+          return {
+            rowCount: 1,
+            rows: [{ config_value: '45' }],
+          };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedTimeoutMinutes = (values?.[21] as number) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-1',
+              tenant_id: 'tenant-1',
+              timeout_minutes: insertedTimeoutMinutes,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {} as never,
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Implement hello world',
+      },
+    );
+
+    expect(insertedTimeoutMinutes).toBe(45);
+  });
+
   it('derives output review from playbook rules instead of trusting reviewer task input', async () => {
     let insertedRequiresOutputReview: boolean | null = null;
     const pool = {
