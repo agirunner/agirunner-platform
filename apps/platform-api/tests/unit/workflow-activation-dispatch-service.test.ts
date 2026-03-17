@@ -22,7 +22,7 @@ describe('WorkflowActivationDispatchService', () => {
           expect(params).toEqual([
             ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
             300_000,
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ['claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
             2,
           ]);
           return {
@@ -106,7 +106,7 @@ describe('WorkflowActivationDispatchService', () => {
           expect(params).toEqual([
             ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
             300_000,
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ['claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
             5,
           ]);
           return { rowCount: 0, rows: [] };

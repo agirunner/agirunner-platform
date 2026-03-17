@@ -22,8 +22,6 @@ const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'output_pending_review',
 ] as const;
 const ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES = [
-  'pending',
-  'ready',
   'claimed',
   'in_progress',
   'awaiting_approval',
