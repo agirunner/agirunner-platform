@@ -961,14 +961,11 @@ export class FleetService {
   }
 
   async getFleetStatus(tenantId: string): Promise<FleetStatus> {
-    const globalMaxResult = await this.pool.query<{ config_value: string }>(
-      `SELECT config_value FROM runtime_defaults
-       WHERE tenant_id = $1 AND config_key = 'global_max_runtimes'`,
-      [tenantId],
+    const runtimeDefaults = await this.loadRuntimeDefaults(tenantId);
+    const globalMaxRuntimes = readRequiredIntegerDefault(
+      runtimeDefaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
     );
-    const globalMaxRuntimes = globalMaxResult.rows[0]
-      ? parseInt(globalMaxResult.rows[0].config_value, 10)
-      : 10;
 
     const heartbeats = await this.pool.query<HeartbeatRow>(
       `SELECT rh.*, p.name AS playbook_name
@@ -1293,41 +1290,38 @@ const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
 
 function buildContainerManagerConfig(defaults: Map<string, string>): ContainerManagerConfig {
   return {
-    reconcile_interval_seconds: readIntegerDefault(
+    reconcile_interval_seconds: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.reconcileIntervalSeconds,
-      5,
     ),
-    stop_timeout_seconds: readIntegerDefault(
+    stop_timeout_seconds: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.stopTimeoutSeconds,
-      30,
     ),
-    shutdown_task_stop_timeout_seconds: readIntegerDefault(
+    shutdown_task_stop_timeout_seconds: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.shutdownTaskStopTimeoutSeconds,
-      2,
     ),
-    docker_action_buffer_seconds: readIntegerDefault(
+    docker_action_buffer_seconds: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.dockerActionBufferSeconds,
-      15,
     ),
-    global_max_runtimes: readIntegerDefault(
+    global_max_runtimes: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
-      10,
     ),
   };
 }
 
-function readIntegerDefault(
+function readRequiredIntegerDefault(
   defaults: Map<string, string>,
   key: string,
-  fallbackValue: number,
 ): number {
   const parsed = Number(defaults.get(key) ?? '');
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallbackValue;
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new ValidationError(`Missing runtime default "${key}"`);
+  }
+  return parsed;
 }
 
 export interface HeartbeatPayload {

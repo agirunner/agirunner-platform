@@ -525,7 +525,10 @@ describe('FleetService DCM', () => {
         rowCount: 3,
       });
       // Third call: loadRuntimeDefaults (inside getRuntimeTargets)
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ config_key: 'global_max_runtimes', config_value: '10' }],
+        rowCount: 1,
+      });
       // Fourth call: runtime targets playbooks query
       pool.query.mockResolvedValueOnce({
         rows: [{
@@ -904,7 +907,10 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       }); // global_max
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
+      pool.query.mockResolvedValueOnce({
+        rows: [{ config_key: 'global_max_runtimes', config_value: '5' }],
+        rowCount: 1,
+      }); // loadRuntimeDefaults
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // playbooks query
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // worker pool status
       const events = [
@@ -925,7 +931,10 @@ describe('FleetService DCM', () => {
         rows: [{ config_key: 'global_max_runtimes', config_value: '5' }],
         rowCount: 1,
       });
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({
+        rows: [{ config_key: 'global_max_runtimes', config_value: '5' }],
+        rowCount: 1,
+      });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
@@ -965,7 +974,10 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       }); // global_max
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // heartbeats
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // loadRuntimeDefaults
+      pool.query.mockResolvedValueOnce({
+        rows: [{ config_key: 'global_max_runtimes', config_value: '5' }],
+        rowCount: 1,
+      }); // loadRuntimeDefaults
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // playbooks query
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // worker pool status
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }); // recent_events
