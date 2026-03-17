@@ -114,9 +114,7 @@ function applyEnvOverrides(base: WorkerConfig, env: NodeJS.ProcessEnv): WorkerCo
     taskFilter: {
       projectId: env.AGIRUNNER_WORKER_FILTER_PROJECT_ID ?? base.taskFilter.projectId,
     },
-    logging: {
-      level: parseLogLevel(env.AGIRUNNER_WORKER_LOG_LEVEL) ?? base.logging.level,
-    },
+    logging: base.logging,
   };
 }
 
@@ -143,13 +141,6 @@ function parseInteger(value: string | undefined): number | undefined {
 
 function parseConnectionMode(value: string | undefined): WorkerConnectionMode | undefined {
   if (value === 'websocket' || value === 'sse' || value === 'polling') {
-    return value;
-  }
-  return undefined;
-}
-
-function parseLogLevel(value: string | undefined): WorkerConfig['logging']['level'] | undefined {
-  if (value === 'debug' || value === 'info' || value === 'warn' || value === 'error') {
     return value;
   }
   return undefined;

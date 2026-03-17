@@ -89,7 +89,6 @@ describe('environment override precedence (FR-295)', () => {
         AGIRUNNER_WORKER_RECONNECT_MAX_MS: '3500',
         AGIRUNNER_WORKER_FILTER_PROJECT_ID: 'project-env',
 
-        AGIRUNNER_WORKER_LOG_LEVEL: 'error',
       },
     });
 
@@ -104,7 +103,29 @@ describe('environment override precedence (FR-295)', () => {
         reconnect: { minMs: 1500, maxMs: 3500 },
       },
       taskFilter: { projectId: 'project-env',  },
-      logging: { level: 'error' },
+      logging: { level: 'warn' },
     });
+  });
+
+  it('does not allow environment log-level overrides to bypass file governance', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'ab-config-'));
+    const filePath = join(dir, 'worker.json');
+
+    writeFileSync(
+      filePath,
+      JSON.stringify({
+        logging: { level: 'warn' },
+      }),
+      'utf8',
+    );
+
+    const config = loadWorkerConfig({
+      filePath,
+      env: {
+        AGIRUNNER_WORKER_LOG_LEVEL: 'error',
+      },
+    });
+
+    expect(config.logging.level).toBe('warn');
   });
 });
