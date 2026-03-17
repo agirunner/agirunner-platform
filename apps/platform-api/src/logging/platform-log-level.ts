@@ -20,14 +20,22 @@ interface ApplyDefaultTenantLoggingLevelOptions {
   logger: MutableProcessLogger;
 }
 
+function shouldApplySharedProcessLogging(tenantId: string): boolean {
+  return tenantId === DEFAULT_TENANT_ID;
+}
+
 export async function applyTenantLoggingLevel({
   tenantId,
   governanceService,
   logger,
 }: ApplyTenantLoggingLevelOptions): Promise<string> {
   const level = await governanceService.getLoggingLevel(tenantId);
-  logger.level = level;
-  configureApiKeyLogging(level);
+
+  if (shouldApplySharedProcessLogging(tenantId)) {
+    logger.level = level;
+    configureApiKeyLogging(level);
+  }
+
   return level;
 }
 

@@ -61,7 +61,7 @@ describe('governance routes', () => {
     return { app, governanceService, logLevelCache };
   }
 
-  it('applies updated governance log levels to the live process logger', async () => {
+  it('keeps tenant logging updates scoped to governance state for non-default tenants', async () => {
     const { app: appInstance, governanceService, logLevelCache } = buildApp();
     await appInstance.register(governanceRoutes);
 
@@ -81,7 +81,7 @@ describe('governance routes', () => {
       'debug',
     );
     expect(logLevelCache.invalidate).toHaveBeenCalledWith('tenant-1');
-    expect(appInstance.log.level).toBe('debug');
-    expect(configureApiKeyLoggingMock).toHaveBeenCalledWith('debug');
+    expect(appInstance.log.level).toBe('info');
+    expect(configureApiKeyLoggingMock).not.toHaveBeenCalled();
   });
 });

@@ -36,7 +36,7 @@ describe('platform log level application', () => {
     expect(configureApiKeyLoggingMock).toHaveBeenCalledWith('error');
   });
 
-  it('applies a tenant-scoped level update to the live process logger', async () => {
+  it('does not let non-default tenant logging mutate the shared process logger', async () => {
     const logger = { level: 'info' };
     const governanceService = {
       getLoggingLevel: vi.fn().mockResolvedValue('warn'),
@@ -49,6 +49,24 @@ describe('platform log level application', () => {
     });
 
     expect(governanceService.getLoggingLevel).toHaveBeenCalledWith('tenant-42');
+    expect(level).toBe('warn');
+    expect(logger.level).toBe('info');
+    expect(configureApiKeyLoggingMock).not.toHaveBeenCalled();
+  });
+
+  it('lets the default tenant update the shared process logger', async () => {
+    const logger = { level: 'info' };
+    const governanceService = {
+      getLoggingLevel: vi.fn().mockResolvedValue('warn'),
+    };
+
+    const level = await applyTenantLoggingLevel({
+      tenantId: DEFAULT_TENANT_ID,
+      governanceService,
+      logger,
+    });
+
+    expect(governanceService.getLoggingLevel).toHaveBeenCalledWith(DEFAULT_TENANT_ID);
     expect(level).toBe('warn');
     expect(logger.level).toBe('warn');
     expect(configureApiKeyLoggingMock).toHaveBeenCalledWith('warn');
