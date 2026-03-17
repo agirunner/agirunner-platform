@@ -21,7 +21,14 @@ const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'awaiting_approval',
   'output_pending_review',
 ] as const;
-const ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES = ['pending', 'ready', 'claimed', 'in_progress'] as const;
+const ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES = [
+  'pending',
+  'ready',
+  'claimed',
+  'in_progress',
+  'awaiting_approval',
+  'output_pending_review',
+] as const;
 const ACTIVATION_TASK_REQUEST_ID_PATTERN = /^activation:([^:]+):dispatch:(\d+)$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'execution-workspace';
