@@ -84,6 +84,12 @@ interface TaskLLMResolution {
   resolved: ResolvedRoleConfig;
 }
 
+interface TaskLoopContract {
+  loopMode: 'reactive' | 'tpaov';
+  maxIterations: number;
+  llmMaxRetries: number;
+}
+
 export class TaskClaimService {
   constructor(private readonly deps: TaskClaimDependencies) {}
 
@@ -213,6 +219,11 @@ export class TaskClaimService {
         return null;
       }
       const llmResolution = await this.resolveTaskLLMConfig(identity.tenantId, task);
+      const loopContract = await this.resolveTaskLoopContract(
+        identity.tenantId,
+        task,
+        client,
+      );
       assertValidTransition(task.id as string, task.state as Parameters<typeof assertValidTransition>[1], 'claimed');
 
       const updatedTaskRes = await client.query(
@@ -287,6 +298,9 @@ export class TaskClaimService {
       if ((payload.include_context ?? true) === false) {
         return {
           ...mergedBase,
+          loop_mode: loopContract.loopMode,
+          max_iterations: loopContract.maxIterations,
+          llm_max_retries: loopContract.llmMaxRetries,
           tools: toolMatch,
           instructions,
         };
@@ -294,6 +308,9 @@ export class TaskClaimService {
 
       return {
         ...mergedBase,
+        loop_mode: loopContract.loopMode,
+        max_iterations: loopContract.maxIterations,
+        llm_max_retries: loopContract.llmMaxRetries,
         tools: toolMatch,
         instructions,
         context: instructionContext,
@@ -662,6 +679,56 @@ export class TaskClaimService {
     return result.rows[0]?.api_key_secret_ref ?? resolved.provider.apiKeySecretRef;
   }
 
+  private async resolveTaskLoopContract(
+    tenantId: string,
+    task: Record<string, unknown>,
+    db: DatabaseClient,
+  ): Promise<TaskLoopContract> {
+    const maxIterations = await this.resolveLoopContractValue(
+      tenantId,
+      task.max_iterations,
+      'agent.max_iterations',
+      db,
+    );
+    const llmMaxRetries = await this.resolveLoopContractValue(
+      tenantId,
+      task.llm_max_retries,
+      'agent.llm_max_retries',
+      db,
+    );
+    return {
+      loopMode: buildTaskLoopMode(task),
+      maxIterations,
+      llmMaxRetries,
+    };
+  }
+
+  private async resolveLoopContractValue(
+    tenantId: string,
+    explicitValue: unknown,
+    runtimeDefaultKey: 'agent.max_iterations' | 'agent.llm_max_retries',
+    db: DatabaseClient,
+  ): Promise<number> {
+    const directValue = readPositiveInteger(explicitValue);
+    if (directValue !== null) {
+      return directValue;
+    }
+
+    const result = await db.query<{ config_value: string }>(
+      `SELECT config_value
+         FROM runtime_defaults
+        WHERE tenant_id = $1
+          AND config_key = $2
+        LIMIT 1`,
+      [tenantId, runtimeDefaultKey],
+    );
+    const fallbackValue = readPositiveInteger(result.rows[0]?.config_value);
+    if (fallbackValue !== null) {
+      return fallbackValue;
+    }
+    throw new ValidationError(`Missing runtime default "${runtimeDefaultKey}"`);
+  }
+
   private async assertAgentOwnsTask(tenantId: string, taskId: string, agentId: string): Promise<void> {
     const result = await this.deps.pool.query<{ assigned_agent_id: string | null }>(
       `SELECT assigned_agent_id
@@ -726,6 +793,23 @@ function buildExecutionModeCondition(mode: AgentExecutionMode): string {
     return 'true';
   }
   return 'tasks.is_orchestrator_task = false';
+}
+
+function buildTaskLoopMode(task: Record<string, unknown>) {
+  return task.is_orchestrator_task === true ? 'tpaov' : 'reactive';
+}
+
+function readPositiveInteger(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number.parseInt(value, 10);
+    if (Number.isInteger(parsed) && parsed > 0) {
+      return parsed;
+    }
+  }
+  return null;
 }
 
 function stripClaimSecretEchoes(task: Record<string, unknown>): Record<string, unknown> {

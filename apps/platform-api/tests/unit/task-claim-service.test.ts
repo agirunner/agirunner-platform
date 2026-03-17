@@ -85,6 +85,20 @@ function createService(client: { query: ReturnType<typeof vi.fn>; release: Retur
   });
 }
 
+function runtimeDefaultQueryResult(sql: string, params?: unknown[]) {
+  if (!sql.includes('FROM runtime_defaults')) {
+    return null;
+  }
+  const key = params?.[1];
+  if (key === 'agent.max_iterations') {
+    return { rowCount: 1, rows: [{ config_value: '100' }] };
+  }
+  if (key === 'agent.llm_max_retries') {
+    return { rowCount: 1, rows: [{ config_value: '5' }] };
+  }
+  return { rowCount: 0, rows: [] };
+}
+
 describe('TaskClaimService', () => {
   it('limits specialist agents to non-orchestrator tasks', async () => {
     const client = createClient('specialist');
@@ -126,6 +140,178 @@ describe('TaskClaimService', () => {
     expect(taskSelectSql).toContain('workflows.playbook_id');
     const params = (client.query.mock.calls[3]?.[1] ?? []) as unknown[];
     expect(params).toContain('playbook-1');
+  });
+
+  it('attaches the effective loop contract to claimed specialist tasks', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-loop-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM runtime_defaults")) {
+          const key = params?.[1];
+          if (key === 'agent.max_iterations') {
+            return { rowCount: 1, rows: [{ config_value: '100' }] };
+          }
+          if (key === 'agent.llm_max_retries') {
+            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          }
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-loop-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              project_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.max_iterations).toBe(100);
+    expect(task?.llm_max_retries).toBe(5);
+    expect(task?.loop_mode).toBe('reactive');
+  });
+
+  it('fails task claim when the effective loop contract is missing', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-missing-loop-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM runtime_defaults")) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await expect(service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    })).rejects.toThrow('Missing runtime default "agent.max_iterations"');
   });
 
   it('skips ready tasks that are blocked by playbook parallelism caps', async () => {
@@ -196,6 +382,10 @@ describe('TaskClaimService', () => {
         }
         if (sql.includes('SELECT') && sql.includes('workflow_name')) {
           return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -310,6 +500,10 @@ describe('TaskClaimService', () => {
         }
         if (sql.includes('SELECT') && sql.includes('workflow_name')) {
           return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -441,6 +635,10 @@ describe('TaskClaimService', () => {
         }
         if (sql.includes('SELECT escalation_target, allowed_tools')) {
           return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -578,6 +776,10 @@ describe('TaskClaimService', () => {
         }
         if (sql.includes('SELECT escalation_target, allowed_tools')) {
           return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -745,6 +947,10 @@ describe('TaskClaimService', () => {
         if (sql.includes('workflow_name')) {
           return { rowCount: 0, rows: [] };
         }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
       release: vi.fn(),
@@ -875,6 +1081,10 @@ describe('TaskClaimService', () => {
               },
             }],
           };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
         }
         throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
       }),
@@ -1009,6 +1219,10 @@ describe('TaskClaimService', () => {
         if (sql.includes('SELECT escalation_target, allowed_tools')) {
           return { rowCount: 0, rows: [] };
         }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
       release: vi.fn(),
@@ -1132,6 +1346,10 @@ describe('TaskClaimService', () => {
             rowCount: 1,
             rows: [{ assigned_agent_id: 'agent-1' }],
           };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
         }
         throw new Error(`unexpected query: ${sql} :: ${JSON.stringify(params ?? [])}`);
       }),
@@ -1313,6 +1531,10 @@ describe('TaskClaimService', () => {
         }
         if (sql.includes('SELECT escalation_target, allowed_tools')) {
           return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
