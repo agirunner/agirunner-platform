@@ -14,12 +14,6 @@ describe('project settings', () => {
       git_user_name: 'Jane Example',
       git_user_email: 'jane@example.com',
       git_token_secret_ref: 'secret:GIT_TOKEN',
-      model_overrides: {
-        architect: {
-          provider: 'openai',
-          model: 'gpt-5.4',
-        },
-      },
     });
 
     expect(normalized).toEqual({
@@ -29,12 +23,7 @@ describe('project settings', () => {
       credentials: {
         git_token: 'secret:GIT_TOKEN',
       },
-      model_overrides: {
-        architect: {
-          provider: 'openai',
-          model: 'gpt-5.4',
-        },
-      },
+      model_overrides: {},
     });
   });
 
@@ -46,8 +35,6 @@ describe('project settings', () => {
         git_user_email: 'jane@example.com',
         credentials: {
           git_token: 'secret:GIT_TOKEN',
-          git_ssh_private_key: 'secret:GIT_SSH',
-          git_ssh_known_hosts: 'github.com ssh-ed25519 AAAA',
         },
       }),
     ).toEqual({
@@ -55,9 +42,6 @@ describe('project settings', () => {
       gitUserName: 'Jane Example',
       gitUserEmail: 'jane@example.com',
       gitTokenSecretRef: 'secret:GIT_TOKEN',
-      gitSshPrivateKeyRef: 'secret:GIT_SSH',
-      gitSshKnownHosts: 'github.com ssh-ed25519 AAAA',
-      webhookSecretRef: null,
     });
   });
 
@@ -67,15 +51,6 @@ describe('project settings', () => {
         default_branch: 'main',
         git_user_name: 'Smoke Bot',
         project_brief: 'Ship it',
-        model_override: {
-          model_id: '00000000-0000-0000-0000-000000000021',
-        },
-        model_overrides: {
-          developer: {
-            provider: 'openai',
-            model: 'gpt-5',
-          },
-        },
         config: {
           runtime: {
             timeout: 45,
@@ -104,12 +79,12 @@ describe('project settings', () => {
           model_id: '00000000-0000-0000-0000-000000000020',
         },
       }),
-    ).toThrow(/model_override.*retired/i);
+    ).toThrow(/model_override.*no longer supported/i);
   });
 
-  it('rejects malformed role model overrides', () => {
-    expect(() =>
-      validateProjectSettingsShape({
+  it('drops project model overrides from normalized project settings', () => {
+    expect(
+      normalizeProjectSettings({
         model_overrides: {
           architect: {
             provider: '',
@@ -117,6 +92,9 @@ describe('project settings', () => {
           },
         },
       }),
-    ).toThrow(/model_overrides/i);
+    ).toEqual({
+      credentials: {},
+      model_overrides: {},
+    });
   });
 });
