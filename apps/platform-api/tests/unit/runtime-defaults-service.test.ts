@@ -179,6 +179,16 @@ describe('RuntimeDefaultsService', () => {
         }),
       ).rejects.toThrow('agent.context_compaction_threshold must be between 0 and 1');
     });
+
+    it('rejects non-positive runtime timeout defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'workspace.clone_timeout_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('workspace.clone_timeout_seconds must be at least 1');
+    });
   });
 
   describe('updateDefault', () => {

@@ -14,12 +14,27 @@ describe('runtime defaults page support', () => {
   it('exposes dedicated runtime sections for agent context, orchestrator overrides, and safeguards', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'containers',
+      'server_timeouts',
+      'llm_transport',
+      'tool_timeouts',
+      'container_timeouts',
+      'lifecycle_timeouts',
+      'workspace_timeouts',
+      'capture_timeouts',
+      'secrets_timeouts',
+      'subagent_timeouts',
       'agent_context',
       'orchestrator_context',
       'agent_safeguards',
       'fleet',
       'search',
     ]);
+    expect(fieldsForSection('tool_timeouts').map((field) => field.key)).toContain(
+      'tools.git_push_timeout_seconds',
+    );
+    expect(fieldsForSection('workspace_timeouts').map((field) => field.key)).toContain(
+      'workspace.clone_timeout_seconds',
+    );
     expect(fieldsForSection('agent_context').map((field) => field.key)).toContain(
       'agent.history_max_messages',
     );
@@ -116,11 +131,13 @@ describe('runtime defaults page support', () => {
       summarizeRuntimeDefaultSections(
         {
           default_runtime_image: 'agirunner-runtime:local',
+          'tools.git_push_timeout_seconds': '90',
           'agent.history_max_messages': '100',
           'agent.history_preserve_recent': '25',
           'tools.web_search_provider': 'serper',
         },
         {
+          'tools.git_push_timeout_seconds': 'Git push timeout must be at least 1.',
           'agent.history_preserve_recent': 'Preserve recent specialist messages must stay within the overall history budget.',
         },
       ),
@@ -132,6 +149,13 @@ describe('runtime defaults page support', () => {
           configuredCount: 1,
           fieldCount: 5,
           errorCount: 0,
+        },
+        {
+          key: 'tool_timeouts',
+          title: 'Tool timeouts',
+          configuredCount: 1,
+          fieldCount: 14,
+          errorCount: 1,
         },
         {
           key: 'agent_context',

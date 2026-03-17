@@ -11,6 +11,8 @@ const runtimeDefaultSecretKeyPattern =
 const INTEGER_DEFAULT_RULES = new Map([
   ['default_grace_period', { min: 1 }],
   ['global_max_runtimes', { min: 1 }],
+  ['server.shutdown_timeout_seconds', { min: 1 }],
+  ['server.read_header_timeout_seconds', { min: 1 }],
   ['agent.history_max_messages', { min: 1 }],
   ['agent.history_preserve_recent', { min: 1 }],
   ['agent.context_compaction_chars_per_token', { min: 1 }],
@@ -21,10 +23,46 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['agent.max_stuck_interventions', { min: 0 }],
   ['agent.max_iterations', { min: 1 }],
   ['agent.llm_max_retries', { min: 1 }],
+  ['docker.checker_timeout_ms', { min: 1 }],
+  ['docker.stop_timeout_seconds', { min: 1 }],
+  ['llm.http_timeout_seconds', { min: 1 }],
+  ['tools.file_read_timeout_seconds', { min: 1 }],
+  ['tools.file_write_timeout_seconds', { min: 1 }],
+  ['tools.file_edit_timeout_seconds', { min: 1 }],
+  ['tools.file_list_timeout_seconds', { min: 1 }],
+  ['tools.git_status_timeout_seconds', { min: 1 }],
+  ['tools.git_diff_timeout_seconds', { min: 1 }],
+  ['tools.git_log_timeout_seconds', { min: 1 }],
+  ['tools.git_commit_timeout_seconds', { min: 1 }],
+  ['tools.git_push_timeout_seconds', { min: 1 }],
+  ['tools.shell_exec_timeout_seconds', { min: 1 }],
+  ['tools.helpers_exec_timeout_seconds', { min: 1 }],
+  ['tools.web_fetch_timeout_seconds', { min: 1 }],
+  ['tools.web_search_timeout_seconds', { min: 1 }],
+  ['tools.mcp_timeout_seconds', { min: 1 }],
+  ['lifecycle.healthcheck_timeout_seconds', { min: 1 }],
+  ['lifecycle.failed_start_stop_timeout_seconds', { min: 1 }],
+  ['lifecycle.destroy_stop_timeout_seconds', { min: 1 }],
+  ['workspace.create_layout_timeout_seconds', { min: 1 }],
+  ['workspace.inject_context_rename_timeout_seconds', { min: 1 }],
+  ['workspace.configure_git_timeout_seconds', { min: 1 }],
+  ['workspace.cleanup_git_timeout_seconds', { min: 1 }],
+  ['workspace.configure_identity_timeout_seconds', { min: 1 }],
+  ['workspace.clone_timeout_seconds', { min: 1 }],
+  ['container.copy_timeout_seconds', { min: 1 }],
+  ['containerd.connect_timeout_seconds', { min: 1 }],
+  ['capture.push_timeout_seconds', { min: 1 }],
+  ['capture.exec_timeout_seconds', { min: 1 }],
+  ['secrets.vault_timeout_seconds', { min: 1 }],
+  ['subagent.default_timeout_seconds', { min: 1 }],
 ]);
 const DECIMAL_DEFAULT_RULES = new Map([
   ['agent.context_compaction_threshold', { min: 0, max: 1 }],
   ['agent.orchestrator_context_compaction_threshold', { min: 0, max: 1 }],
+]);
+const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
+  ['default_pull_policy', ['always', 'if-not-present', 'never']],
+  ['tools.web_search_provider', ['duckduckgo', 'serper', 'tavily']],
 ]);
 
 const createDefaultSchema = z.object({
@@ -185,10 +223,24 @@ function shouldRedactRuntimeDefault(configKey: string, configValue: string): boo
 }
 
 function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {
+  validateEnumRuntimeDefault(input);
   validateNumericRuntimeDefault(input);
 
   // No tool-specific validation needed after web_search removal.
   void input;
+}
+
+function validateEnumRuntimeDefault(input: CreateRuntimeDefaultInput): void {
+  const allowedValues = ENUM_DEFAULT_RULES.get(input.configKey);
+  if (!allowedValues) {
+    return;
+  }
+  if (input.configType !== 'string') {
+    throw new Error(`${input.configKey} must use string config type`);
+  }
+  if (!allowedValues.includes(input.configValue)) {
+    throw new Error(`${input.configKey} must be one of: ${allowedValues.join(', ')}`);
+  }
 }
 
 function validateNumericRuntimeDefault(input: CreateRuntimeDefaultInput): void {

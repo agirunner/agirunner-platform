@@ -16,7 +16,6 @@ import {
 import { ConfigField } from './config-form-controls.js';
 import {
   PLATFORM_DEFAULT_SELECT_VALUE,
-  PULL_POLICY_OPTIONS,
 } from './runtime-defaults.schema.js';
 import { RuntimeDefaultsSearchSection } from './runtime-defaults-search.js';
 import type { FieldDefinition, FormValues } from './runtime-defaults.types.js';
@@ -98,8 +97,8 @@ function renderFieldControl(
   hasError: boolean,
   describedBy?: string,
 ) {
-  if (field.key === 'default_pull_policy') {
-    return renderSelectField(field, value, onChange, PULL_POLICY_OPTIONS, hasError, describedBy);
+  if (field.options && field.options.length > 0) {
+    return renderSelectField(field, value, onChange, field.options, hasError, describedBy);
   }
   return (
     <Input

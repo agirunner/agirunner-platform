@@ -1,10 +1,14 @@
 import type { FieldDefinition, SectionDefinition } from './runtime-defaults.types.js';
+import {
+  RUNTIME_OPERATION_FIELD_DEFINITIONS,
+  RUNTIME_OPERATION_SECTION_DEFINITIONS,
+} from './runtime-defaults-runtime-ops.js';
 
 export const PULL_POLICY_OPTIONS = ['always', 'if-not-present', 'never'] as const;
 export const WEB_SEARCH_PROVIDER_OPTIONS = ['duckduckgo', 'serper', 'tavily'] as const;
 export const PLATFORM_DEFAULT_SELECT_VALUE = '__default__';
 
-export const SECTION_DEFINITIONS: SectionDefinition[] = [
+const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'containers',
     title: 'Agent container defaults',
@@ -41,7 +45,7 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
   },
 ];
 
-export const FIELD_DEFINITIONS: FieldDefinition[] = [
+const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'default_runtime_image',
     label: 'Runtime image',
@@ -73,6 +77,7 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
     configType: 'string',
     placeholder: 'if-not-present',
     section: 'containers',
+    options: PULL_POLICY_OPTIONS,
   },
   {
     key: 'default_grace_period',
@@ -261,6 +266,18 @@ export const FIELD_DEFINITIONS: FieldDefinition[] = [
     placeholder: 'secret:SERPER_API_KEY',
     section: 'search',
   },
+];
+
+export const SECTION_DEFINITIONS: SectionDefinition[] = [
+  ...BASE_SECTION_DEFINITIONS.slice(0, 1),
+  ...RUNTIME_OPERATION_SECTION_DEFINITIONS,
+  ...BASE_SECTION_DEFINITIONS.slice(1),
+];
+
+export const FIELD_DEFINITIONS: FieldDefinition[] = [
+  ...BASE_FIELD_DEFINITIONS.slice(0, 5),
+  ...RUNTIME_OPERATION_FIELD_DEFINITIONS,
+  ...BASE_FIELD_DEFINITIONS.slice(5),
 ];
 
 export function fieldsForSection(sectionKey: FieldDefinition['section']): FieldDefinition[] {

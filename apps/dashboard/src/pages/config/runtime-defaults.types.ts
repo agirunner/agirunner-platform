@@ -14,11 +14,21 @@ export interface FieldDefinition {
   placeholder: string;
   section:
     | 'containers'
+    | 'server_timeouts'
+    | 'llm_transport'
+    | 'tool_timeouts'
+    | 'container_timeouts'
+    | 'lifecycle_timeouts'
+    | 'workspace_timeouts'
+    | 'capture_timeouts'
+    | 'secrets_timeouts'
+    | 'subagent_timeouts'
     | 'agent_context'
     | 'orchestrator_context'
     | 'agent_safeguards'
     | 'fleet'
     | 'search';
+  options?: readonly string[];
   inputMode?: 'numeric' | 'decimal';
   min?: number;
   max?: number;
