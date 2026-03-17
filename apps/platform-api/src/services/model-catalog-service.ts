@@ -642,6 +642,7 @@ export class ModelCatalogService {
       model: {
         modelId: model.model_id,
         contextWindow: model.context_window,
+        maxOutputTokens: model.max_output_tokens,
         endpointType: model.endpoint_type,
         reasoningConfig: model.reasoning_config,
       },
@@ -758,6 +759,7 @@ export interface ResolvedRoleConfig {
   model: {
     modelId: string;
     contextWindow: number | null;
+    maxOutputTokens: number | null;
     endpointType: string | null;
     reasoningConfig: Record<string, unknown> | null;
   };

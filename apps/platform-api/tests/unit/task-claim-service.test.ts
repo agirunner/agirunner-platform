@@ -20,6 +20,25 @@ const identity = {
   keyPrefix: 'agent-key',
 };
 
+const defaultResolvedRoleConfig = {
+  provider: {
+    name: 'OpenAI',
+    providerId: 'provider-default',
+    providerType: 'openai',
+    authMode: 'api_key',
+    apiKeySecretRef: 'secret:OPENAI_API_KEY',
+    baseUrl: 'https://api.openai.test/v1',
+  },
+  model: {
+    modelId: 'gpt-5',
+    contextWindow: null,
+    maxOutputTokens: 128000,
+    endpointType: 'responses',
+    reasoningConfig: null,
+  },
+  reasoningConfig: { reasoning_effort: 'low' },
+};
+
 function createClient(executionMode: 'specialist' | 'orchestrator') {
   return {
     query: vi.fn(async (sql: string, _params?: unknown[]) => {
@@ -61,6 +80,7 @@ function createService(client: { query: ReturnType<typeof vi.fn>; release: Retur
     eventService: { emit: vi.fn() } as never,
     toTaskResponse: (task) => task,
     getTaskContext: vi.fn(async () => ({})),
+    resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
     claimHandleSecret: 'test-claim-handle-secret',
   });
 }
@@ -135,15 +155,40 @@ describe('TaskClaimService', () => {
           return {
             rowCount: 2,
             rows: [
-              { id: 'task-blocked', workflow_id: 'wf-1', work_item_id: 'wi-1', state: 'ready', project_id: null },
-              { id: 'task-open', workflow_id: 'wf-1', work_item_id: 'wi-2', state: 'ready', project_id: null },
+              {
+                id: 'task-blocked',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-1',
+                state: 'ready',
+                project_id: null,
+                role: 'developer',
+                role_config: {},
+                metadata: {},
+              },
+              {
+                id: 'task-open',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-2',
+                state: 'ready',
+                project_id: null,
+                role: 'developer',
+                role_config: {},
+                metadata: {},
+              },
             ],
           };
         }
         if (sql.includes("SET state = 'claimed'")) {
           return {
             rowCount: 1,
-            rows: [{ id: 'task-open', workflow_id: 'wf-1', state: 'claimed', role_config: {}, metadata: {} }],
+            rows: [{
+              id: 'task-open',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              role_config: {},
+              metadata: {},
+            }],
           };
         }
         if (sql.includes('UPDATE agents SET current_task_id')) {
@@ -169,6 +214,7 @@ describe('TaskClaimService', () => {
       eventService: { emit: vi.fn(async () => undefined) } as never,
       toTaskResponse: (task) => task,
       getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
       parallelismService: parallelismService as never,
       claimHandleSecret: 'test-claim-handle-secret',
     });
@@ -233,14 +279,30 @@ describe('TaskClaimService', () => {
           return {
             rowCount: 1,
             rows: [
-              { id: 'task-retry-open', workflow_id: 'wf-1', work_item_id: 'wi-2', state: 'ready', project_id: null },
+              {
+                id: 'task-retry-open',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-2',
+                state: 'ready',
+                project_id: null,
+                role: 'developer',
+                role_config: {},
+                metadata: {},
+              },
             ],
           };
         }
         if (sql.includes("SET state = 'claimed'")) {
           return {
             rowCount: 1,
-            rows: [{ id: 'task-retry-open', workflow_id: 'wf-1', state: 'claimed', role_config: {}, metadata: {} }],
+            rows: [{
+              id: 'task-retry-open',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              role_config: {},
+              metadata: {},
+            }],
           };
         }
         if (sql.includes('UPDATE agents SET current_task_id')) {
@@ -267,6 +329,7 @@ describe('TaskClaimService', () => {
       eventService: eventService as never,
       toTaskResponse: (task) => task,
       getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
       parallelismService: parallelismService as never,
       claimHandleSecret: 'test-claim-handle-secret',
     });
@@ -402,10 +465,11 @@ describe('TaskClaimService', () => {
         model: {
           modelId: 'gpt-5',
           contextWindow: null,
+          maxOutputTokens: 128000,
           endpointType: 'responses',
           reasoningConfig: null,
         },
-        reasoningConfig: null,
+        reasoningConfig: { reasoning_effort: 'low' },
       })),
       claimHandleSecret: 'test-claim-handle-secret',
     });
@@ -418,6 +482,9 @@ describe('TaskClaimService', () => {
     expect(task?.credentials).toEqual({
       llm_provider: 'openai',
       llm_model: 'gpt-5',
+      llm_context_window: null,
+      llm_max_output_tokens: 128000,
+      llm_reasoning_config: { reasoning_effort: 'low' },
       llm_api_key_secret_ref: 'secret:OPENAI_API_KEY',
       llm_base_url: 'https://api.openai.test/v1',
       llm_endpoint_type: 'responses',
@@ -480,6 +547,7 @@ describe('TaskClaimService', () => {
               provider_metadata: { providerType: 'openai' },
               model_id: 'gpt-smoke',
               model_context_window: 64000,
+              model_max_output_tokens: 96000,
               model_endpoint_type: 'responses',
               model_reasoning_config: null,
             }],
@@ -534,11 +602,178 @@ describe('TaskClaimService', () => {
     expect(task?.credentials).toEqual({
       llm_provider: 'openai',
       llm_model: 'gpt-smoke',
+      llm_context_window: 64000,
+      llm_max_output_tokens: 96000,
+      llm_reasoning_config: null,
       llm_api_key_claim_handle: expect.stringMatching(/^claim:v1:/),
       llm_base_url: 'https://provider.example/v1',
       llm_endpoint_type: 'responses',
     });
     expect((task?.credentials as Record<string, unknown>).llm_api_key).toBeUndefined();
+  });
+
+  it('fails before claiming when no role assignment or default model is configured', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const resolveRoleConfig = vi.fn(async () => null);
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-missing-default-model',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {
+                tools: ['shell'],
+              },
+              metadata: {},
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig,
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await expect(
+      service.claimTask(identity, {
+        agent_id: 'agent-1',
+        capabilities: ['coding'],
+      }),
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      message:
+        "No LLM model is configured for role 'developer'. Assign a model to the role or set a default model on the LLM Providers page before claiming tasks.",
+    });
+
+    expect(resolveRoleConfig).toHaveBeenCalledWith(identity.tenantId, 'developer');
+    expect(eventService.emit).not.toHaveBeenCalled();
+    const executedSql = client.query.mock.calls.map(([sql]) => String(sql));
+    expect(executedSql.some((sql) => sql.includes("SET state = 'claimed'"))).toBe(false);
+  });
+
+  it('preserves raw git repository bindings on trusted agent claims', async () => {
+    const rawBinding = {
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {
+        token: 'github_pat_example',
+      },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-claim',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              project_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-claim',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              project_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => ({
+        ...task,
+        resource_bindings: [{
+          ...rawBinding,
+          credentials: {
+            token: 'redacted://task-secret',
+          },
+        }],
+      }),
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.resource_bindings).toEqual([rawBinding]);
   });
 
   it('returns task-bound oauth claim handles instead of decrypted at-rest values', async () => {
@@ -664,6 +899,7 @@ describe('TaskClaimService', () => {
         model: {
           modelId: 'gpt-5',
           contextWindow: null,
+          maxOutputTokens: null,
           endpointType: 'responses',
           reasoningConfig: null,
         },
@@ -796,6 +1032,7 @@ describe('TaskClaimService', () => {
         model: {
           modelId: 'gpt-5',
           contextWindow: null,
+          maxOutputTokens: null,
           endpointType: 'responses',
           reasoningConfig: null,
         },
@@ -812,6 +1049,9 @@ describe('TaskClaimService', () => {
     expect(task?.credentials).toEqual({
       llm_provider: 'openai',
       llm_model: 'gpt-5',
+      llm_context_window: null,
+      llm_max_output_tokens: null,
+      llm_reasoning_config: null,
       llm_api_key_claim_handle: expect.stringMatching(/^claim:v1:/),
       llm_base_url: 'https://api.openai.test/v1',
       llm_endpoint_type: 'responses',
@@ -915,6 +1155,7 @@ describe('TaskClaimService', () => {
         model: {
           modelId: 'gpt-5',
           contextWindow: null,
+          maxOutputTokens: null,
           endpointType: 'responses',
           reasoningConfig: null,
         },
@@ -1096,6 +1337,7 @@ describe('TaskClaimService', () => {
         model: {
           modelId: 'gpt-5',
           contextWindow: null,
+          maxOutputTokens: null,
           endpointType: 'responses',
           reasoningConfig: null,
         },
@@ -1112,6 +1354,9 @@ describe('TaskClaimService', () => {
     expect(task?.credentials).toEqual({
       llm_provider: 'openai',
       llm_model: 'gpt-5',
+      llm_context_window: null,
+      llm_max_output_tokens: null,
+      llm_reasoning_config: null,
       llm_api_key_claim_handle: expect.stringMatching(/^claim:v1:/),
       llm_base_url: 'https://api.openai.test/v1',
       llm_endpoint_type: 'responses',

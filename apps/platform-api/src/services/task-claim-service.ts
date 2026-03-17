@@ -65,6 +65,7 @@ interface DirectModelLookupRow {
   provider_metadata: Record<string, unknown> | null;
   model_id: string;
   model_context_window: number | null;
+  model_max_output_tokens: number | null;
   model_endpoint_type: string | null;
   model_reasoning_config: Record<string, unknown> | null;
 }
@@ -75,6 +76,12 @@ interface RetryReadyTaskRow {
   work_item_id: string | null;
   is_orchestrator_task: boolean;
   state: TaskState;
+}
+
+interface TaskLLMResolution {
+  roleName: string;
+  existingRoleConfig: Record<string, unknown>;
+  resolved: ResolvedRoleConfig;
 }
 
 export class TaskClaimService {
@@ -205,6 +212,7 @@ export class TaskClaimService {
         await client.query('COMMIT');
         return null;
       }
+      const llmResolution = await this.resolveTaskLLMConfig(identity.tenantId, task);
       assertValidTransition(task.id as string, task.state as Parameters<typeof assertValidTransition>[1], 'claimed');
 
       const updatedTaskRes = await client.query(
@@ -241,7 +249,10 @@ export class TaskClaimService {
       );
 
       await client.query('COMMIT');
-      const claimedTask = this.deps.toTaskResponse(updatedTaskRes.rows[0] as Record<string, unknown>);
+      const claimedTask = mergeClaimRuntimeBindings(
+        this.deps.toTaskResponse(updatedTaskRes.rows[0] as Record<string, unknown>),
+        updatedTaskRes.rows[0] as Record<string, unknown>,
+      );
 
       const namesRes = await client.query(
         `SELECT
@@ -261,6 +272,7 @@ export class TaskClaimService {
       const enrichedTask = await this.enrichWithLLMCredentials(
         identity.tenantId,
         claimedTask,
+        llmResolution,
       );
       const { context: _taskContext, ...claimedTaskBase } = enrichedTask as Record<string, unknown>;
       const instructionContext = (await this.deps.getTaskContext(
@@ -402,16 +414,11 @@ export class TaskClaimService {
   private async enrichWithLLMCredentials(
     tenantId: string,
     task: Record<string, unknown>,
+    llmResolution?: TaskLLMResolution,
   ): Promise<Record<string, unknown>> {
+    const { roleName, existingRoleConfig, resolved } =
+      llmResolution ?? (await this.resolveTaskLLMConfig(tenantId, task));
     const sanitizedTask = stripClaimSecretEchoes(task);
-    const roleName = (sanitizedTask.role as string) || '';
-    const existingRoleConfig = (sanitizedTask.role_config ?? {}) as Record<string, unknown>;
-    const directResolved = await this.resolveTaskRoleConfigOverride(tenantId, existingRoleConfig);
-    const fallbackResolved = this.deps.resolveRoleConfig && roleName
-      ? await this.deps.resolveRoleConfig(tenantId, roleName)
-      : null;
-    const resolved = directResolved ?? fallbackResolved;
-    if (!resolved) return sanitizedTask;
 
     const taskWithRoleDefinition = await this.enrichFromRoleDefinition(
       tenantId,
@@ -434,7 +441,6 @@ export class TaskClaimService {
     }
 
     return attachClaimCredentials(taskWithRoleDefinition, {
-      ...pickResolvedLLMMetadata(existingRoleConfig),
       ...credentials,
     });
   }
@@ -463,6 +469,7 @@ export class TaskClaimService {
           p.metadata AS provider_metadata,
           m.model_id AS model_id,
           m.context_window AS model_context_window,
+          m.max_output_tokens AS model_max_output_tokens,
           m.endpoint_type AS model_endpoint_type,
           m.reasoning_config AS model_reasoning_config
         FROM llm_models m
@@ -498,10 +505,33 @@ export class TaskClaimService {
       model: {
         modelId: row.model_id,
         contextWindow: row.model_context_window,
+        maxOutputTokens: row.model_max_output_tokens,
         endpointType: row.model_endpoint_type,
         reasoningConfig: row.model_reasoning_config,
       },
       reasoningConfig: row.model_reasoning_config,
+    };
+  }
+
+  private async resolveTaskLLMConfig(
+    tenantId: string,
+    task: Record<string, unknown>,
+  ): Promise<TaskLLMResolution> {
+    const sanitizedTask = stripClaimSecretEchoes(task);
+    const roleName = (sanitizedTask.role as string) || '';
+    const existingRoleConfig = (sanitizedTask.role_config ?? {}) as Record<string, unknown>;
+    const directResolved = await this.resolveTaskRoleConfigOverride(tenantId, existingRoleConfig);
+    const fallbackResolved = this.deps.resolveRoleConfig && roleName
+      ? await this.deps.resolveRoleConfig(tenantId, roleName)
+      : null;
+    const resolved = directResolved ?? fallbackResolved;
+    if (!resolved) {
+      throw buildMissingTaskModelConfigError(roleName);
+    }
+    return {
+      roleName,
+      existingRoleConfig,
+      resolved,
     };
   }
 
@@ -552,6 +582,9 @@ export class TaskClaimService {
     const llmFields: Record<string, unknown> = {
       llm_provider: resolved.provider.providerType,
       llm_model: resolved.model.modelId,
+      llm_context_window: resolved.model.contextWindow,
+      llm_max_output_tokens: resolved.model.maxOutputTokens,
+      llm_reasoning_config: resolved.reasoningConfig,
       llm_base_url: oauthToken.baseUrl,
       llm_endpoint_type: oauthToken.endpointType,
       llm_auth_mode: 'oauth',
@@ -586,6 +619,9 @@ export class TaskClaimService {
     const llmFields: Record<string, unknown> = {
       llm_provider: resolved.provider.providerType,
       llm_model: resolved.model.modelId,
+      llm_context_window: resolved.model.contextWindow,
+      llm_max_output_tokens: resolved.model.maxOutputTokens,
+      llm_reasoning_config: resolved.reasoningConfig,
     };
     if (resolved.provider.baseUrl) {
       llmFields.llm_base_url = resolved.provider.baseUrl;
@@ -669,6 +705,15 @@ function readAgentExecutionMode(value: unknown): AgentExecutionMode {
   return 'specialist';
 }
 
+function buildMissingTaskModelConfigError(roleName: string): ValidationError {
+  const trimmedRoleName = roleName.trim();
+  const label = trimmedRoleName ? `role '${trimmedRoleName}'` : 'this task';
+  return new ValidationError(
+    `No LLM model is configured for ${label}. Assign a model to the role or set a default model on the LLM Providers page before claiming tasks.`,
+    { role: trimmedRoleName || null },
+  );
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -703,6 +748,22 @@ function stripClaimSecretEchoes(task: Record<string, unknown>): Record<string, u
   };
 }
 
+function mergeClaimRuntimeBindings(
+  claimedTask: Record<string, unknown>,
+  persistedTask: Record<string, unknown>,
+): Record<string, unknown> {
+  const persistedBindings = Array.isArray(persistedTask.resource_bindings)
+    ? (persistedTask.resource_bindings as unknown[])
+    : null;
+  if (!persistedBindings) {
+    return claimedTask;
+  }
+  return {
+    ...claimedTask,
+    resource_bindings: persistedBindings,
+  };
+}
+
 function attachClaimCredentials(
   task: Record<string, unknown>,
   credentials: Record<string, unknown>,
@@ -717,22 +778,6 @@ function attachClaimCredentials(
   return {
     ...task,
     credentials: nextCredentials,
-  };
-}
-
-function pickResolvedLLMMetadata(roleConfig: Record<string, unknown>): Record<string, unknown> {
-  const provider = typeof roleConfig.llm_provider === 'string' ? roleConfig.llm_provider : undefined;
-  const model = typeof roleConfig.llm_model === 'string' ? roleConfig.llm_model : undefined;
-  const baseUrl = typeof roleConfig.llm_base_url === 'string' ? roleConfig.llm_base_url : undefined;
-  const endpointType = typeof roleConfig.llm_endpoint_type === 'string' ? roleConfig.llm_endpoint_type : undefined;
-  const authMode = typeof roleConfig.llm_auth_mode === 'string' ? roleConfig.llm_auth_mode : undefined;
-
-  return {
-    ...(provider ? { llm_provider: provider } : {}),
-    ...(model ? { llm_model: model } : {}),
-    ...(baseUrl ? { llm_base_url: baseUrl } : {}),
-    ...(endpointType ? { llm_endpoint_type: endpointType } : {}),
-    ...(authMode ? { llm_auth_mode: authMode } : {}),
   };
 }
 
