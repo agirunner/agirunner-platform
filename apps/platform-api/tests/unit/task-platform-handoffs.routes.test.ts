@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 import { taskPlatformRoutes } from '../../src/api/routes/task-platform.routes.js';
+import { WorkflowActivationDispatchService } from '../../src/services/workflow-activation-dispatch-service.js';
 
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
@@ -22,6 +23,7 @@ describe('task platform handoff routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
     if (app) {
       await app.close();
@@ -30,6 +32,10 @@ describe('task platform handoff routes', () => {
   });
 
   it('submits a structured handoff for the active task owner', async () => {
+    const dispatchSpy = vi
+      .spyOn(WorkflowActivationDispatchService.prototype, 'dispatchActivation')
+      .mockResolvedValue('orchestrator-task-1');
+    const eventService = { emit: vi.fn(async () => undefined) };
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {
@@ -104,10 +110,37 @@ describe('task platform handoff routes', () => {
             }],
           };
         }
+        if (sql.startsWith('SELECT playbook_id FROM workflows')) {
+          return { rowCount: 1, rows: [{ playbook_id: 'playbook-1' }] };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-handoff-submitted:task-1:0:req-1',
+              reason: 'task.handoff_submitted',
+              event_type: 'task.handoff_submitted',
+              payload: { task_id: 'task-1' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-17T12:00:00Z'),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
     } as never);
     app.decorate('projectService', {} as never);
+    app.decorate('eventService', eventService as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
       ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
@@ -136,6 +169,19 @@ describe('task platform handoff routes', () => {
         role: 'developer',
         review_focus: ['error handling'],
       }),
+    );
+    expect(dispatchSpy).toHaveBeenCalledWith('tenant-1', 'activation-1', undefined);
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.activation_queued',
+        entityType: 'workflow',
+        entityId: 'workflow-1',
+        data: expect.objectContaining({
+          event_type: 'task.handoff_submitted',
+          reason: 'task.handoff_submitted',
+        }),
+      }),
+      undefined,
     );
   });
 

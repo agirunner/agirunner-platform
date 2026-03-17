@@ -163,6 +163,7 @@ export class TaskService {
       pool,
       eventService,
       workflowStateService,
+      activationDispatchService: workflowActivationDispatchService,
       artifactService,
       loadTaskOrThrow: this.queryService.loadTaskOrThrow.bind(this.queryService),
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),

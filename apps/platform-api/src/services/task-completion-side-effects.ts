@@ -8,7 +8,8 @@ import type {
   WorkItemCompletionOutcome,
   WorkItemContinuityService,
 } from './work-item-continuity-service.js';
-import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
+import type { ImmediateWorkflowActivationDispatcher } from './workflow-immediate-activation.js';
+import { enqueueAndDispatchImmediateWorkflowActivation } from './workflow-immediate-activation.js';
 
 interface ReviewedTaskCandidateLookup {
   result: { rows: Record<string, unknown>[]; rowCount: number };
@@ -71,6 +72,7 @@ export async function applyTaskCompletionSideEffects(
   identity: ApiKeyIdentity,
   task: Record<string, unknown>,
   client: DatabaseClient,
+  activationDispatchService?: ImmediateWorkflowActivationDispatcher,
 ) {
   const outputSchema = asRecord((task.metadata as Record<string, unknown> | null)?.output_schema);
   if (Object.keys(outputSchema).length > 0 && task.output) {
@@ -162,7 +164,11 @@ export async function applyTaskCompletionSideEffects(
       continuityResult ?? null,
       client,
     );
-    await enqueueWorkflowActivationRecord(client, eventService, {
+    await enqueueAndDispatchImmediateWorkflowActivation(
+      client,
+      eventService,
+      activationDispatchService,
+      {
       tenantId: identity.tenantId,
       workflowId: String(task.workflow_id),
       requestId: `task-completed:${task.id}:${String(task.updated_at ?? task.completed_at ?? '')}`,
@@ -177,7 +183,8 @@ export async function applyTaskCompletionSideEffects(
       },
       actorType: 'system',
       actorId: 'task_completion_side_effects',
-    });
+      },
+    );
     return;
   }
 }

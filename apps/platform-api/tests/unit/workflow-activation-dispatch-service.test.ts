@@ -178,6 +178,7 @@ describe('WorkflowActivationDispatchService', () => {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         expect(sql).toContain("wa.event_type = 'workflow.created'");
         expect(sql).toContain("wa.event_type = 'task.approved'");
+        expect(sql).toContain("wa.event_type = 'task.handoff_submitted'");
         expect(sql).toContain("wa.event_type = 'child_workflow.completed'");
         expect(params).toEqual([
           ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],

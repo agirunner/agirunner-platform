@@ -30,7 +30,10 @@ import {
   readRequiredPositiveIntegerRuntimeDefault,
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
 } from './runtime-default-values.js';
-import { enqueueWorkflowActivationRecord, isPlaybookWorkflow } from './workflow-activation-record.js';
+import {
+  enqueueAndDispatchImmediatePlaybookActivation,
+  type ImmediateWorkflowActivationDispatcher,
+} from './workflow-immediate-activation.js';
 
 interface TransitionOptions {
   expectedStates: TaskState[];
@@ -59,6 +62,7 @@ interface TransitionOptions {
 interface TaskLifecycleDependencies {
   pool: DatabasePool;
   eventService: EventService;
+  activationDispatchService?: ImmediateWorkflowActivationDispatcher;
   workflowStateService: WorkflowStateService;
   defaultTaskTimeoutMinutes?: number;
   loadTaskOrThrow: (
@@ -481,6 +485,7 @@ export class TaskLifecycleService {
           identity,
           updatedTask,
           client,
+          this.deps.activationDispatchService,
         );
       }
       if (resolvedNextState === 'output_pending_review' && !updatedTask.is_orchestrator_task) {
@@ -493,8 +498,7 @@ export class TaskLifecycleService {
       if (
         !updatedTask.is_orchestrator_task &&
         task.workflow_id &&
-        (buildWorkflowActivationForTaskTransition(taskId, task, updatedTask, resolvedNextState, options.reason)) &&
-        (await isPlaybookWorkflow(client, identity.tenantId, task.workflow_id as string))
+        buildWorkflowActivationForTaskTransition(taskId, task, updatedTask, resolvedNextState, options.reason)
       ) {
         const activation = buildWorkflowActivationForTaskTransition(
           taskId,
@@ -506,7 +510,11 @@ export class TaskLifecycleService {
         if (!activation) {
           throw new Error('workflow activation contract unexpectedly missing for task transition');
         }
-        await enqueueWorkflowActivationRecord(client, this.deps.eventService, {
+        await enqueueAndDispatchImmediatePlaybookActivation(
+          client,
+          this.deps.eventService,
+          this.deps.activationDispatchService,
+          {
           tenantId: identity.tenantId,
           workflowId: task.workflow_id as string,
           requestId: activation.requestId,
@@ -515,7 +523,8 @@ export class TaskLifecycleService {
           payload: activation.payload,
           actorType: 'system',
           actorId: 'task_lifecycle_service',
-        });
+          },
+        );
       }
       if (
         this.deps.finalizeOrchestratorActivation &&
@@ -1780,13 +1789,16 @@ export class TaskLifecycleService {
   ): Promise<void> {
     if (
       task.is_orchestrator_task ||
-      typeof task.workflow_id !== 'string' ||
-      !(await isPlaybookWorkflow(client, identity.tenantId, task.workflow_id))
+      typeof task.workflow_id !== 'string'
     ) {
       return;
     }
 
-    await enqueueWorkflowActivationRecord(client, this.deps.eventService, {
+    await enqueueAndDispatchImmediatePlaybookActivation(
+      client,
+      this.deps.eventService,
+      this.deps.activationDispatchService,
+      {
       tenantId: identity.tenantId,
       workflowId: task.workflow_id,
       requestId: `${eventType}:${String(task.id)}:${new Date().toISOString()}`,
@@ -1795,7 +1807,8 @@ export class TaskLifecycleService {
       payload,
       actorType: 'system',
       actorId: 'task_lifecycle_service',
-    });
+      },
+    );
   }
 
   private async maybeResolveEscalationSource(

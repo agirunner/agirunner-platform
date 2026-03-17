@@ -634,6 +634,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
   it('enqueues a workflow activation when approving a playbook-backed task', async () => {
     const eventService = { emit: vi.fn() };
+    const activationDispatchService = { dispatchActivation: vi.fn(async () => 'orchestrator-task-1') };
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -688,6 +689,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: eventService as never,
+      activationDispatchService: activationDispatchService as never,
       workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
@@ -739,6 +741,11 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         }),
       }),
       expect.anything(),
+    );
+    expect(activationDispatchService.dispatchActivation).toHaveBeenCalledWith(
+      'tenant-1',
+      'activation-1',
+      client,
     );
   });
 
@@ -816,6 +823,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
   it('enqueues a workflow activation when review requests changes on a playbook-backed task', async () => {
     const eventService = { emit: vi.fn() };
+    const activationDispatchService = { dispatchActivation: vi.fn(async () => 'orchestrator-task-2') };
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -872,6 +880,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: eventService as never,
+      activationDispatchService: activationDispatchService as never,
       workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
@@ -929,6 +938,11 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         }),
       }),
       expect.anything(),
+    );
+    expect(activationDispatchService.dispatchActivation).toHaveBeenCalledWith(
+      'tenant-1',
+      'activation-2',
+      client,
     );
   });
 

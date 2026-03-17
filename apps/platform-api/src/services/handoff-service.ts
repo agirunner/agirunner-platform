@@ -5,6 +5,11 @@ import { logPredecessorHandoffResolution } from '../logging/predecessor-handoff-
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
+import type { EventService } from './event-service.js';
+import {
+  enqueueAndDispatchImmediatePlaybookActivation,
+  type ImmediateWorkflowActivationDispatcher,
+} from './workflow-immediate-activation.js';
 
 export interface SubmitTaskHandoffInput {
   request_id?: string;
@@ -63,6 +68,8 @@ export class HandoffService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly logService?: LogService,
+    private readonly eventService?: EventService,
+    private readonly activationDispatchService?: ImmediateWorkflowActivationDispatcher,
   ) {}
 
   async assertRequiredTaskHandoffBeforeCompletion(
@@ -145,7 +152,9 @@ export class HandoffService {
       if (!isEditableTaskState(task.state)) {
         throw new ConflictError('task handoff request replay does not match the existing handoff');
       }
-      return this.updateExistingHandoff(existingTaskAttempt.id, payload, db);
+      const updated = await this.updateExistingHandoff(existingTaskAttempt.id, payload, db);
+      await this.enqueueWorkflowActivation(task, payload, db);
+      return updated;
     }
 
     const sequence = await this.loadNextSequence(tenantId, task.workflow_id, task.work_item_id, db);
@@ -186,6 +195,7 @@ export class HandoffService {
       ],
     );
     if (result.rowCount) {
+      await this.enqueueWorkflowActivation(task, payload, db);
       return toTaskHandoffResponse(result.rows[0]);
     }
 
@@ -199,7 +209,42 @@ export class HandoffService {
     if (!isEditableTaskState(task.state)) {
       throw new ConflictError('task handoff request replay does not match the existing handoff');
     }
-    return this.updateExistingHandoff(existing.id, payload, db);
+    const updated = await this.updateExistingHandoff(existing.id, payload, db);
+    await this.enqueueWorkflowActivation(task, payload, db);
+    return updated;
+  }
+
+  private async enqueueWorkflowActivation(
+    task: TaskContextRow,
+    payload: ReturnType<typeof buildNormalizedHandoffPayload>,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (!task.workflow_id || !this.eventService) {
+      return;
+    }
+
+    await enqueueAndDispatchImmediatePlaybookActivation(
+      db,
+      this.eventService,
+      this.activationDispatchService,
+      {
+        tenantId: task.tenant_id,
+        workflowId: task.workflow_id,
+        requestId: `task-handoff-submitted:${task.id}:${payload.task_rework_count}:${payload.request_id ?? payload.summary}`,
+        reason: 'task.handoff_submitted',
+        eventType: 'task.handoff_submitted',
+        payload: {
+          task_id: task.id,
+          work_item_id: task.work_item_id,
+          role: task.role,
+          stage_name: task.stage_name,
+          completion: payload.completion,
+          handoff_request_id: payload.request_id,
+        },
+        actorType: 'system',
+        actorId: 'handoff_service',
+      },
+    );
   }
 
   async listWorkItemHandoffs(

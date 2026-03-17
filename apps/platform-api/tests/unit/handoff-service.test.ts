@@ -74,6 +74,128 @@ describe('HandoffService', () => {
     );
   });
 
+  it('enqueues and dispatches an immediate workflow activation when a playbook handoff is submitted', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationDispatchService = {
+      dispatchActivation: vi.fn(async () => 'orchestrator-task-1'),
+    };
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 0,
+            metadata: { team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 3 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            task_rework_count: 0,
+            request_id: 'req-1',
+            role: 'developer',
+            team_name: 'delivery',
+            stage_name: 'implementation',
+            sequence: 3,
+            summary: 'Implemented auth flow.',
+            completion: 'full',
+            changes: [{ file: 'src/auth.ts' }],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            review_focus: ['error handling'],
+            known_risks: [],
+            successor_context: 'Focus on refresh token expiry.',
+            role_data: {},
+            artifact_ids: [],
+            created_at: new Date('2026-03-15T12:00:00Z'),
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'activation-1',
+            workflow_id: 'workflow-1',
+            activation_id: null,
+            request_id: 'task-handoff-submitted:task-1:0:req-1',
+            reason: 'task.handoff_submitted',
+            event_type: 'task.handoff_submitted',
+            payload: { task_id: 'task-1' },
+            state: 'queued',
+            dispatch_attempt: 0,
+            dispatch_token: null,
+            queued_at: new Date('2026-03-17T12:00:00Z'),
+            started_at: null,
+            consumed_at: null,
+            completed_at: null,
+            summary: null,
+            error: null,
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(
+      pool as never,
+      undefined,
+      eventService as never,
+      activationDispatchService as never,
+    );
+
+    await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-1',
+      summary: 'Implemented auth flow.',
+      completion: 'full',
+      changes: [{ file: 'src/auth.ts' }],
+      review_focus: ['error handling'],
+      successor_context: 'Focus on refresh token expiry.',
+    });
+
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workflow_activations'),
+      expect.arrayContaining([
+        'tenant-1',
+        'workflow-1',
+        'task-handoff-submitted:task-1:0:req-1',
+        'task.handoff_submitted',
+        'task.handoff_submitted',
+      ]),
+    );
+    expect(activationDispatchService.dispatchActivation).toHaveBeenCalledWith(
+      'tenant-1',
+      'activation-1',
+      undefined,
+    );
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.activation_queued',
+        entityType: 'workflow',
+        entityId: 'workflow-1',
+        data: expect.objectContaining({
+          event_type: 'task.handoff_submitted',
+          reason: 'task.handoff_submitted',
+        }),
+      }),
+      undefined,
+    );
+  });
+
   it('serializes jsonb handoff fields before inserting them', async () => {
     const query = vi
       .fn()

@@ -12,6 +12,7 @@ import { HandoffService } from '../../services/handoff-service.js';
 import { assertProjectMemoryWritesAreDurableKnowledge } from '../../services/project-memory-write-guard.js';
 import { ProjectMemoryScopeService } from '../../services/project-memory-scope-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
+import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 import { runIdempotentTaskRouteAction } from './task-route-idempotency.js';
 
@@ -58,7 +59,17 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
   const toolResultService = new WorkflowToolResultService(app.pgPool);
-  const handoffService = new HandoffService(app.pgPool, app.logService);
+  const activationDispatchService = new WorkflowActivationDispatchService({
+    pool: app.pgPool,
+    eventService: app.eventService,
+    config: app.config,
+  });
+  const handoffService = new HandoffService(
+    app.pgPool,
+    app.logService,
+    app.eventService,
+    activationDispatchService,
+  );
   const projectMemoryScopeService = new ProjectMemoryScopeService(app.pgPool);
   const artifactCatalogService = new ArtifactCatalogService(
     app.pgPool,

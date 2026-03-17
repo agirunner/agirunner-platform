@@ -40,6 +40,7 @@ const IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES = [
   'task.output_pending_review',
   'task.approved',
   'task.review_requested_changes',
+  'task.handoff_submitted',
   'child_workflow.completed',
   'child_workflow.failed',
   'child_workflow.cancelled',
