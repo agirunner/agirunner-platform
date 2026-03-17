@@ -44,6 +44,8 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Operator label');
     expect(source).toContain('Description');
     expect(source).toContain('Max rework iterations');
+    expect(source).toContain('Task max iterations');
+    expect(source).toContain('LLM retry attempts');
     expect(source).toContain('Max active tasks per work item');
     expect(source).toContain('Specialist runtime override');
     expect(source).toContain('Orchestration Policy');

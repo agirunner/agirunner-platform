@@ -128,6 +128,122 @@ describe('TaskWriteService', () => {
     expect(insertedRequiresOutputReview).toBe(false);
   });
 
+  it('applies playbook task loop defaults when workflow tasks do not override them', async () => {
+    let insertedMaxIterations: number | null = null;
+    let insertedLLMMaxRetries: number | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              repository_url: null,
+              settings: {},
+              git_branch: null,
+              parameters: {},
+            }],
+          };
+        }
+        if (sql.includes('JOIN playbooks pb')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                process_instructions: 'Developer implements and reviewer checks it.',
+                roles: ['developer', 'reviewer'],
+                review_rules: [],
+                approval_rules: [],
+                handoff_rules: [],
+                checkpoints: [],
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                  entry_column_id: 'planned',
+                },
+                lifecycle: 'planned',
+                orchestrator: {
+                  max_iterations: 120,
+                  llm_max_retries: 7,
+                },
+              },
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedMaxIterations = (values?.[26] as number | null) ?? null;
+          insertedLLMMaxRetries = (values?.[27] as number | null) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-loop-defaults',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              max_iterations: insertedMaxIterations,
+              llm_max_retries: insertedLLMMaxRetries,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const created = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Implement feature',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-loop-defaults',
+        role: 'developer',
+        type: 'code',
+      },
+    );
+
+    expect(insertedMaxIterations).toBe(120);
+    expect(insertedLLMMaxRetries).toBe(7);
+    expect(created.max_iterations).toBe(120);
+    expect(created.llm_max_retries).toBe(7);
+  });
+
   it('defaults workflow task execution context from the workflow repository settings', async () => {
     let insertedEnvironment: Record<string, unknown> | null = null;
     let insertedBindings: string | null = null;
@@ -851,6 +967,9 @@ describe('TaskWriteService', () => {
         if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
           return { rowCount: 0, rows: [] };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         if (
           sql.includes('FROM tasks') &&
           sql.includes('workflow_id = $2') &&
@@ -917,7 +1036,7 @@ describe('TaskWriteService', () => {
     );
 
     expect(result.id).toBe('task-1');
-    expect(pool.query).toHaveBeenCalledTimes(4);
+    expect(pool.query).toHaveBeenCalledTimes(5);
   });
 
   it('returns the existing active task when the same work item and role already have in-flight work', async () => {
@@ -1207,7 +1326,7 @@ describe('TaskWriteService', () => {
     );
 
     expect(result.id).toBe('task-2');
-    expect(pool.query).toHaveBeenCalledTimes(5);
+    expect(pool.query).toHaveBeenCalledTimes(6);
   });
 
   it('loads the existing task when insert races on request_id', async () => {

@@ -89,6 +89,8 @@ const playbookDefinitionSchema = z.object({
       check_interval: z.string().max(120).optional(),
       stale_threshold: z.string().max(120).optional(),
       max_rework_iterations: z.number().int().min(0).optional(),
+      max_iterations: z.number().int().min(1).optional(),
+      llm_max_retries: z.number().int().min(1).optional(),
       max_active_tasks: z.number().int().positive().optional(),
       max_active_tasks_per_work_item: z.number().int().positive().optional(),
       allow_parallel_work_items: z.boolean().optional(),

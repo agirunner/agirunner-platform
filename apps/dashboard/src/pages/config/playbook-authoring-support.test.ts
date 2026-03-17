@@ -30,6 +30,8 @@ describe('playbook authoring support', () => {
     ];
     draft.approval_rules = [{ on: 'checkpoint', checkpoint: 'deliver', required: true }];
     draft.handoff_rules = [{ from_role: 'architect', to_role: 'developer', required: true }];
+    draft.orchestrator.max_iterations = '100';
+    draft.orchestrator.llm_max_retries = '5';
     draft.parameters = [{
       name: 'goal',
       type: 'string',
@@ -107,6 +109,8 @@ describe('playbook authoring support', () => {
             check_interval: '5m',
             stale_threshold: '30m',
             max_rework_iterations: 5,
+            max_iterations: 100,
+            llm_max_retries: 5,
             max_active_tasks: 4,
             max_active_tasks_per_work_item: 2,
             allow_parallel_work_items: true,
@@ -377,6 +381,8 @@ describe('playbook authoring support', () => {
         },
       ],
       orchestrator: {
+        max_iterations: 120,
+        llm_max_retries: 7,
         max_active_tasks: 6,
         allow_parallel_work_items: false,
         tools: ['tool_search'],
@@ -426,12 +432,34 @@ describe('playbook authoring support', () => {
         allowed_values: '',
       }),
     );
+    expect(draft.orchestrator.max_iterations).toBe('120');
+    expect(draft.orchestrator.llm_max_retries).toBe('7');
     expect(draft.orchestrator.max_active_tasks).toBe('6');
     expect(draft.orchestrator.allow_parallel_work_items).toBe(false);
     expect(draft.orchestrator).not.toEqual(expect.objectContaining({ tools: expect.anything() }));
     expect(draft.runtime.specialist_pool.enabled).toBe(true);
     expect(draft.runtime.specialist_pool.max_runtimes).toBe('4');
     expect(draft.runtime.specialist_pool.image).toBe('ghcr.io/agirunner/runtime:latest');
+  });
+
+  it('inherits task loop limits until a playbook explicitly overrides them', () => {
+    const draft = createDefaultAuthoringDraft('planned');
+    draft.process_instructions = 'Plan, implement, review, and complete the work.';
+
+    expect(draft.orchestrator.max_iterations).toBe('');
+    expect(draft.orchestrator.llm_max_retries).toBe('');
+
+    const built = buildPlaybookDefinition('planned', draft);
+    if (!built.ok) {
+      throw new Error(`expected valid playbook definition, received: ${built.error}`);
+    }
+
+    expect(built.value.orchestrator).not.toEqual(
+      expect.objectContaining({
+        max_iterations: expect.anything(),
+        llm_max_retries: expect.anything(),
+      }),
+    );
   });
 
   it('summarizes process, rules, and inputs for guided review', () => {

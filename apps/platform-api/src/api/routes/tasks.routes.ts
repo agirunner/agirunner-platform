@@ -41,6 +41,8 @@ const taskCreateSchema = z.object({
   cost_cap_usd: z.number().positive().optional(),
   auto_retry: z.boolean().optional(),
   max_retries: z.number().int().min(0).max(10).optional(),
+  max_iterations: z.number().int().min(1).optional(),
+  llm_max_retries: z.number().int().min(1).optional(),
   metadata: z.record(z.unknown()).optional(),
   retry_policy: z.record(z.unknown()).optional(),
 });

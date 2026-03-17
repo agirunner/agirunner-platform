@@ -31,6 +31,8 @@ export interface CreateTaskInput {
   cost_cap_usd?: number;
   auto_retry?: boolean;
   max_retries?: number;
+  max_iterations?: number;
+  llm_max_retries?: number;
   metadata?: Record<string, unknown>;
   retry_policy?: Record<string, unknown>;
 }

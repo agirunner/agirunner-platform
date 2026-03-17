@@ -409,6 +409,9 @@ describe('ModelCatalogService', () => {
       const result = await service.resolveRoleConfig(TENANT_ID, 'developer');
 
       expect(result).not.toBeNull();
+      if (!result) {
+        throw new Error('expected role config');
+      }
       expect(result.reasoningConfig).toBeNull();
       expect(result.model.reasoningConfig).toEqual({ type: 'effort', default: 'medium' });
     });

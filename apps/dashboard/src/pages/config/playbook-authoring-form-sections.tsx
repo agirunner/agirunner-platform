@@ -838,6 +838,32 @@ export function OrchestratorSection(props: SectionProps): JSX.Element {
             }
           />
         </LabeledField>
+        <LabeledField label="Task max iterations">
+          <Input
+            inputMode="numeric"
+            placeholder="Inherit system default"
+            value={props.draft.orchestrator.max_iterations}
+            onChange={(event) =>
+              updateOrchestratorField(props.onChange, 'max_iterations', event.target.value)
+            }
+          />
+          <p className="text-xs text-muted">
+            Leave blank to inherit the system default. Set a value only when this playbook needs a different loop cap.
+          </p>
+        </LabeledField>
+        <LabeledField label="LLM retry attempts">
+          <Input
+            inputMode="numeric"
+            placeholder="Inherit system default"
+            value={props.draft.orchestrator.llm_max_retries}
+            onChange={(event) =>
+              updateOrchestratorField(props.onChange, 'llm_max_retries', event.target.value)
+            }
+          />
+          <p className="text-xs text-muted">
+            Leave blank to inherit the system default. Set a value only when this playbook needs a different provider retry budget.
+          </p>
+        </LabeledField>
         <LabeledField label="Max active tasks">
           <Input
             inputMode="numeric"
@@ -1398,6 +1424,8 @@ function updateOrchestratorField(
     | 'check_interval'
     | 'stale_threshold'
     | 'max_rework_iterations'
+    | 'max_iterations'
+    | 'llm_max_retries'
     | 'max_active_tasks'
     | 'max_active_tasks_per_work_item',
   value: string,

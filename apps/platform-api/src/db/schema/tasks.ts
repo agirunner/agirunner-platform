@@ -61,6 +61,8 @@ export const tasks = pgTable(
     costCapUsd: numeric('cost_cap_usd', { precision: 10, scale: 4 }),
     autoRetry: boolean('auto_retry').notNull().default(false),
     maxRetries: integer('max_retries').notNull().default(0),
+    maxIterations: integer('max_iterations'),
+    llmMaxRetries: integer('llm_max_retries'),
     retryCount: integer('retry_count').notNull().default(0),
     reworkCount: integer('rework_count').notNull().default(0),
     completedAt: timestamp('completed_at', { withTimezone: true }),

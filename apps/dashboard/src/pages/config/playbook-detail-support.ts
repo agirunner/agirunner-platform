@@ -219,6 +219,8 @@ function formatOrchestratorCadence(draft: PlaybookAuthoringDraft): string {
     `check ${draft.orchestrator.check_interval || 'inherit'}`,
     `stale ${draft.orchestrator.stale_threshold || 'inherit'}`,
     `rework ${draft.orchestrator.max_rework_iterations || 'inherit'}`,
+    `task loops ${draft.orchestrator.max_iterations || 'inherit'}`,
+    `llm retries ${draft.orchestrator.llm_max_retries || 'inherit'}`,
   ].join(' • ');
 }
 

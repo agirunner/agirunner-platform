@@ -88,6 +88,7 @@ export class TaskWriteService {
     this.assertWorkflowTaskLinkage(normalizedInput);
     await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyWorkflowExecutionDefaults(identity.tenantId, normalizedInput, db);
+    normalizedInput = await this.applyPlaybookTaskExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookRuleDerivedTaskReviewPolicy(identity.tenantId, normalizedInput, db);
     normalizedInput = this.applySpecialistTokenBudgetFloor(normalizedInput);
     normalizedInput = await this.applyRoleCapabilityDefaults(identity.tenantId, normalizedInput);
@@ -147,8 +148,8 @@ export class TaskWriteService {
       `INSERT INTO tasks (
         tenant_id, workflow_id, work_item_id, project_id, title, role, stage_name, priority, state, depends_on,
         requires_approval, requires_output_review, input, context, capabilities_required, role_config, environment,
-        resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
+        resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, metadata
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
       ON CONFLICT DO NOTHING
       RETURNING *`,
       [
@@ -178,6 +179,8 @@ export class TaskWriteService {
         normalizedInput.cost_cap_usd ?? null,
         normalizedInput.auto_retry ?? false,
         normalizedInput.max_retries ?? 0,
+        normalizedInput.max_iterations ?? null,
+        normalizedInput.llm_max_retries ?? null,
         metadata,
       ],
     );
@@ -469,6 +472,46 @@ export class TaskWriteService {
       return input;
     }
 
+    const definition = await this.loadWorkflowPlaybookDefinition(tenantId, input.workflow_id, db);
+    if (!definition) {
+      return input;
+    }
+    const requiresOutputReview = definition.review_rules.some(
+      (rule) => rule.required !== false && rule.from_role === roleName,
+    );
+    return {
+      ...input,
+      requires_output_review: requiresOutputReview,
+    };
+  }
+
+  private async applyPlaybookTaskExecutionDefaults(
+    tenantId: string,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<CreateTaskInput> {
+    if (!input.workflow_id) {
+      return input;
+    }
+    if (input.max_iterations != null && input.llm_max_retries != null) {
+      return input;
+    }
+    const definition = await this.loadWorkflowPlaybookDefinition(tenantId, input.workflow_id, db);
+    if (!definition?.orchestrator) {
+      return input;
+    }
+    return {
+      ...input,
+      max_iterations: input.max_iterations ?? definition.orchestrator.max_iterations,
+      llm_max_retries: input.llm_max_retries ?? definition.orchestrator.llm_max_retries,
+    };
+  }
+
+  private async loadWorkflowPlaybookDefinition(
+    tenantId: string,
+    workflowId: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
     const result = await db.query<WorkflowPlaybookDefinitionRow>(
       `SELECT pb.definition
          FROM workflows w
@@ -478,20 +521,12 @@ export class TaskWriteService {
         WHERE w.tenant_id = $1
           AND w.id = $2
         LIMIT 1`,
-      [tenantId, input.workflow_id],
+      [tenantId, workflowId],
     );
     if (!result.rowCount) {
-      return input;
+      return null;
     }
-
-    const definition = parsePlaybookDefinition(result.rows[0].definition);
-    const requiresOutputReview = definition.review_rules.some(
-      (rule) => rule.required !== false && rule.from_role === roleName,
-    );
-    return {
-      ...input,
-      requires_output_review: requiresOutputReview,
-    };
+    return parsePlaybookDefinition(result.rows[0].definition);
   }
 
   private assertWorkflowTaskLinkage(input: CreateTaskInput) {
@@ -899,6 +934,8 @@ function buildExpectedCreateTaskReplay(
     cost_cap_usd: input.cost_cap_usd ?? null,
     auto_retry: input.auto_retry ?? false,
     max_retries: input.max_retries ?? 0,
+    max_iterations: input.max_iterations ?? null,
+    llm_max_retries: input.llm_max_retries ?? null,
     metadata: selectReplayStableMetadata(metadata),
   };
 }
@@ -927,6 +964,8 @@ function assertMatchingCreateTaskReplay(
     asNullableNumber(existing.cost_cap_usd) !== expected.cost_cap_usd ||
     Boolean(existing.auto_retry) !== expected.auto_retry ||
     Number(existing.max_retries ?? 0) !== expected.max_retries ||
+    asNullableNumber(existing.max_iterations) !== expected.max_iterations ||
+    asNullableNumber(existing.llm_max_retries) !== expected.llm_max_retries ||
     !hasMatchingCreateMetadata(existingMetadata, expected.metadata)
   ) {
     throw new ConflictError('task request_id replay does not match the existing task');

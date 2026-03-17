@@ -1,4 +1,4 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabaseQueryable } from '../db/database.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 export interface ProjectMemoryMutationContext {
@@ -38,7 +38,7 @@ interface EventRow {
 }
 
 export class ProjectMemoryScopeService {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(private readonly pool: DatabaseQueryable) {}
 
   async filterVisibleTaskMemory(input: {
     tenantId: string;
