@@ -9,7 +9,10 @@ import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { OrchestratorTaskMessageService } from '../../services/orchestrator-task-message-service.js';
 import { assertProjectMemoryWritesAreDurableKnowledge } from '../../services/project-memory-write-guard.js';
-import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
+import {
+  TaskAgentScopeService,
+  type ActiveOrchestratorTaskScope,
+} from '../../services/task-agent-scope-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
@@ -233,6 +236,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         request.auth!,
         params.taskId,
       );
+      const normalizedBody = await normalizeOrchestratorWorkItemCreateInput(
+        app.pgPool,
+        request.auth!.tenantId,
+        taskScope,
+        body,
+      );
       const workItem = await runIdempotentMutation(
         app,
         toolResultService,
@@ -244,7 +253,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           app.workflowService.createWorkflowWorkItem(
             request.auth!,
             taskScope.workflow_id,
-            body,
+            normalizedBody,
             client,
           ),
       );
@@ -559,6 +568,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         request.auth!,
         params.taskId,
       );
+      const normalizedBody = await normalizeOrchestratorTaskCreateInput(
+        app.pgPool,
+        request.auth!.tenantId,
+        taskScope,
+        body,
+      );
       const task = await runIdempotentMutation(
         app,
         toolResultService,
@@ -570,14 +585,14 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           app.taskService.createTask(
             request.auth!,
             {
-              ...body,
+              ...normalizedBody,
               workflow_id: taskScope.workflow_id,
               project_id: taskScope.project_id ?? undefined,
               activation_id: taskScope.activation_id ?? undefined,
               is_orchestrator_task: false,
-              capabilities_required: body.capabilities_required ?? [body.role],
+              capabilities_required: normalizedBody.capabilities_required ?? [normalizedBody.role],
               metadata: {
-                ...(body.metadata ?? {}),
+                ...(normalizedBody.metadata ?? {}),
                 created_by_orchestrator_task_id: taskScope.id,
                 orchestrator_activation_id: taskScope.activation_id,
               },
@@ -1060,6 +1075,150 @@ async function loadManagedSpecialistTask(
   return task;
 }
 
+interface OrchestratorCreateWorkItemContext {
+  lifecycle: string | null;
+  event_type: string | null;
+  payload: Record<string, unknown>;
+}
+
+async function normalizeOrchestratorWorkItemCreateInput(
+  pool: FastifyInstance['pgPool'],
+  tenantId: string,
+  taskScope: ActiveOrchestratorTaskScope,
+  body: z.infer<typeof workItemCreateSchema>,
+): Promise<z.infer<typeof workItemCreateSchema>> {
+  if (body.parent_work_item_id) {
+    return body;
+  }
+
+  const context = await loadOrchestratorCreateWorkItemContext(
+    pool,
+    tenantId,
+    taskScope.workflow_id,
+    taskScope.activation_id,
+  );
+  const fallbackParentId = taskScope.work_item_id ?? readString(context.payload.work_item_id);
+  if (!fallbackParentId) {
+    return body;
+  }
+  if (context.lifecycle !== 'planned') {
+    return body;
+  }
+  if (!shouldDefaultParentWorkItemId(context.event_type, context.payload)) {
+    return body;
+  }
+  return {
+    ...body,
+    parent_work_item_id: fallbackParentId,
+  };
+}
+
+async function normalizeOrchestratorTaskCreateInput(
+  pool: FastifyInstance['pgPool'],
+  tenantId: string,
+  taskScope: ActiveOrchestratorTaskScope,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+): Promise<z.infer<typeof orchestratorTaskCreateSchema>> {
+  if (body.role !== 'reviewer' || hasExplicitReviewedTaskReference(body.input)) {
+    return body;
+  }
+
+  const context = await loadOrchestratorCreateWorkItemContext(
+    pool,
+    tenantId,
+    taskScope.workflow_id,
+    taskScope.activation_id,
+  );
+  if (context.event_type !== 'task.output_pending_review') {
+    return body;
+  }
+
+  const reviewedTaskId = readString(context.payload.task_id);
+  if (!reviewedTaskId) {
+    return body;
+  }
+
+  return {
+    ...body,
+    input: {
+      ...(body.input ?? {}),
+      developer_task_id: reviewedTaskId,
+    },
+    metadata: {
+      ...(body.metadata ?? {}),
+      reviewed_task_id_source: 'activation_default',
+    },
+  };
+}
+
+async function loadOrchestratorCreateWorkItemContext(
+  pool: FastifyInstance['pgPool'],
+  tenantId: string,
+  workflowId: string,
+  activationId: string | null,
+): Promise<OrchestratorCreateWorkItemContext> {
+  if (!activationId) {
+    return {
+      lifecycle: null,
+      event_type: null,
+      payload: {},
+    };
+  }
+
+  const result = await pool.query<OrchestratorCreateWorkItemContext>(
+    `SELECT w.lifecycle,
+            wa.event_type,
+            COALESCE(wa.payload, '{}'::jsonb) AS payload
+       FROM workflows w
+       LEFT JOIN workflow_activations wa
+         ON wa.tenant_id = w.tenant_id
+        AND wa.workflow_id = w.id
+        AND (wa.id = $3 OR wa.activation_id = $3)
+      WHERE w.tenant_id = $1
+        AND w.id = $2
+      LIMIT 1`,
+    [tenantId, workflowId, activationId],
+  );
+  const row = result.rows[0];
+  return {
+    lifecycle: row?.lifecycle ?? null,
+    event_type: row?.event_type ?? null,
+    payload: asRecord(row?.payload),
+  };
+}
+
+function shouldDefaultParentWorkItemId(
+  eventType: string | null,
+  payload: Record<string, unknown>,
+): boolean {
+  if (!readString(payload.work_item_id)) {
+    return false;
+  }
+  if (!eventType) {
+    return false;
+  }
+  return new Set([
+    'task.completed',
+    'task.output_pending_review',
+    'task.output_review.approved',
+    'task.output_review.rejected',
+    'stage.gate.approve',
+    'stage.gate.reject',
+    'work_item.created',
+  ]).has(eventType);
+}
+
+function hasExplicitReviewedTaskReference(input: Record<string, unknown> | undefined) {
+  if (!input) {
+    return false;
+  }
+  return Boolean(
+    readString(input.developer_task_id)
+    ?? readString(input.reviewed_task_id)
+    ?? readString(input.target_task_id),
+  );
+}
+
 interface ChildWorkflowLinkage {
   parentWorkflowId: string;
   parentOrchestratorTaskId: string;
@@ -1148,6 +1307,10 @@ function readStringArray(value: unknown): string[] {
   return Array.isArray(value)
     ? value.filter((entry): entry is string => typeof entry === 'string')
     : [];
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
 function dedupeStrings(values: string[]): string[] {

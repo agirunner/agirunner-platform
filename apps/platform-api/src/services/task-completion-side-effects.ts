@@ -10,6 +10,13 @@ import type {
 } from './work-item-continuity-service.js';
 import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
 
+interface ReviewedTaskCandidateLookup {
+  result: { rows: Record<string, unknown>[]; rowCount: number };
+  resolutionSource: 'explicit_task' | 'same_work_item' | 'parent_work_item' | 'none';
+  explicitReviewedTaskId: string | null;
+  parentWorkItemId: string | null;
+}
+
 export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
   const errors: string[] = [];
   if (!schema || typeof schema !== 'object') {
@@ -182,7 +189,31 @@ async function maybeResolveReviewedOutput(
   continuityResult: WorkItemCompletionOutcome | null,
   client: DatabaseClient,
 ) {
-  if (!continuityResult?.satisfiedReviewExpectation) {
+  const resolutionGate = resolveReviewResolutionGate(completedTask, continuityResult);
+  if (!resolutionGate.shouldAttempt) {
+    const reviewTaskId = asOptionalString(completedTask.id);
+    if (reviewTaskId) {
+      await eventService.emit(
+        {
+          tenantId: identity.tenantId,
+          type: 'task.review_resolution_skipped',
+          entityType: 'task',
+          entityId: reviewTaskId,
+          actorType: 'system',
+          actorId: 'review_resolver',
+          data: {
+            reason: 'not_review_candidate',
+            resolution_gate: resolutionGate.reason,
+            role: asOptionalString(completedTask.role),
+            task_type: asOptionalString(asRecord(completedTask.metadata).task_type),
+            explicit_reviewed_task_id: readReviewedTaskId(completedTask),
+            matched_rule_type: continuityResult?.matchedRuleType ?? null,
+            satisfied_review_expectation: continuityResult?.satisfiedReviewExpectation ?? false,
+          },
+        },
+        client,
+      );
+    }
     return;
   }
 
@@ -193,19 +224,16 @@ async function maybeResolveReviewedOutput(
     return;
   }
 
-  const candidates = await client.query<Record<string, unknown>>(
-    `SELECT *
-       FROM tasks
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND work_item_id = $3
-        AND state = 'output_pending_review'
-        AND id <> $4
-      ORDER BY created_at DESC`,
-    [identity.tenantId, workflowId, workItemId, reviewTaskId],
+  const candidates = await loadReviewedTaskCandidates(
+    client,
+    identity.tenantId,
+    workflowId,
+    workItemId,
+    reviewTaskId,
+    completedTask,
   );
 
-  if (candidates.rowCount !== 1) {
+  if (candidates.result.rowCount !== 1) {
     await eventService.emit(
       {
         tenantId: identity.tenantId,
@@ -217,7 +245,12 @@ async function maybeResolveReviewedOutput(
         data: {
           workflow_id: workflowId,
           work_item_id: workItemId,
-          candidate_count: candidates.rowCount,
+          candidate_count: candidates.result.rowCount,
+          review_task_work_item_id: workItemId,
+          resolution_source: candidates.resolutionSource,
+          resolution_gate: resolutionGate.reason,
+          explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
+          parent_work_item_id: candidates.parentWorkItemId,
         },
       },
       client,
@@ -225,9 +258,13 @@ async function maybeResolveReviewedOutput(
     return;
   }
 
-  const reviewedTask = candidates.rows[0];
+  const reviewedTask = candidates.result.rows[0];
   const reviewedTaskId = asOptionalString(reviewedTask.id);
+  const reviewedWorkItemId = asOptionalString(reviewedTask.work_item_id);
   if (!reviewedTaskId) {
+    return;
+  }
+  if (!reviewedWorkItemId) {
     return;
   }
 
@@ -248,7 +285,7 @@ async function maybeResolveReviewedOutput(
     [
       identity.tenantId,
       workflowId,
-      workItemId,
+      reviewedWorkItemId,
       reviewedTaskId,
       {
         review_action: 'approve_output',
@@ -284,6 +321,28 @@ async function maybeResolveReviewedOutput(
   await eventService.emit(
     {
       tenantId: identity.tenantId,
+      type: 'task.review_resolution_applied',
+      entityType: 'task',
+      entityId: reviewTaskId,
+      actorType: 'system',
+      actorId: 'review_resolver',
+      data: {
+        workflow_id: workflowId,
+        review_task_id: reviewTaskId,
+        review_task_work_item_id: workItemId,
+        reviewed_task_id: reviewedTaskId,
+        reviewed_work_item_id: reviewedWorkItemId,
+        resolution_source: candidates.resolutionSource,
+        resolution_gate: resolutionGate.reason,
+        explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
+        parent_work_item_id: candidates.parentWorkItemId,
+      },
+    },
+    client,
+  );
+  await eventService.emit(
+    {
+      tenantId: identity.tenantId,
       type: 'task.state_changed',
       entityType: 'task',
       entityId: reviewedTaskId,
@@ -298,6 +357,158 @@ async function maybeResolveReviewedOutput(
     },
     client,
   );
+}
+
+async function loadReviewedTaskCandidates(
+  client: DatabaseClient,
+  tenantId: string,
+  workflowId: string,
+  workItemId: string,
+  reviewTaskId: string,
+  completedTask: Record<string, unknown>,
+): Promise<ReviewedTaskCandidateLookup> {
+  const explicitReviewedTaskId = readReviewedTaskId(completedTask);
+  if (explicitReviewedTaskId) {
+    const exactMatch = await client.query<Record<string, unknown>>(
+      `SELECT *
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+          AND state = 'output_pending_review'
+          AND id <> $4
+        LIMIT 1`,
+      [tenantId, workflowId, explicitReviewedTaskId, reviewTaskId],
+    );
+    if ((exactMatch.rowCount ?? 0) > 0) {
+      return {
+        result: {
+          rows: exactMatch.rows as Record<string, unknown>[],
+          rowCount: exactMatch.rowCount ?? 0,
+        },
+        resolutionSource: 'explicit_task',
+        explicitReviewedTaskId,
+        parentWorkItemId: null,
+      };
+    }
+  }
+
+  const localMatches = await client.query<Record<string, unknown>>(
+    `SELECT *
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND work_item_id = $3
+        AND state = 'output_pending_review'
+        AND id <> $4
+      ORDER BY created_at DESC`,
+    [tenantId, workflowId, workItemId, reviewTaskId],
+  );
+  if ((localMatches.rowCount ?? 0) > 0) {
+    return {
+      result: {
+        rows: localMatches.rows as Record<string, unknown>[],
+        rowCount: localMatches.rowCount ?? 0,
+      },
+      resolutionSource: 'same_work_item',
+      explicitReviewedTaskId,
+      parentWorkItemId: null,
+    };
+  }
+
+  const parentWorkItemId = await loadParentWorkItemId(
+    client,
+    tenantId,
+    workflowId,
+    workItemId,
+  );
+  if (!parentWorkItemId) {
+    return {
+      result: {
+        rows: localMatches.rows as Record<string, unknown>[],
+        rowCount: localMatches.rowCount ?? 0,
+      },
+      resolutionSource: 'none',
+      explicitReviewedTaskId,
+      parentWorkItemId: null,
+    };
+  }
+
+  const parentMatches = await client.query<Record<string, unknown>>(
+    `SELECT *
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND work_item_id = $3
+        AND state = 'output_pending_review'
+        AND id <> $4
+      ORDER BY created_at DESC`,
+    [tenantId, workflowId, parentWorkItemId, reviewTaskId],
+  );
+  return {
+    result: {
+      rows: parentMatches.rows as Record<string, unknown>[],
+      rowCount: parentMatches.rowCount ?? 0,
+    },
+    resolutionSource: (parentMatches.rowCount ?? 0) > 0 ? 'parent_work_item' : 'none',
+    explicitReviewedTaskId,
+    parentWorkItemId,
+  };
+}
+
+function readReviewedTaskId(completedTask: Record<string, unknown>) {
+  const input = asRecord(completedTask.input);
+  return (
+    asOptionalString(input.developer_task_id)
+    ?? asOptionalString(input.reviewed_task_id)
+    ?? asOptionalString(input.target_task_id)
+  );
+}
+
+async function loadParentWorkItemId(
+  client: DatabaseClient,
+  tenantId: string,
+  workflowId: string,
+  workItemId: string,
+) {
+  const result = await client.query<{ parent_work_item_id: string | null }>(
+    `SELECT parent_work_item_id
+       FROM workflow_work_items
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, workItemId],
+  );
+  return asOptionalString(result.rows[0]?.parent_work_item_id);
+}
+
+function resolveReviewResolutionGate(
+  completedTask: Record<string, unknown>,
+  continuityResult: WorkItemCompletionOutcome | null,
+) {
+  if (continuityResult?.satisfiedReviewExpectation) {
+    return { shouldAttempt: true, reason: 'continuity_expectation' } as const;
+  }
+
+  if (readReviewedTaskId(completedTask)) {
+    return { shouldAttempt: true, reason: 'explicit_reviewed_task_id' } as const;
+  }
+
+  const role = asOptionalString(completedTask.role);
+  const taskType = asOptionalString(asRecord(completedTask.metadata).task_type);
+  if (role === 'reviewer' || taskType === 'review') {
+    return { shouldAttempt: true, reason: role === 'reviewer' ? 'reviewer_role' : 'review_task_type' } as const;
+  }
+
+  return { shouldAttempt: false, reason: 'not_review_candidate' } as const;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
 async function shouldQueueDependentTask(
@@ -320,13 +531,6 @@ async function shouldQueueDependentTask(
     },
     client,
   );
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-  return value as Record<string, unknown>;
 }
 
 function asOptionalString(value: unknown): string | null {
