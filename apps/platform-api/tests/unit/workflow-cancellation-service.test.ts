@@ -179,6 +179,66 @@ describe('WorkflowCancellationService', () => {
     );
   });
 
+  it('marks queued workflow activations as failed when a workflow is cancelled', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('SELECT id, state, metadata, lifecycle FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              state: 'active',
+              metadata: {},
+              lifecycle: 'planned',
+            }],
+          };
+        }
+        if (sql.startsWith('UPDATE tasks')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_stage_gates')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_stages')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflow_activations')) {
+          expect(sql).toContain("SET state = 'failed'");
+          expect(sql).toContain("Workflow cancelled by operator.");
+          return { rowCount: 1, rows: [{ id: 'activation-1' }] };
+        }
+        if (sql.includes("state IN ('claimed', 'in_progress')")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('UPDATE workflows')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.startsWith('UPDATE agents')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkflowCancellationService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'cancelled') } as never,
+      cancelSignalGracePeriodMs: 60_000,
+      getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'cancelled' })),
+    });
+
+    await service.cancelWorkflow(identity as never, 'workflow-1');
+
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining("SET state = 'failed'"),
+      ['tenant-1', 'workflow-1'],
+    );
+  });
+
   it('does not persist blocked stage status for continuous workflow cancellation', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {

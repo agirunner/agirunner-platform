@@ -113,7 +113,7 @@ describe('Logging E2E Verification', () => {
         actorId: 'w-1',
         actorName: 'worker-01',
         resourceType: 'llm_provider',
-        resourceId: 'prov-1',
+        resourceId: '00000000-0000-0000-0000-000000000010',
         resourceName: 'Anthropic',
       });
 
@@ -206,7 +206,11 @@ describe('Logging E2E Verification', () => {
       const service = {
         createProject: vi
           .fn()
-          .mockResolvedValue({ id: 'proj-1', name: 'My Project', status: 'active' }),
+          .mockResolvedValue({
+            id: '00000000-0000-0000-0000-000000000101',
+            name: 'My Project',
+            status: 'active',
+          }),
       };
       const wrapped = createLoggedService(service, 'ProjectService', logService);
 
@@ -219,7 +223,7 @@ describe('Logging E2E Verification', () => {
       expect(logRow.operation).toBe('config.project.created');
       expect(logRow.status).toBe('completed');
       expect(logRow.resource_type).toBe('project');
-      expect(logRow.resource_id).toBe('proj-1');
+      expect(logRow.resource_id).toBe('00000000-0000-0000-0000-000000000101');
       expect(logRow.resource_name).toBe('My Project');
     });
 
@@ -227,7 +231,11 @@ describe('Logging E2E Verification', () => {
       const service = {
         createTask: vi
           .fn()
-          .mockResolvedValue({ id: 'task-1', title: 'Fix bug', workflow_id: 'wf-1' }),
+          .mockResolvedValue({
+            id: '00000000-0000-0000-0000-000000000102',
+            title: 'Fix bug',
+            workflow_id: 'wf-1',
+          }),
       };
       const wrapped = createLoggedService(service, 'TaskService', logService);
 
@@ -238,13 +246,17 @@ describe('Logging E2E Verification', () => {
       expect(logRow.category).toBe('task_lifecycle');
       expect(logRow.operation).toBe('task_lifecycle.task.created');
       expect(logRow.resource_type).toBe('task');
-      expect(logRow.resource_id).toBe('task-1');
+      expect(logRow.resource_id).toBe('00000000-0000-0000-0000-000000000102');
       expect(logRow.resource_name).toBe('Fix bug');
     });
 
     it('apiKeyServiceRevokeGeneratesAuthLog', async () => {
       const service = {
-        revokeApiKey: vi.fn().mockResolvedValue({ id: 'key-1', label: 'CI Key', revoked: true }),
+        revokeApiKey: vi.fn().mockResolvedValue({
+          id: '00000000-0000-0000-0000-000000000103',
+          label: 'CI Key',
+          revoked: true,
+        }),
       };
       const wrapped = createLoggedService(service, 'ApiKeyService', logService);
 
@@ -255,7 +267,7 @@ describe('Logging E2E Verification', () => {
       expect(logRow.category).toBe('auth');
       expect(logRow.operation).toBe('auth.api_key.revoked');
       expect(logRow.resource_type).toBe('api_key');
-      expect(logRow.resource_id).toBe('key-1');
+      expect(logRow.resource_id).toBe('00000000-0000-0000-0000-000000000103');
     });
 
     it('fleetServiceDrainGeneratesContainerLog', async () => {

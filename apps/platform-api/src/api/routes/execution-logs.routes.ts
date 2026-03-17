@@ -72,7 +72,7 @@ const ingestEntrySchema = z.object({
   actor_id: z.string().max(255).optional(),
   actor_name: z.string().max(255).optional(),
   resource_type: z.string().max(100).nullable().optional(),
-  resource_id: z.string().uuid().nullable().optional(),
+  resource_id: z.string().max(255).nullable().optional(),
   resource_name: z.string().max(500).nullable().optional(),
   created_at: z.string().datetime().optional(),
 });

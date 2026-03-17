@@ -161,7 +161,7 @@ export class WorkflowCancellationService {
 
       const cancelledActivations = await client.query(
         `UPDATE workflow_activations
-            SET state = 'cancelled',
+            SET state = 'failed',
                 consumed_at = COALESCE(consumed_at, now()),
                 completed_at = COALESCE(completed_at, now()),
                 summary = COALESCE(summary, 'Workflow cancelled by operator.'),

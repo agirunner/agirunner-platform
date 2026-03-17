@@ -71,6 +71,24 @@ describe('flattenInstructionLayers', () => {
 });
 
 describe('TaskClaimService merges instruction layers into role_config.system_prompt', () => {
+  const defaultResolvedRole = {
+    provider: {
+      name: 'OpenAI',
+      providerId: 'provider-default',
+      providerType: 'openai',
+      apiKeySecretRef: 'secret:OPENAI_API_KEY',
+      authMode: 'api_key',
+      baseUrl: 'https://api.openai.test/v1',
+    },
+    model: {
+      modelId: 'gpt-5',
+      contextWindow: null,
+      endpointType: 'responses',
+      reasoningConfig: null,
+    },
+    reasoningConfig: null,
+  };
+
   function buildMockDeps(overrides: {
     taskRow?: Record<string, unknown>;
     agentRow?: Record<string, unknown>;
@@ -136,7 +154,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     });
 
     const resolveRoleConfig = overrides.resolvedRole === undefined
-      ? vi.fn().mockResolvedValue(null)
+      ? vi.fn().mockResolvedValue(defaultResolvedRole)
       : vi.fn().mockResolvedValue(overrides.resolvedRole);
 
     return {

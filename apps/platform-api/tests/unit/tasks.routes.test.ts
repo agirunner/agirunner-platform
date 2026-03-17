@@ -129,6 +129,51 @@ describe('tasks routes', () => {
     );
   });
 
+  it('rejects invalid task ids on the task status route before calling the service', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const getTask = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', {
+      listTasks: vi.fn(),
+      createTask: vi.fn(),
+      getTask,
+      updateTask: vi.fn(),
+      getTaskContext: vi.fn(),
+      getTaskGitActivity: vi.fn(),
+      claimTask: vi.fn(),
+      startTask: vi.fn(),
+      completeTask: vi.fn(),
+      failTask: vi.fn(),
+      approveTask: vi.fn(),
+      approveTaskOutput: vi.fn(),
+      retryTask: vi.fn(),
+      cancelTask: vi.fn(),
+      rejectTask: vi.fn(),
+      requestTaskChanges: vi.fn(),
+      skipTask: vi.fn(),
+      reassignTask: vi.fn(),
+      escalateTask: vi.fn(),
+      respondToEscalation: vi.fn(),
+      overrideTaskOutput: vi.fn(),
+      agentEscalate: vi.fn(),
+      resolveEscalation: vi.fn(),
+    });
+
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tasks/<task_id_from_previous_step>',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toContain('task id must be a valid uuid');
+    expect(getTask).not.toHaveBeenCalled();
+  });
+
   it('rejects legacy task state aliases at the query boundary', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const listTasks = vi.fn(async () => ({ data: [], pagination: { page: 1, per_page: 20, total: 0 } }));

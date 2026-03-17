@@ -213,6 +213,10 @@ function resolveCredentialValue(input: {
     throw new ValidationError(`${input.label} must be at most ${MAX_SECRET_LENGTH} characters`);
   }
 
+  if (/\s/.test(input.provided)) {
+    throw new ValidationError(`${input.label} must not contain whitespace`);
+  }
+
   return input.provided.length > 0 ? input.provided : undefined;
 }
 

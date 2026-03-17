@@ -182,6 +182,14 @@ function parseTaskStateFilter(value: string | undefined) {
   return value;
 }
 
+function parseTaskId(id: string) {
+  const result = z.string().uuid().safeParse(id);
+  if (result.success) {
+    return result.data;
+  }
+  throw new ValidationError('task id must be a valid uuid');
+}
+
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   const taskService = app.taskService;
   const toolResultService = new WorkflowToolResultService(app.pgPool);
@@ -274,7 +282,8 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
-      const task = await taskService.getTask(request.auth!.tenantId, params.id);
+      const taskId = parseTaskId(params.id);
+      const task = await taskService.getTask(request.auth!.tenantId, taskId);
       return { data: task };
     },
   );

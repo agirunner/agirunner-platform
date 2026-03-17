@@ -102,7 +102,7 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       });
       pool.query.mockResolvedValueOnce({
-        rows: [{ name: 'developer', capabilities: ['coding', 'testing'] }],
+        rows: [{ name: 'developer', capabilities: ['coding', 'testing', 'git', 'python'] }],
         rowCount: 1,
       });
 
@@ -118,7 +118,14 @@ describe('FleetService DCM', () => {
       expect(result[0].pending_tasks).toBe(1);
       expect(result[0].capability_demand_units).toBe(0);
       expect(result[1].pool_kind).toBe('specialist');
-      expect(result[1].capability_tags).toEqual(['developer', 'role:developer', 'coding', 'testing']);
+      expect(result[1].capability_tags).toEqual([
+        'developer',
+        'role:developer',
+        'coding',
+        'testing',
+        'git',
+        'python',
+      ]);
       expect(result[1].image).toBe('agirunner-runtime:v1');
       expect(result[1].pending_tasks).toBe(3);
       expect(result[1].tasks_with_capabilities).toBe(2);
@@ -153,14 +160,21 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       });
       pool.query.mockResolvedValueOnce({
-        rows: [{ name: 'developer', capabilities: ['coding', 'testing'] }],
+        rows: [{ name: 'developer', capabilities: ['coding', 'testing', 'git', 'python'] }],
         rowCount: 1,
       });
 
       const result = await service.getRuntimeTargets(TENANT_ID);
 
       expect(result[0].pool_kind).toBe('specialist');
-      expect(result[0].capability_tags).toEqual(['developer', 'role:developer', 'coding', 'testing']);
+      expect(result[0].capability_tags).toEqual([
+        'developer',
+        'role:developer',
+        'coding',
+        'testing',
+        'git',
+        'python',
+      ]);
       expect(result[0].pool_mode).toBe('warm');
       expect(result[0].max_runtimes).toBe(1);
       expect(result[0].priority).toBe(0);
@@ -206,7 +220,7 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       });
       pool.query.mockResolvedValueOnce({
-        rows: [{ name: 'developer', capabilities: ['coding', 'testing'] }],
+        rows: [{ name: 'developer', capabilities: ['coding', 'testing', 'git', 'python'] }],
         rowCount: 1,
       });
 
@@ -272,9 +286,9 @@ describe('FleetService DCM', () => {
       });
       pool.query.mockResolvedValueOnce({
         rows: [
-          { name: 'developer', capabilities: ['coding', 'testing'] },
-          { name: 'reviewer', capabilities: ['code-review', 'security-review'] },
-          { name: 'product-manager', capabilities: ['requirements', 'documentation', 'research'] },
+          { name: 'developer', capabilities: ['coding', 'testing', 'git', 'python'] },
+          { name: 'reviewer', capabilities: ['code-review', 'security-review', 'git'] },
+          { name: 'product-manager', capabilities: ['requirements', 'documentation', 'research', 'git'] },
         ],
         rowCount: 3,
       });
@@ -287,6 +301,8 @@ describe('FleetService DCM', () => {
         'role:developer',
         'coding',
         'testing',
+        'git',
+        'python',
         'reviewer',
         'role:reviewer',
         'code-review',
@@ -475,7 +491,7 @@ describe('FleetService DCM', () => {
       });
       // Fifth call: role capabilities for runtime target capabilities
       pool.query.mockResolvedValueOnce({
-        rows: [{ name: 'developer', capabilities: ['coding', 'testing'] }],
+        rows: [{ name: 'developer', capabilities: ['coding', 'testing', 'git', 'python'] }],
         rowCount: 1,
       });
       // Sixth call: worker pool status
