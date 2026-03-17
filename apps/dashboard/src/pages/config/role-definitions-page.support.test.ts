@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildRoleModelOptions,
   buildRolePayload,
   createDuplicateRoleForm,
   listAvailableCapabilities,
@@ -79,6 +80,31 @@ describe('role definitions support helpers', () => {
       expect.objectContaining({
         value: 'role:data-scientist',
         category: 'Custom',
+      }),
+    );
+  });
+
+  it('preserves only the primary model preference as an existing model option', () => {
+    const options = buildRoleModelOptions(
+      [
+        {
+          id: 'model-1',
+          model_id: 'gpt-5.4',
+          provider_name: 'OpenAI',
+        },
+      ],
+      [],
+      {
+        id: 'role-1',
+        name: 'developer',
+        model_preference: 'legacy-primary',
+      },
+    );
+
+    expect(options.find((option) => option.value === 'legacy-primary')).toEqual(
+      expect.objectContaining({
+        value: 'legacy-primary',
+        source: 'existing',
       }),
     );
   });

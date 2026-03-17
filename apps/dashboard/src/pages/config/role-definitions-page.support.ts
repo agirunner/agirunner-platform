@@ -6,7 +6,6 @@ export interface RoleDefinition {
   allowed_tools?: string[];
   capabilities?: string[];
   model_preference?: string | null;
-  fallback_model?: string | null;
   verification_strategy?: string | null;
   escalation_target?: string | null;
   max_escalation_depth?: number | null;
@@ -198,7 +197,7 @@ export function buildRoleModelOptions(
     });
   }
 
-  for (const existing of [role?.model_preference, role?.fallback_model]) {
+  for (const existing of [role?.model_preference]) {
     const value = existing?.trim();
     if (value && !options.has(value)) {
       options.set(value, {
@@ -228,7 +227,6 @@ export function countRoleStateSummary(roles: RoleDefinition[]) {
 export function describeRoleModelPolicy(role: RoleDefinition) {
   return {
     primary: role.model_preference?.trim() || 'System default',
-    fallback: role.fallback_model?.trim() || 'No fallback',
   };
 }
 

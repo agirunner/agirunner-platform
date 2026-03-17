@@ -11,7 +11,6 @@ const createRoleSchema = z.object({
   systemPrompt: z.string().optional(),
   allowedTools: z.array(z.string()).default([]),
   modelPreference: z.string().optional(),
-  fallbackModel: z.string().optional(),
   verificationStrategy: z.string().optional(),
   capabilities: z.array(z.string()).default([]),
   escalationTarget: z.string().max(100).nullable().optional(),
@@ -34,7 +33,7 @@ interface RoleDefinitionRow {
   system_prompt: string | null;
   allowed_tools: string[];
   model_preference: string | null;
-  fallback_model: string | null;
+  fallback_model?: string | null;
   verification_strategy: string | null;
   capabilities: string[];
   escalation_target: string | null;
@@ -85,9 +84,9 @@ export class RoleDefinitionService {
     const result = await this.pool.query<RoleDefinitionRow>(
       `INSERT INTO role_definitions (
         tenant_id, name, description, system_prompt, allowed_tools,
-        model_preference, fallback_model, verification_strategy,
+        model_preference, verification_strategy,
         capabilities, escalation_target, max_escalation_depth, is_built_in, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
         tenantId,
@@ -96,7 +95,6 @@ export class RoleDefinitionService {
         validated.systemPrompt ?? null,
         validated.allowedTools,
         validated.modelPreference ?? null,
-        validated.fallbackModel ?? null,
         validated.verificationStrategy ?? null,
         validated.capabilities,
         validated.escalationTarget ?? null,
@@ -123,7 +121,6 @@ export class RoleDefinitionService {
       ['system_prompt', validated.systemPrompt],
       ['allowed_tools', validated.allowedTools],
       ['model_preference', validated.modelPreference],
-      ['fallback_model', validated.fallbackModel],
       ['verification_strategy', validated.verificationStrategy],
       ['capabilities', validated.capabilities],
       ['escalation_target', validated.escalationTarget],
@@ -194,15 +191,16 @@ const REDACTION_OPTIONS = {
 };
 
 function sanitizeRoleDefinitionRow(row: RoleDefinitionRow): RoleDefinitionRow {
-  return {
+  const sanitized: RoleDefinitionRow = {
     ...row,
     system_prompt: sanitizeSecretLikeValue(row.system_prompt, REDACTION_OPTIONS) as string | null,
     description: sanitizeSecretLikeValue(row.description, REDACTION_OPTIONS) as string | null,
     model_preference: sanitizeSecretLikeValue(row.model_preference, REDACTION_OPTIONS) as string | null,
-    fallback_model: sanitizeSecretLikeValue(row.fallback_model, REDACTION_OPTIONS) as string | null,
     verification_strategy: sanitizeSecretLikeValue(
       row.verification_strategy,
       REDACTION_OPTIONS,
     ) as string | null,
   };
+  delete sanitized.fallback_model;
+  return sanitized;
 }

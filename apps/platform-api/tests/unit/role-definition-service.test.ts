@@ -17,7 +17,6 @@ const sampleRole = {
   system_prompt: 'You are a developer.',
   allowed_tools: ['file_read', 'file_write'],
   model_preference: 'gpt-5-mini',
-  fallback_model: null,
   verification_strategy: 'peer_review',
   capabilities: ['coding', 'testing'],
   is_built_in: true,
@@ -261,6 +260,15 @@ describe('RoleDefinitionService', () => {
 
       expect(result.created_at).toEqual(now);
       expect(result.updated_at).toEqual(now);
+    });
+
+    it('does not expose legacy fallback_model in sanitized role responses', async () => {
+      const roleWithFallback = { ...sampleRole, fallback_model: 'gpt-4.1' };
+      pool.query.mockResolvedValueOnce({ rows: [roleWithFallback], rowCount: 1 });
+
+      const result = await service.getRoleById(TENANT_ID, ROLE_ID);
+
+      expect(result).not.toHaveProperty('fallback_model');
     });
   });
 
