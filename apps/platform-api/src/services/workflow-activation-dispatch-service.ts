@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import { DEFAULT_TENANT_ID } from '../db/seed.js';
 
 import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
+import { readWorkflowActivationTimingDefaults } from './platform-timing-defaults.js';
 import { readProjectRepositorySettings } from './project-settings.js';
 import { resolveRepositoryBranchContext } from './repository-branch-context.js';
 import {
@@ -161,6 +163,7 @@ export class WorkflowActivationDispatchService {
   constructor(private readonly deps: DispatchDependencies) {}
 
   async enqueueHeartbeatActivations(limit = 20): Promise<number> {
+    const timingDefaults = await this.readActivationTimingDefaults();
     const result = await this.deps.pool.query<HeartbeatCandidateRow>(
       `SELECT w.tenant_id, w.id AS workflow_id
          FROM workflows w
@@ -198,12 +201,20 @@ export class WorkflowActivationDispatchService {
           )
         ORDER BY w.updated_at ASC, w.id ASC
         LIMIT $4`,
-      [ACTIVE_ORCHESTRATOR_TASK_STATES, this.getHeartbeatIntervalMs(), ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES, limit],
+      [
+        ACTIVE_ORCHESTRATOR_TASK_STATES,
+        timingDefaults.heartbeatIntervalMs,
+        ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES,
+        limit,
+      ],
     );
 
     let enqueued = 0;
     for (const row of result.rows) {
-      const requestId = buildHeartbeatRequestId(row.workflow_id, this.getHeartbeatIntervalMs());
+      const requestId = buildHeartbeatRequestId(
+        row.workflow_id,
+        timingDefaults.heartbeatIntervalMs,
+      );
       const activation = await this.insertHeartbeatActivation(row.tenant_id, row.workflow_id, requestId);
       if (activation) {
         enqueued += 1;
@@ -214,6 +225,7 @@ export class WorkflowActivationDispatchService {
   }
 
   async dispatchQueuedActivations(limit = 20): Promise<number> {
+    const timingDefaults = await this.readActivationTimingDefaults();
     const result = await this.deps.pool.query<DispatchCandidateRow>(
       `SELECT DISTINCT ON (wa.workflow_id)
               wa.id,
@@ -253,7 +265,7 @@ export class WorkflowActivationDispatchService {
                  CASE WHEN wa.event_type = 'heartbeat' THEN 1 ELSE 0 END ASC,
                  wa.queued_at ASC
         LIMIT $3`,
-      [ACTIVE_ORCHESTRATOR_TASK_STATES, this.getActivationDelayMs(), limit],
+      [ACTIVE_ORCHESTRATOR_TASK_STATES, timingDefaults.activationDelayMs, limit],
     );
 
     let dispatched = 0;
@@ -275,6 +287,7 @@ export class WorkflowActivationDispatchService {
   }
 
   async recoverStaleActivations(limit = 20): Promise<ActivationRecoveryResult> {
+    const timingDefaults = await this.readActivationTimingDefaults();
     const result = await this.deps.pool.query<RecoveryCandidateRow>(
       `SELECT wa.id, wa.tenant_id
          FROM workflow_activations wa
@@ -305,7 +318,7 @@ export class WorkflowActivationDispatchService {
           END,
           wa.started_at ASC
         LIMIT $2`,
-      [this.getStaleActivationThresholdMs(), limit, ACTIVE_ORCHESTRATOR_TASK_STATES],
+      [timingDefaults.staleAfterMs, limit, ACTIVE_ORCHESTRATOR_TASK_STATES],
     );
 
     const totals: ActivationRecoveryResult = {
@@ -480,7 +493,8 @@ export class WorkflowActivationDispatchService {
         return null;
       }
 
-      if (!options.ignoreDelay && !isReadyForDispatch(activation, this.getActivationDelayMs())) {
+      const timingDefaults = await this.readActivationTimingDefaults();
+      if (!options.ignoreDelay && !isReadyForDispatch(activation, timingDefaults.activationDelayMs)) {
         if (ownsClient) {
           await client.query('COMMIT');
         }
@@ -1207,6 +1221,7 @@ export class WorkflowActivationDispatchService {
         };
       }
 
+      const timingDefaults = await this.readActivationTimingDefaults();
       const recovered = await client.query<QueuedActivationRow>(
         `UPDATE workflow_activations
             SET state = 'queued',
@@ -1239,7 +1254,7 @@ export class WorkflowActivationDispatchService {
           staleState.workflow_id,
           staleState.id,
           staleState.started_at?.toISOString() ?? null,
-          this.getStaleActivationThresholdMs(),
+          timingDefaults.staleAfterMs,
         ],
       );
       if (!recovered.rowCount) {
@@ -1354,6 +1369,7 @@ export class WorkflowActivationDispatchService {
     staleState: StaleActivationStateRow,
     client: DatabaseClient,
   ): Promise<void> {
+    const timingDefaults = await this.readActivationTimingDefaults();
     await client.query(
       `UPDATE workflow_activations
           SET summary = COALESCE(summary, 'Stale orchestrator detected during activation recovery'),
@@ -1379,7 +1395,7 @@ export class WorkflowActivationDispatchService {
         staleState.workflow_id,
         staleState.id,
         staleState.started_at?.toISOString() ?? null,
-        this.getStaleActivationThresholdMs(),
+        timingDefaults.staleAfterMs,
         staleState.active_task_id,
       ],
     );
@@ -1412,16 +1428,16 @@ export class WorkflowActivationDispatchService {
     );
   }
 
-  private getActivationDelayMs(): number {
-    return this.deps.config.WORKFLOW_ACTIVATION_DELAY_MS ?? 10_000;
-  }
-
-  private getHeartbeatIntervalMs(): number {
-    return this.deps.config.WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS ?? 300_000;
-  }
-
-  private getStaleActivationThresholdMs(): number {
-    return this.deps.config.WORKFLOW_ACTIVATION_STALE_AFTER_MS ?? 300_000;
+  private async readActivationTimingDefaults() {
+    return readWorkflowActivationTimingDefaults(
+      this.deps.pool,
+      {
+        delayMs: this.deps.config.WORKFLOW_ACTIVATION_DELAY_MS,
+        heartbeatIntervalMs: this.deps.config.WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS,
+        staleAfterMs: this.deps.config.WORKFLOW_ACTIVATION_STALE_AFTER_MS,
+      },
+      DEFAULT_TENANT_ID,
+    );
   }
 
   private async resolveDefaultTaskTimeoutMinutes(

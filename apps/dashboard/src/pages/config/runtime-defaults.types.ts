@@ -18,6 +18,7 @@ export interface FieldDefinition {
     | 'llm_transport'
     | 'tool_timeouts'
     | 'connected_platform'
+    | 'workflow_activation'
     | 'container_manager'
     | 'task_timeouts'
     | 'container_timeouts'

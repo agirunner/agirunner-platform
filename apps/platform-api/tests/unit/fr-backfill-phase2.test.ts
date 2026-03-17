@@ -357,7 +357,7 @@ describe('FR-715: workflow cancellation guardrails', () => {
       pool: mockPool as never,
       eventService: mockEventService as never,
       stateService: mockStateService as never,
-      cancelSignalGracePeriodMs: 60000,
+      resolveCancelSignalGracePeriodMs: async () => 60000,
       getWorkflow: vi.fn().mockResolvedValue({ id: 'p1', state: 'completed', tasks: [] }),
     });
 

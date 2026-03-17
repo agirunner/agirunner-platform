@@ -9,7 +9,7 @@ interface WorkflowCancellationDeps {
   pool: DatabasePool;
   eventService: EventService;
   stateService: WorkflowStateService;
-  cancelSignalGracePeriodMs: number;
+  resolveCancelSignalGracePeriodMs: (tenantId: string) => Promise<number>;
   workerConnectionHub?: WorkerConnectionHub;
   getWorkflow: (tenantId: string, workflowId: string) => Promise<Record<string, unknown>>;
 }
@@ -81,9 +81,12 @@ export class WorkflowCancellationService {
         [identity.tenantId, workflowId],
       );
 
+      const cancelSignalGracePeriodMs = await this.deps.resolveCancelSignalGracePeriodMs(
+        identity.tenantId,
+      );
       const signalRequestedAt = new Date();
       const forceCancelAt = new Date(
-        signalRequestedAt.getTime() + this.deps.cancelSignalGracePeriodMs,
+        signalRequestedAt.getTime() + cancelSignalGracePeriodMs,
       );
       let signalledTasks = 0;
       for (const task of activeTasks.rows) {
@@ -95,7 +98,7 @@ export class WorkflowCancellationService {
           const signalPayload = {
             reason: 'manual_cancel',
             requested_at: signalRequestedAt.toISOString(),
-            grace_period_ms: this.deps.cancelSignalGracePeriodMs,
+            grace_period_ms: cancelSignalGracePeriodMs,
           };
           const signalResult = await client.query<{ id: string; created_at: Date }>(
             `INSERT INTO worker_signals (tenant_id, worker_id, signal_type, task_id, data)
@@ -130,7 +133,7 @@ export class WorkflowCancellationService {
           const signalPayload = {
             reason: 'manual_cancel',
             requested_at: signalRequestedAt.toISOString(),
-            grace_period_ms: this.deps.cancelSignalGracePeriodMs,
+            grace_period_ms: cancelSignalGracePeriodMs,
           };
           const signalResult = await client.query<{ id: string }>(
             `INSERT INTO worker_signals (tenant_id, worker_id, signal_type, task_id, data)

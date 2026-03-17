@@ -49,7 +49,7 @@ export class TaskTimeoutService {
       reason: 'manual_cancel' | 'task_timeout',
       requestedAt: Date,
     ) => Promise<string | null>,
-    private readonly cancelSignalGracePeriodMs: number,
+    private readonly resolveCancelSignalGracePeriodMs: (tenantId: string) => Promise<number>,
   ) {}
 
   async failTimedOutTasks(now = new Date()): Promise<number> {
@@ -120,6 +120,8 @@ export class TaskTimeoutService {
 
       const scopedIdentity = { ...systemIdentity, tenantId };
       const signalRequestedAt = new Date();
+      const cancelSignalGracePeriodMs =
+        await this.resolveCancelSignalGracePeriodMs(tenantId);
       const signalId = await this.queueWorkerCancelSignal(
         scopedIdentity,
         workerId,
@@ -128,7 +130,7 @@ export class TaskTimeoutService {
         signalRequestedAt,
       );
 
-      const forceFailAt = new Date(signalRequestedAt.getTime() + this.cancelSignalGracePeriodMs);
+      const forceFailAt = new Date(signalRequestedAt.getTime() + cancelSignalGracePeriodMs);
       const marked = await this.pool.query(
         `UPDATE tasks
          SET metadata = metadata || $3::jsonb

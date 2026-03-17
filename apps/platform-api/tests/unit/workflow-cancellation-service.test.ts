@@ -44,7 +44,7 @@ describe('WorkflowCancellationService', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: eventService as never,
       stateService: stateService as never,
-      cancelSignalGracePeriodMs: 60_000,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
       getWorkflow,
     });
 
@@ -104,7 +104,7 @@ describe('WorkflowCancellationService', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
       stateService: { recomputeWorkflowState: vi.fn(async () => 'paused') } as never,
-      cancelSignalGracePeriodMs: 60_000,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
       getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'paused' })),
     });
 
@@ -163,7 +163,7 @@ describe('WorkflowCancellationService', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
       stateService: { recomputeWorkflowState: vi.fn(async () => 'paused') } as never,
-      cancelSignalGracePeriodMs: 60_000,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
       getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'paused' })),
     });
 
@@ -227,7 +227,7 @@ describe('WorkflowCancellationService', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
       stateService: { recomputeWorkflowState: vi.fn(async () => 'cancelled') } as never,
-      cancelSignalGracePeriodMs: 60_000,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
       getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'cancelled' })),
     });
 
@@ -286,7 +286,7 @@ describe('WorkflowCancellationService', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
       stateService: { recomputeWorkflowState: vi.fn(async () => 'paused') } as never,
-      cancelSignalGracePeriodMs: 60_000,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
       getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'paused' })),
     });
 
@@ -344,7 +344,7 @@ describe('WorkflowCancellationService', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
       stateService: { recomputeWorkflowState: vi.fn(async () => 'cancelled') } as never,
-      cancelSignalGracePeriodMs: 60_000,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
       getWorkflow: vi.fn(async () => ({ id: 'workflow-1', state: 'cancelled' })),
     });
 
@@ -376,7 +376,7 @@ describe('WorkflowCancellationService', () => {
       pool: { connect: vi.fn(async () => client) } as never,
       eventService: { emit: vi.fn() } as never,
       stateService: { recomputeWorkflowState: vi.fn() } as never,
-      cancelSignalGracePeriodMs: 60_000,
+      resolveCancelSignalGracePeriodMs: async () => 60_000,
       getWorkflow: vi.fn(),
     });
 

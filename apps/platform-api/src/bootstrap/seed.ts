@@ -256,6 +256,34 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.workflow_activation_delay_ms',
+    configValue: '10000',
+    configType: 'number',
+    description: 'Delay in milliseconds before non-immediate workflow activations become eligible to dispatch',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.workflow_activation_heartbeat_interval_ms',
+    configValue: '900000',
+    configType: 'number',
+    description: 'Minimum interval in milliseconds between watchdog heartbeat activations for the same workflow',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.workflow_activation_stale_after_ms',
+    configValue: '300000',
+    configType: 'number',
+    description: 'Threshold in milliseconds after which a processing workflow activation is considered stale',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.task_cancel_signal_grace_period_ms',
+    configValue: '60000',
+    configType: 'number',
+    description: 'Grace period in milliseconds between sending a cancel signal and force-failing or force-cancelling work',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.reconcile_interval_seconds',
     configValue: '5',
     configType: 'number',

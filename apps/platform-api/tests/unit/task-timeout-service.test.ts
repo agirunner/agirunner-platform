@@ -29,7 +29,7 @@ describe('TaskTimeoutService timeout signal lifecycle', () => {
       pool as never,
       applyTransition as never,
       queueWorkerCancelSignal,
-      60_000,
+      async () => 60_000,
     );
 
     const now = new Date('2026-03-05T00:00:00.000Z');
@@ -75,7 +75,7 @@ describe('TaskTimeoutService timeout signal lifecycle', () => {
       pool as never,
       applyTransition as never,
       queueWorkerCancelSignal,
-      60_000,
+      async () => 60_000,
     );
 
     const affected = await service.failTimedOutTasks(new Date('2026-03-05T00:01:00.000Z'));

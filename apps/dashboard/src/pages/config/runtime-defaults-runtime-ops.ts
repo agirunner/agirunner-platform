@@ -37,6 +37,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Tune claim polling and drain behavior when runtimes are attached to the platform fleet.',
   },
   {
+    key: 'workflow_activation',
+    title: 'Workflow activation',
+    description: 'Control activation debounce, heartbeat wakeups, stale detection, and task-cancel grace timing.',
+  },
+  {
     key: 'container_manager',
     title: 'Container manager',
     description: 'Control fleet reconcile cadence and stop/remove grace periods for the manager service.',
@@ -112,6 +117,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   ...buildConnectedPlatformFields(),
+  ...buildWorkflowActivationFields(),
   ...buildContainerManagerFields(),
   ...buildWorkspaceTimeoutFields(),
   {
@@ -373,6 +379,55 @@ function buildContainerManagerFields(): FieldDefinition[] {
       inputMode: 'numeric',
       min: 1,
       step: 1,
+    },
+  ];
+}
+
+function buildWorkflowActivationFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'platform.workflow_activation_delay_ms',
+      label: 'Activation delay (ms)',
+      description: 'How long non-immediate activation events wait before the orchestrator is eligible to dispatch.',
+      configType: 'number',
+      placeholder: '10000',
+      section: 'workflow_activation',
+      inputMode: 'numeric',
+      min: 0,
+      step: 1000,
+    },
+    {
+      key: 'platform.workflow_activation_heartbeat_interval_ms',
+      label: 'Heartbeat interval (ms)',
+      description: 'Minimum spacing between no-op watchdog heartbeat activations for the same workflow.',
+      configType: 'number',
+      placeholder: '900000',
+      section: 'workflow_activation',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.workflow_activation_stale_after_ms',
+      label: 'Stale activation threshold (ms)',
+      description: 'How long a processing activation can sit before recovery logic treats it as stale.',
+      configType: 'number',
+      placeholder: '300000',
+      section: 'workflow_activation',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.task_cancel_signal_grace_period_ms',
+      label: 'Task cancel grace period (ms)',
+      description: 'How long the platform waits after sending a cancel signal before force-failing or force-cancelling work.',
+      configType: 'number',
+      placeholder: '60000',
+      section: 'workflow_activation',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
     },
   ];
 }

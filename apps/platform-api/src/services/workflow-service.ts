@@ -40,6 +40,7 @@ import { WorkflowStateService } from './workflow-state-service.js';
 import { ProjectTimelineService } from './project-timeline-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildWorkflowReadColumns } from './workflow-read-columns.js';
+import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';
 import type { LogService } from '../logging/log-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
 import type {
@@ -69,8 +70,6 @@ export class WorkflowService {
     connectionHub?: WorkerConnectionHub,
     logService?: LogService,
   ) {
-    const workflowActivationDelayMs = config.WORKFLOW_ACTIVATION_DELAY_MS ?? 10_000;
-    const workflowActivationStaleAfterMs = config.WORKFLOW_ACTIVATION_STALE_AFTER_MS ?? 300_000;
     this.projectTimelineService = new ProjectTimelineService(pool);
     this.modelCatalogService = new ModelCatalogService(pool);
     const artifactRetentionService = new ArtifactRetentionService(
@@ -88,10 +87,7 @@ export class WorkflowService {
     this.activationDispatchService = new WorkflowActivationDispatchService({
       pool,
       eventService,
-      config: {
-        WORKFLOW_ACTIVATION_DELAY_MS: workflowActivationDelayMs,
-        WORKFLOW_ACTIVATION_STALE_AFTER_MS: workflowActivationStaleAfterMs,
-      },
+      config,
     });
     this.budgetService = new WorkflowBudgetService(
       pool,
@@ -129,7 +125,12 @@ export class WorkflowService {
       pool,
       eventService,
       stateService,
-      cancelSignalGracePeriodMs: config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS ?? 60_000,
+      resolveCancelSignalGracePeriodMs: async (tenantId: string) =>
+        readTaskCancelSignalGracePeriodMs(
+          pool,
+          tenantId,
+          config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS,
+        ),
       workerConnectionHub: connectionHub,
       getWorkflow: this.getWorkflow.bind(this),
     });

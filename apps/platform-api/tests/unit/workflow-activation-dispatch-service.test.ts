@@ -1,5 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 
+vi.mock('../../src/services/platform-timing-defaults.js', () => ({
+  readWorkflowActivationTimingDefaults: vi.fn(
+    async (
+      _db: unknown,
+      fallback: Partial<{
+        delayMs: number;
+        heartbeatIntervalMs: number;
+        staleAfterMs: number;
+      }> = {},
+    ) => ({
+      activationDelayMs: fallback.delayMs ?? 10_000,
+      heartbeatIntervalMs: fallback.heartbeatIntervalMs ?? 900_000,
+      staleAfterMs: fallback.staleAfterMs ?? 300_000,
+    }),
+  ),
+}));
+
 import { WorkflowActivationDispatchService } from '../../src/services/workflow-activation-dispatch-service.js';
 
 describe('WorkflowActivationDispatchService', () => {

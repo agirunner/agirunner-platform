@@ -21,6 +21,7 @@ describe('runtime defaults page support', () => {
       'lifecycle_timeouts',
       'task_timeouts',
       'connected_platform',
+      'workflow_activation',
       'container_manager',
       'workspace_timeouts',
       'capture_timeouts',
@@ -43,6 +44,9 @@ describe('runtime defaults page support', () => {
     );
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toContain(
       'platform.claim_poll_seconds',
+    );
+    expect(fieldsForSection('workflow_activation').map((field) => field.key)).toContain(
+      'platform.workflow_activation_delay_ms',
     );
     expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
       'container_manager.reconcile_interval_seconds',

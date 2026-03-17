@@ -19,13 +19,12 @@ import { TaskWriteService } from './task-write-service.js';
 import { OrchestratorGrantService } from './orchestrator-grant-service.js';
 import { RoleDefinitionService } from './role-definition-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';
 import { WorkItemContinuityService } from './work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
 import { HandoffService } from './handoff-service.js';
-const DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS = 60_000;
-const DEFAULT_WORKFLOW_ACTIVATION_DELAY_MS = 10_000;
-const DEFAULT_WORKFLOW_ACTIVATION_STALE_AFTER_MS = 300_000;
+
 export class TaskService {
   private readonly queryService: TaskQueryService;
   private readonly writeService: TaskWriteService;
@@ -39,13 +38,6 @@ export class TaskService {
     connectionHub?: WorkerConnectionHub,
     logService?: LogService,
   ) {
-    const cancelSignalGracePeriodMs =
-      config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS ?? DEFAULT_CANCEL_SIGNAL_GRACE_PERIOD_MS;
-    const workflowActivationDelayMs =
-      config.WORKFLOW_ACTIVATION_DELAY_MS ?? DEFAULT_WORKFLOW_ACTIVATION_DELAY_MS;
-    const workflowActivationStaleAfterMs =
-      config.WORKFLOW_ACTIVATION_STALE_AFTER_MS ?? DEFAULT_WORKFLOW_ACTIVATION_STALE_AFTER_MS;
-
     const queueWorkerCancelSignal = async (
       identity: ApiKeyIdentity,
       workerId: string,
@@ -77,6 +69,11 @@ export class TaskService {
         return existingSignal.rows[0].id;
       }
 
+      const cancelSignalGracePeriodMs = await readTaskCancelSignalGracePeriodMs(
+        pool,
+        identity.tenantId,
+        config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS,
+      );
       const signalPayload = {
         reason,
         requested_at: requestedAt.toISOString(),
@@ -159,10 +156,7 @@ export class TaskService {
     const workflowActivationDispatchService = new WorkflowActivationDispatchService({
       pool,
       eventService,
-      config: {
-        WORKFLOW_ACTIVATION_DELAY_MS: workflowActivationDelayMs,
-        WORKFLOW_ACTIVATION_STALE_AFTER_MS: workflowActivationStaleAfterMs,
-      },
+      config,
     });
     const workItemContinuityService = new WorkItemContinuityService(pool);
     const handoffService = new HandoffService(pool);
@@ -209,7 +203,12 @@ export class TaskService {
       pool,
       this.lifecycleService.applyStateTransition.bind(this.lifecycleService),
       queueWorkerCancelSignal,
-      cancelSignalGracePeriodMs,
+      async (tenantId: string) =>
+        readTaskCancelSignalGracePeriodMs(
+          pool,
+          tenantId,
+          config.TASK_CANCEL_SIGNAL_GRACE_PERIOD_MS,
+        ),
     );
   }
 
