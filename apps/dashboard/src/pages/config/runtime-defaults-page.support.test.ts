@@ -14,6 +14,7 @@ describe('runtime defaults page support', () => {
   it('exposes dedicated runtime sections for agent context, orchestrator overrides, and safeguards', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'containers',
+      'process_logging',
       'server_timeouts',
       'llm_transport',
       'tool_timeouts',
@@ -38,6 +39,7 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('tool_timeouts').map((field) => field.key)).toContain(
       'tools.git_push_timeout_seconds',
     );
+    expect(fieldsForSection('process_logging').map((field) => field.key)).toContain('log.level');
     expect(fieldsForSection('tool_timeouts').map((field) => field.key)).toContain(
       'tools.shell_exec_timeout_min_seconds',
     );
@@ -181,6 +183,13 @@ describe('runtime defaults page support', () => {
           title: 'Agent container defaults',
           configuredCount: 1,
           fieldCount: 5,
+          errorCount: 0,
+        },
+        {
+          key: 'process_logging',
+          title: 'Process logging',
+          configuredCount: 0,
+          fieldCount: 1,
           errorCount: 0,
         },
         {

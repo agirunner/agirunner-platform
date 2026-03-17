@@ -208,6 +208,16 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('platform.log_ingest_timeout_seconds must be at least 1');
     });
 
+    it('rejects invalid runtime process log levels', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'log.level',
+          configValue: 'trace',
+          configType: 'string',
+        }),
+      ).rejects.toThrow('log.level must be one of: debug, info, warn, error');
+    });
+
     it('rejects non-positive task timeout defaults', async () => {
       await expect(
         service.createDefault(TENANT_ID, {

@@ -92,6 +92,7 @@ const DECIMAL_DEFAULT_RULES = new Map([
 ]);
 const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
   ['default_pull_policy', ['always', 'if-not-present', 'never']],
+  ['log.level', ['debug', 'info', 'warn', 'error']],
   ['tools.web_search_provider', ['duckduckgo', 'serper', 'tavily']],
 ]);
 

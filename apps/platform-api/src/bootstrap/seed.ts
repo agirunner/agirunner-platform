@@ -249,6 +249,13 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'log.level',
+    configValue: 'info',
+    configType: 'string',
+    description: 'Runtime process log level applied to connected worker processes',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'tasks.default_timeout_minutes',
     configValue: '30',
     configType: 'number',

@@ -14,6 +14,7 @@ export interface FieldDefinition {
   placeholder: string;
   section:
     | 'containers'
+    | 'process_logging'
     | 'server_timeouts'
     | 'llm_transport'
     | 'tool_timeouts'

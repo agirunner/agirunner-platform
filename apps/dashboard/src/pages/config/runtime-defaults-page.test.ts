@@ -12,6 +12,7 @@ describe('runtime defaults page source', () => {
   it('exposes the supported runtime configuration sections and agent fields through structured schema exports', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'containers',
+      'process_logging',
       'server_timeouts',
       'llm_transport',
       'tool_timeouts',
@@ -37,6 +38,7 @@ describe('runtime defaults page source', () => {
       expect.arrayContaining([
         'default_runtime_image',
         'default_pull_policy',
+        'log.level',
         'server.shutdown_timeout_seconds',
         'llm.http_timeout_seconds',
         'tools.git_push_timeout_seconds',
