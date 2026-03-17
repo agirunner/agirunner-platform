@@ -256,6 +256,48 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.claim_poll_seconds',
+    configValue: '5',
+    configType: 'number',
+    description: 'How often connected runtimes poll the platform for claimable work',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.api_request_timeout_seconds',
+    configValue: '30',
+    configType: 'number',
+    description: 'How long connected runtimes wait for platform API requests before treating them as failed',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.heartbeat_max_failures',
+    configValue: '24',
+    configType: 'number',
+    description: 'How many consecutive heartbeat failures connected runtimes tolerate before self-termination',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.drain_timeout_seconds',
+    configValue: '600',
+    configType: 'number',
+    description: 'How long connected runtimes wait for in-flight work while draining before forced shutdown',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.cancellation_report_timeout_seconds',
+    configValue: '10',
+    configType: 'number',
+    description: 'How long connected runtimes wait when reporting cancellation or shutdown outcomes back to the platform',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.self_terminate_cleanup_timeout_seconds',
+    configValue: '15',
+    configType: 'number',
+    description: 'How long connected runtimes wait while cleaning up managed task containers before self-termination',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.workflow_activation_delay_ms',
     configValue: '10000',
     configType: 'number',
