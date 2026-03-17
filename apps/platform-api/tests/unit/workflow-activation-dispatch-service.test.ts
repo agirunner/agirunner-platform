@@ -173,6 +173,49 @@ describe('WorkflowActivationDispatchService', () => {
     expect(dispatched).toBe(1);
   });
 
+  it('treats task and child-workflow transitions as immediate dispatch candidates', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        expect(sql).toContain("wa.event_type = 'workflow.created'");
+        expect(sql).toContain("wa.event_type = 'task.approved'");
+        expect(sql).toContain("wa.event_type = 'child_workflow.completed'");
+        expect(params).toEqual([
+          ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+          60_000,
+          3,
+        ]);
+        return {
+          rowCount: 3,
+          rows: [
+            { id: 'activation-approved', tenant_id: 'tenant-1', workflow_id: 'workflow-1' },
+            { id: 'activation-child', tenant_id: 'tenant-1', workflow_id: 'workflow-2' },
+            { id: 'activation-created', tenant_id: 'tenant-1', workflow_id: 'workflow-3' },
+          ],
+        };
+      }),
+      connect: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const dispatchSpy = vi
+      .spyOn(service, 'dispatchActivation')
+      .mockResolvedValueOnce('task-approved')
+      .mockResolvedValueOnce('task-child')
+      .mockResolvedValueOnce('task-created');
+
+    const dispatched = await service.dispatchQueuedActivations(3);
+
+    expect(dispatchSpy).toHaveBeenCalledTimes(3);
+    expect(dispatched).toBe(3);
+  });
+
   it('treats approval, review, and completion signals as immediate workflow wakeups', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -1483,9 +1526,9 @@ describe('WorkflowActivationDispatchService', () => {
     expect(taskId).toBe('task-branch-only');
   });
 
-  it('defers non-immediate activations until the batching delay elapses', async () => {
+  it('dispatches actionable task activations immediately without waiting for the batching delay', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
@@ -1501,9 +1544,125 @@ describe('WorkflowActivationDispatchService', () => {
               workflow_id: 'workflow-1',
               activation_id: null,
               request_id: 'req-9',
-              reason: 'task.completed',
-              event_type: 'task.completed',
-              payload: { task_id: 'task-9' },
+              reason: 'task.approved',
+              event_type: 'task.approved',
+              payload: { task_id: 'task-9', work_item_id: 'work-item-9' },
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(Date.now() - 5_000),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = true')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              project_id: 'project-1',
+              lifecycle: 'planned',
+              current_stage: 'review',
+              active_stages: ['review'],
+              playbook_id: 'playbook-1',
+              playbook_name: 'SDLC',
+              playbook_outcome: 'Ship tested code',
+              project_repository_url: null,
+              project_settings: null,
+              workflow_git_branch: null,
+              workflow_parameters: null,
+            }],
+          };
+        }
+        if (sql.includes('SET activation_id = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-9',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: 'activation-9',
+              request_id: 'req-9',
+              reason: 'task.approved',
+              event_type: 'task.approved',
+              payload: { task_id: 'task-9', work_item_id: 'work-item-9' },
+              state: 'processing',
+              dispatch_attempt: 1,
+              dispatch_token: 'dispatch-token-9',
+              queued_at: new Date(Date.now() - 5_000),
+              started_at: new Date(),
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO tasks')) {
+          expect(params?.[6]).toEqual(
+            expect.objectContaining({
+              activation_reason: 'queued_events',
+              description: expect.stringContaining('Primary trigger event: task.approved.'),
+              events: [
+                expect.objectContaining({
+                  type: 'task.approved',
+                  reason: 'task.approved',
+                  work_item_id: 'work-item-9',
+                }),
+              ],
+            }),
+          );
+          return { rowCount: 1, rows: [{ id: 'task-approved-dispatch' }] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new WorkflowActivationDispatchService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 10_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-9');
+
+    expect(taskId).toBe('task-approved-dispatch');
+  });
+
+  it('defers non-immediate activations until the batching delay elapses', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes("state = 'processing'") && sql.includes('id = activation_id')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_activations') && sql.includes('FOR UPDATE SKIP LOCKED')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'activation-10',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'req-10',
+              reason: 'manual.audit_requested',
+              event_type: 'manual.audit_requested',
+              payload: { note: 'batch me' },
               state: 'queued',
               dispatch_attempt: 0,
               dispatch_token: null,
@@ -1534,7 +1693,7 @@ describe('WorkflowActivationDispatchService', () => {
       },
     });
 
-    const taskId = await service.dispatchActivation('tenant-1', 'activation-9');
+    const taskId = await service.dispatchActivation('tenant-1', 'activation-10');
 
     expect(taskId).toBeNull();
     expect(client.query).not.toHaveBeenCalledWith(expect.stringContaining('INSERT INTO tasks'), expect.anything());

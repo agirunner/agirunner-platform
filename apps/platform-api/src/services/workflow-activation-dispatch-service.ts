@@ -30,12 +30,19 @@ const ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES = [
   'output_pending_review',
 ] as const;
 const IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES = [
+  'workflow.created',
   'work_item.created',
+  'task.escalated',
+  'task.agent_escalated',
+  'task.escalation_resolved',
   'task.completed',
   'task.failed',
   'task.output_pending_review',
   'task.approved',
   'task.review_requested_changes',
+  'child_workflow.completed',
+  'child_workflow.failed',
+  'child_workflow.cancelled',
 ] as const;
 const ACTIVATION_TASK_REQUEST_ID_PATTERN = /^activation:([^:]+):dispatch:(\d+)$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -1577,6 +1584,12 @@ function buildImmediateDispatchCondition(alias: string): string {
   return IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES.map((eventType) => `${alias}.event_type = '${eventType}'`).join('\n            OR ');
 }
 
+function isImmediateDispatchEvent(eventType: string): boolean {
+  return IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES.includes(
+    eventType as (typeof IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES)[number],
+  );
+}
+
 function deriveActivationReason(activationBatch: QueuedActivationRow[]): 'queued_events' | 'heartbeat' {
   return activationBatch.some((event) => event.event_type !== 'heartbeat') ? 'queued_events' : 'heartbeat';
 }
@@ -1849,7 +1862,7 @@ function readTaskDispatchAttemptFromRequestId(task: Record<string, unknown>): nu
 }
 
 function isReadyForDispatch(activation: QueuedActivationRow, activationDelayMs: number): boolean {
-  if (activation.event_type === 'work_item.created' || activation.event_type === 'heartbeat') {
+  if (activation.event_type === 'heartbeat' || isImmediateDispatchEvent(activation.event_type)) {
     return true;
   }
 
