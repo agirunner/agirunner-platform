@@ -19,6 +19,7 @@ describe('runtime defaults page support', () => {
       'tool_timeouts',
       'container_timeouts',
       'lifecycle_timeouts',
+      'connected_platform',
       'workspace_timeouts',
       'capture_timeouts',
       'secrets_timeouts',
@@ -32,8 +33,14 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('tool_timeouts').map((field) => field.key)).toContain(
       'tools.git_push_timeout_seconds',
     );
+    expect(fieldsForSection('tool_timeouts').map((field) => field.key)).toContain(
+      'tools.shell_exec_timeout_min_seconds',
+    );
     expect(fieldsForSection('workspace_timeouts').map((field) => field.key)).toContain(
       'workspace.clone_timeout_seconds',
+    );
+    expect(fieldsForSection('connected_platform').map((field) => field.key)).toContain(
+      'platform.claim_poll_seconds',
     );
     expect(fieldsForSection('agent_context').map((field) => field.key)).toContain(
       'agent.history_max_messages',
@@ -154,8 +161,15 @@ describe('runtime defaults page support', () => {
           key: 'tool_timeouts',
           title: 'Tool timeouts',
           configuredCount: 1,
-          fieldCount: 14,
+          fieldCount: 16,
           errorCount: 1,
+        },
+        {
+          key: 'connected_platform',
+          title: 'Connected platform',
+          configuredCount: 0,
+          fieldCount: 3,
+          errorCount: 0,
         },
         {
           key: 'agent_context',

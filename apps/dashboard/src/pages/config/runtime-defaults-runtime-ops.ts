@@ -27,6 +27,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Control health checks and task-container stop/destroy deadlines.',
   },
   {
+    key: 'connected_platform',
+    title: 'Connected platform',
+    description: 'Tune claim polling and drain behavior when runtimes are attached to the platform fleet.',
+  },
+  {
     key: 'workspace_timeouts',
     title: 'Workspace timeouts',
     description: 'Bound repo bootstrap, identity setup, and context injection steps before work begins.',
@@ -85,6 +90,7 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   ...buildToolTimeoutFields(),
   ...buildContainerTimeoutFields(),
   ...buildLifecycleTimeoutFields(),
+  ...buildConnectedPlatformFields(),
   ...buildWorkspaceTimeoutFields(),
   {
     key: 'capture.push_timeout_seconds',
@@ -144,6 +150,8 @@ function buildToolTimeoutFields(): FieldDefinition[] {
     toolTimeoutField('tools.git_commit_timeout_seconds', 'Git commit timeout', '60'),
     toolTimeoutField('tools.git_push_timeout_seconds', 'Git push timeout', '90'),
     toolTimeoutField('tools.shell_exec_timeout_seconds', 'Shell exec timeout', '120'),
+    toolTimeoutField('tools.shell_exec_timeout_min_seconds', 'Shell exec minimum timeout', '1'),
+    toolTimeoutField('tools.shell_exec_timeout_max_seconds', 'Shell exec maximum timeout', '300'),
     toolTimeoutField('tools.helpers_exec_timeout_seconds', 'Helper exec timeout', '10'),
     toolTimeoutField('tools.web_fetch_timeout_seconds', 'Web fetch timeout', '30'),
     toolTimeoutField('tools.web_search_timeout_seconds', 'Web search timeout', '30'),
@@ -214,6 +222,17 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
       step: 1,
     },
     {
+      key: 'lifecycle.healthcheck_retry_delay_seconds',
+      label: 'Healthcheck retry delay (seconds)',
+      description: 'How long the runtime waits before retrying a failed task-container health probe.',
+      configType: 'number',
+      placeholder: '2',
+      section: 'lifecycle_timeouts',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
       key: 'lifecycle.failed_start_stop_timeout_seconds',
       label: 'Failed-start stop timeout (seconds)',
       description: 'How long the runtime waits when stopping a task container that never became healthy.',
@@ -231,6 +250,44 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
       configType: 'number',
       placeholder: '10',
       section: 'lifecycle_timeouts',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+  ];
+}
+
+function buildConnectedPlatformFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'platform.claim_poll_seconds',
+      label: 'Claim poll interval (seconds)',
+      description: 'How often a connected runtime polls the platform for newly claimable work.',
+      configType: 'number',
+      placeholder: '5',
+      section: 'connected_platform',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'platform.heartbeat_max_failures',
+      label: 'Heartbeat failure budget',
+      description: 'How many consecutive heartbeat failures a connected runtime tolerates before self-termination.',
+      configType: 'number',
+      placeholder: '24',
+      section: 'connected_platform',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'platform.drain_timeout_seconds',
+      label: 'Drain timeout (seconds)',
+      description: 'How long a draining connected runtime waits for in-flight work before forcing shutdown.',
+      configType: 'number',
+      placeholder: '600',
+      section: 'connected_platform',
       inputMode: 'numeric',
       min: 1,
       step: 1,

@@ -17,6 +17,7 @@ export interface FieldDefinition {
     | 'server_timeouts'
     | 'llm_transport'
     | 'tool_timeouts'
+    | 'connected_platform'
     | 'container_timeouts'
     | 'lifecycle_timeouts'
     | 'workspace_timeouts'

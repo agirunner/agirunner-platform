@@ -189,6 +189,16 @@ describe('RuntimeDefaultsService', () => {
         }),
       ).rejects.toThrow('workspace.clone_timeout_seconds must be at least 1');
     });
+
+    it('rejects non-positive connected runtime timeout defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'platform.claim_poll_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.claim_poll_seconds must be at least 1');
+    });
   });
 
   describe('updateDefault', () => {
