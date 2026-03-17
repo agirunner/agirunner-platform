@@ -173,6 +173,43 @@ describe('WorkflowActivationDispatchService', () => {
     expect(dispatched).toBe(1);
   });
 
+  it('treats approval, review, and completion signals as immediate workflow wakeups', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        expect(sql).toContain("wa.event_type = 'task.completed'");
+        expect(sql).toContain("wa.event_type = 'task.failed'");
+        expect(sql).toContain("wa.event_type = 'task.output_pending_review'");
+        expect(sql).toContain("wa.event_type = 'task.approved'");
+        expect(sql).toContain("wa.event_type = 'task.review_requested_changes'");
+        expect(params).toEqual([
+          ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+          60_000,
+          1,
+        ]);
+        return {
+          rowCount: 1,
+          rows: [{ id: 'activation-approval', tenant_id: 'tenant-1', workflow_id: 'workflow-1' }],
+        };
+      }),
+      connect: vi.fn(),
+    };
+    const service = new WorkflowActivationDispatchService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: {
+        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
+        WORKFLOW_ACTIVATION_DELAY_MS: 60_000,
+        WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
+      },
+    });
+    const dispatchSpy = vi.spyOn(service, 'dispatchActivation').mockResolvedValueOnce('task-approval');
+
+    const dispatched = await service.dispatchQueuedActivations(1);
+
+    expect(dispatchSpy).toHaveBeenCalledWith('tenant-1', 'activation-approval');
+    expect(dispatched).toBe(1);
+  });
+
   it('continues dispatching later workflows when one activation hits the active-processing uniqueness guard', async () => {
     const pool = {
       query: vi.fn(async () => ({

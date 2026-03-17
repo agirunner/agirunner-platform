@@ -29,6 +29,14 @@ const ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES = [
   'awaiting_approval',
   'output_pending_review',
 ] as const;
+const IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES = [
+  'work_item.created',
+  'task.completed',
+  'task.failed',
+  'task.output_pending_review',
+  'task.approved',
+  'task.review_requested_changes',
+] as const;
 const ACTIVATION_TASK_REQUEST_ID_PATTERN = /^activation:([^:]+):dispatch:(\d+)$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'execution-workspace';
@@ -233,6 +241,7 @@ export class WorkflowActivationDispatchService {
 
   async dispatchQueuedActivations(limit = 20): Promise<number> {
     const timingDefaults = await this.readActivationTimingDefaults();
+    const immediateDispatchCondition = buildImmediateDispatchCondition('wa');
     const result = await this.deps.pool.query<DispatchCandidateRow>(
       `SELECT DISTINCT ON (wa.workflow_id)
               wa.id,
@@ -247,7 +256,7 @@ export class WorkflowActivationDispatchService {
           AND wa.activation_id IS NULL
           AND w.state IN ('pending', 'active')
           AND (
-            wa.event_type = 'work_item.created'
+            ${immediateDispatchCondition}
             OR wa.event_type = 'heartbeat'
             OR wa.queued_at <= now() - ($2 * interval '1 millisecond')
           )
@@ -1562,6 +1571,10 @@ function buildActivationTaskInput(
       'State the next recommended workflow action clearly.',
     ],
   };
+}
+
+function buildImmediateDispatchCondition(alias: string): string {
+  return IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES.map((eventType) => `${alias}.event_type = '${eventType}'`).join('\n            OR ');
 }
 
 function deriveActivationReason(activationBatch: QueuedActivationRow[]): 'queued_events' | 'heartbeat' {
