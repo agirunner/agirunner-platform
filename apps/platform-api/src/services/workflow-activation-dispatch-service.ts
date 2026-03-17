@@ -247,7 +247,7 @@ export class WorkflowActivationDispatchService {
 
   async dispatchQueuedActivations(limit = 20): Promise<number> {
     const timingDefaults = await this.readActivationTimingDefaults();
-    const immediateDispatchCondition = buildImmediateDispatchCondition('wa');
+    const dispatchEligibilityCondition = buildDispatchEligibilityCondition('wa', '$2');
     const result = await this.deps.pool.query<DispatchCandidateRow>(
       `SELECT DISTINCT ON (wa.workflow_id)
               wa.id,
@@ -262,9 +262,7 @@ export class WorkflowActivationDispatchService {
           AND wa.activation_id IS NULL
           AND w.state IN ('pending', 'active')
           AND (
-            ${immediateDispatchCondition}
-            OR wa.event_type = 'heartbeat'
-            OR wa.queued_at <= now() - ($2 * interval '1 millisecond')
+            ${dispatchEligibilityCondition}
           )
           AND NOT EXISTS (
             SELECT 1
@@ -534,7 +532,7 @@ export class WorkflowActivationDispatchService {
         }
         return null;
       }
-      const activationBatch = await this.claimActivationBatch(activation, client);
+      const activationBatch = await this.claimActivationBatch(activation, timingDefaults.activationDelayMs, client);
       if (activationBatch.length === 0) {
         if (ownsClient) {
           await client.query('COMMIT');
@@ -721,6 +719,8 @@ export class WorkflowActivationDispatchService {
     workflowId: string,
     client: DatabaseClient,
   ): Promise<void> {
+    const timingDefaults = await this.readActivationTimingDefaults();
+    const dispatchEligibilityCondition = buildDispatchEligibilityCondition('', '$3');
     const nextActivationResult = await client.query<{ id: string }>(
       `SELECT id
          FROM workflow_activations
@@ -729,11 +729,14 @@ export class WorkflowActivationDispatchService {
           AND consumed_at IS NULL
           AND activation_id IS NULL
           AND state = 'queued'
+          AND (
+            ${dispatchEligibilityCondition}
+          )
         ORDER BY CASE WHEN event_type = 'heartbeat' THEN 1 ELSE 0 END ASC,
                  queued_at ASC
         LIMIT 1
         FOR UPDATE SKIP LOCKED`,
-      [tenantId, workflowId],
+      [tenantId, workflowId, timingDefaults.activationDelayMs],
     );
     if (!nextActivationResult.rowCount) {
       return;
@@ -1064,9 +1067,11 @@ export class WorkflowActivationDispatchService {
 
   private async claimActivationBatch(
     activation: QueuedActivationRow,
+    activationDelayMs: number,
     client: DatabaseClient,
   ): Promise<QueuedActivationRow[]> {
     const dispatchToken = randomUUID();
+    const dispatchEligibilityCondition = buildDispatchEligibilityCondition('', '$5');
     const result = await client.query<QueuedActivationRow>(
       `UPDATE workflow_activations
           SET activation_id = $3,
@@ -1078,9 +1083,13 @@ export class WorkflowActivationDispatchService {
           AND workflow_id = $2
           AND consumed_at IS NULL
           AND activation_id IS NULL
+          AND (
+            id = $3
+            OR ${dispatchEligibilityCondition}
+          )
       RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
                 state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error`,
-      [activation.tenant_id, activation.workflow_id, activation.id, dispatchToken],
+      [activation.tenant_id, activation.workflow_id, activation.id, dispatchToken, activationDelayMs],
     );
     return result.rows.sort((left, right) => left.queued_at.getTime() - right.queued_at.getTime());
   }
@@ -1580,7 +1589,17 @@ function buildActivationTaskInput(
 }
 
 function buildImmediateDispatchCondition(alias: string): string {
-  return IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES.map((eventType) => `${alias}.event_type = '${eventType}'`).join('\n            OR ');
+  const prefix = alias.trim().length > 0 ? `${alias}.` : '';
+  return IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES.map((eventType) => `${prefix}event_type = '${eventType}'`).join('\n            OR ');
+}
+
+function buildDispatchEligibilityCondition(alias: string, delayPlaceholder: string): string {
+  const prefix = alias.trim().length > 0 ? `${alias}.` : '';
+  return [
+    buildImmediateDispatchCondition(alias),
+    `${prefix}event_type = 'heartbeat'`,
+    `${prefix}queued_at <= now() - (${delayPlaceholder} * interval '1 millisecond')`,
+  ].join('\n            OR ');
 }
 
 function isImmediateDispatchEvent(eventType: string): boolean {
