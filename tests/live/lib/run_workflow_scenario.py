@@ -29,6 +29,61 @@ def extract_data(response: Any) -> Any:
     return response["data"]
 
 
+def pending_workflow_approvals(approvals: dict[str, Any], workflow_id: str) -> list[dict[str, Any]]:
+    pending: list[dict[str, Any]] = []
+    for bucket in ("task_approvals", "stage_gates"):
+        items = approvals.get(bucket, [])
+        if not isinstance(items, list):
+            continue
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            if item.get("workflow_id") != workflow_id:
+                continue
+            if item.get("status") != "awaiting_approval":
+                continue
+            pending.append(item)
+    return pending
+
+
+def auto_approve_workflow_approvals(
+    client: ApiClient,
+    approvals: dict[str, Any],
+    *,
+    workflow_id: str,
+    scenario_name: str,
+    approved_gate_ids: set[str],
+) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
+    for item in pending_workflow_approvals(approvals, workflow_id):
+        gate_id = item.get("gate_id") or item.get("id")
+        if not isinstance(gate_id, str) or gate_id.strip() == "":
+            continue
+        if gate_id in approved_gate_ids:
+            continue
+        client.request(
+            "POST",
+            f"/api/v1/approvals/{gate_id}",
+            payload={
+                "request_id": f"live-test-{scenario_name}-approve-{gate_id}",
+                "action": "approve",
+                "feedback": f"Approved by the live test operator flow for scenario {scenario_name}.",
+            },
+            expected=(200,),
+            label=f"approvals.approve:{gate_id}",
+        )
+        approved_gate_ids.add(gate_id)
+        actions.append(
+            {
+                "gate_id": gate_id,
+                "action": "approve",
+                "task_id": item.get("task_id"),
+                "stage_name": item.get("stage_name"),
+            }
+        )
+    return actions
+
+
 def login(client: ApiClient, admin_api_key: str) -> str:
     response = client.request(
         "POST",
@@ -82,7 +137,10 @@ def main() -> None:
     workflow_id = created["id"]
     deadline = time.time() + timeout_seconds
     latest_workflow = created
+    latest_approvals: dict[str, Any] | None = None
     poll_iterations = 0
+    approved_gate_ids: set[str] = set()
+    approval_actions: list[dict[str, Any]] = []
 
     while time.time() < deadline:
         poll_iterations += 1
@@ -96,6 +154,24 @@ def main() -> None:
         )
         if latest_workflow.get("state") in TERMINAL_STATES:
             break
+        latest_approvals = extract_data(
+            client.request(
+                "GET",
+                "/api/v1/approvals",
+                expected=(200,),
+                label="approvals.list",
+            )
+        )
+        actions = auto_approve_workflow_approvals(
+            client,
+            latest_approvals,
+            workflow_id=workflow_id,
+            scenario_name=scenario_name,
+            approved_gate_ids=approved_gate_ids,
+        )
+        if actions:
+            approval_actions.extend(actions)
+            continue
         time.sleep(poll_interval_seconds)
 
     board_snapshot = client.best_effort_request(
@@ -116,6 +192,12 @@ def main() -> None:
         expected=(200,),
         label="workflows.events",
     )
+    approvals_snapshot = client.best_effort_request(
+        "GET",
+        "/api/v1/approvals",
+        expected=(200,),
+        label="approvals.final",
+    )
 
     final_state = latest_workflow.get("state")
     print(
@@ -131,6 +213,8 @@ def main() -> None:
                 "board": board_snapshot,
                 "work_items": work_items_snapshot,
                 "events": events_snapshot,
+                "approvals": approvals_snapshot,
+                "approval_actions": approval_actions,
             }
         )
     )
