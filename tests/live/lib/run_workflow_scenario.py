@@ -131,12 +131,33 @@ def login(client: ApiClient, admin_api_key: str) -> str:
     return token
 
 
+def build_workflow_create_payload(
+    *,
+    playbook_id: str,
+    workspace_id: str,
+    workflow_name: str,
+    scenario_name: str,
+    workflow_goal: str,
+) -> dict[str, Any]:
+    return {
+        "playbook_id": playbook_id,
+        "workspace_id": workspace_id,
+        "name": workflow_name,
+        "parameters": {
+            "goal": workflow_goal,
+            "scenario_name": scenario_name,
+        },
+        "metadata": {"live_test": {"scenario_name": scenario_name}},
+    }
+
+
 def main() -> None:
     base_url = env("PLATFORM_API_BASE_URL", required=True)
     trace_dir = env("LIVE_TEST_SCENARIO_TRACE_DIR", required=True)
     admin_api_key = env("DEFAULT_ADMIN_API_KEY", required=True)
     bootstrap_context_file = env("LIVE_TEST_BOOTSTRAP_CONTEXT_FILE", required=True)
     workflow_name = env("LIVE_TEST_WORKFLOW_NAME", required=True)
+    workflow_goal = env("LIVE_TEST_WORKFLOW_GOAL", required=True)
     scenario_name = env("LIVE_TEST_SCENARIO_NAME", required=True)
     approval_mode = env("LIVE_TEST_APPROVAL_MODE", "none")
     timeout_seconds = env_int("LIVE_TEST_WORKFLOW_TIMEOUT_SECONDS", 1800)
@@ -155,13 +176,13 @@ def main() -> None:
         client.request(
             "POST",
             "/api/v1/workflows",
-            payload={
-                "playbook_id": playbook_id,
-                "workspace_id": workspace_id,
-                "name": workflow_name,
-                "parameters": {"scenario_name": scenario_name},
-                "metadata": {"live_test": {"scenario_name": scenario_name}},
-            },
+            payload=build_workflow_create_payload(
+                playbook_id=playbook_id,
+                workspace_id=workspace_id,
+                workflow_name=workflow_name,
+                scenario_name=scenario_name,
+                workflow_goal=workflow_goal,
+            ),
             expected=(201,),
             label="workflows.create",
         )

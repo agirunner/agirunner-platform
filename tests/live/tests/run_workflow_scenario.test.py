@@ -30,6 +30,30 @@ class FakeClient:
 
 
 class RunWorkflowScenarioTests(unittest.TestCase):
+    def test_build_workflow_create_payload_includes_required_goal_parameter(self) -> None:
+        payload = run_workflow_scenario.build_workflow_create_payload(
+            playbook_id="playbook-1",
+            workspace_id="workspace-1",
+            workflow_name="SDLC Baseline Proof",
+            scenario_name="sdlc-baseline",
+            workflow_goal="Add support for named greetings and uppercase output while preserving the default greeting.",
+        )
+
+        self.assertEqual("playbook-1", payload["playbook_id"])
+        self.assertEqual("workspace-1", payload["workspace_id"])
+        self.assertEqual("SDLC Baseline Proof", payload["name"])
+        self.assertEqual(
+            {
+                "goal": "Add support for named greetings and uppercase output while preserving the default greeting.",
+                "scenario_name": "sdlc-baseline",
+            },
+            payload["parameters"],
+        )
+        self.assertEqual(
+            {"live_test": {"scenario_name": "sdlc-baseline"}},
+            payload["metadata"],
+        )
+
     def test_auto_approve_workflow_approvals_posts_once_per_pending_gate(self) -> None:
         client = FakeClient()
         approvals = {
