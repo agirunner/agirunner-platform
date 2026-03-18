@@ -47,6 +47,7 @@ import {
   buildApprovalDecisionPacket,
   buildApprovalOutputPacket,
   buildApprovalRecoveryPacket,
+  sanitizeApprovalText,
   truncateOutput,
 } from './approval-queue-task-card-support.js';
 
@@ -123,8 +124,8 @@ export function TaskApprovalCard(props: {
   const primaryTitleHref = workflowOperatorFlow && workflowContextLink
     ? workflowContextLink
     : `/work/tasks/${task.id}`;
-  const handoffSummary = task.latest_handoff?.summary?.trim() ?? '';
-  const successorContext = task.latest_handoff?.successor_context?.trim() ?? '';
+  const handoffSummary = sanitizeApprovalText(task.latest_handoff?.summary);
+  const successorContext = sanitizeApprovalText(task.latest_handoff?.successor_context);
 
   return (
     <>

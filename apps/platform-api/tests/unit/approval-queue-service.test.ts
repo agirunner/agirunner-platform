@@ -27,12 +27,18 @@ describe('ApprovalQueueService', () => {
               handoff_count: 2,
               latest_handoff_role: 'developer',
               latest_handoff_stage_name: 'implementation',
-              latest_handoff_summary: 'Implemented the feature and left test notes.',
+              latest_handoff_summary:
+                'Implemented the feature. Validation token: Bearer sk-live-secret-value.',
               latest_handoff_completion: 'partial',
-              latest_handoff_successor_context: 'Reviewer should inspect failing edge cases first.',
+              latest_handoff_successor_context:
+                'Reviewer should reuse api_key sk-live-secret-value during spot checks.',
               latest_handoff_created_at: new Date('2026-03-11T00:30:00Z'),
               created_at: new Date('2026-03-11T00:00:00Z'),
-              output: { summary: 'Done' },
+              output: {
+                summary: 'Done',
+                api_key: 'sk-live-output-secret',
+                note: 'Replay with Bearer sk-live-output-secret if the preview fails.',
+              },
             }],
           };
         }
@@ -163,10 +169,15 @@ describe('ApprovalQueueService', () => {
         latest_handoff: expect.objectContaining({
           role: 'developer',
           stage_name: 'implementation',
-          summary: 'Implemented the feature and left test notes.',
+          summary: 'redacted://secret',
           completion: 'partial',
-          successor_context: 'Reviewer should inspect failing edge cases first.',
+          successor_context: 'redacted://secret',
         }),
+        output: {
+          summary: 'Done',
+          api_key: 'redacted://secret',
+          note: 'redacted://secret',
+        },
       }),
     );
     expect(queue.stage_gates[0]).toEqual(

@@ -1,5 +1,6 @@
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
+import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { loadGateResumeHistory } from './gate-resume-history.js';
 import {
   toGateResponse,
@@ -237,14 +238,14 @@ export class ApprovalQueueService {
           ? {
               role: row.latest_handoff_role,
               stage_name: row.latest_handoff_stage_name,
-              summary: row.latest_handoff_summary,
+              summary: sanitizeSecretLikeValue(row.latest_handoff_summary),
               completion: row.latest_handoff_completion,
-              successor_context: row.latest_handoff_successor_context,
+              successor_context: sanitizeSecretLikeValue(row.latest_handoff_successor_context),
               created_at: row.latest_handoff_created_at?.toISOString() ?? null,
             }
           : null,
         created_at: row.created_at.toISOString(),
-        output: row.output,
+        output: sanitizeSecretLikeValue(row.output),
       })),
       stage_gates: stageGateRows.map((row) => toGateResponse(row)),
     };

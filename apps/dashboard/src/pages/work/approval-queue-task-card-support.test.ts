@@ -4,6 +4,7 @@ import {
   buildApprovalDecisionPacket,
   buildApprovalOutputPacket,
   buildApprovalRecoveryPacket,
+  sanitizeApprovalText,
   truncateOutput,
 } from './approval-queue-task-card-support.js';
 
@@ -83,6 +84,21 @@ describe('approval queue task card support', () => {
     });
 
     expect(truncateOutput('x'.repeat(220))).toBe(`${'x'.repeat(200)}...`);
+    const redactedPreview = truncateOutput({
+      summary: 'Rendered summary',
+      api_key: 'sk-live-output-secret',
+      note: 'Replay with Bearer sk-live-output-secret if the preview fails.',
+    });
+    expect(redactedPreview).toContain('redacted://secret');
+    expect(redactedPreview).not.toContain('sk-live-output-secret');
+    expect(truncateOutput('Replay with Bearer sk-live-output-secret if the preview fails.')).toBe(
+      'redacted://secret',
+    );
+    expect(
+      sanitizeApprovalText(
+        'Implemented the feature. Validation token: Bearer sk-live-secret-value.',
+      ),
+    ).toBe('redacted://secret');
     expect(
       buildApprovalOutputPacket({
         id: 'task-4',

@@ -1,7 +1,8 @@
 const DEFAULT_SECRET_REDACTION = 'redacted://secret';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts|webhook_url)/i;
+const explicitSecretReferencePattern = /secret:[A-Za-z0-9_:-]+/i;
 const secretLikeValuePattern =
-  /(?:^enc:v\d+:|secret:[A-Za-z0-9_:-]+|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$)/i;
+  /(?:enc:v\d+:|Bearer\s+\S+|sk-[A-Za-z0-9_-]+|[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
 
 export interface SecretRedactionOptions {
   redactionValue?: string;
@@ -68,10 +69,14 @@ function shouldRedactString(value: string, inheritedSecret: boolean, allowSecret
   if (allowSecretReferences && isAllowedSecretReference(value)) {
     return false;
   }
+  const trimmed = value.trim();
   if (inheritedSecret) {
-    return value.trim().length > 0;
+    return trimmed.length > 0;
   }
-  return secretLikeValuePattern.test(value.trim());
+  if (!allowSecretReferences && explicitSecretReferencePattern.test(trimmed)) {
+    return true;
+  }
+  return secretLikeValuePattern.test(trimmed);
 }
 
 function isSecretLikeKey(key: string) {

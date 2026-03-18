@@ -1,4 +1,5 @@
 import type { DashboardApprovalTaskRecord } from '../../lib/api.js';
+import { sanitizeSecretLikeValue } from '../../lib/secret-redaction.js';
 
 export interface ApprovalTaskPacket {
   title: string;
@@ -74,9 +75,15 @@ export function buildApprovalOutputPacket(
   };
 }
 
+export function sanitizeApprovalText(value?: string | null): string {
+  const sanitized = sanitizeSecretLikeValue(value);
+  return typeof sanitized === 'string' ? sanitized.trim() : '';
+}
+
 export function truncateOutput(output: unknown): string {
   if (output === undefined || output === null) return '';
-  const text = typeof output === 'string' ? output : JSON.stringify(output);
+  const sanitized = sanitizeSecretLikeValue(output);
+  const text = typeof sanitized === 'string' ? sanitized : JSON.stringify(sanitized);
   if (text.length <= 200) return text;
   return `${text.slice(0, 200)}...`;
 }
