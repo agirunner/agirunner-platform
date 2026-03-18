@@ -108,7 +108,7 @@ const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
     description: 'Investigates options, evaluates trade-offs, explores solutions.',
   },
   {
-    value: 'project-management',
+    value: 'workspace-management',
     label: 'Workspace management',
     category: 'Coordination',
     description: 'Plans, coordinates, tracks progress, and manages stakeholders.',

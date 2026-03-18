@@ -35,7 +35,7 @@ describe('FR-751 / FR-750: classifyTaskCapability', () => {
   });
 
   it('returns can-handle for all built-in generic capabilities', () => {
-    const capabilities = ['coding', 'code-review', 'architecture', 'testing', 'security-review', 'documentation', 'requirements', 'research', 'project-management', 'data-analysis'];
+    const capabilities = ['coding', 'code-review', 'architecture', 'testing', 'security-review', 'documentation', 'requirements', 'research', 'workspace-management', 'data-analysis'];
     for (const capability of capabilities) {
       const result = classifyTaskCapability({ capabilities_required: [capability] });
       expect(result).toBe('can-handle');

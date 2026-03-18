@@ -107,6 +107,12 @@ describe('prompt catalogs', () => {
     expect(BUILT_IN_ROLES.roles['product-manager'].systemPrompt).toContain(
       'quote the exact approved user-facing behavior from QA evidence and current branch content',
     );
+    expect(BUILT_IN_ROLES.roles['workspace-manager'].systemPrompt).toContain(
+      'You are the Workspace Manager',
+    );
+    expect(BUILT_IN_ROLES.roles['workspace-manager'].capabilities).toEqual(
+      expect.arrayContaining(['workspace-management', 'requirements']),
+    );
   });
 
   it('seeds the core SDLC roles with explicit human escalation targets', () => {

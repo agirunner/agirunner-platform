@@ -1,7 +1,7 @@
 /**
  * Built-in role definitions — types, data, and helpers.
  *
- * 6 core roles: developer, reviewer, architect, qa, product-manager, project-manager.
+ * 6 core roles: developer, reviewer, architect, qa, product-manager, workspace-manager.
  *
  * LLM provider config and model assignments are managed via the dashboard
  * (LLM Providers page → role_model_assignments table). This file only defines
@@ -9,12 +9,12 @@
  * is verified.
  *
  * Review chain:
- *   product-manager (BRD)     → reviewed by architect + qa + project-manager
+ *   product-manager (BRD)     → reviewed by architect + qa + workspace-manager
  *   architect (design/ADRs)   → reviewed by product-manager + reviewer + developer + qa
  *   developer (code/PRs)      → reviewed by reviewer
- *   qa (test plans/results)   → reviewed by project-manager
+ *   qa (test plans/results)   → reviewed by workspace-manager
  *   reviewer (verdicts)       → self-contained, no formal review
- *   project-manager           → orchestrator, stakeholder oversight
+ *   workspace-manager         → orchestrator, stakeholder oversight
  */
 
 // ---------------------------------------------------------------------------
@@ -27,7 +27,7 @@ export type RoleName =
   | 'architect'
   | 'qa'
   | 'product-manager'
-  | 'project-manager';
+  | 'workspace-manager';
 
 export interface RoleDefinition {
   description: string;
@@ -178,10 +178,10 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
       maxEscalationDepth: 5,
     },
 
-    'project-manager': {
+    'workspace-manager': {
       description: 'Gate keeper, escalation resolver, and stakeholder liaison.',
       systemPrompt: withSharedRoleDiscipline(
-        'You are the Project Manager. Resolve escalations, run gates, and keep work moving.\n\n' +
+        'You are the Workspace Manager. Resolve escalations, run gates, and keep work moving.\n\n' +
         '- At each gate, read review artifacts and write a clear verdict: APPROVED, NEEDS REVISION, or BLOCKED.\n' +
         '- Resolve escalations decisively and document the rationale.\n' +
         '- Communicate with stakeholders clearly: bad news first, always with options.\n' +
@@ -195,7 +195,7 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['project-management', 'requirements'],
+      capabilities: ['workspace-management', 'requirements'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
