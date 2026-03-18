@@ -576,9 +576,16 @@ export class ModelCatalogService {
     const raw = await this.getRuntimeDefault(tenantId, 'default_reasoning_config');
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as Record<string, unknown>;
-    } catch {
-      return null;
+      const parsed = JSON.parse(raw) as unknown;
+      if (!parsed || Array.isArray(parsed) || typeof parsed !== 'object') {
+        throw new ValidationError('Runtime default "default_reasoning_config" must be valid JSON object');
+      }
+      return parsed as Record<string, unknown>;
+    } catch (error) {
+      if (error instanceof ValidationError) {
+        throw error;
+      }
+      throw new ValidationError('Runtime default "default_reasoning_config" must be valid JSON object');
     }
   }
 

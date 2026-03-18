@@ -416,6 +416,26 @@ describe('ModelCatalogService', () => {
       expect(result.model.reasoningConfig).toEqual({ type: 'effort', default: 'medium' });
     });
 
+    it('fails fast when default reasoning config is invalid JSON', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ config_value: MODEL_ID }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ config_value: '{"effort":' }], rowCount: 1 });
+
+      await expect(service.getSystemDefault(TENANT_ID)).rejects.toThrow(
+        'Runtime default "default_reasoning_config" must be valid JSON object',
+      );
+    });
+
+    it('fails fast when default reasoning config is not a JSON object', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ config_value: MODEL_ID }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [{ config_value: '"medium"' }], rowCount: 1 });
+
+      await expect(service.getSystemDefault(TENANT_ID)).rejects.toThrow(
+        'Runtime default "default_reasoning_config" must be valid JSON object',
+      );
+    });
+
     it('fails when the resolved provider is missing explicit provider type metadata', async () => {
       pool.query
         .mockResolvedValueOnce({
