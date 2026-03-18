@@ -78,6 +78,7 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['platform.claim_poll_seconds', { min: 1 }],
   ['platform.api_request_timeout_seconds', { min: 1 }],
   ['platform.log_ingest_timeout_seconds', { min: 1 }],
+  ['platform.log_flush_interval_ms', { min: 1 }],
   ['platform.heartbeat_max_failures', { min: 1 }],
   ['platform.cancellation_report_timeout_seconds', { min: 1 }],
   ['platform.drain_timeout_seconds', { min: 1 }],

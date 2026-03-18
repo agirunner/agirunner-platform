@@ -353,6 +353,17 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       step: 1,
     },
     {
+      key: 'platform.log_flush_interval_ms',
+      label: 'Log flush interval (ms)',
+      description: 'How long a connected runtime buffers partial execution-log batches before flushing them to the platform ingest endpoint.',
+      configType: 'number',
+      placeholder: '500',
+      section: 'connected_platform',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
       key: 'platform.heartbeat_max_failures',
       label: 'Heartbeat failure budget',
       description: 'How many consecutive heartbeat failures a connected runtime tolerates before self-termination.',

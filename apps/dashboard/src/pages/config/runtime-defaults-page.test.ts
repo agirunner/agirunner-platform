@@ -50,6 +50,7 @@ describe('runtime defaults page source', () => {
         'platform.claim_poll_seconds',
         'platform.api_request_timeout_seconds',
         'platform.log_ingest_timeout_seconds',
+        'platform.log_flush_interval_ms',
         'platform.cancellation_report_timeout_seconds',
         'platform.self_terminate_cleanup_timeout_seconds',
         'platform.heartbeat_max_failures',

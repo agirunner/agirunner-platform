@@ -284,6 +284,13 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.log_flush_interval_ms',
+    configValue: '500',
+    configType: 'number',
+    description: 'How long connected runtimes buffer partial execution-log batches before flushing them to the platform ingest endpoint',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.heartbeat_max_failures',
     configValue: '24',
     configType: 'number',

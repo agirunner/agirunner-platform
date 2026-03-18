@@ -209,6 +209,14 @@ describe('RuntimeDefaultsService', () => {
 
       await expect(
         service.createDefault(TENANT_ID, {
+          configKey: 'platform.log_flush_interval_ms',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.log_flush_interval_ms must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
           configKey: 'platform.worker_key_expiry_ms',
           configValue: '0',
           configType: 'number',
