@@ -12,6 +12,8 @@ import {
   stopTestDatabase,
   type TestDatabase,
 } from '../helpers/postgres.js';
+import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
+import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
 
 describe('workflow activation recovery integration', () => {
   let db: TestDatabase;
@@ -30,6 +32,53 @@ describe('workflow activation recovery integration', () => {
       return;
     }
     harness = createV2Harness(db, { WORKFLOW_ACTIVATION_DELAY_MS: 0 });
+    const runtimeDefaultsService = new RuntimeDefaultsService(db.pool);
+    for (const [configKey, configValue] of [
+      ['tasks.default_timeout_minutes', '30'],
+      ['agent.max_iterations', '10'],
+      ['agent.llm_max_retries', '5'],
+      ['platform.workflow_activation_delay_ms', '10000'],
+      ['platform.workflow_activation_heartbeat_interval_ms', '900000'],
+      ['platform.workflow_activation_stale_after_ms', '300000'],
+      ['platform.task_cancel_signal_grace_period_ms', '60000'],
+      ['platform.worker_dispatch_ack_timeout_ms', '15000'],
+      ['platform.worker_default_heartbeat_interval_seconds', '30'],
+      ['platform.worker_offline_grace_period_ms', '300000'],
+      ['platform.worker_offline_threshold_multiplier', '2'],
+      ['platform.worker_degraded_threshold_multiplier', '1'],
+      ['platform.worker_key_expiry_ms', '60000'],
+      ['platform.agent_default_heartbeat_interval_seconds', '30'],
+      ['platform.agent_heartbeat_grace_period_ms', '300000'],
+      ['platform.agent_heartbeat_threshold_multiplier', '2'],
+      ['platform.agent_key_expiry_ms', '60000'],
+    ] as const) {
+      await runtimeDefaultsService.createDefault(identity.tenantId, {
+        configKey,
+        configValue,
+        configType: 'number',
+      });
+    }
+    const modelCatalogService = new ModelCatalogService(db.pool);
+    const provider = await modelCatalogService.createProvider(identity.tenantId, {
+      name: 'workflow-activation-recovery-provider',
+      baseUrl: 'https://example.com',
+      metadata: {
+        providerType: 'openai',
+      },
+    });
+    const model = await modelCatalogService.createModel(identity.tenantId, {
+      providerId: provider.id,
+      modelId: 'workflow-activation-recovery-model',
+    });
+    await modelCatalogService.setSystemDefault(identity.tenantId, model.id, null);
+    await harness.roleDefinitionService.createRole(identity.tenantId, {
+      name: 'developer',
+      description: 'Handles workflow activation recovery integration tests.',
+      systemPrompt: 'You are a developer.',
+      allowedTools: [],
+      capabilities: ['coding'],
+      isActive: true,
+    });
   }, 120_000);
 
   afterAll(async () => {
@@ -185,13 +234,53 @@ describe('workflow activation recovery integration', () => {
       expect.arrayContaining(['workflow.created', 'work_item.created']),
     );
 
-    const firstTask = await harness.taskService.getTask(identity.tenantId, String(firstClaim?.id)) as Record<string, unknown>;
-    expect(firstTask.state).toBe('failed');
+    const failedFirstTask = await harness.taskService.getTask(
+      identity.tenantId,
+      String(firstClaim?.id),
+    ) as Record<string, unknown>;
+    expect(failedFirstTask.state).toBe('failed');
 
     await harness.taskService.startTask(agentIdentity(String(orchestratorAgentB?.id)), String(recoveredClaim?.id), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
     });
+
+    const staleFinalizeClient = await db.pool.connect();
+    try {
+      await staleFinalizeClient.query('BEGIN');
+      await harness.workflowActivationDispatchService.finalizeActivationForTask(
+        identity.tenantId,
+        {
+          ...failedFirstTask,
+          output: {
+            summary: 'Late stale completion',
+          },
+        },
+        'completed',
+        staleFinalizeClient,
+      );
+      await staleFinalizeClient.query('COMMIT');
+    } catch (error) {
+      await staleFinalizeClient.query('ROLLBACK');
+      throw error;
+    } finally {
+      staleFinalizeClient.release();
+    }
+
+    const activationsAfterLateCallback = await harness.workflowActivationService.listWorkflowActivations(
+      identity.tenantId,
+      String(workflow.id),
+    );
+    expect(activationsAfterLateCallback).toHaveLength(1);
+    expect(activationsAfterLateCallback[0]).toEqual(
+      expect.objectContaining({
+        activation_id: String(firstClaim?.activation_id),
+        state: 'processing',
+        recovery_status: 'redispatched',
+        redispatched_task_id: String(recoveredClaim?.id),
+      }),
+    );
+
     await harness.taskService.completeTask(agentIdentity(String(orchestratorAgentB?.id)), String(recoveredClaim?.id), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
