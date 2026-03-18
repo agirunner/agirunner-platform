@@ -19,7 +19,6 @@ const OPERATIONAL_VALUE_KEYS = new Set([
   'state',
   'gate_status',
   'checkpoint',
-  'current_checkpoint',
   'stage',
   'stage_name',
   'work_item_id',
@@ -69,7 +68,6 @@ function looksLikeOperationalState(key: string, value: unknown) {
   const hasContinuityMarker =
     keys.has('work_item_id')
     || keys.has('checkpoint')
-    || keys.has('current_checkpoint')
     || keys.has('stage')
     || keys.has('stage_name');
 

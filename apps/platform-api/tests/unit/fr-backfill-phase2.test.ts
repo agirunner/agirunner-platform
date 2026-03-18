@@ -144,7 +144,6 @@ describe('FR-192: context versioning', () => {
           rows: [{
             id: 'wi-1',
             stage_name: 'build',
-            current_checkpoint: 'build',
             column_id: 'todo',
             title: 'Implement feature',
             goal: 'Deliver the feature',
@@ -207,7 +206,7 @@ describe('FR-192: context versioning', () => {
     );
     expect((context.task as Record<string, unknown>).work_item).toEqual(
       expect.objectContaining({
-        current_checkpoint: 'build',
+        stage_name: 'build',
         next_expected_actor: 'reviewer',
         next_expected_action: 'review',
         rework_count: 1,

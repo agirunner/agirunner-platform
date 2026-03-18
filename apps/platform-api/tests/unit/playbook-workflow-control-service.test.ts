@@ -1530,7 +1530,6 @@ describe('PlaybookWorkflowControlService', () => {
               id: 'wi-2',
               parent_work_item_id: 'wi-3',
               stage_name: 'requirements',
-              current_checkpoint: 'requirements',
               title: 'Implement scope',
               goal: 'Ship it',
               acceptance_criteria: 'works',

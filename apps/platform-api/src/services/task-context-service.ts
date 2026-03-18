@@ -240,9 +240,8 @@ function isContinuousWorkflowRow(
 }
 
 function normalizeWorkItemStage(row: Record<string, unknown>) {
-  const { current_checkpoint: _currentCheckpoint, ...rest } = row;
   return {
-    ...rest,
+    ...row,
     stage_name: asOptionalString(row.stage_name) ?? null,
   };
 }

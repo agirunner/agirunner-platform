@@ -776,9 +776,8 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     allowSecretReferences: false,
   }) as Record<string, unknown>;
   const childrenCount = readCount(sanitizedRow.children_count);
-  const { current_checkpoint: _currentCheckpoint, ...rest } = sanitizedRow;
   return {
-    ...rest,
+    ...sanitizedRow,
     id: String(sanitizedRow.id ?? ''),
     workflow_id: String(sanitizedRow.workflow_id ?? ''),
     parent_work_item_id: typeof sanitizedRow.parent_work_item_id === 'string' ? sanitizedRow.parent_work_item_id : null,
