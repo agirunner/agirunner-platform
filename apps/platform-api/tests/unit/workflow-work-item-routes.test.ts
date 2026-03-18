@@ -561,6 +561,104 @@ describe('workflow work-item routes', () => {
     expect(second.json()).toEqual(first.json());
   });
 
+  it('deduplicates workflow work-item reassign requests by request_id and preserves ownership validation', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createWorkflowReplayPool('workflow-1', 'public_work_item_reassign');
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+    const reassignTask = vi.fn(async () => ({
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'wi-1',
+      state: 'ready',
+      metadata: { preferred_agent_id: 'agent-2', review_action: 'reassign' },
+    }));
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-1',
+      })),
+      reassignTask,
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = {
+      request_id: 'request-1',
+      preferred_agent_id: '11111111-1111-1111-1111-111111111111',
+      reason: 'Move to a better fit',
+    };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/reassign',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/reassign',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(reassignTask).toHaveBeenCalledTimes(1);
+    expect(reassignTask).toHaveBeenCalledWith(
+      {
+        id: 'key-1',
+        keyPrefix: 'prefix',
+        ownerId: 'user-1',
+        ownerType: 'user',
+        scope: 'admin',
+        tenantId: 'tenant-1',
+      },
+      'task-1',
+      expect.objectContaining({
+        preferred_agent_id: '11111111-1111-1111-1111-111111111111',
+        reason: 'Move to a better fit',
+      }),
+      expect.any(Object),
+    );
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(second.json()).toEqual(first.json());
+  });
+
   it('deduplicates workflow work-item retry requests and force-retries escalated recovery steps', async () => {
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
     const { pool } = createWorkflowReplayPool('workflow-1', 'public_work_item_retry');

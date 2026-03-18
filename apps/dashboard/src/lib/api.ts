@@ -1801,6 +1801,17 @@ export interface DashboardApi {
     workItemId: string,
     payload: { reason: string },
   ): Promise<unknown>;
+  reassignWorkflowWorkItemTask(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+    payload: {
+      request_id?: string;
+      preferred_agent_id?: string;
+      preferred_worker_id?: string;
+      reason: string;
+    },
+  ): Promise<unknown>;
   approveWorkflowWorkItemTask(
     workflowId: string,
     workItemId: string,
@@ -2756,6 +2767,16 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() => requestWorkflowWorkItemAction(workflowId, workItemId, 'retry', payload)),
     skipWorkflowWorkItem: (workflowId, workItemId, payload) =>
       withRefresh(() => requestWorkflowWorkItemAction(workflowId, workItemId, 'skip', payload)),
+    reassignWorkflowWorkItemTask: (workflowId, workItemId, taskId, payload) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(
+          workflowId,
+          workItemId,
+          taskId,
+          'reassign',
+          payload,
+        ),
+      ),
     approveWorkflowWorkItemTask: (workflowId, workItemId, taskId) =>
       withRefresh(() =>
         requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'approve', {}),

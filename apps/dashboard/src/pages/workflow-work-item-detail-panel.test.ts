@@ -154,6 +154,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Cancel Step');
     expect(source).toContain('StepChangesDialog');
     expect(source).toContain('StepEscalationDialog');
+    expect(source).toContain('WorkItemReassignDialog');
     expect(source).toContain('DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg"');
     expect(source).toContain('buildWorkItemTaskLinkActions');
     expect(source).toContain('Open work-item flow');
@@ -184,6 +185,10 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Provide Operator Guidance');
     expect(source).toContain('Describe the operator guidance needed to resume this step...');
     expect(source).toContain('Describe why this work item recovery step should be skipped...');
+    expect(source).toContain('Reassign Step');
+    expect(source).toContain('dashboardApi.listAgents()');
+    expect(source).toContain('SearchableCombobox');
+    expect(source).toContain('dashboardApi.reassignWorkflowWorkItemTask');
   });
 
   it('uses a responsive card-plus-table execution layout instead of a table-only task presentation', () => {

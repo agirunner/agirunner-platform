@@ -123,6 +123,10 @@ describe('dashboard api auth/session behavior', () => {
     expect(source).toContain(
       "requestWorkflowWorkItemAction(workflowId, workItemId, 'skip', payload)",
     );
+    expect(apiBlock).toContain('reassignWorkflowWorkItemTask(');
+    expect(source).toContain('requestWorkflowWorkItemTaskAction(');
+    expect(source).toContain("'reassign'");
+    expect(source).toContain('/reassign');
   });
 
   it('exposes typed project settings posture in the dashboard api contract', () => {

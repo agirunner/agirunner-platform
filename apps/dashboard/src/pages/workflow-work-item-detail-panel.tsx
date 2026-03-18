@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 
 import {
   dashboardApi,
+  type DashboardAgentRecord,
   type DashboardTaskHandoffRecord,
   type DashboardWorkItemMemoryEntry,
   type DashboardWorkItemMemoryHistoryEntry,
@@ -70,6 +71,7 @@ import { buildWorkItemTaskLinkActions } from './workflow-work-item-task-actions.
 import {
   StepChangesDialog,
   StepEscalationDialog,
+  WorkItemReassignDialog,
 } from './workflow-work-item-task-review-dialogs.js';
 import {
   buildWorkItemRecoveryBrief,
@@ -1767,6 +1769,11 @@ function WorkItemTasksSection(props: {
 }): JSX.Element {
   const executionSummary = props.executionSummary;
   const orderedTasks = useMemo(() => sortTasksForOperatorReview(props.tasks), [props.tasks]);
+  const agentsQuery = useQuery({
+    queryKey: ['workflow-work-item-agents', props.workflowId],
+    queryFn: () => dashboardApi.listAgents(),
+    staleTime: 60_000,
+  });
   const attentionTasks = orderedTasks.filter(
     (task) =>
       task.state === 'awaiting_approval' ||
@@ -1916,6 +1923,8 @@ function WorkItemTasksSection(props: {
             workflowId={props.workflowId}
             workItemId={props.workItemId}
             task={task}
+            agents={agentsQuery.data ?? []}
+            isLoadingAgents={agentsQuery.isLoading}
             onWorkItemChanged={props.onWorkItemChanged}
           />
         ))}
@@ -1954,6 +1963,8 @@ function WorkItemTasksSection(props: {
                     workflowId={props.workflowId}
                     workItemId={props.workItemId}
                     task={task}
+                    agents={agentsQuery.data ?? []}
+                    isLoadingAgents={agentsQuery.isLoading}
                     onWorkItemChanged={props.onWorkItemChanged}
                   />
                 </TableCell>
@@ -1970,6 +1981,8 @@ function TaskExecutionCard(props: {
   workflowId: string;
   workItemId: string;
   task: DashboardWorkItemTaskRecord;
+  agents: DashboardAgentRecord[];
+  isLoadingAgents: boolean;
   onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
   return (
@@ -1997,6 +2010,8 @@ function TaskExecutionCard(props: {
         workflowId={props.workflowId}
         workItemId={props.workItemId}
         task={props.task}
+        agents={props.agents}
+        isLoadingAgents={props.isLoadingAgents}
         onWorkItemChanged={props.onWorkItemChanged}
       />
     </article>
@@ -2032,12 +2047,17 @@ function WorkItemTaskActionCell(props: {
   workflowId: string;
   workItemId: string;
   task: DashboardWorkItemTaskRecord;
+  agents: DashboardAgentRecord[];
+  isLoadingAgents: boolean;
   onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
   const [isChangesDialogOpen, setIsChangesDialogOpen] = useState(false);
   const [isEscalationDialogOpen, setIsEscalationDialogOpen] = useState(false);
+  const [isReassignDialogOpen, setIsReassignDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [reassignReason, setReassignReason] = useState('');
+  const [reassignAgentId, setReassignAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const state = props.task.state;
   const scopedWorkItemId = props.task.work_item_id ?? props.workItemId;
@@ -2106,6 +2126,37 @@ function WorkItemTaskActionCell(props: {
       );
     },
   });
+  const reassignMutation = useMutation({
+    mutationFn: () => {
+      const selectedAgentId = reassignAgentId?.trim();
+      if (!selectedAgentId) {
+        throw new Error('Select an agent before reassigning this step.');
+      }
+      const reason = reassignReason.trim();
+      if (!reason) {
+        throw new Error('Add a reason before reassigning this step.');
+      }
+      return dashboardApi.reassignWorkflowWorkItemTask(
+        props.workflowId,
+        scopedWorkItemId,
+        props.task.id,
+        {
+          preferred_agent_id: selectedAgentId,
+          reason,
+        },
+      );
+    },
+    onSuccess: async () => {
+      setError(null);
+      setReassignReason('');
+      setReassignAgentId(null);
+      setIsReassignDialogOpen(false);
+      await props.onWorkItemChanged();
+    },
+    onError: (mutationError) => {
+      setError(mutationError instanceof Error ? mutationError.message : 'Failed to reassign step.');
+    },
+  });
   const resolveEscalationMutation = useMutation({
     mutationFn: () =>
       dashboardApi.resolveWorkflowWorkItemTaskEscalation(
@@ -2133,8 +2184,11 @@ function WorkItemTaskActionCell(props: {
       setError(null);
       setFeedback('');
       setInstructions('');
+      setReassignReason('');
+      setReassignAgentId(null);
       setIsChangesDialogOpen(false);
       setIsEscalationDialogOpen(false);
+      setIsReassignDialogOpen(false);
       await props.onWorkItemChanged();
     },
     onError: (mutationError) => {
@@ -2147,10 +2201,12 @@ function WorkItemTaskActionCell(props: {
     state === 'awaiting_approval' || state === 'output_pending_review' || state === 'failed';
   const canResolveEscalation = state === 'escalated';
   const canCancel = state === 'failed' || state === 'escalated' || state === 'in_progress';
+  const canReassign = state !== 'completed' && state !== 'cancelled';
   const isAnyMutationPending =
     approveMutation.isPending ||
     rejectMutation.isPending ||
     requestChangesMutation.isPending ||
+    reassignMutation.isPending ||
     resolveEscalationMutation.isPending ||
     cancelMutation.isPending;
 
@@ -2194,6 +2250,16 @@ function WorkItemTaskActionCell(props: {
             Resume with Guidance
           </Button>
         ) : null}
+        {canReassign ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsReassignDialogOpen(true)}
+            disabled={isAnyMutationPending}
+          >
+            Reassign Step
+          </Button>
+        ) : null}
         {canCancel ? (
           <Button
             size="sm"
@@ -2225,6 +2291,25 @@ function WorkItemTaskActionCell(props: {
         onOpenChange={setIsEscalationDialogOpen}
         onInstructionsChange={setInstructions}
         onSubmit={() => resolveEscalationMutation.mutate()}
+      />
+      <WorkItemReassignDialog
+        isOpen={isReassignDialogOpen}
+        taskTitle={props.task.title}
+        agents={props.agents}
+        selectedAgentId={reassignAgentId}
+        reason={reassignReason}
+        isLoadingAgents={props.isLoadingAgents}
+        isPending={isAnyMutationPending}
+        onOpenChange={(open) => {
+          setIsReassignDialogOpen(open);
+          if (!open) {
+            setReassignReason('');
+            setReassignAgentId(null);
+          }
+        }}
+        onAgentChange={setReassignAgentId}
+        onReasonChange={setReassignReason}
+        onSubmit={() => reassignMutation.mutate()}
       />
     </div>
   );

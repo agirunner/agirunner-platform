@@ -10,11 +10,13 @@ function readSource() {
 }
 
 describe('workflow work item task review dialogs source', () => {
-  it('uses real scroll-safe dialogs for step rework and escalation guidance', () => {
+  it('uses real scroll-safe dialogs for step rework, escalation guidance, and reassignment', () => {
     const source = readSource();
     expect(source).toContain('<Dialog');
     expect(source).toContain('DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg"');
     expect(source).toContain('Request Step Changes');
     expect(source).toContain('Provide Operator Guidance');
+    expect(source).toContain('Reassign Step');
+    expect(source).toContain('SearchableCombobox');
   });
 });
