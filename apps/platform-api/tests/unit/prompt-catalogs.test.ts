@@ -19,6 +19,8 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects task completion without a structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or interim progress marker');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
   });
 
   it('keeps orchestrator prompt aligned with continuity, budget, and checkpoint guidance', () => {
@@ -67,6 +69,10 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'On heartbeat-only activations, exit when specialist work is progressing and nothing new is actionable.',
     );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Workspace memory stores decisions, lessons, constraints, watch items, and key file paths.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).not.toContain('Project memory stores');
   });
 
   it('adds predecessor-handoff discipline to every built-in role prompt', () => {

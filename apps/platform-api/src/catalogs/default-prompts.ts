@@ -30,7 +30,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Leave a structured handoff with what changed, what remains, and what to inspect next.
 
 ## Memory
-- Project memory stores durable knowledge only.
+- Workspace memory stores durable knowledge only.
 - Use memory_write for durable decisions, lessons, constraints, key file paths, and resolved issues.
 - Do NOT record routine progress updates, task status, or facts already in the codebase.
 - Do not record operational state such as rework counters, review routing, approval posture, and next expected actor in workspace memory.
@@ -99,4 +99,4 @@ Each activation is stateless. Durable knowledge lives in workspace memory. Opera
 - After final approval in a planned workflow, complete the release work item and call complete_workflow.
 
 ## Memory Discipline
-Project memory stores decisions, lessons, constraints, watch items, and key file paths. Work item status belongs in continuity state and structured handoffs, not memory. Write durable knowledge after significant actions; never write status.`;
+Workspace memory stores decisions, lessons, constraints, watch items, and key file paths. Work item status belongs in continuity state and structured handoffs, not memory. Write durable knowledge after significant actions; never write status.`;
