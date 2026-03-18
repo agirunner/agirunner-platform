@@ -1,5 +1,10 @@
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
+import {
+  parsePlaybookDefinition,
+  readPlaybookRuntimePools,
+  type PlaybookRuntimePoolKind,
+} from '../orchestration/playbook-model.js';
 
 const RUNTIME_CONFIG_SECRET_REDACTION = 'redacted://runtime-config-secret';
 const runtimeConfigSecretKeyPattern =
@@ -58,17 +63,31 @@ interface WorkerConfigTarget {
   name: string;
   capabilities: string[];
   roleNames: string[];
+  allowAllRolesWhenEmpty: boolean;
+}
+
+interface RuntimeTargetLookup {
+  playbookId?: string;
+  poolKind?: string;
+}
+
+interface PlaybookRow {
+  definition: unknown;
 }
 
 export class RuntimeConfigService {
   constructor(private readonly pool: DatabasePool) {}
 
-  async getConfigForWorker(tenantId: string, workerName: string): Promise<RuntimeConfig> {
-    const worker = await this.findWorker(tenantId, workerName);
+  async getConfigForWorker(
+    tenantId: string,
+    workerName: string,
+    runtimeTarget: RuntimeTargetLookup = {},
+  ): Promise<RuntimeConfig> {
+    const worker = await this.findWorker(tenantId, workerName, runtimeTarget);
     const roleNames = this.resolveRoleNames(worker);
 
     const [roles, defaults] = await Promise.all([
-      this.fetchRoles(tenantId, roleNames),
+      this.fetchRoles(tenantId, roleNames, worker.allowAllRolesWhenEmpty),
       this.fetchDefaults(tenantId),
     ]);
 
@@ -82,7 +101,11 @@ export class RuntimeConfigService {
     };
   }
 
-  private async findWorker(tenantId: string, workerName: string): Promise<WorkerConfigTarget> {
+  private async findWorker(
+    tenantId: string,
+    workerName: string,
+    runtimeTarget: RuntimeTargetLookup,
+  ): Promise<WorkerConfigTarget> {
     const desiredStateWorker = await this.findDesiredStateWorker(tenantId, workerName);
     if (desiredStateWorker) {
       return desiredStateWorker;
@@ -91,6 +114,11 @@ export class RuntimeConfigService {
     const registeredWorker = await this.findRegisteredWorker(tenantId, workerName);
     if (registeredWorker) {
       return registeredWorker;
+    }
+
+    const playbookRuntimeTarget = await this.findPlaybookRuntimeTarget(tenantId, workerName, runtimeTarget);
+    if (playbookRuntimeTarget) {
+      return playbookRuntimeTarget;
     }
 
     throw new NotFoundError(`Worker "${workerName}" not found`);
@@ -115,6 +143,7 @@ export class RuntimeConfigService {
       name: row.worker_name,
       capabilities: [],
       roleNames: row.role ? [row.role] : [],
+      allowAllRolesWhenEmpty: false,
     };
   }
 
@@ -133,16 +162,59 @@ export class RuntimeConfigService {
               name: result.rows[0].name,
               capabilities: result.rows[0].capabilities,
               roleNames: [],
+              allowAllRolesWhenEmpty: true,
             }
           : null,
       );
+  }
+
+  private async findPlaybookRuntimeTarget(
+    tenantId: string,
+    workerName: string,
+    runtimeTarget: RuntimeTargetLookup,
+  ): Promise<WorkerConfigTarget | null> {
+    const playbookId = runtimeTarget.playbookId?.trim();
+    const poolKind = normalizePoolKind(runtimeTarget.poolKind);
+    if (!playbookId || !poolKind) {
+      return null;
+    }
+
+    const result = await this.pool.query<PlaybookRow>(
+      `SELECT definition
+       FROM playbooks
+       WHERE tenant_id = $1
+         AND id = $2
+         AND is_active = true
+       LIMIT 1`,
+      [tenantId, playbookId],
+    );
+    if (!result.rowCount) {
+      return null;
+    }
+
+    const definition = parsePlaybookDefinition(result.rows[0].definition);
+    const pools = readPlaybookRuntimePools(definition);
+    const matchingPool = pools.find((pool) => pool.pool_kind === poolKind);
+    if (!matchingPool) {
+      return null;
+    }
+
+    return {
+      name: workerName,
+      capabilities: [],
+      roleNames: resolveRuntimeTargetRoleNames(definition.roles, poolKind),
+      allowAllRolesWhenEmpty: false,
+    };
   }
 
   private resolveRoleNames(worker: WorkerConfigTarget): string[] {
     if (worker.roleNames.length > 0) {
       return worker.roleNames;
     }
-    return this.extractRoleCapabilities(worker.capabilities);
+    if (worker.allowAllRolesWhenEmpty) {
+      return this.extractRoleCapabilities(worker.capabilities);
+    }
+    return [];
   }
 
   private extractRoleCapabilities(capabilities: string[]): string[] {
@@ -151,8 +223,15 @@ export class RuntimeConfigService {
       .map((cap) => cap.slice(5));
   }
 
-  private async fetchRoles(tenantId: string, roleNames: string[]): Promise<RuntimeConfigRole[]> {
+  private async fetchRoles(
+    tenantId: string,
+    roleNames: string[],
+    allowAllRolesWhenEmpty: boolean,
+  ): Promise<RuntimeConfigRole[]> {
     if (roleNames.length === 0) {
+      if (!allowAllRolesWhenEmpty) {
+        return [];
+      }
       const result = await this.pool.query<RoleRow>(
         'SELECT name, description, system_prompt, allowed_tools, capabilities, verification_strategy, updated_at FROM role_definitions WHERE tenant_id = $1 AND is_active = true',
         [tenantId],
@@ -204,4 +283,27 @@ export class RuntimeConfigService {
 
 function shouldRedactRuntimeConfigDefault(configKey: string, configValue: string): boolean {
   return runtimeConfigSecretKeyPattern.test(configKey) && configValue.trim().length > 0;
+}
+
+function normalizePoolKind(value: string | undefined): PlaybookRuntimePoolKind | null {
+  switch (value?.trim()) {
+  case 'orchestrator':
+    return 'orchestrator';
+  case 'specialist':
+    return 'specialist';
+  default:
+    return null;
+  }
+}
+
+function resolveRuntimeTargetRoleNames(
+  roles: string[],
+  poolKind: PlaybookRuntimePoolKind,
+): string[] {
+  if (poolKind === 'orchestrator') {
+    return ['orchestrator'];
+  }
+  return roles
+    .map((role) => role.trim())
+    .filter((role) => role.length > 0);
 }
