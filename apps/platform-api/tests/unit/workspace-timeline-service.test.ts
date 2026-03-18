@@ -585,7 +585,7 @@ describe('WorkspaceTimelineService', () => {
     ) as [string, unknown[]] | undefined;
     expect(projectUpdateCall?.[1]?.[2]).toEqual(
       expect.objectContaining({
-        project_timeline: expect.any(Array),
+        workspace_timeline: expect.any(Array),
         last_run_summary: expect.objectContaining({ workflow_id: 'workflow-1' }),
       }),
     );
@@ -818,7 +818,7 @@ describe('WorkspaceTimelineService', () => {
     expect(persistedWorkspaceMemory.last_run_summary.stage_metrics[0].summary).toBe(
       'redacted://workflow-summary-secret',
     );
-    expect(persistedWorkspaceMemory.project_timeline[0].child_workflow_activity.transitions[0].outcome.authorization).toBe(
+    expect(persistedWorkspaceMemory.workspace_timeline[0].child_workflow_activity.transitions[0].outcome.authorization).toBe(
       'redacted://workflow-summary-secret',
     );
   });

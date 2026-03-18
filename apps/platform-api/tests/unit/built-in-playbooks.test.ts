@@ -67,7 +67,7 @@ describe('built-in playbooks', () => {
   });
 
   it('uses workspace terminology for the built-in planning playbook copy', () => {
-    const planning = BUILT_IN_PLAYBOOKS.find((playbook) => playbook.slug === 'project-planning-v2');
+    const planning = BUILT_IN_PLAYBOOKS.find((playbook) => playbook.slug === 'workspace-planning-v2');
     expect(planning).toBeDefined();
     expect(planning!.name).toBe('Workspace Planning');
 

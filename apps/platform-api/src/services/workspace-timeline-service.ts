@@ -6,7 +6,7 @@ import {
   type WorkflowSummarySnapshot,
 } from './workspace-timeline-summary-support.js';
 
-const WORKSPACE_TIMELINE_KEY = 'project_timeline';
+const WORKSPACE_TIMELINE_KEY = 'workspace_timeline';
 const WORKSPACE_LAST_RUN_SUMMARY_KEY = 'last_run_summary';
 const WORKFLOW_TIMELINE_COLUMNS = [
   'id',

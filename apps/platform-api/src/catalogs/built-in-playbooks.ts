@@ -7,7 +7,7 @@ export interface BuiltInPlaybook {
   definition: Record<string, unknown>;
 }
 
-export const WORKSPACE_PLANNING_PLAYBOOK_SLUG = 'project-planning-v2';
+export const WORKSPACE_PLANNING_PLAYBOOK_SLUG = 'workspace-planning-v2';
 
 export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
   {

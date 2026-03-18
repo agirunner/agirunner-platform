@@ -1,6 +1,33 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { GcsArtifactStorage } from '../../src/content/gcs-artifact-storage.js';
+
+const gcsImportState = vi.hoisted(() => ({
+  options: undefined as Record<string, unknown> | undefined,
+  bucket: {
+    file: () => ({
+      save: async () => undefined,
+      download: async () => [Buffer.alloc(0)] as [Buffer],
+      delete: async () => undefined,
+      exists: async () => [true] as [boolean],
+      getSignedUrl: async () => ['https://storage.example.com/object'] as [string],
+      getMetadata: async () => [{}] as [Record<string, unknown>],
+    }),
+    getFiles: async () => [[]] as [Array<{ name: string; metadata?: { size?: string | number } }>, unknown?, unknown?],
+  },
+}));
+
+vi.mock('@google-cloud/storage', () => ({
+  Storage: class {
+    constructor(options: Record<string, unknown>) {
+      gcsImportState.options = options;
+    }
+
+    bucket() {
+      return gcsImportState.bucket;
+    }
+  },
+}));
 
 class FakeGcsFile {
   saved?: { data: Buffer; contentType: string };
@@ -112,5 +139,24 @@ describe('GcsArtifactStorage', () => {
     await storage.deleteObject('runs/task/output.txt');
 
     expect(file.deleted).toBe(true);
+  });
+
+  it('passes projectId to the GCS client instead of workspaceId', async () => {
+    gcsImportState.options = undefined;
+    const storage = new GcsArtifactStorage({
+      bucket: 'artifacts',
+      projectId: 'gcp-project-1',
+      keyFilename: '/tmp/gcp.json',
+    });
+
+    await storage.exists('runs/task/output.txt');
+
+    expect(gcsImportState.options).toEqual(
+      expect.objectContaining({
+        projectId: 'gcp-project-1',
+        keyFilename: '/tmp/gcp.json',
+      }),
+    );
+    expect(gcsImportState.options).not.toHaveProperty('workspaceId');
   });
 });
