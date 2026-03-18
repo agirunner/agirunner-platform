@@ -45,6 +45,9 @@ describe('playbook authoring support', () => {
       help_text: 'Describe what the workflow should accomplish',
       allowed_values: '',
     }];
+    draft.orchestrator.max_rework_iterations = '3';
+    draft.orchestrator.max_iterations = '100';
+    draft.orchestrator.llm_max_retries = '5';
     draft.runtime.specialist_pool = createRuntimePoolDraft(true);
     draft.runtime.specialist_pool.pool_mode = 'warm';
     draft.runtime.specialist_pool.max_runtimes = '3';
@@ -106,9 +109,7 @@ describe('playbook authoring support', () => {
             }),
           ]),
           orchestrator: expect.objectContaining({
-            check_interval: '5m',
-            stale_threshold: '30m',
-            max_rework_iterations: 5,
+            max_rework_iterations: 3,
             max_iterations: 100,
             llm_max_retries: 5,
             max_active_tasks: 4,
@@ -138,6 +139,12 @@ describe('playbook authoring support', () => {
       }),
     );
     if (built.ok) {
+    expect(built.value.orchestrator).not.toEqual(
+      expect.objectContaining({
+        check_interval: expect.anything(),
+        stale_threshold: expect.anything(),
+      }),
+    );
       expect(built.value.orchestrator).not.toEqual(
         expect.objectContaining({ tools: expect.anything() }),
       );

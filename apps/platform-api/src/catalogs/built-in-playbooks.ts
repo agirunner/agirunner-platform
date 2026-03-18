@@ -97,8 +97,6 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
       ],
       lifecycle: 'planned',
       orchestrator: {
-        check_interval: '5m',
-        stale_threshold: '30m',
         max_rework_iterations: 5,
         max_active_tasks: 2,
         max_active_tasks_per_work_item: 1,
@@ -315,8 +313,6 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
         },
       ],
       orchestrator: {
-        check_interval: '5m',
-        stale_threshold: '30m',
         max_rework_iterations: 5,
         max_active_tasks: 6,
         max_active_tasks_per_work_item: 2,

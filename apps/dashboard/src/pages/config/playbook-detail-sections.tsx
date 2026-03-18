@@ -53,7 +53,7 @@ export function PlaybookControlCenterCard(
           <div className="space-y-1">
             <CardTitle>Orchestrator Configuration</CardTitle>
             <CardDescription>
-              This playbook owns cadence, concurrency, stages, and runtime posture. Shared prompts,
+              This playbook owns loop policy, concurrency, stages, and runtime posture. Shared prompts,
               model catalog, and specialist escalation policy are linked here so operators can find
               the full control surface without hunting across the dashboard.
             </CardDescription>
@@ -65,8 +65,8 @@ export function PlaybookControlCenterCard(
         <div className="grid gap-3 md:grid-cols-2">
           <SignalCard title="Team roles" value={summary.roles} href="#playbook-team-roles" />
           <SignalCard
-            title="Cadence and recovery"
-            value={summary.cadence}
+            title="Loop and concurrency policy"
+            value={summary.parallelism}
             href="#playbook-orchestrator-controls"
           />
           <SignalCard

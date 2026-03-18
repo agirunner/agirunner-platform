@@ -23,7 +23,6 @@ describe('playbook detail support', () => {
     const current = createPlaybook(3, {
       definition: {
         orchestrator: {
-          check_interval: '10m',
           max_active_tasks: 6,
           max_active_tasks_per_work_item: 2,
           allow_parallel_work_items: true,
@@ -34,7 +33,6 @@ describe('playbook detail support', () => {
       description: 'Older description',
       definition: {
         orchestrator: {
-          check_interval: '5m',
           max_active_tasks: 2,
           max_active_tasks_per_work_item: 1,
           allow_parallel_work_items: false,
@@ -44,9 +42,6 @@ describe('playbook detail support', () => {
 
     const diff = buildPlaybookRevisionDiff(current, compared);
 
-    expect(diff.find((row) => row.label === 'Orchestrator cadence')).toMatchObject({
-      changed: true,
-    });
     expect(diff.find((row) => row.label === 'Parallelism policy')).toMatchObject({
       changed: true,
     });
@@ -119,8 +114,6 @@ function createPlaybook(
     stages: [{ name: 'delivery', goal: 'Ship the change', human_gate: version % 2 === 0 }],
     lifecycle: 'ongoing',
     orchestrator: {
-      check_interval: '5m',
-      stale_threshold: '30m',
       max_rework_iterations: 5,
       max_active_tasks: 4,
       max_active_tasks_per_work_item: 2,

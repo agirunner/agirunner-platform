@@ -77,8 +77,6 @@ export interface PlaybookAuthoringDraft {
   handoff_rules: HandoffRuleDraft[];
   parameters: ParameterDraft[];
   orchestrator: {
-    check_interval: string;
-    stale_threshold: string;
     max_rework_iterations: string;
     max_iterations: string;
     llm_max_retries: string;
@@ -200,8 +198,6 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
     handoff_rules: [],
     parameters: [],
     orchestrator: {
-      check_interval: '5m',
-      stale_threshold: '30m',
       max_rework_iterations: '5',
       max_iterations: '',
       llm_max_retries: '',
@@ -384,8 +380,6 @@ export function buildPlaybookDefinition(
   }
 
   const orchestrator = compactRecord({
-    check_interval: draft.orchestrator.check_interval.trim(),
-    stale_threshold: draft.orchestrator.stale_threshold.trim(),
     max_rework_iterations: parseOptionalInt(draft.orchestrator.max_rework_iterations),
     max_iterations: parseOptionalInt(draft.orchestrator.max_iterations),
     llm_max_retries: parseOptionalInt(draft.orchestrator.llm_max_retries),
@@ -1080,8 +1074,6 @@ function readParameters(value: unknown): ParameterDraft[] {
 function readOrchestrator(value: unknown): PlaybookAuthoringDraft['orchestrator'] {
   const record = asRecord(value);
   return {
-    check_interval: readString(record.check_interval),
-    stale_threshold: readString(record.stale_threshold),
     max_rework_iterations: readNumberish(record.max_rework_iterations),
     max_iterations: readNumberish(record.max_iterations),
     llm_max_retries: readNumberish(record.llm_max_retries),

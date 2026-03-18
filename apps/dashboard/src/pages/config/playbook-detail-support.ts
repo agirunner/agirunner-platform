@@ -16,7 +16,6 @@ export interface PlaybookControlSummary {
   roles: string;
   process: string;
   rules: string;
-  cadence: string;
   parallelism: string;
   runtime: string;
   checkpoints: string;
@@ -61,11 +60,6 @@ export function buildPlaybookRevisionDiff(
     diffRow('Checkpoints', formatCheckpoints(currentDraft), formatCheckpoints(comparedDraft)),
     diffRow('Parameters', formatParameters(currentDraft), formatParameters(comparedDraft)),
     diffRow(
-      'Orchestrator cadence',
-      formatOrchestratorCadence(currentDraft),
-      formatOrchestratorCadence(comparedDraft),
-    ),
-    diffRow(
       'Parallelism policy',
       formatParallelism(currentDraft),
       formatParallelism(comparedDraft),
@@ -82,7 +76,6 @@ export function summarizePlaybookControls(
     roles: formatRoles(draft),
     process: formatProcessInstructions(draft),
     rules: formatRules(draft),
-    cadence: formatOrchestratorCadence(draft),
     parallelism: formatParallelism(draft),
     runtime: formatRuntimePools(draft),
     checkpoints: formatCheckpoints(draft),
@@ -214,18 +207,14 @@ function normalizeSnapshotValue(value: unknown): unknown {
   return value;
 }
 
-function formatOrchestratorCadence(draft: PlaybookAuthoringDraft): string {
-  return [
-    `check ${draft.orchestrator.check_interval || 'inherit'}`,
-    `stale ${draft.orchestrator.stale_threshold || 'inherit'}`,
+function formatParallelism(draft: PlaybookAuthoringDraft): string {
+  const loopPolicy = [
     `rework ${draft.orchestrator.max_rework_iterations || 'inherit'}`,
     `task loops ${draft.orchestrator.max_iterations || 'inherit'}`,
     `llm retries ${draft.orchestrator.llm_max_retries || 'inherit'}`,
   ].join(' • ');
-}
-
-function formatParallelism(draft: PlaybookAuthoringDraft): string {
   return [
+    loopPolicy,
     `max tasks ${draft.orchestrator.max_active_tasks || 'inherit'}`,
     `per item ${draft.orchestrator.max_active_tasks_per_work_item || 'inherit'}`,
     draft.orchestrator.allow_parallel_work_items

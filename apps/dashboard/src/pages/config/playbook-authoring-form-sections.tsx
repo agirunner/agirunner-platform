@@ -806,25 +806,9 @@ export function OrchestratorSection(props: SectionProps): JSX.Element {
     <SectionCard
       id="playbook-orchestrator-policy"
       title="Orchestration Policy"
-      description="Use these controls only when the default cadence or concurrency is not enough."
+      description="Use these controls for loop, retry, and concurrency policy."
     >
       <div className="grid gap-3 md:grid-cols-2">
-        <LabeledField label="Check interval">
-          <Input
-            value={props.draft.orchestrator.check_interval}
-            onChange={(event) =>
-              updateOrchestratorField(props.onChange, 'check_interval', event.target.value)
-            }
-          />
-        </LabeledField>
-        <LabeledField label="Stale threshold">
-          <Input
-            value={props.draft.orchestrator.stale_threshold}
-            onChange={(event) =>
-              updateOrchestratorField(props.onChange, 'stale_threshold', event.target.value)
-            }
-          />
-        </LabeledField>
         <LabeledField label="Max rework iterations">
           <Input
             inputMode="numeric"
@@ -1421,8 +1405,6 @@ function updateColumnBoolean(
 function updateOrchestratorField(
   onChange: SectionProps['onChange'],
   field:
-    | 'check_interval'
-    | 'stale_threshold'
     | 'max_rework_iterations'
     | 'max_iterations'
     | 'llm_max_retries'
