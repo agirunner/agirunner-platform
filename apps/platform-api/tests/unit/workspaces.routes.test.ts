@@ -169,7 +169,7 @@ describe('workspace routes', () => {
     });
   });
 
-  it('deletes workspace memory entries through the project admin routes', async () => {
+  it('deletes workspace memory entries through the workspace admin routes', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     const removeWorkspaceMemory = vi.fn().mockResolvedValue({

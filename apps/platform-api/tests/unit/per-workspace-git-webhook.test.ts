@@ -121,7 +121,7 @@ describe('WorkspaceService.setGitWebhookConfig', () => {
     expect(String(params[3])).toMatch(/^enc:v1:/);
   });
 
-  it('emits project.git_webhook_configured event', async () => {
+  it('emits workspace.git_webhook_configured event', async () => {
     const eventService = createMockEventService();
     const pool = createMockPool({
       'SELECT': { rows: [{ id: PROJECT_ID, tenant_id: TENANT_ID }], rowCount: 1 },
@@ -205,7 +205,7 @@ describe('WorkspaceService.getGitWebhookSecret', () => {
 });
 
 describe('WorkspaceService.findWorkspaceByRepositoryUrl', () => {
-  it('finds project by matching repository URL', async () => {
+  it('finds workspace by matching repository URL', async () => {
     const pool = createMockPool({
       'SELECT': {
         rows: [{ id: PROJECT_ID, tenant_id: TENANT_ID }],
@@ -223,7 +223,7 @@ describe('WorkspaceService.findWorkspaceByRepositoryUrl', () => {
     expect(result).toEqual({ id: PROJECT_ID, tenant_id: TENANT_ID });
   });
 
-  it('returns null when no matching project found', async () => {
+  it('returns null when no matching workspace found', async () => {
     const pool = createMockPool();
     const service = new WorkspaceService(
       pool as never,

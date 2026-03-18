@@ -1144,7 +1144,7 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('Upload required artifacts before completion or escalation');
   });
 
-  it('attaches filtered workspace memory and compact project indexes to specialist task context', async () => {
+  it('attaches filtered workspace memory and compact workspace indexes to specialist task context', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workspaces')) {

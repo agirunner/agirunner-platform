@@ -82,7 +82,7 @@ describe('workspace model override routes', () => {
     expect(response.statusCode).toBe(201);
   });
 
-  it('returns shared resolved project models without project-specific overrides', async () => {
+  it('returns shared resolved workspace models without workspace-specific overrides', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     const getWorkspace = vi.fn().mockResolvedValue({
@@ -159,7 +159,7 @@ describe('workspace model override routes', () => {
     );
   });
 
-  it('sanitizes base resolved project models when no overrides are present', async () => {
+  it('sanitizes base resolved workspace models when no overrides are present', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();

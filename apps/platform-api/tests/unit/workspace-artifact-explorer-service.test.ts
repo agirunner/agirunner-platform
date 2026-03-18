@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceArtifactExplorerService } from '../../src/services/workspace-artifact-explorer-service.js';
 
 describe('WorkspaceArtifactExplorerService', () => {
-  it('returns bounded project artifact rows with summary and filter options', async () => {
+  it('returns bounded workspace artifact rows with summary and filter options', async () => {
     const pool = {
       query: vi
         .fn()

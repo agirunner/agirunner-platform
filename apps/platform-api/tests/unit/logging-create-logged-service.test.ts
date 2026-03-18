@@ -82,7 +82,7 @@ describe('createLoggedService', () => {
 
   it('proxiesMutationMethodsAndLogsSuccessfully', async () => {
     const service = {
-      createSomething: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'Test Project' }),
+      createSomething: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'Test Workspace' }),
       getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),
     };
     const logInsert = vi.fn().mockResolvedValue(undefined);
@@ -90,8 +90,8 @@ describe('createLoggedService', () => {
 
     const wrapped = createLoggedService(service, 'WorkspaceService', logService as never);
 
-    const result = await wrapped.createSomething({ name: 'Test Project' });
-    expect(result).toEqual({ id: 'proj-1', name: 'Test Project' });
+    const result = await wrapped.createSomething({ name: 'Test Workspace' });
+    expect(result).toEqual({ id: 'proj-1', name: 'Test Workspace' });
 
     // Allow async fire-and-forget to complete
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -105,7 +105,7 @@ describe('createLoggedService', () => {
         operation: 'config.workspace.created',
         resourceType: 'workspace',
         resourceId: 'proj-1',
-        resourceName: 'Test Project',
+        resourceName: 'Test Workspace',
       }),
     );
   });

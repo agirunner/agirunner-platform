@@ -3,20 +3,20 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceSpecService } from '../../src/services/workspace-spec-service.js';
 
 const TENANT_ID = 'tenant-1';
-const PROJECT_ID = 'workspace-1';
+const WORKSPACE_ID = 'workspace-1';
 
 function createEventService() {
   return { emit: vi.fn(async () => undefined) };
 }
 
 describe('WorkspaceSpecService secret handling', () => {
-  it('redacts legacy secret-bearing values from project spec reads', async () => {
+  it('redacts legacy secret-bearing values from workspace spec reads', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: PROJECT_ID, current_spec_version: 2 }],
+          rows: [{ id: WORKSPACE_ID, current_spec_version: 2 }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -50,7 +50,7 @@ describe('WorkspaceSpecService secret handling', () => {
 
     const service = new WorkspaceSpecService(pool as never, createEventService() as never);
 
-    const result = await service.getWorkspaceSpec(TENANT_ID, PROJECT_ID);
+    const result = await service.getWorkspaceSpec(TENANT_ID, WORKSPACE_ID);
 
     expect(result.spec).toEqual({
       config: {
@@ -90,7 +90,7 @@ describe('WorkspaceSpecService secret handling', () => {
           ownerId: TENANT_ID,
           keyPrefix: 'admin-key',
         } as never,
-        PROJECT_ID,
+        WORKSPACE_ID,
         {
           config: {
             deployment: {
@@ -109,7 +109,7 @@ describe('WorkspaceSpecService secret handling', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: PROJECT_ID, current_spec_version: 1 }] })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: WORKSPACE_ID, current_spec_version: 1 }] })
         .mockResolvedValueOnce({
           rowCount: 1,
           rows: [{
@@ -145,7 +145,7 @@ describe('WorkspaceSpecService secret handling', () => {
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: PROJECT_ID, current_spec_version: 2 }],
+          rows: [{ id: WORKSPACE_ID, current_spec_version: 2 }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -177,7 +177,7 @@ describe('WorkspaceSpecService secret handling', () => {
         ownerId: TENANT_ID,
         keyPrefix: 'admin-key',
       } as never,
-      PROJECT_ID,
+      WORKSPACE_ID,
       {
         config: {
           deployment: {
@@ -199,7 +199,7 @@ describe('WorkspaceSpecService secret handling', () => {
       expect.stringContaining('INSERT INTO workspace_spec_versions'),
       expect.arrayContaining([
         TENANT_ID,
-        PROJECT_ID,
+        WORKSPACE_ID,
         2,
         {
           config: {
@@ -212,13 +212,13 @@ describe('WorkspaceSpecService secret handling', () => {
     );
   });
 
-  it('redacts legacy secret-bearing project resource fields on resource reads', async () => {
+  it('redacts legacy secret-bearing workspace resource fields on resource reads', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: PROJECT_ID, current_spec_version: 4 }],
+          rows: [{ id: WORKSPACE_ID, current_spec_version: 4 }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -255,7 +255,7 @@ describe('WorkspaceSpecService secret handling', () => {
         ownerId: TENANT_ID,
         keyPrefix: 'admin-key',
       } as never,
-      PROJECT_ID,
+      WORKSPACE_ID,
       {},
     );
 

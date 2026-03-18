@@ -3,10 +3,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceService } from '../../src/services/workspace-service.js';
 
 const TENANT_ID = 'tenant-1';
-const PROJECT_ID = 'workspace-1';
+const WORKSPACE_ID = 'workspace-1';
 
-const projectRow = {
-  id: PROJECT_ID,
+const workspaceRow = {
+  id: WORKSPACE_ID,
   tenant_id: TENANT_ID,
   name: 'Demo',
   slug: 'demo',
@@ -39,17 +39,17 @@ function createEventService() {
 }
 
 describe('WorkspaceService secret redaction', () => {
-  it('redacts secret-bearing settings and memory on single-project reads', async () => {
+  it('redacts secret-bearing settings and memory on single-workspace reads', async () => {
     const pool = {
       query: vi.fn().mockResolvedValueOnce({
         rowCount: 1,
-        rows: [projectRow],
+        rows: [workspaceRow],
       }),
     };
 
     const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    const result = await service.getWorkspace(TENANT_ID, PROJECT_ID);
+    const result = await service.getWorkspace(TENANT_ID, WORKSPACE_ID);
 
     expect(result).not.toHaveProperty('git_webhook_secret');
     expect(result.git_webhook_secret_configured).toBe(true);
@@ -77,12 +77,12 @@ describe('WorkspaceService secret redaction', () => {
     });
   });
 
-  it('redacts secret-bearing settings and memory on project list reads', async () => {
+  it('redacts secret-bearing settings and memory on workspace list reads', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rowCount: 1, rows: [{ total: '1' }] })
-        .mockResolvedValueOnce({ rowCount: 1, rows: [projectRow] })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [workspaceRow] })
         .mockResolvedValueOnce({ rowCount: 0, rows: [] }),
     };
 
@@ -92,12 +92,12 @@ describe('WorkspaceService secret redaction', () => {
       page: 1,
       per_page: 20,
     });
-    const listedProject = result.data[0] as Record<string, unknown>;
+    const listedWorkspace = result.data[0] as Record<string, unknown>;
 
     expect(result.data).toHaveLength(1);
-    expect(listedProject).not.toHaveProperty('git_webhook_secret');
-    expect(listedProject.git_webhook_secret_configured).toBe(true);
-    expect(listedProject.settings).toEqual(
+    expect(listedWorkspace).not.toHaveProperty('git_webhook_secret');
+    expect(listedWorkspace.git_webhook_secret_configured).toBe(true);
+    expect(listedWorkspace.settings).toEqual(
       expect.objectContaining({
         credentials: {
           git_token: null,
@@ -111,7 +111,7 @@ describe('WorkspaceService secret redaction', () => {
         },
       }),
     );
-    expect(listedProject.memory).toEqual({
+    expect(listedWorkspace.memory).toEqual({
       SAFE_LABEL: 'demo',
       apiKey: 'redacted://workspace-memory-secret',
       nested: {
@@ -121,13 +121,13 @@ describe('WorkspaceService secret redaction', () => {
     });
   });
 
-  it('migrates legacy plaintext git webhook secrets during project reads', async () => {
+  it('migrates legacy plaintext git webhook secrets during workspace reads', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ ...projectRow, git_webhook_secret: 'legacy-git-secret' }],
+          rows: [{ ...workspaceRow, git_webhook_secret: 'legacy-git-secret' }],
         })
         .mockResolvedValueOnce({ rowCount: 1, rows: [] }),
     };
@@ -138,13 +138,13 @@ describe('WorkspaceService secret redaction', () => {
       { WEBHOOK_ENCRYPTION_KEY: '12345678901234567890123456789012' },
     );
 
-    const result = await service.getWorkspace(TENANT_ID, PROJECT_ID);
+    const result = await service.getWorkspace(TENANT_ID, WORKSPACE_ID);
 
     expect(result.git_webhook_secret_configured).toBe(true);
     expect(pool.query).toHaveBeenNthCalledWith(
       2,
       expect.stringContaining('UPDATE workspaces'),
-      [TENANT_ID, PROJECT_ID, expect.stringMatching(/^enc:v\d+:/)],
+      [TENANT_ID, WORKSPACE_ID, expect.stringMatching(/^enc:v\d+:/)],
     );
   });
 
@@ -153,7 +153,7 @@ describe('WorkspaceService secret redaction', () => {
       query: vi.fn().mockResolvedValueOnce({
         rowCount: 1,
         rows: [{
-          ...projectRow,
+          ...workspaceRow,
           settings: {
             endpoint: {
               auth: 'Bearer top-secret',
@@ -170,7 +170,7 @@ describe('WorkspaceService secret redaction', () => {
 
     const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    const result = await service.getWorkspace(TENANT_ID, PROJECT_ID);
+    const result = await service.getWorkspace(TENANT_ID, WORKSPACE_ID);
 
     expect(result.settings).toEqual(
       expect.objectContaining({

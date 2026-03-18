@@ -139,7 +139,7 @@ describe('webhook routes', () => {
     ]);
   });
 
-  it('rejects git webhooks when the matched project has no configured per-workspace secret', async () => {
+  it('rejects git webhooks when the matched workspace has no configured per-workspace secret', async () => {
     const { webhookRoutes } = await import('../../src/api/routes/webhooks.routes.js');
 
     app = fastify();

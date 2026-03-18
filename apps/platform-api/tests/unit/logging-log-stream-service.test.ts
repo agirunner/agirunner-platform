@@ -35,7 +35,7 @@ function sampleRow(overrides: Record<string, unknown> = {}) {
     workspace_id: null,
     workflow_id: 'wf-1',
     workflow_name: 'Test Workflow',
-    workspace_name: 'Test Project',
+    workspace_name: 'Test Workspace',
     task_id: 'task-1',
     work_item_id: 'work-item-1',
     stage_name: 'implementation',

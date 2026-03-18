@@ -208,13 +208,13 @@ describe('Logging E2E Verification', () => {
           .fn()
           .mockResolvedValue({
             id: '00000000-0000-0000-0000-000000000101',
-            name: 'My Project',
+            name: 'My Workspace',
             status: 'active',
           }),
       };
       const wrapped = createLoggedService(service, 'WorkspaceService', logService);
 
-      await wrapped.createWorkspace({ name: 'My Project' });
+      await wrapped.createWorkspace({ name: 'My Workspace' });
       await vi.waitFor(() => expect(pool.rows.length).toBeGreaterThan(0));
 
       const logRow = pool.rows[0];
@@ -224,7 +224,7 @@ describe('Logging E2E Verification', () => {
       expect(logRow.status).toBe('completed');
       expect(logRow.resource_type).toBe('workspace');
       expect(logRow.resource_id).toBe('00000000-0000-0000-0000-000000000101');
-      expect(logRow.resource_name).toBe('My Project');
+      expect(logRow.resource_name).toBe('My Workspace');
     });
 
     it('taskServiceCreateGeneratesLifecycleLog', async () => {
@@ -507,12 +507,12 @@ describe('Logging E2E Verification', () => {
         workflowId: 'wf-1',
         workflowName: 'Build Pipeline',
         workspaceId: 'proj-1',
-        workspaceName: 'My Project',
+        workspaceName: 'My Workspace',
       });
 
       expect(pool.rows).toHaveLength(1);
       expect(pool.rows[0].workflow_name).toBe('Build Pipeline');
-      expect(pool.rows[0].workspace_name).toBe('My Project');
+      expect(pool.rows[0].workspace_name).toBe('My Workspace');
     });
 
     it('storesNullWhenNamesNotProvided', async () => {

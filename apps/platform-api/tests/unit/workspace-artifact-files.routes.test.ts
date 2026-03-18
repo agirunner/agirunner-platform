@@ -18,7 +18,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-describe('project artifact file routes', () => {
+describe('workspace artifact file routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe('project artifact file routes', () => {
     }
   });
 
-  it('lists project-owned artifact files from a dedicated project route', async () => {
+  it('lists workspace-owned artifact files from a dedicated workspace route', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     const listWorkspaceArtifactFiles = vi.fn().mockResolvedValue([
@@ -91,7 +91,7 @@ describe('project artifact file routes', () => {
     );
   });
 
-  it('uploads project-owned artifact files without requiring workflow or task scope', async () => {
+  it('uploads workspace-owned artifact files without requiring workflow or task scope', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     const uploadWorkspaceArtifactFile = vi.fn().mockResolvedValue({
@@ -156,7 +156,7 @@ describe('project artifact file routes', () => {
     );
   });
 
-  it('uploads multiple project-owned artifact files in one request and defaults keys from filenames', async () => {
+  it('uploads multiple workspace-owned artifact files in one request and defaults keys from filenames', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     const uploadWorkspaceArtifactFiles = vi.fn().mockResolvedValue([

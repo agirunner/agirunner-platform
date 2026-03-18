@@ -12,8 +12,8 @@ describe('WorkspaceService model overrides', () => {
           rows: [{
             id: 'workspace-1',
             tenant_id: 'tenant-1',
-            name: 'Project',
-            slug: 'project',
+            name: 'Workspace',
+            slug: 'workspace',
             settings: {},
           }],
         })
@@ -22,8 +22,8 @@ describe('WorkspaceService model overrides', () => {
           rows: [{
             id: 'workspace-1',
             tenant_id: 'tenant-1',
-            name: 'Project',
-            slug: 'project',
+            name: 'Workspace',
+            slug: 'workspace',
             settings: {
               model_overrides: {},
             },
@@ -36,7 +36,7 @@ describe('WorkspaceService model overrides', () => {
       { emit: vi.fn(async () => undefined) } as never,
     );
 
-    const project = await service.updateWorkspace(
+    const workspace = await service.updateWorkspace(
       {
         tenantId: 'tenant-1',
         scope: 'admin',
@@ -58,6 +58,6 @@ describe('WorkspaceService model overrides', () => {
       },
     );
 
-    expect((project.settings as Record<string, unknown>).model_overrides).toEqual({});
+    expect((workspace.settings as Record<string, unknown>).model_overrides).toEqual({});
   });
 });
