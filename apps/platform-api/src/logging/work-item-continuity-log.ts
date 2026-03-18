@@ -8,7 +8,6 @@ interface WorkItemContinuityTransitionInput {
   tenantId: string;
   event: 'task_completed' | 'review_rejected' | 'review_expectation_cleared';
   task: Record<string, unknown>;
-  checkpointName: string | null;
   stageName: string | null;
   ownerRole: string | null;
   previousNextExpectedActor: string | null;
@@ -55,7 +54,6 @@ export async function logWorkItemContinuityTransition(
       status: 'completed',
       payload: {
         event: input.event,
-        checkpoint_name: input.checkpointName,
         stage_name: input.stageName,
         owner_role: input.ownerRole,
         task_role: readOptionalString(input.task.role),

@@ -337,7 +337,7 @@ describe('WorkItemContinuityService', () => {
         resourceId: 'work-item-1',
         payload: expect.objectContaining({
           event: 'task_completed',
-          checkpoint_name: 'implementation',
+          stage_name: 'implementation',
           previous_next_expected_actor: 'reviewer',
           previous_next_expected_action: 'review',
           next_expected_actor: 'qa',
@@ -348,6 +348,8 @@ describe('WorkItemContinuityService', () => {
         }),
       }),
     );
+    const payload = (logService.insert as ReturnType<typeof vi.fn>).mock.calls[0][0].payload as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('checkpoint_name');
   });
 
   it('emits a continuity transition log when review rejection routes work back for rework', async () => {
@@ -400,7 +402,7 @@ describe('WorkItemContinuityService', () => {
         operation: 'work_item.continuity.review_rejected',
         payload: expect.objectContaining({
           event: 'review_rejected',
-          checkpoint_name: 'review',
+          stage_name: 'review',
           previous_next_expected_actor: 'reviewer',
           previous_next_expected_action: 'review',
           next_expected_actor: 'developer',
@@ -410,6 +412,8 @@ describe('WorkItemContinuityService', () => {
         }),
       }),
     );
+    const payload = (logService.insert as ReturnType<typeof vi.fn>).mock.calls[0][0].payload as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('checkpoint_name');
   });
 
   it('emits a continuity transition log when review expectation is cleared after approval', async () => {
@@ -451,7 +455,7 @@ describe('WorkItemContinuityService', () => {
         operation: 'work_item.continuity.review_expectation_cleared',
         payload: expect.objectContaining({
           event: 'review_expectation_cleared',
-          checkpoint_name: 'implementation',
+          stage_name: 'implementation',
           previous_next_expected_actor: 'reviewer',
           previous_next_expected_action: 'review',
           next_expected_actor: null,
@@ -459,5 +463,7 @@ describe('WorkItemContinuityService', () => {
         }),
       }),
     );
+    const payload = (logService.insert as ReturnType<typeof vi.fn>).mock.calls[0][0].payload as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('checkpoint_name');
   });
 });

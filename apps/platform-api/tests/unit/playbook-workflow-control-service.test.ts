@@ -1530,6 +1530,7 @@ describe('PlaybookWorkflowControlService', () => {
               id: 'wi-2',
               parent_work_item_id: 'wi-3',
               stage_name: 'requirements',
+              current_checkpoint: 'requirements',
               title: 'Implement scope',
               goal: 'Ship it',
               acceptance_criteria: 'works',
@@ -1615,6 +1616,7 @@ describe('PlaybookWorkflowControlService', () => {
 
     expect(updated.parent_work_item_id).toBe('wi-3');
     expect(updated.column_id).toBe('done');
+    expect(updated).not.toHaveProperty('current_checkpoint');
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'work_item.updated',
