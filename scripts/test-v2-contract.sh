@@ -33,14 +33,6 @@ corepack pnpm exec vitest run \
   src/pages/work/task-list-page.test.ts \
   --reporter=dot
 
-cd "$ROOT_DIR/packages/shared-types"
-corepack pnpm exec tsc --noEmit --pretty false
-corepack pnpm exec vitest run src/index.test.ts --reporter=dot
-
 cd "$ROOT_DIR/packages/sdk"
 corepack pnpm exec tsc --noEmit --pretty false
 corepack pnpm exec vitest run src/client.test.ts src/client-full.test.ts --reporter=dot
-
-cd "$ROOT_DIR/packages/mcp-server"
-corepack pnpm exec tsc --noEmit --pretty false
-corepack pnpm exec vitest run src/tools.test.ts src/index.test.ts --reporter=dot

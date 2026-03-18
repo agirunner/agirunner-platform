@@ -91,8 +91,8 @@ pnpm test:batch --mode parallel --fail-fast --providers openai,google,anthropic
 ## V2 Contract Runner (`scripts/test-v2-contract.sh`)
 
 This runner replaces the deleted flaky smoke gate for V2 development with a
-deterministic contract lane across the platform API, dashboard, shared types,
-SDK, and MCP surfaces.
+deterministic contract lane across the platform API, dashboard, and SDK
+surfaces.
 
 Run it from the platform repository root:
 

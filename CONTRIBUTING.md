@@ -51,9 +51,6 @@ apps/
 
 packages/
   sdk/                   — TypeScript SDK (@agirunner/sdk)
-  mcp-server/            — MCP server package
-  shared-types/          — Shared type definitions
-  python-sdk/            — Python SDK
 
 services/
   container-manager/     — Go service for Docker container lifecycle

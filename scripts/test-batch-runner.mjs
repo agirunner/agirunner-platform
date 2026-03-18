@@ -83,7 +83,7 @@ function needsWorkspaceInstall() {
 
   const probe = spawnSync(
     'pnpm',
-    ['--filter', '@agirunner/test-utils', 'exec', 'vitest', '--version'],
+    ['--filter', '@agirunner/sdk', 'exec', 'vitest', '--version'],
     {
       cwd: ROOT,
       stdio: 'ignore',
