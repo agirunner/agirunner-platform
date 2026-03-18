@@ -37,6 +37,6 @@ describe('worker config end-to-end merge integration (FR-294, FR-295)', () => {
     expect(config.connection.mode).toBe('websocket');
     expect(config.connection.heartbeatIntervalSeconds).toBe(10);
     expect(config.connection.reconnect).toEqual({ minMs: 1000, maxMs: 3000 });
-    expect(config.logging.level).toBe('debug');
+    expect(config).not.toHaveProperty('logging');
   });
 });

@@ -27,9 +27,6 @@ export interface WorkerConfig {
   taskFilter: {
     projectId?: string;
   };
-  logging: {
-    level: 'debug' | 'info' | 'warn' | 'error';
-  };
 }
 
 const DEFAULT_CONFIG: WorkerConfig = {
@@ -54,9 +51,6 @@ const DEFAULT_CONFIG: WorkerConfig = {
     },
   },
   taskFilter: {},
-  logging: {
-    level: 'info',
-  },
 };
 
 export interface LoadWorkerConfigOptions {
@@ -86,7 +80,6 @@ export function parseWorkerConfigFile(filePath: string): Partial<WorkerConfig> {
 
 function applyEnvOverrides(base: WorkerConfig, env: NodeJS.ProcessEnv): WorkerConfig {
   return {
-    ...base,
     server: {
       ...base.server,
       url: env.AGIRUNNER_WORKER_SERVER_URL ?? base.server.url,
@@ -114,7 +107,6 @@ function applyEnvOverrides(base: WorkerConfig, env: NodeJS.ProcessEnv): WorkerCo
     taskFilter: {
       projectId: env.AGIRUNNER_WORKER_FILTER_PROJECT_ID ?? base.taskFilter.projectId,
     },
-    logging: base.logging,
   };
 }
 

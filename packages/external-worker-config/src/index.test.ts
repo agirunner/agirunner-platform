@@ -42,8 +42,8 @@ describe('worker config file support (FR-294)', () => {
         reconnect: { minMs: 1000, maxMs: 4000 },
       },
       taskFilter: { projectId: 'project-alpha',  },
-      logging: { level: 'debug' },
     });
+    expect(config).not.toHaveProperty('logging');
   });
 
   it('rejects non-object config payloads', () => {
@@ -103,11 +103,11 @@ describe('environment override precedence (FR-295)', () => {
         reconnect: { minMs: 1500, maxMs: 3500 },
       },
       taskFilter: { projectId: 'project-env',  },
-      logging: { level: 'warn' },
     });
+    expect(config).not.toHaveProperty('logging');
   });
 
-  it('does not allow environment log-level overrides to bypass file governance', () => {
+  it('does not preserve logging authority from file or environment', () => {
     const dir = mkdtempSync(join(tmpdir(), 'ab-config-'));
     const filePath = join(dir, 'worker.json');
 
@@ -126,6 +126,6 @@ describe('environment override precedence (FR-295)', () => {
       },
     });
 
-    expect(config.logging.level).toBe('warn');
+    expect(config).not.toHaveProperty('logging');
   });
 });
