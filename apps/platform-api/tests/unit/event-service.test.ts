@@ -114,6 +114,29 @@ describe('EventService', () => {
     );
   });
 
+  it('catches embedded bearer and api key tokens within prose event values', async () => {
+    const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
+    const service = new EventService({ query } as never);
+
+    await service.emit({
+      tenantId: 'tenant-1',
+      type: 'task.state_changed',
+      entityType: 'task',
+      entityId: 'task-1',
+      actorType: 'agent',
+      data: {
+        task_id: 'task-1',
+        handoff_note: 'Authenticate with Bearer sk-live-secret-value to continue.',
+        safe_field: 'no secrets here',
+      },
+    });
+
+    const payload = query.mock.calls[0]?.[1]?.[6] as Record<string, unknown>;
+    expect(payload.handoff_note).toBe('redacted://event-secret');
+    expect(payload.safe_field).toBe('no secrets here');
+    expect(payload.task_id).toBe('task-1');
+  });
+
   it('redacts secret-bearing event payload fields before persistence', async () => {
     const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 1 });
     const service = new EventService({ query } as never);

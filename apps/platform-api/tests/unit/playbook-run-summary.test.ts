@@ -714,6 +714,51 @@ describe('buildPlaybookRunSummary', () => {
     ]);
   });
 
+  it('catches embedded bearer tokens within workflow summary prose values', () => {
+    const summary = buildPlaybookRunSummary({
+      workflow: {
+        id: 'wf-embedded',
+        name: 'Embedded token flow',
+        lifecycle: 'planned',
+        state: 'completed',
+        created_at: '2026-03-10T00:00:00.000Z',
+        started_at: '2026-03-10T00:10:00.000Z',
+        completed_at: '2026-03-10T00:20:00.000Z',
+        metadata: {},
+      },
+      tasks: [
+        {
+          id: 'task-embedded',
+          role: 'developer',
+          state: 'completed',
+          stage_name: 'review',
+          rework_count: 0,
+          metrics: { total_cost_usd: 0 },
+        },
+      ],
+      stages: [
+        {
+          name: 'review',
+          goal: 'Review work',
+          human_gate: false,
+          status: 'completed',
+          gate_status: 'not_requested',
+          iteration_count: 0,
+          summary: 'Completed. Validate with Bearer sk-live-review-secret if needed.',
+          started_at: new Date('2026-03-10T00:10:00.000Z'),
+          completed_at: new Date('2026-03-10T00:20:00.000Z'),
+        },
+      ],
+      workItems: [],
+      events: [],
+      artifacts: [],
+    });
+
+    expect(summary.stage_metrics[0].summary).toBe('redacted://workflow-summary-secret');
+    expect(summary.stage_metrics[0].name).toBe('review');
+    expect(summary.stage_metrics[0].goal).toBe('Review work');
+  });
+
   it('redacts secret-bearing values from workflow summary packets', () => {
     const summary = buildPlaybookRunSummary({
       workflow: {

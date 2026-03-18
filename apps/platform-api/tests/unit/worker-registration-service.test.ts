@@ -122,6 +122,35 @@ describe('worker registration service', () => {
     expect(mockedCreateApiKey).toHaveBeenCalledTimes(1);
   });
 
+  it('catches embedded tokens in worker metadata and host info prose on list reads', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'worker-1',
+            name: 'my-runtime',
+            metadata: {
+              notes: 'Forward calls with Bearer sk-live-api-secret for auth.',
+              safe: 'no secrets here',
+            },
+            host_info: {
+              env_note: 'Set OPENAI_KEY=sk-proj-1234567890 in the environment.',
+              hostname: 'builder-01',
+            },
+          },
+        ],
+      }),
+    };
+
+    const result = await listWorkers({ pool } as never, 'tenant-1');
+
+    expect(result[0].metadata.notes).toBe('redacted://worker-secret');
+    expect(result[0].metadata.safe).toBe('no secrets here');
+    expect((result[0].host_info as Record<string, unknown>).env_note).toBe('redacted://worker-secret');
+    expect((result[0].host_info as Record<string, unknown>).hostname).toBe('builder-01');
+  });
+
   it('redacts secret-bearing worker metadata and host info on list reads', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({

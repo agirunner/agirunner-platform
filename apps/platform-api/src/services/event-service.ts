@@ -1,4 +1,5 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 type EventEntityType =
   | 'task'
@@ -29,9 +30,6 @@ const WORK_ITEM_EVENT_PREFIX = 'work_item.';
 const STAGE_EVENT_PREFIX = 'stage.';
 const CHILD_WORKFLOW_EVENT_PREFIX = 'child_workflow.';
 const EVENT_SECRET_REDACTION = 'redacted://event-secret';
-const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
-const secretLikeValuePattern =
-  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
 const ESCALATION_EVENT_TYPES = new Set([
   'task.agent_escalated',
   'task.escalation_task_created',
@@ -93,35 +91,10 @@ export function sanitizeEventRows<T extends { data?: Record<string, unknown> | n
 }
 
 function sanitizeEventData(data: Record<string, unknown> | null | undefined): Record<string, unknown> {
-  if (!data) {
-    return {};
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, value] of Object.entries(data)) {
-    sanitized[key] = sanitizeEventValue(value, isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function sanitizeEventValue(value: unknown, inheritedSecret: boolean): unknown {
-  if (typeof value === 'string') {
-    return inheritedSecret || isSecretLikeValue(value) ? EVENT_SECRET_REDACTION : value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((item) => sanitizeEventValue(item, inheritedSecret));
-  }
-
-  if (value && typeof value === 'object') {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-      sanitized[key] = sanitizeEventValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
-    }
-    return sanitized;
-  }
-
-  return value;
+  return sanitizeSecretLikeRecord(data, {
+    redactionValue: EVENT_SECRET_REDACTION,
+    allowSecretReferences: false,
+  });
 }
 
 function buildEntityIdFallbacks(
@@ -216,14 +189,3 @@ function readString(record: Record<string, unknown>, key: string): string | unde
   return typeof value === 'string' && value.length > 0 ? value : undefined;
 }
 
-function isSecretLikeKey(key: string): boolean {
-  return secretLikeKeyPattern.test(key);
-}
-
-function isSecretLikeValue(value: string): boolean {
-  const normalized = value.trim();
-  if (normalized.length === 0) {
-    return false;
-  }
-  return secretLikeValuePattern.test(normalized);
-}

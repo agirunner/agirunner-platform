@@ -1,3 +1,5 @@
+import { sanitizeSecretLikeValue } from './secret-redaction.js';
+
 interface TimelineEventRow {
   type: string;
   actor_type: string;
@@ -93,10 +95,6 @@ const CHILD_WORKFLOW_EVENT_TYPES = new Set([
   'child_workflow.cancelled',
 ]);
 const WORKFLOW_SUMMARY_SECRET_REDACTION = 'redacted://workflow-summary-secret';
-const summarySecretLikeKeyPattern =
-  /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts|webhook_url)/i;
-const summarySecretLikeValuePattern =
-  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
 
 export function buildPlaybookRunSummary(params: {
   workflow: Record<string, unknown>;
@@ -870,45 +868,8 @@ function readStringArray(value: unknown) {
 }
 
 function sanitizeWorkflowSummary<T>(value: T): T {
-  return sanitizeWorkflowSummaryValue(value, false) as T;
-}
-
-function sanitizeWorkflowSummaryValue(value: unknown, inheritedSecret: boolean): unknown {
-  if (typeof value === 'string') {
-    return shouldRedactWorkflowSummaryString(value, inheritedSecret)
-      ? WORKFLOW_SUMMARY_SECRET_REDACTION
-      : value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((entry) => sanitizeWorkflowSummaryValue(entry, inheritedSecret));
-  }
-
-  if (!value || typeof value !== 'object') {
-    return value;
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-    sanitized[key] = sanitizeWorkflowSummaryValue(
-      nestedValue,
-      inheritedSecret || isWorkflowSummarySecretLikeKey(key),
-    );
-  }
-  return sanitized;
-}
-
-function shouldRedactWorkflowSummaryString(value: string, inheritedSecret: boolean) {
-  const normalized = value.trim();
-  if (normalized.length === 0) {
-    return false;
-  }
-  if (inheritedSecret) {
-    return true;
-  }
-  return summarySecretLikeValuePattern.test(normalized);
-}
-
-function isWorkflowSummarySecretLikeKey(key: string) {
-  return summarySecretLikeKeyPattern.test(key);
+  return sanitizeSecretLikeValue(value, {
+    redactionValue: WORKFLOW_SUMMARY_SECRET_REDACTION,
+    allowSecretReferences: false,
+  }) as T;
 }

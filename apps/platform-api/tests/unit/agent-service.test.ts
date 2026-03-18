@@ -120,6 +120,33 @@ describe('AgentService secret redaction', () => {
     );
   });
 
+  it('catches embedded bearer tokens in agent metadata prose on list reads', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'agent-1',
+            name: 'coder-01',
+            metadata: {
+              instructions: 'Validate output with Bearer sk-live-output-secret if preview fails.',
+              safe: 'no secrets here',
+            },
+          },
+        ],
+      }),
+    };
+    const service = new AgentService(
+      pool as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const result = await service.listAgents('tenant-1');
+
+    expect(result[0].metadata.instructions).toBe('redacted://agent-secret');
+    expect(result[0].metadata.safe).toBe('no secrets here');
+  });
+
   it('redacts secret-bearing metadata on agent list reads', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({

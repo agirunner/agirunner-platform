@@ -4,11 +4,13 @@ import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import { readAgentSupervisionTimingDefaults } from './platform-timing-defaults.js';
+import {
+  sanitizeSecretLikeRecord,
+  sanitizeSecretLikeValue,
+} from './secret-redaction.js';
 
 const AGENT_SECRET_REDACTION = 'redacted://agent-secret';
-const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
-const secretLikeValuePattern =
-  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
+const AGENT_REDACTION_OPTIONS = { redactionValue: AGENT_SECRET_REDACTION, allowSecretReferences: false };
 
 interface RegisterAgentInput {
   name: string;
@@ -87,10 +89,10 @@ export class AgentService {
       capabilities: agent.capabilities,
       status: agent.status,
       api_key: apiKey,
-      metadata: sanitizeSecretLikeRecord(agent.metadata),
+      metadata: sanitizeSecretLikeRecord(agent.metadata, AGENT_REDACTION_OPTIONS),
       tools: sanitizeSecretLikeValue(
         (agent.metadata as Record<string, unknown>)?.tools ?? { required: [], optional: [] },
-        false,
+        AGENT_REDACTION_OPTIONS,
       ),
     };
   }
@@ -223,50 +225,6 @@ function normalizeAgentCapabilities(
 function sanitizeAgentRow(row: Record<string, unknown>) {
   return {
     ...row,
-    metadata: sanitizeSecretLikeRecord(row.metadata),
+    metadata: sanitizeSecretLikeRecord(row.metadata, AGENT_REDACTION_OPTIONS),
   };
-}
-
-function sanitizeSecretLikeRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    sanitized[key] = sanitizeSecretLikeValue(entry, isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unknown {
-  if (typeof value === 'string') {
-    return inheritedSecret || isSecretLikeValue(value) ? AGENT_SECRET_REDACTION : value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((entry) => sanitizeSecretLikeValue(entry, inheritedSecret));
-  }
-
-  if (value && typeof value === 'object') {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-      sanitized[key] = sanitizeSecretLikeValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
-    }
-    return sanitized;
-  }
-
-  return value;
-}
-
-function isSecretLikeKey(key: string): boolean {
-  return secretLikeKeyPattern.test(key);
-}
-
-function isSecretLikeValue(value: string): boolean {
-  const normalized = value.trim();
-  if (normalized.length === 0) {
-    return false;
-  }
-  return secretLikeValuePattern.test(normalized);
 }

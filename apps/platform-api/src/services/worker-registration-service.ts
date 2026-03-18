@@ -1,11 +1,10 @@
 import { createApiKey, type ApiKeyIdentity } from '../auth/api-key.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import type { WorkerServiceContext, RegisterWorkerInput } from './worker-service.js';
 
 const WORKER_SECRET_REDACTION = 'redacted://worker-secret';
-const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
-const secretLikeValuePattern =
-  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
+const WORKER_REDACTION_OPTIONS = { redactionValue: WORKER_SECRET_REDACTION, allowSecretReferences: false };
 
 export async function registerWorker(
   context: WorkerServiceContext,
@@ -204,51 +203,7 @@ export async function deleteWorker(context: WorkerServiceContext, identity: ApiK
 function sanitizeWorkerRow<T extends Record<string, unknown>>(row: T): T {
   return {
     ...row,
-    metadata: sanitizeSecretLikeRecord(row.metadata),
-    host_info: sanitizeSecretLikeRecord(row.host_info),
+    metadata: sanitizeSecretLikeRecord(row.metadata, WORKER_REDACTION_OPTIONS),
+    host_info: sanitizeSecretLikeRecord(row.host_info, WORKER_REDACTION_OPTIONS),
   } as T;
-}
-
-function sanitizeSecretLikeRecord(value: unknown): Record<string, unknown> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return {};
-  }
-
-  const sanitized: Record<string, unknown> = {};
-  for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
-    sanitized[key] = sanitizeSecretLikeValue(entry, isSecretLikeKey(key));
-  }
-  return sanitized;
-}
-
-function sanitizeSecretLikeValue(value: unknown, inheritedSecret: boolean): unknown {
-  if (typeof value === 'string') {
-    return inheritedSecret || isSecretLikeValue(value) ? WORKER_SECRET_REDACTION : value;
-  }
-
-  if (Array.isArray(value)) {
-    return value.map((entry) => sanitizeSecretLikeValue(entry, inheritedSecret));
-  }
-
-  if (value && typeof value === 'object') {
-    const sanitized: Record<string, unknown> = {};
-    for (const [key, nestedValue] of Object.entries(value as Record<string, unknown>)) {
-      sanitized[key] = sanitizeSecretLikeValue(nestedValue, inheritedSecret || isSecretLikeKey(key));
-    }
-    return sanitized;
-  }
-
-  return value;
-}
-
-function isSecretLikeKey(key: string): boolean {
-  return secretLikeKeyPattern.test(key);
-}
-
-function isSecretLikeValue(value: string): boolean {
-  const normalized = value.trim();
-  if (normalized.length === 0) {
-    return false;
-  }
-  return secretLikeValuePattern.test(normalized);
 }
