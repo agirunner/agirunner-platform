@@ -7,14 +7,14 @@ export interface ServiceLogConfig {
 }
 
 export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
-  ProjectService: {
+  WorkspaceService: {
     entityType: 'workspace',
     category: 'config',
     nameField: 'name',
     ignoreFields: ['updatedAt', 'createdAt', 'memory', 'memorySizeBytes'],
     ignoreMethods: [
-      'getProject', 'listProjects', 'getProjectSpec', 'getProjectTimeline',
-      'getProjectResources', 'getProjectTools',
+      'getWorkspace', 'listWorkspaces', 'getWorkspaceSpec', 'getWorkspaceTimeline',
+      'getWorkspaceResources', 'getWorkspaceTools',
     ],
   },
   WorkflowService: {
