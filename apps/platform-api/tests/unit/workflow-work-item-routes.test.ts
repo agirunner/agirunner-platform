@@ -763,6 +763,104 @@ describe('workflow work-item routes', () => {
     expect(second.json()).toEqual(first.json());
   });
 
+  it('deduplicates workflow work-item agent-escalate requests', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_agent_escalate');
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+    const agentEscalate = vi.fn(async () => ({
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'wi-1',
+      state: 'escalated',
+    }));
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-1',
+      })),
+      agentEscalate,
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = {
+      request_id: 'request-1',
+      reason: 'Need operator guidance before proceeding.',
+      context_summary: 'The workflow is waiting on a human decision.',
+      work_so_far: 'Completed the repository-backed deliverable and submitted the handoff.',
+    };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/agent-escalate',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/agent-escalate',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(agentEscalate).toHaveBeenCalledTimes(1);
+    expect(agentEscalate).toHaveBeenCalledWith(
+      {
+        id: 'key-1',
+        keyPrefix: 'prefix',
+        ownerId: 'user-1',
+        ownerType: 'user',
+        scope: 'admin',
+        tenantId: 'tenant-1',
+      },
+      'task-1',
+      {
+        reason: 'Need operator guidance before proceeding.',
+        context_summary: 'The workflow is waiting on a human decision.',
+        work_so_far: 'Completed the repository-backed deliverable and submitted the handoff.',
+      },
+    );
+    expect(second.json()).toEqual(first.json());
+  });
+
   it('rejects resolve escalation when the task does not belong to the selected work item', async () => {
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
     const workflowService = {

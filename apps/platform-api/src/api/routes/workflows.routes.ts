@@ -107,6 +107,12 @@ const workflowWorkItemTaskResolveEscalationSchema = workflowWorkItemTaskMutation
   context: z.record(z.unknown()).optional(),
 });
 
+const workflowWorkItemTaskAgentEscalateSchema = workflowWorkItemTaskMutationSchema.extend({
+  reason: z.string().min(1).max(4000),
+  context_summary: z.string().max(4000).optional(),
+  work_so_far: z.string().max(8000).optional(),
+});
+
 const workflowWorkItemTaskOutputOverrideSchema = workflowWorkItemTaskMutationSchema.extend({
   output: z.unknown(),
   reason: z.string().min(1).max(4000),
@@ -788,6 +794,36 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           'public_task_resolve_escalation',
           requestId,
           () => app.taskService.resolveEscalation(request.auth!, params.taskId, payload),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/agent-escalate',
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker', 'agent'])] },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(
+        workflowWorkItemTaskAgentEscalateSchema.safeParse(request.body),
+      );
+      const { request_id: requestId, ...payload } = body;
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_agent_escalate',
+          requestId,
+          () => app.taskService.agentEscalate(request.auth!, params.taskId, payload),
         ),
       };
     },
