@@ -12,7 +12,7 @@ export function usesWorkItemOperatorFlow(task: WorkflowOperatorTaskScope): boole
 }
 
 export function usesWorkflowOperatorFlow(task: WorkflowOperatorTaskScope): boolean {
-  return Boolean(task.workflow_id && (task.work_item_id || task.stage_name));
+  return usesWorkItemOperatorFlow(task);
 }
 
 export function buildWorkflowOperatorPermalink(
@@ -41,8 +41,8 @@ export function readWorkflowOperatorFlowLabel(
   if (usesWorkItemOperatorFlow(task)) {
     return 'Grouped work-item operator flow';
   }
-  if (usesWorkflowOperatorFlow(task)) {
-    return 'Stage/operator board flow';
+  if (task.workflow_id && task.stage_name) {
+    return 'Workflow-linked step context';
   }
   return 'Direct operator decision';
 }

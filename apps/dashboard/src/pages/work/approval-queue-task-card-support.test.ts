@@ -36,7 +36,7 @@ describe('approval queue task card support', () => {
     });
   });
 
-  it('prefers work-item and board recovery guidance before direct step actions', () => {
+  it('prefers work-item recovery guidance and demotes stage-only workflow context to supporting evidence', () => {
     expect(
       buildApprovalRecoveryPacket({
         id: 'task-1',
@@ -57,12 +57,13 @@ describe('approval queue task card support', () => {
         title: 'Approve deployment checklist',
         state: 'awaiting_approval',
         workflow_id: 'wf-1',
+        stage_name: 'qa',
         created_at: '2026-03-13T00:00:00Z',
       }),
     ).toEqual({
-      title: 'Keep recovery in the board stage flow',
+      title: 'Use direct recovery and keep workflow context nearby',
       summary:
-        'Run rework and follow-up decisions from the board stage flow so the stage gate and linked work stay attached to the workflow context.',
+        'Run rework and follow-up decisions from the step record. Use workflow context as supporting evidence when you need stage history or surrounding work state.',
     });
   });
 

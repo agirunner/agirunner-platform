@@ -4,6 +4,146 @@ import { ConflictError } from '../../src/errors/domain-errors.js';
 import { WorkItemService } from '../../src/services/work-item-service.js';
 
 describe('WorkItemService', () => {
+  it('uses the playbook default stage for planned work items when stage_name is omitted', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+          expect(sql).toContain('FOR UPDATE OF w');
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'implementation',
+                lifecycle: 'planned',
+                definition: {
+                  roles: ['implementer'],
+                  lifecycle: 'planned',
+                  board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                  stages: [
+                    { name: 'requirements', goal: 'Define scope' },
+                    { name: 'implementation', goal: 'Ship code' },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT * FROM workflow_work_items') && sql.includes('request_id')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          expect(params?.[5]).toBe('requirements');
+          return {
+            rows: [
+              {
+                id: 'work-item-1',
+                workflow_id: 'workflow-1',
+                stage_name: 'requirements',
+                current_checkpoint: 'requirements',
+                column_id: 'planned',
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT ws.id,') && sql.includes('FROM workflow_stages ws')) {
+          return {
+            rows: [
+              {
+                id: 'stage-1',
+                lifecycle: 'planned',
+                name: 'requirements',
+                position: 0,
+                goal: 'Define scope',
+                guidance: null,
+                human_gate: false,
+                status: 'active',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: new Date('2026-03-17T20:00:00Z'),
+                completed_at: null,
+                open_work_item_count: 1,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-17T20:00:00Z'),
+                last_completed_work_item_at: null,
+              },
+              {
+                id: 'stage-2',
+                lifecycle: 'planned',
+                name: 'implementation',
+                position: 1,
+                goal: 'Ship code',
+                guidance: null,
+                human_gate: false,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 0,
+                first_work_item_at: null,
+                last_completed_work_item_at: null,
+              },
+            ],
+            rowCount: 2,
+          };
+        }
+        if (sql.includes('UPDATE workflows') && sql.includes('current_stage = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rows: [], rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn().mockResolvedValue(client),
+    };
+    const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
+    const activationService = { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) };
+    const activationDispatchService = { dispatchActivation: vi.fn().mockResolvedValue(undefined) };
+    const service = new WorkItemService(
+      pool as never,
+      eventService as never,
+      activationService as never,
+      activationDispatchService as never,
+    );
+
+    const result = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-1',
+        title: 'Backfill scope notes',
+      },
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'work-item-1',
+        stage_name: 'requirements',
+        current_checkpoint: 'requirements',
+      }),
+    );
+  });
+
   it('marks webhook-triggered work items as webhook-created and emits system-scoped events', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

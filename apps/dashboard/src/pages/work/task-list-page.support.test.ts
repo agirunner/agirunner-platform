@@ -53,7 +53,7 @@ describe('task list page support', () => {
     });
   });
 
-  it('falls back to the stage flow or direct step record when grouped work-item context is unavailable', () => {
+  it('keeps stage-only tasks on the step record while exposing workflow context separately', () => {
     expect(
       buildTaskPrimaryOperatorAction({
         id: 'task-stage',
@@ -63,9 +63,9 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/work/boards/workflow-1?gate=review#gate-review',
-      label: 'Open board stage flow',
-      helper: 'Review this step from the board stage flow so the stage gate stays aligned.',
+      href: '/work/tasks/task-stage',
+      label: 'Open step record',
+      helper: 'Use the step record for retry, rework, or rejection. Workflow context is available separately when you need stage history.',
       showsDiagnosticLink: true,
     });
     expect(
@@ -77,8 +77,8 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/work/tasks/task-stage',
-      label: 'Open failed step diagnostics',
+      href: '/work/boards/workflow-1?gate=review#gate-review',
+      label: 'Open workflow context',
     });
     expect(
       buildTaskPrimaryOperatorAction({

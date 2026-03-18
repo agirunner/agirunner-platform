@@ -32,11 +32,11 @@ export function buildApprovalRecoveryPacket(task: DashboardApprovalTaskRecord): 
     };
   }
 
-  if (task.workflow_id) {
+  if (task.workflow_id && task.stage_name) {
     return {
-      title: 'Keep recovery in the board stage flow',
+      title: 'Use direct recovery and keep workflow context nearby',
       summary:
-        'Run rework and follow-up decisions from the board stage flow so the stage gate and linked work stay attached to the workflow context.',
+        'Run rework and follow-up decisions from the step record. Use workflow context as supporting evidence when you need stage history or surrounding work state.',
     };
   }
 

@@ -22,7 +22,6 @@ describe('task detail page source', () => {
     expect(source).toContain('escalated');
     expect(source).toContain('Open Escalation Context');
     expect(source).toContain('Open Work Item Flow');
-    expect(source).toContain('Open Board Stage Flow');
     expect(source).toContain('buildWorkflowOperatorPermalink');
     expect(source).toContain('usesWorkflowOperatorFlow');
     expect(source).toContain('TaskDetailContextSection');
@@ -39,6 +38,6 @@ describe('task detail page source', () => {
     expect(source).toContain('TaskDetailContextSection');
     expect(source).toContain('grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4');
     expect(source).toContain('This specialist step belongs to a workflow work item.');
-    expect(source).toContain('This step belongs to a workflow stage.');
+    expect(source).toContain('This specialist step is attached to a workflow stage, but no work item is linked yet.');
   });
 });

@@ -696,16 +696,13 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function resolveWorkItemStageName(
   inputStageName: string | undefined,
-  workflow: { lifecycle: string | null; active_stage_name: string | null },
+  _workflow: { lifecycle: string | null; active_stage_name: string | null },
   definition: ReturnType<typeof parsePlaybookDefinition>,
 ): string | null {
   if (inputStageName) {
     return inputStageName;
   }
-  if (workflow.lifecycle === 'ongoing') {
-    return defaultStageName(definition);
-  }
-  return (workflow.active_stage_name as string | null) ?? defaultStageName(definition);
+  return defaultStageName(definition);
 }
 
 function shouldAutoClosePredecessorCheckpoint(

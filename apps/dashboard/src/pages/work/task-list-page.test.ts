@@ -48,9 +48,8 @@ describe('task list page source', () => {
     expect(source).toContain('Next action');
     expect(source).toContain('Open board');
     expect(source).toContain('Open work-item flow');
-    expect(source).toContain('Open board stage flow');
+    expect(source).toContain('Open workflow context');
     expect(source).toContain('Open step diagnostics');
-    expect(source).toContain('Open failed step diagnostics');
     expect(source).toContain('TaskListOperatorCue');
     expect(source).toContain('Review next, then recover');
     expect(source).toContain('This page keeps posture, recovery cues, board context');

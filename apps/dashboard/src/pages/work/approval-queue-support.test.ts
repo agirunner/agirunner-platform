@@ -54,7 +54,7 @@ describe('approval queue support', () => {
         stage_name: 'qa',
         created_at: '2026-03-12T12:00:00.000Z',
       }),
-    ).toBe('Stage/operator board flow');
+    ).toBe('Workflow-linked step context');
     expect(
       readTaskOperatorFlowLabel({
         id: 'task-2',

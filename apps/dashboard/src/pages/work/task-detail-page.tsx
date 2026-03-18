@@ -204,20 +204,18 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
     retryMutation.isPending ||
     cancelMutation.isPending;
 
-  if (workflowOperatorFlow && workflowOperatorPermalink) {
+  if (workItemFlow && workflowOperatorPermalink) {
     return (
       <div className="space-y-2">
         <div className="flex gap-2">
           <Button size="sm" asChild>
             <Link to={workflowOperatorPermalink}>
-              {workItemFlow ? 'Open Work Item Flow' : 'Open Board Stage Flow'}
+              Open Work Item Flow
             </Link>
           </Button>
         </div>
         <p className="text-xs text-muted">
-          {workItemFlow
-            ? 'This step belongs to a workflow work item. Operator review, rework, and retry decisions should run through the work-item panel so gate state, linked steps, and board context stay aligned.'
-            : 'This step belongs to a workflow stage. Operator review, rework, and retry decisions should run through the board stage flow so stage-gate and board context stay aligned.'}
+          This step belongs to a workflow work item. Operator review, rework, and retry decisions should run through the work-item panel so gate state, linked steps, and board context stay aligned.
         </p>
       </div>
     );
@@ -436,6 +434,7 @@ function OperatorBriefingCard({ task, status }: { task: Task; status: string }):
   const reworkDetails = readReworkDetails(task as never);
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
+  const stageLinkedDirectStep = Boolean(task.workflow_id && task.stage_name && !task.work_item_id);
 
   return (
     <Card className="border-border/70 shadow-sm">
@@ -470,11 +469,11 @@ function OperatorBriefingCard({ task, status }: { task: Task; status: string }):
           </p>
           <h2 className="mt-2 text-lg font-semibold">{nextStep.title}</h2>
           <p className="mt-2 text-sm leading-6 text-muted">{nextStep.detail}</p>
-          {workflowOperatorFlow ? (
+          {workflowOperatorFlow || stageLinkedDirectStep ? (
             <p className="mt-3 text-sm text-muted">
               {workItemFlow
                 ? 'This specialist step belongs to a workflow work item. Run approval, rework, and retry decisions from the work-item flow so stage state, linked steps, and board context stay aligned.'
-                : 'This specialist step belongs to a workflow stage. Run approval, rework, and retry decisions from the board stage flow so stage-gate and board context stay aligned.'}
+                : 'This specialist step is attached to a workflow stage, but no work item is linked yet. Use the step record for operator actions and treat board context as supporting evidence.'}
             </p>
           ) : null}
         </section>

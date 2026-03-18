@@ -117,7 +117,7 @@ export function TaskApprovalCard(props: {
   const workflowContextLink =
     buildWorkflowOperatorPermalink(task) ??
     (task.workflow_id ? `/work/boards/${task.workflow_id}` : null);
-  const primaryFlowLabel = workItemFlow ? 'Open Work Item Flow' : 'Open Board Stage Flow';
+  const primaryFlowLabel = 'Open Work Item Flow';
   const diagnosticsLabel = workflowOperatorFlow ? 'Open Step Diagnostics' : 'Open Step Record';
   const stepReferenceLabel = workflowOperatorFlow ? 'Step diagnostics' : 'Step record';
   const primaryTitleHref = workflowOperatorFlow && workflowContextLink
@@ -156,8 +156,8 @@ export function TaskApprovalCard(props: {
                 <CardDescription>
                   {workItemFlow
                     ? 'Review this specialist step from the grouped work-item flow so approval, rework, and retry context stays with the work item.'
-                    : workflowOperatorFlow
-                      ? 'Review this specialist step from the board stage flow so operator decisions stay attached to workflow stage context.'
+                    : task.workflow_id && task.stage_name
+                      ? 'Make the operator decision from the step record. Workflow context is still available when you need stage history or surrounding work state.'
                       : 'This specialist step is waiting on a direct operator decision.'}
                 </CardDescription>
               </div>
@@ -181,7 +181,7 @@ export function TaskApprovalCard(props: {
             </div>
 
             <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
-              {workflowOperatorFlow && workflowContextLink ? (
+              {workItemFlow && workflowContextLink ? (
                 <>
                   <Button size="sm" className="w-full sm:w-auto" asChild>
                     <Link to={workflowContextLink}>
@@ -234,6 +234,11 @@ export function TaskApprovalCard(props: {
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
                     <Link to={`/work/tasks/${task.id}`}>{diagnosticsLabel}</Link>
                   </Button>
+                  {!workItemFlow && workflowContextLink ? (
+                    <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
+                      <Link to={workflowContextLink}>Open Workflow Context</Link>
+                    </Button>
+                  ) : null}
                 </>
               )}
             </div>

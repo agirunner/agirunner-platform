@@ -18,7 +18,7 @@ describe('approval queue task card source', () => {
     expect(source).toContain('Output gate');
     expect(source).toContain('usesWorkflowOperatorFlow');
     expect(source).toContain('Open Work Item Flow');
-    expect(source).toContain('Open Board Stage Flow');
+    expect(source).toContain('Open Workflow Context');
     expect(source).toContain('Open Step Diagnostics');
     expect(source).toContain('Open Step Record');
     expect(source).toContain('Step diagnostics');
