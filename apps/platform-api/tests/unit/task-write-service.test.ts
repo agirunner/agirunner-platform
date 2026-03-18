@@ -133,7 +133,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('JOIN playbooks pb')) {
@@ -249,7 +249,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return {
             rowCount: 1,
             rows: [{
@@ -365,7 +365,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return {
             rowCount: 1,
             rows: [{
@@ -464,7 +464,7 @@ describe('TaskWriteService', () => {
     ]);
   });
 
-  it('treats branch-only workflow parameters as feature branch work while keeping the project default as base branch', async () => {
+  it('treats branch-only workflow parameters as feature branch work while keeping the workspace default as base branch', async () => {
     let insertedEnvironment: Record<string, unknown> | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -477,7 +477,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return {
             rowCount: 1,
             rows: [{
@@ -581,7 +581,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'verification' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return {
             rowCount: 1,
             rows: [{
@@ -690,7 +690,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return {
             rowCount: 1,
             rows: [{
@@ -789,7 +789,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (
@@ -860,7 +860,7 @@ describe('TaskWriteService', () => {
     const service = new TaskWriteService({
       pool: {
         query: vi.fn(async (sql: string) => {
-          if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+          if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
             return { rowCount: 0, rows: [] };
           }
           if (isPlaybookDefinitionLookup(sql)) {
@@ -962,7 +962,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return {
             rowCount: 1,
             rows: [{
@@ -1071,7 +1071,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (isPlaybookDefinitionLookup(sql)) {
@@ -1156,7 +1156,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'requirements' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (
@@ -1243,7 +1243,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'design' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (
@@ -1375,7 +1375,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-2', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
@@ -1442,7 +1442,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (
@@ -1531,7 +1531,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (
@@ -1648,7 +1648,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
@@ -1722,7 +1722,7 @@ describe('TaskWriteService', () => {
             rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
-        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN projects p')) {
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {

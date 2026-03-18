@@ -10,7 +10,7 @@ export interface ScheduledWorkItemTriggerRow {
   tenant_id: string;
   name: string;
   source: string;
-  project_id: string | null;
+  workspace_id: string | null;
   workflow_id: string;
   schedule_type: ScheduledTriggerScheduleType;
   cadence_minutes: number | null;
@@ -81,7 +81,7 @@ export function toPublicScheduledTrigger(row: ScheduledWorkItemTriggerRow) {
     id: row.id,
     name: row.name,
     source: row.source,
-    project_id: row.project_id,
+    workspace_id: row.workspace_id,
     workflow_id: row.workflow_id,
     schedule_type: row.schedule_type,
     cadence_minutes: row.cadence_minutes,

@@ -6,7 +6,7 @@ import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
 import type { LogService } from '../logging/log-service.js';
 import { ArtifactRetentionService } from './artifact-retention-service.js';
 import { EventService } from './event-service.js';
-import { ProjectTimelineService } from './project-timeline-service.js';
+import { WorkspaceTimelineService } from './workspace-timeline-service.js';
 import { enqueueWorkflowActivationRecord } from './workflow-activation-record.js';
 
 export class WorkflowStateService {
@@ -14,7 +14,7 @@ export class WorkflowStateService {
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
     private readonly artifactRetentionService?: ArtifactRetentionService,
-    private readonly projectTimelineService?: ProjectTimelineService,
+    private readonly workspaceTimelineService?: WorkspaceTimelineService,
     private readonly logService?: LogService,
   ) {}
 
@@ -73,7 +73,7 @@ export class WorkflowStateService {
       ['completed', 'failed', 'cancelled'].includes(derivedState)
     ) {
       await this.artifactRetentionService?.purgeWorkflowArtifactsOnTerminalState(tenantId, workflowId, client);
-      await this.projectTimelineService?.recordWorkflowTerminalState(tenantId, workflowId, client);
+      await this.workspaceTimelineService?.recordWorkflowTerminalState(tenantId, workflowId, client);
     }
 
     if (previousState !== derivedState) {

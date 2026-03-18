@@ -601,10 +601,10 @@ describe('WorkItemService', () => {
   it('lists work-item tasks through a dedicated subresource query', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('SELECT wi.id, wi.workflow_id, w.project_id')) {
+        if (sql.includes('SELECT wi.id, wi.workflow_id, w.workspace_id')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
           return {
-            rows: [{ id: 'work-item-1', workflow_id: 'workflow-1', project_id: 'project-1' }],
+            rows: [{ id: 'work-item-1', workflow_id: 'workflow-1', workspace_id: 'workspace-1' }],
             rowCount: 1,
           };
         }
@@ -654,10 +654,10 @@ describe('WorkItemService', () => {
   it('lists work-item events through a dedicated subresource query', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('SELECT wi.id, wi.workflow_id, w.project_id')) {
+        if (sql.includes('SELECT wi.id, wi.workflow_id, w.workspace_id')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
           return {
-            rows: [{ id: 'work-item-1', workflow_id: 'workflow-1', project_id: 'project-1' }],
+            rows: [{ id: 'work-item-1', workflow_id: 'workflow-1', workspace_id: 'workspace-1' }],
             rowCount: 1,
           };
         }
@@ -701,9 +701,9 @@ describe('WorkItemService', () => {
   it('redacts plaintext secrets from work-item metadata and event payloads', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('SELECT wi.id, wi.workflow_id, w.project_id')) {
+        if (sql.includes('SELECT wi.id, wi.workflow_id, w.workspace_id')) {
           return {
-            rows: [{ id: 'work-item-1', workflow_id: 'workflow-1', project_id: 'project-1' }],
+            rows: [{ id: 'work-item-1', workflow_id: 'workflow-1', workspace_id: 'workspace-1' }],
             rowCount: 1,
           };
         }

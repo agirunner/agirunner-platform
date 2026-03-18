@@ -8,7 +8,7 @@ import {
 export interface ActiveTaskScope {
   id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
   work_item_id: string | null;
   stage_name: string | null;
   activation_id: string | null;
@@ -30,7 +30,7 @@ export class TaskAgentScopeService {
     }
 
     const result = await this.pool.query<ActiveTaskScope>(
-      `SELECT id, workflow_id, project_id, work_item_id, stage_name, activation_id, assigned_agent_id, is_orchestrator_task, state
+      `SELECT id, workflow_id, workspace_id, work_item_id, stage_name, activation_id, assigned_agent_id, is_orchestrator_task, state
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2`,

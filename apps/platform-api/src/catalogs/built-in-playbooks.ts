@@ -7,13 +7,13 @@ export interface BuiltInPlaybook {
   definition: Record<string, unknown>;
 }
 
-export const PROJECT_PLANNING_PLAYBOOK_SLUG = 'project-planning-v2';
+export const WORKSPACE_PLANNING_PLAYBOOK_SLUG = 'project-planning-v2';
 
 export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
   {
     name: 'Project Planning',
-    slug: PROJECT_PLANNING_PLAYBOOK_SLUG,
-    description: 'Planning workflow that turns a project brief into a scoped execution plan.',
+    slug: WORKSPACE_PLANNING_PLAYBOOK_SLUG,
+    description: 'Planning workflow that turns a workspace brief into a scoped execution plan.',
     outcome: 'A prioritized execution plan with initial work items.',
     lifecycle: 'planned',
     definition: {
@@ -21,21 +21,21 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
         'Product manager clarifies the brief and success criteria. Architect turns the brief into a scoped execution plan. Human approval is required before the plan is considered complete.',
       parameters: [
         {
-          name: 'project_name',
+          name: 'workspace_name',
           type: 'string',
           required: true,
           category: 'input',
           description: 'Project name',
         },
         {
-          name: 'project_brief',
+          name: 'workspace_brief',
           type: 'string',
           required: true,
           category: 'input',
           description: 'Project brief to analyze',
         },
         {
-          name: 'project_id',
+          name: 'workspace_id',
           type: 'string',
           required: true,
           category: 'input',
@@ -64,9 +64,9 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
       checkpoints: [
         {
           name: 'planning',
-          goal: 'An actionable execution plan and starting backlog exist for the project.',
+          goal: 'An actionable execution plan and starting backlog exist for the workspace.',
           human_gate: true,
-          entry_criteria: 'A project brief and project identity have been provided.',
+          entry_criteria: 'A workspace brief and workspace identity have been provided.',
         },
       ],
       review_rules: [
@@ -130,14 +130,14 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
           name: 'repo',
           type: 'string',
           category: 'repository',
-          maps_to: 'project.repository_url',
+          maps_to: 'workspace.repository_url',
           description: 'Git repository URL',
         },
         {
           name: 'branch',
           type: 'string',
           category: 'repository',
-          maps_to: 'project.settings.default_branch',
+          maps_to: 'workspace.settings.default_branch',
           default: 'main',
           description: 'Branch to work against',
         },

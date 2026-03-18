@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectService } from '../../src/services/project-service.js';
+import { WorkspaceService } from '../../src/services/workspace-service.js';
 import { ArtifactService } from '../../src/services/artifact-service.js';
 
 function createIdentity() {
@@ -18,17 +18,17 @@ function createEventService() {
   return { emit: vi.fn(async () => undefined) };
 }
 
-describe('Project memory write-path secret sanitization', () => {
-  it('strips raw secret values from memory on createProject before DB persistence', async () => {
+describe('Workspace memory write-path secret sanitization', () => {
+  it('strips raw secret values from memory on createWorkspace before DB persistence', async () => {
     let persistedMemory: Record<string, unknown> | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.startsWith('INSERT INTO projects')) {
+        if (sql.startsWith('INSERT INTO workspaces')) {
           persistedMemory = (values?.[6] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
-              id: 'project-1',
+              id: 'workspace-1',
               tenant_id: 'tenant-1',
               name: 'Demo',
               slug: 'demo',
@@ -45,13 +45,13 @@ describe('Project memory write-path secret sanitization', () => {
       }),
     };
 
-    const service = new ProjectService(pool as never, createEventService() as never);
+    const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    await service.createProject(createIdentity() as never, {
+    await service.createWorkspace(createIdentity() as never, {
       name: 'Demo',
       slug: 'demo',
       memory: {
-        safe_label: 'demo project',
+        safe_label: 'demo workspace',
         leaked_key: 'sk-live-abc123secret',
         nested: {
           authorization: 'Bearer top-secret-token',
@@ -63,7 +63,7 @@ describe('Project memory write-path secret sanitization', () => {
     });
 
     expect(persistedMemory).not.toBeNull();
-    expect(persistedMemory!.safe_label).toBe('demo project');
+    expect(persistedMemory!.safe_label).toBe('demo workspace');
     expect(persistedMemory!.leaked_key).toMatch(/^redacted:\/\//);
     expect(persistedMemory!.secret_ref).toBe('secret:MY_API_KEY');
     const nested = persistedMemory!.nested as Record<string, unknown>;
@@ -72,7 +72,7 @@ describe('Project memory write-path secret sanitization', () => {
     expect(nested.safe_note).toBe('this is fine');
   });
 
-  it('strips raw secret values from patch value before DB persistence in patchProjectMemoryEntries', async () => {
+  it('strips raw secret values from patch value before DB persistence in patchWorkspaceMemoryEntries', async () => {
     let persistedMemory: Record<string, unknown> | null = null;
     const client = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -80,7 +80,7 @@ describe('Project memory write-path secret sanitization', () => {
           return {
             rowCount: 1,
             rows: [{
-              id: 'project-1',
+              id: 'workspace-1',
               tenant_id: 'tenant-1',
               name: 'Demo',
               slug: 'demo',
@@ -91,12 +91,12 @@ describe('Project memory write-path secret sanitization', () => {
             }],
           };
         }
-        if (sql.startsWith('UPDATE projects')) {
+        if (sql.startsWith('UPDATE workspaces')) {
           persistedMemory = (values?.[2] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
-              id: 'project-1',
+              id: 'workspace-1',
               tenant_id: 'tenant-1',
               name: 'Demo',
               slug: 'demo',
@@ -118,9 +118,9 @@ describe('Project memory write-path secret sanitization', () => {
     };
 
     const pool = { connect: vi.fn(async () => client) };
-    const service = new ProjectService(pool as never, createEventService() as never);
+    const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    await service.patchProjectMemory(createIdentity() as never, 'project-1', {
+    await service.patchWorkspaceMemory(createIdentity() as never, 'workspace-1', {
       key: 'config',
       value: {
         api_token: 'Bearer leaked-runtime-token',
@@ -152,7 +152,7 @@ describe('Artifact metadata write-path secret sanitization', () => {
               id: 'task-1',
               tenant_id: 'tenant-1',
               workflow_id: 'wf-1',
-              project_id: 'proj-1',
+              workspace_id: 'proj-1',
               workflow_metadata: null,
             }],
           };
@@ -165,7 +165,7 @@ describe('Artifact metadata write-path secret sanitization', () => {
               id: 'artifact-1',
               tenant_id: 'tenant-1',
               workflow_id: 'wf-1',
-              project_id: 'proj-1',
+              workspace_id: 'proj-1',
               task_id: 'task-1',
               logical_path: 'artifact:wf-1/report.md',
               storage_backend: 'local',

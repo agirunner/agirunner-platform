@@ -17,7 +17,7 @@ import {
 import type { WorkflowService } from './workflow-service.js';
 
 interface WorkflowScopeRow {
-  project_id: string | null;
+  workspace_id: string | null;
   playbook_id: string | null;
   definition: unknown;
 }
@@ -25,7 +25,7 @@ interface WorkflowScopeRow {
 export interface CreateScheduledWorkItemTriggerInput {
   name: string;
   source?: string | null;
-  project_id?: string;
+  workspace_id?: string;
   workflow_id: string;
   schedule_type?: ScheduledTriggerScheduleType | null;
   cadence_minutes?: number | null;
@@ -39,7 +39,7 @@ export interface CreateScheduledWorkItemTriggerInput {
 export interface UpdateScheduledWorkItemTriggerInput {
   name?: string;
   source?: string | null;
-  project_id?: string | null;
+  workspace_id?: string | null;
   workflow_id?: string;
   schedule_type?: ScheduledTriggerScheduleType | null;
   cadence_minutes?: number | null;
@@ -65,14 +65,14 @@ export class ScheduledWorkItemTriggerService {
     const normalized = await this.normalizeTriggerInput(identity.tenantId, input);
     const result = await this.pool.query<ScheduledWorkItemTriggerRow>(
       `INSERT INTO scheduled_work_item_triggers (
-         tenant_id, name, source, project_id, workflow_id, schedule_type, cadence_minutes, daily_time, timezone, defaults, is_active, next_fire_at
+         tenant_id, name, source, workspace_id, workflow_id, schedule_type, cadence_minutes, daily_time, timezone, defaults, is_active, next_fire_at
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12)
        RETURNING *`,
       [
         identity.tenantId,
         normalized.name,
         normalized.source,
-        normalized.project_id,
+        normalized.workspace_id,
         normalized.workflow_id,
         normalized.schedule_type,
         normalized.cadence_minutes,
@@ -106,7 +106,7 @@ export class ScheduledWorkItemTriggerService {
     const normalized = await this.normalizeTriggerInput(tenantId, {
       name: input.name ?? current.name,
       source: input.source ?? current.source,
-      project_id: input.project_id === undefined ? current.project_id ?? undefined : input.project_id ?? undefined,
+      workspace_id: input.workspace_id === undefined ? current.workspace_id ?? undefined : input.workspace_id ?? undefined,
       workflow_id: input.workflow_id ?? current.workflow_id,
       schedule_type: input.schedule_type ?? current.schedule_type,
       cadence_minutes: input.cadence_minutes ?? current.cadence_minutes,
@@ -121,7 +121,7 @@ export class ScheduledWorkItemTriggerService {
       `UPDATE scheduled_work_item_triggers
           SET name = $3,
               source = $4,
-              project_id = $5,
+              workspace_id = $5,
               workflow_id = $6,
               schedule_type = $7,
               cadence_minutes = $8,
@@ -139,7 +139,7 @@ export class ScheduledWorkItemTriggerService {
         triggerId,
         normalized.name,
         normalized.source,
-        normalized.project_id,
+        normalized.workspace_id,
         normalized.workflow_id,
         normalized.schedule_type,
         normalized.cadence_minutes,
@@ -189,15 +189,15 @@ export class ScheduledWorkItemTriggerService {
     input: CreateScheduledWorkItemTriggerInput,
     now = new Date(),
   ) {
-    const scope = await this.assertScopeTargets(tenantId, input.project_id, input.workflow_id);
+    const scope = await this.assertScopeTargets(tenantId, input.workspace_id, input.workflow_id);
     const scheduleType = input.schedule_type === 'daily_time' ? 'daily_time' : 'interval';
     const dailyTime = scheduleType === 'daily_time' ? readStringValue(input.daily_time) : null;
     const timezone = scheduleType === 'daily_time' ? readStringValue(input.timezone) : null;
-    const normalizedSource = normalizeProjectScheduleSource(scope.projectId, input.source);
+    const normalizedSource = normalizeWorkspaceScheduleSource(scope.workspaceId, input.source);
     const normalized = {
       name: input.name.trim(),
       source: normalizedSource,
-      project_id: scope.projectId,
+      workspace_id: scope.workspaceId,
       workflow_id: input.workflow_id,
       schedule_type: scheduleType as ScheduledTriggerScheduleType,
       cadence_minutes: scheduleType === 'interval' ? input.cadence_minutes ?? null : null,
@@ -213,9 +213,9 @@ export class ScheduledWorkItemTriggerService {
     return normalized;
   }
 
-  private async assertScopeTargets(tenantId: string, projectId: string | undefined, workflowId: string) {
+  private async assertScopeTargets(tenantId: string, workspaceId: string | undefined, workflowId: string) {
     const workflow = await this.pool.query<WorkflowScopeRow>(
-      `SELECT workflows.project_id,
+      `SELECT workflows.workspace_id,
               workflows.playbook_id,
               playbooks.definition
          FROM workflows
@@ -235,16 +235,16 @@ export class ScheduledWorkItemTriggerService {
       throw new ValidationError('Scheduled work item triggers must target a playbook workflow');
     }
 
-    const effectiveProjectId = workflowRow.project_id ?? null;
-    if (projectId && effectiveProjectId && projectId !== effectiveProjectId) {
-      throw new ValidationError('Workflow and project targets must belong to the same project scope');
+    const effectiveWorkspaceId = workflowRow.workspace_id ?? null;
+    if (workspaceId && effectiveWorkspaceId && workspaceId !== effectiveWorkspaceId) {
+      throw new ValidationError('Workflow and workspace targets must belong to the same workspace scope');
     }
-    if (projectId && !effectiveProjectId) {
-      throw new ValidationError('Workflow does not belong to the provided project scope');
+    if (workspaceId && !effectiveWorkspaceId) {
+      throw new ValidationError('Workflow does not belong to the provided workspace scope');
     }
 
     return {
-      projectId: projectId ?? effectiveProjectId,
+      workspaceId: workspaceId ?? effectiveWorkspaceId,
       definition: parsePlaybookDefinition(workflowRow.definition),
     };
   }
@@ -297,12 +297,12 @@ function resolveNextFireAt(
   return computeInitialScheduledFireAt(schedule, now);
 }
 
-function normalizeProjectScheduleSource(projectId: string | null, source?: string | null) {
+function normalizeWorkspaceScheduleSource(workspaceId: string | null, source?: string | null) {
   const trimmed = typeof source === 'string' ? source.trim() : '';
-  if (projectId) {
-    return 'project.schedule';
+  if (workspaceId) {
+    return 'workspace.schedule';
   }
-  return trimmed || 'project.schedule';
+  return trimmed || 'workspace.schedule';
 }
 
 function readStringValue(value: unknown): string | null {

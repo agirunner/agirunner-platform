@@ -18,7 +18,7 @@ const a2aTaskSchema = z.object({
     type: z.string().max(64).optional(),
     priority: z.string().max(32).optional(),
     workflow_id: z.string().uuid().optional(),
-    project_id: z.string().uuid().optional(),
+    workspace_id: z.string().uuid().optional(),
     role: z.string().max(120).optional(),
     input: z.record(z.unknown()).optional(),
     context: z.record(z.unknown()).optional(),

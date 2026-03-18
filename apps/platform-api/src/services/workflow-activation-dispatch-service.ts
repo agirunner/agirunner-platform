@@ -6,7 +6,7 @@ import { DEFAULT_TENANT_ID } from '../db/seed.js';
 import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
 import { readWorkflowActivationTimingDefaults } from './platform-timing-defaults.js';
-import { readProjectRepositorySettings } from './project-settings.js';
+import { readWorkspaceRepositorySettings } from './workspace-settings.js';
 import { resolveRepositoryBranchContext } from './repository-branch-context.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import {
@@ -71,13 +71,13 @@ interface QueuedActivationRow {
 interface WorkflowDispatchRowBase {
   id: string;
   name: string;
-  project_id: string | null;
+  workspace_id: string | null;
   active_stages: string[];
   playbook_id: string;
   playbook_name: string;
   playbook_outcome: string | null;
-  project_repository_url: string | null;
-  project_settings: Record<string, unknown> | null;
+  workspace_repository_url: string | null;
+  workspace_settings: Record<string, unknown> | null;
   workflow_git_branch: string | null;
   workflow_parameters: Record<string, unknown> | null;
 }
@@ -85,14 +85,14 @@ interface WorkflowDispatchRowBase {
 interface WorkflowDispatchSourceRow {
   id: string;
   name: string;
-  project_id: string | null;
+  workspace_id: string | null;
   lifecycle: string | null;
   playbook_id: string;
   playbook_name: string;
   playbook_outcome: string | null;
   playbook_definition: Record<string, unknown> | null;
-  project_repository_url: string | null;
-  project_settings: Record<string, unknown> | null;
+  workspace_repository_url: string | null;
+  workspace_settings: Record<string, unknown> | null;
   workflow_git_branch: string | null;
   workflow_parameters: Record<string, unknown> | null;
 }
@@ -577,7 +577,7 @@ export class WorkflowActivationDispatchService {
         `INSERT INTO tasks (
            tenant_id,
            workflow_id,
-           project_id,
+           workspace_id,
            title,
            role,
            stage_name,
@@ -613,7 +613,7 @@ export class WorkflowActivationDispatchService {
         [
           activationAnchor.tenant_id,
           activationAnchor.workflow_id,
-          workflow.project_id,
+          workflow.workspace_id,
           taskDefinition.title,
           'orchestrator',
           taskDefinition.stageName,
@@ -963,23 +963,23 @@ export class WorkflowActivationDispatchService {
     const result = await client.query<WorkflowDispatchSourceRow>(
       `SELECT w.id,
               w.name,
-              w.project_id,
+              w.workspace_id,
               w.lifecycle,
               w.playbook_id,
               p.name AS playbook_name,
               p.outcome AS playbook_outcome,
               p.definition AS playbook_definition,
-              proj.repository_url AS project_repository_url,
-              proj.settings AS project_settings,
+              proj.repository_url AS workspace_repository_url,
+              proj.settings AS workspace_settings,
               w.git_branch AS workflow_git_branch,
               w.parameters AS workflow_parameters
          FROM workflows w
          JOIN playbooks p
            ON p.tenant_id = w.tenant_id
           AND p.id = w.playbook_id
-         LEFT JOIN projects proj
+         LEFT JOIN workspaces proj
            ON proj.tenant_id = w.tenant_id
-          AND proj.id = w.project_id
+          AND proj.id = w.workspace_id
         WHERE w.tenant_id = $1
           AND w.id = $2
           AND w.state IN ('pending', 'active')`,
@@ -1545,7 +1545,7 @@ function buildActivationTaskInput(
         ? `Feature branch for repo-backed specialist work: ${repository.feature_branch}.`
         : null,
       'Review the attached workflow, playbook, work item, and activation context before deciding on the next step.',
-      'Use the available workflow management tools to create work items, create tasks, advance stages, request gates, review task outputs, and update project memory when needed.',
+      'Use the available workflow management tools to create work items, create tasks, advance stages, request gates, review task outputs, and update workspace memory when needed.',
       'Every mutating workflow management tool call must include a unique request_id.',
       'Repository-backed specialist tasks must include repository execution context so the runtime can clone, validate, commit, and push safely.',
       'Use the repository, git, shell, artifact, and escalation tools to validate the situation before acting.',
@@ -1704,31 +1704,31 @@ interface WorkflowRepositoryContext {
 
 function resolveWorkflowRepositoryContext(workflow: WorkflowDispatchRow): WorkflowRepositoryContext {
   const parameters = asRecord(workflow.workflow_parameters);
-  const projectRepository = readProjectRepositorySettings(workflow.project_settings);
+  const workspaceRepository = readWorkspaceRepositorySettings(workflow.workspace_settings);
   const branchContext = resolveRepositoryBranchContext({
     parameters,
     workflowGitBranch: workflow.workflow_git_branch,
-    projectDefaultBranch: projectRepository.defaultBranch,
+    workspaceDefaultBranch: workspaceRepository.defaultBranch,
   });
   return {
     repository_url:
       asNullableString(parameters.repository_url)
       ?? asNullableString(parameters.repo)
-      ?? asNullableString(workflow.project_repository_url),
+      ?? asNullableString(workflow.workspace_repository_url),
     base_branch: branchContext.baseBranch,
     feature_branch: branchContext.featureBranch,
     git_user_name:
       asNullableString(parameters.git_user_name)
       ?? asNullableString(parameters.gitUserName)
-      ?? projectRepository.gitUserName,
+      ?? workspaceRepository.gitUserName,
     git_user_email:
       asNullableString(parameters.git_user_email)
       ?? asNullableString(parameters.gitUserEmail)
-      ?? projectRepository.gitUserEmail,
+      ?? workspaceRepository.gitUserEmail,
     git_token_secret_ref:
       asNullableString(parameters.git_token_secret_ref)
       ?? asNullableString(parameters.gitTokenSecretRef)
-      ?? projectRepository.gitTokenSecretRef,
+      ?? workspaceRepository.gitTokenSecretRef,
   };
 }
 

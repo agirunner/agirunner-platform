@@ -2,16 +2,16 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { WorkflowService } from './workflow-service.js';
-import { ProjectTimelineService } from './project-timeline-service.js';
+import { WorkspaceTimelineService } from './workspace-timeline-service.js';
 
 export class WorkflowChainingService {
-  private readonly projectTimelineService: ProjectTimelineService;
+  private readonly workspaceTimelineService: WorkspaceTimelineService;
 
   constructor(
     private readonly pool: DatabasePool,
     private readonly workflowService: WorkflowService,
   ) {
-    this.projectTimelineService = new ProjectTimelineService(pool);
+    this.workspaceTimelineService = new WorkspaceTimelineService(pool);
   }
 
   async chainWorkflowExplicit(
@@ -30,7 +30,7 @@ export class WorkflowChainingService {
       ? await this.createOrReuseChainedWorkflow(identity, sourceWorkflowId, sourceWorkflow, payload, requestId)
       : await this.workflowService.createWorkflow(identity, {
           playbook_id: payload.playbook_id,
-          project_id: sourceWorkflow.project_id ? String(sourceWorkflow.project_id) : undefined,
+          workspace_id: sourceWorkflow.workspace_id ? String(sourceWorkflow.workspace_id) : undefined,
           name: payload.name ?? `${String(sourceWorkflow.name)} follow-up`,
           parameters: payload.parameters,
           metadata: {
@@ -68,7 +68,7 @@ export class WorkflowChainingService {
     try {
       return await this.workflowService.createWorkflow(identity, {
         playbook_id: payload.playbook_id,
-        project_id: sourceWorkflow.project_id ? String(sourceWorkflow.project_id) : undefined,
+        workspace_id: sourceWorkflow.workspace_id ? String(sourceWorkflow.workspace_id) : undefined,
         name: payload.name ?? `${String(sourceWorkflow.name)} follow-up`,
         parameters: payload.parameters,
         metadata: {
@@ -91,7 +91,7 @@ export class WorkflowChainingService {
 
   private async fetchSourceWorkflow(tenantId: string, workflowId: string) {
     const result = await this.pool.query(
-      'SELECT id, project_id, name, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
+      'SELECT id, workspace_id, name, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
       [tenantId, workflowId],
     );
     if (!result.rowCount) {
@@ -145,7 +145,7 @@ export class WorkflowChainingService {
       ],
     );
     if (isTerminalWorkflowState(sourceWorkflow.state)) {
-      await this.projectTimelineService.recordWorkflowTerminalState(tenantId, sourceWorkflowId);
+      await this.workspaceTimelineService.recordWorkflowTerminalState(tenantId, sourceWorkflowId);
     }
   }
 }

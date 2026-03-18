@@ -9,7 +9,7 @@ import { ModelCatalogService } from './model-catalog-service.js';
 import { TaskClaimService } from './task-claim-service.js';
 import { TaskLifecycleService } from './task-lifecycle-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
-import { ProjectTimelineService } from './project-timeline-service.js';
+import { WorkspaceTimelineService } from './workspace-timeline-service.js';
 import { TaskQueryService } from './task-query-service.js';
 import { TaskTimeoutService } from './task-timeout-service.js';
 import type { CreateTaskInput, ListTaskQuery, TaskServiceConfig } from './task-service.types.js';
@@ -132,7 +132,7 @@ export class TaskService {
       pool,
       createArtifactStorage(buildArtifactStorageConfig(config)),
     );
-    const projectTimelineService = new ProjectTimelineService(pool);
+    const workspaceTimelineService = new WorkspaceTimelineService(pool);
     const artifactService = new ArtifactService(
       pool,
       createArtifactStorage(buildArtifactStorageConfig(config)),
@@ -142,7 +142,7 @@ export class TaskService {
       pool,
       eventService,
       artifactRetentionService,
-      projectTimelineService,
+      workspaceTimelineService,
       logService,
     );
     const workflowBudgetService = new WorkflowBudgetService(

@@ -10,10 +10,10 @@ import {
 } from '../orchestration/playbook-model.js';
 import { EventService } from './event-service.js';
 import {
-  ProjectMemoryScopeService,
+  WorkspaceMemoryScopeService,
   type WorkItemMemoryEntry,
   type WorkItemMemoryHistoryEntry,
-} from './project-memory-scope-service.js';
+} from './workspace-memory-scope-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
@@ -81,7 +81,7 @@ interface WorkflowStageContextRow {
 }
 
 export class WorkItemService {
-  private readonly memoryScopeService: ProjectMemoryScopeService;
+  private readonly memoryScopeService: WorkspaceMemoryScopeService;
 
   constructor(
     private readonly pool: DatabasePool,
@@ -89,7 +89,7 @@ export class WorkItemService {
     private readonly activationService: WorkflowActivationService,
     private readonly activationDispatchService: WorkflowActivationDispatchService,
   ) {
-    this.memoryScopeService = new ProjectMemoryScopeService(pool);
+    this.memoryScopeService = new WorkspaceMemoryScopeService(pool);
   }
 
   async listWorkflowWorkItems(
@@ -189,23 +189,23 @@ export class WorkItemService {
     workItemId: string,
   ): Promise<{ entries: WorkItemMemoryEntry[] }> {
     const context = await this.loadWorkItemContext(tenantId, workflowId, workItemId);
-    if (!context.project_id) {
+    if (!context.workspace_id) {
       return { entries: [] };
     }
 
-    const projectResult = await this.pool.query<{ memory: unknown }>(
+    const workspaceResult = await this.pool.query<{ memory: unknown }>(
       `SELECT memory
-         FROM projects
+         FROM workspaces
         WHERE tenant_id = $1
           AND id = $2
         LIMIT 1`,
-      [tenantId, context.project_id],
+      [tenantId, context.workspace_id],
     );
 
-    const currentMemory = asRecord(projectResult.rows[0]?.memory);
+    const currentMemory = asRecord(workspaceResult.rows[0]?.memory);
     const entries = await this.memoryScopeService.listWorkItemMemoryEntries({
       tenantId,
-      projectId: context.project_id,
+      workspaceId: context.workspace_id,
       workflowId,
       workItemId,
       currentMemory,
@@ -220,13 +220,13 @@ export class WorkItemService {
     limit: number,
   ): Promise<{ history: WorkItemMemoryHistoryEntry[] }> {
     const context = await this.loadWorkItemContext(tenantId, workflowId, workItemId);
-    if (!context.project_id) {
+    if (!context.workspace_id) {
       return { history: [] };
     }
 
     const history = await this.memoryScopeService.listWorkItemMemoryHistory({
       tenantId,
-      projectId: context.project_id,
+      workspaceId: context.workspace_id,
       workflowId,
       workItemId,
       limit,
@@ -573,8 +573,8 @@ export class WorkItemService {
   }
 
   private async loadWorkItemContext(tenantId: string, workflowId: string, workItemId: string) {
-    const result = await this.pool.query<{ id: string; workflow_id: string; project_id: string | null }>(
-      `SELECT wi.id, wi.workflow_id, w.project_id
+    const result = await this.pool.query<{ id: string; workflow_id: string; workspace_id: string | null }>(
+      `SELECT wi.id, wi.workflow_id, w.workspace_id
          FROM workflow_work_items wi
          JOIN workflows w
            ON w.tenant_id = wi.tenant_id

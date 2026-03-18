@@ -8,16 +8,16 @@ import {
 } from '../../src/services/document-reference-service.js';
 
 describe('document reference service', () => {
-  it('redacts plaintext secrets from workflow and project document metadata', async () => {
+  it('redacts plaintext secrets from workflow and workspace document metadata', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('SELECT project_id, project_spec_version')) {
+        if (sql.includes('SELECT workspace_id, workspace_spec_version')) {
           return {
             rowCount: 1,
-            rows: [{ project_id: 'project-1', project_spec_version: 2 }],
+            rows: [{ workspace_id: 'workspace-1', workspace_spec_version: 2 }],
           };
         }
-        if (sql.includes('FROM project_spec_versions')) {
+        if (sql.includes('FROM workspace_spec_versions')) {
           return {
             rowCount: 1,
             rows: [{
@@ -27,7 +27,7 @@ describe('document reference service', () => {
                     source: 'repository',
                     path: 'docs/plan.md',
                     metadata: {
-                      deploy_token: 'plaintext-project-secret',
+                      deploy_token: 'plaintext-workspace-secret',
                       secret_ref: 'secret:PROJECT_DOC_TOKEN',
                     },
                   },
@@ -88,10 +88,10 @@ describe('document reference service', () => {
   it('creates artifact-backed workflow documents from existing workflow artifacts', async () => {
     const db = {
       query: vi.fn(async (sql: string, params: unknown[]) => {
-        if (sql.includes('SELECT project_id, project_spec_version')) {
+        if (sql.includes('SELECT workspace_id, workspace_spec_version')) {
           return {
             rowCount: 1,
-            rows: [{ project_id: 'project-1', project_spec_version: 2 }],
+            rows: [{ workspace_id: 'workspace-1', workspace_spec_version: 2 }],
           };
         }
         if (sql.includes('FROM workflow_documents') && sql.includes('ORDER BY created_at DESC')) {
@@ -160,10 +160,10 @@ describe('document reference service', () => {
   it('updates workflow documents while preserving repository metadata', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('SELECT project_id, project_spec_version')) {
+        if (sql.includes('SELECT workspace_id, workspace_spec_version')) {
           return {
             rowCount: 1,
-            rows: [{ project_id: 'project-1', project_spec_version: 2 }],
+            rows: [{ workspace_id: 'workspace-1', workspace_spec_version: 2 }],
           };
         }
         if (sql.includes('FROM workflow_documents') && sql.includes('ORDER BY created_at DESC')) {

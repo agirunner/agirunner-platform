@@ -33,8 +33,8 @@ import { OrchestratorGrantService } from '../services/orchestrator-grant-service
 import { ToolTagService } from '../services/tool-tag-service.js';
 import { WebhookWorkItemTriggerService } from '../services/webhook-work-item-trigger-service.js';
 import { ModelCatalogService } from '../services/model-catalog-service.js';
-import { ProjectArtifactFileService } from '../services/project-artifact-file-service.js';
-import { ProjectService } from '../services/project-service.js';
+import { WorkspaceArtifactFileService } from '../services/workspace-artifact-file-service.js';
+import { WorkspaceService } from '../services/workspace-service.js';
 import { PlaybookService } from '../services/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { readPlatformTransportTimingDefaults } from '../services/platform-timing-defaults.js';
@@ -147,12 +147,12 @@ export async function buildApp() {
     undefined,
     integrationActionService,
   );
-  const projectService = new ProjectService(pool, eventService, appConfig);
-  const projectArtifactFileService = new ProjectArtifactFileService(
+  const workspaceService = new WorkspaceService(pool, eventService, appConfig);
+  const workspaceArtifactFileService = new WorkspaceArtifactFileService(
     pool,
     createArtifactStorage(buildArtifactStorageConfig(appConfig)),
-    appConfig.PROJECT_ARTIFACT_MAX_UPLOAD_FILES,
-    appConfig.PROJECT_ARTIFACT_MAX_UPLOAD_BYTES,
+    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_FILES,
+    appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
   );
   const playbookService = new PlaybookService(pool);
   const workflowService = new WorkflowService(pool, eventService, appConfig, workerConnectionHub, logService);
@@ -199,10 +199,10 @@ export async function buildApp() {
   app.decorate('workerService', createLoggedService(workerService, 'WorkerService', logService));
   app.decorate('webhookService', createLoggedService(webhookService, 'WebhookService', logService));
   app.decorate('governanceService', createLoggedService(governanceService, 'GovernanceService', logService));
-  app.decorate('projectService', createLoggedService(projectService, 'ProjectService', logService));
+  app.decorate('workspaceService', createLoggedService(workspaceService, 'WorkspaceService', logService));
   app.decorate(
-    'projectArtifactFileService',
-    createLoggedService(projectArtifactFileService, 'ProjectArtifactFileService', logService),
+    'workspaceArtifactFileService',
+    createLoggedService(workspaceArtifactFileService, 'WorkspaceArtifactFileService', logService),
   );
   app.decorate('playbookService', createLoggedService(playbookService, 'PlaybookService', logService));
   app.decorate('workflowService', createLoggedService(workflowService, 'WorkflowService', logService));

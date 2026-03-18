@@ -26,7 +26,7 @@ export interface WorkflowBudgetSnapshot {
 
 export interface CreateWorkflowInput {
   playbook_id: string;
-  project_id?: string;
+  workspace_id?: string;
   name: string;
   parameters?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
@@ -36,7 +36,7 @@ export interface CreateWorkflowInput {
 }
 
 export interface ListWorkflowQuery {
-  project_id?: string;
+  workspace_id?: string;
   state?: string;
   playbook_id?: string;
   page: number;

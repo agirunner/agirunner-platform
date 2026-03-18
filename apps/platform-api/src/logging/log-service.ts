@@ -24,10 +24,10 @@ export interface ExecutionLogEntry {
   durationMs?: number | null;
   payload?: Record<string, unknown>;
   error?: { code?: string; message: string; stack?: string } | null;
-  projectId?: string | null;
+  workspaceId?: string | null;
   workflowId?: string | null;
   workflowName?: string | null;
-  projectName?: string | null;
+  workspaceName?: string | null;
   taskId?: string | null;
   workItemId?: string | null;
   stageName?: string | null;
@@ -58,10 +58,10 @@ export interface LogRow {
   duration_ms: number | null;
   payload: Record<string, unknown>;
   error: { code?: string; message: string; stack?: string } | null;
-  project_id: string | null;
+  workspace_id: string | null;
   workflow_id: string | null;
   workflow_name: string | null;
-  project_name: string | null;
+  workspace_name: string | null;
   task_id: string | null;
   work_item_id: string | null;
   stage_name: string | null;
@@ -79,7 +79,7 @@ export interface LogRow {
 }
 
 export interface LogFilters {
-  projectId?: string;
+  workspaceId?: string;
   workflowId?: string;
   taskId?: string;
   workItemId?: string;
@@ -103,7 +103,7 @@ export interface LogFilters {
 }
 
 export interface LogStatsFilters {
-  projectId?: string;
+  workspaceId?: string;
   traceId?: string;
   workflowId?: string;
   taskId?: string;
@@ -220,18 +220,18 @@ export class LogService {
     await this.ensurePartition(partitionDate);
 
     const workflowName = entry.workflowName ?? null;
-    const projectName = entry.projectName ?? null;
+    const workspaceName = entry.workspaceName ?? null;
     const stageName = entry.stageName ?? null;
 
     try {
-      await this.insertRow(entry, workflowName, projectName, stageName);
+      await this.insertRow(entry, workflowName, workspaceName, stageName);
     } catch (error) {
       if (!isMissingExecutionLogPartitionError(error)) {
         throw error;
       }
       this.ensuredPartitionDates.delete(partitionDate);
       await this.ensurePartition(partitionDate);
-      await this.insertRow(entry, workflowName, projectName, stageName);
+      await this.insertRow(entry, workflowName, workspaceName, stageName);
     }
   }
 
@@ -290,7 +290,7 @@ export class LogService {
       `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
               source, category, level, operation, status, duration_ms,
               payload, error,
-              project_id, workflow_id, workflow_name, project_name, task_id,
+              workspace_id, workflow_id, workflow_name, workspace_name, task_id,
               work_item_id, stage_name, activation_id, is_orchestrator_task,
               task_title,
               role,
@@ -329,7 +329,7 @@ export class LogService {
       `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
               source, category, level, operation, status, duration_ms,
               payload, error,
-              project_id, workflow_id, workflow_name, project_name, task_id,
+              workspace_id, workflow_id, workflow_name, workspace_name, task_id,
               work_item_id, stage_name, activation_id, is_orchestrator_task,
               task_title,
               role,
@@ -492,7 +492,7 @@ export class LogService {
   private async insertRow(
     entry: ExecutionLogEntry,
     workflowName: string | null,
-    projectName: string | null,
+    workspaceName: string | null,
     stageName: string | null,
   ): Promise<void> {
     const payload = sanitizeLogValue(redactPayload(entry.payload) ?? {}) as Record<string, unknown>;
@@ -507,7 +507,7 @@ export class LogService {
         tenant_id, trace_id, span_id, parent_span_id,
         source, category, level, operation, status, duration_ms,
         payload, error,
-        project_id, workflow_id, workflow_name, project_name, task_id,
+        workspace_id, workflow_id, workflow_name, workspace_name, task_id,
         work_item_id, activation_id, task_title, stage_name, is_orchestrator_task,
         role,
         actor_type, actor_id, actor_name,
@@ -537,10 +537,10 @@ export class LogService {
         entry.durationMs ?? null,
         JSON.stringify(payload),
         error ? JSON.stringify(error) : null,
-        entry.projectId ?? null,
+        entry.workspaceId ?? null,
         entry.workflowId ?? null,
         sanitizeOptionalLogText(workflowName),
-        sanitizeOptionalLogText(projectName),
+        sanitizeOptionalLogText(workspaceName),
         entry.taskId ?? null,
         entry.workItemId ?? null,
         entry.activationId ?? null,
@@ -591,9 +591,9 @@ export class LogService {
   }
 
   private applyFilters(conditions: string[], values: unknown[], filters: LogFilters): void {
-    if (filters.projectId) {
-      values.push(filters.projectId);
-      conditions.push(`project_id = $${values.length}`);
+    if (filters.workspaceId) {
+      values.push(filters.workspaceId);
+      conditions.push(`workspace_id = $${values.length}`);
     }
     if (filters.workflowId) {
       values.push(filters.workflowId);
@@ -662,7 +662,7 @@ export class LogService {
       const p = values.length;
       const searchable =
         `CONCAT_WS(' ', operation, task_id, work_item_id, activation_id,` +
-        ` workflow_id, project_id, stage_name, trace_id, span_id,` +
+        ` workflow_id, workspace_id, stage_name, trace_id, span_id,` +
         ` actor_name, actor_id, task_title, payload::text)`;
       conditions.push(`${searchable} ILIKE $${p}`);
     }
@@ -681,9 +681,9 @@ export class LogService {
     values: unknown[],
     filters: LogStatsFilters,
   ): void {
-    if (filters.projectId) {
-      values.push(filters.projectId);
-      conditions.push(`project_id = $${values.length}`);
+    if (filters.workspaceId) {
+      values.push(filters.workspaceId);
+      conditions.push(`workspace_id = $${values.length}`);
     }
     if (filters.traceId) {
       values.push(filters.traceId);

@@ -262,7 +262,7 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
       const subscribeToEvents = (filters: {
         event_types?: string[];
         entity_types?: string[];
-        project_id?: string;
+        workspace_id?: string;
         workflow_id?: string;
       }) => {
         if (!identity) {
@@ -275,7 +275,7 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
           {
             types: filters.event_types,
             entityTypes: filters.entity_types,
-            projectId: filters.project_id,
+            workspaceId: filters.workspace_id,
             workflowId: filters.workflow_id,
           },
           (event) => {
@@ -347,7 +347,7 @@ export function registerWebsocketGateway(app: FastifyInstance): void {
           const filters = {
             event_types: toStringArray(filtersRaw?.event_types),
             entity_types: toStringArray(filtersRaw?.entity_types),
-            project_id: typeof filtersRaw?.project_id === 'string' ? filtersRaw.project_id : undefined,
+            workspace_id: typeof filtersRaw?.workspace_id === 'string' ? filtersRaw.workspace_id : undefined,
             workflow_id: typeof filtersRaw?.workflow_id === 'string' ? filtersRaw.workflow_id : undefined,
           };
 

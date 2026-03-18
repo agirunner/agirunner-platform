@@ -59,7 +59,7 @@ describe('workflow document routes', () => {
     app.decorate('pgPool', {} as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn() } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -81,7 +81,7 @@ describe('workflow document routes', () => {
       .fn()
       .mockResolvedValueOnce({
         rowCount: 1,
-        rows: [{ project_id: 'project-1', project_spec_version: 1 }],
+        rows: [{ workspace_id: 'workspace-1', workspace_spec_version: 1 }],
       })
       .mockResolvedValueOnce({ rowCount: 0, rows: [] })
       .mockResolvedValueOnce({
@@ -127,7 +127,7 @@ describe('workflow document routes', () => {
     app.decorate('pgPool', { query } as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn() } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),

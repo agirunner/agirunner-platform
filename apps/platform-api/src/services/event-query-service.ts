@@ -3,8 +3,8 @@ import type { DatabasePool } from '../db/database.js';
 import { ValidationError } from '../errors/domain-errors.js';
 import { sanitizeEventRows } from './event-service.js';
 
-const PROJECT_ID_SQL =
-  "COALESCE(data->>'project_id', CASE WHEN entity_type = 'project' THEN entity_id::text ELSE '' END)";
+const WORKSPACE_ID_SQL =
+  "COALESCE(data->>'workspace_id', CASE WHEN entity_type = 'workspace' THEN entity_id::text ELSE '' END)";
 const WORKFLOW_ID_SQL =
   "COALESCE(data->>'workflow_id', CASE WHEN entity_type = 'workflow' THEN entity_id::text ELSE '' END)";
 const WORK_ITEM_ID_SQL =
@@ -17,7 +17,7 @@ interface EventBrowseFilters {
   tenantId: string;
   entityTypes?: string[];
   entityId?: string;
-  projectId?: string;
+  workspaceId?: string;
   workflowId?: string;
   workflowScopeId?: string;
   workItemId?: string;
@@ -84,7 +84,7 @@ export class EventQueryService {
 
     this.addArrayFilter(conditions, values, filters.entityTypes, 'entity_type::text');
     this.addExactFilter(conditions, values, filters.entityId, 'entity_id');
-    this.addExactFilter(conditions, values, filters.projectId, PROJECT_ID_SQL);
+    this.addExactFilter(conditions, values, filters.workspaceId, WORKSPACE_ID_SQL);
     this.addExactFilter(conditions, values, filters.workflowId, WORKFLOW_ID_SQL);
     this.addExactFilter(conditions, values, filters.workItemId, WORK_ITEM_ID_SQL);
     this.addExactFilter(conditions, values, filters.stageName, STAGE_NAME_SQL);

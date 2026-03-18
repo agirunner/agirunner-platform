@@ -40,17 +40,17 @@ describe('LogService', () => {
         source: 'platform',
         category: 'api',
         level: 'info',
-        operation: 'api.get.projects',
+        operation: 'api.get.workspaces',
         status: 'completed',
         durationMs: 45,
-        payload: { method: 'GET', path: '/api/v1/projects' },
-        projectId: 'proj-1',
+        payload: { method: 'GET', path: '/api/v1/workspaces' },
+        workspaceId: 'proj-1',
         workflowId: null,
         taskId: null,
         actorType: 'user',
         actorId: 'user-1',
         actorName: 'Mark',
-        resourceType: 'project',
+        resourceType: 'workspace',
         resourceId: '00000000-0000-0000-0000-000000000111',
         resourceName: 'My Project',
       });
@@ -63,7 +63,7 @@ describe('LogService', () => {
       expect(params[1]).toBe('trace-1');
       expect(params[4]).toBe('platform');
       expect(params[5]).toBe('api');
-      expect(params[7]).toBe('api.get.projects');
+      expect(params[7]).toBe('api.get.workspaces');
       expect(params[8]).toBe('completed');
       expect(params[9]).toBe(45);
     });
@@ -737,13 +737,13 @@ describe('LogService', () => {
       const service = new LogService(pool as never);
 
       await service.query('tenant-1', {
-        projectId: 'proj-1',
+        workspaceId: 'proj-1',
         workflowId: 'wf-1',
         taskId: 'task-1',
       });
 
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain('project_id = $');
+      expect(sql).toContain('workspace_id = $');
       expect(sql).toContain('workflow_id = $');
       expect(sql).toContain('task_id = $');
       expect(params).toContain('proj-1');

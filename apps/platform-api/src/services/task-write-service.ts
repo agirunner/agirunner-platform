@@ -5,7 +5,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
-import { readProjectRepositorySettings } from './project-settings.js';
+import { readWorkspaceRepositorySettings } from './workspace-settings.js';
 import { resolveRepositoryBranchContext } from './repository-branch-context.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
@@ -34,7 +34,7 @@ interface TaskWriteDependencies {
 interface ParentTaskRow {
   id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
   assigned_agent_id: string | null;
   assigned_worker_id: string | null;
   parent_id: string | null;
@@ -150,7 +150,7 @@ export class TaskWriteService {
 
     const insertResult = await db.query(
       `INSERT INTO tasks (
-        tenant_id, workflow_id, work_item_id, project_id, title, role, stage_name, priority, state, depends_on,
+        tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
         requires_approval, requires_output_review, input, context, capabilities_required, role_config, environment,
         resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, metadata
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
@@ -160,7 +160,7 @@ export class TaskWriteService {
         identity.tenantId,
         normalizedInput.workflow_id ?? null,
         normalizedInput.work_item_id ?? null,
-        normalizedInput.project_id ?? null,
+        normalizedInput.workspace_id ?? null,
         normalizedInput.title,
         normalizedInput.role ?? null,
         normalizedInput.stage_name ?? null,
@@ -403,9 +403,9 @@ export class TaskWriteService {
               w.git_branch,
               w.parameters
          FROM workflows w
-         LEFT JOIN projects p
+         LEFT JOIN workspaces p
            ON p.tenant_id = w.tenant_id
-          AND p.id = w.project_id
+          AND p.id = w.workspace_id
         WHERE w.tenant_id = $1
           AND w.id = $2
         LIMIT 1`,
@@ -417,13 +417,13 @@ export class TaskWriteService {
 
     const workflow = result.rows[0];
     const parameters = asRecord(workflow.parameters);
-    const projectRepository = readProjectRepositorySettings(workflow.settings);
+    const workspaceRepository = readWorkspaceRepositorySettings(workflow.settings);
     const environment = asRecord(input.environment);
     const branchContext = resolveRepositoryBranchContext({
       environment,
       parameters,
       workflowGitBranch: workflow.git_branch,
-      projectDefaultBranch: projectRepository.defaultBranch,
+      workspaceDefaultBranch: workspaceRepository.defaultBranch,
     });
     const repositoryURL =
       asNullableString(environment.repository_url)
@@ -437,17 +437,17 @@ export class TaskWriteService {
       ?? asNullableString(environment.gitUserName)
       ?? asNullableString(parameters.git_user_name)
       ?? asNullableString(parameters.gitUserName)
-      ?? projectRepository.gitUserName;
+      ?? workspaceRepository.gitUserName;
     const gitUserEmail =
       asNullableString(environment.git_user_email)
       ?? asNullableString(environment.gitUserEmail)
       ?? asNullableString(parameters.git_user_email)
       ?? asNullableString(parameters.gitUserEmail)
-      ?? projectRepository.gitUserEmail;
+      ?? workspaceRepository.gitUserEmail;
     const gitTokenSecretRef =
       asNullableString(parameters.git_token_secret_ref)
       ?? asNullableString(parameters.gitTokenSecretRef)
-      ?? projectRepository.gitTokenSecretRef;
+      ?? workspaceRepository.gitTokenSecretRef;
 
     const nextEnvironment: Record<string, unknown> = {
       ...environment,
@@ -594,13 +594,13 @@ export class TaskWriteService {
     return {
       ...input,
       workflow_id: input.workflow_id ?? parentTask.workflow_id ?? undefined,
-      project_id: input.project_id ?? parentTask.project_id ?? undefined,
+      workspace_id: input.workspace_id ?? parentTask.workspace_id ?? undefined,
     };
   }
 
   private async loadParentTask(tenantId: string, parentId: string): Promise<ParentTaskRow> {
     const result = await this.deps.pool.query<ParentTaskRow>(
-      `SELECT id, workflow_id, project_id, assigned_agent_id, assigned_worker_id, metadata->>'parent_id' AS parent_id
+      `SELECT id, workflow_id, workspace_id, assigned_agent_id, assigned_worker_id, metadata->>'parent_id' AS parent_id
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2`,
@@ -923,7 +923,7 @@ function buildExpectedCreateTaskReplay(
   return {
     workflow_id: input.workflow_id ?? null,
     work_item_id: input.work_item_id ?? null,
-    project_id: input.project_id ?? null,
+    workspace_id: input.workspace_id ?? null,
     role: input.role ?? null,
     stage_name: input.stage_name ?? null,
     depends_on: dependencies,
@@ -953,7 +953,7 @@ function assertMatchingCreateTaskReplay(
   if (
     (existing.workflow_id ?? null) !== expected.workflow_id ||
     (existing.work_item_id ?? null) !== expected.work_item_id ||
-    (existing.project_id ?? null) !== expected.project_id ||
+    (existing.workspace_id ?? null) !== expected.workspace_id ||
     (existing.role ?? null) !== expected.role ||
     (existing.stage_name ?? null) !== expected.stage_name ||
     !areJsonValuesEquivalent(existing.depends_on ?? [], expected.depends_on) ||

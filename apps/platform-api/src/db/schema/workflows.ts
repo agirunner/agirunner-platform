@@ -1,7 +1,7 @@
 import { sql } from 'drizzle-orm';
 import { boolean, check, index, integer, jsonb, numeric, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-import { projects } from './projects.js';
+import { workspaces } from './workspaces.js';
 import { playbooks } from './playbooks.js';
 import { workflowStateEnum } from './enums.js';
 import { tenants } from './tenants.js';
@@ -13,10 +13,10 @@ export const workflows = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id),
-    projectId: uuid('project_id').references(() => projects.id),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id),
     playbookId: uuid('playbook_id').references(() => playbooks.id),
     playbookVersion: integer('playbook_version'),
-    projectSpecVersion: integer('project_spec_version'),
+    workspaceSpecVersion: integer('workspace_spec_version'),
     name: text('name').notNull(),
     state: workflowStateEnum('state').notNull().default('pending'),
     lifecycle: text('lifecycle'),
@@ -43,7 +43,7 @@ export const workflows = pgTable(
   },
   (table) => [
     index('idx_workflows_tenant').on(table.tenantId),
-    index('idx_workflows_project').on(table.projectId),
+    index('idx_workflows_workspace').on(table.workspaceId),
     index('idx_workflows_state').on(table.tenantId, table.state),
     index('idx_workflows_playbook').on(table.playbookId),
     check(

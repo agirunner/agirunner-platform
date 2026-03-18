@@ -17,7 +17,7 @@ export interface DispatchWorkerCandidate {
 interface ClaimedTaskRow {
   id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
   [key: string]: unknown;
 }
 
@@ -151,7 +151,7 @@ export async function resetExpiredDispatch(
          claimed_at = NULL,
          metadata = metadata - 'dispatch_pending'
      WHERE tenant_id = $1 AND id = $2 AND state = 'claimed' AND assigned_worker_id = $3
-     RETURNING id, workflow_id, project_id`,
+     RETURNING id, workflow_id, workspace_id`,
     [dispatch.tenantId, dispatch.taskId, dispatch.workerId],
   );
 

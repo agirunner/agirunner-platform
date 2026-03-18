@@ -64,7 +64,7 @@ describe('scheduled work item trigger routes', () => {
       headers: { authorization: 'Bearer test' },
       payload: {
         name: 'Morning triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         workflow_id: '11111111-1111-4111-8111-111111111111',
         schedule_type: 'daily_time',
         cadence_minutes: null,
@@ -81,7 +81,7 @@ describe('scheduled work item trigger routes', () => {
       expect.objectContaining({ tenantId: 'tenant-1' }),
       {
         name: 'Morning triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         workflow_id: '11111111-1111-4111-8111-111111111111',
         schedule_type: 'daily_time',
         cadence_minutes: null,
@@ -108,7 +108,7 @@ describe('scheduled work item trigger routes', () => {
       headers: { authorization: 'Bearer test' },
       payload: {
         name: 'Interval triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         workflow_id: '11111111-1111-4111-8111-111111111111',
         schedule_type: 'interval',
         cadence_minutes: null,

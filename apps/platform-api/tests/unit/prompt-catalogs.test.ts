@@ -74,7 +74,7 @@ describe('prompt catalogs', () => {
     expect(roles.length).toBeGreaterThan(0);
     for (const role of roles) {
       expect(role.systemPrompt).toContain('If predecessor handoff exists in your task context, read it first');
-      expect(role.systemPrompt).toContain('Treat predecessor handoffs, task input, project memory, the workflow brief, launch inputs, and the current branch diff as authoritative');
+      expect(role.systemPrompt).toContain('Treat predecessor handoffs, task input, workspace memory, the workflow brief, launch inputs, and the current branch diff as authoritative');
       expect(role.systemPrompt).toContain(
         'assume only the prepared repository workspace, git, and a minimal shell are guaranteed',
       );

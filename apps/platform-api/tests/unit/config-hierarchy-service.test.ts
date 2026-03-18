@@ -9,7 +9,7 @@ import {
 } from '../../src/services/config-hierarchy-service.js';
 
 describe('config hierarchy service', () => {
-  it('deep merges playbook, project, and run layers while preserving source snapshots', () => {
+  it('deep merges playbook, workspace, and run layers while preserving source snapshots', () => {
     const resolved = resolveWorkflowConfig(
       {
         config: {
@@ -32,7 +32,7 @@ describe('config hierarchy service', () => {
       runtime: { timeout: 50, mode: 'safe' },
       tools: ['git', 'shell'],
     });
-    expect(resolved.layers.project).toEqual({
+    expect(resolved.layers.workspace).toEqual({
       runtime: { timeout: 45 },
     });
   });
@@ -85,7 +85,7 @@ describe('config hierarchy service', () => {
     });
   });
 
-  it('merges model overrides from project settings and workflow run overrides into config layers', () => {
+  it('merges model overrides from workspace settings and workflow run overrides into config layers', () => {
     const resolved = resolveWorkflowConfig(
       { config: { runtime: { timeout: 30 } } },
       {
@@ -101,7 +101,7 @@ describe('config hierarchy service', () => {
       },
     );
 
-    expect(resolved.layers.project).toEqual({
+    expect(resolved.layers.workspace).toEqual({
       model_override: {
         model_id: '00000000-0000-0000-0000-000000000001',
         reasoning_config: { effort: 'medium' },

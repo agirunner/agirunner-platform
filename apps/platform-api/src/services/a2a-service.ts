@@ -10,7 +10,7 @@ interface A2ATaskPayload {
   type?: string;
   priority?: string;
   workflow_id?: string;
-  project_id?: string;
+  workspace_id?: string;
   role?: string;
   input?: Record<string, unknown>;
   context?: Record<string, unknown>;
@@ -48,7 +48,7 @@ export function mapA2ATaskToCreateInput(task: A2ATaskPayload): CreateTaskInput {
     description: task.description,
     priority: normalizePriority(task.priority),
     workflow_id: task.workflow_id,
-    project_id: task.project_id,
+    workspace_id: task.workspace_id,
     role: task.role,
     input: task.input ?? {},
     context: task.context ?? {},
@@ -83,7 +83,7 @@ export function buildA2ATaskResponse(task: Record<string, unknown>) {
       ...metadata,
       task_id: task.id,
       workflow_id: task.workflow_id,
-      project_id: task.project_id,
+      workspace_id: task.workspace_id,
     },
   };
 }

@@ -38,7 +38,7 @@ describe('buildTaskContext active stage semantics', () => {
                   { name: 'review', goal: 'Review changes' },
                 ],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -89,7 +89,7 @@ describe('buildTaskContext active stage semantics', () => {
                   { name: 'review', goal: 'Review work' },
                 ],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -175,7 +175,7 @@ describe('buildTaskContext active stage semantics', () => {
                   { name: 'implementation', goal: 'Build the work' },
                 ],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -277,7 +277,7 @@ describe('buildTaskContext active stage semantics', () => {
                 review_rules: [{ from_role: 'developer', reviewed_by: 'reviewer', required: true }],
                 handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -450,7 +450,7 @@ describe('buildTaskContext active stage semantics', () => {
                 ],
                 handoff_rules: [{ from_role: 'product-manager', to_role: 'architect', required: true }],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -560,7 +560,7 @@ describe('buildTaskContext active stage semantics', () => {
                 ],
                 handoff_rules: [{ from_role: 'qa', to_role: 'product-manager', required: true }],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -755,7 +755,7 @@ describe('buildTaskContext active stage semantics', () => {
                 ],
                 handoff_rules: [{ from_role: 'qa', to_role: 'product-manager', required: true }],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -910,7 +910,7 @@ describe('buildTaskContext active stage semantics', () => {
                 handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
                 approval_rules: [],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -1093,7 +1093,7 @@ describe('buildTaskContext active stage semantics', () => {
                 checkpoints: [],
                 stages: [],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -1144,15 +1144,15 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('Upload required artifacts before completion or escalation');
   });
 
-  it('attaches filtered project memory and compact project indexes to specialist task context', async () => {
+  it('attaches filtered workspace memory and compact project indexes to specialist task context', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('FROM projects')) {
+        if (sql.includes('FROM workspaces')) {
           return {
             rows: [{
-              id: 'project-ctx-1',
+              id: 'workspace-ctx-1',
               name: 'Hello World',
-              description: 'Test project',
+              description: 'Test workspace',
               repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
               settings: {},
               memory: {
@@ -1191,7 +1191,7 @@ describe('buildTaskContext active stage semantics', () => {
                 },
                 checkpoints: [{ name: 'implementation', goal: 'Implement the change' }],
               },
-              project_spec_version: null,
+              workspace_spec_version: null,
             }],
           };
         }
@@ -1244,12 +1244,12 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes("FROM events") && sql.includes("entity_type = 'project'")) {
+        if (sql.includes("FROM events") && sql.includes("entity_type = 'workspace'")) {
           return {
             rows: [
               {
                 id: 11,
-                type: 'project.memory_updated',
+                type: 'workspace.memory_updated',
                 actor_type: 'agent',
                 actor_id: 'agent:key',
                 created_at: '2026-03-16T08:00:00.000Z',
@@ -1257,7 +1257,7 @@ describe('buildTaskContext active stage semantics', () => {
               },
               {
                 id: 12,
-                type: 'project.memory_updated',
+                type: 'workspace.memory_updated',
                 actor_type: 'agent',
                 actor_id: 'agent:key',
                 created_at: '2026-03-16T08:01:00.000Z',
@@ -1265,7 +1265,7 @@ describe('buildTaskContext active stage semantics', () => {
               },
               {
                 id: 13,
-                type: 'project.memory_updated',
+                type: 'workspace.memory_updated',
                 actor_type: 'agent',
                 actor_id: 'agent:key',
                 created_at: '2026-03-16T08:02:00.000Z',
@@ -1303,7 +1303,7 @@ describe('buildTaskContext active stage semantics', () => {
 
     const context = await buildTaskContext(db as never, 'tenant-1', {
       id: 'task-dev-ctx-1',
-      project_id: 'project-ctx-1',
+      workspace_id: 'workspace-ctx-1',
       workflow_id: 'workflow-ctx-1',
       work_item_id: 'wi-ctx-1',
       role: 'developer',
@@ -1313,17 +1313,17 @@ describe('buildTaskContext active stage semantics', () => {
       input: { instructions: 'Implement the task.' },
     });
 
-    const project = context.project as Record<string, unknown>;
-    expect(project.memory).toEqual({
+    const workspace = context.workspace as Record<string, unknown>;
+    expect(workspace.memory).toEqual({
       shared_note: 'visible',
       release_note: 'visible in workflow',
     });
-    expect(project.memory_index).toEqual({
+    expect(workspace.memory_index).toEqual({
       keys: ['release_note', 'shared_note'],
       total: 2,
       more_available: false,
     });
-    expect(project.artifact_index).toEqual({
+    expect(workspace.artifact_index).toEqual({
       items: [
         {
           logical_path: 'docs/requirements.md',

@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectService } from '../../src/services/project-service.js';
+import { WorkspaceService } from '../../src/services/workspace-service.js';
 
 const TENANT_ID = 'tenant-1';
-const PROJECT_ID = 'project-1';
+const PROJECT_ID = 'workspace-1';
 
 const projectRow = {
   id: PROJECT_ID,
@@ -38,7 +38,7 @@ function createEventService() {
   return { emit: vi.fn(async () => undefined) };
 }
 
-describe('ProjectService secret redaction', () => {
+describe('WorkspaceService secret redaction', () => {
   it('redacts secret-bearing settings and memory on single-project reads', async () => {
     const pool = {
       query: vi.fn().mockResolvedValueOnce({
@@ -47,9 +47,9 @@ describe('ProjectService secret redaction', () => {
       }),
     };
 
-    const service = new ProjectService(pool as never, createEventService() as never);
+    const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    const result = await service.getProject(TENANT_ID, PROJECT_ID);
+    const result = await service.getWorkspace(TENANT_ID, PROJECT_ID);
 
     expect(result).not.toHaveProperty('git_webhook_secret');
     expect(result.git_webhook_secret_configured).toBe(true);
@@ -58,27 +58,21 @@ describe('ProjectService secret redaction', () => {
         credentials: {
           git_token: null,
           git_token_configured: false,
-          git_ssh_private_key: null,
-          git_ssh_private_key_configured: false,
-          git_ssh_known_hosts: null,
-          git_ssh_known_hosts_configured: false,
-          webhook_secret: null,
-          webhook_secret_configured: false,
         },
         model_overrides: {},
         deployment: {
-          api_token: 'redacted://project-settings-secret',
+          api_token: 'redacted://workspace-settings-secret',
           endpoint: 'https://example.com',
-          ref: 'redacted://project-settings-secret',
+          ref: 'redacted://workspace-settings-secret',
         },
       }),
     );
     expect(result.memory).toEqual({
       SAFE_LABEL: 'demo',
-      apiKey: 'redacted://project-memory-secret',
+      apiKey: 'redacted://workspace-memory-secret',
       nested: {
-        authorization: 'redacted://project-memory-secret',
-        preserved_ref: 'redacted://project-memory-secret',
+        authorization: 'redacted://workspace-memory-secret',
+        preserved_ref: 'redacted://workspace-memory-secret',
       },
     });
   });
@@ -92,9 +86,9 @@ describe('ProjectService secret redaction', () => {
         .mockResolvedValueOnce({ rowCount: 0, rows: [] }),
     };
 
-    const service = new ProjectService(pool as never, createEventService() as never);
+    const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    const result = await service.listProjects(TENANT_ID, {
+    const result = await service.listWorkspaces(TENANT_ID, {
       page: 1,
       per_page: 20,
     });
@@ -108,27 +102,21 @@ describe('ProjectService secret redaction', () => {
         credentials: {
           git_token: null,
           git_token_configured: false,
-          git_ssh_private_key: null,
-          git_ssh_private_key_configured: false,
-          git_ssh_known_hosts: null,
-          git_ssh_known_hosts_configured: false,
-          webhook_secret: null,
-          webhook_secret_configured: false,
         },
         model_overrides: {},
         deployment: {
-          api_token: 'redacted://project-settings-secret',
+          api_token: 'redacted://workspace-settings-secret',
           endpoint: 'https://example.com',
-          ref: 'redacted://project-settings-secret',
+          ref: 'redacted://workspace-settings-secret',
         },
       }),
     );
     expect(listedProject.memory).toEqual({
       SAFE_LABEL: 'demo',
-      apiKey: 'redacted://project-memory-secret',
+      apiKey: 'redacted://workspace-memory-secret',
       nested: {
-        authorization: 'redacted://project-memory-secret',
-        preserved_ref: 'redacted://project-memory-secret',
+        authorization: 'redacted://workspace-memory-secret',
+        preserved_ref: 'redacted://workspace-memory-secret',
       },
     });
   });
@@ -144,18 +132,18 @@ describe('ProjectService secret redaction', () => {
         .mockResolvedValueOnce({ rowCount: 1, rows: [] }),
     };
 
-    const service = new ProjectService(
+    const service = new WorkspaceService(
       pool as never,
       createEventService() as never,
       { WEBHOOK_ENCRYPTION_KEY: '12345678901234567890123456789012' },
     );
 
-    const result = await service.getProject(TENANT_ID, PROJECT_ID);
+    const result = await service.getWorkspace(TENANT_ID, PROJECT_ID);
 
     expect(result.git_webhook_secret_configured).toBe(true);
     expect(pool.query).toHaveBeenNthCalledWith(
       2,
-      expect.stringContaining('UPDATE projects'),
+      expect.stringContaining('UPDATE workspaces'),
       [TENANT_ID, PROJECT_ID, expect.stringMatching(/^enc:v\d+:/)],
     );
   });
@@ -180,32 +168,26 @@ describe('ProjectService secret redaction', () => {
       }),
     };
 
-    const service = new ProjectService(pool as never, createEventService() as never);
+    const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    const result = await service.getProject(TENANT_ID, PROJECT_ID);
+    const result = await service.getWorkspace(TENANT_ID, PROJECT_ID);
 
     expect(result.settings).toEqual(
       expect.objectContaining({
         credentials: {
           git_token: null,
           git_token_configured: false,
-          git_ssh_private_key: null,
-          git_ssh_private_key_configured: false,
-          git_ssh_known_hosts: null,
-          git_ssh_known_hosts_configured: false,
-          webhook_secret: null,
-          webhook_secret_configured: false,
         },
         model_overrides: {},
         endpoint: {
-          auth: 'redacted://project-settings-secret',
-          session: 'redacted://project-settings-secret',
+          auth: 'redacted://workspace-settings-secret',
+          session: 'redacted://workspace-settings-secret',
         },
       }),
     );
     expect(result.memory).toEqual({
-      summary: 'redacted://project-memory-secret',
-      session: 'redacted://project-memory-secret',
+      summary: 'redacted://workspace-memory-secret',
+      session: 'redacted://workspace-memory-secret',
     });
   });
 });

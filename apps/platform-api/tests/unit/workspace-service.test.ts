@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectService } from '../../src/services/project-service.js';
+import { WorkspaceService } from '../../src/services/workspace-service.js';
 
 function createIdentity() {
   return {
@@ -17,17 +17,17 @@ function createEventService() {
   return { emit: vi.fn(async () => undefined) };
 }
 
-describe('ProjectService typed settings contract', () => {
+describe('WorkspaceService typed settings contract', () => {
   it('stores canonical typed settings on project create and redacts secrets in the response', async () => {
     let insertedSettings: Record<string, unknown> | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.startsWith('INSERT INTO projects')) {
+        if (sql.startsWith('INSERT INTO workspaces')) {
           insertedSettings = (values?.[5] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
-              id: 'project-1',
+              id: 'workspace-1',
               tenant_id: 'tenant-1',
               name: 'Demo',
               slug: 'demo',
@@ -44,9 +44,9 @@ describe('ProjectService typed settings contract', () => {
       }),
     };
 
-    const service = new ProjectService(pool as never, createEventService() as never);
+    const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    const result = await service.createProject(createIdentity() as never, {
+    const result = await service.createWorkspace(createIdentity() as never, {
       name: 'Demo',
       slug: 'demo',
       repository_url: 'https://github.com/example/demo',
@@ -63,7 +63,7 @@ describe('ProjectService typed settings contract', () => {
             model: 'gpt-5',
           },
         },
-        project_brief: 'Ship it',
+        workspace_brief: 'Ship it',
       },
     });
 
@@ -74,35 +74,19 @@ describe('ProjectService typed settings contract', () => {
       credentials: {
         git_token: 'secret:GITHUB_PAT',
       },
-      model_overrides: {
-        developer: {
-          provider: 'openai',
-          model: 'gpt-5',
-        },
-      },
-      project_brief: 'Ship it',
+      model_overrides: {},
+      workspace_brief: 'Ship it',
     });
     expect(result.settings).toEqual({
       default_branch: 'main',
       git_user_name: 'Smoke Bot',
       git_user_email: 'smoke@example.test',
       credentials: {
-        git_token: 'redacted://project-settings-secret',
+        git_token: 'redacted://workspace-settings-secret',
         git_token_configured: true,
-        git_ssh_private_key: null,
-        git_ssh_private_key_configured: false,
-        git_ssh_known_hosts: null,
-        git_ssh_known_hosts_configured: false,
-        webhook_secret: null,
-        webhook_secret_configured: false,
       },
-      model_overrides: {
-        developer: {
-          provider: 'openai',
-          model: 'gpt-5',
-        },
-      },
-      project_brief: 'Ship it',
+      model_overrides: {},
+      workspace_brief: 'Ship it',
     });
   });
 
@@ -110,11 +94,11 @@ describe('ProjectService typed settings contract', () => {
     let updatedSettings: Record<string, unknown> | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.startsWith('SELECT *') && sql.includes('FROM projects')) {
+        if (sql.startsWith('SELECT *') && sql.includes('FROM workspaces')) {
           return {
             rowCount: 1,
             rows: [{
-              id: 'project-1',
+              id: 'workspace-1',
               tenant_id: 'tenant-1',
               name: 'Demo',
               slug: 'demo',
@@ -132,12 +116,12 @@ describe('ProjectService typed settings contract', () => {
             }],
           };
         }
-        if (sql.startsWith('UPDATE projects')) {
+        if (sql.startsWith('UPDATE workspaces')) {
           updatedSettings = (values?.[6] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
-              id: 'project-1',
+              id: 'workspace-1',
               tenant_id: 'tenant-1',
               name: 'Demo',
               slug: 'demo',
@@ -154,13 +138,13 @@ describe('ProjectService typed settings contract', () => {
       }),
     };
 
-    const service = new ProjectService(pool as never, createEventService() as never);
+    const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    const result = await service.updateProject(createIdentity() as never, 'project-1', {
+    const result = await service.updateWorkspace(createIdentity() as never, 'workspace-1', {
       settings: {
         default_branch: 'release',
         credentials: {
-          git_token: 'redacted://project-settings-secret',
+          git_token: 'redacted://workspace-settings-secret',
           git_token_configured: true,
         },
         model_overrides: {
@@ -177,48 +161,32 @@ describe('ProjectService typed settings contract', () => {
       credentials: {
         git_token: 'secret:GITHUB_PAT',
       },
-      model_overrides: {
-        reviewer: {
-          provider: 'anthropic',
-          model: 'claude-sonnet-4-6',
-        },
-      },
+      model_overrides: {},
     });
     expect(result.settings).toEqual({
       default_branch: 'release',
       credentials: {
-        git_token: 'redacted://project-settings-secret',
+        git_token: 'redacted://workspace-settings-secret',
         git_token_configured: true,
-        git_ssh_private_key: null,
-        git_ssh_private_key_configured: false,
-        git_ssh_known_hosts: null,
-        git_ssh_known_hosts_configured: false,
-        webhook_secret: null,
-        webhook_secret_configured: false,
       },
-      model_overrides: {
-        reviewer: {
-          provider: 'anthropic',
-          model: 'claude-sonnet-4-6',
-        },
-      },
+      model_overrides: {},
     });
   });
 });
 
-describe('ProjectService project list summaries', () => {
+describe('WorkspaceService project list summaries', () => {
   it('returns workflow summary counts with a single aggregate query for the page', async () => {
     const workflowSummaryQueries: Array<unknown[] | undefined> = [];
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
-        if (sql.startsWith('SELECT COUNT(*)::int AS total FROM projects')) {
+        if (sql.startsWith('SELECT COUNT(*)::int AS total FROM workspaces')) {
           return {
             rowCount: 1,
             rows: [{ total: 2 }],
           };
         }
 
-        if (sql.startsWith('SELECT * FROM projects')) {
+        if (sql.startsWith('SELECT * FROM workspaces')) {
           return {
             rowCount: 2,
             rows: [
@@ -250,13 +218,13 @@ describe('ProjectService project list summaries', () => {
           };
         }
 
-        if (sql.includes('FROM workflows') && sql.includes('GROUP BY project_id')) {
+        if (sql.includes('FROM workflows') && sql.includes('GROUP BY workspace_id')) {
           workflowSummaryQueries.push(values);
           return {
             rowCount: 1,
             rows: [
               {
-                project_id: '11111111-1111-1111-1111-111111111111',
+                workspace_id: '11111111-1111-1111-1111-111111111111',
                 active_workflow_count: 1,
                 completed_workflow_count: 4,
                 attention_workflow_count: 2,
@@ -271,9 +239,9 @@ describe('ProjectService project list summaries', () => {
       }),
     };
 
-    const service = new ProjectService(pool as never, createEventService() as never);
+    const service = new WorkspaceService(pool as never, createEventService() as never);
 
-    const result = await service.listProjects('tenant-1', {
+    const result = await service.listWorkspaces('tenant-1', {
       page: 1,
       per_page: 50,
     });

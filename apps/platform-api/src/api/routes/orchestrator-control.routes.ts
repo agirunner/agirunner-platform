@@ -8,7 +8,7 @@ import { WorkflowActivationService } from '../../services/workflow-activation-se
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { OrchestratorTaskMessageService } from '../../services/orchestrator-task-message-service.js';
-import { assertProjectMemoryWritesAreDurableKnowledge } from '../../services/project-memory-write-guard.js';
+import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../services/workspace-memory-write-guard.js';
 import {
   TaskAgentScopeService,
   type ActiveOrchestratorTaskScope,
@@ -142,13 +142,13 @@ const workflowCompleteSchema = z.object({
   final_artifacts: z.array(z.string().min(1).max(2000)).max(100).optional(),
 });
 
-const projectMemoryUpdatesSchema = z
+const workspaceMemoryUpdatesSchema = z
   .record(z.string().min(1).max(256), z.unknown())
   .refine((value) => Object.keys(value).length > 0, {
     message: 'updates must contain at least one entry',
   });
 
-const projectMemoryWriteSchema = z.union([
+const workspaceMemoryWriteSchema = z.union([
   z.object({
     request_id: z.string().min(1).max(255),
     key: z.string().min(1).max(256),
@@ -157,7 +157,7 @@ const projectMemoryWriteSchema = z.union([
   }),
   z.object({
     request_id: z.string().min(1).max(255),
-    updates: projectMemoryUpdatesSchema,
+    updates: workspaceMemoryUpdatesSchema,
     work_item_id: z.string().uuid().optional(),
   }),
 ]);
@@ -190,7 +190,7 @@ function parseWorkItemIdOrThrow(value: string): string {
   return parsed.data;
 }
 
-const projectMemoryDeleteQuerySchema = z.object({
+const workspaceMemoryDeleteQuerySchema = z.object({
   request_id: z.string().min(1).max(255),
 });
 
@@ -591,7 +591,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             {
               ...normalizedBody,
               workflow_id: taskScope.workflow_id,
-              project_id: taskScope.project_id ?? undefined,
+              workspace_id: taskScope.workspace_id ?? undefined,
               activation_id: taskScope.activation_id ?? undefined,
               is_orchestrator_task: false,
               capabilities_required: normalizedBody.capabilities_required ?? [normalizedBody.role],
@@ -789,19 +789,19 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { taskId: string };
-      const body = parseOrThrow(projectMemoryWriteSchema.safeParse(request.body));
+      const body = parseOrThrow(workspaceMemoryWriteSchema.safeParse(request.body));
       const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
         request.auth!,
         params.taskId,
       );
-      if (!taskScope.project_id) {
-        throw new ValidationError('This workflow is not linked to a project');
+      if (!taskScope.workspace_id) {
+        throw new ValidationError('This workflow is not linked to a workspace');
       }
       const memoryEntries =
         'updates' in body
           ? Object.entries(body.updates).map(([key, value]) => ({ key, value }))
           : [{ key: body.key, value: body.value }];
-      assertProjectMemoryWritesAreDurableKnowledge(memoryEntries);
+      assertWorkspaceMemoryWritesAreDurableKnowledge(memoryEntries);
       if (body.work_item_id) {
         await app.workflowService.getWorkflowWorkItem(
           request.auth!.tenantId,
@@ -818,9 +818,9 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         body.request_id,
         (client) =>
           'updates' in body
-            ? app.projectService.patchProjectMemoryEntries(
+            ? app.workspaceService.patchWorkspaceMemoryEntries(
                 request.auth!,
-                taskScope.project_id as string,
+                taskScope.workspace_id as string,
                 Object.entries(body.updates).map(([key, value]) => ({
                   key,
                   value,
@@ -833,9 +833,9 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
                 })),
                 client,
               )
-            : app.projectService.patchProjectMemory(
+            : app.workspaceService.patchWorkspaceMemory(
                 request.auth!,
-                taskScope.project_id as string,
+                taskScope.workspace_id as string,
                 {
                   ...body,
                   context: {
@@ -857,13 +857,13 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { taskId: string; key: string };
-      const query = parseOrThrow(projectMemoryDeleteQuerySchema.safeParse(request.query));
+      const query = parseOrThrow(workspaceMemoryDeleteQuerySchema.safeParse(request.query));
       const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
         request.auth!,
         params.taskId,
       );
-      if (!taskScope.project_id) {
-        throw new ValidationError('This workflow is not linked to a project');
+      if (!taskScope.workspace_id) {
+        throw new ValidationError('This workflow is not linked to a workspace');
       }
       const stored = await runIdempotentMutation(
         app,
@@ -873,9 +873,9 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         'memory_delete',
         query.request_id,
         (client) =>
-          app.projectService.removeProjectMemory(
+          app.workspaceService.removeWorkspaceMemory(
             request.auth!,
-            taskScope.project_id as string,
+            taskScope.workspace_id as string,
             params.key,
             client,
             {
@@ -918,7 +918,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         try {
           workflow = await app.workflowService.createWorkflow(request.auth!, {
             playbook_id: body.playbook_id,
-            project_id: taskScope.project_id ?? undefined,
+            workspace_id: taskScope.workspace_id ?? undefined,
             name: body.name,
             parameters: body.parameters,
             metadata: {

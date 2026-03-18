@@ -8,7 +8,7 @@ export interface CreateTaskInput {
   priority?: string;
   workflow_id?: string;
   work_item_id?: string;
-  project_id?: string;
+  workspace_id?: string;
   stage_name?: string;
   activation_id?: string;
   request_id?: string;
@@ -39,7 +39,7 @@ export interface CreateTaskInput {
 
 export interface ListTaskQuery {
   state?: string;
-  project_id?: string;
+  workspace_id?: string;
   assigned_agent_id?: string;
   parent_id?: string;
   workflow_id?: string;

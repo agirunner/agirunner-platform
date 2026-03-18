@@ -100,7 +100,7 @@ export async function dispatchReadyTasks(context: WorkerServiceContext, limit?: 
       entityId: task.id,
       actorType: 'system',
       actorId: 'dispatcher',
-      data: { worker_id: workerId, workflow_id: claimedTask.workflow_id, project_id: claimedTask.project_id },
+      data: { worker_id: workerId, workflow_id: claimedTask.workflow_id, workspace_id: claimedTask.workspace_id },
     });
 
     dispatchedTasks += 1;
@@ -175,7 +175,7 @@ export async function releaseExpiredDispatches(context: WorkerServiceContext): P
       entityId: dispatch.taskId,
       actorType: 'system',
       actorId: 'dispatcher',
-      data: { worker_id: dispatch.workerId, workflow_id: releasedTask.workflow_id, project_id: releasedTask.project_id },
+      data: { worker_id: dispatch.workerId, workflow_id: releasedTask.workflow_id, workspace_id: releasedTask.workspace_id },
     });
 
     releasedCount += 1;

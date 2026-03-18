@@ -22,7 +22,7 @@ interface InvocationRow {
 }
 
 interface WorkflowScopeRow {
-  project_id: string | null;
+  workspace_id: string | null;
   playbook_id: string | null;
   definition: unknown;
 }
@@ -30,7 +30,7 @@ interface WorkflowScopeRow {
 export interface CreateWebhookWorkItemTriggerInput {
   name: string;
   source: string;
-  project_id?: string;
+  workspace_id?: string;
   workflow_id: string;
   event_header?: string;
   event_types?: string[];
@@ -45,7 +45,7 @@ export interface CreateWebhookWorkItemTriggerInput {
 export interface UpdateWebhookWorkItemTriggerInput {
   name?: string;
   source?: string;
-  project_id?: string | null;
+  workspace_id?: string | null;
   workflow_id?: string;
   event_header?: string | null;
   event_types?: string[];
@@ -69,7 +69,7 @@ export class WebhookWorkItemTriggerService {
     const normalized = await this.normalizeTriggerInput(identity.tenantId, input);
     const result = await this.pool.query<WorkItemTriggerRow>(
       `INSERT INTO webhook_work_item_triggers (
-         tenant_id, name, source, project_id, workflow_id, event_header, event_types,
+         tenant_id, name, source, workspace_id, workflow_id, event_header, event_types,
          signature_header, signature_mode, secret, field_mappings, defaults, is_active
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11::jsonb,$12::jsonb,$13)
        RETURNING *`,
@@ -77,7 +77,7 @@ export class WebhookWorkItemTriggerService {
         identity.tenantId,
         normalized.name,
         normalized.source,
-        normalized.project_id,
+        normalized.workspace_id,
         normalized.workflow_id,
         normalized.event_header,
         normalized.event_types,
@@ -108,7 +108,7 @@ export class WebhookWorkItemTriggerService {
     const normalized = await this.normalizeTriggerInput(tenantId, {
       name: input.name ?? current.name,
       source: input.source ?? current.source,
-      project_id: input.project_id === undefined ? current.project_id ?? undefined : input.project_id ?? undefined,
+      workspace_id: input.workspace_id === undefined ? current.workspace_id ?? undefined : input.workspace_id ?? undefined,
       workflow_id: input.workflow_id ?? current.workflow_id,
       event_header: input.event_header === undefined ? current.event_header ?? undefined : input.event_header ?? undefined,
       event_types: input.event_types ?? current.event_types ?? [],
@@ -124,7 +124,7 @@ export class WebhookWorkItemTriggerService {
       `UPDATE webhook_work_item_triggers
           SET name = $3,
               source = $4,
-              project_id = $5,
+              workspace_id = $5,
               workflow_id = $6,
               event_header = $7,
               event_types = $8,
@@ -143,7 +143,7 @@ export class WebhookWorkItemTriggerService {
         triggerId,
         normalized.name,
         normalized.source,
-        normalized.project_id,
+        normalized.workspace_id,
         normalized.workflow_id,
         normalized.event_header,
         normalized.event_types,
@@ -321,14 +321,14 @@ export class WebhookWorkItemTriggerService {
     input: CreateWebhookWorkItemTriggerInput,
     currentSecret?: string,
   ) {
-    const scope = await this.assertScopeTargets(tenantId, input.project_id, input.workflow_id);
+    const scope = await this.assertScopeTargets(tenantId, input.workspace_id, input.workflow_id);
     const secret = input.secret === this.decryptlessSecretSentinel(currentSecret) && currentSecret
       ? currentSecret
       : encryptWebhookSecret(input.secret, this.encryptionKey);
     const normalized = {
       name: input.name.trim(),
       source: input.source.trim(),
-      project_id: scope.projectId,
+      workspace_id: scope.workspaceId,
       workflow_id: input.workflow_id,
       event_header: input.event_header?.trim() || null,
       event_types: input.event_types ?? [],
@@ -344,13 +344,13 @@ export class WebhookWorkItemTriggerService {
     return normalized;
   }
 
-  private async assertScopeTargets(tenantId: string, projectId: string | undefined, workflowId: string) {
+  private async assertScopeTargets(tenantId: string, workspaceId: string | undefined, workflowId: string) {
     if (!workflowId) {
       throw new ValidationError('Webhook work item triggers must target a workflow');
     }
 
     const workflow = await this.pool.query<WorkflowScopeRow>(
-      `SELECT workflows.project_id,
+      `SELECT workflows.workspace_id,
               workflows.playbook_id,
               playbooks.definition
          FROM workflows
@@ -370,17 +370,17 @@ export class WebhookWorkItemTriggerService {
       throw new ValidationError('Webhook work item triggers must target a playbook workflow');
     }
 
-    const effectiveProjectId = workflowRow.project_id ?? null;
-    if (projectId && effectiveProjectId && projectId !== effectiveProjectId) {
-      throw new ValidationError('Workflow and project targets must belong to the same project scope');
+    const effectiveWorkspaceId = workflowRow.workspace_id ?? null;
+    if (workspaceId && effectiveWorkspaceId && workspaceId !== effectiveWorkspaceId) {
+      throw new ValidationError('Workflow and workspace targets must belong to the same workspace scope');
     }
 
-    if (projectId && !effectiveProjectId) {
-      throw new ValidationError('Workflow does not belong to the provided project scope');
+    if (workspaceId && !effectiveWorkspaceId) {
+      throw new ValidationError('Workflow does not belong to the provided workspace scope');
     }
 
     return {
-      projectId: projectId ?? effectiveProjectId,
+      workspaceId: workspaceId ?? effectiveWorkspaceId,
       definition: parsePlaybookDefinition(workflowRow.definition),
     };
   }

@@ -16,7 +16,7 @@ import {
 import { agents } from './agents.js';
 import { taskPriorityEnum, taskStateEnum } from './enums.js';
 import { workflows } from './workflows.js';
-import { projects } from './projects.js';
+import { workspaces } from './workspaces.js';
 import { tenants } from './tenants.js';
 import { workers } from './workers.js';
 import { workflowActivations } from './workflow-activations.js';
@@ -31,7 +31,7 @@ export const tasks = pgTable(
       .references(() => tenants.id),
     workflowId: uuid('workflow_id').references(() => workflows.id),
     workItemId: uuid('work_item_id').references(() => workflowWorkItems.id),
-    projectId: uuid('project_id').references(() => projects.id),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id),
     title: text('title').notNull(),
     role: text('role'),
     stageName: text('stage_name'),
@@ -78,7 +78,7 @@ export const tasks = pgTable(
     index('idx_tasks_tenant').on(table.tenantId),
     index('idx_tasks_workflow').on(table.workflowId),
     index('idx_tasks_work_item').on(table.tenantId, table.workItemId),
-    index('idx_tasks_project').on(table.projectId),
+    index('idx_tasks_workspace').on(table.workspaceId),
     index('idx_tasks_activation').on(table.tenantId, table.activationId),
     index('idx_tasks_stage').on(table.tenantId, table.workflowId, table.stageName),
     index('idx_tasks_claimable')

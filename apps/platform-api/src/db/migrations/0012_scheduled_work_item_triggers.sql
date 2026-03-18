@@ -5,7 +5,7 @@ CREATE TABLE scheduled_work_item_triggers (
     tenant_id uuid NOT NULL REFERENCES tenants(id),
     name text NOT NULL,
     source text NOT NULL,
-    project_id uuid REFERENCES projects(id),
+    workspace_id uuid REFERENCES workspaces(id),
     workflow_id uuid NOT NULL REFERENCES workflows(id),
     cadence_minutes integer NOT NULL CHECK (cadence_minutes > 0),
     defaults jsonb NOT NULL DEFAULT '{}'::jsonb,

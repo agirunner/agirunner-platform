@@ -92,7 +92,7 @@ describe('gate routes', () => {
     });
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
-    app.decorate('projectService', { getProject: vi.fn() });
+    app.decorate('workspaceService', { getWorkspace: vi.fn() });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -306,7 +306,7 @@ describe('gate routes', () => {
     });
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
-    app.decorate('projectService', { getProject: vi.fn() });
+    app.decorate('workspaceService', { getWorkspace: vi.fn() });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),

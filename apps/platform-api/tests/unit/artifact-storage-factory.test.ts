@@ -37,7 +37,7 @@ describe('artifact storage factory', () => {
       localRoot: '/tmp/ignored',
       gcs: {
         bucket: 'artifacts',
-        projectId: 'proj',
+        workspaceId: 'proj',
       },
     });
 

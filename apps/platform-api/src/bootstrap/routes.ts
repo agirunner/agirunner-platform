@@ -22,7 +22,7 @@ import { taskPlatformRoutes } from '../api/routes/task-platform.routes.js';
 import { toolRoutes } from '../api/routes/tools.routes.js';
 import { webhookRoutes } from '../api/routes/webhooks.routes.js';
 import { workerRoutes } from '../api/routes/workers.routes.js';
-import { projectRoutes } from '../api/routes/projects.routes.js';
+import { workspaceRoutes } from '../api/routes/workspaces.routes.js';
 import { runtimeCustomizationRoutes } from '../api/routes/runtime-customization.routes.js';
 import { webhookWorkItemTriggerRoutes } from '../api/routes/webhook-work-item-triggers.routes.js';
 import { roleDefinitionRoutes } from '../api/routes/role-definitions.routes.js';
@@ -64,7 +64,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(orchestratorControlRoutes);
   await app.register(workflowRoutes);
   await app.register(workflowActivationRoutes);
-  await app.register(projectRoutes);
+  await app.register(workspaceRoutes);
   await app.register(runtimeCustomizationRoutes);
   await app.register(webhookWorkItemTriggerRoutes);
   await app.register(scheduledWorkItemTriggerRoutes);

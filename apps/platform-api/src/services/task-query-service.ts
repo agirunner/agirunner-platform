@@ -58,7 +58,7 @@ export class TaskQueryService {
     }
 
     const exactFilters: Array<[string | undefined, string]> = [
-      [query.project_id, 'project_id'],
+      [query.workspace_id, 'workspace_id'],
       [query.assigned_agent_id, 'assigned_agent_id'],
       [query.workflow_id, 'workflow_id'],
       [query.work_item_id, 'work_item_id'],

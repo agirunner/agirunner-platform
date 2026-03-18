@@ -21,7 +21,7 @@ const modelOverridesSchema = z.record(z.string().min(1).max(120), roleModelOverr
 
 const resolvePreviewSchema = z.object({
   roles: z.array(z.string().min(1).max(120)).optional(),
-  project_model_overrides: modelOverridesSchema.optional(),
+  workspace_model_overrides: modelOverridesSchema.optional(),
   workflow_model_overrides: modelOverridesSchema.optional(),
 });
 
@@ -302,19 +302,19 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const body = resolvePreviewSchema.parse(request.body ?? {});
-      const projectOverrides = body.project_model_overrides ?? {};
+      const workspaceOverrides = body.workspace_model_overrides ?? {};
       const workflowOverrides = body.workflow_model_overrides ?? {};
-      const roles = readRequestedRoles(body.roles, projectOverrides, workflowOverrides);
+      const roles = readRequestedRoles(body.roles, workspaceOverrides, workflowOverrides);
       return {
         data: {
           roles,
-          project_model_overrides: projectOverrides,
+          workspace_model_overrides: workspaceOverrides,
           workflow_model_overrides: workflowOverrides,
           effective_models: await resolveEffectiveModels(
             service,
             request.auth!.tenantId,
             roles,
-            projectOverrides,
+            workspaceOverrides,
             workflowOverrides,
           ),
         },
@@ -325,13 +325,13 @@ export const llmConfigRoutes: FastifyPluginAsync = async (app) => {
 
 function readRequestedRoles(
   roles: string[] | undefined,
-  projectOverrides: Record<string, unknown>,
+  workspaceOverrides: Record<string, unknown>,
   workflowOverrides: Record<string, unknown>,
 ) {
   if (Array.isArray(roles) && roles.length > 0) {
     return roles;
   }
-  return Array.from(new Set([...Object.keys(projectOverrides), ...Object.keys(workflowOverrides)]));
+  return Array.from(new Set([...Object.keys(workspaceOverrides), ...Object.keys(workflowOverrides)]));
 }
 
 async function resolveEffectiveModels(
@@ -343,7 +343,7 @@ async function resolveEffectiveModels(
   },
   tenantId: string,
   roles: string[],
-  projectOverrides: Record<string, unknown>,
+  workspaceOverrides: Record<string, unknown>,
   workflowOverrides: Record<string, unknown>,
 ) {
   const providers = (await modelCatalogService.listProviders(tenantId)) as Array<Record<string, unknown>>;
@@ -364,13 +364,13 @@ async function resolveEffectiveModels(
       | Record<string, unknown>
       | null;
     const workflowOverride = asRecord(workflowOverrides[role]);
-    const projectOverride = asRecord(projectOverrides[role]);
-    const activeOverride = Object.keys(workflowOverride).length > 0 ? workflowOverride : projectOverride;
+    const workspaceOverride = asRecord(workspaceOverrides[role]);
+    const activeOverride = Object.keys(workflowOverride).length > 0 ? workflowOverride : workspaceOverride;
     const source =
       Object.keys(workflowOverride).length > 0
         ? 'workflow'
-        : Object.keys(projectOverride).length > 0
-          ? 'project'
+        : Object.keys(workspaceOverride).length > 0
+          ? 'workspace'
           : 'base';
 
     if (Object.keys(activeOverride).length === 0) {

@@ -1,7 +1,7 @@
 import { boolean, index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { workflows } from './workflows.js';
-import { projects } from './projects.js';
+import { workspaces } from './workspaces.js';
 import { tenants } from './tenants.js';
 
 export const webhookWorkItemTriggers = pgTable(
@@ -13,7 +13,7 @@ export const webhookWorkItemTriggers = pgTable(
       .references(() => tenants.id),
     name: text('name').notNull(),
     source: text('source').notNull(),
-    projectId: uuid('project_id').references(() => projects.id),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id),
     workflowId: uuid('workflow_id')
       .notNull()
       .references(() => workflows.id),

@@ -6,7 +6,7 @@ export interface LogStreamFilters {
   source?: string[];
   category?: string[];
   level?: string;
-  projectId?: string;
+  workspaceId?: string;
   workflowId?: string;
   taskId?: string;
   workItemId?: string;
@@ -25,7 +25,7 @@ interface LogNotification {
   category: string;
   level: string;
   operation: string;
-  project_id: string | null;
+  workspace_id: string | null;
   workflow_id: string | null;
   task_id: string | null;
   work_item_id: string | null;
@@ -108,7 +108,7 @@ export class LogStreamService {
       `SELECT id, tenant_id, trace_id, span_id, parent_span_id,
               source, category, level, operation, status, duration_ms,
               payload, error,
-              project_id, workflow_id, workflow_name, project_name, task_id,
+              workspace_id, workflow_id, workflow_name, workspace_name, task_id,
               work_item_id, stage_name, activation_id, is_orchestrator_task,
               task_title, role,
               actor_type, actor_id, actor_name,
@@ -159,7 +159,7 @@ export class LogStreamService {
         return false;
       }
     }
-    if (filters.projectId && notification.project_id !== filters.projectId) {
+    if (filters.workspaceId && notification.workspace_id !== filters.workspaceId) {
       return false;
     }
     if (filters.workflowId && notification.workflow_id !== filters.workflowId) {

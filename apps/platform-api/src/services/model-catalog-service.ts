@@ -55,8 +55,8 @@ export type UpdateModelInput = z.infer<typeof updateModelSchema>;
 export interface EffectiveModelResolution {
   modelId: string | null;
   reasoningConfig: Record<string, unknown> | null;
-  modelSource: 'tenant' | 'project' | 'workflow' | null;
-  reasoningSource: 'tenant' | 'project' | 'workflow' | null;
+  modelSource: 'tenant' | 'workspace' | 'workflow' | null;
+  reasoningSource: 'tenant' | 'workspace' | 'workflow' | null;
   model: {
     id: string;
     modelId: string;
@@ -141,7 +141,7 @@ interface ProjectSettingsRow {
 }
 
 interface WorkflowModelScopeRow {
-  project_id: string | null;
+  workspace_id: string | null;
   resolved_config: Record<string, unknown> | null;
   config_layers: Record<string, unknown> | null;
 }
@@ -474,7 +474,7 @@ export class ModelCatalogService {
 
   async resolveEffectiveModel(
     tenantId: string,
-    scope: { projectId?: string | null; workflowId?: string | null } = {},
+    scope: { workspaceId?: string | null; workflowId?: string | null } = {},
   ): Promise<EffectiveModelResolution> {
     const tenantDefault = await this.getSystemDefault(tenantId);
     let effective: EffectiveModelOverride = {
@@ -484,16 +484,16 @@ export class ModelCatalogService {
     let modelSource: EffectiveModelResolution['modelSource'] = tenantDefault.modelId ? 'tenant' : null;
     let reasoningSource: EffectiveModelResolution['reasoningSource'] = tenantDefault.reasoningConfig ? 'tenant' : null;
 
-    let projectId = scope.projectId ?? null;
-    if (projectId) {
-      const projectOverride = await this.getProjectModelOverride(tenantId, projectId);
-      if (projectOverride) {
-        effective = overlayModelOverride(effective, projectOverride);
-        if (projectOverride.model_id !== undefined) {
-          modelSource = 'project';
+    let workspaceId = scope.workspaceId ?? null;
+    if (workspaceId) {
+      const workspaceOverride = await this.getWorkspaceModelOverride(tenantId, workspaceId);
+      if (workspaceOverride) {
+        effective = overlayModelOverride(effective, workspaceOverride);
+        if (workspaceOverride.model_id !== undefined) {
+          modelSource = 'workspace';
         }
-        if (projectOverride.reasoning_config !== undefined) {
-          reasoningSource = 'project';
+        if (workspaceOverride.reasoning_config !== undefined) {
+          reasoningSource = 'workspace';
         }
       }
     }
@@ -503,16 +503,16 @@ export class ModelCatalogService {
       if (!workflowScope) {
         throw new NotFoundError('Workflow not found');
       }
-      if (!projectId && workflowScope.project_id) {
-        projectId = workflowScope.project_id;
-        const projectOverride = await this.getProjectModelOverride(tenantId, projectId);
-        if (projectOverride) {
-          effective = overlayModelOverride(effective, projectOverride);
-          if (projectOverride.model_id !== undefined) {
-            modelSource = 'project';
+      if (!workspaceId && workflowScope.workspace_id) {
+        workspaceId = workflowScope.workspace_id;
+        const workspaceOverride = await this.getWorkspaceModelOverride(tenantId, workspaceId);
+        if (workspaceOverride) {
+          effective = overlayModelOverride(effective, workspaceOverride);
+          if (workspaceOverride.model_id !== undefined) {
+            modelSource = 'workspace';
           }
-          if (projectOverride.reasoning_config !== undefined) {
-            reasoningSource = 'project';
+          if (workspaceOverride.reasoning_config !== undefined) {
+            reasoningSource = 'workspace';
           }
         }
       }
@@ -667,15 +667,15 @@ export class ModelCatalogService {
     };
   }
 
-  private async getProjectModelOverride(tenantId: string, projectId: string) {
+  private async getWorkspaceModelOverride(tenantId: string, workspaceId: string) {
     const result = await this.pool.query<ProjectSettingsRow>(
-      'SELECT settings FROM projects WHERE tenant_id = $1 AND id = $2',
-      [tenantId, projectId],
+      'SELECT settings FROM workspaces WHERE tenant_id = $1 AND id = $2',
+      [tenantId, workspaceId],
     );
     if (!result.rowCount) {
       return null;
     }
-    return readModelOverride(asRecord(result.rows[0].settings).model_override, 'project model_override');
+    return readModelOverride(asRecord(result.rows[0].settings).model_override, 'workspace model_override');
   }
 
   private async loadWorkflowModelScope(
@@ -683,7 +683,7 @@ export class ModelCatalogService {
     workflowId: string,
   ): Promise<WorkflowModelScopeRow | null> {
     const result = await this.pool.query<WorkflowModelScopeRow>(
-      `SELECT project_id, resolved_config, config_layers
+      `SELECT workspace_id, resolved_config, config_layers
          FROM workflows
         WHERE tenant_id = $1
           AND id = $2`,

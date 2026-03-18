@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 
 /**
  * Unit-level simulation of the full user journey:
- * First boot → login → create project → launch workflow → approve task → view results.
+ * First boot → login → create workspace → launch workflow → approve task → view results.
  *
  * This validates the logical flow through services without requiring a running database.
  * True E2E tests run against the full stack separately.

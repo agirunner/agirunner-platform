@@ -19,7 +19,7 @@ export const PUBLIC_LOG_CSV_COLUMNS = [
   'operation',
   'status',
   'duration_ms',
-  'project_id',
+  'workspace_id',
   'workflow_id',
   'task_id',
   'work_item_id',
@@ -85,6 +85,7 @@ const NON_SECRET_TOKEN_METRIC_KEYS = new Set([
   'total_tokens_input',
   'total_tokens_output',
   'max_output_tokens',
+  'max_output_tokens_omission_reason',
 ]);
 
 function redactPayload(payload: Record<string, unknown>): Record<string, unknown> {

@@ -5,7 +5,7 @@ import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 type DocumentSource = 'repository' | 'artifact' | 'external';
 
 interface ProjectSpecEnvelope {
-  project_id: string;
+  workspace_id: string;
   version: number;
   spec: Record<string, unknown>;
 }
@@ -32,8 +32,8 @@ interface WorkflowDocumentRow {
 }
 
 interface WorkflowScopeRow {
-  project_id: string | null;
-  project_spec_version: number | null;
+  workspace_id: string | null;
+  workspace_spec_version: number | null;
 }
 
 interface ProjectSpecRow {
@@ -42,7 +42,7 @@ interface ProjectSpecRow {
 
 export interface ResolvedDocumentReference {
   logical_name: string;
-  scope: 'project' | 'workflow';
+  scope: 'workspace' | 'workflow';
   source: DocumentSource;
   title?: string;
   description?: string;
@@ -100,13 +100,13 @@ interface NormalizedDocumentDefinition {
   logical_path?: string;
 }
 
-export function validateProjectDocumentRegistry(spec: Record<string, unknown>): void {
+export function validateWorkspaceDocumentRegistry(spec: Record<string, unknown>): void {
   const documents = readDocumentMap(spec);
   for (const [logicalName, value] of Object.entries(documents)) {
     if (!logicalName.trim()) {
       throw new ValidationError('Document logical names must be non-empty');
     }
-    normalizeDocumentDefinition(logicalName, value, 'project_spec');
+    normalizeDocumentDefinition(logicalName, value, 'workspace_spec');
   }
 }
 
@@ -118,14 +118,14 @@ export async function listWorkflowDocuments(
   const workflow = await loadWorkflowScope(db, tenantId, workflowId);
   const documents = new Map<string, ResolvedDocumentReference>();
 
-  if (workflow.project_id) {
-    const projectDocuments = await loadProjectDocuments(
+  if (workflow.workspace_id) {
+    const workspaceDocuments = await loadProjectDocuments(
       db,
       tenantId,
-      workflow.project_id,
-      workflow.project_spec_version,
+      workflow.workspace_id,
+      workflow.workspace_spec_version,
     );
-    for (const document of projectDocuments) {
+    for (const document of workspaceDocuments) {
       documents.set(document.logical_name, document);
     }
   }
@@ -161,12 +161,12 @@ export async function listTaskDocuments(
     return listWorkflowDocuments(db, tenantId, workflowId);
   }
 
-  const projectId = asOptionalString(task.project_id);
-  if (!projectId) {
+  const workspaceId = asOptionalString(task.workspace_id);
+  if (!workspaceId) {
     return [];
   }
 
-  return loadProjectDocuments(db, tenantId, projectId, null);
+  return loadProjectDocuments(db, tenantId, workspaceId, null);
 }
 
 export async function registerTaskOutputDocuments(
@@ -196,13 +196,13 @@ export async function registerTaskOutputDocuments(
 
     await db.query(
       `INSERT INTO workflow_documents (
-         tenant_id, workflow_id, project_id, task_id, logical_name, source, location,
+         tenant_id, workflow_id, workspace_id, task_id, logical_name, source, location,
          artifact_id, content_type, title, description, metadata
        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)`,
       [
         tenantId,
         workflowId,
-        asOptionalString(task.project_id),
+        asOptionalString(task.workspace_id),
         task.id,
         logicalName,
         normalized.source,
@@ -238,7 +238,7 @@ export async function createWorkflowDocument(
   );
   const result = await db.query<WorkflowDocumentRow>(
     `INSERT INTO workflow_documents (
-       tenant_id, workflow_id, project_id, task_id, logical_name, source, location,
+       tenant_id, workflow_id, workspace_id, task_id, logical_name, source, location,
        artifact_id, content_type, title, description, metadata
      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb)
      RETURNING id, logical_name, source, location, artifact_id, content_type,
@@ -246,7 +246,7 @@ export async function createWorkflowDocument(
     [
       tenantId,
       workflowId,
-      workflow.project_id,
+      workflow.workspace_id,
       normalized.task_id ?? null,
       input.logical_name,
       normalized.source,
@@ -334,7 +334,7 @@ async function loadWorkflowScope(
   workflowId: string,
 ): Promise<WorkflowScopeRow> {
   const result = await db.query<WorkflowScopeRow>(
-    `SELECT project_id, project_spec_version
+    `SELECT workspace_id, workspace_spec_version
        FROM workflows
       WHERE tenant_id = $1
         AND id = $2`,
@@ -349,15 +349,15 @@ async function loadWorkflowScope(
 async function loadProjectDocuments(
   db: DatabaseQueryable,
   tenantId: string,
-  projectId: string,
+  workspaceId: string,
   version: number | null,
 ): Promise<ResolvedDocumentReference[]> {
-  const specEnvelope = await loadProjectSpec(db, tenantId, projectId, version);
+  const specEnvelope = await loadProjectSpec(db, tenantId, workspaceId, version);
   const documents = readDocumentMap(specEnvelope.spec);
 
   return Object.entries(documents)
     .map(([logicalName, value]) => {
-      const normalized = normalizeDocumentDefinition(logicalName, value, 'project_spec');
+      const normalized = normalizeDocumentDefinition(logicalName, value, 'workspace_spec');
       return buildProjectDocumentReference(logicalName, normalized);
     })
     .sort((left, right) => left.logical_name.localeCompare(right.logical_name));
@@ -366,28 +366,28 @@ async function loadProjectDocuments(
 async function loadProjectSpec(
   db: DatabaseQueryable,
   tenantId: string,
-  projectId: string,
+  workspaceId: string,
   version: number | null,
 ): Promise<ProjectSpecEnvelope> {
-  const targetVersion = await resolveSpecVersion(db, tenantId, projectId, version);
+  const targetVersion = await resolveSpecVersion(db, tenantId, workspaceId, version);
   if (targetVersion === 0) {
-    return { project_id: projectId, version: 0, spec: {} };
+    return { workspace_id: workspaceId, version: 0, spec: {} };
   }
 
   const result = await db.query<ProjectSpecRow>(
     `SELECT spec
-       FROM project_spec_versions
+       FROM workspace_spec_versions
       WHERE tenant_id = $1
-        AND project_id = $2
+        AND workspace_id = $2
         AND version = $3`,
-    [tenantId, projectId, targetVersion],
+    [tenantId, workspaceId, targetVersion],
   );
   if (!result.rowCount) {
     throw new NotFoundError('Project spec version not found');
   }
 
   return {
-    project_id: projectId,
+    workspace_id: workspaceId,
     version: targetVersion,
     spec: asRecord(result.rows[0].spec),
   };
@@ -396,24 +396,24 @@ async function loadProjectSpec(
 async function resolveSpecVersion(
   db: DatabaseQueryable,
   tenantId: string,
-  projectId: string,
+  workspaceId: string,
   version: number | null,
 ): Promise<number> {
   if (typeof version === 'number' && Number.isFinite(version)) {
     return version;
   }
 
-  const projectResult = await db.query<{ current_spec_version: number }>(
+  const workspaceResult = await db.query<{ current_spec_version: number }>(
     `SELECT current_spec_version
-       FROM projects
+       FROM workspaces
       WHERE tenant_id = $1
         AND id = $2`,
-    [tenantId, projectId],
+    [tenantId, workspaceId],
   );
-  if (!projectResult.rowCount) {
+  if (!workspaceResult.rowCount) {
     throw new NotFoundError('Project not found');
   }
-  return projectResult.rows[0].current_spec_version;
+  return workspaceResult.rows[0].current_spec_version;
 }
 
 function buildProjectDocumentReference(
@@ -422,7 +422,7 @@ function buildProjectDocumentReference(
 ): ResolvedDocumentReference {
   return {
     logical_name: logicalName,
-    scope: 'project',
+    scope: 'workspace',
     source: normalized.source,
     ...(normalized.title ? { title: normalized.title } : {}),
     ...(normalized.description ? { description: normalized.description } : {}),
@@ -607,7 +607,7 @@ function documentLocation(
 function normalizeDocumentDefinition(
   logicalName: string,
   value: unknown,
-  sourceContext: 'project_spec' | 'task_output' | 'workflow_api',
+  sourceContext: 'workspace_spec' | 'task_output' | 'workflow_api',
 ): NormalizedDocumentDefinition {
   const entry = requireRecord(value, `Document '${logicalName}' must be an object`);
   const source = entry.source;
@@ -649,9 +649,9 @@ function normalizeDocumentDefinition(
       `Document '${logicalName}' must provide an artifact_id or logical_path for artifact sources`,
     );
   }
-  if (sourceContext === 'project_spec' && artifactId) {
+  if (sourceContext === 'workspace_spec' && artifactId) {
     throw new ValidationError(
-      `Document '${logicalName}' in project specs must reference artifacts by logical_path`,
+      `Document '${logicalName}' in workspace specs must reference artifacts by logical_path`,
     );
   }
 

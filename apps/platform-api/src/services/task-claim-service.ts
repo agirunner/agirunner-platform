@@ -25,7 +25,7 @@ import {
   readRequiredPositiveIntegerRuntimeDefault,
 } from './runtime-default-values.js';
 import { flattenInstructionLayers } from './task-context-service.js';
-import { computeToolMatch, readAgentToolRequirements, resolveProjectToolTags } from './tool-tag-service.js';
+import { computeToolMatch, readAgentToolRequirements, resolveWorkspaceToolTags } from './tool-tag-service.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
 
@@ -210,12 +210,12 @@ export class TaskClaimService {
         ) {
           continue;
         }
-        const projectTools = await resolveProjectToolTags(
+        const workspaceTools = await resolveWorkspaceToolTags(
           client,
           identity.tenantId,
-          (candidate.project_id as string | null | undefined) ?? null,
+          (candidate.workspace_id as string | null | undefined) ?? null,
         );
-        const evaluation = computeToolMatch(projectTools, agentTools);
+        const evaluation = computeToolMatch(workspaceTools, agentTools);
         if (evaluation.matches) {
           task = candidate;
           toolMatch = {
@@ -280,16 +280,16 @@ export class TaskClaimService {
       const namesRes = await client.query(
         `SELECT
            w.name AS workflow_name,
-           p.name AS project_name
+           p.name AS workspace_name
          FROM tasks t
          LEFT JOIN workflows w ON w.tenant_id = t.tenant_id AND w.id = t.workflow_id
-         LEFT JOIN projects p ON p.tenant_id = t.tenant_id AND p.id = t.project_id
+         LEFT JOIN workspaces p ON p.tenant_id = t.tenant_id AND p.id = t.workspace_id
          WHERE t.tenant_id = $1 AND t.id = $2`,
         [identity.tenantId, task.id],
       );
       if (namesRes.rowCount) {
         (claimedTask as Record<string, unknown>).workflow_name = namesRes.rows[0].workflow_name;
-        (claimedTask as Record<string, unknown>).project_name = namesRes.rows[0].project_name;
+        (claimedTask as Record<string, unknown>).workspace_name = namesRes.rows[0].workspace_name;
       }
 
       const enrichedTask = await this.enrichWithLLMCredentials(

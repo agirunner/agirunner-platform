@@ -9,8 +9,8 @@ import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { ArtifactCatalogService } from '../../services/artifact-catalog-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
-import { assertProjectMemoryWritesAreDurableKnowledge } from '../../services/project-memory-write-guard.js';
-import { ProjectMemoryScopeService } from '../../services/project-memory-scope-service.js';
+import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../services/workspace-memory-write-guard.js';
+import { WorkspaceMemoryScopeService } from '../../services/workspace-memory-scope-service.js';
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
@@ -70,7 +70,7 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
     app.eventService,
     activationDispatchService,
   );
-  const projectMemoryScopeService = new ProjectMemoryScopeService(app.pgPool);
+  const workspaceMemoryScopeService = new WorkspaceMemoryScopeService(app.pgPool);
   const artifactCatalogService = new ArtifactCatalogService(
     app.pgPool,
     createArtifactStorage(buildArtifactStorageConfig(app.config)),
@@ -85,16 +85,16 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const query = request.query as { key?: string };
       const task = await taskScopeService.loadAgentOwnedActiveTask(request.auth!, params.id);
-      if (!task.project_id) {
-        throw new ValidationError('Task is not linked to a project');
+      if (!task.workspace_id) {
+        throw new ValidationError('Task is not linked to a workspace');
       }
-      const project = await app.projectService.getProject(request.auth!.tenantId, task.project_id);
-      const memory = await projectMemoryScopeService.filterVisibleTaskMemory({
+      const workspace = await app.workspaceService.getWorkspace(request.auth!.tenantId, task.workspace_id);
+      const memory = await workspaceMemoryScopeService.filterVisibleTaskMemory({
         tenantId: request.auth!.tenantId,
-        projectId: task.project_id as string,
+        workspaceId: task.workspace_id as string,
         workflowId: task.workflow_id as string,
         workItemId: task.work_item_id,
-        currentMemory: (project.memory ?? {}) as Record<string, unknown>,
+        currentMemory: (workspace.memory ?? {}) as Record<string, unknown>,
       });
       if (query.key) {
         return { data: { key: query.key, value: memory[query.key] } };
@@ -140,15 +140,15 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(memoryPatchSchema.safeParse(request.body));
       const task = await taskScopeService.loadAgentOwnedActiveTask(request.auth!, params.id);
-      if (!task.project_id) {
-        throw new ValidationError('Task is not linked to a project');
+      if (!task.workspace_id) {
+        throw new ValidationError('Task is not linked to a workspace');
       }
       const memoryEntries =
         'updates' in body
           ? Object.entries(body.updates).map(([key, value]) => ({ key, value }))
           : [{ key: body.key, value: body.value }];
-      assertProjectMemoryWritesAreDurableKnowledge(memoryEntries);
-      const projectId = task.project_id;
+      assertWorkspaceMemoryWritesAreDurableKnowledge(memoryEntries);
+      const workspaceId = task.workspace_id;
       const context = {
         workflow_id: task.workflow_id,
         work_item_id: task.work_item_id,
@@ -166,9 +166,9 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
         requestId,
         async () => {
           if ('updates' in body) {
-            return app.projectService.patchProjectMemoryEntries(
+            return app.workspaceService.patchWorkspaceMemoryEntries(
               request.auth!,
-              projectId,
+              workspaceId,
               Object.entries(body.updates).map(([key, value]) => ({
                 key,
                 value,
@@ -177,7 +177,7 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
             );
           }
 
-          return app.projectService.patchProjectMemory(request.auth!, projectId, {
+          return app.workspaceService.patchWorkspaceMemory(request.auth!, workspaceId, {
             key: body.key,
             value: body.value,
             context,

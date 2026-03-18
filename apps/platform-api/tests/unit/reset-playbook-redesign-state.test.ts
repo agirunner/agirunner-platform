@@ -18,7 +18,7 @@ describe('resetPlaybookRedesignState', () => {
             { tablename: 'tenants' },
             { tablename: 'schema_migrations' },
             { tablename: 'playbooks' },
-            { tablename: 'projects' },
+            { tablename: 'workspaces' },
             { tablename: 'workflow_work_items' },
             { tablename: 'platform_instructions' },
           ],
@@ -38,7 +38,7 @@ describe('resetPlaybookRedesignState', () => {
     const sql = String(pool.query.mock.calls[2]?.[0] ?? '');
     expect(sql).toContain('TRUNCATE TABLE');
     expect(sql).toContain('"public"."playbooks"');
-    expect(sql).toContain('"public"."projects"');
+    expect(sql).toContain('"public"."workspaces"');
     expect(sql).toContain('"public"."workflow_work_items"');
     expect(sql).toContain('"public"."platform_instructions"');
     expect(sql).not.toContain('"public"."api_keys"');

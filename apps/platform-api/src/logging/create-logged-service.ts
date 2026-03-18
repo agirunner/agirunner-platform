@@ -128,8 +128,8 @@ export function createLoggedService<T extends object>(
               status: 'completed',
               durationMs,
               payload,
-              projectId: context.projectId,
-              projectName: context.projectName,
+              workspaceId: context.workspaceId,
+              workspaceName: context.workspaceName,
               workflowId: context.workflowId,
               workflowName: context.workflowName,
               taskId: context.taskId,
@@ -181,8 +181,8 @@ export function createLoggedService<T extends object>(
                 code: (errorObj as Error & { code?: string }).code ?? 'unknown',
                 message: errorObj.message,
               },
-              projectId: context.projectId,
-              projectName: context.projectName,
+              workspaceId: context.workspaceId,
+              workspaceName: context.workspaceName,
               workflowId: context.workflowId,
               workflowName: context.workflowName,
               taskId: context.taskId,
@@ -215,8 +215,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 interface LoggedServiceContext {
   entityId?: string;
   entityName?: string;
-  projectId?: string;
-  projectName?: string;
+  workspaceId?: string;
+  workspaceName?: string;
   workflowId?: string;
   workflowName?: string;
   taskId?: string;
@@ -244,8 +244,8 @@ function resolveLogContext(
   return {
     entityId: resultRecord ? readString(resultRecord, ['id']) : undefined,
     entityName: resultRecord ? readString(resultRecord, [nameField]) : undefined,
-    projectId: pickString(records, ['projectId', 'project_id']),
-    projectName: pickString(records, ['projectName', 'project_name']),
+    workspaceId: pickString(records, ['workspaceId', 'workspace_id']),
+    workspaceName: pickString(records, ['workspaceName', 'workspace_name']),
     workflowId: pickString(records, ['workflowId', 'workflow_id']),
     workflowName: pickString(records, ['workflowName', 'workflow_name']),
     taskId,

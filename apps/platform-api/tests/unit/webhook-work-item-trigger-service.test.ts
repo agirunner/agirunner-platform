@@ -212,7 +212,7 @@ describe('WebhookWorkItemTriggerService', () => {
 
   it('rejects webhook triggers that target a non-playbook workflow', async () => {
     pool.query.mockResolvedValueOnce({
-      rows: [{ project_id: 'project-1', playbook_id: null, definition: null }],
+      rows: [{ workspace_id: 'workspace-1', playbook_id: null, definition: null }],
       rowCount: 1,
     });
 
@@ -359,7 +359,7 @@ describe('WebhookWorkItemTriggerService', () => {
       tenant_id: 'tenant-1',
       name: 'GitHub PR Opened',
       source: 'github',
-      project_id: 'project-1',
+      workspace_id: 'workspace-1',
       workflow_id: 'workflow-1',
       event_header: 'X-Event-Type',
       event_types: ['github.pr_opened'],
@@ -392,7 +392,7 @@ describe('WebhookWorkItemTriggerService', () => {
 
   function buildWorkflowScopeRow() {
     return {
-      project_id: 'project-1',
+      workspace_id: 'workspace-1',
       playbook_id: 'playbook-1',
       definition: {
         roles: ['triager'],

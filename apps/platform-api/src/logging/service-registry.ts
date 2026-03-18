@@ -8,7 +8,7 @@ export interface ServiceLogConfig {
 
 export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
   ProjectService: {
-    entityType: 'project',
+    entityType: 'workspace',
     category: 'config',
     nameField: 'name',
     ignoreFields: ['updatedAt', 'createdAt', 'memory', 'memorySizeBytes'],

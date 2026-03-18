@@ -323,7 +323,7 @@ describe('task query service git activity (FR-055)', () => {
             tenant_id: tenantId,
             assigned_agent_id: 'agent-1',
             workflow_id: 'workflow-1',
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             work_item_id: 'wi-1',
             depends_on: [],
             input: {
@@ -358,10 +358,10 @@ describe('task query service git activity (FR-055)', () => {
           }],
         };
       }
-      if (sql.includes('FROM projects')) {
+      if (sql.includes('FROM workspaces')) {
         return {
           rows: [{
-            id: 'project-1',
+            id: 'workspace-1',
             name: 'Project',
             description: 'Desc',
             memory: { deployment_token: 'deploy-secret' },
@@ -381,7 +381,7 @@ describe('task query service git activity (FR-055)', () => {
             instruction_config: {},
             metadata: {},
             playbook_id: 'pb-1',
-            project_spec_version: null,
+            workspace_spec_version: null,
             playbook_name: 'Playbook',
             playbook_outcome: 'Done',
             playbook_definition: {},
@@ -414,13 +414,13 @@ describe('task query service git activity (FR-055)', () => {
           }],
         };
       }
-      if (sql.includes('SELECT project_id, project_spec_version') && sql.includes('FROM workflows')) {
+      if (sql.includes('SELECT workspace_id, workspace_spec_version') && sql.includes('FROM workflows')) {
         return {
           rowCount: 1,
-          rows: [{ project_id: 'project-1', project_spec_version: 1 }],
+          rows: [{ workspace_id: 'workspace-1', workspace_spec_version: 1 }],
         };
       }
-      if (sql.includes('FROM project_spec_versions')) {
+      if (sql.includes('FROM workspace_spec_versions')) {
         return {
           rowCount: 1,
           rows: [{ spec: {} }],
@@ -451,7 +451,7 @@ describe('task query service git activity (FR-055)', () => {
 
     expect((git.raw as Record<string, any>).extra_headers.Authorization).toBe('redacted://task-secret');
     expect((git.raw as Record<string, any>).nested.token_ref).toBe('redacted://task-secret');
-    expect((context.project as Record<string, any>).memory.deployment_token).toBe('redacted://task-context-secret');
+    expect((context.workspace as Record<string, any>).memory.deployment_token).toBe('redacted://task-context-secret');
     expect((context.workflow as Record<string, any>).resolved_config.provider_token).toBe('redacted://task-context-secret');
     expect((context.workflow as Record<string, any>).variables.secret_ref).toBe('redacted://task-context-secret');
     expect((context.task as Record<string, any>).input.credentials.api_key).toBe('redacted://task-context-secret');
@@ -515,8 +515,8 @@ describe('task query service git activity (FR-055)', () => {
           predecessor_handoff_source: 'local_work_item',
           recent_handoff_count: 1,
           work_item_continuity_present: true,
-          project_memory_index_present: true,
-          project_artifact_index_present: true,
+          workspace_memory_index_present: true,
+          workspace_artifact_index_present: true,
           document_count: 0,
         }),
       }),

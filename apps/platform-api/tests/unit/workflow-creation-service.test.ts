@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowCreationService } from '../../src/services/workflow-creation-service.js';
 
 describe('WorkflowCreationService', () => {
-  it('keeps typed project settings out of workflow config layers when creating a workflow', async () => {
+  it('keeps typed workspace settings out of workflow config layers when creating a workflow', async () => {
     const validateModelOverride = vi.fn(async () => undefined);
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -31,14 +31,14 @@ describe('WorkflowCreationService', () => {
             }],
           };
         }
-        if (sql.includes('SELECT settings FROM projects')) {
+        if (sql.includes('SELECT settings FROM workspaces')) {
           return {
             rowCount: 1,
             rows: [{
               settings: {
                 default_branch: 'main',
                 git_user_name: 'Smoke Bot',
-                project_brief: 'Ship tested code',
+                workspace_brief: 'Ship tested code',
                 model_overrides: {
                   developer: {
                     provider: 'openai',
@@ -65,7 +65,7 @@ describe('WorkflowCreationService', () => {
           });
           expect(params?.[10]).toEqual({
             playbook: { runtime: { timeout: 30 } },
-            project: {
+            workspace: {
               runtime: {
                 timeout: 45,
               },
@@ -124,7 +124,7 @@ describe('WorkflowCreationService', () => {
       } as never,
       {
         playbook_id: 'playbook-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         name: 'Workflow One',
         config_overrides: {
           model_override: {

@@ -31,7 +31,7 @@ export interface ResolvedWorkflowConfig {
   resolved: RecordValue;
   layers: {
     playbook: RecordValue;
-    project: RecordValue;
+    workspace: RecordValue;
     run: RecordValue;
   };
 }
@@ -52,22 +52,22 @@ export interface EffectiveModelOverride {
 
 export function resolveWorkflowConfig(
   playbookSchema: RecordValue,
-  projectSpec: RecordValue,
+  workspaceSpec: RecordValue,
   runOverrides: RecordValue,
 ): ResolvedWorkflowConfig {
   const playbookConfig = asRecord(playbookSchema.config);
-  const projectConfig = readWorkflowConfigLayer(projectSpec);
+  const workspaceConfig = readWorkflowConfigLayer(workspaceSpec);
   const runConfig = readWorkflowConfigLayer(runOverrides);
   const policy = readConfigPolicy(playbookSchema);
 
-  validateOverrides('project config', projectConfig, policy);
+  validateOverrides('workspace config', workspaceConfig, policy);
   validateOverrides('workflow config override', runConfig, policy);
 
   return {
-    resolved: mergeRecords(mergeRecords(playbookConfig, projectConfig), runConfig),
+    resolved: mergeRecords(mergeRecords(playbookConfig, workspaceConfig), runConfig),
     layers: {
       playbook: cloneRecord(playbookConfig),
-      project: cloneRecord(projectConfig),
+      workspace: cloneRecord(workspaceConfig),
       run: cloneRecord(runConfig),
     },
   };
@@ -209,12 +209,12 @@ function annotateSources(
 function resolveSource(
   path: string[],
   layers: ResolvedWorkflowConfig['layers'],
-): 'playbook' | 'project' | 'run' {
+): 'playbook' | 'workspace' | 'run' {
   if (hasValueAtPath(layers.run, path)) {
     return 'run';
   }
-  if (hasValueAtPath(layers.project, path)) {
-    return 'project';
+  if (hasValueAtPath(layers.workspace, path)) {
+    return 'workspace';
   }
   return 'playbook';
 }

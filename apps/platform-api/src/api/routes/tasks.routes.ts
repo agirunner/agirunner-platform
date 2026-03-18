@@ -19,7 +19,7 @@ const taskCreateSchema = z.object({
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   workflow_id: z.string().uuid().optional(),
   work_item_id: z.string().uuid().optional(),
-  project_id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid().optional(),
   stage_name: z.string().max(120).optional(),
   activation_id: z.string().uuid().optional(),
   request_id: z.string().max(255).optional(),
@@ -282,7 +282,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
       const result = await taskService.listTasks(request.auth!.tenantId, {
         state: parseTaskStateFilter(query.state),
-        project_id: query.project_id,
+        workspace_id: query.workspace_id,
         assigned_agent_id: query.assigned_agent_id,
         parent_id: query.parent_id,
         workflow_id: query.workflow_id,

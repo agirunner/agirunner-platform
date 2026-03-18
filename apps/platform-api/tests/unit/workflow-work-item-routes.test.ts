@@ -162,7 +162,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', { query: vi.fn() } as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -269,7 +269,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -347,7 +347,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -426,7 +426,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', { query: vi.fn() } as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -510,7 +510,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -608,7 +608,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -713,7 +713,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -802,7 +802,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', { query: vi.fn() } as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -889,7 +889,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -986,7 +986,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -1069,7 +1069,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -1152,7 +1152,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -1235,7 +1235,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -1322,7 +1322,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -1405,7 +1405,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', pool as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -1484,7 +1484,7 @@ describe('workflow work-item routes', () => {
     app.decorate('pgPool', { query: vi.fn() } as never);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),

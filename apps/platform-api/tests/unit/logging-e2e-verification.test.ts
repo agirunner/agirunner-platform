@@ -37,10 +37,10 @@ function createMockPool() {
           duration_ms: p[9],
           payload: JSON.parse(p[10] as string),
           error: p[11] ? JSON.parse(p[11] as string) : null,
-          project_id: p[12],
+          workspace_id: p[12],
           workflow_id: p[13],
           workflow_name: p[14],
-          project_name: p[15],
+          workspace_name: p[15],
           task_id: p[16],
           work_item_id: p[17],
           activation_id: p[18],
@@ -102,7 +102,7 @@ describe('Logging E2E Verification', () => {
         status: 'completed',
         durationMs: 1500,
         payload: { model: 'claude-opus', input_tokens: 500, output_tokens: 200 },
-        projectId: 'proj-1',
+        workspaceId: 'proj-1',
         workflowId: 'wf-1',
         taskId: 'task-1',
         workItemId: 'work-item-1',
@@ -202,9 +202,9 @@ describe('Logging E2E Verification', () => {
       logService = new LogService(pool as never);
     });
 
-    it('projectServiceCreateGeneratesConfigLog', async () => {
+    it('workspaceServiceCreateGeneratesConfigLog', async () => {
       const service = {
-        createProject: vi
+        createWorkspace: vi
           .fn()
           .mockResolvedValue({
             id: '00000000-0000-0000-0000-000000000101',
@@ -212,17 +212,17 @@ describe('Logging E2E Verification', () => {
             status: 'active',
           }),
       };
-      const wrapped = createLoggedService(service, 'ProjectService', logService);
+      const wrapped = createLoggedService(service, 'WorkspaceService', logService);
 
-      await wrapped.createProject({ name: 'My Project' });
+      await wrapped.createWorkspace({ name: 'My Project' });
       await vi.waitFor(() => expect(pool.rows.length).toBeGreaterThan(0));
 
       const logRow = pool.rows[0];
       expect(logRow.source).toBe('platform');
       expect(logRow.category).toBe('config');
-      expect(logRow.operation).toBe('config.project.created');
+      expect(logRow.operation).toBe('config.workspace.created');
       expect(logRow.status).toBe('completed');
-      expect(logRow.resource_type).toBe('project');
+      expect(logRow.resource_type).toBe('workspace');
       expect(logRow.resource_id).toBe('00000000-0000-0000-0000-000000000101');
       expect(logRow.resource_name).toBe('My Project');
     });
@@ -288,11 +288,11 @@ describe('Logging E2E Verification', () => {
 
     it('failedMutationLogsErrorWithCorrectFields', async () => {
       const service = {
-        createProject: vi.fn().mockRejectedValue(new Error('unique constraint violation')),
+        createWorkspace: vi.fn().mockRejectedValue(new Error('unique constraint violation')),
       };
-      const wrapped = createLoggedService(service, 'ProjectService', logService);
+      const wrapped = createLoggedService(service, 'WorkspaceService', logService);
 
-      await expect(wrapped.createProject({ name: 'Dup' })).rejects.toThrow();
+      await expect(wrapped.createWorkspace({ name: 'Dup' })).rejects.toThrow();
       await vi.waitFor(() => expect(pool.rows.length).toBeGreaterThan(0));
 
       const logRow = pool.rows[0];
@@ -322,13 +322,13 @@ describe('Logging E2E Verification', () => {
 
     it('ignoredMethodsDoNotProduceLogs', async () => {
       const service = {
-        getProject: vi.fn().mockResolvedValue({ id: 'proj-1' }),
-        listProjects: vi.fn().mockResolvedValue([]),
+        getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),
+        listWorkspaces: vi.fn().mockResolvedValue([]),
       };
-      const wrapped = createLoggedService(service, 'ProjectService', logService);
+      const wrapped = createLoggedService(service, 'WorkspaceService', logService);
 
-      await wrapped.getProject('proj-1');
-      await wrapped.listProjects();
+      await wrapped.getWorkspace('proj-1');
+      await wrapped.listWorkspaces();
       await new Promise((r) => setTimeout(r, 20));
 
       expect(pool.rows).toHaveLength(0);
@@ -336,10 +336,10 @@ describe('Logging E2E Verification', () => {
 
     it('nonMutationPrefixMethodsDoNotProduceLogs', async () => {
       const service = {
-        getProject: vi.fn().mockResolvedValue({ id: 'proj-1' }),
+        getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),
         validateSomething: vi.fn().mockResolvedValue(true),
       };
-      const wrapped = createLoggedService(service, 'ProjectService', logService);
+      const wrapped = createLoggedService(service, 'WorkspaceService', logService);
 
       await wrapped.validateSomething();
       await new Promise((r) => setTimeout(r, 20));
@@ -490,7 +490,7 @@ describe('Logging E2E Verification', () => {
     });
   });
 
-  describe('denormalized workflow and project names', () => {
+  describe('denormalized workflow and workspace names', () => {
     it('storesProvidedWorkflowNameWithoutDbLookup', async () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
@@ -506,13 +506,13 @@ describe('Logging E2E Verification', () => {
         status: 'started',
         workflowId: 'wf-1',
         workflowName: 'Build Pipeline',
-        projectId: 'proj-1',
-        projectName: 'My Project',
+        workspaceId: 'proj-1',
+        workspaceName: 'My Project',
       });
 
       expect(pool.rows).toHaveLength(1);
       expect(pool.rows[0].workflow_name).toBe('Build Pipeline');
-      expect(pool.rows[0].project_name).toBe('My Project');
+      expect(pool.rows[0].workspace_name).toBe('My Project');
     });
 
     it('storesNullWhenNamesNotProvided', async () => {
@@ -533,7 +533,7 @@ describe('Logging E2E Verification', () => {
 
       expect(pool.rows).toHaveLength(1);
       expect(pool.rows[0].workflow_name).toBeNull();
-      expect(pool.rows[0].project_name).toBeNull();
+      expect(pool.rows[0].workspace_name).toBeNull();
     });
   });
 
