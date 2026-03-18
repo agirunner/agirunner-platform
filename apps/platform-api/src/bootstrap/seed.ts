@@ -8,9 +8,7 @@ import type pg from 'pg';
 
 import type { AppEnv } from '../config/schema.js';
 import type { DatabaseQueryable } from '../db/database.js';
-import {
-  BUILT_IN_PLAYBOOKS,
-} from '../catalogs/built-in-playbooks.js';
+import { BUILT_IN_PLAYBOOKS } from '../catalogs/built-in-playbooks.js';
 import {
   loadBuiltInRolesConfig,
   type BuiltInRolesConfig,
@@ -19,10 +17,7 @@ import {
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
 import { UserService } from '../services/user-service.js';
-import {
-  DEFAULT_ADMIN_KEY_PREFIX,
-  DEFAULT_TENANT_ID,
-} from '../db/seed.js';
+import { DEFAULT_ADMIN_KEY_PREFIX, DEFAULT_TENANT_ID } from '../db/seed.js';
 
 const REDESIGN_RESET_PRESERVED_TABLES = new Set([
   'api_keys',
@@ -33,7 +28,10 @@ const REDESIGN_RESET_PRESERVED_TABLES = new Set([
   'schema_migrations',
   'tenants',
 ]);
-const PRESERVED_LLM_RUNTIME_DEFAULT_KEYS = ['default_model_id', 'default_reasoning_config'] as const;
+const PRESERVED_LLM_RUNTIME_DEFAULT_KEYS = [
+  'default_model_id',
+  'default_reasoning_config',
+] as const;
 
 // ---------------------------------------------------------------------------
 // Public entry point
@@ -145,15 +143,24 @@ async function syncBuiltInRoles(
     if (!stored?.is_built_in) {
       continue;
     }
-    const mergedAllowedTools = [...new Set([...(stored.allowed_tools ?? []), ...roleConfig.allowedTools])];
-    const mergedCapabilities = [...new Set([...(stored.capabilities ?? []), ...roleConfig.capabilities])];
+    const mergedAllowedTools = [
+      ...new Set([...(stored.allowed_tools ?? []), ...roleConfig.allowedTools]),
+    ];
+    const mergedCapabilities = [
+      ...new Set([...(stored.capabilities ?? []), ...roleConfig.capabilities]),
+    ];
     const toolsChanged = mergedAllowedTools.length !== (stored.allowed_tools ?? []).length;
     const capabilitiesChanged = mergedCapabilities.length !== (stored.capabilities ?? []).length;
     const escalationTarget = roleConfig.escalationTarget ?? null;
     const escalationTargetChanged = (stored.escalation_target ?? null) !== escalationTarget;
     const maxEscalationDepth = roleConfig.maxEscalationDepth ?? stored.max_escalation_depth ?? 5;
     const maxEscalationDepthChanged = stored.max_escalation_depth !== maxEscalationDepth;
-    if (!toolsChanged && !capabilitiesChanged && !escalationTargetChanged && !maxEscalationDepthChanged) {
+    if (
+      !toolsChanged &&
+      !capabilitiesChanged &&
+      !escalationTargetChanged &&
+      !maxEscalationDepthChanged
+    ) {
       continue;
     }
     await service.updateRole(DEFAULT_TENANT_ID, stored.id, {
@@ -189,9 +196,7 @@ async function seedRoleDefinitions(
   }
 }
 
-async function seedRuntimeDefaults(
-  service: RuntimeDefaultsService,
-): Promise<void> {
+async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<void> {
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'global_max_runtimes',
     configValue: '10',
@@ -203,7 +208,8 @@ async function seedRuntimeDefaults(
     configKey: 'default_runtime_image',
     configValue: 'agirunner-runtime:local',
     configType: 'string',
-    description: 'Default Docker image for runtime containers when the playbook does not specify one',
+    description:
+      'Default Docker image for runtime containers when the playbook does not specify one',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -232,6 +238,55 @@ async function seedRuntimeDefaults(
     configValue: '30',
     configType: 'number',
     description: 'Default grace period in seconds before forced container shutdown',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'api.events_heartbeat_seconds',
+    configValue: '10',
+    configType: 'number',
+    description: 'How often the runtime emits task-event heartbeats while a stream is open',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'workspace.clone_max_retries',
+    configValue: '3',
+    configType: 'number',
+    description: 'How many times the runtime retries a workspace clone before failing the task',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'workspace.clone_backoff_base_seconds',
+    configValue: '1',
+    configType: 'number',
+    description: 'Base backoff in seconds used between workspace clone retry attempts',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'workspace.snapshot_interval',
+    configValue: '1',
+    configType: 'number',
+    description: 'Automatic workspace snapshot cadence in task steps; 0 disables snapshots',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container.max_reuse_age_seconds',
+    configValue: '1800',
+    configType: 'number',
+    description: 'Maximum age in seconds before a warm-reused container is retired',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container.max_reuse_tasks',
+    configValue: '10',
+    configType: 'number',
+    description: 'Maximum tasks a warm-reused container may serve before being retired',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'pool.refresh_interval_seconds',
+    configValue: '300',
+    configType: 'number',
+    description: 'How often the runtime refreshes pool state from the platform',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -273,84 +328,96 @@ async function seedRuntimeDefaults(
     configKey: 'platform.api_request_timeout_seconds',
     configValue: '30',
     configType: 'number',
-    description: 'How long connected runtimes wait for platform API requests before treating them as failed',
+    description:
+      'How long connected runtimes wait for platform API requests before treating them as failed',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.log_ingest_timeout_seconds',
     configValue: '10',
     configType: 'number',
-    description: 'How long connected runtimes wait when flushing execution logs back to the platform ingest endpoint',
+    description:
+      'How long connected runtimes wait when flushing execution logs back to the platform ingest endpoint',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.log_flush_interval_ms',
     configValue: '500',
     configType: 'number',
-    description: 'How long connected runtimes buffer partial execution-log batches before flushing them to the platform ingest endpoint',
+    description:
+      'How long connected runtimes buffer partial execution-log batches before flushing them to the platform ingest endpoint',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.heartbeat_max_failures',
     configValue: '24',
     configType: 'number',
-    description: 'How many consecutive heartbeat failures connected runtimes tolerate before self-termination',
+    description:
+      'How many consecutive heartbeat failures connected runtimes tolerate before self-termination',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.drain_timeout_seconds',
     configValue: '600',
     configType: 'number',
-    description: 'How long connected runtimes wait for in-flight work while draining before forced shutdown',
+    description:
+      'How long connected runtimes wait for in-flight work while draining before forced shutdown',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.cancellation_report_timeout_seconds',
     configValue: '10',
     configType: 'number',
-    description: 'How long connected runtimes wait when reporting cancellation or shutdown outcomes back to the platform',
+    description:
+      'How long connected runtimes wait when reporting cancellation or shutdown outcomes back to the platform',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.self_terminate_cleanup_timeout_seconds',
     configValue: '15',
     configType: 'number',
-    description: 'How long connected runtimes wait while cleaning up managed task containers before self-termination',
+    description:
+      'How long connected runtimes wait while cleaning up managed task containers before self-termination',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.workflow_activation_delay_ms',
     configValue: '10000',
     configType: 'number',
-    description: 'Delay in milliseconds before non-immediate workflow activations become eligible to dispatch',
+    description:
+      'Delay in milliseconds before non-immediate workflow activations become eligible to dispatch',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.workflow_activation_heartbeat_interval_ms',
     configValue: '900000',
     configType: 'number',
-    description: 'Minimum interval in milliseconds between watchdog heartbeat activations for the same workflow',
+    description:
+      'Minimum interval in milliseconds between watchdog heartbeat activations for the same workflow',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.workflow_activation_stale_after_ms',
     configValue: '300000',
     configType: 'number',
-    description: 'Threshold in milliseconds after which a processing workflow activation is considered stale',
+    description:
+      'Threshold in milliseconds after which a processing workflow activation is considered stale',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.task_cancel_signal_grace_period_ms',
     configValue: '60000',
     configType: 'number',
-    description: 'Grace period in milliseconds between sending a cancel signal and force-failing or force-cancelling work',
+    description:
+      'Grace period in milliseconds between sending a cancel signal and force-failing or force-cancelling work',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.worker_dispatch_ack_timeout_ms',
     configValue: '15000',
     configType: 'number',
-    description: 'Maximum time in milliseconds a worker has to acknowledge a dispatch before it is released',
+    description:
+      'Maximum time in milliseconds a worker has to acknowledge a dispatch before it is released',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -364,21 +431,24 @@ async function seedRuntimeDefaults(
     configKey: 'platform.agent_default_heartbeat_interval_seconds',
     configValue: '60',
     configType: 'number',
-    description: 'Default heartbeat interval in seconds assigned to newly registered standalone agents',
+    description:
+      'Default heartbeat interval in seconds assigned to newly registered standalone agents',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.agent_heartbeat_grace_period_ms',
     configValue: '300000',
     configType: 'number',
-    description: 'Additional grace period in milliseconds before stale standalone agents fail claimed work',
+    description:
+      'Additional grace period in milliseconds before stale standalone agents fail claimed work',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.agent_heartbeat_threshold_multiplier',
     configValue: '2',
     configType: 'number',
-    description: 'Heartbeat interval multiplier used when determining when standalone agent heartbeats are stale',
+    description:
+      'Heartbeat interval multiplier used when determining when standalone agent heartbeats are stale',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -399,21 +469,24 @@ async function seedRuntimeDefaults(
     configKey: 'platform.worker_offline_grace_period_ms',
     configValue: '300000',
     configType: 'number',
-    description: 'Additional grace period in milliseconds before disconnected workers are marked fully offline',
+    description:
+      'Additional grace period in milliseconds before disconnected workers are marked fully offline',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.worker_offline_threshold_multiplier',
     configValue: '2',
     configType: 'number',
-    description: 'Heartbeat interval multiplier used when determining the offline cutoff for workers',
+    description:
+      'Heartbeat interval multiplier used when determining the offline cutoff for workers',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.worker_degraded_threshold_multiplier',
     configValue: '1',
     configType: 'number',
-    description: 'Heartbeat interval multiplier used when determining the degraded or disconnected cutoff for workers',
+    description:
+      'Heartbeat interval multiplier used when determining the degraded or disconnected cutoff for workers',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -434,7 +507,8 @@ async function seedRuntimeDefaults(
     configKey: 'platform.lifecycle_task_timeout_check_interval_ms',
     configValue: '60000',
     configType: 'number',
-    description: 'Interval in milliseconds between platform task-timeout and workflow-cancellation sweeps',
+    description:
+      'Interval in milliseconds between platform task-timeout and workflow-cancellation sweeps',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -462,14 +536,16 @@ async function seedRuntimeDefaults(
     configKey: 'container_manager.reconcile_interval_seconds',
     configValue: '5',
     configType: 'number',
-    description: 'How often the container manager polls the fleet snapshot and reconciles runtime state',
+    description:
+      'How often the container manager polls the fleet snapshot and reconciles runtime state',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.stop_timeout_seconds',
     configValue: '30',
     configType: 'number',
-    description: 'Grace period in seconds used by the container manager when stopping runtime containers',
+    description:
+      'Grace period in seconds used by the container manager when stopping runtime containers',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
@@ -490,51 +566,57 @@ async function seedRuntimeDefaults(
     configKey: 'container_manager.log_flush_interval_ms',
     configValue: '500',
     configType: 'number',
-    description: 'How long the container manager buffers execution logs before flushing them to the platform ingest API',
+    description:
+      'How long the container manager buffers execution logs before flushing them to the platform ingest API',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.docker_event_reconnect_backoff_ms',
     configValue: '5000',
     configType: 'number',
-    description: 'How long the container manager waits before reconnecting after the Docker event stream drops',
+    description:
+      'How long the container manager waits before reconnecting after the Docker event stream drops',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.crash_log_capture_timeout_seconds',
     configValue: '5',
     configType: 'number',
-    description: 'How long the container manager waits when capturing crash logs from a dead container',
+    description:
+      'How long the container manager waits when capturing crash logs from a dead container',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.starvation_threshold_seconds',
     configValue: '60',
     configType: 'number',
-    description: 'How long a playbook may remain pending without a runtime before the container manager boosts it for starvation recovery',
+    description:
+      'How long a playbook may remain pending without a runtime before the container manager boosts it for starvation recovery',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.runtime_orphan_grace_cycles',
     configValue: '3',
     configType: 'number',
-    description: 'How many reconcile cycles a managed runtime may remain orphaned before the container manager force-removes it',
+    description:
+      'How many reconcile cycles a managed runtime may remain orphaned before the container manager force-removes it',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.hung_runtime_stale_after_seconds',
     configValue: '90',
     configType: 'number',
-    description: 'Maximum age in seconds before the container manager treats a runtime heartbeat as stale',
+    description:
+      'Maximum age in seconds before the container manager treats a runtime heartbeat as stale',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.hung_runtime_stop_grace_period_seconds',
     configValue: '30',
     configType: 'number',
-    description: 'Grace period in seconds used when stopping runtime containers that are classified as hung',
+    description:
+      'Grace period in seconds used when stopping runtime containers that are classified as hung',
   });
-
 }
 
 async function deleteNonLlmRuntimeDefaults(db: DatabaseQueryable): Promise<void> {
@@ -571,7 +653,9 @@ async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<void> {
 // ---------------------------------------------------------------------------
 
 async function seedDefaultPrompts(db: DatabaseQueryable): Promise<void> {
-  const { DEFAULT_PLATFORM_INSTRUCTIONS, DEFAULT_ORCHESTRATOR_PROMPT } = await import('../catalogs/default-prompts.js');
+  const { DEFAULT_PLATFORM_INSTRUCTIONS, DEFAULT_ORCHESTRATOR_PROMPT } = await import(
+    '../catalogs/default-prompts.js'
+  );
 
   // Platform instructions — only seed if empty
   const existing = await db.query(
@@ -608,7 +692,10 @@ async function seedDefaultPrompts(db: DatabaseQueryable): Promise<void> {
 // Admin user
 // ---------------------------------------------------------------------------
 
-async function seedAdminUser(db: DatabaseQueryable, adminEmail = 'admin@agirunner.local'): Promise<void> {
+async function seedAdminUser(
+  db: DatabaseQueryable,
+  adminEmail = 'admin@agirunner.local',
+): Promise<void> {
   const userService = new UserService(db);
 
   const existing = await userService.listUsers(DEFAULT_TENANT_ID);

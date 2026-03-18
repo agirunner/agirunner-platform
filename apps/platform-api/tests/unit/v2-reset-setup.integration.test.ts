@@ -38,6 +38,33 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
 
     await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
     await seedConfigTables(pool);
+
+    const runtimeTimingDefaults = await pool.query<{ config_key: string; config_value: string }>(
+      `SELECT config_key, config_value
+         FROM runtime_defaults
+        WHERE tenant_id = $1
+          AND config_key IN (
+            'api.events_heartbeat_seconds',
+            'workspace.clone_max_retries',
+            'workspace.clone_backoff_base_seconds',
+            'workspace.snapshot_interval',
+            'pool.refresh_interval_seconds',
+            'container.max_reuse_age_seconds',
+            'container.max_reuse_tasks'
+          )
+        ORDER BY config_key ASC`,
+      ['00000000-0000-0000-0000-000000000001'],
+    );
+    expect(runtimeTimingDefaults.rows).toEqual([
+      { config_key: 'api.events_heartbeat_seconds', config_value: '10' },
+      { config_key: 'container.max_reuse_age_seconds', config_value: '1800' },
+      { config_key: 'container.max_reuse_tasks', config_value: '10' },
+      { config_key: 'pool.refresh_interval_seconds', config_value: '300' },
+      { config_key: 'workspace.clone_backoff_base_seconds', config_value: '1' },
+      { config_key: 'workspace.clone_max_retries', config_value: '3' },
+      { config_key: 'workspace.snapshot_interval', config_value: '1' },
+    ]);
+
     const initialSnapshot = await captureSeedSnapshot(pool);
     expect(initialSnapshot.migrations).not.toContain('0010_drop_templates.sql');
 
@@ -81,10 +108,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
        VALUES
         ($1, 'default_model_id', '20000000-0000-0000-0000-000000000001', 'string', 'Configured on the LLM Providers page'),
         ($1, 'default_reasoning_config', $2, 'string', 'Configured on the LLM Providers page')`,
-      [
-        '00000000-0000-0000-0000-000000000001',
-        JSON.stringify({ reasoning_effort: 'low' }),
-      ],
+      ['00000000-0000-0000-0000-000000000001', JSON.stringify({ reasoning_effort: 'low' })],
     );
     await pool.query(
       `INSERT INTO projects (tenant_id, id, name, slug)
@@ -96,29 +120,38 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
     await seedConfigTables(pool);
 
-    const [providerCount, modelCount, assignmentCount, defaultRows, projectCount, playbookCount, promptCount, apiKeyCount, developerRole] =
-      await Promise.all([
-        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_providers'),
-        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_models'),
-        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM role_model_assignments'),
-        pool.query<{ config_key: string; config_value: string }>(
-          `SELECT config_key, config_value
+    const [
+      providerCount,
+      modelCount,
+      assignmentCount,
+      defaultRows,
+      projectCount,
+      playbookCount,
+      promptCount,
+      apiKeyCount,
+      developerRole,
+    ] = await Promise.all([
+      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_providers'),
+      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM llm_models'),
+      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM role_model_assignments'),
+      pool.query<{ config_key: string; config_value: string }>(
+        `SELECT config_key, config_value
              FROM runtime_defaults
             WHERE config_key IN ('agent.max_iterations', 'default_model_id', 'default_reasoning_config')
             ORDER BY config_key ASC`,
-        ),
-        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM projects'),
-        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM playbooks'),
-        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM platform_instructions'),
-        pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM api_keys'),
-        pool.query<{ escalation_target: string | null; max_escalation_depth: number }>(
-          `SELECT escalation_target, max_escalation_depth
+      ),
+      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM projects'),
+      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM playbooks'),
+      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM platform_instructions'),
+      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM api_keys'),
+      pool.query<{ escalation_target: string | null; max_escalation_depth: number }>(
+        `SELECT escalation_target, max_escalation_depth
              FROM role_definitions
             WHERE tenant_id = $1
               AND name = 'developer'`,
-          ['00000000-0000-0000-0000-000000000001'],
-        ),
-      ]);
+        ['00000000-0000-0000-0000-000000000001'],
+      ),
+    ]);
 
     expect(Number(providerCount.rows[0]?.count ?? '0')).toBe(1);
     expect(Number(modelCount.rows[0]?.count ?? '0')).toBe(1);
@@ -154,7 +187,9 @@ async function captureSeedSnapshot(pool: TestDatabase['pool']) {
          FROM api_keys
         ORDER BY key_prefix ASC`,
     ),
-    pool.query<{ filename: string }>('SELECT filename FROM schema_migrations ORDER BY filename ASC'),
+    pool.query<{ filename: string }>(
+      'SELECT filename FROM schema_migrations ORDER BY filename ASC',
+    ),
     captureLegacySchemaState(pool),
   ]);
 
@@ -192,54 +227,53 @@ async function captureLegacySchemaState(pool: TestDatabase['pool']) {
     templateEventEntity,
     webhookTaskTriggerTable,
     webhookTaskTriggerInvocationTable,
-  ] =
-    await Promise.all([
-      pool.query<{ regclass: string | null }>(
-        `SELECT to_regclass('public.templates')::text AS regclass`,
-      ),
-      pool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
+  ] = await Promise.all([
+    pool.query<{ regclass: string | null }>(
+      `SELECT to_regclass('public.templates')::text AS regclass`,
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
            FROM information_schema.columns
           WHERE table_schema = 'public'
             AND table_name = 'workflows'
             AND column_name IN ('template_id', 'template_version')`,
-      ),
-      pool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
            FROM information_schema.columns
           WHERE table_schema = 'public'
             AND table_name = 'runtime_heartbeats'
             AND column_name = 'template_id'`,
-      ),
-      pool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
            FROM information_schema.columns
           WHERE table_schema = 'public'
             AND table_name = 'fleet_events'
             AND column_name = 'template_id'`,
-      ),
-      pool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
            FROM information_schema.columns
           WHERE table_schema = 'public'
             AND table_name = 'execution_logs'
             AND column_name = 'workflow_phase'`,
-      ),
-      pool.query<{ count: string }>(
-        `SELECT COUNT(*)::text AS count
+    ),
+    pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count
            FROM pg_type t
            JOIN pg_enum e
              ON e.enumtypid = t.oid
           WHERE t.typname = 'event_entity_type'
             AND e.enumlabel = 'template'`,
-      ),
-      pool.query<{ regclass: string | null }>(
-        `SELECT to_regclass('public.webhook_task_triggers')::text AS regclass`,
-      ),
-      pool.query<{ regclass: string | null }>(
-        `SELECT to_regclass('public.webhook_task_trigger_invocations')::text AS regclass`,
-      ),
-    ]);
+    ),
+    pool.query<{ regclass: string | null }>(
+      `SELECT to_regclass('public.webhook_task_triggers')::text AS regclass`,
+    ),
+    pool.query<{ regclass: string | null }>(
+      `SELECT to_regclass('public.webhook_task_trigger_invocations')::text AS regclass`,
+    ),
+  ]);
 
   return {
     templates_table: templateTable.rows[0]?.regclass ?? null,

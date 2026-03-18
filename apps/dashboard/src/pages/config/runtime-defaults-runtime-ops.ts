@@ -12,6 +12,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Bound runtime HTTP server shutdown and request-header handling.',
   },
   {
+    key: 'runtime_api',
+    title: 'Runtime API',
+    description: 'Control task-event heartbeat cadence for active runtime API streams.',
+  },
+  {
     key: 'llm_transport',
     title: 'LLM transport',
     description: 'Control upstream model transport deadlines used by runtime provider adapters.',
@@ -27,6 +32,11 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Bound runtime checks and container-copy/connect operations.',
   },
   {
+    key: 'container_reuse',
+    title: 'Container reuse',
+    description: 'Control how long warm containers may be reused before the runtime retires them.',
+  },
+  {
     key: 'lifecycle_timeouts',
     title: 'Lifecycle timeouts',
     description: 'Control health checks and task-container stop/destroy deadlines.',
@@ -34,42 +44,60 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
     key: 'task_timeouts',
     title: 'Task timeouts',
-    description: 'Set the default timeout applied when newly created tasks do not specify one explicitly.',
+    description:
+      'Set the default timeout applied when newly created tasks do not specify one explicitly.',
   },
   {
     key: 'connected_platform',
     title: 'Connected platform',
-    description: 'Tune claim polling and drain behavior when runtimes are attached to the platform fleet.',
+    description:
+      'Tune claim polling and drain behavior when runtimes are attached to the platform fleet.',
   },
   {
     key: 'workflow_activation',
     title: 'Workflow activation',
-    description: 'Control activation debounce, heartbeat wakeups, stale detection, and task-cancel grace timing.',
+    description:
+      'Control activation debounce, heartbeat wakeups, stale detection, and task-cancel grace timing.',
   },
   {
     key: 'container_manager',
     title: 'Container manager',
-    description: 'Control fleet reconcile cadence and stop/remove grace periods for the manager service.',
+    description:
+      'Control fleet reconcile cadence and stop/remove grace periods for the manager service.',
+  },
+  {
+    key: 'pool_management',
+    title: 'Pool refresh',
+    description: 'Control how often the runtime refreshes pool state from the platform.',
   },
   {
     key: 'worker_supervision',
     title: 'Worker supervision',
-    description: 'Tune worker heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
+    description:
+      'Tune worker heartbeat defaults, dispatch acknowledgements, and offline/disconnected thresholds.',
   },
   {
     key: 'agent_supervision',
     title: 'Agent supervision',
-    description: 'Tune standalone agent heartbeat defaults, stale-task grace periods, and issued agent key lifetimes.',
+    description:
+      'Tune standalone agent heartbeat defaults, stale-task grace periods, and issued agent key lifetimes.',
   },
   {
     key: 'platform_loops',
     title: 'Platform loops',
-    description: 'Control the cadence of background platform enforcement, dispatch, pruning, and retention sweeps.',
+    description:
+      'Control the cadence of background platform enforcement, dispatch, pruning, and retention sweeps.',
   },
   {
     key: 'workspace_timeouts',
     title: 'Workspace timeouts',
-    description: 'Bound repo bootstrap, identity setup, and context injection steps before work begins.',
+    description:
+      'Bound repo bootstrap, identity setup, and context injection steps before work begins.',
+  },
+  {
+    key: 'workspace_operations',
+    title: 'Workspace operations',
+    description: 'Control clone retries, backoff timing, and automatic workspace snapshot cadence.',
   },
   {
     key: 'capture_timeouts',
@@ -121,6 +149,17 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   {
+    key: 'api.events_heartbeat_seconds',
+    label: 'Event heartbeat interval (seconds)',
+    description: 'How often the runtime emits task-event heartbeats while a stream is open.',
+    configType: 'number',
+    placeholder: '10',
+    section: 'runtime_api',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
     key: 'llm.http_timeout_seconds',
     label: 'Provider HTTP timeout (seconds)',
     description: 'Upper bound for outbound LLM HTTP requests from the runtime.',
@@ -133,11 +172,13 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   ...buildToolTimeoutFields(),
   ...buildContainerTimeoutFields(),
+  ...buildContainerReuseFields(),
   ...buildLifecycleTimeoutFields(),
   {
     key: 'tasks.default_timeout_minutes',
     label: 'Default task timeout (minutes)',
-    description: 'Default timeout assigned to new tasks when the task payload does not provide one explicitly.',
+    description:
+      'Default timeout assigned to new tasks when the task payload does not provide one explicitly.',
     configType: 'number',
     placeholder: '30',
     section: 'task_timeouts',
@@ -146,12 +187,14 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   ...buildConnectedPlatformFields(),
+  ...buildPoolManagementFields(),
   ...buildWorkflowActivationFields(),
   ...buildContainerManagerFields(),
   ...buildWorkerSupervisionFields(),
   ...buildAgentSupervisionFields(),
   ...buildPlatformLoopFields(),
   ...buildWorkspaceTimeoutFields(),
+  ...buildWorkspaceOperationFields(),
   {
     key: 'capture.push_timeout_seconds',
     label: 'Capture push timeout (seconds)',
@@ -177,7 +220,8 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'secrets.vault_timeout_seconds',
     label: 'Vault timeout (seconds)',
-    description: 'Upper bound for Vault reads and revocation calls when Vault-backed secrets are enabled.',
+    description:
+      'Upper bound for Vault reads and revocation calls when Vault-backed secrets are enabled.',
     configType: 'number',
     placeholder: '10',
     section: 'secrets_timeouts',
@@ -257,7 +301,8 @@ function buildContainerTimeoutFields(): FieldDefinition[] {
     {
       key: 'containerd.connect_timeout_seconds',
       label: 'Containerd connect timeout (seconds)',
-      description: 'Upper bound for establishing containerd connections when that provider is in use.',
+      description:
+        'Upper bound for establishing containerd connections when that provider is in use.',
       configType: 'number',
       placeholder: '5',
       section: 'container_timeouts',
@@ -268,12 +313,40 @@ function buildContainerTimeoutFields(): FieldDefinition[] {
   ];
 }
 
+function buildContainerReuseFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'container.max_reuse_age_seconds',
+      label: 'Warm reuse age limit (seconds)',
+      description: 'Set to 0 to disable the age limit for warm container reuse.',
+      configType: 'number',
+      placeholder: '1800',
+      section: 'container_reuse',
+      inputMode: 'numeric',
+      min: 0,
+      step: 1,
+    },
+    {
+      key: 'container.max_reuse_tasks',
+      label: 'Warm reuse task limit',
+      description: 'Set to 0 to disable the task-count limit for warm container reuse.',
+      configType: 'number',
+      placeholder: '10',
+      section: 'container_reuse',
+      inputMode: 'numeric',
+      min: 0,
+      step: 1,
+    },
+  ];
+}
+
 function buildLifecycleTimeoutFields(): FieldDefinition[] {
   return [
     {
       key: 'lifecycle.healthcheck_timeout_seconds',
       label: 'Healthcheck timeout (seconds)',
-      description: 'Deadline for lifecycle health probes before the runtime marks the check as failed.',
+      description:
+        'Deadline for lifecycle health probes before the runtime marks the check as failed.',
       configType: 'number',
       placeholder: '5',
       section: 'lifecycle_timeouts',
@@ -284,7 +357,8 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
     {
       key: 'lifecycle.healthcheck_retry_delay_seconds',
       label: 'Healthcheck retry delay (seconds)',
-      description: 'How long the runtime waits before retrying a failed task-container health probe.',
+      description:
+        'How long the runtime waits before retrying a failed task-container health probe.',
       configType: 'number',
       placeholder: '2',
       section: 'lifecycle_timeouts',
@@ -295,7 +369,8 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
     {
       key: 'lifecycle.failed_start_stop_timeout_seconds',
       label: 'Failed-start stop timeout (seconds)',
-      description: 'How long the runtime waits when stopping a task container that never became healthy.',
+      description:
+        'How long the runtime waits when stopping a task container that never became healthy.',
       configType: 'number',
       placeholder: '2',
       section: 'lifecycle_timeouts',
@@ -333,7 +408,8 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     {
       key: 'platform.api_request_timeout_seconds',
       label: 'Platform API timeout (seconds)',
-      description: 'How long a connected runtime waits for platform API requests before treating them as failed.',
+      description:
+        'How long a connected runtime waits for platform API requests before treating them as failed.',
       configType: 'number',
       placeholder: '30',
       section: 'connected_platform',
@@ -344,7 +420,8 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     {
       key: 'platform.log_ingest_timeout_seconds',
       label: 'Log ingest timeout (seconds)',
-      description: 'How long a connected runtime waits while flushing execution logs back to the platform ingest endpoint.',
+      description:
+        'How long a connected runtime waits while flushing execution logs back to the platform ingest endpoint.',
       configType: 'number',
       placeholder: '10',
       section: 'connected_platform',
@@ -355,7 +432,8 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     {
       key: 'platform.log_flush_interval_ms',
       label: 'Log flush interval (ms)',
-      description: 'How long a connected runtime buffers partial execution-log batches before flushing them to the platform ingest endpoint.',
+      description:
+        'How long a connected runtime buffers partial execution-log batches before flushing them to the platform ingest endpoint.',
       configType: 'number',
       placeholder: '500',
       section: 'connected_platform',
@@ -366,7 +444,8 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     {
       key: 'platform.heartbeat_max_failures',
       label: 'Heartbeat failure budget',
-      description: 'How many consecutive heartbeat failures a connected runtime tolerates before self-termination.',
+      description:
+        'How many consecutive heartbeat failures a connected runtime tolerates before self-termination.',
       configType: 'number',
       placeholder: '24',
       section: 'connected_platform',
@@ -377,7 +456,8 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     {
       key: 'platform.cancellation_report_timeout_seconds',
       label: 'Cancellation report timeout (seconds)',
-      description: 'How long a connected runtime waits when reporting cancellation or shutdown outcomes back to the platform.',
+      description:
+        'How long a connected runtime waits when reporting cancellation or shutdown outcomes back to the platform.',
       configType: 'number',
       placeholder: '10',
       section: 'connected_platform',
@@ -388,7 +468,8 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     {
       key: 'platform.drain_timeout_seconds',
       label: 'Drain timeout (seconds)',
-      description: 'How long a draining connected runtime waits for in-flight work before forcing shutdown.',
+      description:
+        'How long a draining connected runtime waits for in-flight work before forcing shutdown.',
       configType: 'number',
       placeholder: '600',
       section: 'connected_platform',
@@ -399,7 +480,8 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
     {
       key: 'platform.self_terminate_cleanup_timeout_seconds',
       label: 'Self-terminate cleanup timeout (seconds)',
-      description: 'How long a connected runtime waits while cleaning up managed task containers before self-termination.',
+      description:
+        'How long a connected runtime waits while cleaning up managed task containers before self-termination.',
       configType: 'number',
       placeholder: '15',
       section: 'connected_platform',
@@ -410,14 +492,78 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
   ];
 }
 
+function buildPoolManagementFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'pool.refresh_interval_seconds',
+      label: 'Pool refresh interval (seconds)',
+      description:
+        'How often the runtime refreshes pool state from the platform while managing worker pools.',
+      configType: 'number',
+      placeholder: '300',
+      section: 'pool_management',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+  ];
+}
+
 function buildWorkspaceTimeoutFields(): FieldDefinition[] {
   return [
     workspaceTimeoutField('workspace.create_layout_timeout_seconds', 'Create layout timeout', '20'),
-    workspaceTimeoutField('workspace.inject_context_rename_timeout_seconds', 'Context rename timeout', '10'),
+    workspaceTimeoutField(
+      'workspace.inject_context_rename_timeout_seconds',
+      'Context rename timeout',
+      '10',
+    ),
     workspaceTimeoutField('workspace.configure_git_timeout_seconds', 'Configure git timeout', '15'),
     workspaceTimeoutField('workspace.cleanup_git_timeout_seconds', 'Cleanup git timeout', '10'),
-    workspaceTimeoutField('workspace.configure_identity_timeout_seconds', 'Configure identity timeout', '10'),
+    workspaceTimeoutField(
+      'workspace.configure_identity_timeout_seconds',
+      'Configure identity timeout',
+      '10',
+    ),
     workspaceTimeoutField('workspace.clone_timeout_seconds', 'Clone timeout', '120'),
+  ];
+}
+
+function buildWorkspaceOperationFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'workspace.clone_max_retries',
+      label: 'Clone retry budget',
+      description: 'How many times the runtime retries a workspace clone before failing the task.',
+      configType: 'number',
+      placeholder: '3',
+      section: 'workspace_operations',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'workspace.clone_backoff_base_seconds',
+      label: 'Clone backoff base (seconds)',
+      description: 'Base backoff in seconds used between workspace clone retry attempts.',
+      configType: 'number',
+      placeholder: '1',
+      section: 'workspace_operations',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'workspace.snapshot_interval',
+      label: 'Snapshot interval (iterations)',
+      description:
+        'Automatic workspace snapshot cadence in engine iterations; set to 0 to disable snapshots.',
+      configType: 'number',
+      placeholder: '1',
+      section: 'workspace_operations',
+      inputMode: 'numeric',
+      min: 0,
+      step: 1,
+    },
   ];
 }
 
@@ -426,7 +572,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.reconcile_interval_seconds',
       label: 'Reconcile interval (seconds)',
-      description: 'How often the container manager polls the shared fleet snapshot and runs a reconcile cycle.',
+      description:
+        'How often the container manager polls the shared fleet snapshot and runs a reconcile cycle.',
       configType: 'number',
       placeholder: '5',
       section: 'container_manager',
@@ -437,7 +584,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.stop_timeout_seconds',
       label: 'Runtime stop timeout (seconds)',
-      description: 'Grace period used when the manager stops runtime containers during normal cleanup.',
+      description:
+        'Grace period used when the manager stops runtime containers during normal cleanup.',
       configType: 'number',
       placeholder: '30',
       section: 'container_manager',
@@ -459,7 +607,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.docker_action_buffer_seconds',
       label: 'Docker action buffer (seconds)',
-      description: 'Extra headroom added around stop and remove calls so Docker operations can settle cleanly.',
+      description:
+        'Extra headroom added around stop and remove calls so Docker operations can settle cleanly.',
       configType: 'number',
       placeholder: '15',
       section: 'container_manager',
@@ -470,7 +619,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.log_flush_interval_ms',
       label: 'Log flush interval (ms)',
-      description: 'How long the container manager buffers execution logs before flushing them to the platform ingest API.',
+      description:
+        'How long the container manager buffers execution logs before flushing them to the platform ingest API.',
       configType: 'number',
       placeholder: '500',
       section: 'container_manager',
@@ -481,7 +631,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.docker_event_reconnect_backoff_ms',
       label: 'Docker event reconnect backoff (ms)',
-      description: 'How long the container manager waits before reconnecting after the Docker event stream disconnects.',
+      description:
+        'How long the container manager waits before reconnecting after the Docker event stream disconnects.',
       configType: 'number',
       placeholder: '5000',
       section: 'container_manager',
@@ -492,7 +643,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.crash_log_capture_timeout_seconds',
       label: 'Crash log capture timeout (seconds)',
-      description: 'How long the container manager waits when capturing crash logs from a dead container.',
+      description:
+        'How long the container manager waits when capturing crash logs from a dead container.',
       configType: 'number',
       placeholder: '5',
       section: 'container_manager',
@@ -503,7 +655,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.starvation_threshold_seconds',
       label: 'Starvation threshold (seconds)',
-      description: 'How long pending work may wait without a runtime before the container manager boosts the target for starvation recovery.',
+      description:
+        'How long pending work may wait without a runtime before the container manager boosts the target for starvation recovery.',
       configType: 'number',
       placeholder: '60',
       section: 'container_manager',
@@ -514,7 +667,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.runtime_orphan_grace_cycles',
       label: 'Runtime orphan grace cycles',
-      description: 'How many reconcile cycles a managed runtime may stay orphaned before the container manager force-removes it.',
+      description:
+        'How many reconcile cycles a managed runtime may stay orphaned before the container manager force-removes it.',
       configType: 'number',
       placeholder: '3',
       section: 'container_manager',
@@ -525,7 +679,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.hung_runtime_stale_after_seconds',
       label: 'Hung runtime stale threshold (seconds)',
-      description: 'Maximum heartbeat age before the container manager classifies a runtime as hung.',
+      description:
+        'Maximum heartbeat age before the container manager classifies a runtime as hung.',
       configType: 'number',
       placeholder: '90',
       section: 'container_manager',
@@ -536,7 +691,8 @@ function buildContainerManagerFields(): FieldDefinition[] {
     {
       key: 'container_manager.hung_runtime_stop_grace_period_seconds',
       label: 'Hung runtime stop grace period (seconds)',
-      description: 'How long the container manager waits when stopping a runtime container that has been classified as hung.',
+      description:
+        'How long the container manager waits when stopping a runtime container that has been classified as hung.',
       configType: 'number',
       placeholder: '30',
       section: 'container_manager',
@@ -552,7 +708,8 @@ function buildWorkflowActivationFields(): FieldDefinition[] {
     {
       key: 'platform.workflow_activation_delay_ms',
       label: 'Activation delay (ms)',
-      description: 'How long non-immediate activation events wait before the orchestrator is eligible to dispatch.',
+      description:
+        'How long non-immediate activation events wait before the orchestrator is eligible to dispatch.',
       configType: 'number',
       placeholder: '10000',
       section: 'workflow_activation',
@@ -563,7 +720,8 @@ function buildWorkflowActivationFields(): FieldDefinition[] {
     {
       key: 'platform.workflow_activation_heartbeat_interval_ms',
       label: 'Heartbeat interval (ms)',
-      description: 'Minimum spacing between no-op watchdog heartbeat activations for the same workflow.',
+      description:
+        'Minimum spacing between no-op watchdog heartbeat activations for the same workflow.',
       configType: 'number',
       placeholder: '900000',
       section: 'workflow_activation',
@@ -574,7 +732,8 @@ function buildWorkflowActivationFields(): FieldDefinition[] {
     {
       key: 'platform.workflow_activation_stale_after_ms',
       label: 'Stale activation threshold (ms)',
-      description: 'How long a processing activation can sit before recovery logic treats it as stale.',
+      description:
+        'How long a processing activation can sit before recovery logic treats it as stale.',
       configType: 'number',
       placeholder: '300000',
       section: 'workflow_activation',
@@ -585,7 +744,8 @@ function buildWorkflowActivationFields(): FieldDefinition[] {
     {
       key: 'platform.task_cancel_signal_grace_period_ms',
       label: 'Task cancel grace period (ms)',
-      description: 'How long the platform waits after sending a cancel signal before force-failing or force-cancelling work.',
+      description:
+        'How long the platform waits after sending a cancel signal before force-failing or force-cancelling work.',
       configType: 'number',
       placeholder: '60000',
       section: 'workflow_activation',
@@ -601,7 +761,8 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.worker_dispatch_ack_timeout_ms',
       label: 'Dispatch acknowledgement timeout (ms)',
-      description: 'Maximum time a worker has to acknowledge an assigned task before dispatch is released.',
+      description:
+        'Maximum time a worker has to acknowledge an assigned task before dispatch is released.',
       configType: 'number',
       placeholder: '15000',
       section: 'worker_supervision',
@@ -623,7 +784,8 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.worker_default_heartbeat_interval_seconds',
       label: 'Default worker heartbeat interval (seconds)',
-      description: 'Default heartbeat cadence assigned to new workers when the registration payload omits it.',
+      description:
+        'Default heartbeat cadence assigned to new workers when the registration payload omits it.',
       configType: 'number',
       placeholder: '30',
       section: 'worker_supervision',
@@ -634,7 +796,8 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.worker_offline_grace_period_ms',
       label: 'Offline grace period (ms)',
-      description: 'Additional grace after the offline threshold before the platform declares a worker fully offline.',
+      description:
+        'Additional grace after the offline threshold before the platform declares a worker fully offline.',
       configType: 'number',
       placeholder: '300000',
       section: 'worker_supervision',
@@ -645,7 +808,8 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.worker_offline_threshold_multiplier',
       label: 'Offline threshold multiplier',
-      description: 'Multiplier applied to worker heartbeat intervals when deciding the offline cutoff.',
+      description:
+        'Multiplier applied to worker heartbeat intervals when deciding the offline cutoff.',
       configType: 'number',
       placeholder: '2',
       section: 'worker_supervision',
@@ -656,7 +820,8 @@ function buildWorkerSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.worker_degraded_threshold_multiplier',
       label: 'Degraded threshold multiplier',
-      description: 'Multiplier applied to worker heartbeat intervals when deciding the degraded or disconnected cutoff.',
+      description:
+        'Multiplier applied to worker heartbeat intervals when deciding the degraded or disconnected cutoff.',
       configType: 'number',
       placeholder: '1',
       section: 'worker_supervision',
@@ -672,7 +837,8 @@ function buildAgentSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.agent_default_heartbeat_interval_seconds',
       label: 'Default agent heartbeat interval (seconds)',
-      description: 'Default heartbeat cadence assigned to new standalone agents when registration omits it.',
+      description:
+        'Default heartbeat cadence assigned to new standalone agents when registration omits it.',
       configType: 'number',
       placeholder: '60',
       section: 'agent_supervision',
@@ -694,7 +860,8 @@ function buildAgentSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.agent_heartbeat_threshold_multiplier',
       label: 'Agent heartbeat stale multiplier',
-      description: 'Multiplier applied to agent heartbeat intervals when deciding that a standalone agent is stale.',
+      description:
+        'Multiplier applied to agent heartbeat intervals when deciding that a standalone agent is stale.',
       configType: 'number',
       placeholder: '2',
       section: 'agent_supervision',
@@ -705,7 +872,8 @@ function buildAgentSupervisionFields(): FieldDefinition[] {
     {
       key: 'platform.agent_key_expiry_ms',
       label: 'Agent API key lifetime (ms)',
-      description: 'Default lifetime applied to API keys issued for newly registered standalone agents.',
+      description:
+        'Default lifetime applied to API keys issued for newly registered standalone agents.',
       configType: 'number',
       placeholder: '31536000000',
       section: 'agent_supervision',
@@ -743,7 +911,8 @@ function buildPlatformLoopFields(): FieldDefinition[] {
     {
       key: 'platform.lifecycle_task_timeout_check_interval_ms',
       label: 'Task timeout sweep interval (ms)',
-      description: 'How often the platform enforces task timeouts and graceful workflow cancellation windows.',
+      description:
+        'How often the platform enforces task timeouts and graceful workflow cancellation windows.',
       configType: 'number',
       placeholder: '60000',
       section: 'platform_loops',
@@ -754,7 +923,8 @@ function buildPlatformLoopFields(): FieldDefinition[] {
     {
       key: 'platform.lifecycle_dispatch_loop_interval_ms',
       label: 'Dispatch loop interval (ms)',
-      description: 'How often the platform runs the ready-task and workflow-activation dispatch loop.',
+      description:
+        'How often the platform runs the ready-task and workflow-activation dispatch loop.',
       configType: 'number',
       placeholder: '2000',
       section: 'platform_loops',
@@ -776,7 +946,8 @@ function buildPlatformLoopFields(): FieldDefinition[] {
     {
       key: 'platform.governance_retention_job_interval_ms',
       label: 'Retention sweep interval (ms)',
-      description: 'How often the platform runs governance retention and log-partition maintenance.',
+      description:
+        'How often the platform runs governance retention and log-partition maintenance.',
       configType: 'number',
       placeholder: '3600000',
       section: 'platform_loops',

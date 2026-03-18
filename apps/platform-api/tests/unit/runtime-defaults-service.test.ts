@@ -67,7 +67,9 @@ describe('RuntimeDefaultsService', () => {
 
     it('throws NotFoundError when not found', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      await expect(service.getDefault(TENANT_ID, DEFAULT_ID)).rejects.toThrow('Runtime default not found');
+      await expect(service.getDefault(TENANT_ID, DEFAULT_ID)).rejects.toThrow(
+        'Runtime default not found',
+      );
     });
 
     it('redacts secret-bearing runtime defaults on single reads', async () => {
@@ -144,12 +146,10 @@ describe('RuntimeDefaultsService', () => {
     });
 
     it('redacts secret refs from create responses for secret-bearing defaults', async () => {
-      pool.query
-        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
-        .mockResolvedValueOnce({
-          rows: [{ ...sampleSecretDefault, config_value: 'secret:SERPER_API_KEY' }],
-          rowCount: 1,
-        });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 }).mockResolvedValueOnce({
+        rows: [{ ...sampleSecretDefault, config_value: 'secret:SERPER_API_KEY' }],
+        rowCount: 1,
+      });
 
       const result = await service.createDefault(TENANT_ID, {
         configKey: 'tools.web_search_api_key_secret_ref',
@@ -180,7 +180,15 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('agent.context_compaction_threshold must be between 0 and 1');
     });
 
-    it('rejects non-positive runtime timeout defaults', async () => {
+    it('rejects non-positive runtime and workspace defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'api.events_heartbeat_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('api.events_heartbeat_seconds must be at least 1');
+
       await expect(
         service.createDefault(TENANT_ID, {
           configKey: 'workspace.clone_timeout_seconds',
@@ -188,6 +196,54 @@ describe('RuntimeDefaultsService', () => {
           configType: 'number',
         }),
       ).rejects.toThrow('workspace.clone_timeout_seconds must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'workspace.clone_max_retries',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('workspace.clone_max_retries must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'workspace.clone_backoff_base_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('workspace.clone_backoff_base_seconds must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'pool.refresh_interval_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('pool.refresh_interval_seconds must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'workspace.snapshot_interval',
+          configValue: '-1',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('workspace.snapshot_interval must be at least 0');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'container.max_reuse_age_seconds',
+          configValue: '-1',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('container.max_reuse_age_seconds must be at least 0');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'container.max_reuse_tasks',
+          configValue: '-1',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('container.max_reuse_tasks must be at least 0');
     });
 
     it('rejects non-positive connected runtime timeout defaults', async () => {
@@ -342,6 +398,49 @@ describe('RuntimeDefaultsService', () => {
         }),
       ).rejects.toThrow('platform.lifecycle_dispatch_loop_interval_ms must be at least 1');
     });
+
+    it('allows zero-valued workspace snapshot and container reuse defaults', async () => {
+      pool.query
+        .mockResolvedValueOnce({
+          rows: [
+            { ...sampleDefault, config_key: 'workspace.snapshot_interval', config_value: '0' },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [
+            { ...sampleDefault, config_key: 'container.max_reuse_age_seconds', config_value: '0' },
+          ],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ ...sampleDefault, config_key: 'container.max_reuse_tasks', config_value: '0' }],
+          rowCount: 1,
+        });
+
+      const snapshot = await service.upsertDefault(TENANT_ID, {
+        configKey: 'workspace.snapshot_interval',
+        configValue: '0',
+        configType: 'number',
+      });
+      const age = await service.upsertDefault(TENANT_ID, {
+        configKey: 'container.max_reuse_age_seconds',
+        configValue: '0',
+        configType: 'number',
+      });
+      const tasks = await service.upsertDefault(TENANT_ID, {
+        configKey: 'container.max_reuse_tasks',
+        configValue: '0',
+        configType: 'number',
+      });
+
+      expect(snapshot.config_key).toBe('workspace.snapshot_interval');
+      expect(snapshot.config_value).toBe('0');
+      expect(age.config_key).toBe('container.max_reuse_age_seconds');
+      expect(age.config_value).toBe('0');
+      expect(tasks.config_key).toBe('container.max_reuse_tasks');
+      expect(tasks.config_value).toBe('0');
+    });
   });
 
   describe('updateDefault', () => {
@@ -374,7 +473,14 @@ describe('RuntimeDefaultsService', () => {
 
     it('rejects invalid runtime safeguard updates', async () => {
       pool.query.mockResolvedValueOnce({
-        rows: [{ ...sampleDefault, config_key: 'agent.max_iterations', config_value: '25', config_type: 'number' }],
+        rows: [
+          {
+            ...sampleDefault,
+            config_key: 'agent.max_iterations',
+            config_value: '25',
+            config_type: 'number',
+          },
+        ],
         rowCount: 1,
       });
 
@@ -426,7 +532,9 @@ describe('RuntimeDefaultsService', () => {
 
     it('throws NotFoundError when default not found', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
-      await expect(service.deleteDefault(TENANT_ID, DEFAULT_ID)).rejects.toThrow('Runtime default not found');
+      await expect(service.deleteDefault(TENANT_ID, DEFAULT_ID)).rejects.toThrow(
+        'Runtime default not found',
+      );
     });
   });
 });

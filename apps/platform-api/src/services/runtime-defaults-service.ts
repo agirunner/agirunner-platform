@@ -89,12 +89,19 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['workspace.cleanup_git_timeout_seconds', { min: 1 }],
   ['workspace.configure_identity_timeout_seconds', { min: 1 }],
   ['workspace.clone_timeout_seconds', { min: 1 }],
+  ['workspace.clone_max_retries', { min: 1 }],
+  ['workspace.clone_backoff_base_seconds', { min: 1 }],
+  ['workspace.snapshot_interval', { min: 0 }],
   ['container.copy_timeout_seconds', { min: 1 }],
+  ['container.max_reuse_age_seconds', { min: 0 }],
+  ['container.max_reuse_tasks', { min: 0 }],
   ['containerd.connect_timeout_seconds', { min: 1 }],
   ['capture.push_timeout_seconds', { min: 1 }],
   ['capture.exec_timeout_seconds', { min: 1 }],
   ['secrets.vault_timeout_seconds', { min: 1 }],
   ['subagent.default_timeout_seconds', { min: 1 }],
+  ['api.events_heartbeat_seconds', { min: 1 }],
+  ['pool.refresh_interval_seconds', { min: 1 }],
 ]);
 const DECIMAL_DEFAULT_RULES = new Map([
   ['agent.context_compaction_threshold', { min: 0, max: 1 }],
@@ -160,12 +167,16 @@ export class RuntimeDefaultsService {
     return rows[0] ?? null;
   }
 
-  async createDefault(tenantId: string, input: CreateRuntimeDefaultInput): Promise<RuntimeDefaultRow> {
+  async createDefault(
+    tenantId: string,
+    input: CreateRuntimeDefaultInput,
+  ): Promise<RuntimeDefaultRow> {
     const validated = createDefaultSchema.parse(input);
     validateKnownRuntimeDefault(validated);
 
     const existing = await this.getByKey(tenantId, validated.configKey);
-    if (existing) throw new ConflictError(`Runtime default "${validated.configKey}" already exists`);
+    if (existing)
+      throw new ConflictError(`Runtime default "${validated.configKey}" already exists`);
 
     const result = await this.pool.query<RuntimeDefaultRow>(
       `INSERT INTO runtime_defaults (tenant_id, config_key, config_value, config_type, description)
@@ -182,13 +193,18 @@ export class RuntimeDefaultsService {
     return toPublicRuntimeDefaultRow(result.rows[0]);
   }
 
-  async updateDefault(tenantId: string, id: string, input: UpdateRuntimeDefaultInput): Promise<RuntimeDefaultRow> {
+  async updateDefault(
+    tenantId: string,
+    id: string,
+    input: UpdateRuntimeDefaultInput,
+  ): Promise<RuntimeDefaultRow> {
     const validated = updateDefaultSchema.parse(input);
     const current = await this.getDefault(tenantId, id);
     validateKnownRuntimeDefault({
       configKey: current.config_key,
       configValue: validated.configValue ?? current.config_value,
-      configType: (validated.configType ?? current.config_type) as CreateRuntimeDefaultInput['configType'],
+      configType: (validated.configType ??
+        current.config_type) as CreateRuntimeDefaultInput['configType'],
       description: validated.description ?? current.description ?? undefined,
     });
     const setClauses: string[] = [];
@@ -221,7 +237,10 @@ export class RuntimeDefaultsService {
     return toPublicRuntimeDefaultRow(result.rows[0]);
   }
 
-  async upsertDefault(tenantId: string, input: CreateRuntimeDefaultInput): Promise<RuntimeDefaultRow> {
+  async upsertDefault(
+    tenantId: string,
+    input: CreateRuntimeDefaultInput,
+  ): Promise<RuntimeDefaultRow> {
     const validated = createDefaultSchema.parse(input);
     validateKnownRuntimeDefault(validated);
 
@@ -316,7 +335,9 @@ function validateNumericRuntimeDefault(input: CreateRuntimeDefaultInput): void {
   }
   if (parsed < decimalRule.min) {
     if (decimalRule.max !== undefined) {
-      throw new Error(`${input.configKey} must be between ${decimalRule.min} and ${decimalRule.max}`);
+      throw new Error(
+        `${input.configKey} must be between ${decimalRule.min} and ${decimalRule.max}`,
+      );
     }
     throw new Error(`${input.configKey} must be at least ${decimalRule.min}`);
   }

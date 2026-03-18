@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import {
-  fieldsForSection,
-  SECTION_DEFINITIONS,
-} from './runtime-defaults.schema.js';
+import { fieldsForSection, SECTION_DEFINITIONS } from './runtime-defaults.schema.js';
 import { buildValidationErrors } from './runtime-defaults.validation.js';
 import {
   summarizeRuntimeDefaults,
@@ -16,18 +13,22 @@ describe('runtime defaults page support', () => {
       'containers',
       'process_logging',
       'server_timeouts',
+      'runtime_api',
       'llm_transport',
       'tool_timeouts',
       'container_timeouts',
+      'container_reuse',
       'lifecycle_timeouts',
       'task_timeouts',
       'connected_platform',
       'workflow_activation',
       'container_manager',
+      'pool_management',
       'worker_supervision',
       'agent_supervision',
       'platform_loops',
       'workspace_timeouts',
+      'workspace_operations',
       'capture_timeouts',
       'secrets_timeouts',
       'subagent_timeouts',
@@ -41,11 +42,29 @@ describe('runtime defaults page support', () => {
       'tools.git_push_timeout_seconds',
     );
     expect(fieldsForSection('process_logging').map((field) => field.key)).toContain('log.level');
+    expect(fieldsForSection('runtime_api').map((field) => field.key)).toContain(
+      'api.events_heartbeat_seconds',
+    );
     expect(fieldsForSection('tool_timeouts').map((field) => field.key)).toContain(
       'tools.shell_exec_timeout_min_seconds',
     );
     expect(fieldsForSection('workspace_timeouts').map((field) => field.key)).toContain(
       'workspace.clone_timeout_seconds',
+    );
+    expect(fieldsForSection('workspace_operations').map((field) => field.key)).toContain(
+      'workspace.clone_max_retries',
+    );
+    expect(fieldsForSection('workspace_operations').map((field) => field.key)).toContain(
+      'workspace.clone_backoff_base_seconds',
+    );
+    expect(fieldsForSection('workspace_operations').map((field) => field.key)).toContain(
+      'workspace.snapshot_interval',
+    );
+    expect(fieldsForSection('container_reuse').map((field) => field.key)).toContain(
+      'container.max_reuse_age_seconds',
+    );
+    expect(fieldsForSection('container_reuse').map((field) => field.key)).toContain(
+      'container.max_reuse_tasks',
     );
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toContain(
       'platform.claim_poll_seconds',
@@ -85,6 +104,9 @@ describe('runtime defaults page support', () => {
     );
     expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
       'container_manager.runtime_orphan_grace_cycles',
+    );
+    expect(fieldsForSection('pool_management').map((field) => field.key)).toContain(
+      'pool.refresh_interval_seconds',
     );
     expect(fieldsForSection('worker_supervision').map((field) => field.key)).toContain(
       'platform.worker_dispatch_ack_timeout_ms',
@@ -204,7 +226,8 @@ describe('runtime defaults page support', () => {
         },
         {
           'tools.git_push_timeout_seconds': 'Git push timeout must be at least 1.',
-          'agent.history_preserve_recent': 'Preserve recent specialist messages must stay within the overall history budget.',
+          'agent.history_preserve_recent':
+            'Preserve recent specialist messages must stay within the overall history budget.',
         },
       ),
     ).toEqual(
@@ -224,6 +247,13 @@ describe('runtime defaults page support', () => {
           errorCount: 0,
         },
         {
+          key: 'runtime_api',
+          title: 'Runtime API',
+          configuredCount: 0,
+          fieldCount: 1,
+          errorCount: 0,
+        },
+        {
           key: 'tool_timeouts',
           title: 'Tool timeouts',
           configuredCount: 1,
@@ -231,10 +261,24 @@ describe('runtime defaults page support', () => {
           errorCount: 1,
         },
         {
+          key: 'container_reuse',
+          title: 'Container reuse',
+          configuredCount: 0,
+          fieldCount: 2,
+          errorCount: 0,
+        },
+        {
           key: 'container_manager',
           title: 'Container manager',
           configuredCount: 0,
           fieldCount: 11,
+          errorCount: 0,
+        },
+        {
+          key: 'pool_management',
+          title: 'Pool refresh',
+          configuredCount: 0,
+          fieldCount: 1,
           errorCount: 0,
         },
         {
@@ -257,6 +301,13 @@ describe('runtime defaults page support', () => {
           configuredCount: 2,
           fieldCount: 4,
           errorCount: 1,
+        },
+        {
+          key: 'workspace_operations',
+          title: 'Workspace operations',
+          configuredCount: 0,
+          fieldCount: 3,
+          errorCount: 0,
         },
         {
           key: 'search',
