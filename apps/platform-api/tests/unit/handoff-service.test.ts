@@ -269,6 +269,101 @@ describe('HandoffService', () => {
     expect(insertParams[19]).toBe(JSON.stringify({ branch: 'feature/hello-world' }));
   });
 
+  it('redacts secret-like handoff content before persistence and in returned rows', async () => {
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'task-1',
+          tenant_id: 'tenant-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          role: 'developer',
+          stage_name: 'implementation',
+          state: 'in_progress',
+          rework_count: 0,
+          metadata: { team_name: 'delivery' },
+        }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [{ next_sequence: 0 }], rowCount: 1 })
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 'handoff-secret-1',
+          tenant_id: 'tenant-1',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          task_id: 'task-1',
+          task_rework_count: 0,
+          request_id: 'req-secret-1',
+          role: 'developer',
+          team_name: 'delivery',
+          stage_name: 'implementation',
+          sequence: 0,
+          summary: 'sk-runtime-secret',
+          completion: 'partial',
+          changes: [{ api_key: 'sk-runtime-secret' }],
+          decisions: [{ authorization: 'Bearer handoff-secret' }],
+          remaining_items: ['sk-runtime-secret'],
+          blockers: [{ token: 'sk-runtime-secret' }],
+          review_focus: ['sk-runtime-secret'],
+          known_risks: ['Bearer handoff-secret'],
+          successor_context: 'Bearer handoff-secret',
+          role_data: { api_key: 'sk-runtime-secret' },
+          artifact_ids: [],
+          created_at: new Date('2026-03-15T12:00:00Z'),
+        }],
+        rowCount: 1,
+      });
+
+    const service = new HandoffService({ query } as never);
+
+    const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-secret-1',
+      summary: 'sk-runtime-secret',
+      completion: 'partial',
+      changes: [{ api_key: 'sk-runtime-secret' }],
+      decisions: [{ authorization: 'Bearer handoff-secret' }],
+      remaining_items: ['sk-runtime-secret'],
+      blockers: [{ token: 'sk-runtime-secret' }],
+      review_focus: ['sk-runtime-secret'],
+      known_risks: ['Bearer handoff-secret'],
+      successor_context: 'Bearer handoff-secret',
+      role_data: { api_key: 'sk-runtime-secret' },
+    });
+
+    const insertParams = query.mock.calls[4][1] as unknown[];
+    expect(insertParams[10]).toBe('redacted://handoff-secret');
+    expect(insertParams[12]).toBe(JSON.stringify([{ api_key: 'redacted://handoff-secret' }]));
+    expect(insertParams[13]).toBe(
+      JSON.stringify([{ authorization: 'redacted://handoff-secret' }]),
+    );
+    expect(insertParams[14]).toBe(JSON.stringify(['redacted://handoff-secret']));
+    expect(insertParams[15]).toBe(JSON.stringify([{ token: 'redacted://handoff-secret' }]));
+    expect(insertParams[16]).toEqual(['redacted://handoff-secret']);
+    expect(insertParams[17]).toEqual(['redacted://handoff-secret']);
+    expect(insertParams[18]).toBe('redacted://handoff-secret');
+    expect(insertParams[19]).toBe(
+      JSON.stringify({ api_key: 'redacted://handoff-secret' }),
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        summary: 'redacted://handoff-secret',
+        changes: [{ api_key: 'redacted://handoff-secret' }],
+        decisions: [{ authorization: 'redacted://handoff-secret' }],
+        remaining_items: ['redacted://handoff-secret'],
+        blockers: [{ token: 'redacted://handoff-secret' }],
+        review_focus: ['redacted://handoff-secret'],
+        known_risks: ['redacted://handoff-secret'],
+        successor_context: 'redacted://handoff-secret',
+        role_data: { api_key: 'redacted://handoff-secret' },
+      }),
+    );
+  });
+
   it('returns the existing handoff for an idempotent request replay', async () => {
     const pool = {
       query: vi
@@ -417,7 +512,7 @@ describe('HandoffService', () => {
             team_name: 'delivery',
             stage_name: 'implementation',
             sequence: 0,
-            summary: 'Implemented auth flow.',
+            summary: 'sk-predecessor-secret',
             completion: 'full',
             changes: [],
             decisions: [],
@@ -425,8 +520,8 @@ describe('HandoffService', () => {
             blockers: [],
             review_focus: [],
             known_risks: [],
-            successor_context: null,
-            role_data: {},
+            successor_context: 'Bearer predecessor-secret',
+            role_data: { api_key: 'sk-predecessor-secret' },
             artifact_ids: [],
             created_at: new Date('2026-03-15T12:00:00Z'),
           }],
@@ -438,7 +533,15 @@ describe('HandoffService', () => {
     const service = new HandoffService(pool as never, logService as never);
     const result = await service.getPredecessorHandoff('tenant-1', 'task-2');
 
-    expect(result).toEqual(expect.objectContaining({ id: 'handoff-1', role: 'developer' }));
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'handoff-1',
+        role: 'developer',
+        summary: 'redacted://handoff-secret',
+        successor_context: 'redacted://handoff-secret',
+        role_data: { api_key: 'redacted://handoff-secret' },
+      }),
+    );
     expect(logService.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         operation: 'task.predecessor_handoff.lookup',

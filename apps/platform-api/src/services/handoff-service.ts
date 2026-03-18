@@ -5,11 +5,14 @@ import { logPredecessorHandoffResolution } from '../logging/predecessor-handoff-
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
+import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import type { EventService } from './event-service.js';
 import {
   enqueueAndDispatchImmediatePlaybookActivation,
   type ImmediateWorkflowActivationDispatcher,
 } from './workflow-immediate-activation.js';
+
+const HANDOFF_SECRET_REDACTION = 'redacted://handoff-secret';
 
 export interface SubmitTaskHandoffInput {
   request_id?: string;
@@ -458,22 +461,23 @@ export class HandoffService {
 }
 
 function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHandoffInput) {
+  const summary = sanitizeHandoffValue(input.summary.trim());
   return {
     task_rework_count: readInteger(task.rework_count) ?? 0,
     request_id: input.request_id?.trim() || null,
     role: task.role?.trim() || 'specialist',
     team_name: readOptionalString(task.metadata?.team_name),
     stage_name: task.stage_name?.trim() || null,
-    summary: input.summary.trim(),
+    summary: typeof summary === 'string' ? summary : input.summary.trim(),
     completion: input.completion,
-    changes: normalizeArray(input.changes),
-    decisions: normalizeArray(input.decisions),
-    remaining_items: normalizeArray(input.remaining_items),
-    blockers: normalizeArray(input.blockers),
-    review_focus: normalizeStringArray(input.review_focus),
-    known_risks: normalizeStringArray(input.known_risks),
-    successor_context: readOptionalString(input.successor_context),
-    role_data: normalizeRecord(input.role_data),
+    changes: normalizeArray(sanitizeHandoffValue(input.changes)),
+    decisions: normalizeArray(sanitizeHandoffValue(input.decisions)),
+    remaining_items: normalizeArray(sanitizeHandoffValue(input.remaining_items)),
+    blockers: normalizeArray(sanitizeHandoffValue(input.blockers)),
+    review_focus: normalizeStringArray(sanitizeHandoffValue(input.review_focus)),
+    known_risks: normalizeStringArray(sanitizeHandoffValue(input.known_risks)),
+    successor_context: readOptionalString(sanitizeHandoffValue(input.successor_context)),
+    role_data: sanitizeHandoffRecord(input.role_data),
     artifact_ids: normalizeStringArray(input.artifact_ids),
   };
 }
@@ -510,10 +514,23 @@ function matchesHandoffReplay(
 }
 
 function toTaskHandoffResponse(row: TaskHandoffRow) {
+  const sanitized = sanitizeHandoffValue(row) as TaskHandoffRow;
   return {
-    ...row,
+    ...sanitized,
     created_at: row.created_at.toISOString(),
   };
+}
+
+function sanitizeHandoffValue(value: unknown): unknown {
+  return sanitizeSecretLikeValue(value, {
+    redactionValue: HANDOFF_SECRET_REDACTION,
+  });
+}
+
+function sanitizeHandoffRecord(value: unknown): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(value, {
+    redactionValue: HANDOFF_SECRET_REDACTION,
+  });
 }
 
 function normalizeArray(value: unknown) {
