@@ -123,7 +123,7 @@ export class ArtifactService {
         stored.contentType,
         stored.sizeBytes,
         stored.checksumSha256,
-        input.metadata ?? {},
+        sanitizeMetadataForPersistence(input.metadata ?? {}),
         retention.policy,
         retention.expiresAt,
       ],
@@ -333,6 +333,13 @@ function decodeArtifactPayload(contentBase64: string): Buffer {
     }
     throw new ValidationError('Artifact payload must be valid base64');
   }
+}
+
+function sanitizeMetadataForPersistence(metadata: Record<string, unknown>): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(metadata, {
+    redactionValue: ARTIFACT_METADATA_SECRET_REDACTION,
+    allowSecretReferences: true,
+  });
 }
 
 function sanitizeArtifactMetadata(metadata: Record<string, unknown>): Record<string, unknown> {

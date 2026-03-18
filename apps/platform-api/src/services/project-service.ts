@@ -125,7 +125,7 @@ export class ProjectService {
   }
 
   async createProject(identity: ApiKeyIdentity, input: CreateProjectInput) {
-    const memory = normalizeRecord(input.memory);
+    const memory = sanitizeMemoryForPersistence(normalizeRecord(input.memory));
     const memorySizeBytes = byteLengthJson(memory);
     const settings = parseProjectSettingsInput(input.settings);
 
@@ -321,9 +321,10 @@ export class ProjectService {
           throw new ValidationError('Project memory key must be between 1 and 256 characters');
         }
 
+        const sanitizedValue = sanitizeMemoryValueForPersistence(patch.key, patch.value);
         const nextMemory = {
           ...currentMemory,
-          [patch.key]: patch.value,
+          [patch.key]: sanitizedValue,
         };
         const memoryMaxBytes = Number(project.memory_max_bytes ?? 1_048_576);
         const memorySizeBytes = byteLengthJson(nextMemory);
@@ -711,6 +712,20 @@ function emptyProjectListSummary(): ProjectListSummary {
     total_workflow_count: 0,
     last_workflow_activity_at: null,
   };
+}
+
+function sanitizeMemoryForPersistence(memory: Record<string, unknown>): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(memory, {
+    redactionValue: PROJECT_MEMORY_SECRET_REDACTION,
+    allowSecretReferences: true,
+  });
+}
+
+function sanitizeMemoryValueForPersistence(key: string, value: unknown): unknown {
+  return sanitizeSecretLikeRecord(
+    { [key]: value },
+    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION, allowSecretReferences: true },
+  )[key];
 }
 
 function normalizeRepoUrl(url: string): string {
