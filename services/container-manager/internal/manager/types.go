@@ -85,25 +85,25 @@ type ContainerResourceMetrics struct {
 
 // RuntimeTarget describes the desired runtime fleet configuration for a playbook.
 type RuntimeTarget struct {
-	PlaybookID              string `json:"playbook_id"`
-	PlaybookName            string `json:"playbook_name"`
-	PoolKind                string `json:"pool_kind"`
+	PlaybookID              string   `json:"playbook_id"`
+	PlaybookName            string   `json:"playbook_name"`
+	PoolKind                string   `json:"pool_kind"`
 	CapabilityTags          []string `json:"capability_tags"`
-	PoolMode                string `json:"pool_mode"`
-	MaxRuntimes             int    `json:"max_runtimes"`
-	Priority                int    `json:"priority"`
-	IdleTimeoutSeconds      int    `json:"idle_timeout_seconds"`
-	GracePeriodSeconds      int    `json:"grace_period_seconds"`
-	Image                   string `json:"image"`
-	PullPolicy              string `json:"pull_policy"`
-	CPU                     string `json:"cpu"`
-	Memory                  string `json:"memory"`
-	PendingTasks            int    `json:"pending_tasks"`
-	TasksWithCapabilities   int    `json:"tasks_with_capabilities"`
-	DistinctCapabilitySets  int    `json:"distinct_capability_sets"`
-	MaxRequiredCapabilities int    `json:"max_required_capabilities"`
-	CapabilityDemandUnits   int    `json:"capability_demand_units"`
-	ActiveWorkflows         int    `json:"active_workflows"`
+	PoolMode                string   `json:"pool_mode"`
+	MaxRuntimes             int      `json:"max_runtimes"`
+	Priority                int      `json:"priority"`
+	IdleTimeoutSeconds      int      `json:"idle_timeout_seconds"`
+	GracePeriodSeconds      int      `json:"grace_period_seconds"`
+	Image                   string   `json:"image"`
+	PullPolicy              string   `json:"pull_policy"`
+	CPU                     string   `json:"cpu"`
+	Memory                  string   `json:"memory"`
+	PendingTasks            int      `json:"pending_tasks"`
+	TasksWithCapabilities   int      `json:"tasks_with_capabilities"`
+	DistinctCapabilitySets  int      `json:"distinct_capability_sets"`
+	MaxRequiredCapabilities int      `json:"max_required_capabilities"`
+	CapabilityDemandUnits   int      `json:"capability_demand_units"`
+	ActiveWorkflows         int      `json:"active_workflows"`
 }
 
 // RuntimeHeartbeat represents a runtime's last known heartbeat state.
@@ -121,16 +121,18 @@ type ContainerManagerConfig struct {
 	StopTimeoutSeconds             int `json:"stop_timeout_seconds"`
 	ShutdownTaskStopTimeoutSeconds int `json:"shutdown_task_stop_timeout_seconds"`
 	DockerActionBufferSeconds      int `json:"docker_action_buffer_seconds"`
+	HungRuntimeStaleAfterSeconds   int `json:"hung_runtime_stale_after_seconds"`
+	HungRuntimeStopGracePeriodSec  int `json:"hung_runtime_stop_grace_period_seconds"`
 	GlobalMaxRuntimes              int `json:"global_max_runtimes"`
 }
 
 // ReconcileSnapshot bundles the worker desired state and DCM inputs needed for
 // a single reconcile cycle so the manager can fetch them with one API call.
 type ReconcileSnapshot struct {
-	DesiredStates           []DesiredState         `json:"desired_states"`
-	RuntimeTargets          []RuntimeTarget        `json:"runtime_targets"`
-	Heartbeats              []RuntimeHeartbeat     `json:"heartbeats"`
-	ContainerManagerConfig  ContainerManagerConfig `json:"container_manager_config"`
+	DesiredStates          []DesiredState         `json:"desired_states"`
+	RuntimeTargets         []RuntimeTarget        `json:"runtime_targets"`
+	Heartbeats             []RuntimeHeartbeat     `json:"heartbeats"`
+	ContainerManagerConfig ContainerManagerConfig `json:"container_manager_config"`
 }
 
 // ContainerHealthStatus holds health inspection data from Docker.

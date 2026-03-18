@@ -257,11 +257,11 @@ describe('RuntimeDefaultsService', () => {
     it('rejects non-positive container manager defaults', async () => {
       await expect(
         service.createDefault(TENANT_ID, {
-          configKey: 'container_manager.reconcile_interval_seconds',
+          configKey: 'container_manager.hung_runtime_stale_after_seconds',
           configValue: '0',
           configType: 'number',
         }),
-      ).rejects.toThrow('container_manager.reconcile_interval_seconds must be at least 1');
+      ).rejects.toThrow('container_manager.hung_runtime_stale_after_seconds must be at least 1');
     });
 
     it('rejects invalid worker supervision defaults', async () => {

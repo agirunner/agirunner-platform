@@ -230,21 +230,21 @@ func TestDetectHungRuntimesFetchHeartbeatsErrorContinuesSafely(t *testing.T) {
 }
 
 func TestIsStaleHeartbeatNilReturnsFalse(t *testing.T) {
-	if isStaleHeartbeat(nil, time.Now().UTC()) {
+	if isStaleHeartbeat(nil, time.Now().UTC(), 90*time.Second) {
 		t.Error("expected nil heartbeat to not be stale (runtime may be new)")
 	}
 }
 
 func TestIsStaleHeartbeatInvalidTimestampReturnsTrue(t *testing.T) {
 	hb := &RuntimeHeartbeat{LastHeartbeatAt: "not-a-timestamp"}
-	if !isStaleHeartbeat(hb, time.Now().UTC()) {
+	if !isStaleHeartbeat(hb, time.Now().UTC(), 90*time.Second) {
 		t.Error("expected invalid timestamp to be stale")
 	}
 }
 
 func TestIsStaleHeartbeatRecentReturnsFalse(t *testing.T) {
 	hb := &RuntimeHeartbeat{LastHeartbeatAt: time.Now().UTC().Format(time.RFC3339)}
-	if isStaleHeartbeat(hb, time.Now().UTC()) {
+	if isStaleHeartbeat(hb, time.Now().UTC(), 90*time.Second) {
 		t.Error("expected recent heartbeat to not be stale")
 	}
 }
@@ -252,8 +252,30 @@ func TestIsStaleHeartbeatRecentReturnsFalse(t *testing.T) {
 func TestIsStaleHeartbeatOldReturnsTrue(t *testing.T) {
 	old := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
 	hb := &RuntimeHeartbeat{LastHeartbeatAt: old}
-	if !isStaleHeartbeat(hb, time.Now().UTC()) {
+	if !isStaleHeartbeat(hb, time.Now().UTC(), 90*time.Second) {
 		t.Error("expected old heartbeat to be stale")
+	}
+}
+
+func TestDetectHungRuntimesUsesConfiguredStopGracePeriod(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "idle", LastHeartbeatAt: staleTime},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+	mgr.config.HungRuntimeStopGrace = 12 * time.Second
+
+	mgr.detectHungRuntimes(context.Background())
+
+	if len(docker.stopTimeouts) != 1 || docker.stopTimeouts[0] != 12*time.Second {
+		t.Fatalf("expected hung stop timeout 12s, got %v", docker.stopTimeouts)
 	}
 }
 

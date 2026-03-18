@@ -1285,6 +1285,8 @@ const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
   stopTimeoutSeconds: 'container_manager.stop_timeout_seconds',
   shutdownTaskStopTimeoutSeconds: 'container_manager.shutdown_task_stop_timeout_seconds',
   dockerActionBufferSeconds: 'container_manager.docker_action_buffer_seconds',
+  hungRuntimeStaleAfterSeconds: 'container_manager.hung_runtime_stale_after_seconds',
+  hungRuntimeStopGracePeriodSeconds: 'container_manager.hung_runtime_stop_grace_period_seconds',
   globalMaxRuntimes: 'global_max_runtimes',
 } as const;
 
@@ -1305,6 +1307,14 @@ function buildContainerManagerConfig(defaults: Map<string, string>): ContainerMa
     docker_action_buffer_seconds: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.dockerActionBufferSeconds,
+    ),
+    hung_runtime_stale_after_seconds: readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.hungRuntimeStaleAfterSeconds,
+    ),
+    hung_runtime_stop_grace_period_seconds: readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.hungRuntimeStopGracePeriodSeconds,
     ),
     global_max_runtimes: readRequiredIntegerDefault(
       defaults,
@@ -1389,6 +1399,8 @@ export interface ContainerManagerConfig {
   stop_timeout_seconds: number;
   shutdown_task_stop_timeout_seconds: number;
   docker_action_buffer_seconds: number;
+  hung_runtime_stale_after_seconds: number;
+  hung_runtime_stop_grace_period_seconds: number;
   global_max_runtimes: number;
 }
 

@@ -456,6 +456,28 @@ function buildContainerManagerFields(): FieldDefinition[] {
       min: 1,
       step: 1,
     },
+    {
+      key: 'container_manager.hung_runtime_stale_after_seconds',
+      label: 'Hung runtime stale threshold (seconds)',
+      description: 'Maximum heartbeat age before the container manager classifies a runtime as hung.',
+      configType: 'number',
+      placeholder: '90',
+      section: 'container_manager',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'container_manager.hung_runtime_stop_grace_period_seconds',
+      label: 'Hung runtime stop grace period (seconds)',
+      description: 'How long the container manager waits when stopping a runtime container that has been classified as hung.',
+      configType: 'number',
+      placeholder: '30',
+      section: 'container_manager',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
   ];
 }
 

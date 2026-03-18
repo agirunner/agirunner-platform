@@ -23,6 +23,8 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 	m.config.StopTimeout = next.StopTimeout
 	m.config.ShutdownTaskStopTimeout = next.ShutdownTaskStopTimeout
 	m.config.DockerActionBuffer = next.DockerActionBuffer
+	m.config.HungRuntimeStaleAfter = next.HungRuntimeStaleAfter
+	m.config.HungRuntimeStopGrace = next.HungRuntimeStopGrace
 	m.config.GlobalMaxRuntimes = next.GlobalMaxRuntimes
 
 	m.logger.Info(
@@ -31,6 +33,8 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 		"stop_timeout", next.StopTimeout,
 		"shutdown_task_stop_timeout", next.ShutdownTaskStopTimeout,
 		"docker_action_buffer", next.DockerActionBuffer,
+		"hung_runtime_stale_after", next.HungRuntimeStaleAfter,
+		"hung_runtime_stop_grace", next.HungRuntimeStopGrace,
 		"global_max_runtimes", next.GlobalMaxRuntimes,
 	)
 	m.emitLog("container", "config.apply", "info", "completed", map[string]any{
@@ -39,6 +43,8 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 		"stop_timeout_seconds":               int(next.StopTimeout / time.Second),
 		"shutdown_task_stop_timeout_seconds": int(next.ShutdownTaskStopTimeout / time.Second),
 		"docker_action_buffer_seconds":       int(next.DockerActionBuffer / time.Second),
+		"hung_runtime_stale_after_seconds":   int(next.HungRuntimeStaleAfter / time.Second),
+		"hung_runtime_stop_grace_seconds":    int(next.HungRuntimeStopGrace / time.Second),
 		"global_max_runtimes":                next.GlobalMaxRuntimes,
 	})
 	return true, nil
@@ -50,6 +56,8 @@ func (m *Manager) currentContainerManagerConfig() Config {
 		StopTimeout:             m.config.StopTimeout,
 		ShutdownTaskStopTimeout: m.config.ShutdownTaskStopTimeout,
 		DockerActionBuffer:      m.config.DockerActionBuffer,
+		HungRuntimeStaleAfter:   m.config.HungRuntimeStaleAfter,
+		HungRuntimeStopGrace:    m.config.HungRuntimeStopGrace,
 		GlobalMaxRuntimes:       m.config.GlobalMaxRuntimes,
 	}
 }
@@ -71,6 +79,14 @@ func validateContainerManagerConfig(config ContainerManagerConfig) (Config, erro
 	if err != nil {
 		return Config{}, err
 	}
+	hungRuntimeStaleAfter, err := readRequiredDuration(config.HungRuntimeStaleAfterSeconds, "container_manager.hung_runtime_stale_after_seconds")
+	if err != nil {
+		return Config{}, err
+	}
+	hungRuntimeStopGrace, err := readRequiredDuration(config.HungRuntimeStopGracePeriodSec, "container_manager.hung_runtime_stop_grace_period_seconds")
+	if err != nil {
+		return Config{}, err
+	}
 	globalMaxRuntimes, err := readRequiredPositiveInt(config.GlobalMaxRuntimes, "global_max_runtimes")
 	if err != nil {
 		return Config{}, err
@@ -81,6 +97,8 @@ func validateContainerManagerConfig(config ContainerManagerConfig) (Config, erro
 		StopTimeout:             stopTimeout,
 		ShutdownTaskStopTimeout: shutdownTaskStopTimeout,
 		DockerActionBuffer:      dockerActionBuffer,
+		HungRuntimeStaleAfter:   hungRuntimeStaleAfter,
+		HungRuntimeStopGrace:    hungRuntimeStopGrace,
 		GlobalMaxRuntimes:       globalMaxRuntimes,
 	}, nil
 }

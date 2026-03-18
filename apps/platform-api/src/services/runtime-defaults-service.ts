@@ -45,6 +45,8 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['container_manager.stop_timeout_seconds', { min: 1 }],
   ['container_manager.shutdown_task_stop_timeout_seconds', { min: 1 }],
   ['container_manager.docker_action_buffer_seconds', { min: 1 }],
+  ['container_manager.hung_runtime_stale_after_seconds', { min: 1 }],
+  ['container_manager.hung_runtime_stop_grace_period_seconds', { min: 1 }],
   ['docker.checker_timeout_ms', { min: 1 }],
   ['docker.stop_timeout_seconds', { min: 1 }],
   ['llm.http_timeout_seconds', { min: 1 }],

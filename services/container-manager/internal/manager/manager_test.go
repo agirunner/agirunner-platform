@@ -42,6 +42,7 @@ type mockDockerClient struct {
 	createdSpecs    []ContainerSpec
 	networkConnects []networkConnectCall
 	stoppedIDs      []string
+	stopTimeouts    []time.Duration
 	removedIDs      []string
 	updatedLabels   []labelUpdate
 	pulledImages    []pullRecord
@@ -79,10 +80,11 @@ func (m *mockDockerClient) CreateContainer(_ context.Context, spec ContainerSpec
 	return fmt.Sprintf("container-%d", m.nextContainerID), nil
 }
 
-func (m *mockDockerClient) StopContainer(ctx context.Context, containerID string, _ time.Duration) error {
+func (m *mockDockerClient) StopContainer(ctx context.Context, containerID string, timeout time.Duration) error {
 	if _, ok := ctx.Deadline(); ok {
 		m.sawStopDeadline = true
 	}
+	m.stopTimeouts = append(m.stopTimeouts, timeout)
 	if m.stopWaitForCtx {
 		<-ctx.Done()
 		return ctx.Err()
@@ -265,6 +267,8 @@ func newTestManager(docker *mockDockerClient, platform *mockPlatformClient) *Man
 		StopTimeout:              10 * time.Second,
 		ShutdownTaskStopTimeout:  2 * time.Second,
 		DockerActionBuffer:       15 * time.Second,
+		HungRuntimeStaleAfter:    90 * time.Second,
+		HungRuntimeStopGrace:     30 * time.Second,
 		GlobalMaxRuntimes:        10,
 		RuntimeOrphanGraceCycles: 3,
 	}
@@ -277,6 +281,8 @@ func defaultTestContainerManagerConfig() ContainerManagerConfig {
 		StopTimeoutSeconds:             10,
 		ShutdownTaskStopTimeoutSeconds: 2,
 		DockerActionBufferSeconds:      15,
+		HungRuntimeStaleAfterSeconds:   90,
+		HungRuntimeStopGracePeriodSec:  30,
 		GlobalMaxRuntimes:              10,
 	}
 }
@@ -339,6 +345,8 @@ func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
 				StopTimeoutSeconds:             45,
 				ShutdownTaskStopTimeoutSeconds: 3,
 				DockerActionBufferSeconds:      20,
+				HungRuntimeStaleAfterSeconds:   90,
+				HungRuntimeStopGracePeriodSec:  30,
 				GlobalMaxRuntimes:              12,
 			},
 		},

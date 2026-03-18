@@ -479,6 +479,20 @@ async function seedRuntimeDefaults(
     description: 'Extra seconds the container manager adds around Docker stop/remove actions',
   });
 
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.hung_runtime_stale_after_seconds',
+    configValue: '90',
+    configType: 'number',
+    description: 'Maximum age in seconds before the container manager treats a runtime heartbeat as stale',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.hung_runtime_stop_grace_period_seconds',
+    configValue: '30',
+    configType: 'number',
+    description: 'Grace period in seconds used when stopping runtime containers that are classified as hung',
+  });
+
 }
 
 async function deleteNonLlmRuntimeDefaults(db: DatabaseQueryable): Promise<void> {

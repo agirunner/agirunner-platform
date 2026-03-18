@@ -62,6 +62,12 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
       'container_manager.reconcile_interval_seconds',
     );
+    expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
+      'container_manager.hung_runtime_stale_after_seconds',
+    );
+    expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
+      'container_manager.hung_runtime_stop_grace_period_seconds',
+    );
     expect(fieldsForSection('worker_supervision').map((field) => field.key)).toContain(
       'platform.worker_dispatch_ack_timeout_ms',
     );
@@ -210,7 +216,7 @@ describe('runtime defaults page support', () => {
           key: 'container_manager',
           title: 'Container manager',
           configuredCount: 0,
-          fieldCount: 4,
+          fieldCount: 6,
           errorCount: 0,
         },
         {

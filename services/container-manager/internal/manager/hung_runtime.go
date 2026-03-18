@@ -6,12 +6,7 @@ import (
 	"time"
 )
 
-// Hung runtime detection constants.
-const (
-	heartbeatStaleThreshold = 90 * time.Second // 3 x 30s heartbeat interval
-	hungStopGracePeriod     = 30 * time.Second
-	dockerHealthUnhealthy   = "unhealthy"
-)
+const dockerHealthUnhealthy = "unhealthy"
 
 // detectHungRuntimes identifies and handles runtimes that have stopped
 // heartbeating or are reported unhealthy by Docker HEALTHCHECK.
@@ -62,7 +57,7 @@ func (m *Manager) classifyHungRuntime(
 	hb *RuntimeHeartbeat,
 	now time.Time,
 ) string {
-	if hb != nil && isStaleHeartbeat(hb, now) {
+	if hb != nil && isStaleHeartbeat(hb, now, m.config.HungRuntimeStaleAfter) {
 		return "stale_heartbeat"
 	}
 
@@ -76,7 +71,7 @@ func (m *Manager) classifyHungRuntime(
 // isStaleHeartbeat returns true when the heartbeat timestamp is older than the threshold
 // or unparseable. A nil heartbeat means the runtime has never heartbeated (possibly new)
 // and is NOT considered stale — callers must nil-check before calling.
-func isStaleHeartbeat(hb *RuntimeHeartbeat, now time.Time) bool {
+func isStaleHeartbeat(hb *RuntimeHeartbeat, now time.Time, threshold time.Duration) bool {
 	if hb == nil {
 		return false
 	}
@@ -84,7 +79,7 @@ func isStaleHeartbeat(hb *RuntimeHeartbeat, now time.Time) bool {
 	if err != nil {
 		return true
 	}
-	return now.Sub(lastBeat) > heartbeatStaleThreshold
+	return now.Sub(lastBeat) > threshold
 }
 
 // isDockerUnhealthy checks whether Docker reports the container as unhealthy.
@@ -112,7 +107,7 @@ func (m *Manager) handleHungRuntime(
 	)
 
 	m.failActiveTask(runtimeID, hb, reason)
-	m.stopAndRemove(ctx, c.ID, hungStopGracePeriod)
+	m.stopAndRemove(ctx, c.ID, m.config.HungRuntimeStopGrace)
 	m.logFleetEvent("runtime_hung", "error", runtimeID, playbookID, c.Labels[labelDCMPoolKind], c.ID)
 	m.emitLogWithResource("container", "container.hung_detected", "warn", "completed", map[string]any{
 		"action":         "orphan_clean",
@@ -167,7 +162,7 @@ func (m *Manager) handleOrphanHeartbeats(
 			delete(m.processedOrphans, hb.RuntimeID)
 			continue
 		}
-		if !isStaleHeartbeat(hb, now) {
+		if !isStaleHeartbeat(hb, now, m.config.HungRuntimeStaleAfter) {
 			continue
 		}
 		if _, alreadyHandled := m.processedOrphans[hb.RuntimeID]; alreadyHandled {

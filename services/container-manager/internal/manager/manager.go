@@ -61,6 +61,8 @@ type Config struct {
 	StopTimeout              time.Duration
 	ShutdownTaskStopTimeout  time.Duration
 	DockerActionBuffer       time.Duration
+	HungRuntimeStaleAfter    time.Duration
+	HungRuntimeStopGrace     time.Duration
 	GlobalMaxRuntimes        int
 	RuntimeOrphanGraceCycles int
 	RuntimeNetwork           string

@@ -57,6 +57,8 @@ describe('runtime defaults page source', () => {
         'platform.workflow_activation_delay_ms',
         'platform.task_cancel_signal_grace_period_ms',
         'container_manager.reconcile_interval_seconds',
+        'container_manager.hung_runtime_stale_after_seconds',
+        'container_manager.hung_runtime_stop_grace_period_seconds',
         'platform.worker_dispatch_ack_timeout_ms',
         'platform.worker_key_expiry_ms',
         'platform.agent_heartbeat_threshold_multiplier',
