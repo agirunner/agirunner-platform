@@ -660,9 +660,11 @@ export function flattenInstructionLayers(
 export function summarizeTaskContextAttachments(
   context: Record<string, unknown>,
 ): Record<string, unknown> {
+  const agent = asRecord(context.agent);
   const task = asRecord(context.task);
   const project = asRecord(context.project);
   const instructionLayers = asRecord(context.instruction_layers);
+  const agentProfile = asRecord(asRecord(agent.metadata).profile);
   const predecessorHandoff = asRecord(task.predecessor_handoff);
   const predecessorResolution = asRecord(task.predecessor_handoff_resolution);
   const recentHandoffs = Array.isArray(task.recent_handoffs)
@@ -681,8 +683,14 @@ export function summarizeTaskContextAttachments(
     ? context.documents as unknown[]
     : [];
   const flattenedSystemPrompt = flattenInstructionLayers(instructionLayers);
+  const agentProfileInstructions = readAgentProfileInstructions(agent.metadata);
 
   return {
+    agent_profile_present: Object.keys(agentProfile).length > 0,
+    agent_profile_hash: Object.keys(agentProfile).length > 0 ? hashCanonicalJson(agentProfile) : null,
+    agent_profile_instructions_present: agentProfileInstructions.length > 0,
+    agent_profile_instructions_hash:
+      agentProfileInstructions.length > 0 ? hashCanonicalJson(agentProfileInstructions) : null,
     predecessor_handoff_present: Object.keys(predecessorHandoff).length > 0,
     predecessor_handoff_resolution_present: Object.keys(predecessorResolution).length > 0,
     predecessor_handoff_source: asOptionalString(predecessorResolution.source) ?? null,

@@ -321,6 +321,7 @@ describe('task query service git activity (FR-055)', () => {
           rows: [{
             id: taskId,
             tenant_id: tenantId,
+            assigned_agent_id: 'agent-1',
             workflow_id: 'workflow-1',
             project_id: 'project-1',
             work_item_id: 'wi-1',
@@ -338,6 +339,21 @@ describe('task query service git activity (FR-055)', () => {
               linked_prs: [{ id: 7 }],
               extra_headers: { Authorization: 'Bearer header.payload.signature' },
               nested: { token_ref: 'secret:GIT_TOKEN' },
+            },
+          }],
+        };
+      }
+      if (sql.includes('FROM agents')) {
+        return {
+          rows: [{
+            id: 'agent-1',
+            name: 'Agent One',
+            capabilities: ['analysis'],
+            metadata: {
+              profile: {
+                name: 'Agent One',
+                instructions: 'Use the platform prompt plus a concise review loop.',
+              },
             },
           }],
         };
@@ -479,6 +495,10 @@ describe('task query service git activity (FR-055)', () => {
         workflowId: 'workflow-1',
         workItemId: 'wi-1',
         payload: expect.objectContaining({
+          agent_profile_present: true,
+          agent_profile_hash: expect.any(String),
+          agent_profile_instructions_present: true,
+          agent_profile_instructions_hash: expect.any(String),
           instruction_context_version: 1,
           instruction_layers_hash: expect.any(String),
           flattened_system_prompt_hash: expect.any(String),
