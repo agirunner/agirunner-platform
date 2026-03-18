@@ -1,5 +1,7 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient } from '../db/database.js';
+import type { LogService } from '../logging/log-service.js';
+import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
 import type { TaskState } from '../orchestration/task-state-machine.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
@@ -73,6 +75,7 @@ export async function applyTaskCompletionSideEffects(
   task: Record<string, unknown>,
   client: DatabaseClient,
   activationDispatchService?: ImmediateWorkflowActivationDispatcher,
+  logService?: LogService,
 ) {
   const outputSchema = asRecord((task.metadata as Record<string, unknown> | null)?.output_schema);
   if (Object.keys(outputSchema).length > 0 && task.output) {
@@ -163,6 +166,7 @@ export async function applyTaskCompletionSideEffects(
       task,
       continuityResult ?? null,
       client,
+      logService,
     );
     await enqueueAndDispatchImmediateWorkflowActivation(
       client,
@@ -195,11 +199,22 @@ async function maybeResolveReviewedOutput(
   completedTask: Record<string, unknown>,
   continuityResult: WorkItemCompletionOutcome | null,
   client: DatabaseClient,
+  logService?: LogService,
 ) {
   const resolutionGate = resolveReviewResolutionGate(completedTask, continuityResult);
   if (!resolutionGate.shouldAttempt) {
     const reviewTaskId = asOptionalString(completedTask.id);
     if (reviewTaskId) {
+      const skipPayload = {
+        event_type: 'task.review_resolution_skipped',
+        reason: 'not_review_candidate',
+        resolution_gate: resolutionGate.reason,
+        role: asOptionalString(completedTask.role),
+        task_type: asOptionalString(asRecord(completedTask.metadata).task_type),
+        explicit_reviewed_task_id: readReviewedTaskId(completedTask),
+        matched_rule_type: continuityResult?.matchedRuleType ?? null,
+        satisfied_review_expectation: continuityResult?.satisfiedReviewExpectation ?? false,
+      };
       await eventService.emit(
         {
           tenantId: identity.tenantId,
@@ -208,18 +223,17 @@ async function maybeResolveReviewedOutput(
           entityId: reviewTaskId,
           actorType: 'system',
           actorId: 'review_resolver',
-          data: {
-            reason: 'not_review_candidate',
-            resolution_gate: resolutionGate.reason,
-            role: asOptionalString(completedTask.role),
-            task_type: asOptionalString(asRecord(completedTask.metadata).task_type),
-            explicit_reviewed_task_id: readReviewedTaskId(completedTask),
-            matched_rule_type: continuityResult?.matchedRuleType ?? null,
-            satisfied_review_expectation: continuityResult?.satisfiedReviewExpectation ?? false,
-          },
+          data: skipPayload,
         },
         client,
       );
+      await logTaskGovernanceTransition(logService, {
+        tenantId: identity.tenantId,
+        operation: 'task.review_resolution.skipped',
+        executor: client,
+        task: completedTask,
+        payload: skipPayload,
+      });
     }
     return;
   }
@@ -241,6 +255,17 @@ async function maybeResolveReviewedOutput(
   );
 
   if (candidates.result.rowCount !== 1) {
+    const skipPayload = {
+      event_type: 'task.review_resolution_skipped',
+      workflow_id: workflowId,
+      work_item_id: workItemId,
+      candidate_count: candidates.result.rowCount,
+      review_task_work_item_id: workItemId,
+      resolution_source: candidates.resolutionSource,
+      resolution_gate: resolutionGate.reason,
+      explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
+      parent_work_item_id: candidates.parentWorkItemId,
+    };
     await eventService.emit(
       {
         tenantId: identity.tenantId,
@@ -249,19 +274,17 @@ async function maybeResolveReviewedOutput(
         entityId: reviewTaskId,
         actorType: 'system',
         actorId: 'review_resolver',
-        data: {
-          workflow_id: workflowId,
-          work_item_id: workItemId,
-          candidate_count: candidates.result.rowCount,
-          review_task_work_item_id: workItemId,
-          resolution_source: candidates.resolutionSource,
-          resolution_gate: resolutionGate.reason,
-          explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
-          parent_work_item_id: candidates.parentWorkItemId,
-        },
+        data: skipPayload,
       },
       client,
     );
+    await logTaskGovernanceTransition(logService, {
+      tenantId: identity.tenantId,
+      operation: 'task.review_resolution.skipped',
+      executor: client,
+      task: completedTask,
+      payload: skipPayload,
+    });
     return;
   }
 
@@ -302,6 +325,14 @@ async function maybeResolveReviewedOutput(
     ],
   );
   if (!updated.rowCount) {
+    const skipPayload = {
+      event_type: 'task.review_resolution_skipped',
+      workflow_id: workflowId,
+      work_item_id: workItemId,
+      candidate_count: 1,
+      reason: 'candidate_state_changed',
+      candidate_task_id: reviewedTaskId,
+    };
     await eventService.emit(
       {
         tenantId: identity.tenantId,
@@ -310,21 +341,34 @@ async function maybeResolveReviewedOutput(
         entityId: reviewTaskId,
         actorType: 'system',
         actorId: 'review_resolver',
-        data: {
-          workflow_id: workflowId,
-          work_item_id: workItemId,
-          candidate_count: 1,
-          reason: 'candidate_state_changed',
-          candidate_task_id: reviewedTaskId,
-        },
+        data: skipPayload,
       },
       client,
     );
+    await logTaskGovernanceTransition(logService, {
+      tenantId: identity.tenantId,
+      operation: 'task.review_resolution.skipped',
+      executor: client,
+      task: completedTask,
+      payload: skipPayload,
+    });
     return;
   }
 
   const approvedTask = updated.rows[0];
   await registerTaskOutputDocuments(client, identity.tenantId, approvedTask, approvedTask.output);
+  const appliedPayload = {
+    event_type: 'task.review_resolution_applied',
+    workflow_id: workflowId,
+    review_task_id: reviewTaskId,
+    review_task_work_item_id: workItemId,
+    reviewed_task_id: reviewedTaskId,
+    reviewed_work_item_id: reviewedWorkItemId,
+    resolution_source: candidates.resolutionSource,
+    resolution_gate: resolutionGate.reason,
+    explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
+    parent_work_item_id: candidates.parentWorkItemId,
+  };
   await eventService.emit(
     {
       tenantId: identity.tenantId,
@@ -333,17 +377,7 @@ async function maybeResolveReviewedOutput(
       entityId: reviewTaskId,
       actorType: 'system',
       actorId: 'review_resolver',
-      data: {
-        workflow_id: workflowId,
-        review_task_id: reviewTaskId,
-        review_task_work_item_id: workItemId,
-        reviewed_task_id: reviewedTaskId,
-        reviewed_work_item_id: reviewedWorkItemId,
-        resolution_source: candidates.resolutionSource,
-        resolution_gate: resolutionGate.reason,
-        explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
-        parent_work_item_id: candidates.parentWorkItemId,
-      },
+      data: appliedPayload,
     },
     client,
   );
@@ -364,6 +398,13 @@ async function maybeResolveReviewedOutput(
     },
     client,
   );
+  await logTaskGovernanceTransition(logService, {
+    tenantId: identity.tenantId,
+    operation: 'task.review_resolution.applied',
+    executor: client,
+    task: completedTask,
+    payload: appliedPayload,
+  });
 }
 
 async function loadReviewedTaskCandidates(

@@ -162,6 +162,7 @@ export class TaskService {
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,
+      logService,
       workflowStateService,
       activationDispatchService: workflowActivationDispatchService,
       artifactService,

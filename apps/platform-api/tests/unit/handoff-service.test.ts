@@ -76,6 +76,7 @@ describe('HandoffService', () => {
 
   it('enqueues and dispatches an immediate workflow activation when a playbook handoff is submitted', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
+    const logService = { insert: vi.fn(async () => undefined) };
     const activationDispatchService = {
       dispatchActivation: vi.fn(async () => 'orchestrator-task-1'),
     };
@@ -153,7 +154,7 @@ describe('HandoffService', () => {
 
     const service = new HandoffService(
       pool as never,
-      undefined,
+      logService as never,
       eventService as never,
       activationDispatchService as never,
     );
@@ -193,6 +194,23 @@ describe('HandoffService', () => {
         }),
       }),
       undefined,
+    );
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.handoff.submitted',
+        taskId: 'task-1',
+        workItemId: 'work-item-1',
+        stageName: 'implementation',
+        role: 'developer',
+        payload: expect.objectContaining({
+          event_type: 'task.handoff_submitted',
+          handoff_id: 'handoff-1',
+          handoff_request_id: 'req-1',
+          task_rework_count: 0,
+          completion: 'full',
+          sequence: 3,
+        }),
+      }),
     );
   });
 

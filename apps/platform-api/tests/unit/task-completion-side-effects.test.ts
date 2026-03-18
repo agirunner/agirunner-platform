@@ -617,4 +617,68 @@ describe('applyTaskCompletionSideEffects', () => {
       client,
     );
   });
+
+  it('logs when review resolution is skipped before candidate lookup starts', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 })),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'qa',
+        nextExpectedAction: 'handoff',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedReviewExpectation: false,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-dev',
+        workflow_id: 'workflow-1',
+        work_item_id: 'implementation-item',
+        role: 'developer',
+        stage_name: 'implementation',
+        is_orchestrator_task: false,
+        input: {},
+        output: { summary: 'done' },
+      },
+      client as never,
+      undefined,
+      logService as never,
+    );
+
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.review_resolution.skipped',
+        taskId: 'task-dev',
+        workItemId: 'implementation-item',
+        stageName: 'implementation',
+        role: 'developer',
+        payload: expect.objectContaining({
+          event_type: 'task.review_resolution_skipped',
+          reason: 'not_review_candidate',
+          resolution_gate: 'not_review_candidate',
+        }),
+      }),
+    );
+  });
 });
