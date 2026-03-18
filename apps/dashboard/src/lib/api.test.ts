@@ -127,6 +127,9 @@ describe('dashboard api auth/session behavior', () => {
     expect(source).toContain('requestWorkflowWorkItemTaskAction(');
     expect(source).toContain("'reassign'");
     expect(source).toContain('/reassign');
+    expect(apiBlock).toContain('resolveWorkflowWorkItemTaskEscalation(');
+    expect(source).toContain("'resolve-escalation'");
+    expect(source).toContain('/resolve-escalation');
   });
 
   it('exposes typed project settings posture in the dashboard api contract', () => {
