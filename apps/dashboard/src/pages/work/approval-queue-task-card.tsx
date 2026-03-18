@@ -118,7 +118,7 @@ export function TaskApprovalCard(props: {
   const workflowContextLink =
     buildWorkflowOperatorPermalink(task) ??
     (task.workflow_id ? `/work/boards/${task.workflow_id}` : null);
-  const primaryFlowLabel = 'Open Work Item Flow';
+  const primaryFlowLabel = workItemFlow ? 'Open Work Item Flow' : 'Open Workflow Operator Flow';
   const diagnosticsLabel = workflowOperatorFlow ? 'Open Step Diagnostics' : 'Open Step Record';
   const stepReferenceLabel = workflowOperatorFlow ? 'Step diagnostics' : 'Step record';
   const primaryTitleHref = workflowOperatorFlow && workflowContextLink
@@ -157,8 +157,8 @@ export function TaskApprovalCard(props: {
                 <CardDescription>
                   {workItemFlow
                     ? 'Review this specialist step from the grouped work-item flow so approval, rework, and retry context stays with the work item.'
-                    : task.workflow_id && task.stage_name
-                      ? 'Make the operator decision from the step record. Workflow context is still available when you need stage history or surrounding work state.'
+                    : workflowOperatorFlow
+                      ? 'Review this workflow-linked step from the workflow operator flow so approval, rework, and retry context stays attached to the board.'
                       : 'This specialist step is waiting on a direct operator decision.'}
                 </CardDescription>
               </div>
@@ -182,7 +182,7 @@ export function TaskApprovalCard(props: {
             </div>
 
             <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:flex-wrap">
-              {workItemFlow && workflowContextLink ? (
+              {workflowOperatorFlow && workflowContextLink ? (
                 <>
                   <Button size="sm" className="w-full sm:w-auto" asChild>
                     <Link to={workflowContextLink}>
@@ -235,7 +235,7 @@ export function TaskApprovalCard(props: {
                   <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
                     <Link to={`/work/tasks/${task.id}`}>{diagnosticsLabel}</Link>
                   </Button>
-                  {!workItemFlow && workflowContextLink ? (
+                  {!workflowOperatorFlow && workflowContextLink ? (
                     <Button variant="outline" size="sm" className="w-full sm:w-auto" asChild>
                       <Link to={workflowContextLink}>Open Workflow Context</Link>
                     </Button>
@@ -334,11 +334,18 @@ export function TaskApprovalCard(props: {
         </CardContent>
       </Card>
 
-      <Dialog open={!workItemFlow && isChangesDialogOpen} onOpenChange={setIsChangesDialogOpen}>
+      <Dialog
+        open={!workflowOperatorFlow && isChangesDialogOpen}
+        onOpenChange={setIsChangesDialogOpen}
+      >
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Request Changes</DialogTitle>
-            <DialogDescription>Provide feedback for &ldquo;{taskLabel}&rdquo;.</DialogDescription>
+            <DialogDescription>
+              {workflowOperatorFlow
+                ? 'Use the workflow operator flow so board context stays aligned before mutating the step directly.'
+                : `Provide feedback for "${taskLabel}".`}
+            </DialogDescription>
           </DialogHeader>
           <div className="grid max-h-[75vh] gap-4 overflow-y-auto pr-1">
             <Textarea

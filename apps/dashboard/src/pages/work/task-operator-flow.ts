@@ -12,7 +12,7 @@ export function usesWorkItemOperatorFlow(task: WorkflowOperatorTaskScope): boole
 }
 
 export function usesWorkflowOperatorFlow(task: WorkflowOperatorTaskScope): boolean {
-  return usesWorkItemOperatorFlow(task);
+  return Boolean(task.workflow_id);
 }
 
 export function buildWorkflowOperatorPermalink(

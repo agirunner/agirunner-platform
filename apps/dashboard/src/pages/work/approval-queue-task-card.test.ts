@@ -24,7 +24,12 @@ describe('approval queue task card source', () => {
     expect(source).toContain('Step diagnostics');
     expect(source).toContain('usesWorkItemOperatorFlow');
     expect(source).toContain('const primaryTitleHref = workflowOperatorFlow && workflowContextLink');
+    expect(source).toContain('workflowOperatorFlow && workflowContextLink ? (');
+    expect(source).not.toContain('workItemFlow && workflowContextLink ? (');
     expect(source).toContain('const diagnosticsLabel = workflowOperatorFlow ? \'Open Step Diagnostics\' : \'Open Step Record\'');
+    expect(source).toContain('Review this workflow-linked step from the workflow operator flow so approval, rework, and retry context stays attached to the board.');
+    expect(source).toContain('Open Workflow Operator Flow');
+    expect(source).toContain('Use the workflow operator flow so board context stays aligned before mutating the step directly.');
     expect(source).toContain('buildApprovalDecisionPacket');
     expect(source).toContain('buildApprovalRecoveryPacket');
     expect(source).toContain('buildApprovalOutputPacket');

@@ -31,7 +31,7 @@ describe('task operator flow routing', () => {
     };
 
     expect(usesWorkItemOperatorFlow(task)).toBe(false);
-    expect(usesWorkflowOperatorFlow(task)).toBe(false);
+    expect(usesWorkflowOperatorFlow(task)).toBe(true);
     expect(readWorkflowOperatorFlowLabel(task)).toBe('Workflow-linked step context');
     expect(buildWorkflowOperatorPermalink(task)).toBe(
       '/work/boards/wf-2?gate=qa-review#gate-qa-review',
