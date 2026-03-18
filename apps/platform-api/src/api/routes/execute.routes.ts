@@ -92,13 +92,14 @@ type ExecuteRouteMode = 'disabled' | 'test-simulated' | 'test-execution-backed';
 
 type ExecuteRouteConfig = Pick<
   AppEnv,
-  | 'EXECUTE_ROUTE_MODE'
-  | 'LIVE_EXECUTOR_API_BASE_URL'
-  | 'LIVE_AUTH_LLM_API_BASE_URL'
-  | 'LIVE_EVALUATION_MODEL'
-  | 'LIVE_AUTH_LLM_MODEL'
-  | 'OPENAI_API_KEY'
+  'EXECUTE_ROUTE_MODE' | 'OPENAI_API_KEY'
 >;
+
+interface ExecuteRouteContract {
+  providerType: string;
+  modelId: string;
+  baseUrl: string;
+}
 
 function resolveExecuteRouteMode(config: ExecuteRouteConfig): ExecuteRouteMode {
   const mode = config.EXECUTE_ROUTE_MODE?.trim().toLowerCase();
@@ -120,17 +121,41 @@ function isExecutionBackedModeEnabled(config: ExecuteRouteConfig): boolean {
   return resolveExecuteRouteMode(config) === 'test-execution-backed';
 }
 
-function resolveOpenAiApiBaseUrl(config: ExecuteRouteConfig): string {
-  const configured =
-    config.LIVE_EXECUTOR_API_BASE_URL?.trim() ||
-    config.LIVE_AUTH_LLM_API_BASE_URL?.trim() ||
-    'https://api.openai.com/v1';
+function readExecutionRouteContract(payload: ExecuteRequestBody): ExecuteRouteContract | null {
+  const context = asRecord(payload.context);
+  const task = asRecord(context.task);
+  const roleConfig = asRecord(task.role_config);
 
-  return configured.replace(/\/+$/, '');
+  const providerType =
+    readString(roleConfig.llm_provider) ??
+    readString(task.llm_provider) ??
+    readString(context.llm_provider);
+  const modelId =
+    readString(roleConfig.llm_model) ??
+    readString(task.llm_model) ??
+    readString(context.llm_model);
+  const baseUrl =
+    readString(roleConfig.llm_base_url) ??
+    readString(task.llm_base_url) ??
+    readString(context.llm_base_url);
+
+  if (!providerType || !modelId || !baseUrl) {
+    return null;
+  }
+
+  return {
+    providerType,
+    modelId,
+    baseUrl: baseUrl.replace(/\/+$/, ''),
+  };
 }
 
-function resolveOpenAiModel(config: ExecuteRouteConfig): string {
-  return config.LIVE_EVALUATION_MODEL?.trim() || config.LIVE_AUTH_LLM_MODEL?.trim() || 'gpt-4.1-mini';
+function isExecuteBackendConfigurationError(message: string): boolean {
+  return (
+    message.includes('requires explicit llm_provider') ||
+    message.includes('only supports openai-compatible contracts') ||
+    message.includes('OPENAI_API_KEY is required')
+  );
 }
 
 function safeParseJson<T>(raw: string): T | null {
@@ -314,6 +339,19 @@ async function buildExecutionBackedOutput(
     );
   }
 
+  const contract = readExecutionRouteContract(payload);
+  if (!contract) {
+    throw new Error(
+      'EXECUTE_ROUTE_MODE=test-execution-backed requires explicit llm_provider, llm_model, and llm_base_url in the task claim contract. Use the UI-backed routing contract that claimTask emits.',
+    );
+  }
+
+  if (contract.providerType !== 'openai') {
+    throw new Error(
+      `The /execute execution-backed compatibility route only supports openai-compatible contracts, received provider "${contract.providerType}".`,
+    );
+  }
+
   const prompt = [
     'You are executing one SDLC task inside an autonomous software delivery workflow.',
     'Return strict JSON only.',
@@ -328,14 +366,14 @@ async function buildExecutionBackedOutput(
     `Task context: ${safeStringify(payload.context)}`,
   ].join('\n');
 
-  const response = await fetch(`${resolveOpenAiApiBaseUrl(config)}/chat/completions`, {
+  const response = await fetch(`${contract.baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: resolveOpenAiModel(config),
+      model: contract.modelId,
       temperature: 0.2,
       messages: [
         {
@@ -491,9 +529,9 @@ export async function executeRoutes(app: FastifyInstance): Promise<void> {
         return reply.status(200).send(await buildExecutionBackedOutput(payload, executeConfig));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const missingKey = message.includes('OPENAI_API_KEY is required');
-        return reply.status(missingKey ? 503 : 502).send({
-          error: missingKey ? 'execute_backend_unavailable' : 'execute_backend_failed',
+        const configurationError = isExecuteBackendConfigurationError(message);
+        return reply.status(configurationError ? 503 : 502).send({
+          error: configurationError ? 'execute_backend_unavailable' : 'execute_backend_failed',
           message,
         });
       }

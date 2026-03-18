@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import type { DatabaseQueryable } from '../db/database.js';
 import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
@@ -9,6 +11,7 @@ import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 
 const TASK_CONTEXT_SECRET_REDACTION = 'redacted://task-context-secret';
+const TASK_CONTEXT_LOG_VERSION = 1;
 const TASK_CONTEXT_MEMORY_INDEX_LIMIT = 100;
 const TASK_CONTEXT_ARTIFACT_INDEX_LIMIT = 100;
 const TASK_CONTEXT_RECENT_HANDOFF_LIMIT = 2;
@@ -649,6 +652,7 @@ export function summarizeTaskContextAttachments(
 ): Record<string, unknown> {
   const task = asRecord(context.task);
   const project = asRecord(context.project);
+  const instructionLayers = asRecord(context.instruction_layers);
   const predecessorHandoff = asRecord(task.predecessor_handoff);
   const predecessorResolution = asRecord(task.predecessor_handoff_resolution);
   const recentHandoffs = Array.isArray(task.recent_handoffs)
@@ -666,6 +670,7 @@ export function summarizeTaskContextAttachments(
   const documents = Array.isArray(context.documents)
     ? context.documents as unknown[]
     : [];
+  const flattenedSystemPrompt = flattenInstructionLayers(instructionLayers);
 
   return {
     predecessor_handoff_present: Object.keys(predecessorHandoff).length > 0,
@@ -680,6 +685,11 @@ export function summarizeTaskContextAttachments(
     project_artifact_index_count: artifactItems.length,
     project_artifact_more_available: artifactIndex.more_available === true,
     document_count: documents.length,
+    instruction_context_version: TASK_CONTEXT_LOG_VERSION,
+    instruction_layers_hash: hashCanonicalJson(instructionLayers),
+    flattened_system_prompt_hash: hashCanonicalJson(flattenedSystemPrompt),
+    instruction_layer_hashes: buildInstructionLayerHashes(instructionLayers),
+    instruction_layer_versions: buildInstructionLayerVersions(instructionLayers),
   };
 }
 
@@ -755,6 +765,81 @@ function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>
 
 function asOptionalNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value) ? value : undefined;
+}
+
+function buildInstructionLayerHashes(layers: Record<string, unknown>): Record<string, string> {
+  const hashes: Record<string, string> = {};
+  for (const name of ['platform', 'orchestrator', 'workflow', 'project', 'role', 'task']) {
+    const layer = asRecord(layers[name]);
+    if (Object.keys(layer).length === 0) {
+      continue;
+    }
+    hashes[name] = hashCanonicalJson(layer);
+  }
+  return hashes;
+}
+
+function buildInstructionLayerVersions(layers: Record<string, unknown>): Record<string, unknown> {
+  const versions: Record<string, unknown> = {};
+  for (const name of ['platform', 'orchestrator', 'workflow', 'project', 'role', 'task']) {
+    const layer = asRecord(layers[name]);
+    if (Object.keys(layer).length === 0) {
+      continue;
+    }
+    const source = asRecord(layer.source);
+    versions[name] = readLayerVersion(name, source);
+  }
+  return versions;
+}
+
+function readLayerVersion(layerName: string, source: Record<string, unknown>): unknown {
+  if (layerName === 'platform' || layerName === 'project') {
+    return asOptionalNumber(source.version) ?? null;
+  }
+  if (layerName === 'orchestrator') {
+    return asOptionalString(source.type) ?? null;
+  }
+  if (layerName === 'workflow') {
+    return asOptionalString(source.workflow_id) ?? null;
+  }
+  if (layerName === 'role') {
+    return asOptionalString(source.role) ?? null;
+  }
+  if (layerName === 'task') {
+    return asOptionalString(source.task_id) ?? null;
+  }
+  return null;
+}
+
+function hashCanonicalJson(value: unknown): string {
+  return createHash('sha256').update(stableJsonStringify(value)).digest('hex');
+}
+
+function stableJsonStringify(value: unknown): string {
+  return JSON.stringify(normalizeForStableStringify(value));
+}
+
+function normalizeForStableStringify(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map((entry) => normalizeForStableStringify(entry));
+  }
+
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const entries = Object.entries(value as Record<string, unknown>).sort(([left], [right]) =>
+    left.localeCompare(right),
+  );
+
+  const normalized: Record<string, unknown> = {};
+  for (const [key, entry] of entries) {
+    if (entry === undefined) {
+      continue;
+    }
+    normalized[key] = normalizeForStableStringify(entry);
+  }
+  return normalized;
 }
 
 const UPSTREAM_OUTPUT_MAX_BYTES = 102400;

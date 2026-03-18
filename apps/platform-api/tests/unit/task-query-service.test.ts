@@ -479,6 +479,17 @@ describe('task query service git activity (FR-055)', () => {
         workflowId: 'workflow-1',
         workItemId: 'wi-1',
         payload: expect.objectContaining({
+          instruction_context_version: 1,
+          instruction_layers_hash: expect.any(String),
+          flattened_system_prompt_hash: expect.any(String),
+          instruction_layer_hashes: expect.objectContaining({
+            role: expect.any(String),
+            task: expect.any(String),
+          }),
+          instruction_layer_versions: expect.objectContaining({
+            role: null,
+            task: taskId,
+          }),
           predecessor_handoff_present: true,
           predecessor_handoff_resolution_present: true,
           predecessor_handoff_source: 'local_work_item',

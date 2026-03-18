@@ -123,16 +123,46 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
 
     const instructionLayers = overrides.instructionLayers ?? {};
 
-    const queryMock = vi.fn()
-      .mockResolvedValueOnce(undefined) // BEGIN
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] }) // retry_available_at update
-      .mockResolvedValueOnce({ rowCount: 1, rows: [agentRow] }) // agent SELECT FOR UPDATE
-      .mockResolvedValueOnce({ rowCount: 1, rows: [taskRow] }) // task SELECT FOR UPDATE
-      // resolveProjectToolTags skipped when project_id is null
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{ ...taskRow, state: 'claimed' }] }) // UPDATE tasks RETURNING
-      .mockResolvedValueOnce({ rowCount: 1, rows: [] }) // UPDATE agents
-      .mockResolvedValueOnce(undefined) // COMMIT
-      .mockResolvedValueOnce({ rowCount: 1, rows: [{ workflow_name: null, project_name: null }] }); // names lookup
+    const queryMock = vi.fn(async (sql: string, params?: unknown[]) => {
+      if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes('SELECT * FROM agents')) {
+        return { rowCount: 1, rows: [agentRow] };
+      }
+      if (sql.includes('SELECT tasks.* FROM tasks')) {
+        return { rowCount: 1, rows: [taskRow] };
+      }
+      if (sql.includes('FROM runtime_defaults')) {
+        const key = params?.[1];
+        if (key === 'agent.max_iterations') {
+          return { rowCount: 1, rows: [{ config_value: '100' }] };
+        }
+        if (key === 'agent.llm_max_retries') {
+          return { rowCount: 1, rows: [{ config_value: '5' }] };
+        }
+        return { rowCount: 0, rows: [] };
+      }
+      if (sql.includes("SET state = 'claimed'")) {
+        return { rowCount: 1, rows: [{ ...taskRow, state: 'claimed' }] };
+      }
+      if (sql.includes('UPDATE agents SET current_task_id')) {
+        return { rowCount: 1, rows: [] };
+      }
+      if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+        return { rowCount: 1, rows: [{ workflow_name: null, project_name: null }] };
+      }
+      if (sql.includes('SELECT escalation_target, allowed_tools')) {
+        return { rowCount: 0, rows: [] };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
 
     const client = {
       query: queryMock,

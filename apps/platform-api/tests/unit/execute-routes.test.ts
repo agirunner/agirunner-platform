@@ -177,7 +177,7 @@ describe('execute route impossible-scope policy alignment', () => {
   it('returns execution-backed output when execute-route mode is enabled', async () => {
     process.env.EXECUTE_ROUTE_MODE = 'test-execution-backed';
     process.env.OPENAI_API_KEY = 'test-openai-key';
-    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://example.invalid/v1';
+    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://wrong.invalid/v1';
     process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
 
     const fetchMock = vi.fn().mockResolvedValue({
@@ -224,11 +224,23 @@ describe('execute route impossible-scope policy alignment', () => {
         title: 'Pagination hardening',
         context: {
           scenario: 'sdlc-happy',
+          task: {
+            role: 'developer',
+            role_config: {
+              llm_provider: 'openai',
+              llm_model: 'gpt-5.4-medium',
+              llm_base_url: 'https://example.invalid/v1',
+            },
+          },
         },
       },
     });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const requestBody = JSON.parse(String(requestInit.body)) as Record<string, unknown>;
+    expect(requestBody.model).toBe('gpt-5.4-medium');
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://example.invalid/v1/chat/completions');
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body).toMatchObject({
@@ -239,10 +251,40 @@ describe('execute route impossible-scope policy alignment', () => {
     });
   });
 
+  it('fails closed when execution-backed mode lacks an explicit claim contract', async () => {
+    process.env.EXECUTE_ROUTE_MODE = 'test-execution-backed';
+    process.env.OPENAI_API_KEY = 'test-openai-key';
+    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://wrong.invalid/v1';
+    process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
+
+    const server = await createApp();
+    const response = await server.inject({
+      method: 'POST',
+      url: '/execute',
+      payload: {
+        type: 'code',
+        task_id: 'task-no-contract',
+        title: 'Pagination hardening',
+        context: {
+          scenario: 'sdlc-happy',
+          task: {
+            role: 'developer',
+          },
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(503);
+    expect(response.json()).toMatchObject({
+      error: 'execute_backend_unavailable',
+      message: expect.stringContaining('explicit llm_provider'),
+    });
+  });
+
   it('fails closed when execution-backed output contains placeholder markers', async () => {
     process.env.EXECUTE_ROUTE_MODE = 'test-execution-backed';
     process.env.OPENAI_API_KEY = 'test-openai-key';
-    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://example.invalid/v1';
+    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://wrong.invalid/v1';
     process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
 
     const fetchMock = vi.fn().mockResolvedValue({
@@ -287,6 +329,17 @@ describe('execute route impossible-scope policy alignment', () => {
         type: 'code',
         task_id: 'task-124',
         title: 'Pagination hardening',
+        context: {
+          scenario: 'sdlc-happy',
+          task: {
+            role: 'developer',
+            role_config: {
+              llm_provider: 'openai',
+              llm_model: 'gpt-5.4-medium',
+              llm_base_url: 'https://example.invalid/v1',
+            },
+          },
+        },
       },
     });
 
@@ -302,7 +355,7 @@ describe('execute route impossible-scope policy alignment', () => {
   it('does not fail closed for ordinary prose that mentions placeholders', async () => {
     process.env.EXECUTE_ROUTE_MODE = 'test-execution-backed';
     process.env.OPENAI_API_KEY = 'test-openai-key';
-    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://example.invalid/v1';
+    process.env.LIVE_AUTH_LLM_API_BASE_URL = 'https://wrong.invalid/v1';
     process.env.LIVE_EVALUATION_MODEL = 'gpt-4.1-mini';
 
     const fetchMock = vi.fn().mockResolvedValue({
@@ -347,6 +400,17 @@ describe('execute route impossible-scope policy alignment', () => {
         type: 'code',
         task_id: 'task-125',
         title: 'Settings page implementation',
+        context: {
+          scenario: 'sdlc-happy',
+          task: {
+            role: 'developer',
+            role_config: {
+              llm_provider: 'openai',
+              llm_model: 'gpt-5.4-medium',
+              llm_base_url: 'https://example.invalid/v1',
+            },
+          },
+        },
       },
     });
 
