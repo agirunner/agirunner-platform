@@ -358,7 +358,7 @@ describe('public task operator route idempotency', () => {
     expect(second.json()).toEqual(first.json());
   });
 
-  it('deduplicates repeated resolve-escalation requests by request_id', async () => {
+  it('rejects repeated resolve-escalation requests for workflow-linked tasks before replay', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const resolveEscalation = vi.fn(async () => ({
       id: 'task-resolve-1',
@@ -400,10 +400,11 @@ describe('public task operator route idempotency', () => {
       },
     });
 
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
-    expect(resolveEscalation).toHaveBeenCalledTimes(1);
-    expect(second.json()).toEqual(first.json());
+    expect(first.statusCode).toBe(400);
+    expect(second.statusCode).toBe(400);
+    expect(resolveEscalation).not.toHaveBeenCalled();
+    expect(first.json().error?.code).toBe('VALIDATION_ERROR');
+    expect(second.json().error?.code).toBe('VALIDATION_ERROR');
   });
 
   it('deduplicates repeated agent-escalate requests by request_id', async () => {
