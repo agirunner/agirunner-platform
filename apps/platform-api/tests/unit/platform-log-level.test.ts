@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_TENANT_ID } from '../../src/db/seed.js';
 import {
   applyDefaultTenantLoggingLevel,
+  readDefaultTenantLoggingLevel,
   applyTenantLoggingLevel,
 } from '../../src/logging/platform-log-level.js';
 
@@ -34,6 +35,17 @@ describe('platform log level application', () => {
     expect(level).toBe('error');
     expect(logger.level).toBe('error');
     expect(configureApiKeyLoggingMock).toHaveBeenCalledWith('error');
+  });
+
+  it('reads the startup log level from the persisted default-tenant governance setting', async () => {
+    const governanceService = {
+      getLoggingLevel: vi.fn().mockResolvedValue('error'),
+    };
+
+    const level = await readDefaultTenantLoggingLevel(governanceService);
+
+    expect(governanceService.getLoggingLevel).toHaveBeenCalledWith(DEFAULT_TENANT_ID);
+    expect(level).toBe('error');
   });
 
   it('does not let non-default tenant logging mutate the shared process logger', async () => {

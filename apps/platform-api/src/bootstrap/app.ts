@@ -53,10 +53,10 @@ import { registerRoutes } from './routes.js';
 import { registerWebsocketGateway } from './websocket.js';
 import { configureApiKeyLogging } from '../auth/api-key.js';
 import { configureProviderSecretEncryptionKey } from '../lib/oauth-crypto.js';
-import { applyDefaultTenantLoggingLevel } from '../logging/platform-log-level.js';
-
-const DEFAULT_PROCESS_LOG_LEVEL = 'info';
-const DEFAULT_GOVERNANCE_LOG_LEVEL = 'info';
+import {
+  applyDefaultTenantLoggingLevel,
+  readDefaultTenantLoggingLevel,
+} from '../logging/platform-log-level.js';
 
 function requireSecretValue(source: NodeJS.ProcessEnv, envName: 'JWT_SECRET' | 'WEBHOOK_ENCRYPTION_KEY'): string {
   const secretValue = source[envName];
@@ -98,13 +98,7 @@ export async function buildApp() {
 
   assertRequiredStartupSecrets();
   const config = loadEnv(process.env);
-  configureApiKeyLogging(DEFAULT_PROCESS_LOG_LEVEL);
   configureProviderSecretEncryptionKey(config.WEBHOOK_ENCRYPTION_KEY);
-  const app = Fastify({
-    logger: {
-      level: DEFAULT_PROCESS_LOG_LEVEL,
-    },
-  });
 
   const pool = createPool(config.DATABASE_URL);
   const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -112,13 +106,21 @@ export async function buildApp() {
   await runMigrations(pool, migrationsDir);
   await seedDefaultTenant(pool, process.env);
   await seedConfigTables(pool, config);
+  const governanceService = new GovernanceService(pool, config);
+  const startupLogLevel = await readDefaultTenantLoggingLevel(governanceService);
+  configureApiKeyLogging(startupLogLevel);
+  const app = Fastify({
+    logger: {
+      level: startupLogLevel,
+    },
+  });
 
   const eventService = new EventService(pool);
   const eventStreamService = new EventStreamService(pool);
   await eventStreamService.start();
 
   const logService = new LogService(pool);
-  const logLevelCache = new LogLevelCache(pool, DEFAULT_GOVERNANCE_LOG_LEVEL);
+  const logLevelCache = new LogLevelCache(pool, startupLogLevel);
   logService.setLevelFilter(logLevelCache);
   const logStreamService = new LogStreamService(pool);
   await logStreamService.start();
@@ -128,7 +130,6 @@ export async function buildApp() {
   const webhookService = new WebhookService(pool, config);
   const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
   const taskService = new TaskService(pool, eventService, config, workerConnectionHub, logService);
-  const governanceService = new GovernanceService(pool, config);
   await applyDefaultTenantLoggingLevel({
     governanceService,
     logger: app.log,

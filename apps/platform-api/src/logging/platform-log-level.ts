@@ -20,6 +20,12 @@ interface ApplyDefaultTenantLoggingLevelOptions {
   logger: MutableProcessLogger;
 }
 
+export async function readDefaultTenantLoggingLevel(
+  governanceService: GovernanceLogLevelReader,
+): Promise<string> {
+  return governanceService.getLoggingLevel(DEFAULT_TENANT_ID);
+}
+
 function shouldApplySharedProcessLogging(tenantId: string): boolean {
   return tenantId === DEFAULT_TENANT_ID;
 }
