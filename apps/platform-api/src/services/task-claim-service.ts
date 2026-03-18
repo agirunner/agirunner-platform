@@ -297,7 +297,8 @@ export class TaskClaimService {
         claimedTask,
         llmResolution,
       );
-      const { context: _taskContext, ...claimedTaskBase } = enrichedTask as Record<string, unknown>;
+      const runtimeReadyTask = hydrateClaimGitCredentials(enrichedTask);
+      const { context: _taskContext, ...claimedTaskBase } = runtimeReadyTask as Record<string, unknown>;
       const instructionContext = (await this.deps.getTaskContext(
         identity.tenantId,
         task.id as string,
@@ -929,6 +930,126 @@ function mergeClaimRuntimeBindings(
     ...claimedTask,
     resource_bindings: persistedBindings,
   };
+}
+
+function hydrateClaimGitCredentials(task: Record<string, unknown>): Record<string, unknown> {
+  const bindings = Array.isArray(task.resource_bindings)
+    ? (task.resource_bindings as unknown[])
+    : null;
+  if (!bindings) {
+    return task;
+  }
+
+  let gitToken: string | null = null;
+  let gitSSHPrivateKey: string | null = null;
+  let gitSSHKnownHosts: string | null = null;
+
+  const sanitizedBindings = bindings.map((binding) => {
+    if (!isRecord(binding) || String(binding.type ?? '').trim() !== 'git_repository') {
+      return binding;
+    }
+
+    const credentials = isRecord(binding.credentials) ? binding.credentials : {};
+    const nextBinding: Record<string, unknown> = { ...binding };
+    const nextCredentials: Record<string, unknown> = { ...credentials };
+
+    gitToken ??= readGitBindingCredential(binding, credentials, ['token', 'git_token', 'access_token']);
+    gitSSHPrivateKey ??= readGitBindingCredential(
+      binding,
+      credentials,
+      ['git_ssh_private_key', 'ssh_private_key', 'private_key'],
+    );
+    gitSSHKnownHosts ??= readGitBindingCredential(
+      binding,
+      credentials,
+      ['git_ssh_known_hosts', 'ssh_known_hosts', 'known_hosts'],
+    );
+
+    stripGitBindingCredential(nextBinding, nextCredentials, ['token', 'git_token', 'access_token']);
+    stripGitBindingCredential(
+      nextBinding,
+      nextCredentials,
+      ['git_ssh_private_key', 'ssh_private_key', 'private_key'],
+    );
+    stripGitBindingCredential(
+      nextBinding,
+      nextCredentials,
+      ['git_ssh_known_hosts', 'ssh_known_hosts', 'known_hosts'],
+    );
+
+    if (isRecord(binding.credentials)) {
+      nextBinding.credentials = nextCredentials;
+    }
+
+    return nextBinding;
+  });
+
+  const claimCredentials: Record<string, unknown> = {};
+  if (gitToken) {
+    claimCredentials.git_token = gitToken;
+  }
+  if (gitSSHPrivateKey) {
+    claimCredentials.git_ssh_private_key = gitSSHPrivateKey;
+  }
+  if (gitSSHKnownHosts) {
+    claimCredentials.git_ssh_known_hosts = gitSSHKnownHosts;
+  }
+
+  const nextTask = {
+    ...task,
+    resource_bindings: sanitizedBindings,
+  };
+
+  return Object.keys(claimCredentials).length > 0
+    ? attachClaimCredentials(nextTask, claimCredentials)
+    : nextTask;
+}
+
+function readGitBindingCredential(
+  binding: Record<string, unknown>,
+  credentials: Record<string, unknown>,
+  candidates: string[],
+): string | null {
+  const stored = firstPresentString(binding, credentials, candidates);
+  if (!stored) {
+    return null;
+  }
+  return isExternalSecretReference(stored) ? stored : readProviderSecret(stored);
+}
+
+function stripGitBindingCredential(
+  binding: Record<string, unknown>,
+  credentials: Record<string, unknown>,
+  candidates: string[],
+): void {
+  for (const candidate of candidates) {
+    delete binding[candidate];
+    delete credentials[candidate];
+  }
+}
+
+function firstPresentString(
+  binding: Record<string, unknown>,
+  credentials: Record<string, unknown>,
+  candidates: string[],
+): string | null {
+  for (const candidate of candidates) {
+    const direct = readPresentString(binding[candidate]);
+    if (direct !== null) {
+      return direct;
+    }
+  }
+  for (const candidate of candidates) {
+    const nested = readPresentString(credentials[candidate]);
+    if (nested !== null) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+function readPresentString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
 function attachClaimCredentials(

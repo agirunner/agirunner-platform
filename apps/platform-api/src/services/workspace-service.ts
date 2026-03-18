@@ -197,7 +197,7 @@ export class WorkspaceService {
       ),
     ]);
 
-    const migratedRows = await Promise.all(rows.map((row) => this.ensureGitWebhookSecretEncrypted(tenantId, row)));
+    const migratedRows = await Promise.all(rows.map((row) => this.ensureWorkspaceSecretsEncrypted(tenantId, row)));
     const workflowSummaryByWorkspaceId = await this.loadWorkspaceWorkflowSummaries(
       tenantId,
       migratedRows.map((row) => String(row.id)),
@@ -223,7 +223,7 @@ export class WorkspaceService {
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
-    return redactWorkspaceSecrets(await this.ensureGitWebhookSecretEncrypted(tenantId, workspace));
+    return redactWorkspaceSecrets(await this.ensureWorkspaceSecretsEncrypted(tenantId, workspace));
   }
 
   async updateWorkspace(identity: ApiKeyIdentity, workspaceId: string, input: UpdateWorkspaceInput) {
@@ -571,6 +571,46 @@ export class WorkspaceService {
     return null;
   }
 
+  private async ensureWorkspaceSecretsEncrypted(tenantId: string, workspace: WorkspaceRow): Promise<WorkspaceRow> {
+    const withGitSettings = await this.ensureWorkspaceGitSettingsEncrypted(tenantId, workspace);
+    return this.ensureGitWebhookSecretEncrypted(tenantId, withGitSettings);
+  }
+
+  private async ensureWorkspaceGitSettingsEncrypted(tenantId: string, workspace: WorkspaceRow): Promise<WorkspaceRow> {
+    const record = workspace as Record<string, unknown>;
+    const settingsRecord = normalizeRecord(record.settings);
+    const storedCredentials = normalizeRecord(settingsRecord.credentials);
+    const storedGitToken = typeof storedCredentials.git_token === 'string'
+      ? storedCredentials.git_token
+      : typeof settingsRecord.git_token_secret_ref === 'string'
+        ? settingsRecord.git_token_secret_ref
+        : null;
+    if (!storedGitToken) {
+      return workspace;
+    }
+
+    const normalizedSettings = normalizeWorkspaceSettings(record.settings);
+    const normalizedGitToken = normalizedSettings.credentials.git_token ?? null;
+    if (!normalizedGitToken || normalizedGitToken === storedGitToken) {
+      return workspace;
+    }
+
+    await this.pool.query(
+      `UPDATE workspaces
+          SET settings = $3,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [tenantId, String(record.id), normalizedSettings],
+    );
+
+    return {
+      ...workspace,
+      settings: normalizedSettings,
+      updated_at: new Date(),
+    };
+  }
+
   private async ensureGitWebhookSecretEncrypted(tenantId: string, workspace: WorkspaceRow): Promise<WorkspaceRow> {
     const record = workspace as Record<string, unknown>;
     const secret = typeof record.git_webhook_secret === 'string' ? record.git_webhook_secret : null;
@@ -640,7 +680,7 @@ export class WorkspaceService {
     if (!workspace) {
       throw new NotFoundError('Workspace not found');
     }
-    return workspace;
+    return this.ensureWorkspaceSecretsEncrypted(tenantId, workspace);
   }
 
   private async loadWorkspaceWorkflowSummaries(

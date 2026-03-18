@@ -1,6 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import {
+  configureProviderSecretEncryptionKey,
+  readProviderSecret,
+} from '../../src/lib/oauth-crypto.js';
 import { WorkspaceService } from '../../src/services/workspace-service.js';
+
+configureProviderSecretEncryptionKey('test-encryption-key');
 
 function createIdentity() {
   return {
@@ -165,6 +171,128 @@ describe('WorkspaceService typed settings contract', () => {
     });
     expect(result.settings).toEqual({
       default_branch: 'release',
+      credentials: {
+        git_token: 'redacted://workspace-settings-secret',
+        git_token_configured: true,
+      },
+      model_overrides: {},
+    });
+  });
+
+  it('encrypts raw git tokens before persisting workspace settings', async () => {
+    let insertedSettings: Record<string, unknown> | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.startsWith('INSERT INTO workspaces')) {
+          insertedSettings = (values?.[5] as Record<string, unknown>) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workspace-raw-token',
+              tenant_id: 'tenant-1',
+              name: 'Demo',
+              slug: 'demo',
+              description: null,
+              repository_url: 'https://github.com/example/demo',
+              settings: insertedSettings,
+              memory: {},
+              git_webhook_secret: null,
+              is_active: true,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new WorkspaceService(pool as never, createEventService() as never);
+
+    const result = await service.createWorkspace(createIdentity() as never, {
+      name: 'Demo',
+      slug: 'demo',
+      repository_url: 'https://github.com/example/demo',
+      settings: {
+        credentials: {
+          git_token: 'ghp_live_workspace_token',
+        },
+      },
+    });
+
+    expect(insertedSettings).toEqual({
+      credentials: {
+        git_token: expect.stringMatching(/^enc:v1:/),
+      },
+      model_overrides: {},
+    });
+    if (!insertedSettings) {
+      throw new Error('expected inserted settings to be captured');
+    }
+    const insertedSettingsRecord: Record<string, unknown> = insertedSettings;
+    const insertedCredentials = (insertedSettingsRecord.credentials ?? {}) as Record<string, unknown>;
+    expect(
+      readProviderSecret(String(insertedCredentials.git_token ?? '')),
+    ).toBe('ghp_live_workspace_token');
+    expect(result.settings).toEqual({
+      credentials: {
+        git_token: 'redacted://workspace-settings-secret',
+        git_token_configured: true,
+      },
+      model_overrides: {},
+    });
+  });
+
+  it('migrates legacy plaintext git tokens during workspace reads', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            id: 'workspace-legacy-token',
+            tenant_id: 'tenant-1',
+            name: 'Demo',
+            slug: 'demo',
+            description: null,
+            repository_url: 'https://github.com/example/demo',
+            settings: {
+              credentials: {
+                git_token: 'ghp_legacy_workspace_token',
+              },
+            },
+            memory: {},
+            git_webhook_secret: null,
+            is_active: true,
+          }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [],
+        }),
+    };
+
+    const service = new WorkspaceService(
+      pool as never,
+      createEventService() as never,
+      { WEBHOOK_ENCRYPTION_KEY: 'test-encryption-key' },
+    );
+
+    const result = await service.getWorkspace('tenant-1', 'workspace-legacy-token');
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('UPDATE workspaces'),
+      [
+        'tenant-1',
+        'workspace-legacy-token',
+        expect.objectContaining({
+          credentials: {
+            git_token: expect.stringMatching(/^enc:v1:/),
+          },
+          model_overrides: {},
+        }),
+      ],
+    );
+    expect(result.settings).toEqual({
       credentials: {
         git_token: 'redacted://workspace-settings-secret',
         git_token_configured: true,
