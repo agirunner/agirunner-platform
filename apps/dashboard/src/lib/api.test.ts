@@ -109,6 +109,7 @@ describe('dashboard api auth/session behavior', () => {
     expect(workflowBlock).toContain("lifecycle?: 'planned' | null;");
     expect(workflowBlock).toContain('current_stage?: string | null;');
     expect(approvalTaskBlock).toContain('state: DashboardTaskState;');
+    expect(source).not.toContain('actOnStageGate(');
   });
 
   it('exposes typed project settings posture in the dashboard api contract', () => {
@@ -1404,11 +1405,6 @@ describe('dashboard api auth/session behavior', () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { id: 'pipe-1', lifecycle: 'planned', current_stage: 'build' } }), {
-          status: 200,
-        }),
-      )
-      .mockResolvedValueOnce(
         new Response(
           JSON.stringify({ data: { workflow_id: 'pipe-1', resolved_config: { retries: 2 } } }),
           { status: 200 },
@@ -1492,7 +1488,6 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    await api.actOnStageGate('pipe-1', 'build', { action: 'approve' });
     const config = await api.getResolvedWorkflowConfig('pipe-1', true);
     const timeline = await api.getProjectTimeline('project-1');
     const artifacts = await api.listProjectArtifacts('project-1', {
@@ -1507,15 +1502,12 @@ describe('dashboard api auth/session behavior', () => {
     expect(artifacts.data[0]?.id).toBe('artifact-1');
     expect(artifacts.meta.summary.total_artifacts).toBe(1);
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/workflows/pipe-1/stages/build/gate',
-    );
-    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
       'http://localhost:8080/api/v1/workflows/pipe-1/config/resolved?show_layers=true',
     );
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
       'http://localhost:8080/api/v1/projects/project-1/timeline',
     );
-    expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
       'http://localhost:8080/api/v1/projects/project-1/artifacts?q=release&preview_mode=inline&page=1&per_page=50',
     );
   });

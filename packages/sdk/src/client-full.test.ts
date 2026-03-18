@@ -457,11 +457,6 @@ describe('sdk full client coverage', () => {
         ),
       )
       .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { id: 'wf-1', lifecycle: 'planned', current_stage: 'review' } }), {
-          status: 200,
-        }),
-      )
-      .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
             data: {
@@ -552,7 +547,6 @@ describe('sdk full client coverage', () => {
       stage_name: 'build',
     });
     const activations = await client.listWorkflowActivations('wf-1');
-    const gated = await client.actOnStageGate('wf-1', 'review', { action: 'approve' });
     const approvals = await client.getApprovalQueue();
     const taskMemory = await client.getTaskMemory('task-1');
     const patchedMemory = await client.patchTaskMemory('task-1', {
@@ -589,7 +583,6 @@ describe('sdk full client coverage', () => {
     expect(activations[0].redispatched_task_id).toBe('task-redispatch-1');
     expect(activations[0].event_count).toBe(2);
     expect(activations[0].events?.[0]?.id).toBe('activation-event-1');
-    expect(gated.current_stage).toBe('review');
     expect(approvals.task_approvals[0].id).toBe('task-1');
     expect(taskMemory.memory).toEqual({ architecture: 'v2' });
     expect(patchedMemory.memory).toEqual({ architecture: 'v2' });

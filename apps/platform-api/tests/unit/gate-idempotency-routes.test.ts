@@ -13,6 +13,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
     };
   },
   withScope: () => async () => {},
+  withAllowedScopes: () => async () => {},
 }));
 
 describe('gate decision route idempotency', () => {
@@ -138,17 +139,10 @@ describe('gate decision route idempotency', () => {
     expect(actOnGate).not.toHaveBeenCalled();
   });
 
-  it('deduplicates repeated workflow stage gate decisions by request_id', async () => {
-    const actOnStageGate = vi.fn(async () => ({
-      id: 'stage-1',
-      workflow_id: 'workflow-1',
-      name: 'requirements',
-      gate_status: 'approved',
-    }));
+  it('does not expose the deprecated workflow stage gate mutation route', async () => {
     vi.doMock('../../src/services/playbook-workflow-control-service.js', () => ({
       PlaybookWorkflowControlService: vi.fn().mockImplementation(() => ({
         actOnGate: vi.fn(),
-        actOnStageGate,
       })),
     }));
     vi.doMock('../../src/services/approval-queue-service.js', () => ({
@@ -183,84 +177,6 @@ describe('gate decision route idempotency', () => {
         getWorkflowWorkItemMemory: vi.fn(),
         getWorkflowWorkItemMemoryHistory: vi.fn(),
         updateWorkflowWorkItem: vi.fn(),
-        actOnStageGate: vi.fn(),
-        getResolvedConfig: vi.fn(),
-        cancelWorkflow: vi.fn(),
-        pauseWorkflow: vi.fn(),
-        resumeWorkflow: vi.fn(),
-        deleteWorkflow: vi.fn(),
-      },
-    });
-    await app.register(workflowRoutes);
-
-    const first = await app.inject({
-      method: 'POST',
-      url: '/api/v1/workflows/workflow-1/stages/requirements/gate',
-      headers: { authorization: 'Bearer test' },
-      payload: {
-        request_id: 'stage-decision-1',
-        action: 'approve',
-        feedback: 'Approved',
-      },
-    });
-    const second = await app.inject({
-      method: 'POST',
-      url: '/api/v1/workflows/workflow-1/stages/requirements/gate',
-      headers: { authorization: 'Bearer test' },
-      payload: {
-        request_id: 'stage-decision-1',
-        action: 'approve',
-        feedback: 'Approved',
-      },
-    });
-
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
-    expect(actOnStageGate).toHaveBeenCalledTimes(1);
-    expect(second.json()).toEqual(first.json());
-  });
-
-  it('rejects workflow stage gate decisions without request_id', async () => {
-    const actOnStageGate = vi.fn();
-    vi.doMock('../../src/services/playbook-workflow-control-service.js', () => ({
-      PlaybookWorkflowControlService: vi.fn().mockImplementation(() => ({
-        actOnGate: vi.fn(),
-        actOnStageGate,
-      })),
-    }));
-    vi.doMock('../../src/services/approval-queue-service.js', () => ({
-      ApprovalQueueService: vi.fn().mockImplementation(() => ({
-        getGate: vi.fn(async () => ({ id: 'gate-1', workflow_id: 'workflow-1' })),
-      })),
-    }));
-    vi.doMock('../../src/services/workflow-state-service.js', () => ({
-      WorkflowStateService: vi.fn().mockImplementation(() => ({})),
-    }));
-    vi.doMock('../../src/services/workflow-activation-service.js', () => ({
-      WorkflowActivationService: vi.fn().mockImplementation(() => ({})),
-    }));
-    vi.doMock('../../src/services/workflow-activation-dispatch-service.js', () => ({
-      WorkflowActivationDispatchService: vi.fn().mockImplementation(() => ({})),
-    }));
-
-    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
-
-    app = await buildApp({
-      workflowService: {
-        createWorkflow: vi.fn(),
-        listWorkflows: vi.fn(),
-        getWorkflow: vi.fn(),
-        getWorkflowBoard: vi.fn(),
-        listWorkflowStages: vi.fn(),
-        listWorkflowWorkItems: vi.fn(),
-        createWorkflowWorkItem: vi.fn(),
-        getWorkflowWorkItem: vi.fn(),
-        listWorkflowWorkItemTasks: vi.fn(),
-        listWorkflowWorkItemEvents: vi.fn(),
-        getWorkflowWorkItemMemory: vi.fn(),
-        getWorkflowWorkItemMemoryHistory: vi.fn(),
-        updateWorkflowWorkItem: vi.fn(),
-        actOnStageGate: vi.fn(),
         getResolvedConfig: vi.fn(),
         cancelWorkflow: vi.fn(),
         pauseWorkflow: vi.fn(),
@@ -275,14 +191,13 @@ describe('gate decision route idempotency', () => {
       url: '/api/v1/workflows/workflow-1/stages/requirements/gate',
       headers: { authorization: 'Bearer test' },
       payload: {
+        request_id: 'stage-decision-1',
         action: 'approve',
         feedback: 'Approved',
       },
     });
 
-    expect(response.statusCode).toBe(422);
-    expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
-    expect(actOnStageGate).not.toHaveBeenCalled();
+    expect(response.statusCode).toBe(404);
   });
 });
 

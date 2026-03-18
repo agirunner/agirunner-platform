@@ -740,34 +740,6 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    '/api/v1/workflows/:id/stages/:name/gate',
-    { preHandler: [authenticateApiKey, withScope('admin')] },
-    async (request) => {
-      const params = request.params as { id: string; name: string };
-      const body = parseOrThrow(stageGateSchema.safeParse(request.body));
-      const { request_id: requestId, ...decision } = body;
-      return {
-        data: await runIdempotentTransactionalWorkflowAction(
-          app,
-          toolResultService,
-          request.auth!.tenantId,
-          params.id,
-          'act_on_stage_gate',
-          requestId,
-          (client) =>
-            playbookControlService.actOnStageGate(
-              request.auth!,
-              params.id,
-              params.name,
-              decision,
-              client,
-            ),
-        ),
-      };
-    },
-  );
-
-  app.post(
     '/api/v1/workflows/:id/gates/:gateId',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {

@@ -193,20 +193,6 @@ const CANONICAL_TOOL_DEFINITIONS = [
         },
     },
     {
-        name: 'agirunner_act_on_stage_gate',
-        description: 'Approve, reject, or request changes on a workflow stage gate',
-        inputSchema: {
-            type: 'object',
-            properties: {
-                workflow_id: { type: 'string' },
-                stage_name: { type: 'string' },
-                action: { type: 'string', enum: ['approve', 'reject', 'request_changes'] },
-                feedback: { type: 'string' },
-            },
-            required: ['workflow_id', 'stage_name', 'action'],
-        },
-    },
-    {
         name: 'agirunner_list_playbooks',
         description: 'List playbooks',
         inputSchema: { type: 'object', properties: {} },
@@ -255,7 +241,6 @@ const COMPATIBILITY_ALIASES = [
     { alias: 'list_workflow_activations', canonical: 'agirunner_list_workflow_activations' },
     { alias: 'create_workflow_work_item', canonical: 'agirunner_create_workflow_work_item' },
     { alias: 'update_workflow_work_item', canonical: 'agirunner_update_workflow_work_item' },
-    { alias: 'act_on_stage_gate', canonical: 'agirunner_act_on_stage_gate' },
     { alias: 'list_playbooks', canonical: 'agirunner_list_playbooks' },
     { alias: 'get_playbook', canonical: 'agirunner_get_playbook' },
     { alias: 'create_playbook', canonical: 'agirunner_create_playbook' },
@@ -327,12 +312,6 @@ const CANONICAL_TOOL_SCHEMAS = {
         notes: z.string().optional(),
         metadata: z.record(z.unknown()).optional(),
     }, ['workflow_id', 'work_item_id']),
-    agirunner_act_on_stage_gate: obj({
-        workflow_id: z.string().optional(),
-        stage_name: z.string().optional(),
-        action: z.enum(['approve', 'reject', 'request_changes']).optional(),
-        feedback: z.string().optional(),
-    }, ['workflow_id', 'stage_name', 'action']),
     agirunner_list_playbooks: obj({}),
     agirunner_get_playbook: obj({ id: z.string().optional() }, ['id']),
     agirunner_create_playbook: obj({
@@ -390,10 +369,6 @@ export function createToolHandlers(client) {
             priority: input.priority,
             notes: input.notes,
             metadata: input.metadata,
-        }),
-        agirunner_act_on_stage_gate: (input) => client.actOnStageGate(String(input.workflow_id), String(input.stage_name), {
-            action: input.action,
-            feedback: input.feedback,
         }),
         agirunner_list_playbooks: () => client.listPlaybooks(),
         agirunner_get_playbook: (input) => client.getPlaybook(String(input.id)),

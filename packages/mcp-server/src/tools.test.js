@@ -20,7 +20,6 @@ describe('mcp tools coverage', () => {
             'agirunner_list_workflow_activations',
             'agirunner_create_workflow_work_item',
             'agirunner_update_workflow_work_item',
-            'agirunner_act_on_stage_gate',
             'agirunner_list_playbooks',
             'agirunner_get_playbook',
             'agirunner_create_playbook',
@@ -67,7 +66,6 @@ describe('mcp tools coverage', () => {
             listWorkflowActivations: vi.fn().mockResolvedValue([]),
             createWorkflowWorkItem: vi.fn().mockResolvedValue({ id: 'wi-1' }),
             updateWorkflowWorkItem: vi.fn().mockResolvedValue({ id: 'wi-1', priority: 'high' }),
-            actOnStageGate: vi.fn().mockResolvedValue({ id: 'p1', current_stage: 'review' }),
             listPlaybooks: vi.fn().mockResolvedValue([]),
             getPlaybook: vi.fn().mockResolvedValue({ id: 'pb-1' }),
             createPlaybook: vi.fn().mockResolvedValue({ id: 'pb-2' }),
@@ -97,11 +95,6 @@ describe('mcp tools coverage', () => {
             work_item_id: 'wi-1',
             priority: 'high',
         });
-        await handlers.agirunner_act_on_stage_gate({
-            workflow_id: 'p1',
-            stage_name: 'review',
-            action: 'approve',
-        });
         await handlers.agirunner_list_playbooks();
         await handlers.agirunner_get_playbook({ id: 'pb-1' });
         await handlers.agirunner_create_playbook({ name: 'Ship', outcome: 'Ship', definition: {} });
@@ -120,10 +113,6 @@ describe('mcp tools coverage', () => {
         expect(client.getWorkflowWorkItem).toHaveBeenCalledWith('p1', 'wi-1');
         expect(client.createWorkflowWorkItem).toHaveBeenCalledWith('p1', expect.objectContaining({ title: 'Investigate' }));
         expect(client.updateWorkflowWorkItem).toHaveBeenCalledWith('p1', 'wi-1', expect.objectContaining({ priority: 'high' }));
-        expect(client.actOnStageGate).toHaveBeenCalledWith('p1', 'review', {
-            action: 'approve',
-            feedback: undefined,
-        });
         expect(client.getApprovalQueue).toHaveBeenCalledTimes(2);
     });
 });

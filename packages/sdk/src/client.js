@@ -165,13 +165,6 @@ export class PlatformApiClient {
         const response = await this.request(`/api/v1/workflows/${workflowId}/activations`);
         return response.data;
     }
-    async actOnStageGate(workflowId, stageName, payload) {
-        const response = await this.request(`/api/v1/workflows/${workflowId}/stages/${stageName}/gate`, {
-            method: 'POST',
-            body: payload,
-        });
-        return response.data;
-    }
     async listProjects(query = {}) {
         return this.request(this.withQuery('/api/v1/projects', query));
     }

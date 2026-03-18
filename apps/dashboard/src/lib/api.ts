@@ -98,11 +98,6 @@ export interface DashboardApiKeyRecord {
   created_at: string;
 }
 
-export interface DashboardWorkflowStageActionPayload {
-  action: 'approve' | 'reject' | 'request_changes';
-  feedback?: string;
-}
-
 export interface DashboardResolvedConfigResponse {
   workflow_id: string;
   resolved_config: Record<string, unknown>;
@@ -1901,11 +1896,6 @@ export interface DashboardApi {
   ): Promise<unknown>;
   pauseWorkflow(workflowId: string): Promise<unknown>;
   resumeWorkflow(workflowId: string): Promise<unknown>;
-  actOnStageGate(
-    workflowId: string,
-    stageName: string,
-    payload: DashboardWorkflowStageActionPayload,
-  ): Promise<unknown>;
   getResolvedWorkflowConfig(
     workflowId: string,
     showLayers?: boolean,
@@ -2862,12 +2852,6 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/pause`)),
     resumeWorkflow: (workflowId) =>
       withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/resume`)),
-    actOnStageGate: (workflowId, stageName, payload) =>
-      withRefresh(() =>
-        requestJson(`/api/v1/workflows/${workflowId}/stages/${stageName}/gate`, {
-          body: payload as unknown as Record<string, unknown>,
-        }),
-      ),
     getResolvedWorkflowConfig: (workflowId, showLayers = false) =>
       withRefresh(() =>
         requestData<DashboardResolvedConfigResponse>(

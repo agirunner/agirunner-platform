@@ -315,24 +315,6 @@ export class PlatformApiClient {
     return response.data;
   }
 
-  async actOnStageGate(
-    workflowId: string,
-    stageName: string,
-    payload: {
-      action: 'approve' | 'reject' | 'request_changes';
-      feedback?: string;
-    },
-  ): Promise<Workflow> {
-    const response = await this.request<ApiDataResponse<Workflow>>(
-      `/api/v1/workflows/${workflowId}/stages/${stageName}/gate`,
-      {
-        method: 'POST',
-        body: payload,
-      },
-    );
-    return response.data;
-  }
-
   async listProjects(query: Query = {}): Promise<ApiListResponse<Project>> {
     return this.request<ApiListResponse<Project>>(this.withQuery('/api/v1/projects', query));
   }

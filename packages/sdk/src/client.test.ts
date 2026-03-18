@@ -10,19 +10,27 @@ function readSdkSource(fileName: string) {
 
 function readInterfaceBlock(source: string, interfaceName: string) {
   const start = source.indexOf(`export interface ${interfaceName} {`);
-  if (start < 0) {
+  if (start >= 0) {
+    const end = source.indexOf('\n}\n', start);
+    if (end < 0) {
+      throw new Error(`Interface ${interfaceName} end not found`);
+    }
+    return source.slice(start, end);
+  }
+
+  const typeStart = source.indexOf(`export type ${interfaceName} =`);
+  if (typeStart < 0) {
     throw new Error(`Interface ${interfaceName} not found`);
   }
-  const end = source.indexOf('\n}\n', start);
-  if (end < 0) {
-    throw new Error(`Interface ${interfaceName} end not found`);
-  }
-  return source.slice(start, end);
+
+  const nextExport = source.indexOf('\nexport ', typeStart + 1);
+  return source.slice(typeStart, nextExport < 0 ? undefined : nextExport);
 }
 
 describe('PlatformApiClient', () => {
   it('keeps live workflow sdk types free of template and phase-era fields', () => {
     const workflowBlock = readInterfaceBlock(readSdkSource('types.ts'), 'Workflow');
+    const clientSource = readSdkSource('client.ts');
 
     expect(workflowBlock).not.toContain('template_id');
     expect(workflowBlock).not.toContain('template_name');
@@ -30,6 +38,7 @@ describe('PlatformApiClient', () => {
     expect(workflowBlock).not.toContain('current_phase');
     expect(workflowBlock).not.toContain('workflow_phase');
     expect(workflowBlock).not.toContain('phases');
+    expect(clientSource).not.toContain('actOnStageGate(');
   });
 
   it('returns null when claim endpoint responds with 204', async () => {

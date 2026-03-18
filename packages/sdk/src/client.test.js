@@ -1,6 +1,38 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { PlatformApiClient } from './client.js';
+function readSdkSource(fileName) {
+    return readFileSync(resolve(import.meta.dirname, `./${fileName}`), 'utf8');
+}
+function readInterfaceBlock(source, interfaceName) {
+    const start = source.indexOf(`export interface ${interfaceName} {`);
+    if (start >= 0) {
+        const end = source.indexOf('\n}\n', start);
+        if (end < 0) {
+            throw new Error(`Interface ${interfaceName} end not found`);
+        }
+        return source.slice(start, end);
+    }
+    const typeStart = source.indexOf(`export type ${interfaceName} =`);
+    if (typeStart < 0) {
+        throw new Error(`Interface ${interfaceName} not found`);
+    }
+    const nextExport = source.indexOf('\nexport ', typeStart + 1);
+    return source.slice(typeStart, nextExport < 0 ? undefined : nextExport);
+}
 describe('PlatformApiClient', () => {
+    it('keeps live workflow sdk types free of template and phase-era fields', () => {
+        const workflowBlock = readInterfaceBlock(readSdkSource('types.ts'), 'Workflow');
+        const clientSource = readSdkSource('client.ts');
+        expect(workflowBlock).not.toContain('template_id');
+        expect(workflowBlock).not.toContain('template_name');
+        expect(workflowBlock).not.toContain('template_version');
+        expect(workflowBlock).not.toContain('current_phase');
+        expect(workflowBlock).not.toContain('workflow_phase');
+        expect(workflowBlock).not.toContain('phases');
+        expect(clientSource).not.toContain('actOnStageGate(');
+    });
     it('returns null when claim endpoint responds with 204', async () => {
         const fetcher = vi.fn().mockResolvedValue(new Response(undefined, {
             status: 204,
@@ -34,6 +66,23 @@ describe('PlatformApiClient', () => {
         const [, options] = vi.mocked(fetcher).mock.calls[0];
         const headers = options?.headers;
         expect(headers.Authorization).toBe('Bearer jwt-token');
+    });
+    it('does not send a json content-type header for delete requests without a body', async () => {
+        const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ data: { id: 'playbook-1', deleted: true } }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        }));
+        const client = new PlatformApiClient({
+            baseUrl: 'http://localhost:8080',
+            accessToken: 'jwt-token',
+            fetcher,
+        });
+        await client.deletePlaybook('playbook-1');
+        const [, options] = vi.mocked(fetcher).mock.calls[0];
+        const headers = (options?.headers ?? {});
+        expect(headers.Authorization).toBe('Bearer jwt-token');
+        expect(headers['Content-Type']).toBeUndefined();
+        expect(options?.body).toBeUndefined();
     });
     it.each([401, 403, 404, 500])('throws PlatformApiError for HTTP %s responses', async (statusCode) => {
         const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: 'failure' }), {

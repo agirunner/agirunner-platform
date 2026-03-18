@@ -18,7 +18,6 @@ function createClient() {
         listWorkflowActivations: vi.fn().mockResolvedValue([]),
         createWorkflowWorkItem: vi.fn().mockResolvedValue({ id: 'wi-1' }),
         updateWorkflowWorkItem: vi.fn().mockResolvedValue({ id: 'wi-1' }),
-        actOnStageGate: vi.fn().mockResolvedValue({ id: 'pipe-1' }),
         listPlaybooks: vi.fn().mockResolvedValue([{ id: 'pb-1' }]),
         getPlaybook: vi.fn().mockResolvedValue({ id: 'pb-1' }),
         createPlaybook: vi.fn().mockResolvedValue({ id: 'pb-created' }),
@@ -83,11 +82,6 @@ describe('McpStdioServer', () => {
             args: { workflow_id: 'pipe-1', work_item_id: 'wi-1', priority: 'high' },
             method: 'updateWorkflowWorkItem',
         },
-        {
-            name: 'act_on_stage_gate',
-            args: { workflow_id: 'pipe-1', stage_name: 'review', action: 'approve' },
-            method: 'actOnStageGate',
-        },
         { name: 'list_playbooks', args: {}, method: 'listPlaybooks' },
         { name: 'get_playbook', args: { id: 'pb-1' }, method: 'getPlaybook' },
         {
@@ -121,7 +115,6 @@ describe('McpStdioServer', () => {
         { name: 'cancel_workflow', args: {}, missing: 'id' },
         { name: 'create_workflow_work_item', args: { workflow_id: 'pipe-1' }, missing: 'title' },
         { name: 'update_workflow_work_item', args: { workflow_id: 'pipe-1' }, missing: 'work_item_id' },
-        { name: 'act_on_stage_gate', args: { workflow_id: 'pipe-1' }, missing: 'stage_name' },
         { name: 'create_playbook', args: { name: 'Ship' }, missing: 'outcome' },
     ])('returns invalid params for %s when required params are missing', async ({ name, args, missing }) => {
         const response = await new McpStdioServer(createClient()).handle({
