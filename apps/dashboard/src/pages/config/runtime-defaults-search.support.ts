@@ -15,7 +15,7 @@ const PROVIDER_DETAILS: Record<WebSearchProvider, WebSearchProviderDetails> = {
   duckduckgo: {
     value: 'duckduckgo',
     label: 'DuckDuckGo',
-    description: 'Built-in fallback provider. No API key is required.',
+    description: 'Built-in provider. No API key is required.',
     endpointPlaceholder: 'https://html.duckduckgo.com/html',
     requiresApiKey: false,
   },
@@ -66,7 +66,7 @@ export function buildWebSearchRecoveryGuidance(
     details.requiresApiKey &&
     errors['tools.web_search_api_key_secret_ref']?.includes('requires a secret reference')
   ) {
-    guidance.add(`Add a ${details.label} secret reference or switch the provider back to DuckDuckGo.`);
+    guidance.add(`Add a ${details.label} secret reference or switch the provider to DuckDuckGo.`);
   }
   if (
     !details.requiresApiKey &&
@@ -94,16 +94,16 @@ export function buildWebSearchFieldSupport(
   return {
     provider: details.requiresApiKey
       ? apiKeyError
-        ? `If ${details.label} credentials are not ready yet, switch back to DuckDuckGo so web search stays available while you recover the secret reference.`
-        : `${details.label} needs a secret:NAME reference. Switch back to DuckDuckGo if you need a no-key fallback.`
-      : 'DuckDuckGo works without a secret reference and remains the safest fallback when other search providers are unavailable.',
+        ? `If ${details.label} credentials are not ready yet, switch the provider to DuckDuckGo or add the secret reference before running web search.`
+        : `${details.label} needs a secret:NAME reference. Switch the provider to DuckDuckGo only if you intentionally want a no-key provider.`
+      : 'DuckDuckGo works without a secret reference. Use it when you want a no-key provider.',
     endpoint: endpointValue
       ? `A custom endpoint override is active. Use the reset action to restore the ${details.label} default if this override fails.`
       : `Leave this blank to use the ${details.label} default endpoint.`,
     apiKey: details.requiresApiKey
       ? apiKeyValue
         ? `Keep this as a secret:NAME reference. Clear it only when you intentionally switch to a provider that does not require an API key.`
-        : `Enter a secret:NAME reference for ${details.label}, or switch back to DuckDuckGo if you need a zero-credential fallback.`
+        : `Enter a secret:NAME reference for ${details.label}, or switch the provider to DuckDuckGo if you intentionally want a no-key provider.`
       : apiKeyValue
         ? 'This provider ignores API keys. Clear the stale secret reference to avoid confusing operators and runtime recovery.'
         : 'No API key is needed for this provider.',

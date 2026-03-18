@@ -13,19 +13,19 @@ describe('runtime defaults search section rendering', () => {
       'tools.web_search_base_url': 'https://google.serper.dev/search',
     }, {
       'tools.web_search_api_key_secret_ref':
-        'Serper requires a secret reference. Add one or switch the provider back to DuckDuckGo.',
+        'Serper requires a secret reference. Add one or switch the provider to DuckDuckGo.',
     });
 
     expect(markup).toContain('id="tools.web_search_provider-support"');
     expect(markup).toContain(
-      'If Serper credentials are not ready yet, switch back to DuckDuckGo so web search stays available while you recover the secret reference.',
+      'If Serper credentials are not ready yet, switch the provider to DuckDuckGo or add the secret reference before running web search.',
     );
     expect(markup).toContain('data-testid="clear-web-search-endpoint"');
     expect(markup).toContain(
       'aria-describedby="tools.web_search_api_key_secret_ref-description tools.web_search_api_key_secret_ref-support tools.web_search_api_key_secret_ref-error"',
     );
     expect(markup).toContain(
-      'If Serper credentials are not ready yet, switch back to DuckDuckGo so web search stays available while you recover the secret reference.',
+      'If Serper credentials are not ready yet, switch the provider to DuckDuckGo or add the secret reference before running web search.',
     );
   });
 

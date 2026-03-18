@@ -243,7 +243,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'tools.web_search_provider',
     label: 'Web search provider',
     description:
-      'Primary provider used by the runtime for web_search. DuckDuckGo remains the built-in fallback when the configured provider is unavailable.',
+      'Primary provider used by the runtime for web_search. The runtime uses exactly the provider configured here.',
     configType: 'string',
     placeholder: 'duckduckgo',
     section: 'search',
