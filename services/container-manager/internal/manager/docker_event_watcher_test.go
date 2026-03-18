@@ -40,6 +40,10 @@ func (m *eventMockDockerClient) ContainerLogs(_ context.Context, _ string, _ con
 	return io.NopCloser(strings.NewReader(m.logOutput)), nil
 }
 
+func newTestDockerEventWatcher(docker DockerClient, emitter *LogEmitter) *DockerEventWatcher {
+	return NewDockerEventWatcher(docker, emitter, testLogger(), 5*time.Second, 5*time.Second)
+}
+
 func TestIsManagedContainer(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -184,7 +188,7 @@ func TestShortID(t *testing.T) {
 
 func TestWatcherFiltersUnmanagedContainers(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ContainerEventType,
@@ -203,7 +207,7 @@ func TestWatcherFiltersUnmanagedContainers(t *testing.T) {
 
 func TestWatcherEmitsManagedContainerStarted(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ContainerEventType,
@@ -243,7 +247,7 @@ func TestWatcherSignalKillIsWarnNoCrashLogs(t *testing.T) {
 	docker := newEventMockDocker()
 	docker.logOutput = "some output\n"
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(docker, emitter, testLogger())
+	watcher := newTestDockerEventWatcher(docker, emitter)
 
 	// Exit 137 = SIGKILL from reconciler → warn, no crash logs
 	watcher.handleEvent(context.Background(), events.Message{
@@ -278,7 +282,7 @@ func TestWatcherEmitsDieWithCrashLogsOnRealCrash(t *testing.T) {
 	docker := newEventMockDocker()
 	docker.logOutput = "panic: nil pointer\ngoroutine 1 [running]\n"
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(docker, emitter, testLogger())
+	watcher := newTestDockerEventWatcher(docker, emitter)
 
 	// Exit code 1 = real crash → error level + crash logs
 	watcher.handleEvent(context.Background(), events.Message{
@@ -311,7 +315,7 @@ func TestWatcherEmitsDieWithCrashLogsOnRealCrash(t *testing.T) {
 
 func TestWatcherCleanShutdownIsInfo(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ContainerEventType,
@@ -338,7 +342,7 @@ func TestWatcherCleanShutdownIsInfo(t *testing.T) {
 
 func TestWatcherHandlesImagePull(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ImageEventType,
@@ -361,7 +365,7 @@ func TestWatcherHandlesImagePull(t *testing.T) {
 
 func TestWatcherHandlesNetworkDisconnect(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.NetworkEventType,
@@ -387,7 +391,7 @@ func TestWatcherHandlesNetworkDisconnect(t *testing.T) {
 
 func TestWatcherIgnoresIrrelevantActions(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ContainerEventType,
@@ -406,7 +410,7 @@ func TestWatcherIgnoresIrrelevantActions(t *testing.T) {
 
 func TestWatcherHealthStatusUnhealthy(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ContainerEventType,
@@ -464,7 +468,7 @@ func TestFormatEventSummaryNoName(t *testing.T) {
 func TestWatchOnceReturnsOnStreamClose(t *testing.T) {
 	docker := newEventMockDocker()
 	emitter, _ := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(docker, emitter, testLogger())
+	watcher := newTestDockerEventWatcher(docker, emitter)
 
 	close(docker.eventsCh)
 	watcher.watchOnce(context.Background())
@@ -474,7 +478,7 @@ func TestWatchOnceReturnsOnStreamClose(t *testing.T) {
 func TestWatchOnceReturnsOnError(t *testing.T) {
 	docker := newEventMockDocker()
 	emitter, _ := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(docker, emitter, testLogger())
+	watcher := newTestDockerEventWatcher(docker, emitter)
 
 	docker.eventsErrCh <- io.ErrUnexpectedEOF
 
@@ -494,7 +498,7 @@ func TestWatchOnceReturnsOnError(t *testing.T) {
 
 func TestWatcherOOMEvent(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ContainerEventType,
@@ -524,7 +528,7 @@ func TestWatcherOOMEvent(t *testing.T) {
 
 func TestWatcherKillEventWithSignal(t *testing.T) {
 	emitter, getEntries := newTestEmitter(t)
-	watcher := NewDockerEventWatcher(newEventMockDocker(), emitter, testLogger())
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), emitter)
 
 	watcher.handleEvent(context.Background(), events.Message{
 		Type:   events.ContainerEventType,
@@ -547,4 +551,25 @@ func TestWatcherKillEventWithSignal(t *testing.T) {
 	if entries[0].Payload["signal"] != "SIGKILL" {
 		t.Errorf("signal = %v, want SIGKILL", entries[0].Payload["signal"])
 	}
+}
+
+func TestWatcherAppliesUpdatedTimeoutConfig(t *testing.T) {
+	watcher := newTestDockerEventWatcher(newEventMockDocker(), nil)
+
+	watcher.SetReconnectBackoff(3 * time.Second)
+	watcher.SetCrashLogCaptureTimeout(9 * time.Second)
+
+	if watcher.currentReconnectBackoff() != 3*time.Second {
+		t.Fatalf("expected reconnect backoff 3s, got %s", watcher.currentReconnectBackoff())
+	}
+	if watcher.currentCrashLogCaptureTimeout() != 9*time.Second {
+		t.Fatalf("expected crash log capture timeout 9s, got %s", watcher.currentCrashLogCaptureTimeout())
+	}
+}
+
+func TestWatcherSettersIgnoreNilReceiver(t *testing.T) {
+	var watcher *DockerEventWatcher
+
+	watcher.SetReconnectBackoff(3 * time.Second)
+	watcher.SetCrashLogCaptureTimeout(9 * time.Second)
 }

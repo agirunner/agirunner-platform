@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -16,9 +17,6 @@ import (
 
 // crashLogTailLines controls how many log lines to capture from a crashed container.
 const crashLogTailLines = "200"
-
-// reconnectBackoff controls how long to wait before reconnecting after a stream error.
-const reconnectBackoff = 5 * time.Second
 
 // interestingContainerActions are the Docker container event actions we care about.
 var interestingContainerActions = map[events.Action]string{
@@ -51,19 +49,60 @@ var healthStatusActions = map[events.Action]string{
 // log entries for interesting container lifecycle events. It enriches entries
 // with agirunner labels (playbook_id, runtime_id, task_id) when present.
 type DockerEventWatcher struct {
-	docker  DockerClient
-	emitter *LogEmitter
-	logger  *slog.Logger
+	docker                 DockerClient
+	emitter                *LogEmitter
+	logger                 *slog.Logger
+	configMu               sync.RWMutex
+	reconnectBackoff       time.Duration
+	crashLogCaptureTimeout time.Duration
 }
 
 // NewDockerEventWatcher creates a watcher that listens for Docker events and
 // emits structured logs via the given LogEmitter.
-func NewDockerEventWatcher(docker DockerClient, emitter *LogEmitter, logger *slog.Logger) *DockerEventWatcher {
+func NewDockerEventWatcher(
+	docker DockerClient,
+	emitter *LogEmitter,
+	logger *slog.Logger,
+	reconnectBackoff time.Duration,
+	crashLogCaptureTimeout time.Duration,
+) *DockerEventWatcher {
 	return &DockerEventWatcher{
-		docker:  docker,
-		emitter: emitter,
-		logger:  logger,
+		docker:                 docker,
+		emitter:                emitter,
+		logger:                 logger,
+		reconnectBackoff:       reconnectBackoff,
+		crashLogCaptureTimeout: crashLogCaptureTimeout,
 	}
+}
+
+func (w *DockerEventWatcher) SetReconnectBackoff(backoff time.Duration) {
+	if w == nil {
+		return
+	}
+	w.configMu.Lock()
+	defer w.configMu.Unlock()
+	w.reconnectBackoff = backoff
+}
+
+func (w *DockerEventWatcher) SetCrashLogCaptureTimeout(timeout time.Duration) {
+	if w == nil {
+		return
+	}
+	w.configMu.Lock()
+	defer w.configMu.Unlock()
+	w.crashLogCaptureTimeout = timeout
+}
+
+func (w *DockerEventWatcher) currentReconnectBackoff() time.Duration {
+	w.configMu.RLock()
+	defer w.configMu.RUnlock()
+	return w.reconnectBackoff
+}
+
+func (w *DockerEventWatcher) currentCrashLogCaptureTimeout() time.Duration {
+	w.configMu.RLock()
+	defer w.configMu.RUnlock()
+	return w.crashLogCaptureTimeout
 }
 
 // Run subscribes to Docker events and processes them until ctx is cancelled.
@@ -77,9 +116,10 @@ func (w *DockerEventWatcher) Run(ctx context.Context) {
 			w.logger.Info("docker event watcher stopped")
 			return
 		default:
-			w.logger.Warn("docker event stream disconnected, reconnecting", "backoff", reconnectBackoff)
+			backoff := w.currentReconnectBackoff()
+			w.logger.Warn("docker event stream disconnected, reconnecting", "backoff", backoff)
 			select {
-			case <-time.After(reconnectBackoff):
+			case <-time.After(backoff):
 			case <-ctx.Done():
 				return
 			}
@@ -217,7 +257,7 @@ func (w *DockerEventWatcher) emitContainerLog(msg events.Message, operation, lev
 func (w *DockerEventWatcher) captureCrashLogs(ctx context.Context, msg events.Message) {
 	containerID := msg.Actor.ID
 
-	logCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	logCtx, cancel := context.WithTimeout(ctx, w.currentCrashLogCaptureTimeout())
 	defer cancel()
 
 	reader, err := w.docker.ContainerLogs(logCtx, containerID, container.LogsOptions{

@@ -68,6 +68,15 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
       'container_manager.hung_runtime_stop_grace_period_seconds',
     );
+    expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
+      'container_manager.log_flush_interval_ms',
+    );
+    expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
+      'container_manager.docker_event_reconnect_backoff_ms',
+    );
+    expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
+      'container_manager.crash_log_capture_timeout_seconds',
+    );
     expect(fieldsForSection('worker_supervision').map((field) => field.key)).toContain(
       'platform.worker_dispatch_ack_timeout_ms',
     );
@@ -216,7 +225,7 @@ describe('runtime defaults page support', () => {
           key: 'container_manager',
           title: 'Container manager',
           configuredCount: 0,
-          fieldCount: 6,
+          fieldCount: 9,
           errorCount: 0,
         },
         {

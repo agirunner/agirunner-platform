@@ -480,6 +480,27 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.log_flush_interval_ms',
+    configValue: '500',
+    configType: 'number',
+    description: 'How long the container manager buffers execution logs before flushing them to the platform ingest API',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.docker_event_reconnect_backoff_ms',
+    configValue: '5000',
+    configType: 'number',
+    description: 'How long the container manager waits before reconnecting after the Docker event stream drops',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.crash_log_capture_timeout_seconds',
+    configValue: '5',
+    configType: 'number',
+    description: 'How long the container manager waits when capturing crash logs from a dead container',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.hung_runtime_stale_after_seconds',
     configValue: '90',
     configType: 'number',

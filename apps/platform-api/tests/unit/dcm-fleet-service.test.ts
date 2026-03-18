@@ -442,11 +442,14 @@ describe('FleetService DCM', () => {
               { config_key: 'container_manager.stop_timeout_seconds', config_value: '45' },
               { config_key: 'container_manager.shutdown_task_stop_timeout_seconds', config_value: '3' },
               { config_key: 'container_manager.docker_action_buffer_seconds', config_value: '20' },
+              { config_key: 'container_manager.log_flush_interval_ms', config_value: '500' },
+              { config_key: 'container_manager.docker_event_reconnect_backoff_ms', config_value: '5000' },
+              { config_key: 'container_manager.crash_log_capture_timeout_seconds', config_value: '5' },
               { config_key: 'container_manager.hung_runtime_stale_after_seconds', config_value: '90' },
               { config_key: 'container_manager.hung_runtime_stop_grace_period_seconds', config_value: '30' },
               { config_key: 'global_max_runtimes', config_value: '12' },
             ],
-            rowCount: 9,
+            rowCount: 12,
           };
         }
         if (query.includes('FROM playbooks p')) {
@@ -467,6 +470,9 @@ describe('FleetService DCM', () => {
         stop_timeout_seconds: 45,
         shutdown_task_stop_timeout_seconds: 3,
         docker_action_buffer_seconds: 20,
+        log_flush_interval_ms: 500,
+        docker_event_reconnect_backoff_ms: 5000,
+        crash_log_capture_timeout_seconds: 5,
         hung_runtime_stale_after_seconds: 90,
         hung_runtime_stop_grace_period_seconds: 30,
         global_max_runtimes: 12,

@@ -63,6 +63,9 @@ type Config struct {
 	StopTimeout              time.Duration
 	ShutdownTaskStopTimeout  time.Duration
 	DockerActionBuffer       time.Duration
+	LogFlushInterval         time.Duration
+	DockerEventReconnectBackoff time.Duration
+	CrashLogCaptureTimeout   time.Duration
 	HungRuntimeStaleAfter    time.Duration
 	HungRuntimeStopGrace     time.Duration
 	GlobalMaxRuntimes        int
@@ -93,6 +96,7 @@ type Manager struct {
 	logger               *slog.Logger
 	metrics              *FleetMetrics
 	logEmitter           *LogEmitter
+	dockerEventWatcher   *DockerEventWatcher
 	starvationTrack      map[string]time.Time
 	failedHeartbeatSince map[string]time.Time
 	pullFailCache        map[string]time.Time // tracks when an image pull last failed, keyed by image ref
@@ -113,7 +117,7 @@ func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
 		config:               cfg,
 		logger:               logger,
 		metrics:              NewFleetMetrics(),
-		logEmitter:           NewLogEmitter(ingestEndpoint, cfg.PlatformAPIKey, cfg.PlatformLogIngestTimeout, logger),
+		logEmitter:           NewLogEmitter(ingestEndpoint, cfg.PlatformAPIKey, cfg.PlatformLogIngestTimeout, cfg.LogFlushInterval, logger),
 		starvationTrack:      make(map[string]time.Time),
 		failedHeartbeatSince: make(map[string]time.Time),
 		pullFailCache:        make(map[string]time.Time),
@@ -181,8 +185,14 @@ func (m *Manager) Run(ctx context.Context) error {
 
 	// Start Docker event watcher in a background goroutine.
 	if m.logEmitter != nil {
-		watcher := NewDockerEventWatcher(m.docker, m.logEmitter, m.logger)
-		go watcher.Run(ctx)
+		m.dockerEventWatcher = NewDockerEventWatcher(
+			m.docker,
+			m.logEmitter,
+			m.logger,
+			m.config.DockerEventReconnectBackoff,
+			m.config.CrashLogCaptureTimeout,
+		)
+		go m.dockerEventWatcher.Run(ctx)
 	}
 
 	ticker := time.NewTicker(m.config.ReconcileInterval)

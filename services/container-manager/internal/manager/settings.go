@@ -23,12 +23,15 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 	m.config.StopTimeout = next.StopTimeout
 	m.config.ShutdownTaskStopTimeout = next.ShutdownTaskStopTimeout
 	m.config.DockerActionBuffer = next.DockerActionBuffer
+	m.config.LogFlushInterval = next.LogFlushInterval
+	m.config.DockerEventReconnectBackoff = next.DockerEventReconnectBackoff
+	m.config.CrashLogCaptureTimeout = next.CrashLogCaptureTimeout
 	m.config.HungRuntimeStaleAfter = next.HungRuntimeStaleAfter
 	m.config.HungRuntimeStopGrace = next.HungRuntimeStopGrace
 	m.config.PlatformAPIRequestTimeout = next.PlatformAPIRequestTimeout
 	m.config.PlatformLogIngestTimeout = next.PlatformLogIngestTimeout
 	m.config.GlobalMaxRuntimes = next.GlobalMaxRuntimes
-	applyManagerTimeouts(m.platform, m.logEmitter, next.PlatformAPIRequestTimeout, next.PlatformLogIngestTimeout)
+	applyManagerTimeouts(m.platform, m.logEmitter, m.dockerEventWatcher, next)
 
 	m.logger.Info(
 		"container-manager config applied",
@@ -38,6 +41,9 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 		"stop_timeout", next.StopTimeout,
 		"shutdown_task_stop_timeout", next.ShutdownTaskStopTimeout,
 		"docker_action_buffer", next.DockerActionBuffer,
+		"log_flush_interval", next.LogFlushInterval,
+		"docker_event_reconnect_backoff", next.DockerEventReconnectBackoff,
+		"crash_log_capture_timeout", next.CrashLogCaptureTimeout,
 		"hung_runtime_stale_after", next.HungRuntimeStaleAfter,
 		"hung_runtime_stop_grace", next.HungRuntimeStopGrace,
 		"global_max_runtimes", next.GlobalMaxRuntimes,
@@ -50,6 +56,9 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 		"stop_timeout_seconds":               int(next.StopTimeout / time.Second),
 		"shutdown_task_stop_timeout_seconds": int(next.ShutdownTaskStopTimeout / time.Second),
 		"docker_action_buffer_seconds":       int(next.DockerActionBuffer / time.Second),
+		"log_flush_interval_ms":              int(next.LogFlushInterval / time.Millisecond),
+		"docker_event_reconnect_backoff_ms":  int(next.DockerEventReconnectBackoff / time.Millisecond),
+		"crash_log_capture_timeout_seconds":  int(next.CrashLogCaptureTimeout / time.Second),
 		"hung_runtime_stale_after_seconds":   int(next.HungRuntimeStaleAfter / time.Second),
 		"hung_runtime_stop_grace_seconds":    int(next.HungRuntimeStopGrace / time.Second),
 		"global_max_runtimes":                next.GlobalMaxRuntimes,
@@ -65,6 +74,9 @@ func (m *Manager) currentContainerManagerConfig() Config {
 		StopTimeout:             m.config.StopTimeout,
 		ShutdownTaskStopTimeout: m.config.ShutdownTaskStopTimeout,
 		DockerActionBuffer:      m.config.DockerActionBuffer,
+		LogFlushInterval:        m.config.LogFlushInterval,
+		DockerEventReconnectBackoff: m.config.DockerEventReconnectBackoff,
+		CrashLogCaptureTimeout:  m.config.CrashLogCaptureTimeout,
 		HungRuntimeStaleAfter:   m.config.HungRuntimeStaleAfter,
 		HungRuntimeStopGrace:    m.config.HungRuntimeStopGrace,
 		GlobalMaxRuntimes:       m.config.GlobalMaxRuntimes,
@@ -102,6 +114,24 @@ func validateContainerManagerConfig(config ContainerManagerConfig) (Config, erro
 	if err != nil {
 		return Config{}, err
 	}
+	logFlushInterval, err := readRequiredMilliseconds(config.LogFlushIntervalMs, "container_manager.log_flush_interval_ms")
+	if err != nil {
+		return Config{}, err
+	}
+	dockerEventReconnectBackoff, err := readRequiredMilliseconds(
+		config.DockerEventReconnectBackoffMs,
+		"container_manager.docker_event_reconnect_backoff_ms",
+	)
+	if err != nil {
+		return Config{}, err
+	}
+	crashLogCaptureTimeout, err := readRequiredDuration(
+		config.CrashLogCaptureTimeoutSeconds,
+		"container_manager.crash_log_capture_timeout_seconds",
+	)
+	if err != nil {
+		return Config{}, err
+	}
 	hungRuntimeStaleAfter, err := readRequiredDuration(config.HungRuntimeStaleAfterSeconds, "container_manager.hung_runtime_stale_after_seconds")
 	if err != nil {
 		return Config{}, err
@@ -122,6 +152,9 @@ func validateContainerManagerConfig(config ContainerManagerConfig) (Config, erro
 		StopTimeout:             stopTimeout,
 		ShutdownTaskStopTimeout: shutdownTaskStopTimeout,
 		DockerActionBuffer:      dockerActionBuffer,
+		LogFlushInterval:        logFlushInterval,
+		DockerEventReconnectBackoff: dockerEventReconnectBackoff,
+		CrashLogCaptureTimeout:  crashLogCaptureTimeout,
 		HungRuntimeStaleAfter:   hungRuntimeStaleAfter,
 		HungRuntimeStopGrace:    hungRuntimeStopGrace,
 		GlobalMaxRuntimes:       globalMaxRuntimes,
@@ -134,19 +167,30 @@ type timeoutConfigurablePlatform interface {
 
 type timeoutConfigurableLogEmitter interface {
 	SetTimeout(time.Duration)
+	SetFlushInterval(time.Duration)
+}
+
+type timeoutConfigurableDockerEventWatcher interface {
+	SetReconnectBackoff(time.Duration)
+	SetCrashLogCaptureTimeout(time.Duration)
 }
 
 func applyManagerTimeouts(
 	platform PlatformAPI,
-	logEmitter *LogEmitter,
-	platformTimeout time.Duration,
-	logIngestTimeout time.Duration,
+	logEmitter timeoutConfigurableLogEmitter,
+	watcher timeoutConfigurableDockerEventWatcher,
+	config Config,
 ) {
 	if configurablePlatform, ok := platform.(timeoutConfigurablePlatform); ok {
-		configurablePlatform.SetTimeout(platformTimeout)
+		configurablePlatform.SetTimeout(config.PlatformAPIRequestTimeout)
 	}
 	if logEmitter != nil {
-		logEmitter.SetTimeout(logIngestTimeout)
+		logEmitter.SetTimeout(config.PlatformLogIngestTimeout)
+		logEmitter.SetFlushInterval(config.LogFlushInterval)
+	}
+	if watcher != nil {
+		watcher.SetReconnectBackoff(config.DockerEventReconnectBackoff)
+		watcher.SetCrashLogCaptureTimeout(config.CrashLogCaptureTimeout)
 	}
 }
 
@@ -156,6 +200,14 @@ func readRequiredDuration(seconds int, key string) (time.Duration, error) {
 		return 0, err
 	}
 	return time.Duration(value) * time.Second, nil
+}
+
+func readRequiredMilliseconds(milliseconds int, key string) (time.Duration, error) {
+	value, err := readRequiredPositiveInt(milliseconds, key)
+	if err != nil {
+		return 0, err
+	}
+	return time.Duration(value) * time.Millisecond, nil
 }
 
 func readRequiredPositiveInt(value int, key string) (int, error) {

@@ -79,7 +79,7 @@ type LogEmitter struct {
 // NewLogEmitter creates a LogEmitter that posts batched entries to the
 // given endpoint using the provided API key. A background goroutine
 // flushes buffered entries on a timer.
-func NewLogEmitter(endpoint, apiKey string, timeout time.Duration, logger *slog.Logger) *LogEmitter {
+func NewLogEmitter(endpoint, apiKey string, timeout time.Duration, flushInterval time.Duration, logger *slog.Logger) *LogEmitter {
 	e := &LogEmitter{
 		httpClient: &http.Client{
 			Timeout: timeout,
@@ -88,7 +88,7 @@ func NewLogEmitter(endpoint, apiKey string, timeout time.Duration, logger *slog.
 		apiKey:        apiKey,
 		buffer:        make([]logEntry, 0, defaultFlushSize),
 		flushSize:     defaultFlushSize,
-		flushInterval: defaultFlushInterval,
+		flushInterval: flushInterval,
 		done:          make(chan struct{}),
 		logger:        logger,
 	}
@@ -105,6 +105,15 @@ func (e *LogEmitter) SetTimeout(timeout time.Duration) {
 		e.httpClient = &http.Client{}
 	}
 	e.httpClient.Timeout = timeout
+}
+
+func (e *LogEmitter) SetFlushInterval(interval time.Duration) {
+	if e == nil {
+		return
+	}
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.flushInterval = interval
 }
 
 // Emit adds a log entry to the buffer. When the buffer reaches the
@@ -136,14 +145,14 @@ func (e *LogEmitter) Close() {
 // flushLoop runs in a goroutine, flushing buffered entries on a timer.
 func (e *LogEmitter) flushLoop() {
 	defer e.wg.Done()
-	ticker := time.NewTicker(e.flushInterval)
-	defer ticker.Stop()
 
 	for {
+		timer := time.NewTimer(e.currentFlushInterval())
 		select {
 		case <-e.done:
+			timer.Stop()
 			return
-		case <-ticker.C:
+		case <-timer.C:
 			e.mu.Lock()
 			if len(e.buffer) > 0 {
 				e.flushLocked()
@@ -151,6 +160,12 @@ func (e *LogEmitter) flushLoop() {
 			e.mu.Unlock()
 		}
 	}
+}
+
+func (e *LogEmitter) currentFlushInterval() time.Duration {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	return e.flushInterval
 }
 
 // flushLocked sends all buffered entries to the ingest API.

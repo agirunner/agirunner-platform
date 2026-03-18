@@ -262,6 +262,30 @@ describe('RuntimeDefaultsService', () => {
           configType: 'number',
         }),
       ).rejects.toThrow('container_manager.hung_runtime_stale_after_seconds must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'container_manager.log_flush_interval_ms',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('container_manager.log_flush_interval_ms must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'container_manager.docker_event_reconnect_backoff_ms',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('container_manager.docker_event_reconnect_backoff_ms must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'container_manager.crash_log_capture_timeout_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('container_manager.crash_log_capture_timeout_seconds must be at least 1');
     });
 
     it('rejects invalid worker supervision defaults', async () => {

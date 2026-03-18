@@ -263,14 +263,17 @@ func (m *mockPlatformClient) FailTask(taskID, reason string) error {
 func newTestManager(docker *mockDockerClient, platform *mockPlatformClient) *Manager {
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
 	cfg := Config{
-		ReconcileInterval:        5 * time.Second,
-		StopTimeout:              10 * time.Second,
-		ShutdownTaskStopTimeout:  2 * time.Second,
-		DockerActionBuffer:       15 * time.Second,
-		HungRuntimeStaleAfter:    90 * time.Second,
-		HungRuntimeStopGrace:     30 * time.Second,
-		GlobalMaxRuntimes:        10,
-		RuntimeOrphanGraceCycles: 3,
+		ReconcileInterval:           5 * time.Second,
+		StopTimeout:                 10 * time.Second,
+		ShutdownTaskStopTimeout:     2 * time.Second,
+		DockerActionBuffer:          15 * time.Second,
+		LogFlushInterval:            500 * time.Millisecond,
+		DockerEventReconnectBackoff: 5 * time.Second,
+		CrashLogCaptureTimeout:      5 * time.Second,
+		HungRuntimeStaleAfter:       90 * time.Second,
+		HungRuntimeStopGrace:        30 * time.Second,
+		GlobalMaxRuntimes:           10,
+		RuntimeOrphanGraceCycles:    3,
 	}
 	return NewWithPlatform(cfg, docker, platform, logger)
 }
@@ -279,13 +282,16 @@ func defaultTestContainerManagerConfig() ContainerManagerConfig {
 	return ContainerManagerConfig{
 		PlatformAPIRequestTimeoutSeconds: 19,
 		PlatformLogIngestTimeoutSeconds:  17,
-		ReconcileIntervalSeconds:       5,
-		StopTimeoutSeconds:             10,
-		ShutdownTaskStopTimeoutSeconds: 2,
-		DockerActionBufferSeconds:      15,
-		HungRuntimeStaleAfterSeconds:   90,
-		HungRuntimeStopGracePeriodSec:  30,
-		GlobalMaxRuntimes:              10,
+		ReconcileIntervalSeconds:         5,
+		StopTimeoutSeconds:               10,
+		ShutdownTaskStopTimeoutSeconds:   2,
+		DockerActionBufferSeconds:        15,
+		LogFlushIntervalMs:               500,
+		DockerEventReconnectBackoffMs:    5000,
+		CrashLogCaptureTimeoutSeconds:    5,
+		HungRuntimeStaleAfterSeconds:     90,
+		HungRuntimeStopGracePeriodSec:    30,
+		GlobalMaxRuntimes:                10,
 	}
 }
 
@@ -345,13 +351,16 @@ func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
 			ContainerManagerConfig: ContainerManagerConfig{
 				PlatformAPIRequestTimeoutSeconds: 19,
 				PlatformLogIngestTimeoutSeconds:  17,
-				ReconcileIntervalSeconds:       7,
-				StopTimeoutSeconds:             45,
-				ShutdownTaskStopTimeoutSeconds: 3,
-				DockerActionBufferSeconds:      20,
-				HungRuntimeStaleAfterSeconds:   90,
-				HungRuntimeStopGracePeriodSec:  30,
-				GlobalMaxRuntimes:              12,
+				ReconcileIntervalSeconds:         7,
+				StopTimeoutSeconds:               45,
+				ShutdownTaskStopTimeoutSeconds:   3,
+				DockerActionBufferSeconds:        20,
+				LogFlushIntervalMs:               500,
+				DockerEventReconnectBackoffMs:    5000,
+				CrashLogCaptureTimeoutSeconds:    5,
+				HungRuntimeStaleAfterSeconds:     90,
+				HungRuntimeStopGracePeriodSec:    30,
+				GlobalMaxRuntimes:                12,
 			},
 		},
 	}
@@ -376,6 +385,15 @@ func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
 	}
 	if manager.config.PlatformLogIngestTimeout != 17*time.Second {
 		t.Fatalf("expected platform log ingest timeout from snapshot, got %s", manager.config.PlatformLogIngestTimeout)
+	}
+	if manager.config.LogFlushInterval != 500*time.Millisecond {
+		t.Fatalf("expected log flush interval from snapshot, got %s", manager.config.LogFlushInterval)
+	}
+	if manager.config.DockerEventReconnectBackoff != 5*time.Second {
+		t.Fatalf("expected docker event reconnect backoff from snapshot, got %s", manager.config.DockerEventReconnectBackoff)
+	}
+	if manager.config.CrashLogCaptureTimeout != 5*time.Second {
+		t.Fatalf("expected crash log capture timeout from snapshot, got %s", manager.config.CrashLogCaptureTimeout)
 	}
 }
 
