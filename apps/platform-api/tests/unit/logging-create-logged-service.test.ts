@@ -39,6 +39,26 @@ describe('methodToAction', () => {
     expect(methodToAction('revokeApiKey')).toBe('revoked');
   });
 
+  it('convertsReplacePrefix', () => {
+    expect(methodToAction('replacePlaybook')).toBe('replaced');
+  });
+
+  it('convertsUpsertPrefix', () => {
+    expect(methodToAction('upsertDefault')).toBe('upserted');
+  });
+
+  it('convertsUploadPrefix', () => {
+    expect(methodToAction('uploadWorkspaceArtifactFile')).toBe('uploaded');
+  });
+
+  it('convertsEnqueuePrefix', () => {
+    expect(methodToAction('enqueue')).toBe('enqueued');
+  });
+
+  it('convertsOverridePrefix', () => {
+    expect(methodToAction('overrideTaskOutput')).toBe('overrode');
+  });
+
   it('fallsBackToMethodNameForUnknownPrefix', () => {
     expect(methodToAction('doSomething')).toBe('doSomething');
   });
@@ -209,6 +229,56 @@ describe('createLoggedService', () => {
           request_id: 'req-task-create-1',
           error_message: 'invalid input value for enum task_state: "paused"',
         }),
+      }),
+    );
+  });
+
+  it('logsReplacePrefixMethodsForPlaybooks', async () => {
+    const service = {
+      replacePlaybook: vi.fn().mockResolvedValue({ id: 'playbook-1', name: 'Workspace Planning' }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'PlaybookService', logService as never);
+    await wrapped.replacePlaybook('tenant-1', 'playbook-1', { name: 'Workspace Planning' });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'config.playbook.replaced',
+        resourceType: 'playbook',
+        resourceId: 'playbook-1',
+        resourceName: 'Workspace Planning',
+      }),
+    );
+  });
+
+  it('logsEnqueueMethodsForWorkflowActivations', async () => {
+    const service = {
+      enqueue: vi.fn().mockResolvedValue({
+        id: 'activation-row-1',
+        activation_id: 'activation-1',
+      }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'WorkflowActivationService', logService as never);
+    await wrapped.enqueue({ tenantId: 'tenant-1' }, 'workflow-1', {
+      request_id: 'req-activation-1',
+      reason: 'manual recheck',
+      event_type: 'workflow.manual',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task_lifecycle.workflow_activation.enqueued',
+        resourceType: 'workflow_activation',
+        resourceId: 'activation-row-1',
       }),
     );
   });

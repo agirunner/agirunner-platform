@@ -7,15 +7,31 @@ export interface ServiceLogConfig {
 }
 
 export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
-  ProjectService: {
+  WorkspaceService: {
     entityType: 'workspace',
     category: 'config',
     nameField: 'name',
     ignoreFields: ['updatedAt', 'createdAt', 'memory', 'memorySizeBytes'],
     ignoreMethods: [
-      'getProject', 'listProjects', 'getProjectSpec', 'getProjectTimeline',
-      'getProjectResources', 'getProjectTools',
+      'getWorkspace',
+      'listWorkspaces',
+      'getGitWebhookSecret',
+      'findWorkspaceByRepositoryUrl',
     ],
+  },
+  WorkspaceArtifactFileService: {
+    entityType: 'workspace_artifact_file',
+    category: 'config',
+    nameField: 'file_name',
+    ignoreFields: ['created_at', 'download_url', 'content_type', 'size_bytes'],
+    ignoreMethods: ['listWorkspaceArtifactFiles', 'downloadWorkspaceArtifactFile'],
+  },
+  PlaybookService: {
+    entityType: 'playbook',
+    category: 'config',
+    nameField: 'name',
+    ignoreFields: ['updatedAt', 'createdAt', 'definition'],
+    ignoreMethods: ['listPlaybooks', 'getPlaybook'],
   },
   WorkflowService: {
     entityType: 'workflow',
@@ -54,6 +70,13 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
       'getProvider', 'listProviders', 'getModel', 'listModels',
       'listAssignments', 'resolveRoleConfig',
     ],
+  },
+  OrchestratorConfigService: {
+    entityType: 'orchestrator_config',
+    category: 'config',
+    nameField: 'id',
+    ignoreFields: ['updatedAt'],
+    ignoreMethods: ['get'],
   },
   RoleDefinitionService: {
     entityType: 'role',
@@ -143,6 +166,20 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
     nameField: 'name',
     ignoreFields: ['secret'],
     ignoreMethods: ['listTriggers'],
+  },
+  ScheduledWorkItemTriggerService: {
+    entityType: 'scheduled_work_item_trigger',
+    category: 'config',
+    nameField: 'name',
+    ignoreFields: ['updatedAt', 'createdAt', 'defaults', 'next_fire_at'],
+    ignoreMethods: ['listTriggers', 'fireDueTriggers'],
+  },
+  WorkflowActivationService: {
+    entityType: 'workflow_activation',
+    category: 'task_lifecycle',
+    nameField: 'id',
+    ignoreFields: ['payload', 'error', 'summary'],
+    ignoreMethods: ['list', 'listWorkflowActivations', 'get', 'getWorkflowActivation'],
   },
   AgentService: {
     entityType: 'agent',
