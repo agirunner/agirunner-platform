@@ -94,7 +94,6 @@ export class TaskWriteService {
     normalizedInput = await this.applyWorkflowExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookTaskExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookRuleDerivedTaskReviewPolicy(identity.tenantId, normalizedInput, db);
-    normalizedInput = this.applySpecialistTokenBudgetFloor(normalizedInput);
     normalizedInput = await this.applyRoleCapabilityDefaults(identity.tenantId, normalizedInput);
     const dependencies = normalizedInput.depends_on ?? [];
     const metadata = {
@@ -583,21 +582,6 @@ export class TaskWriteService {
     return {
       ...input,
       capabilities_required: capabilities,
-    };
-  }
-
-  private applySpecialistTokenBudgetFloor(input: CreateTaskInput): CreateTaskInput {
-    const configuredMinimum = this.deps.config.TASK_SPECIALIST_MIN_TOKEN_BUDGET;
-    if (!configuredMinimum || input.is_orchestrator_task || !input.workflow_id) {
-      return input;
-    }
-    const requestedBudget = input.token_budget ?? null;
-    if (requestedBudget === null || requestedBudget >= configuredMinimum) {
-      return input;
-    }
-    return {
-      ...input,
-      token_budget: configuredMinimum,
     };
   }
 

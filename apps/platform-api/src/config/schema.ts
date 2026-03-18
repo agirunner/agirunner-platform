@@ -19,7 +19,6 @@ export const envSchema = z
     RATE_LIMIT_MAX_PER_MINUTE: z.coerce.number().int().min(1).default(100),
     CORS_ORIGIN: z.string().default('http://localhost:5173'),
     HEARTBEAT_GRACE_PERIOD_MS: z.coerce.number().int().min(0).default(300000),
-    TASK_SPECIALIST_MIN_TOKEN_BUDGET: z.coerce.number().int().min(1).default(12000),
     WORKFLOW_ACTIVATION_DELAY_MS: z.coerce.number().int().min(0).default(10000),
     WORKFLOW_ACTIVATION_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().min(1).default(900000),
     WORKFLOW_ACTIVATION_STALE_AFTER_MS: z.coerce.number().int().min(1).default(300000),

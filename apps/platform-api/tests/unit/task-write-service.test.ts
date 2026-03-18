@@ -1233,7 +1233,7 @@ describe('TaskWriteService', () => {
     expect(eventService.emit).not.toHaveBeenCalled();
   });
 
-  it('clamps low specialist token budgets to the configured minimum before insert and replay matching', async () => {
+  it('preserves explicit specialist token budgets for insert and request replay matching', async () => {
     let insertedTokenBudget: number | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -1318,10 +1318,7 @@ describe('TaskWriteService', () => {
     const service = new TaskWriteService({
       pool: pool as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
-      config: {
-        TASK_DEFAULT_TIMEOUT_MINUTES: 30,
-        TASK_SPECIALIST_MIN_TOKEN_BUDGET: 12000,
-      },
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
       hasOrchestratorPermission: vi.fn(async () => false),
       subtaskPermission: 'create_subtasks',
       loadTaskOrThrow: vi.fn(),
@@ -1363,10 +1360,10 @@ describe('TaskWriteService', () => {
       },
     );
 
-    expect(insertedTokenBudget).toBe(12000);
-    expect(created.token_budget).toBe(12000);
+    expect(insertedTokenBudget).toBe(6000);
+    expect(created.token_budget).toBe(6000);
     expect(replayed.id).toBe('task-budget-floor');
-    expect(replayed.token_budget).toBe(12000);
+    expect(replayed.token_budget).toBe(6000);
   });
 
   it('does not reuse a request_id from a different workflow', async () => {

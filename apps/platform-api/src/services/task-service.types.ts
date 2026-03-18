@@ -71,7 +71,6 @@ type LegacyTaskTimeoutConfig = {
 };
 
 export type TaskServiceConfig = LegacyTaskTimeoutConfig &
-  Partial<Pick<AppEnv, 'TASK_SPECIALIST_MIN_TOKEN_BUDGET'>> &
   Partial<
     Pick<
       AppEnv,
