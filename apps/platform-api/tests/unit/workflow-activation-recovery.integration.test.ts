@@ -62,6 +62,7 @@ describe('workflow activation recovery integration', () => {
     const provider = await modelCatalogService.createProvider(identity.tenantId, {
       name: 'workflow-activation-recovery-provider',
       baseUrl: 'https://example.com',
+      isEnabled: true,
       metadata: {
         providerType: 'openai',
       },
@@ -69,6 +70,10 @@ describe('workflow activation recovery integration', () => {
     const model = await modelCatalogService.createModel(identity.tenantId, {
       providerId: provider.id,
       modelId: 'workflow-activation-recovery-model',
+      supportsToolUse: true,
+      supportsVision: false,
+      isEnabled: true,
+      reasoningConfig: null,
     });
     await modelCatalogService.setSystemDefault(identity.tenantId, model.id, null);
     await harness.roleDefinitionService.createRole(identity.tenantId, {
