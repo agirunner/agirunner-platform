@@ -15,6 +15,8 @@ import {
   readOAuthToken,
   readProviderSecret,
 } from '../lib/oauth-crypto.js';
+import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
+import type { LogService } from '../logging/log-service.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
@@ -70,6 +72,7 @@ interface ClaimCredentialPayload {
 interface TaskClaimDependencies {
   pool: DatabasePool;
   eventService: EventService;
+  logService?: LogService;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
   getTaskContext: (tenantId: string, taskId: string, agentId?: string) => Promise<unknown>;
   resolveRoleConfig?: (tenantId: string, roleName: string) => Promise<ResolvedRoleConfig | null>;
@@ -117,6 +120,29 @@ interface TaskModelOverrideSelection {
   providerName: string;
   modelId: string;
   requested: boolean;
+}
+
+function buildExecutionContractLogPayload(input: {
+  llmResolution: TaskLLMResolution;
+  loopContract: TaskLoopContract;
+  agentId: string;
+  workerId: string | null;
+}): Record<string, unknown> {
+  return {
+    agent_id: input.agentId,
+    worker_id: input.workerId,
+    loop_mode: input.loopContract.loopMode,
+    max_iterations: input.loopContract.maxIterations,
+    llm_max_retries: input.loopContract.llmMaxRetries,
+    llm_provider: input.llmResolution.resolved.provider.providerType,
+    llm_model: input.llmResolution.resolved.model.modelId,
+    llm_context_window: input.llmResolution.resolved.model.contextWindow,
+    llm_max_output_tokens: input.llmResolution.resolved.model.maxOutputTokens,
+    llm_endpoint_type: input.llmResolution.resolved.model.endpointType,
+    llm_reasoning_config: input.llmResolution.resolved.reasoningConfig,
+    llm_input_cost_per_million_usd: input.llmResolution.resolved.model.inputCostPerMillionUsd,
+    llm_output_cost_per_million_usd: input.llmResolution.resolved.model.outputCostPerMillionUsd,
+  };
 }
 
 export class TaskClaimService {
@@ -308,6 +334,19 @@ export class TaskClaimService {
         (claimedTask as Record<string, unknown>).workflow_name = namesRes.rows[0].workflow_name;
         (claimedTask as Record<string, unknown>).workspace_name = namesRes.rows[0].workspace_name;
       }
+
+      await logTaskGovernanceTransition(this.deps.logService, {
+        tenantId: identity.tenantId,
+        operation: 'task.execution_contract_resolved',
+        executor: client,
+        task: claimedTask,
+        payload: buildExecutionContractLogPayload({
+          llmResolution,
+          loopContract,
+          agentId: payload.agent_id,
+          workerId: payload.worker_id ?? null,
+        }),
+      });
 
       const enrichedTask = await this.enrichWithLLMCredentials(
         identity.tenantId,

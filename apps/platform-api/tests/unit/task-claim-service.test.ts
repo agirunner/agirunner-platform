@@ -71,7 +71,10 @@ function createClient(executionMode: 'specialist' | 'orchestrator') {
   };
 }
 
-function createService(client: { query: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> }) {
+function createService(
+  client: { query: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> },
+  overrides: Partial<ConstructorParameters<typeof TaskClaimService>[0]> = {},
+) {
   const pool = {
     connect: vi.fn(async () => client),
   };
@@ -82,6 +85,7 @@ function createService(client: { query: ReturnType<typeof vi.fn>; release: Retur
     getTaskContext: vi.fn(async () => ({})),
     resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
     claimHandleSecret: 'test-claim-handle-secret',
+    ...overrides,
   });
 }
 
@@ -2258,6 +2262,405 @@ describe('TaskClaimService', () => {
       llm_api_key: 'provider-api-key',
       llm_extra_headers: { Authorization: 'Bearer secret-token' },
     });
+  });
+
+  it('logs the execution contract after a successful claim', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+      insertWithExecutor: vi.fn(async () => undefined),
+    };
+    const resolvedConfig = {
+      provider: {
+        name: 'OpenAI',
+        providerId: 'provider-default',
+        providerType: 'openai',
+        authMode: 'api_key',
+        apiKeySecretRef: 'secret:OPENAI_API_KEY',
+        baseUrl: 'https://api.openai.test/v1',
+      },
+      model: {
+        modelId: 'gpt-5',
+        contextWindow: 200000,
+        maxOutputTokens: 128000,
+        endpointType: 'responses',
+        reasoningConfig: null,
+        inputCostPerMillionUsd: 2.5,
+        outputCostPerMillionUsd: 10,
+      },
+      reasoningConfig: { reasoning_effort: 'low' },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-exec-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM runtime_defaults")) {
+          const key = params?.[1];
+          if (key === 'agent.max_iterations') {
+            return { rowCount: 1, rows: [{ config_value: '100' }] };
+          }
+          if (key === 'agent.llm_max_retries') {
+            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          }
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-exec-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      logService: logService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => resolvedConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    const contractEntry = (logService.insertWithExecutor.mock.calls[0] as unknown[] | undefined)?.[1] as
+      | Record<string, unknown>
+      | undefined;
+    expect(contractEntry).toBeDefined();
+    expect(contractEntry).toMatchObject({
+      tenantId: 'tenant-1',
+      operation: 'task.execution_contract_resolved',
+      workflowId: 'wf-1',
+      taskId: 'task-exec-contract',
+      workItemId: 'wi-1',
+      payload: expect.objectContaining({
+        agent_id: 'agent-1',
+        llm_provider: 'openai',
+        llm_model: 'gpt-5',
+        llm_context_window: 200000,
+        llm_max_output_tokens: 128000,
+        llm_endpoint_type: 'responses',
+        llm_reasoning_config: { reasoning_effort: 'low' },
+        llm_input_cost_per_million_usd: 2.5,
+        llm_output_cost_per_million_usd: 10,
+        loop_mode: 'reactive',
+        max_iterations: 100,
+        llm_max_retries: 5,
+      }),
+    });
+  });
+
+  it('does not break the claim when execution-contract logging fails', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+      insertWithExecutor: vi.fn(async () => {
+        throw new Error('execution log unavailable');
+      }),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-exec-resilient',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM runtime_defaults")) {
+          const key = params?.[1];
+          if (key === 'agent.max_iterations') {
+            return { rowCount: 1, rows: [{ config_value: '100' }] };
+          }
+          if (key === 'agent.llm_max_retries') {
+            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          }
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-exec-resilient',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      logService: logService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task).not.toBeNull();
+    expect(task?.id).toBe('task-exec-resilient');
+    expect(logService.insertWithExecutor).toHaveBeenCalledTimes(1);
+  });
+
+  it('excludes secrets from the execution-contract log payload', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+      insertWithExecutor: vi.fn(async () => undefined),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-no-secrets',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {
+                llm_api_key: 'plaintext-key-should-not-leak',
+              },
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM runtime_defaults")) {
+          const key = params?.[1];
+          if (key === 'agent.max_iterations') {
+            return { rowCount: 1, rows: [{ config_value: '100' }] };
+          }
+          if (key === 'agent.llm_max_retries') {
+            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          }
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-no-secrets',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {
+                llm_api_key: 'plaintext-key-should-not-leak',
+              },
+              metadata: {},
+              is_orchestrator_task: false,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      logService: logService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => ({
+        ...defaultResolvedRoleConfig,
+        provider: {
+          ...defaultResolvedRoleConfig.provider,
+          apiKeySecretRef: 'secret:OPENAI_API_KEY',
+        },
+      })),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    const contractEntry = (logService.insertWithExecutor.mock.calls[0] as unknown[] | undefined)?.[1] as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(contractEntry).toBeDefined();
+    const data = contractEntry?.payload as Record<string, unknown>;
+    const secretKeys = [
+      'llm_api_key', 'llm_api_key_secret_ref', 'llm_api_key_claim_handle',
+      'llm_extra_headers', 'llm_extra_headers_secret_ref', 'llm_extra_headers_claim_handle',
+      'api_key', 'access_token', 'token', 'authorization', 'apiKeySecretRef', 'baseUrl',
+    ];
+    for (const key of secretKeys) {
+      expect(data).not.toHaveProperty(key);
+    }
   });
 
   it('creates claim handles from encrypted resolved provider secrets even without a provider id', async () => {

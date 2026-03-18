@@ -193,6 +193,7 @@ export class TaskService {
     this.claimService = new TaskClaimService({
       pool,
       eventService,
+      logService,
       toTaskResponse: this.queryService.toTaskResponse.bind(this.queryService),
       getTaskContext: this.queryService.getTaskContext.bind(this.queryService),
       resolveRoleConfig: modelCatalog.resolveRoleConfig.bind(modelCatalog),
