@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -35,6 +36,11 @@ import {
 } from './task-operator-flow.js';
 import { TaskDetailArtifactsPanel } from './task-detail-artifacts-panel.js';
 import { TaskDetailContextSection } from './task-detail-context-section.js';
+import {
+  StepOutputOverrideDialog,
+  formatOutputOverrideDraft,
+  parseOutputOverrideDraft,
+} from '../workflow-work-item-task-review-dialogs.js';
 
 interface Task {
   id: string;
@@ -164,11 +170,16 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
   const workflowOperatorPermalink = buildWorkflowOperatorPermalink(task);
+  const [isOutputOverrideDialogOpen, setIsOutputOverrideDialogOpen] = useState(false);
+  const [outputOverrideDraft, setOutputOverrideDraft] = useState(formatOutputOverrideDraft(task.output));
+  const [outputOverrideReason, setOutputOverrideReason] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const approveMutation = useMutation({
     mutationFn: () =>
       isOutputReview ? dashboardApi.approveTaskOutput(task.id) : dashboardApi.approveTask(task.id),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
@@ -177,6 +188,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const rejectMutation = useMutation({
     mutationFn: () => dashboardApi.rejectTask(task.id, { feedback: 'Rejected from dashboard' }),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
@@ -185,6 +197,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const retryMutation = useMutation({
     mutationFn: () => dashboardApi.retryTask(task.id),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
@@ -193,13 +206,33 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const cancelMutation = useMutation({
     mutationFn: () => dashboardApi.cancelTask(task.id),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+  const overrideOutputMutation = useMutation({
+    mutationFn: () =>
+      dashboardApi.overrideTaskOutput(task.id, {
+        output: parseOutputOverrideDraft(outputOverrideDraft),
+        reason: outputOverrideReason.trim(),
+      }),
+    onSuccess: () => {
+      setActionError(null);
+      setIsOutputOverrideDialogOpen(false);
+      setOutputOverrideDraft(formatOutputOverrideDraft(task.output));
+      setOutputOverrideReason('');
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : 'Failed to override output.');
     },
   });
 
   const isActionPending =
     approveMutation.isPending ||
+    overrideOutputMutation.isPending ||
     rejectMutation.isPending ||
     retryMutation.isPending ||
     cancelMutation.isPending;
@@ -217,14 +250,15 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
         <p className="text-xs text-muted">
           {workItemFlow
             ? 'This step belongs to a workflow work item. Operator review, rework, and retry decisions should run through the work-item panel so gate state, linked steps, and board context stay aligned.'
-            : 'Use the workflow operator flow so board context stays aligned before mutating the step directly.'}
+            : 'Use the workflow operator flow so board context stays aligned before mutating the step directly. Override the stored output packet there when review requires a corrected payload.'}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="space-y-2">
+      <div className="flex gap-2">
       {isAwaitingApproval && (
         <>
           <Button
@@ -247,14 +281,29 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
         </>
       )}
       {isOutputReview && (
-        <Button
-          size="sm"
-          disabled={isActionPending}
-          onClick={() => approveMutation.mutate()}
-        >
-          <CheckCircle className="h-4 w-4" />
-          Approve Output
-        </Button>
+        <>
+          <Button
+            size="sm"
+            disabled={isActionPending}
+            onClick={() => approveMutation.mutate()}
+          >
+            <CheckCircle className="h-4 w-4" />
+            Approve Output
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isActionPending}
+            onClick={() => {
+              setActionError(null);
+              setOutputOverrideDraft(formatOutputOverrideDraft(task.output));
+              setOutputOverrideReason('');
+              setIsOutputOverrideDialogOpen(true);
+            }}
+          >
+            Override Output
+          </Button>
+        </>
       )}
       {isEscalated && (
         <Button variant="outline" size="sm" asChild>
@@ -286,6 +335,27 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
           Cancel
         </Button>
       )}
+      </div>
+      {actionError ? <p className="text-xs text-destructive">{actionError}</p> : null}
+      <StepOutputOverrideDialog
+        isOpen={isOutputOverrideDialogOpen}
+        taskTitle={task.title ?? task.name ?? task.id}
+        description="Override the stored output packet before approving the step."
+        outputDraft={outputOverrideDraft}
+        reason={outputOverrideReason}
+        error={isOutputOverrideDialogOpen ? actionError : null}
+        isPending={isActionPending}
+        onOpenChange={(open) => {
+          setIsOutputOverrideDialogOpen(open);
+          if (!open) {
+            setOutputOverrideDraft(formatOutputOverrideDraft(task.output));
+            setOutputOverrideReason('');
+          }
+        }}
+        onOutputDraftChange={setOutputOverrideDraft}
+        onReasonChange={setOutputOverrideReason}
+        onSubmit={() => overrideOutputMutation.mutate()}
+      />
     </div>
   );
 }

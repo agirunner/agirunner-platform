@@ -155,6 +155,80 @@ export function StepEscalationDialog(props: {
   );
 }
 
+export function formatOutputOverrideDraft(output: unknown): string {
+  if (output === undefined) {
+    return '{}';
+  }
+  return JSON.stringify(output, null, 2);
+}
+
+export function parseOutputOverrideDraft(draft: string): unknown {
+  const trimmed = draft.trim();
+  if (!trimmed) {
+    throw new Error('Add replacement output JSON before overriding the stored packet.');
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error('Output override must be valid JSON.');
+  }
+}
+
+export function StepOutputOverrideDialog(props: {
+  isOpen: boolean;
+  taskTitle: string;
+  description: string;
+  outputDraft: string;
+  reason: string;
+  error: string | null;
+  isPending: boolean;
+  onOpenChange(open: boolean): void;
+  onOutputDraftChange(value: string): void;
+  onReasonChange(value: string): void;
+  onSubmit(): void;
+}): JSX.Element {
+  return (
+    <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
+      <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Override Output</DialogTitle>
+          <DialogDescription>{props.description}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <Textarea
+            value={props.outputDraft}
+            onChange={(event) => props.onOutputDraftChange(event.target.value)}
+            placeholder='{"summary":"Updated output packet"}'
+            rows={10}
+          />
+          <Textarea
+            value={props.reason}
+            onChange={(event) => props.onReasonChange(event.target.value)}
+            placeholder="Explain why the stored output packet must be overridden..."
+            rows={4}
+          />
+          {props.error ? <p className="text-sm text-destructive">{props.error}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => props.onOpenChange(false)}
+              disabled={props.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={props.onSubmit}
+              disabled={!props.reason.trim() || !props.outputDraft.trim() || props.isPending}
+            >
+              Override Output
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function WorkItemReassignDialog(props: {
   isOpen: boolean;
   taskTitle: string;

@@ -71,7 +71,10 @@ import { buildWorkItemTaskLinkActions } from './workflow-work-item-task-actions.
 import {
   StepChangesDialog,
   StepEscalationDialog,
+  StepOutputOverrideDialog,
   WorkItemReassignDialog,
+  formatOutputOverrideDraft,
+  parseOutputOverrideDraft,
 } from './workflow-work-item-task-review-dialogs.js';
 import {
   buildWorkItemRecoveryBrief,
@@ -2050,9 +2053,12 @@ function WorkItemTaskActionCell(props: {
 }): JSX.Element {
   const [isChangesDialogOpen, setIsChangesDialogOpen] = useState(false);
   const [isEscalationDialogOpen, setIsEscalationDialogOpen] = useState(false);
+  const [isOutputOverrideDialogOpen, setIsOutputOverrideDialogOpen] = useState(false);
   const [isReassignDialogOpen, setIsReassignDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [outputOverrideDraft, setOutputOverrideDraft] = useState(formatOutputOverrideDraft(undefined));
+  const [outputOverrideReason, setOutputOverrideReason] = useState('');
   const [reassignReason, setReassignReason] = useState('');
   const [reassignAgentId, setReassignAgentId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -2123,6 +2129,30 @@ function WorkItemTaskActionCell(props: {
       );
     },
   });
+  const overrideOutputMutation = useMutation({
+    mutationFn: () =>
+      dashboardApi.overrideWorkflowWorkItemTaskOutput(
+        props.workflowId,
+        scopedWorkItemId,
+        props.task.id,
+        {
+          output: parseOutputOverrideDraft(outputOverrideDraft),
+          reason: outputOverrideReason.trim(),
+        },
+      ),
+    onSuccess: async () => {
+      setError(null);
+      setOutputOverrideDraft(formatOutputOverrideDraft(undefined));
+      setOutputOverrideReason('');
+      setIsOutputOverrideDialogOpen(false);
+      await props.onWorkItemChanged();
+    },
+    onError: (mutationError) => {
+      setError(
+        mutationError instanceof Error ? mutationError.message : 'Failed to override output.',
+      );
+    },
+  });
   const reassignMutation = useMutation({
     mutationFn: () => {
       const selectedAgentId = reassignAgentId?.trim();
@@ -2181,10 +2211,13 @@ function WorkItemTaskActionCell(props: {
       setError(null);
       setFeedback('');
       setInstructions('');
+      setOutputOverrideDraft(formatOutputOverrideDraft(undefined));
+      setOutputOverrideReason('');
       setReassignReason('');
       setReassignAgentId(null);
       setIsChangesDialogOpen(false);
       setIsEscalationDialogOpen(false);
+      setIsOutputOverrideDialogOpen(false);
       setIsReassignDialogOpen(false);
       await props.onWorkItemChanged();
     },
@@ -2194,6 +2227,7 @@ function WorkItemTaskActionCell(props: {
   });
 
   const canApprove = state === 'awaiting_approval' || state === 'output_pending_review';
+  const canOverrideOutput = state === 'output_pending_review';
   const canRequestChanges =
     state === 'awaiting_approval' || state === 'output_pending_review' || state === 'failed';
   const canResolveEscalation = state === 'escalated';
@@ -2201,6 +2235,7 @@ function WorkItemTaskActionCell(props: {
   const canReassign = state !== 'completed' && state !== 'cancelled';
   const isAnyMutationPending =
     approveMutation.isPending ||
+    overrideOutputMutation.isPending ||
     rejectMutation.isPending ||
     requestChangesMutation.isPending ||
     reassignMutation.isPending ||
@@ -2225,6 +2260,21 @@ function WorkItemTaskActionCell(props: {
             disabled={isAnyMutationPending}
           >
             {state === 'output_pending_review' ? 'Approve Output' : 'Approve Step'}
+          </Button>
+        ) : null}
+        {canOverrideOutput ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setError(null);
+              setOutputOverrideDraft(formatOutputOverrideDraft(undefined));
+              setOutputOverrideReason('');
+              setIsOutputOverrideDialogOpen(true);
+            }}
+            disabled={isAnyMutationPending}
+          >
+            Override Output
           </Button>
         ) : null}
         {canRequestChanges ? (
@@ -2288,6 +2338,25 @@ function WorkItemTaskActionCell(props: {
         onOpenChange={setIsEscalationDialogOpen}
         onInstructionsChange={setInstructions}
         onSubmit={() => resolveEscalationMutation.mutate()}
+      />
+      <StepOutputOverrideDialog
+        isOpen={isOutputOverrideDialogOpen}
+        taskTitle={props.task.title}
+        description={`Override the stored output packet for “${props.task.title}” without leaving the selected work-item flow.`}
+        outputDraft={outputOverrideDraft}
+        reason={outputOverrideReason}
+        error={isOutputOverrideDialogOpen ? error : null}
+        isPending={isAnyMutationPending}
+        onOpenChange={(open) => {
+          setIsOutputOverrideDialogOpen(open);
+          if (!open) {
+            setOutputOverrideDraft(formatOutputOverrideDraft(undefined));
+            setOutputOverrideReason('');
+          }
+        }}
+        onOutputDraftChange={setOutputOverrideDraft}
+        onReasonChange={setOutputOverrideReason}
+        onSubmit={() => overrideOutputMutation.mutate()}
       />
       <WorkItemReassignDialog
         isOpen={isReassignDialogOpen}
