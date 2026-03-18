@@ -329,7 +329,11 @@ export class TaskWriteService {
       throw new ValidationError('work_item_id must belong to workflow_id');
     }
     if (input.stage_name && linkedWorkItem.stage_name !== input.stage_name) {
-      throw new ValidationError('stage_name must match the linked work item stage');
+      throw new ValidationError(
+        `stage_name '${input.stage_name}' does not match linked work item stage ` +
+          `'${linkedWorkItem.stage_name}'. For planned workflows, create or move a work item ` +
+          `in stage '${input.stage_name}' before creating tasks for that stage.`,
+      );
     }
     if (isClosedPlannedStage(linkedWorkItem)) {
       throw new ConflictError(

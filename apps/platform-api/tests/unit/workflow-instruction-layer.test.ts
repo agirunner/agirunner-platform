@@ -70,6 +70,12 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Human gate: yes');
     expect(layer!.content).toContain('## Stage Routing');
     expect(layer!.content).toContain('Successor stage after acceptance: verification');
+    expect(layer!.content).toContain(
+      'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',
+    );
+    expect(layer!.content).toContain(
+      'Planned-workflow tasks must stay attached to a work item in the same stage as the task itself.',
+    );
     expect(layer!.content).toContain('## Rule Results');
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');

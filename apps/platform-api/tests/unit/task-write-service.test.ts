@@ -1833,4 +1833,60 @@ describe('TaskWriteService', () => {
       ),
     ).rejects.toBeInstanceOf(ConflictError);
   });
+
+  it('returns a recoverable error when a task stage does not match the linked work item stage', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('LEFT JOIN workflow_stages ws')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_id: 'workflow-1',
+              stage_name: 'design',
+              workflow_lifecycle: 'planned',
+              stage_status: 'completed',
+              stage_gate_status: 'not_requested',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        {
+          title: 'Create implementation task against design work item',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          request_id: 'recover-stage-mismatch-1',
+          role: 'developer',
+          stage_name: 'implementation',
+        },
+      ),
+    ).rejects.toThrow(
+      /create or move a work item in stage 'implementation' before creating tasks for that stage/i,
+    );
+  });
 });
