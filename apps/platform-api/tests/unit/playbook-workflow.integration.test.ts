@@ -62,10 +62,16 @@ describe('playbook workflow integration', () => {
     const modelId = randomUUID();
     await db.pool.query(
       `INSERT INTO llm_providers
-        (id, tenant_id, name, base_url, api_key_secret_ref, auth_mode, is_enabled)
+        (id, tenant_id, name, base_url, api_key_secret_ref, is_enabled, metadata, auth_mode)
        VALUES
-        ($1, $2, 'OpenAI', 'https://api.openai.com/v1', 'secret://openai', 'api_key', true)`,
-      [providerId, identity.tenantId],
+        ($1, $2, 'OpenAI', 'https://api.openai.com/v1', 'secret://openai', true, $3::jsonb, 'api_key')`,
+      [
+        providerId,
+        identity.tenantId,
+        JSON.stringify({
+          providerType: 'openai',
+        }),
+      ],
     );
     await db.pool.query(
       `INSERT INTO llm_models

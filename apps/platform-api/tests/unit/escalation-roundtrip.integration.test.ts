@@ -1,6 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { runWorkflowActivationDispatchTick } from '../../src/jobs/lifecycle-monitor.js';
+import { ModelCatalogService } from '../../src/services/model-catalog-service.js';
+import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
 import {
   TEST_IDENTITY as identity,
   agentIdentity,
@@ -30,6 +32,50 @@ describe('V2 escalation round-trip integration', () => {
       return;
     }
     harness = createV2Harness(db, { WORKFLOW_ACTIVATION_DELAY_MS: 0 });
+    const runtimeDefaultsService = new RuntimeDefaultsService(db.pool);
+    for (const [configKey, configValue] of [
+      ['tasks.default_timeout_minutes', '30'],
+      ['agent.max_iterations', '10'],
+      ['agent.llm_max_retries', '5'],
+      ['platform.workflow_activation_delay_ms', '10000'],
+      ['platform.workflow_activation_heartbeat_interval_ms', '900000'],
+      ['platform.workflow_activation_stale_after_ms', '300000'],
+      ['platform.task_cancel_signal_grace_period_ms', '60000'],
+      ['platform.worker_dispatch_ack_timeout_ms', '15000'],
+      ['platform.worker_default_heartbeat_interval_seconds', '30'],
+      ['platform.worker_offline_grace_period_ms', '300000'],
+      ['platform.worker_offline_threshold_multiplier', '2'],
+      ['platform.worker_degraded_threshold_multiplier', '1'],
+      ['platform.worker_key_expiry_ms', '60000'],
+      ['platform.agent_default_heartbeat_interval_seconds', '30'],
+      ['platform.agent_heartbeat_grace_period_ms', '300000'],
+      ['platform.agent_heartbeat_threshold_multiplier', '2'],
+      ['platform.agent_key_expiry_ms', '60000'],
+    ] as const) {
+      await runtimeDefaultsService.createDefault(identity.tenantId, {
+        configKey,
+        configValue,
+        configType: 'number',
+      });
+    }
+    const modelCatalogService = new ModelCatalogService(db.pool);
+    const provider = await modelCatalogService.createProvider(identity.tenantId, {
+      name: 'escalation-flow-provider',
+      baseUrl: 'https://example.com',
+      isEnabled: true,
+      metadata: {
+        providerType: 'openai',
+      },
+    });
+    const model = await modelCatalogService.createModel(identity.tenantId, {
+      providerId: provider.id,
+      modelId: 'escalation-flow-model',
+      supportsToolUse: true,
+      supportsVision: false,
+      isEnabled: true,
+      reasoningConfig: null,
+    });
+    await modelCatalogService.setSystemDefault(identity.tenantId, model.id, null);
   }, 120_000);
 
   afterAll(async () => {
@@ -56,7 +102,7 @@ describe('V2 escalation round-trip integration', () => {
       outcome: 'Specialist resumes after operator guidance',
       definition: {
         roles: ['developer'],
-        lifecycle: 'continuous',
+        lifecycle: 'ongoing',
         orchestrator: {
           max_active_tasks: 2,
           max_active_tasks_per_work_item: 1,
