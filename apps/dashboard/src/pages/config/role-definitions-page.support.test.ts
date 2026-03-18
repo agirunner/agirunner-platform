@@ -60,7 +60,7 @@ describe('role definitions support helpers', () => {
     expect(values).toContain('documentation');
     expect(values).toContain('requirements');
     expect(values).toContain('research');
-    expect(values).toContain('project-management');
+    expect(values).toContain('workspace-management');
     expect(values).toContain('data-analysis');
     expect(values).not.toContain('llm-api');
     expect(values).not.toContain('lang:typescript');

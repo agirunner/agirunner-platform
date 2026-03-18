@@ -2,6 +2,8 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import { validateOutputSchema } from '../validation/output-validator.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, ForbiddenError } from '../errors/domain-errors.js';
+import type { LogService } from '../logging/log-service.js';
+import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
 import {
   assertValidTransition,
   normalizeTaskState,
@@ -66,6 +68,7 @@ interface TransitionOptions {
 interface TaskLifecycleDependencies {
   pool: DatabasePool;
   eventService: EventService;
+  logService?: LogService;
   activationDispatchService?: ImmediateWorkflowActivationDispatcher;
   workflowStateService: WorkflowStateService;
   defaultTaskTimeoutMinutes?: number;
@@ -256,6 +259,22 @@ function hasMatchingReviewRejection(
 
 export class TaskLifecycleService {
   constructor(private readonly deps: TaskLifecycleDependencies) {}
+
+  private async logGovernanceTransition(
+    tenantId: string,
+    operation: string,
+    task: Record<string, unknown>,
+    payload: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<void> {
+    await logTaskGovernanceTransition(this.deps.logService, {
+      tenantId,
+      operation,
+      executor: client,
+      task,
+      payload,
+    });
+  }
 
   private requireLifecycleIdentity(
     identity: ApiKeyIdentity,
@@ -490,6 +509,7 @@ export class TaskLifecycleService {
           updatedTask,
           client,
           this.deps.activationDispatchService,
+          this.deps.logService,
         );
       }
       if (resolvedNextState === 'output_pending_review' && !updatedTask.is_orchestrator_task) {
@@ -913,6 +933,19 @@ export class TaskLifecycleService {
             },
             client,
           );
+          await this.logGovernanceTransition(
+            identity.tenantId,
+            'task.retry.scheduled',
+            updatedTask,
+            {
+              event_type: 'task.retry_scheduled',
+              retry_count: updatedTask.retry_count ?? null,
+              backoff_seconds: retryPlan.backoffSeconds,
+              retry_available_at: retryPlan.retryAvailableAt?.toISOString() ?? null,
+              failure,
+            },
+            client,
+          );
         },
       }, existingClient);
     }
@@ -1192,6 +1225,17 @@ export class TaskLifecycleService {
             },
             client,
           );
+          await this.logGovernanceTransition(
+            identity.tenantId,
+            'task.max_rework_exceeded',
+            updatedTask,
+            {
+              event_type: 'task.max_rework_exceeded',
+              rework_count: updatedTask.rework_count ?? null,
+              max_rework_count: maxReworkCount,
+            },
+            client,
+          );
           await this.maybeCreateEscalationTask(
             identity,
             updatedTask,
@@ -1422,6 +1466,21 @@ export class TaskLifecycleService {
           },
           client,
         );
+        await this.logGovernanceTransition(
+          identity.tenantId,
+          'task.escalation.manual',
+          task,
+          {
+            event_type: 'task.escalated',
+            escalation_target: payload.escalation_target ?? 'human',
+            escalation_reason: payload.reason,
+            context: payload.context ?? null,
+            recommendation: payload.recommendation ?? null,
+            blocking_task_id: payload.blocking_task_id ?? null,
+            urgency: payload.urgency ?? null,
+          },
+          client,
+        );
       },
       reason: 'task_escalated',
     }, client);
@@ -1521,6 +1580,16 @@ export class TaskLifecycleService {
           data: {
             escalation_task_id: escalationTaskId,
           },
+        },
+        client,
+      );
+      await this.logGovernanceTransition(
+        identity.tenantId,
+        'task.escalation.response_recorded',
+        task,
+        {
+          event_type: 'task.escalation_response_recorded',
+          escalation_task_id: escalationTaskId,
         },
         client,
       );
@@ -1647,6 +1716,20 @@ export class TaskLifecycleService {
             },
             client,
           );
+          await this.logGovernanceTransition(
+            identity.tenantId,
+            'task.escalation.agent',
+            task,
+            {
+              event_type: 'task.agent_escalated',
+              escalation_target: 'human',
+              escalation_reason: payload.reason,
+              context_summary: payload.context_summary ?? null,
+              source_role: roleName,
+              escalation_depth: currentDepth + 1,
+            },
+            client,
+          );
         },
         reason: 'agent_escalated',
       });
@@ -1710,7 +1793,20 @@ export class TaskLifecycleService {
           },
           client,
         );
-
+        await this.logGovernanceTransition(
+          identity.tenantId,
+          'task.escalation.agent',
+          task,
+          {
+            event_type: 'task.agent_escalated',
+            escalation_target: escalationTarget,
+            escalation_reason: payload.reason,
+            context_summary: payload.context_summary ?? null,
+            source_role: roleName,
+            escalation_depth: currentDepth + 1,
+          },
+          client,
+        );
         await this.deps.eventService.emit(
           {
             tenantId: identity.tenantId,
@@ -1725,6 +1821,19 @@ export class TaskLifecycleService {
               source_task_id: taskId,
               depth: currentDepth + 1,
             },
+          },
+          client,
+        );
+        await this.logGovernanceTransition(
+          identity.tenantId,
+          'task.escalation.task_created',
+          task,
+          {
+            event_type: 'task.escalation_task_created',
+            escalation_task_id: escalationTask.id,
+            target_role: escalationTarget,
+            source_task_id: taskId,
+            depth: currentDepth + 1,
           },
           client,
         );
@@ -2136,6 +2245,18 @@ export class TaskLifecycleService {
           failure,
           role: escalation.role,
         },
+      },
+      client,
+    );
+    await this.logGovernanceTransition(
+      identity.tenantId,
+      'task.escalation.policy',
+      task,
+      {
+        event_type: 'task.escalation',
+        escalation_task_id: escalationTask.id,
+        failure,
+        role: escalation.role,
       },
       client,
     );

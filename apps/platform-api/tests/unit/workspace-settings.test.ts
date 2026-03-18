@@ -72,7 +72,7 @@ describe('workspace settings', () => {
     });
   });
 
-  it('rejects the legacy singular workspace model override field', () => {
+  it('rejects the legacy singular model override field', () => {
     expect(() =>
       validateWorkspaceSettingsShape({
         model_override: {
@@ -82,7 +82,7 @@ describe('workspace settings', () => {
     ).toThrow(/model_override.*no longer supported/i);
   });
 
-  it('drops workspace model overrides from normalized workspace settings', () => {
+  it('drops legacy model overrides from normalized workspace settings', () => {
     expect(
       normalizeWorkspaceSettings({
         model_overrides: {

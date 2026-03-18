@@ -15,6 +15,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
     };
   },
   withScope: () => async () => {},
+  withAllowedScopes: () => async () => {},
 }));
 
 describe('workflow model override routes', () => {

@@ -46,6 +46,11 @@ interface WorkflowWorkItemRow {
   updated_at: Date;
 }
 
+type WorkflowWorkItemResponse = Omit<WorkflowWorkItemRow, 'completed_at' | 'updated_at'> & {
+  completed_at: string | null;
+  updated_at: string;
+};
+
 interface WorkflowStageRow {
   id: string;
   name: string;
@@ -845,7 +850,6 @@ export class PlaybookWorkflowControlService {
       RETURNING id,
                 parent_work_item_id,
                 stage_name,
-                current_checkpoint,
                 title,
                 goal,
                 acceptance_criteria,
@@ -1492,7 +1496,7 @@ async function emitWorkItemUpdateEvents(
   }
 }
 
-function toWorkItemResponse(row: WorkflowWorkItemRow) {
+function toWorkItemResponse(row: WorkflowWorkItemRow): WorkflowWorkItemResponse {
   return {
     ...row,
     completed_at: row.completed_at?.toISOString() ?? null,

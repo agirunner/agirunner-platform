@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { ValidationError } from '../errors/domain-errors.js';
+import { normalizeStoredProviderSecret } from '../lib/oauth-crypto.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 const MAX_SHORT_TEXT_LENGTH = 255;
@@ -217,7 +218,9 @@ function resolveCredentialValue(input: {
     throw new ValidationError(`${input.label} must not contain whitespace`);
   }
 
-  return input.provided.length > 0 ? input.provided : undefined;
+  return input.provided.length > 0
+    ? normalizeStoredProviderSecret(input.provided)
+    : undefined;
 }
 
 function readModelOverrides(value: unknown): Record<string, WorkspaceRoleModelOverride> {

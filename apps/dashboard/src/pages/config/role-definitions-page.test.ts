@@ -42,7 +42,7 @@ describe('role definitions page source', () => {
     const source = readSource();
     expect(source).toContain("import { RoleDialog } from './role-definitions-dialog.js'");
     const dialogSource = readFileSync(resolve(import.meta.dirname, './role-definitions-dialog.tsx'), 'utf8');
-    expect(dialogSource).toContain('top-[5vh] flex max-h-[90vh] max-w-4xl translate-y-0 flex-col overflow-hidden p-0');
+    expect(dialogSource).toContain('top-[5vh] flex max-h-[90vh] max-w-[68rem] translate-y-0 flex-col overflow-hidden p-0');
     expect(dialogSource).toContain('RoleDialogFooter');
     expect(dialogSource).toContain('overflow-y-auto px-6 py-5');
   });

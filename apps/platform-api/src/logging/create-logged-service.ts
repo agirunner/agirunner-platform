@@ -9,9 +9,13 @@ const MUTATION_PREFIXES = [
   'create',
   'update',
   'patch',
+  'replace',
+  'upsert',
+  'upload',
   'delete',
   'softDelete',
   'remove',
+  'deactivate',
   'cancel',
   'pause',
   'resume',
@@ -19,20 +23,27 @@ const MUTATION_PREFIXES = [
   'start',
   'complete',
   'fail',
+  'evaluate',
   'approve',
   'reject',
   'retry',
+  'request',
+  'respond',
   'rework',
   'skip',
   'reassign',
+  'agentEscalate',
   'escalate',
+  'override',
   'drain',
   'restart',
   'revoke',
   'register',
   'signal',
+  'enqueue',
   'set',
   'clear',
+  'bulkCreate',
   'chain',
   'prune',
   'pull',
@@ -45,9 +56,26 @@ const PAST_TENSE_OVERRIDES: Record<string, string> = {
   cut: 'cut',
   skip: 'skipped',
   retry: 'retried',
+  override: 'overrode',
+  send: 'sent',
+};
+
+const METHOD_ACTION_OVERRIDES: Record<string, string> = {
+  acknowledgeSignal: 'acknowledged',
+  acknowledgeTask: 'acknowledged',
+  advanceWorkflowStage: 'advanced',
+  findOrCreateFromSSO: 'resolved',
+  handleCallback: 'handled',
+  initiateFlow: 'initiated',
+  invokeTrigger: 'invoked',
+  requestStageGateApproval: 'requested',
+  resolveEscalation: 'resolved',
 };
 
 export function methodToAction(method: string): string {
+  if (METHOD_ACTION_OVERRIDES[method]) {
+    return METHOD_ACTION_OVERRIDES[method];
+  }
   for (const prefix of MUTATION_PREFIXES) {
     if (method.startsWith(prefix)) {
       if (PAST_TENSE_OVERRIDES[prefix]) return PAST_TENSE_OVERRIDES[prefix];
@@ -73,7 +101,7 @@ export function createLoggedService<T extends object>(
       if (typeof prop !== 'string') return value;
       if (prop.startsWith('_')) return value;
       if (config.ignoreMethods.includes(prop)) return value;
-      if (!MUTATION_PREFIXES.some((prefix) => prop.startsWith(prefix))) return value;
+      if (!shouldLogMethod(prop, config.logMethods ?? [])) return value;
 
       return async function loggedMethod(this: unknown, ...args: unknown[]) {
         const ctx = getRequestContext();
@@ -206,6 +234,10 @@ export function createLoggedService<T extends object>(
       };
     },
   });
+}
+
+function shouldLogMethod(method: string, explicitMethods: string[]): boolean {
+  return explicitMethods.includes(method) || MUTATION_PREFIXES.some((prefix) => method.startsWith(prefix));
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

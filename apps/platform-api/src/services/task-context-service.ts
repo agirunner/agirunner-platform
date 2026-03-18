@@ -88,7 +88,7 @@ export async function buildTaskContext(
   const continuousWorkflowRow =
     workflowRow && isContinuousWorkflowRow(workflowRow) ? workflowRow : null;
   const workItem = await loadWorkItemContext(db, tenantId, task);
-  const workspaceContext = await loadProjectContext(
+  const workspaceContext = await loadWorkspaceContext(
     db,
     tenantId,
     workspaceRes.rows[0] as Record<string, unknown> | undefined,
@@ -107,7 +107,7 @@ export async function buildTaskContext(
   const parentWorkflowContext = workflowRelations?.parent?.workflow_id
     ? await loadParentWorkflowContext(db, tenantId, workflowRelations.parent.workflow_id)
     : null;
-  const workspaceInstructions = await loadProjectInstructions(db, tenantId, task, workflowRow);
+  const workspaceInstructions = await loadWorkspaceInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
   const orchestratorPrompt = task.is_orchestrator_task
     ? await loadOrchestratorPrompt(db, tenantId)
@@ -240,9 +240,8 @@ function isContinuousWorkflowRow(
 }
 
 function normalizeWorkItemStage(row: Record<string, unknown>) {
-  const { current_checkpoint: _currentCheckpoint, ...rest } = row;
   return {
-    ...rest,
+    ...row,
     stage_name: asOptionalString(row.stage_name) ?? null,
   };
 }
@@ -304,7 +303,7 @@ async function loadWorkItemContext(
   return workItem ? normalizeWorkItemStage(workItem) : null;
 }
 
-async function loadProjectContext(
+async function loadWorkspaceContext(
   db: DatabaseQueryable,
   tenantId: string,
   workspaceRow: Record<string, unknown> | undefined,
@@ -341,7 +340,7 @@ async function loadProjectContext(
       currentMemory,
       limit: TASK_CONTEXT_MEMORY_INDEX_LIMIT,
     }),
-    loadProjectArtifactIndex(db, tenantId, workspaceId),
+    loadWorkspaceArtifactIndex(db, tenantId, workspaceId),
   ]);
 
   workspace.memory = visibleMemory;
@@ -350,7 +349,7 @@ async function loadProjectContext(
   return workspace;
 }
 
-async function loadProjectArtifactIndex(
+async function loadWorkspaceArtifactIndex(
   db: DatabaseQueryable,
   tenantId: string,
   workspaceId: string,
@@ -482,7 +481,7 @@ async function loadPlatformInstructions(db: DatabaseQueryable, tenantId: string)
   return result.rows[0] as Record<string, unknown> | undefined;
 }
 
-async function loadProjectInstructions(
+async function loadWorkspaceInstructions(
   db: DatabaseQueryable,
   tenantId: string,
   task: Record<string, unknown>,

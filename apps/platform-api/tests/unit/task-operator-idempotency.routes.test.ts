@@ -36,16 +36,16 @@ describe('public task operator route idempotency', () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const retryTask = vi.fn(async () => ({
       id: 'task-retry-1',
-      workflow_id: 'workflow-retry-1',
+      workflow_id: null,
       state: 'ready',
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-retry-1', workflow_id: 'workflow-retry-1' })),
+        getTask: vi.fn(async () => ({ id: 'task-retry-1', workflow_id: null })),
         retryTask,
       },
-      createWorkflowReplayPool('workflow-retry-1', 'public_task_retry', 'retry-1'),
+      createTaskReplayPool('task-retry-1', 'public_task_retry', 'retry-1'),
     );
     await app.register(taskRoutes);
 
@@ -72,17 +72,17 @@ describe('public task operator route idempotency', () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const rejectTask = vi.fn(async () => ({
       id: 'task-reject-1',
-      workflow_id: 'workflow-reject-1',
+      workflow_id: null,
       state: 'failed',
       metadata: { review_action: 'reject' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-reject-1', workflow_id: 'workflow-reject-1' })),
+        getTask: vi.fn(async () => ({ id: 'task-reject-1', workflow_id: null })),
         rejectTask,
       },
-      createWorkflowReplayPool('workflow-reject-1', 'public_task_reject', 'reject-1'),
+      createTaskReplayPool('task-reject-1', 'public_task_reject', 'reject-1'),
     );
     await app.register(taskRoutes);
 
@@ -109,21 +109,17 @@ describe('public task operator route idempotency', () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const requestTaskChanges = vi.fn(async () => ({
       id: 'task-rework-1',
-      workflow_id: 'workflow-rework-1',
+      workflow_id: null,
       state: 'ready',
       metadata: { review_action: 'request_changes' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-rework-1', workflow_id: 'workflow-rework-1' })),
+        getTask: vi.fn(async () => ({ id: 'task-rework-1', workflow_id: null })),
         requestTaskChanges,
       },
-      createWorkflowReplayPool(
-        'workflow-rework-1',
-        'public_task_request_changes',
-        'request-changes-1',
-      ),
+      createTaskReplayPool('task-rework-1', 'public_task_request_changes', 'request-changes-1'),
     );
     await app.register(taskRoutes);
 
@@ -158,17 +154,17 @@ describe('public task operator route idempotency', () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const skipTask = vi.fn(async () => ({
       id: 'task-skip-1',
-      workflow_id: 'workflow-skip-1',
+      workflow_id: null,
       state: 'completed',
       output: { skipped: true, reason: 'Not applicable' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-skip-1', workflow_id: 'workflow-skip-1' })),
+        getTask: vi.fn(async () => ({ id: 'task-skip-1', workflow_id: null })),
         skipTask,
       },
-      createWorkflowReplayPool('workflow-skip-1', 'public_task_skip', 'skip-1'),
+      createTaskReplayPool('task-skip-1', 'public_task_skip', 'skip-1'),
     );
     await app.register(taskRoutes);
 
@@ -195,17 +191,17 @@ describe('public task operator route idempotency', () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const reassignTask = vi.fn(async () => ({
       id: 'task-reassign-1',
-      workflow_id: 'workflow-reassign-1',
+      workflow_id: null,
       state: 'ready',
       metadata: { review_action: 'reassign' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-reassign-1', workflow_id: 'workflow-reassign-1' })),
+        getTask: vi.fn(async () => ({ id: 'task-reassign-1', workflow_id: null })),
         reassignTask,
       },
-      createWorkflowReplayPool('workflow-reassign-1', 'public_task_reassign', 'reassign-1'),
+      createTaskReplayPool('task-reassign-1', 'public_task_reassign', 'reassign-1'),
     );
     await app.register(taskRoutes);
 
@@ -240,17 +236,17 @@ describe('public task operator route idempotency', () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const escalateTask = vi.fn(async () => ({
       id: 'task-escalate-1',
-      workflow_id: 'workflow-escalate-1',
+      workflow_id: null,
       state: 'escalated',
       metadata: { review_action: 'escalate' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-escalate-1', workflow_id: 'workflow-escalate-1' })),
+        getTask: vi.fn(async () => ({ id: 'task-escalate-1', workflow_id: null })),
         escalateTask,
       },
-      createWorkflowReplayPool('workflow-escalate-1', 'public_task_escalate', 'escalate-1'),
+      createTaskReplayPool('task-escalate-1', 'public_task_escalate', 'escalate-1'),
     );
     await app.register(taskRoutes);
 
@@ -277,20 +273,16 @@ describe('public task operator route idempotency', () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const respondToEscalation = vi.fn(async () => ({
       id: 'task-response-1',
-      workflow_id: 'workflow-response-1',
+      workflow_id: null,
       state: 'in_progress',
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-response-1', workflow_id: 'workflow-response-1' })),
+        getTask: vi.fn(async () => ({ id: 'task-response-1', workflow_id: null })),
         respondToEscalation,
       },
-      createWorkflowReplayPool(
-        'workflow-response-1',
-        'public_task_escalation_response',
-        'escalation-response-1',
-      ),
+      createTaskReplayPool('task-response-1', 'public_task_escalation_response', 'escalation-response-1'),
     );
     await app.register(taskRoutes);
 
@@ -325,21 +317,17 @@ describe('public task operator route idempotency', () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const overrideTaskOutput = vi.fn(async () => ({
       id: 'task-output-1',
-      workflow_id: 'workflow-output-1',
+      workflow_id: null,
       state: 'completed',
       output: { summary: 'Overridden output' },
     }));
 
     app = buildTaskRouteApp(
       {
-        getTask: vi.fn(async () => ({ id: 'task-output-1', workflow_id: 'workflow-output-1' })),
+        getTask: vi.fn(async () => ({ id: 'task-output-1', workflow_id: null })),
         overrideTaskOutput,
       },
-      createWorkflowReplayPool(
-        'workflow-output-1',
-        'public_task_output_override',
-        'output-override-1',
-      ),
+      createTaskReplayPool('task-output-1', 'public_task_output_override', 'output-override-1'),
     );
     await app.register(taskRoutes);
 
@@ -370,7 +358,7 @@ describe('public task operator route idempotency', () => {
     expect(second.json()).toEqual(first.json());
   });
 
-  it('deduplicates repeated resolve-escalation requests by request_id', async () => {
+  it('rejects repeated resolve-escalation requests for workflow-linked tasks before replay', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const resolveEscalation = vi.fn(async () => ({
       id: 'task-resolve-1',
@@ -412,17 +400,18 @@ describe('public task operator route idempotency', () => {
       },
     });
 
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
-    expect(resolveEscalation).toHaveBeenCalledTimes(1);
-    expect(second.json()).toEqual(first.json());
+    expect(first.statusCode).toBe(400);
+    expect(second.statusCode).toBe(400);
+    expect(resolveEscalation).not.toHaveBeenCalled();
+    expect(first.json().error?.code).toBe('VALIDATION_ERROR');
+    expect(second.json().error?.code).toBe('VALIDATION_ERROR');
   });
 
   it('deduplicates repeated agent-escalate requests by request_id', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const agentEscalate = vi.fn(async () => ({
       id: 'task-agent-escalate-1',
-      workflow_id: 'workflow-agent-escalate-1',
+      workflow_id: null,
       state: 'escalated',
       metadata: { escalated_by: 'agent' },
     }));
@@ -431,15 +420,11 @@ describe('public task operator route idempotency', () => {
       {
         getTask: vi.fn(async () => ({
           id: 'task-agent-escalate-1',
-          workflow_id: 'workflow-agent-escalate-1',
+          workflow_id: null,
         })),
         agentEscalate,
       },
-      createWorkflowReplayPool(
-        'workflow-agent-escalate-1',
-        'public_task_agent_escalate',
-        'agent-escalate-1',
-      ),
+      createTaskReplayPool('task-agent-escalate-1', 'public_task_agent_escalate', 'agent-escalate-1'),
     );
     await app.register(taskRoutes);
 

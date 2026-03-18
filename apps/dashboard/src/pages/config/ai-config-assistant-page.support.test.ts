@@ -67,7 +67,7 @@ describe('ai config assistant support', () => {
     });
     expect(resolveSuggestionDestination('provider.openai.base_url')).toEqual({
       href: '/config/llm',
-      label: 'Open LLM settings',
+      label: 'Open LLM Providers',
     });
     expect(resolveSuggestionDestination('integration.github.token')).toEqual({
       href: '/config/integrations',

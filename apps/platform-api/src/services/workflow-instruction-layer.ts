@@ -114,7 +114,7 @@ function buildOrchestratorSections(params: {
     );
     const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
     if (params.lifecycle === 'planned') {
-      sections.push(`## Checkpoint Routing\n${formatCheckpointRouting(params.checkpoint.name, successorCheckpoint)}`);
+      sections.push(`## Stage Routing\n${formatStageRouting(params.checkpoint.name, successorCheckpoint)}`);
     }
   } else if (params.boardColumn) {
     sections.push(`## Current Board Focus\n${params.boardColumn.label}`);
@@ -165,7 +165,7 @@ function buildSpecialistSections(params: {
     );
     const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
     if (params.lifecycle === 'planned') {
-      sections.push(`## Checkpoint Routing\n${formatCheckpointRouting(params.checkpoint.name, successorCheckpoint)}`);
+      sections.push(`## Stage Routing\n${formatStageRouting(params.checkpoint.name, successorCheckpoint)}`);
     }
   }
 
@@ -385,21 +385,21 @@ function requiresHumanApproval(
   return definition.approval_rules.some((entry) => approvalRuleAppliesToCheckpoint(entry, checkpointName));
 }
 
-function formatCheckpointRouting(
-  currentCheckpointName: string,
-  successorCheckpointName: string | null,
+function formatStageRouting(
+  currentStageName: string,
+  successorStageName: string | null,
 ) {
-  if (!successorCheckpointName) {
+  if (!successorStageName) {
     return [
-      `Current checkpoint: ${currentCheckpointName}`,
-      'This is the final checkpoint. After the checkpoint deliverable is accepted and any required human approval is satisfied, complete the release work item and then complete the workflow.',
+      `Current stage: ${currentStageName}`,
+      'This is the final planned stage. After the stage deliverable is accepted and any required human approval is satisfied, complete the release work item and then complete the workflow.',
     ].join('\n');
   }
 
   return [
-    `Current checkpoint: ${currentCheckpointName}`,
-    `Successor checkpoint after acceptance: ${successorCheckpointName}`,
-    `When you create successor work in a planned workflow, set stage_name to "${successorCheckpointName}" and close the predecessor work item instead of leaving successor work anchored to "${currentCheckpointName}".`,
+    `Current stage: ${currentStageName}`,
+    `Successor stage after acceptance: ${successorStageName}`,
+    `When you create successor work in a planned workflow, set stage_name to "${successorStageName}" and close the predecessor work item instead of leaving successor work anchored to "${currentStageName}".`,
   ].join('\n');
 }
 

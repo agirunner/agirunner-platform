@@ -117,6 +117,7 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('runtime-defaults-');
     expect(source).toContain('ActiveRuntimeImageCard');
     expect(source).toContain('BuildHistoryCard');
+    expect(source).toContain('RuntimeManagementCard');
     expect(source).not.toContain('JSON.parse');
   });
 

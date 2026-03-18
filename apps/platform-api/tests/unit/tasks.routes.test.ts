@@ -540,6 +540,79 @@ describe('tasks routes', () => {
     expect(cancelTask).not.toHaveBeenCalled();
   });
 
+  it('rejects raw resolve-escalation mutations for workflow-linked tasks', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const resolveEscalation = vi.fn(async () => ({
+      id: 'task-resolve-guard-1',
+      workflow_id: 'workflow-resolve-guard-1',
+      work_item_id: 'work-item-resolve-guard-1',
+      state: 'ready',
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({
+          id: 'task-resolve-guard-1',
+          workflow_id: 'workflow-resolve-guard-1',
+          work_item_id: 'work-item-resolve-guard-1',
+        })),
+        resolveEscalation,
+      },
+      createWorkflowReplayPool('workflow-resolve-guard-1', 'public_task_resolve_escalation'),
+    );
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-resolve-guard-1/resolve-escalation',
+      headers: { authorization: 'Bearer test' },
+      payload: { request_id: 'resolve-guard-1', instructions: 'Proceed with the staged work-item flow.' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message:
+            'Workflow-linked task operator actions must run from the workflow or work-item operator flow.',
+        }),
+      }),
+    );
+    expect(resolveEscalation).not.toHaveBeenCalled();
+  });
+
+  it('still allows raw resolve-escalation mutations for standalone tasks', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const resolveEscalation = vi.fn(async () => ({
+      id: 'task-standalone-resolve-1',
+      workflow_id: null,
+      state: 'ready',
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({
+          id: 'task-standalone-resolve-1',
+          workflow_id: null,
+        })),
+        resolveEscalation,
+      },
+      createTaskReplayPool('task-standalone-resolve-1', 'public_task_resolve_escalation'),
+    );
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-standalone-resolve-1/resolve-escalation',
+      headers: { authorization: 'Bearer test' },
+      payload: { request_id: 'resolve-standalone-1', instructions: 'Continue with the standalone task.' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(resolveEscalation).toHaveBeenCalledTimes(1);
+  });
+
   it('still allows raw approve mutations for standalone tasks', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const approveTask = vi.fn(async () => ({

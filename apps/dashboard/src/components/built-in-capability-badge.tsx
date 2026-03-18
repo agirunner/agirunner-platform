@@ -20,7 +20,7 @@ const BUILT_IN_SUPPORTED_CAPABILITIES = new Set([
   'documentation',
   'requirements',
   'research',
-  'project-management',
+  'workspace-management',
   'data-analysis',
 ]);
 

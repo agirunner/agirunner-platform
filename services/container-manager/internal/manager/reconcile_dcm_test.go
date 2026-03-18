@@ -353,6 +353,7 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 		t.Fatalf("expected 1 container, got %d", len(docker.createdSpecs))
 	}
 	env := docker.createdSpecs[0].Environment
+	spec := docker.createdSpecs[0]
 	if env["AGIRUNNER_RUNTIME_PLATFORM_API_URL"] != "http://localhost:8080" {
 		t.Errorf("wrong platform URL: %s", env["AGIRUNNER_RUNTIME_PLATFORM_API_URL"])
 	}
@@ -367,6 +368,9 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 	}
 	if env["AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID"] == "" {
 		t.Error("expected runtime ID to be set")
+	}
+	if env[envRuntimeWorkerName] != spec.Name {
+		t.Fatalf("expected worker name %q, got %q", spec.Name, env[envRuntimeWorkerName])
 	}
 	if env["DOCKER_HOST"] == "" {
 		t.Error("expected DOCKER_HOST to be set")

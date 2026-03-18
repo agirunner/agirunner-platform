@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog.js';
+import { Input } from '../components/ui/input.js';
 import { Textarea } from '../components/ui/textarea.js';
 
 function sortAgents(agents: DashboardAgentRecord[]): DashboardAgentRecord[] {
@@ -147,6 +148,140 @@ export function StepEscalationDialog(props: {
               disabled={!props.instructions.trim() || props.isPending}
             >
               Provide Operator Guidance
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function formatOutputOverrideDraft(output: unknown): string {
+  if (output === undefined) {
+    return '{}';
+  }
+  return JSON.stringify(output, null, 2);
+}
+
+export function parseOutputOverrideDraft(draft: string): unknown {
+  const trimmed = draft.trim();
+  if (!trimmed) {
+    throw new Error('Add replacement output JSON before overriding the stored packet.');
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    throw new Error('Output override must be valid JSON.');
+  }
+}
+
+export function StepOutputOverrideDialog(props: {
+  isOpen: boolean;
+  taskTitle: string;
+  description: string;
+  outputDraft: string;
+  reason: string;
+  error: string | null;
+  isPending: boolean;
+  onOpenChange(open: boolean): void;
+  onOutputDraftChange(value: string): void;
+  onReasonChange(value: string): void;
+  onSubmit(): void;
+}): JSX.Element {
+  return (
+    <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
+      <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Override Output</DialogTitle>
+          <DialogDescription>{props.description}</DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <Textarea
+            value={props.outputDraft}
+            onChange={(event) => props.onOutputDraftChange(event.target.value)}
+            placeholder='{"summary":"Updated output packet"}'
+            rows={10}
+          />
+          <Textarea
+            value={props.reason}
+            onChange={(event) => props.onReasonChange(event.target.value)}
+            placeholder="Explain why the stored output packet must be overridden..."
+            rows={4}
+          />
+          {props.error ? <p className="text-sm text-destructive">{props.error}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => props.onOpenChange(false)}
+              disabled={props.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={props.onSubmit}
+              disabled={!props.reason.trim() || !props.outputDraft.trim() || props.isPending}
+            >
+              Override Output
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function StepManualEscalationDialog(props: {
+  isOpen: boolean;
+  taskTitle: string;
+  escalationTarget: string;
+  reason: string;
+  isPending: boolean;
+  error: string | null;
+  onOpenChange(open: boolean): void;
+  onEscalationTargetChange(value: string): void;
+  onReasonChange(value: string): void;
+  onSubmit(): void;
+}): JSX.Element {
+  const canSubmit = Boolean(props.reason.trim()) && !props.isPending;
+
+  return (
+    <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
+      <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Escalate Step</DialogTitle>
+          <DialogDescription>
+            Pause &ldquo;{props.taskTitle}&rdquo; and record why it needs human or cross-role help.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">Escalation target</div>
+            <Input
+              value={props.escalationTarget}
+              onChange={(event) => props.onEscalationTargetChange(event.target.value)}
+              placeholder="human"
+            />
+            <p className="text-xs leading-5 text-muted">
+              Leave this as &ldquo;human&rdquo; unless a different escalation destination is already defined.
+            </p>
+          </div>
+          <Textarea
+            value={props.reason}
+            onChange={(event) => props.onReasonChange(event.target.value)}
+            placeholder="Explain what is blocked and what decision or intervention is needed..."
+            rows={4}
+          />
+          {props.error ? <p className="text-sm text-destructive">{props.error}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => props.onOpenChange(false)}
+              disabled={props.isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={props.onSubmit} disabled={!canSubmit}>
+              Escalate Step
             </Button>
           </div>
         </div>

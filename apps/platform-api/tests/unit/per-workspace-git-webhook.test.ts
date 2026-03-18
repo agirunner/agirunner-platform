@@ -7,7 +7,7 @@ import { encryptWebhookSecret } from '../../src/services/webhook-secret-crypto.j
 
 const ENCRYPTION_KEY = 'a]n;.2xN!@#superSecretEncKey1234567890';
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
-const WORKSPACE_ID = '00000000-0000-0000-0000-000000000099';
+const PROJECT_ID = '00000000-0000-0000-0000-000000000099';
 
 /* ------------------------------------------------------------------ */
 /*  extractRepositoryUrl                                               */
@@ -84,10 +84,10 @@ function createIdentity() {
 describe('WorkspaceService.setGitWebhookConfig', () => {
   it('encrypts secret and stores provider', async () => {
     const pool = createMockPool({
-      'SELECT': { rows: [{ id: WORKSPACE_ID, tenant_id: TENANT_ID }], rowCount: 1 },
+      'SELECT': { rows: [{ id: PROJECT_ID, tenant_id: TENANT_ID }], rowCount: 1 },
       'UPDATE': {
         rows: [{
-          id: WORKSPACE_ID,
+          id: PROJECT_ID,
           name: 'test',
           slug: 'test',
           git_webhook_provider: 'github',
@@ -106,7 +106,7 @@ describe('WorkspaceService.setGitWebhookConfig', () => {
 
     const result = await service.setGitWebhookConfig(
       createIdentity(),
-      WORKSPACE_ID,
+      PROJECT_ID,
       { provider: 'github', secret: 'my-webhook-secret' },
     );
 
@@ -124,9 +124,9 @@ describe('WorkspaceService.setGitWebhookConfig', () => {
   it('emits workspace.git_webhook_configured event', async () => {
     const eventService = createMockEventService();
     const pool = createMockPool({
-      'SELECT': { rows: [{ id: WORKSPACE_ID, tenant_id: TENANT_ID }], rowCount: 1 },
+      'SELECT': { rows: [{ id: PROJECT_ID, tenant_id: TENANT_ID }], rowCount: 1 },
       'UPDATE': {
-        rows: [{ id: WORKSPACE_ID, name: 'test', slug: 'test', git_webhook_provider: 'github', is_active: true }],
+        rows: [{ id: PROJECT_ID, name: 'test', slug: 'test', git_webhook_provider: 'github', is_active: true }],
         rowCount: 1,
       },
     });
@@ -139,14 +139,14 @@ describe('WorkspaceService.setGitWebhookConfig', () => {
 
     await service.setGitWebhookConfig(
       createIdentity(),
-      WORKSPACE_ID,
+      PROJECT_ID,
       { provider: 'github', secret: 'my-webhook-secret' },
     );
 
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'workspace.git_webhook_configured',
-        entityId: WORKSPACE_ID,
+        entityId: PROJECT_ID,
         data: { provider: 'github' },
       }),
     );
@@ -169,7 +169,7 @@ describe('WorkspaceService.getGitWebhookSecret', () => {
       { WEBHOOK_ENCRYPTION_KEY: ENCRYPTION_KEY },
     );
 
-    const result = await service.getGitWebhookSecret(TENANT_ID, WORKSPACE_ID);
+    const result = await service.getGitWebhookSecret(TENANT_ID, PROJECT_ID);
     expect(result).toEqual({ provider: 'github', secret: 'my-secret' });
   });
 
@@ -187,7 +187,7 @@ describe('WorkspaceService.getGitWebhookSecret', () => {
       { WEBHOOK_ENCRYPTION_KEY: ENCRYPTION_KEY },
     );
 
-    const result = await service.getGitWebhookSecret(TENANT_ID, WORKSPACE_ID);
+    const result = await service.getGitWebhookSecret(TENANT_ID, PROJECT_ID);
     expect(result).toBeNull();
   });
 
@@ -208,7 +208,7 @@ describe('WorkspaceService.findWorkspaceByRepositoryUrl', () => {
   it('finds workspace by matching repository URL', async () => {
     const pool = createMockPool({
       'SELECT': {
-        rows: [{ id: WORKSPACE_ID, tenant_id: TENANT_ID }],
+        rows: [{ id: PROJECT_ID, tenant_id: TENANT_ID }],
         rowCount: 1,
       },
     });
@@ -220,7 +220,7 @@ describe('WorkspaceService.findWorkspaceByRepositoryUrl', () => {
     );
 
     const result = await service.findWorkspaceByRepositoryUrl('https://github.com/org/repo.git');
-    expect(result).toEqual({ id: WORKSPACE_ID, tenant_id: TENANT_ID });
+    expect(result).toEqual({ id: PROJECT_ID, tenant_id: TENANT_ID });
   });
 
   it('returns null when no matching workspace found', async () => {
@@ -238,7 +238,7 @@ describe('WorkspaceService.findWorkspaceByRepositoryUrl', () => {
   it('normalizes URL by stripping .git suffix and lowering case', async () => {
     const pool = createMockPool({
       'SELECT': {
-        rows: [{ id: WORKSPACE_ID, tenant_id: TENANT_ID }],
+        rows: [{ id: PROJECT_ID, tenant_id: TENANT_ID }],
         rowCount: 1,
       },
     });
@@ -263,7 +263,7 @@ describe('WorkspaceService.findWorkspaceByRepositoryUrl', () => {
 
 describe('per-workspace git webhook signature verification', () => {
   it('verifies HMAC-SHA256 signature against per-workspace secret', () => {
-    const secret = 'per-project-secret-123';
+    const secret = 'per-workspace-secret-123';
     const body = Buffer.from(JSON.stringify({ action: 'opened' }));
     const signature = createHmac('sha256', secret).update(body).digest('hex');
 

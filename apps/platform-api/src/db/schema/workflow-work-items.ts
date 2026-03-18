@@ -27,7 +27,6 @@ export const workflowWorkItems = pgTable(
       .references(() => workflows.id),
     parentWorkItemId: uuid('parent_work_item_id').references((): AnyPgColumn => workflowWorkItems.id),
     stageName: text('stage_name').notNull(),
-    currentCheckpoint: text('current_checkpoint'),
     title: text('title').notNull(),
     goal: text('goal'),
     acceptanceCriteria: text('acceptance_criteria'),

@@ -2,7 +2,19 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { ValidationError } from '../errors/domain-errors.js';
 
-type ToolCategory = 'files' | 'search' | 'execution' | 'git' | 'artifacts' | 'memory' | 'web' | 'workflow' | 'control';
+export const toolCategoryValues = [
+  'files',
+  'search',
+  'execution',
+  'git',
+  'artifacts',
+  'memory',
+  'web',
+  'workflow',
+  'control',
+] as const;
+
+type ToolCategory = (typeof toolCategoryValues)[number];
 
 interface ToolTagRow {
   id: string;
@@ -39,6 +51,7 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'artifact_list', name: 'Artifact List', description: 'List workflow artifacts', category: 'artifacts' },
   { id: 'artifact_read', name: 'Artifact Read', description: 'Read an artifact from the store', category: 'artifacts' },
   { id: 'memory_read', name: 'Memory Read', description: 'Read workspace memory', category: 'memory' },
+  { id: 'memory_search', name: 'Memory Search', description: 'Search workspace memory by key or value', category: 'memory' },
   { id: 'memory_write', name: 'Memory Write', description: 'Write workspace memory', category: 'memory' },
   { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a workspace memory key', category: 'memory' },
   { id: 'web_fetch', name: 'Web Fetch', description: 'Fetch and extract content from URLs', category: 'web' },
@@ -49,7 +62,6 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'create_workflow', name: 'Create Workflow', description: 'Create a child workflow', category: 'workflow' },
   { id: 'request_gate_approval', name: 'Request Gate Approval', description: 'Request human approval for a stage gate', category: 'workflow' },
   { id: 'advance_stage', name: 'Advance Stage', description: 'Advance the active playbook stage', category: 'workflow' },
-  { id: 'advance_checkpoint', name: 'Advance Checkpoint', description: 'Advance the active playbook checkpoint', category: 'workflow' },
   { id: 'complete_workflow', name: 'Complete Workflow', description: 'Complete the current workflow', category: 'workflow' },
   { id: 'retry_task', name: 'Retry Task', description: 'Retry a failed or escalated task', category: 'workflow' },
   { id: 'submit_handoff', name: 'Submit Handoff', description: 'Submit the structured handoff for the current task', category: 'workflow' },
@@ -59,7 +71,7 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'read_handoff_chain', name: 'Read Handoff Chain', description: 'Read the structured handoff chain for a workflow work item', category: 'workflow' },
 ];
 
-const allowedCategories = new Set<ToolCategory>(['files', 'search', 'execution', 'git', 'artifacts', 'memory', 'web', 'workflow', 'control']);
+const allowedCategories = new Set<ToolCategory>(toolCategoryValues);
 
 const builtInToolIds = new Set(builtInToolTags.map((tag) => tag.id));
 
@@ -91,6 +103,7 @@ export class ToolTagService {
 
   async createToolTag(identity: ApiKeyIdentity, input: { id: string; name: string; description?: string; category?: string }) {
     const normalized = normalizeToolTag(input);
+    guardNotBuiltIn(normalized.id);
     const result = await this.pool.query<ToolTagRow>(
       `INSERT INTO tool_tags (tenant_id, id, name, description, category)
        VALUES ($1,$2,$3,$4,$5)

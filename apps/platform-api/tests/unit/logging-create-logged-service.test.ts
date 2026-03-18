@@ -39,6 +39,34 @@ describe('methodToAction', () => {
     expect(methodToAction('revokeApiKey')).toBe('revoked');
   });
 
+  it('convertsReplacePrefix', () => {
+    expect(methodToAction('replacePlaybook')).toBe('replaced');
+  });
+
+  it('convertsUpsertPrefix', () => {
+    expect(methodToAction('upsertDefault')).toBe('upserted');
+  });
+
+  it('convertsUploadPrefix', () => {
+    expect(methodToAction('uploadWorkspaceArtifactFile')).toBe('uploaded');
+  });
+
+  it('convertsEnqueuePrefix', () => {
+    expect(methodToAction('enqueue')).toBe('enqueued');
+  });
+
+  it('convertsOverridePrefix', () => {
+    expect(methodToAction('overrideTaskOutput')).toBe('overrode');
+  });
+
+  it('convertsExactAcknowledgedMethodOverrides', () => {
+    expect(methodToAction('acknowledgeSignal')).toBe('acknowledged');
+  });
+
+  it('convertsExactInvokeMethodOverrides', () => {
+    expect(methodToAction('invokeTrigger')).toBe('invoked');
+  });
+
   it('fallsBackToMethodNameForUnknownPrefix', () => {
     expect(methodToAction('doSomething')).toBe('doSomething');
   });
@@ -54,7 +82,7 @@ describe('createLoggedService', () => {
 
   it('proxiesMutationMethodsAndLogsSuccessfully', async () => {
     const service = {
-      createSomething: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'Test Project' }),
+      createSomething: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'Test Workspace' }),
       getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),
     };
     const logInsert = vi.fn().mockResolvedValue(undefined);
@@ -62,8 +90,8 @@ describe('createLoggedService', () => {
 
     const wrapped = createLoggedService(service, 'WorkspaceService', logService as never);
 
-    const result = await wrapped.createSomething({ name: 'Test Project' });
-    expect(result).toEqual({ id: 'proj-1', name: 'Test Project' });
+    const result = await wrapped.createSomething({ name: 'Test Workspace' });
+    expect(result).toEqual({ id: 'proj-1', name: 'Test Workspace' });
 
     // Allow async fire-and-forget to complete
     await new Promise((resolve) => setTimeout(resolve, 10));
@@ -77,7 +105,7 @@ describe('createLoggedService', () => {
         operation: 'config.workspace.created',
         resourceType: 'workspace',
         resourceId: 'proj-1',
-        resourceName: 'Test Project',
+        resourceName: 'Test Workspace',
       }),
     );
   });
@@ -209,6 +237,78 @@ describe('createLoggedService', () => {
           request_id: 'req-task-create-1',
           error_message: 'invalid input value for enum task_state: "paused"',
         }),
+      }),
+    );
+  });
+
+  it('logsReplacePrefixMethodsForPlaybooks', async () => {
+    const service = {
+      replacePlaybook: vi.fn().mockResolvedValue({ id: 'playbook-1', name: 'Workspace Planning' }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'PlaybookService', logService as never);
+    await wrapped.replacePlaybook('tenant-1', 'playbook-1', { name: 'Workspace Planning' });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'config.playbook.replaced',
+        resourceType: 'playbook',
+        resourceId: 'playbook-1',
+        resourceName: 'Workspace Planning',
+      }),
+    );
+  });
+
+  it('logsEnqueueMethodsForWorkflowActivations', async () => {
+    const service = {
+      enqueue: vi.fn().mockResolvedValue({
+        id: 'activation-row-1',
+        activation_id: 'activation-1',
+      }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'WorkflowActivationService', logService as never);
+    await wrapped.enqueue({ tenantId: 'tenant-1' }, 'workflow-1', {
+      request_id: 'req-activation-1',
+      reason: 'manual recheck',
+      event_type: 'workflow.manual',
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task_lifecycle.workflow_activation.enqueued',
+        resourceType: 'workflow_activation',
+        resourceId: 'activation-row-1',
+      }),
+    );
+  });
+
+  it('logsExplicitlyConfiguredMethodsWithoutMutationPrefixes', async () => {
+    const service = {
+      invokeTrigger: vi.fn().mockResolvedValue({ id: 'trigger-1', name: 'Nightly Sync' }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'WebhookWorkItemTriggerService', logService as never);
+    await wrapped.invokeTrigger('tenant-1', 'trigger-1');
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'config.work_item_trigger.invoked',
+        resourceType: 'work_item_trigger',
+        resourceId: 'trigger-1',
+        resourceName: 'Nightly Sync',
       }),
     );
   });

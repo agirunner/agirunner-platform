@@ -157,6 +157,104 @@ export function describeTaskContextPacketKind(
   return null;
 }
 
+interface GovernanceExecutionDescriptor {
+  operationLabel: string;
+  contextLabel: string;
+  headlineSuffix: string;
+  nextAction: string;
+  signals: string[];
+}
+
+const GOVERNANCE_EXECUTION_DESCRIPTORS: Record<string, GovernanceExecutionDescriptor> = {
+  'task.handoff_submitted': {
+    operationLabel: 'Handoff submitted',
+    contextLabel: 'Handoff packet',
+    headlineSuffix: 'submitted specialist handoff',
+    nextAction:
+      'Review the handoff summary and successor context before reactivating downstream work.',
+    signals: ['Governance', 'Handoff'],
+  },
+  'task.review_resolution_applied': {
+    operationLabel: 'Review resolution applied',
+    contextLabel: 'Review resolution packet',
+    headlineSuffix: 'applied review resolution',
+    nextAction:
+      'Confirm the review resolution updated the board state you expected before resuming execution.',
+    signals: ['Governance', 'Review'],
+  },
+  'task.review_resolution_skipped': {
+    operationLabel: 'Review resolution skipped',
+    contextLabel: 'Review resolution packet',
+    headlineSuffix: 'skipped review resolution',
+    nextAction:
+      'Check why the review resolution was skipped before assuming the board is ready to continue.',
+    signals: ['Governance', 'Review'],
+  },
+  'task.retry_scheduled': {
+    operationLabel: 'Retry scheduled',
+    contextLabel: 'Retry packet',
+    headlineSuffix: 'scheduled retry',
+    nextAction:
+      'Confirm the retry lane has the right brief, limits, and predecessor context before it reruns.',
+    signals: ['Governance', 'Retry'],
+  },
+  'task.max_rework_exceeded': {
+    operationLabel: 'Max rework exceeded',
+    contextLabel: 'Rework packet',
+    headlineSuffix: 'exceeded rework limit',
+    nextAction:
+      'Decide whether to escalate, widen the brief, or stop the lane before more rework burns time.',
+    signals: ['Governance', 'Rework'],
+  },
+  'task.escalated': {
+    operationLabel: 'Escalated',
+    contextLabel: 'Escalation packet',
+    headlineSuffix: 'escalated for operator follow-up',
+    nextAction:
+      'Open the escalation context, resolve the blocker, and record the decision before sending work forward.',
+    signals: ['Governance', 'Escalation'],
+  },
+  'task.agent_escalated': {
+    operationLabel: 'Agent escalated',
+    contextLabel: 'Escalation packet',
+    headlineSuffix: 'escalated to a specialist follow-up lane',
+    nextAction:
+      'Inspect the specialist escalation target and confirm the follow-up task has enough context to proceed.',
+    signals: ['Governance', 'Escalation'],
+  },
+  'task.escalation_task_created': {
+    operationLabel: 'Escalation task created',
+    contextLabel: 'Escalation packet',
+    headlineSuffix: 'created escalation follow-up',
+    nextAction:
+      'Inspect the new escalation task and confirm ownership, scope, and urgency.',
+    signals: ['Governance', 'Escalation'],
+  },
+  'task.escalation_response_recorded': {
+    operationLabel: 'Escalation response recorded',
+    contextLabel: 'Escalation packet',
+    headlineSuffix: 'recorded escalation response',
+    nextAction:
+      'Review the response and confirm the downstream task now has enough direction to continue.',
+    signals: ['Governance', 'Escalation'],
+  },
+  'task.escalation_resolved': {
+    operationLabel: 'Escalation resolved',
+    contextLabel: 'Escalation packet',
+    headlineSuffix: 'resolved escalation',
+    nextAction:
+      'Confirm the blocked lane is ready to resume and that any required follow-up has been captured.',
+    signals: ['Governance', 'Escalation'],
+  },
+  'task.escalation_depth_exceeded': {
+    operationLabel: 'Escalation depth exceeded',
+    contextLabel: 'Escalation packet',
+    headlineSuffix: 'exceeded escalation depth',
+    nextAction: 'Stop automatic escalation chaining and decide the next owner manually.',
+    signals: ['Governance', 'Escalation'],
+  },
+};
+
 export function isTaskContextContinuityOperation(operation: string): boolean {
   return describeTaskContextPacketKind(operation) !== null;
 }
@@ -183,6 +281,11 @@ export function summarizeLogContext(entry: LogEntry): string[] {
     items.push('Continuity packet');
   } else if (packetKind === 'predecessor_handoff') {
     items.push('Predecessor handoff packet');
+  } else {
+    const governanceDescriptor = readGovernanceExecutionDescriptor(entry.operation);
+    if (governanceDescriptor) {
+      items.push(governanceDescriptor.contextLabel);
+    }
   }
   return items;
 }
@@ -194,6 +297,10 @@ export function describeExecutionHeadline(entry: LogEntry): string {
   }
   if (packetKind === 'predecessor_handoff') {
     return `${readExecutionSubject(entry)} attached predecessor handoff`;
+  }
+  const governanceDescriptor = readGovernanceExecutionDescriptor(entry.operation);
+  if (governanceDescriptor) {
+    return `${readExecutionSubject(entry)} ${governanceDescriptor.headlineSuffix}`;
   }
   const subject = readExecutionSubject(entry);
   const action = describeExecutionOperationLabel(entry.operation);
@@ -232,6 +339,10 @@ export function describeExecutionSummary(entry: LogEntry): string {
 }
 
 export function describeExecutionOperationLabel(value: string): string {
+  const governanceDescriptor = readGovernanceExecutionDescriptor(value);
+  if (governanceDescriptor) {
+    return governanceDescriptor.operationLabel;
+  }
   const parts = value
     .split('.')
     .map((part) => humanizeToken(part))
@@ -259,6 +370,10 @@ export function describeExecutionNextAction(entry: LogEntry): string {
   if (packetKind === 'predecessor_handoff') {
     return 'Confirm the selected handoff before the step resumes.';
   }
+  const governanceDescriptor = readGovernanceExecutionDescriptor(entry.operation);
+  if (governanceDescriptor) {
+    return governanceDescriptor.nextAction;
+  }
   if (entry.error?.message || entry.status === 'failed') {
     return 'Review the failure packet, then decide whether to retry, rework, or escalate the affected step.';
   }
@@ -277,11 +392,15 @@ export function describeExecutionNextAction(entry: LogEntry): string {
 export function readExecutionSignals(entry: LogEntry): string[] {
   const signals = new Set<string>();
   const packetKind = describeTaskContextPacketKind(entry.operation);
+  const governanceDescriptor = readGovernanceExecutionDescriptor(entry.operation);
   if (packetKind) {
     signals.add('Continuity');
   }
   if (packetKind === 'predecessor_handoff') {
     signals.add('Handoff');
+  }
+  for (const signal of governanceDescriptor?.signals ?? []) {
+    signals.add(signal);
   }
   if (entry.is_orchestrator_task) signals.add('Orchestrator');
   if (entry.activation_id) signals.add('Activation');
@@ -406,6 +525,12 @@ function humanizeToken(value: string): string {
     .split(' ')
     .map((part) => INSPECTOR_ACRONYMS[part.toLowerCase()] ?? part)
     .join(' ');
+}
+
+function readGovernanceExecutionDescriptor(
+  operation: string,
+): GovernanceExecutionDescriptor | null {
+  return GOVERNANCE_EXECUTION_DESCRIPTORS[operation] ?? null;
 }
 
 function containsSignalKeyword(entry: LogEntry, needle: string): boolean {

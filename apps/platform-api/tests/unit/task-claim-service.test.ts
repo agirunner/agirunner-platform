@@ -71,7 +71,10 @@ function createClient(executionMode: 'specialist' | 'orchestrator') {
   };
 }
 
-function createService(client: { query: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> }) {
+function createService(
+  client: { query: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> },
+  overrides: Partial<ConstructorParameters<typeof TaskClaimService>[0]> = {},
+) {
   const pool = {
     connect: vi.fn(async () => client),
   };
@@ -82,6 +85,7 @@ function createService(client: { query: ReturnType<typeof vi.fn>; release: Retur
     getTaskContext: vi.fn(async () => ({})),
     resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
     claimHandleSecret: 'test-claim-handle-secret',
+    ...overrides,
   });
 }
 
@@ -1367,12 +1371,14 @@ describe('TaskClaimService', () => {
     expect(executedSql.some((sql) => sql.includes("SET state = 'claimed'"))).toBe(false);
   });
 
-  it('preserves raw git repository bindings on trusted agent claims', async () => {
+  it('hydrates git credentials from persisted bindings without echoing them back in claimed bindings', async () => {
     const rawBinding = {
       type: 'git_repository',
       repository_url: 'https://github.com/example/repo.git',
       credentials: {
-        token: 'github_pat_example',
+        token: storeProviderSecret('github_pat_example'),
+        ssh_private_key: storeProviderSecret('ssh-private-key'),
+        known_hosts: storeProviderSecret('github.com ssh-ed25519 AAAA'),
       },
     };
     const client = {
@@ -1462,7 +1468,315 @@ describe('TaskClaimService', () => {
       capabilities: ['coding'],
     });
 
-    expect(task?.resource_bindings).toEqual([rawBinding]);
+    expect(task?.credentials).toEqual(
+      expect.objectContaining({
+        git_token: 'github_pat_example',
+        git_ssh_private_key: 'ssh-private-key',
+        git_ssh_known_hosts: 'github.com ssh-ed25519 AAAA',
+      }),
+    );
+    expect(task?.resource_bindings).toEqual([{
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {},
+    }]);
+  });
+
+  it('preserves external git secret references while stripping them from claimed bindings', async () => {
+    const rawBinding = {
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {
+        token: 'secret:GITHUB_PAT',
+      },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.credentials).toEqual(
+      expect.objectContaining({
+        git_token: 'secret:GITHUB_PAT',
+      }),
+    );
+    expect(task?.resource_bindings).toEqual([{
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {},
+    }]);
+  });
+
+  it('hydrates legacy git token_ref aliases while stripping them from claimed bindings', async () => {
+    const rawBinding = {
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {
+        token_ref: 'secret:GITHUB_PAT',
+      },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-token-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-token-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.credentials).toEqual(
+      expect.objectContaining({
+        git_token: 'secret:GITHUB_PAT',
+      }),
+    );
+    expect(task?.resource_bindings).toEqual([{
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {},
+    }]);
+  });
+
+  it('hydrates legacy git secret_ref aliases while stripping them from claimed bindings', async () => {
+    const rawBinding = {
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {
+        secret_ref: 'secret:GITHUB_PAT',
+      },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-secret-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-secret-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.credentials).toEqual(
+      expect.objectContaining({
+        git_token: 'secret:GITHUB_PAT',
+      }),
+    );
+    expect(task?.resource_bindings).toEqual([{
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {},
+    }]);
   });
 
   it('returns task-bound oauth claim handles instead of decrypted at-rest values', async () => {
@@ -1948,6 +2262,424 @@ describe('TaskClaimService', () => {
       llm_api_key: 'provider-api-key',
       llm_extra_headers: { Authorization: 'Bearer secret-token' },
     });
+  });
+
+  it('logs the execution contract after a successful claim', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+      insertWithExecutor: vi.fn(async () => undefined),
+    };
+    const resolvedConfig = {
+      provider: {
+        name: 'OpenAI',
+        providerId: 'provider-default',
+        providerType: 'openai',
+        authMode: 'api_key',
+        apiKeySecretRef: 'secret:OPENAI_API_KEY',
+        baseUrl: 'https://api.openai.test/v1',
+      },
+      model: {
+        modelId: 'gpt-5',
+        contextWindow: 200000,
+        maxOutputTokens: 128000,
+        endpointType: 'responses',
+        reasoningConfig: null,
+        inputCostPerMillionUsd: 2.5,
+        outputCostPerMillionUsd: 10,
+      },
+      reasoningConfig: { reasoning_effort: 'low' },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-exec-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [{
+                type: 'git_repository',
+                repository_url: 'https://github.com/example/repo.git',
+                credentials: {
+                  token: 'secret:GITHUB_PAT',
+                },
+              }],
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM runtime_defaults")) {
+          const key = params?.[1];
+          if (key === 'agent.max_iterations') {
+            return { rowCount: 1, rows: [{ config_value: '100' }] };
+          }
+          if (key === 'agent.llm_max_retries') {
+            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          }
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-exec-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [{
+                type: 'git_repository',
+                repository_url: 'https://github.com/example/repo.git',
+                credentials: {
+                  token: 'secret:GITHUB_PAT',
+                },
+              }],
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      logService: logService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => resolvedConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    const contractEntry = (logService.insertWithExecutor.mock.calls[0] as unknown[] | undefined)?.[1] as
+      | Record<string, unknown>
+      | undefined;
+    expect(contractEntry).toBeDefined();
+    expect(contractEntry).toMatchObject({
+      tenantId: 'tenant-1',
+      operation: 'task.execution_contract_resolved',
+      workflowId: 'wf-1',
+      taskId: 'task-exec-contract',
+      workItemId: 'wi-1',
+      payload: expect.objectContaining({
+        agent_id: 'agent-1',
+        llm_provider: 'openai',
+        llm_model: 'gpt-5',
+        llm_context_window: 200000,
+        llm_max_output_tokens: 128000,
+        llm_endpoint_type: 'responses',
+        llm_reasoning_config: { reasoning_effort: 'low' },
+        llm_input_cost_per_million_usd: 2.5,
+        llm_output_cost_per_million_usd: 10,
+        loop_mode: 'reactive',
+        max_iterations: 100,
+        llm_max_retries: 5,
+        git_repository_binding_count: 1,
+        binding_contains_git_credentials: false,
+        has_git_token: true,
+        has_git_ssh_private_key: false,
+        has_git_ssh_known_hosts: false,
+      }),
+    });
+  });
+
+  it('does not break the claim when execution-contract logging fails', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+      insertWithExecutor: vi.fn(async () => {
+        throw new Error('execution log unavailable');
+      }),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-exec-resilient',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM runtime_defaults")) {
+          const key = params?.[1];
+          if (key === 'agent.max_iterations') {
+            return { rowCount: 1, rows: [{ config_value: '100' }] };
+          }
+          if (key === 'agent.llm_max_retries') {
+            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          }
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-exec-resilient',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      logService: logService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task).not.toBeNull();
+    expect(task?.id).toBe('task-exec-resilient');
+    expect(logService.insertWithExecutor).toHaveBeenCalledTimes(1);
+  });
+
+  it('excludes secrets from the execution-contract log payload', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+      insertWithExecutor: vi.fn(async () => undefined),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-no-secrets',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {
+                llm_api_key: 'plaintext-key-should-not-leak',
+              },
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("FROM runtime_defaults")) {
+          const key = params?.[1];
+          if (key === 'agent.max_iterations') {
+            return { rowCount: 1, rows: [{ config_value: '100' }] };
+          }
+          if (key === 'agent.llm_max_retries') {
+            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          }
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-no-secrets',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {
+                llm_api_key: 'plaintext-key-should-not-leak',
+              },
+              metadata: {},
+              is_orchestrator_task: false,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: eventService as never,
+      logService: logService as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => ({
+        ...defaultResolvedRoleConfig,
+        provider: {
+          ...defaultResolvedRoleConfig.provider,
+          apiKeySecretRef: 'secret:OPENAI_API_KEY',
+        },
+      })),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    const contractEntry = (logService.insertWithExecutor.mock.calls[0] as unknown[] | undefined)?.[1] as
+      | { payload?: Record<string, unknown> }
+      | undefined;
+    expect(contractEntry).toBeDefined();
+    const data = contractEntry?.payload as Record<string, unknown>;
+    const secretKeys = [
+      'llm_api_key', 'llm_api_key_secret_ref', 'llm_api_key_claim_handle',
+      'llm_extra_headers', 'llm_extra_headers_secret_ref', 'llm_extra_headers_claim_handle',
+      'api_key', 'access_token', 'token', 'authorization', 'apiKeySecretRef', 'baseUrl',
+    ];
+    for (const key of secretKeys) {
+      expect(data).not.toHaveProperty(key);
+    }
   });
 
   it('creates claim handles from encrypted resolved provider secrets even without a provider id', async () => {

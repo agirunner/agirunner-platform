@@ -68,8 +68,8 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Progress Model\nCheckpoint-driven');
     expect(layer!.content).toContain('## Current Stage\nreview');
     expect(layer!.content).toContain('Human gate: yes');
-    expect(layer!.content).toContain('## Checkpoint Routing');
-    expect(layer!.content).toContain('Successor checkpoint after acceptance: verification');
+    expect(layer!.content).toContain('## Stage Routing');
+    expect(layer!.content).toContain('Successor stage after acceptance: verification');
     expect(layer!.content).toContain('## Rule Results');
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');

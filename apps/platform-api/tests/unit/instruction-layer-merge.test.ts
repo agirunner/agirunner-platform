@@ -8,7 +8,7 @@ describe('flattenInstructionLayers', () => {
     const layers = {
       platform: { content: 'Be helpful', format: 'text' },
       workflow: { content: 'Workflow context', format: 'text' },
-      workspace: { content: 'Project rules', format: 'text' },
+      workspace: { content: 'Workspace rules', format: 'text' },
       role: { content: 'Role rules', format: 'text' },
       task: { content: 'Task instructions', format: 'text' },
     };
@@ -17,7 +17,7 @@ describe('flattenInstructionLayers', () => {
 
     expect(result).toContain('=== Platform Instructions ===\nBe helpful');
     expect(result).toContain('=== Workflow Context ===\nWorkflow context');
-    expect(result).toContain('=== Workspace Instructions ===\nProject rules');
+    expect(result).toContain('=== Workspace Instructions ===\nWorkspace rules');
     expect(result).toContain('=== Role Instructions ===\nRole rules');
     expect(result).not.toContain('Task instructions');
   });

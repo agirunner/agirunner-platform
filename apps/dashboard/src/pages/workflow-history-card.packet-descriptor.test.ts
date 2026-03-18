@@ -133,6 +133,131 @@ describe('describeTimelineEventPacket', () => {
     expect(packet.disclosureLabel).toBe('Open full step packet');
   });
 
+  it('turns handoff events into explicit handoff packets', () => {
+    const event = buildEvent({
+      type: 'task.handoff_submitted',
+      actor_type: 'task',
+      actor_id: 'task-9',
+      entity_type: 'task',
+      entity_id: 'task-9',
+      data: {
+        task_id: 'task-9',
+        work_item_id: 'wi-1',
+        stage_name: 'implementation',
+        role: 'architect',
+        summary: 'Verified the callback flow and handed off the release notes.',
+        completion: 'completed',
+      },
+    });
+
+    const packet = describeTimelineEventPacket(event, describeTimelineEvent(event, context));
+
+    expect(packet.typeLabel).toBe('Handoff');
+    expect(packet.summary).toBe('Implement OAuth callback flow submitted a specialist handoff.');
+    expect(packet.detail).toContain('handed off the release notes');
+    expect(packet.facts).toEqual(
+      expect.arrayContaining([
+        { label: 'Step', value: 'Implement OAuth callback flow' },
+        { label: 'Role', value: 'Architect' },
+        { label: 'Stage', value: 'implementation' },
+        { label: 'Work item', value: 'Implement OAuth callback flow' },
+      ]),
+    );
+    expect(packet.disclosureLabel).toBe('Open full handoff packet');
+  });
+
+  it('turns review resolution events into explicit review packets', () => {
+    const event = buildEvent({
+      type: 'task.review_resolution_applied',
+      actor_type: 'task',
+      actor_id: 'task-9',
+      entity_type: 'task',
+      entity_id: 'task-9',
+      data: {
+        task_id: 'task-9',
+        work_item_id: 'wi-1',
+        stage_name: 'implementation',
+        role: 'architect',
+        summary: 'Applied the requested review edits before rerunning checks.',
+      },
+    });
+
+    const packet = describeTimelineEventPacket(event, describeTimelineEvent(event, context));
+
+    expect(packet.typeLabel).toBe('Review resolution');
+    expect(packet.summary).toBe('Implement OAuth callback flow applied review resolution.');
+    expect(packet.detail).toContain('requested review edits');
+    expect(packet.disclosureLabel).toBe('Open full review packet');
+  });
+
+  it('turns retry and rework events into explicit recovery packets', () => {
+    const retryEvent = buildEvent({
+      type: 'task.retry_scheduled',
+      actor_type: 'task',
+      actor_id: 'task-9',
+      entity_type: 'task',
+      entity_id: 'task-9',
+      data: {
+        task_id: 'task-9',
+        work_item_id: 'wi-1',
+        stage_name: 'implementation',
+        role: 'architect',
+        reason: 'Retry after refreshing the callback secret.',
+      },
+    });
+    const reworkEvent = buildEvent({
+      type: 'task.max_rework_exceeded',
+      actor_type: 'task',
+      actor_id: 'task-9',
+      entity_type: 'task',
+      entity_id: 'task-9',
+      data: {
+        task_id: 'task-9',
+        work_item_id: 'wi-1',
+        stage_name: 'implementation',
+        role: 'architect',
+        reason: 'The callback fix exceeded the allowed rework limit.',
+      },
+    });
+
+    const retryPacket = describeTimelineEventPacket(retryEvent, describeTimelineEvent(retryEvent, context));
+    const reworkPacket = describeTimelineEventPacket(reworkEvent, describeTimelineEvent(reworkEvent, context));
+
+    expect(retryPacket.typeLabel).toBe('Recovery');
+    expect(retryPacket.summary).toBe('Implement OAuth callback flow scheduled another execution attempt.');
+    expect(retryPacket.detail).toContain('refreshing the callback secret');
+    expect(retryPacket.disclosureLabel).toBe('Open full recovery packet');
+
+    expect(reworkPacket.typeLabel).toBe('Recovery');
+    expect(reworkPacket.summary).toBe('Implement OAuth callback flow exceeded the allowed rework limit.');
+    expect(reworkPacket.detail).toContain('allowed rework limit');
+    expect(reworkPacket.disclosureLabel).toBe('Open full recovery packet');
+  });
+
+  it('turns escalation events into explicit escalation packets', () => {
+    const event = buildEvent({
+      type: 'task.escalation_response_recorded',
+      actor_type: 'operator',
+      actor_id: 'user-1',
+      entity_type: 'task',
+      entity_id: 'task-9',
+      data: {
+        task_id: 'task-9',
+        work_item_id: 'wi-1',
+        stage_name: 'implementation',
+        role: 'architect',
+        summary: 'Operator approved the emergency rollout path.',
+      },
+    });
+
+    const packet = describeTimelineEventPacket(event, describeTimelineEvent(event, context));
+
+    expect(packet.typeLabel).toBe('Escalation');
+    expect(packet.summary).toBe('Implement OAuth callback flow received an escalation response.');
+    expect(packet.detail).toContain('emergency rollout path');
+    expect(packet.disclosureLabel).toBe('Open full escalation packet');
+  });
+
   it('turns stage gate packets into explicit decision summaries', () => {
     const event = buildEvent({
       type: 'stage.gate.request_changes',

@@ -362,7 +362,7 @@ describe('task query service git activity (FR-055)', () => {
         return {
           rows: [{
             id: 'workspace-1',
-            name: 'Project',
+            name: 'Workspace',
             description: 'Desc',
             memory: { deployment_token: 'deploy-secret' },
           }],

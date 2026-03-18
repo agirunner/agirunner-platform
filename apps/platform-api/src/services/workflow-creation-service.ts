@@ -197,7 +197,7 @@ export class WorkflowCreationService {
       [tenantId, workspaceId],
     );
     if (!result.rowCount) {
-      throw new NotFoundError('Project not found');
+      throw new NotFoundError('Workspace not found');
     }
     return readWorkspaceSettingsExtras(result.rows[0].settings);
   }

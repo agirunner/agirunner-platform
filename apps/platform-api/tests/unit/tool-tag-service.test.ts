@@ -39,7 +39,8 @@ describe('ToolTagService', () => {
       const result = await service.listToolTags('tenant-1');
       const ids = new Set(result.data.map((entry: Record<string, unknown>) => String(entry.id)));
 
-      expect(ids.has('advance_checkpoint')).toBe(true);
+      expect(ids.has('advance_stage')).toBe(true);
+      expect(ids.has('advance_checkpoint')).toBe(false);
       expect(ids.has('submit_handoff')).toBe(true);
       expect(ids.has('read_predecessor_handoff')).toBe(true);
       expect(ids.has('read_work_item_continuity')).toBe(true);
@@ -59,6 +60,21 @@ describe('ToolTagService', () => {
       expect(ids.has('approve_task')).toBe(false);
       expect(ids.has('approve_task_output')).toBe(false);
       expect(ids.has('request_task_changes')).toBe(false);
+    });
+  });
+
+  describe('createToolTag', () => {
+    it('rejects creation that shadows a built-in tool id', async () => {
+      const pool = { query: vi.fn() };
+      const service = new ToolTagService(pool as never);
+
+      await expect(
+        service.createToolTag(mockIdentity(), {
+          id: 'shell_exec',
+          name: 'Shadow Shell Exec',
+          category: 'execution',
+        }),
+      ).rejects.toThrow('Built-in tools cannot be modified');
     });
   });
 

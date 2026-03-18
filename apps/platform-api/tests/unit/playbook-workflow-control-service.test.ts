@@ -1615,6 +1615,7 @@ describe('PlaybookWorkflowControlService', () => {
 
     expect(updated.parent_work_item_id).toBe('wi-3');
     expect(updated.column_id).toBe('done');
+    expect(updated).not.toHaveProperty('current_checkpoint');
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'work_item.updated',

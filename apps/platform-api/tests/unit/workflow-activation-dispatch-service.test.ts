@@ -3783,7 +3783,8 @@ describe('WorkflowActivationDispatchService', () => {
             }),
           );
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('web_search');
-          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('advance_stage');
+          expect((params?.[8] as Record<string, unknown>).tools).toContain('advance_stage');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('advance_checkpoint');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task_output');
           expect((params?.[8] as Record<string, unknown>).tools).not.toContain('request_rework');

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceService } from '../../src/services/workspace-service.js';
 
 describe('WorkspaceService model overrides', () => {
-  it('drops retired workspace model overrides during workspace updates', async () => {
+  it('drops retired legacy model overrides during workspace updates', async () => {
     const pool = {
       query: vi
         .fn()
@@ -12,8 +12,8 @@ describe('WorkspaceService model overrides', () => {
           rows: [{
             id: 'workspace-1',
             tenant_id: 'tenant-1',
-            name: 'Project',
-            slug: 'project',
+            name: 'Workspace',
+            slug: 'workspace',
             settings: {},
           }],
         })
@@ -22,8 +22,8 @@ describe('WorkspaceService model overrides', () => {
           rows: [{
             id: 'workspace-1',
             tenant_id: 'tenant-1',
-            name: 'Project',
-            slug: 'project',
+            name: 'Workspace',
+            slug: 'workspace',
             settings: {
               model_overrides: {},
             },

@@ -384,6 +384,29 @@ func (c *PlatformClient) DrainRuntime(runtimeID string) error {
 	return nil
 }
 
+// AcknowledgeWorkerRestart clears the one-shot restart request after DCM has
+// recreated the worker successfully.
+func (c *PlatformClient) AcknowledgeWorkerRestart(desiredStateID string) error {
+	url := fmt.Sprintf("%s/api/v1/fleet/workers/%s/restart/ack", c.baseURL, desiredStateID)
+	req, err := http.NewRequest(http.MethodPost, url, nil)
+	if err != nil {
+		return fmt.Errorf("create restart acknowledgement request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("restart acknowledgement request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("restart acknowledgement API returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
+
 // FailTask marks a task as failed via the platform API.
 func (c *PlatformClient) FailTask(taskID, reason string) error {
 	payload := map[string]interface{}{

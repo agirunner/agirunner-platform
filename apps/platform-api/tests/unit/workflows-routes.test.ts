@@ -20,6 +20,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
       keyPrefix: 'agent-1',
     };
   },
+  withAllowedScopes: () => async () => {},
   withScope: () => async () => {},
 }));
 

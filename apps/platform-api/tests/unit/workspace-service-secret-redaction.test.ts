@@ -58,12 +58,6 @@ describe('WorkspaceService secret redaction', () => {
         credentials: {
           git_token: null,
           git_token_configured: false,
-          git_ssh_private_key: null,
-          git_ssh_private_key_configured: false,
-          git_ssh_known_hosts: null,
-          git_ssh_known_hosts_configured: false,
-          webhook_secret: null,
-          webhook_secret_configured: false,
         },
         model_overrides: {},
         deployment: {
@@ -108,12 +102,6 @@ describe('WorkspaceService secret redaction', () => {
         credentials: {
           git_token: null,
           git_token_configured: false,
-          git_ssh_private_key: null,
-          git_ssh_private_key_configured: false,
-          git_ssh_known_hosts: null,
-          git_ssh_known_hosts_configured: false,
-          webhook_secret: null,
-          webhook_secret_configured: false,
         },
         model_overrides: {},
         deployment: {
@@ -189,12 +177,6 @@ describe('WorkspaceService secret redaction', () => {
         credentials: {
           git_token: null,
           git_token_configured: false,
-          git_ssh_private_key: null,
-          git_ssh_private_key_configured: false,
-          git_ssh_known_hosts: null,
-          git_ssh_known_hosts_configured: false,
-          webhook_secret: null,
-          webhook_secret_configured: false,
         },
         model_overrides: {},
         endpoint: {

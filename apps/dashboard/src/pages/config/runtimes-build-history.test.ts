@@ -32,6 +32,23 @@ describe('runtimes build history source', () => {
     expect(source).toContain('Recent runtime build linkage and recovery posture');
   });
 
+  it('exposes runtime management actions for validate, build, link, and export', () => {
+    const source = readSource();
+    expect(source).toContain('Runtime Management');
+    expect(source).toContain('Validate manifest');
+    expect(source).toContain('Build runtime image');
+    expect(source).toContain('Link build');
+    expect(source).toContain('Export manifest');
+    expect(source).toContain('describeValidationOutcome');
+    expect(source).toContain('describeBuildOutcome');
+    expect(source).toContain('describeLinkOutcome');
+    expect(source).toContain('describeExportOutcome');
+    expect(source).toContain('describeGatesSummary');
+    expect(source).toContain('useMutation');
+    expect(source).toContain('useQueryClient');
+    expect(source).toContain('RuntimeActionResult');
+  });
+
   it('adds explicit responsive fallbacks instead of relying on tables shrinking', () => {
     const source = readSource();
     expect(source).toContain('lg:hidden');

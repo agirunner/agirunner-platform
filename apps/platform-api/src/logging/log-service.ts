@@ -1,4 +1,4 @@
-import type { DatabasePool } from '../db/database.js';
+import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { sanitizeSecretLikeValue } from '../services/secret-redaction.js';
 import { LEVELS_AT_OR_ABOVE } from './log-levels.js';
 
@@ -211,6 +211,13 @@ export class LogService {
   }
 
   async insert(entry: ExecutionLogEntry): Promise<void> {
+    await this.insertWithExecutor(this.pool, entry);
+  }
+
+  async insertWithExecutor(
+    executor: DatabaseQueryable,
+    entry: ExecutionLogEntry,
+  ): Promise<void> {
     if (this.levelFilter) {
       const shouldWrite = await this.levelFilter.shouldWrite(entry.tenantId, entry.level);
       if (!shouldWrite) return;
@@ -224,14 +231,14 @@ export class LogService {
     const stageName = entry.stageName ?? null;
 
     try {
-      await this.insertRow(entry, workflowName, workspaceName, stageName);
+      await this.insertRow(executor, entry, workflowName, workspaceName, stageName);
     } catch (error) {
       if (!isMissingExecutionLogPartitionError(error)) {
         throw error;
       }
       this.ensuredPartitionDates.delete(partitionDate);
       await this.ensurePartition(partitionDate);
-      await this.insertRow(entry, workflowName, workspaceName, stageName);
+      await this.insertRow(executor, entry, workflowName, workspaceName, stageName);
     }
   }
 
@@ -490,6 +497,7 @@ export class LogService {
   }
 
   private async insertRow(
+    executor: DatabaseQueryable,
     entry: ExecutionLogEntry,
     workflowName: string | null,
     workspaceName: string | null,
@@ -502,7 +510,7 @@ export class LogService {
     const resourceId = normalizeLogResourceId(entry.resourceId);
     const resourceName = normalizeLogResourceName(entry.resourceName, entry.resourceId, resourceId);
 
-    await this.pool.query(
+    await executor.query(
       `INSERT INTO execution_logs (
         tenant_id, trace_id, span_id, parent_span_id,
         source, category, level, operation, status, duration_ms,

@@ -2,6 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { LogService } from '../logging/log-service.js';
 import { logPredecessorHandoffResolution } from '../logging/predecessor-handoff-log.js';
+import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
@@ -198,8 +199,10 @@ export class HandoffService {
       ],
     );
     if (result.rowCount) {
+      const handoff = toTaskHandoffResponse(result.rows[0]);
       await this.enqueueWorkflowActivation(task, payload, db);
-      return toTaskHandoffResponse(result.rows[0]);
+      await this.logSubmittedTaskHandoff(tenantId, task, payload, handoff, db);
+      return handoff;
     }
 
     const existing = await this.loadTaskAttemptHandoff(tenantId, taskId, payload.task_rework_count, db);
@@ -214,6 +217,7 @@ export class HandoffService {
     }
     const updated = await this.updateExistingHandoff(existing.id, payload, db);
     await this.enqueueWorkflowActivation(task, payload, db);
+    await this.logSubmittedTaskHandoff(tenantId, task, payload, updated, db);
     return updated;
   }
 
@@ -285,6 +289,30 @@ export class HandoffService {
       [tenantId, workflowId, workItemId],
     );
     return result.rows[0] ? toTaskHandoffResponse(result.rows[0]) : null;
+  }
+
+  private async logSubmittedTaskHandoff(
+    tenantId: string,
+    task: TaskContextRow,
+    payload: ReturnType<typeof buildNormalizedHandoffPayload>,
+    handoff: Record<string, unknown>,
+    db?: DatabaseClient | DatabasePool,
+  ) {
+    await logTaskGovernanceTransition(this.logService, {
+      tenantId,
+      operation: 'task.handoff.submitted',
+      executor: db,
+      task,
+      payload: {
+        event_type: 'task.handoff_submitted',
+        handoff_id: readOptionalString(handoff.id),
+        handoff_request_id: payload.request_id,
+        task_rework_count: payload.task_rework_count,
+        completion: payload.completion,
+        sequence: readInteger(handoff.sequence),
+        artifact_ids: Array.isArray(handoff.artifact_ids) ? handoff.artifact_ids : [],
+      },
+    });
   }
 
   async getPredecessorHandoff(

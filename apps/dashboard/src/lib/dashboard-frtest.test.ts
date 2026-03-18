@@ -123,9 +123,8 @@ describe('FR-032: workflow list view', () => {
 
   it('workflow-list-page uses board posture and operator summaries', () => {
     const source = readComponent('pages/work/workflow-list-page.tsx');
-    expect(source).toContain('Board Posture');
-    expect(source).toContain('describeOperatorSignal');
-    expect(source).toContain('describeWorkItemSummary');
+    expect(source).toContain('All Postures');
+    expect(source).toContain('SavedViews');
   });
 
   it('workflow-list-page includes V2 launch controls', () => {
@@ -193,9 +192,7 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
   it('task-detail-page exposes produced artifact inspection links', () => {
     const source = readComponent('pages/work/task-detail-page.tsx');
     expect(source).toContain('Artifacts');
-    expect(source).toContain('listTaskArtifacts');
-    expect(source).toContain('Preview');
-    expect(source).toContain('buildArtifactPermalink');
+    expect(source).toContain('TaskDetailArtifactsPanel');
   });
 });
 
@@ -213,7 +210,7 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
   it('workflow-detail-page renders task dependency graph as a list', () => {
     const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
     expect(source).toContain('Execution Steps');
-    expect(source).toContain('depends_on');
+    expect(source).toContain('WorkflowWorkItemDetailPanel');
   });
 
   it('workflow-detail-page renders task state column for live status tracking', () => {
@@ -224,7 +221,7 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
   it('workflow-detail-page exposes playbook board state, resolved config, and workspace timeline', () => {
     const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
     expect(source).toContain('Create Work Item');
-    expect(source).toContain('Live stages');
+    expect(source).toContain('deriveWorkflowStageDisplay');
     expect(source).toContain('Orchestrator Activations');
     expect(source).toContain('Resolved Config');
     expect(source).toContain('Workspace Timeline');
@@ -257,10 +254,10 @@ describe('FR-156: dashboard is tenant-scoped', () => {
     expect(session?.tenantId).toBe('tenant-abc');
   });
 
-  it('layout displays the active tenantId from session', () => {
+  it('layout reads the active session for tenant-scoped operation', () => {
     const source = readComponent('components/layout.tsx');
-    expect(source).toContain('tenantId');
     expect(source).toContain('readSession');
+    expect(source).toContain('clearSession');
   });
 
   it('api.ts scopes all requests to the access token stored in session', () => {
@@ -362,7 +359,7 @@ describe('FR-427: dashboard navigation and layout', () => {
 
   it('layout includes Cmd+K keyboard shortcut for search', () => {
     const source = readComponent('components/layout.tsx');
-    expect(source).toContain("event.key === 'k'");
+    expect(source).toContain("event.key.toLowerCase() === 'k'");
   });
 
   it('layout includes a logout control', () => {
@@ -404,7 +401,7 @@ describe('FR-429: workflow list view with filters', () => {
   it('workflow-list-page renders the workflow table with board posture filtering capability', () => {
     const source = readComponent('pages/work/workflow-list-page.tsx');
     expect(source).toContain('WorkflowListPage');
-    expect(source).toContain('Board Posture');
+    expect(source).toContain('All Postures');
   });
 
   it('listTasks API supports workflow_id filter for scoped task view', () => {

@@ -15,6 +15,8 @@ import {
   readOAuthToken,
   readProviderSecret,
 } from '../lib/oauth-crypto.js';
+import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
+import type { LogService } from '../logging/log-service.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
@@ -43,6 +45,23 @@ const claimRoleConfigSecretKeys = new Set([
 const CLAIM_CREDENTIAL_HANDLE_VERSION = 'v1';
 const CLAIM_CREDENTIAL_HANDLE_ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const CLAIM_CREDENTIAL_HANDLE_IV_LENGTH_BYTES = 12;
+const gitTokenCredentialKeys = ['token', 'git_token', 'access_token', 'token_ref', 'git_token_ref', 'access_token_ref', 'secret_ref'];
+const gitSSHPrivateKeyCredentialKeys = [
+  'git_ssh_private_key',
+  'ssh_private_key',
+  'private_key',
+  'git_ssh_private_key_ref',
+  'ssh_private_key_ref',
+  'private_key_ref',
+];
+const gitSSHKnownHostsCredentialKeys = [
+  'git_ssh_known_hosts',
+  'ssh_known_hosts',
+  'known_hosts',
+  'git_ssh_known_hosts_ref',
+  'ssh_known_hosts_ref',
+  'known_hosts_ref',
+];
 type ClaimCredentialKind = 'llm_api_key' | 'llm_extra_headers';
 interface ClaimCredentialPayload {
   task_id?: string;
@@ -53,6 +72,7 @@ interface ClaimCredentialPayload {
 interface TaskClaimDependencies {
   pool: DatabasePool;
   eventService: EventService;
+  logService?: LogService;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
   getTaskContext: (tenantId: string, taskId: string, agentId?: string) => Promise<unknown>;
   resolveRoleConfig?: (tenantId: string, roleName: string) => Promise<ResolvedRoleConfig | null>;
@@ -100,6 +120,80 @@ interface TaskModelOverrideSelection {
   providerName: string;
   modelId: string;
   requested: boolean;
+}
+
+function buildExecutionContractLogPayload(input: {
+  llmResolution: TaskLLMResolution;
+  loopContract: TaskLoopContract;
+  agentId: string;
+  workerId: string | null;
+  task: Record<string, unknown>;
+}): Record<string, unknown> {
+  const gitContract = describeGitContract(input.task);
+  return {
+    agent_id: input.agentId,
+    worker_id: input.workerId,
+    loop_mode: input.loopContract.loopMode,
+    max_iterations: input.loopContract.maxIterations,
+    llm_max_retries: input.loopContract.llmMaxRetries,
+    llm_provider: input.llmResolution.resolved.provider.providerType,
+    llm_model: input.llmResolution.resolved.model.modelId,
+    llm_context_window: input.llmResolution.resolved.model.contextWindow,
+    llm_max_output_tokens: input.llmResolution.resolved.model.maxOutputTokens,
+    llm_endpoint_type: input.llmResolution.resolved.model.endpointType,
+    llm_reasoning_config: input.llmResolution.resolved.reasoningConfig,
+    llm_input_cost_per_million_usd: input.llmResolution.resolved.model.inputCostPerMillionUsd,
+    llm_output_cost_per_million_usd: input.llmResolution.resolved.model.outputCostPerMillionUsd,
+    ...gitContract,
+  };
+}
+
+function describeGitContract(task: Record<string, unknown>): Record<string, unknown> {
+  const bindings = Array.isArray(task.resource_bindings) ? task.resource_bindings : [];
+  const credentials = isRecord(task.credentials) ? task.credentials : {};
+  return {
+    git_repository_binding_count: countGitRepositoryBindings(bindings),
+    binding_contains_git_credentials: bindingsContainGitCredentials(bindings),
+    has_git_token: typeof credentials.git_token === 'string' && credentials.git_token.trim().length > 0,
+    has_git_ssh_private_key:
+      typeof credentials.git_ssh_private_key === 'string' &&
+      credentials.git_ssh_private_key.trim().length > 0,
+    has_git_ssh_known_hosts:
+      typeof credentials.git_ssh_known_hosts === 'string' &&
+      credentials.git_ssh_known_hosts.trim().length > 0,
+  };
+}
+
+function countGitRepositoryBindings(bindings: unknown[]): number {
+  return bindings.filter(
+    (binding) => isRecord(binding) && String(binding.type ?? '').trim() === 'git_repository',
+  ).length;
+}
+
+function bindingsContainGitCredentials(bindings: unknown[]): boolean {
+  return bindings.some((binding) => {
+    if (!isRecord(binding) || String(binding.type ?? '').trim() !== 'git_repository') {
+      return false;
+    }
+    return recordContainsGitCredentials(binding) || recordContainsGitCredentials(binding.credentials);
+  });
+}
+
+function recordContainsGitCredentials(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return [
+    'token',
+    'git_token',
+    'access_token',
+    'git_ssh_private_key',
+    'ssh_private_key',
+    'private_key',
+    'git_ssh_known_hosts',
+    'ssh_known_hosts',
+    'known_hosts',
+  ].some((key) => typeof value[key] === 'string' && value[key].trim().length > 0);
 }
 
 export class TaskClaimService {
@@ -297,7 +391,21 @@ export class TaskClaimService {
         claimedTask,
         llmResolution,
       );
-      const { context: _taskContext, ...claimedTaskBase } = enrichedTask as Record<string, unknown>;
+      const runtimeReadyTask = hydrateClaimGitCredentials(enrichedTask);
+      await logTaskGovernanceTransition(this.deps.logService, {
+        tenantId: identity.tenantId,
+        operation: 'task.execution_contract_resolved',
+        executor: client,
+        task: runtimeReadyTask,
+        payload: buildExecutionContractLogPayload({
+          llmResolution,
+          loopContract,
+          agentId: payload.agent_id,
+          workerId: payload.worker_id ?? null,
+          task: runtimeReadyTask,
+        }),
+      });
+      const { context: _taskContext, ...claimedTaskBase } = runtimeReadyTask as Record<string, unknown>;
       const instructionContext = (await this.deps.getTaskContext(
         identity.tenantId,
         task.id as string,
@@ -929,6 +1037,126 @@ function mergeClaimRuntimeBindings(
     ...claimedTask,
     resource_bindings: persistedBindings,
   };
+}
+
+function hydrateClaimGitCredentials(task: Record<string, unknown>): Record<string, unknown> {
+  const bindings = Array.isArray(task.resource_bindings)
+    ? (task.resource_bindings as unknown[])
+    : null;
+  if (!bindings) {
+    return task;
+  }
+
+  let gitToken: string | null = null;
+  let gitSSHPrivateKey: string | null = null;
+  let gitSSHKnownHosts: string | null = null;
+
+  const sanitizedBindings = bindings.map((binding) => {
+    if (!isRecord(binding) || String(binding.type ?? '').trim() !== 'git_repository') {
+      return binding;
+    }
+
+    const credentials = isRecord(binding.credentials) ? binding.credentials : {};
+    const nextBinding: Record<string, unknown> = { ...binding };
+    const nextCredentials: Record<string, unknown> = { ...credentials };
+
+    gitToken ??= readGitBindingCredential(binding, credentials, gitTokenCredentialKeys);
+    gitSSHPrivateKey ??= readGitBindingCredential(
+      binding,
+      credentials,
+      gitSSHPrivateKeyCredentialKeys,
+    );
+    gitSSHKnownHosts ??= readGitBindingCredential(
+      binding,
+      credentials,
+      gitSSHKnownHostsCredentialKeys,
+    );
+
+    stripGitBindingCredential(nextBinding, nextCredentials, gitTokenCredentialKeys);
+    stripGitBindingCredential(
+      nextBinding,
+      nextCredentials,
+      gitSSHPrivateKeyCredentialKeys,
+    );
+    stripGitBindingCredential(
+      nextBinding,
+      nextCredentials,
+      gitSSHKnownHostsCredentialKeys,
+    );
+
+    if (isRecord(binding.credentials)) {
+      nextBinding.credentials = nextCredentials;
+    }
+
+    return nextBinding;
+  });
+
+  const claimCredentials: Record<string, unknown> = {};
+  if (gitToken) {
+    claimCredentials.git_token = gitToken;
+  }
+  if (gitSSHPrivateKey) {
+    claimCredentials.git_ssh_private_key = gitSSHPrivateKey;
+  }
+  if (gitSSHKnownHosts) {
+    claimCredentials.git_ssh_known_hosts = gitSSHKnownHosts;
+  }
+
+  const nextTask = {
+    ...task,
+    resource_bindings: sanitizedBindings,
+  };
+
+  return Object.keys(claimCredentials).length > 0
+    ? attachClaimCredentials(nextTask, claimCredentials)
+    : nextTask;
+}
+
+function readGitBindingCredential(
+  binding: Record<string, unknown>,
+  credentials: Record<string, unknown>,
+  candidates: string[],
+): string | null {
+  const stored = firstPresentString(binding, credentials, candidates);
+  if (!stored) {
+    return null;
+  }
+  return isExternalSecretReference(stored) ? stored : readProviderSecret(stored);
+}
+
+function stripGitBindingCredential(
+  binding: Record<string, unknown>,
+  credentials: Record<string, unknown>,
+  candidates: string[],
+): void {
+  for (const candidate of candidates) {
+    delete binding[candidate];
+    delete credentials[candidate];
+  }
+}
+
+function firstPresentString(
+  binding: Record<string, unknown>,
+  credentials: Record<string, unknown>,
+  candidates: string[],
+): string | null {
+  for (const candidate of candidates) {
+    const direct = readPresentString(binding[candidate]);
+    if (direct !== null) {
+      return direct;
+    }
+  }
+  for (const candidate of candidates) {
+    const nested = readPresentString(credentials[candidate]);
+    if (nested !== null) {
+      return nested;
+    }
+  }
+  return null;
+}
+
+function readPresentString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
 function attachClaimCredentials(

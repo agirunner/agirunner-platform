@@ -32,10 +32,12 @@ describe('WorkItemService', () => {
             rowCount: 1,
           };
         }
-        if (sql.includes('SELECT * FROM workflow_work_items') && sql.includes('request_id')) {
+        if (sql.includes('FROM workflow_work_items') && sql.includes('request_id = $3')) {
+          expect(sql).not.toContain('SELECT *');
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
+          expect(sql).not.toContain('RETURNING *');
           expect(params?.[4]).toBe('requirements');
           return {
             rows: [
@@ -168,7 +170,8 @@ describe('WorkItemService', () => {
             rowCount: 1,
           };
         }
-        if (sql.includes('SELECT * FROM workflow_work_items') && sql.includes('request_id')) {
+        if (sql.includes('FROM workflow_work_items') && sql.includes('request_id = $3')) {
+          expect(sql).not.toContain('SELECT *');
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
@@ -274,9 +277,11 @@ describe('WorkItemService', () => {
           };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
+          expect(sql).not.toContain('RETURNING *');
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('FROM workflow_work_items') && sql.includes('request_id = $3')) {
+          expect(sql).not.toContain('SELECT *');
           expect(params).toEqual(['tenant-1', 'workflow-1', 'req-1']);
           return {
             rows: [
@@ -826,6 +831,7 @@ describe('WorkItemService', () => {
   it('lists milestone-aware work items with filters and grouped children', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
+        expect(sql).not.toContain('wi.*');
         expect(sql).toContain('COUNT(DISTINCT child.id)::int AS children_count');
         expect(sql).toContain('COUNT(DISTINCT child.id) FILTER (WHERE child.completed_at IS NOT NULL)::int AS children_completed');
         expect(sql).toContain('wi.stage_name = $3');

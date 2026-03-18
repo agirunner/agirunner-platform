@@ -691,7 +691,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(resolveEscalationSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_resolve_escalation',

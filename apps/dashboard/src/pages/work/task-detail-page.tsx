@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import {
@@ -35,6 +36,13 @@ import {
 } from './task-operator-flow.js';
 import { TaskDetailArtifactsPanel } from './task-detail-artifacts-panel.js';
 import { TaskDetailContextSection } from './task-detail-context-section.js';
+import {
+  StepManualEscalationDialog,
+  StepOutputOverrideDialog,
+  WorkItemReassignDialog,
+  formatOutputOverrideDraft,
+  parseOutputOverrideDraft,
+} from '../workflow-work-item-task-review-dialogs.js';
 
 interface Task {
   id: string;
@@ -155,20 +163,37 @@ function InfoCard({
 
 function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const queryClient = useQueryClient();
+  const agentsQuery = useQuery({
+    queryKey: ['task-detail-agents'],
+    queryFn: () => dashboardApi.listAgents(),
+    staleTime: 60_000,
+  });
   const status = resolveStatus(task);
   const isAwaitingApproval = status === 'awaiting_approval';
   const isOutputReview = status === 'output_pending_review';
   const isEscalated = status === 'escalated';
   const isFailed = status === 'failed';
   const isInProgress = status === 'in_progress';
+  const isClaimed = status === 'claimed';
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
   const workflowOperatorPermalink = buildWorkflowOperatorPermalink(task);
+  const [isManualEscalationDialogOpen, setIsManualEscalationDialogOpen] = useState(false);
+  const [isOutputOverrideDialogOpen, setIsOutputOverrideDialogOpen] = useState(false);
+  const [isReassignDialogOpen, setIsReassignDialogOpen] = useState(false);
+  const [escalationReason, setEscalationReason] = useState('');
+  const [escalationTarget, setEscalationTarget] = useState('human');
+  const [outputOverrideDraft, setOutputOverrideDraft] = useState(formatOutputOverrideDraft(task.output));
+  const [outputOverrideReason, setOutputOverrideReason] = useState('');
+  const [reassignReason, setReassignReason] = useState('');
+  const [reassignAgentId, setReassignAgentId] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const approveMutation = useMutation({
     mutationFn: () =>
       isOutputReview ? dashboardApi.approveTaskOutput(task.id) : dashboardApi.approveTask(task.id),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
@@ -177,6 +202,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const rejectMutation = useMutation({
     mutationFn: () => dashboardApi.rejectTask(task.id, { feedback: 'Rejected from dashboard' }),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
@@ -185,6 +211,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const retryMutation = useMutation({
     mutationFn: () => dashboardApi.retryTask(task.id),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
@@ -193,16 +220,90 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const cancelMutation = useMutation({
     mutationFn: () => dashboardApi.cancelTask(task.id),
     onSuccess: () => {
+      setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+  });
+  const reassignMutation = useMutation({
+    mutationFn: () => {
+      const selectedAgentId = reassignAgentId?.trim();
+      if (!selectedAgentId) {
+        throw new Error('Select an agent before reassigning this step.');
+      }
+      const reason = reassignReason.trim();
+      if (!reason) {
+        throw new Error('Add a reason before reassigning this step.');
+      }
+      return dashboardApi.reassignTask(task.id, {
+        preferred_agent_id: selectedAgentId,
+        reason,
+      });
+    },
+    onSuccess: () => {
+      setActionError(null);
+      setReassignReason('');
+      setReassignAgentId(null);
+      setIsReassignDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : 'Failed to reassign step.');
+    },
+  });
+  const escalateMutation = useMutation({
+    mutationFn: () => {
+      const reason = escalationReason.trim();
+      if (!reason) {
+        throw new Error('Add a reason before escalating this step.');
+      }
+      return dashboardApi.escalateTask(task.id, {
+        reason,
+        escalation_target: escalationTarget.trim() || 'human',
+      });
+    },
+    onSuccess: () => {
+      setActionError(null);
+      setEscalationReason('');
+      setEscalationTarget('human');
+      setIsManualEscalationDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : 'Failed to escalate step.');
+    },
+  });
+  const overrideOutputMutation = useMutation({
+    mutationFn: () =>
+      dashboardApi.overrideTaskOutput(task.id, {
+        output: parseOutputOverrideDraft(outputOverrideDraft),
+        reason: outputOverrideReason.trim(),
+      }),
+    onSuccess: () => {
+      setActionError(null);
+      setIsOutputOverrideDialogOpen(false);
+      setOutputOverrideDraft(formatOutputOverrideDraft(task.output));
+      setOutputOverrideReason('');
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : 'Failed to override output.');
     },
   });
 
   const isActionPending =
     approveMutation.isPending ||
+    reassignMutation.isPending ||
+    escalateMutation.isPending ||
+    overrideOutputMutation.isPending ||
     rejectMutation.isPending ||
     retryMutation.isPending ||
     cancelMutation.isPending;
+  const canReassign = status !== 'completed' && status !== 'escalated';
+  const canEscalate = isClaimed || isInProgress;
 
   if (workflowOperatorPermalink && workflowOperatorFlow) {
     return (
@@ -217,14 +318,15 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
         <p className="text-xs text-muted">
           {workItemFlow
             ? 'This step belongs to a workflow work item. Operator review, rework, and retry decisions should run through the work-item panel so gate state, linked steps, and board context stay aligned.'
-            : 'Use the workflow operator flow so board context stays aligned before mutating the step directly.'}
+            : 'Use the workflow operator flow so board context stays aligned before mutating the step directly. Override the stored output packet there when review requires a corrected payload.'}
         </p>
       </div>
     );
   }
 
   return (
-    <div className="flex gap-2">
+    <div className="space-y-2">
+      <div className="flex gap-2">
       {isAwaitingApproval && (
         <>
           <Button
@@ -247,14 +349,29 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
         </>
       )}
       {isOutputReview && (
-        <Button
-          size="sm"
-          disabled={isActionPending}
-          onClick={() => approveMutation.mutate()}
-        >
-          <CheckCircle className="h-4 w-4" />
-          Approve Output
-        </Button>
+        <>
+          <Button
+            size="sm"
+            disabled={isActionPending}
+            onClick={() => approveMutation.mutate()}
+          >
+            <CheckCircle className="h-4 w-4" />
+            Approve Output
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isActionPending}
+            onClick={() => {
+              setActionError(null);
+              setOutputOverrideDraft(formatOutputOverrideDraft(task.output));
+              setOutputOverrideReason('');
+              setIsOutputOverrideDialogOpen(true);
+            }}
+          >
+            Override Output
+          </Button>
+        </>
       )}
       {isEscalated && (
         <Button variant="outline" size="sm" asChild>
@@ -262,6 +379,38 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
             <Workflow className="h-4 w-4" />
             Open Escalation Context
           </a>
+        </Button>
+      )}
+      {canEscalate && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isActionPending}
+          onClick={() => {
+            setActionError(null);
+            setEscalationReason('');
+            setEscalationTarget('human');
+            setIsManualEscalationDialogOpen(true);
+          }}
+        >
+          <Workflow className="h-4 w-4" />
+          Escalate Step
+        </Button>
+      )}
+      {canReassign && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isActionPending}
+          onClick={() => {
+            setActionError(null);
+            setReassignReason('');
+            setReassignAgentId(null);
+            setIsReassignDialogOpen(true);
+          }}
+        >
+          <RotateCcw className="h-4 w-4" />
+          Reassign Step
         </Button>
       )}
       {isFailed && (
@@ -286,6 +435,64 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
           Cancel
         </Button>
       )}
+      </div>
+      {actionError ? <p className="text-xs text-destructive">{actionError}</p> : null}
+      <StepManualEscalationDialog
+        isOpen={isManualEscalationDialogOpen}
+        taskTitle={task.title ?? task.name ?? task.id}
+        escalationTarget={escalationTarget}
+        reason={escalationReason}
+        error={isManualEscalationDialogOpen ? actionError : null}
+        isPending={isActionPending}
+        onOpenChange={(open) => {
+          setIsManualEscalationDialogOpen(open);
+          if (!open) {
+            setEscalationReason('');
+            setEscalationTarget('human');
+          }
+        }}
+        onEscalationTargetChange={setEscalationTarget}
+        onReasonChange={setEscalationReason}
+        onSubmit={() => escalateMutation.mutate()}
+      />
+      <StepOutputOverrideDialog
+        isOpen={isOutputOverrideDialogOpen}
+        taskTitle={task.title ?? task.name ?? task.id}
+        description="Override the stored output packet before approving the step."
+        outputDraft={outputOverrideDraft}
+        reason={outputOverrideReason}
+        error={isOutputOverrideDialogOpen ? actionError : null}
+        isPending={isActionPending}
+        onOpenChange={(open) => {
+          setIsOutputOverrideDialogOpen(open);
+          if (!open) {
+            setOutputOverrideDraft(formatOutputOverrideDraft(task.output));
+            setOutputOverrideReason('');
+          }
+        }}
+        onOutputDraftChange={setOutputOverrideDraft}
+        onReasonChange={setOutputOverrideReason}
+        onSubmit={() => overrideOutputMutation.mutate()}
+      />
+      <WorkItemReassignDialog
+        isOpen={isReassignDialogOpen}
+        taskTitle={task.title ?? task.name ?? task.id}
+        agents={agentsQuery.data ?? []}
+        selectedAgentId={reassignAgentId}
+        reason={reassignReason}
+        isLoadingAgents={agentsQuery.isLoading}
+        isPending={isActionPending}
+        onOpenChange={(open) => {
+          setIsReassignDialogOpen(open);
+          if (!open) {
+            setReassignReason('');
+            setReassignAgentId(null);
+          }
+        }}
+        onAgentChange={setReassignAgentId}
+        onReasonChange={setReassignReason}
+        onSubmit={() => reassignMutation.mutate()}
+      />
     </div>
   );
 }

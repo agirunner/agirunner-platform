@@ -209,9 +209,8 @@ function serializeDates(row: Record<string, unknown>) {
 
 function serializeWorkItem(row: Record<string, unknown>) {
   const serialized = serializeDates(row);
-  const { current_checkpoint: _currentCheckpoint, ...rest } = serialized;
   return {
-    ...rest,
+    ...serialized,
     stage_name: typeof serialized.stage_name === 'string' ? serialized.stage_name : null,
   };
 }

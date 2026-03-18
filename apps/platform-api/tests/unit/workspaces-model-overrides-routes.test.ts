@@ -32,7 +32,7 @@ describe('workspace model override routes', () => {
     }
   });
 
-  it('ignores retired workspace model overrides on workspace create instead of rejecting the request', async () => {
+  it('ignores retired legacy model overrides on workspace create instead of rejecting the request', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();

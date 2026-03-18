@@ -19,12 +19,14 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects task completion without a structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or interim progress marker');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
   });
 
-  it('keeps orchestrator prompt aligned with continuity, budget, and checkpoint guidance', () => {
+  it('keeps orchestrator prompt aligned with continuity, budget, and stage guidance', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Operational continuity lives in work items, rule posture, and structured handoffs.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Check workflow budget posture when cost, time, or token pressure matters');
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_checkpoint when planned workflows are ready to move forward.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_stage when planned workflows are ready to move forward.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'complete the predecessor work item if its deliverable is accepted',
     );
@@ -35,19 +37,19 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as an array of objects');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.',
+      'If a playbook has no explicit stage sequence, use board posture and process instructions as the progression model.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'Create successor work items and tasks in the successor checkpoint, not the checkpoint that just finished.',
+      'Create successor work items and tasks in the successor stage, not the stage that just finished.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'every create_work_item and create_task call MUST set stage_name to the checkpoint the new work belongs to.',
+      'every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'Do not keep successor review, QA, or release work anchored to the predecessor checkpoint.',
+      'Do not keep successor review, QA, or release work anchored to the predecessor stage.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Do not end a planned-workflow activation with only a recommendation to advance later.',
@@ -67,6 +69,10 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'On heartbeat-only activations, exit when specialist work is progressing and nothing new is actionable.',
     );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Workspace memory stores decisions, lessons, constraints, watch items, and key file paths.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).not.toContain('Project memory stores');
   });
 
   it('adds predecessor-handoff discipline to every built-in role prompt', () => {
@@ -100,6 +106,12 @@ describe('prompt catalogs', () => {
     );
     expect(BUILT_IN_ROLES.roles['product-manager'].systemPrompt).toContain(
       'quote the exact approved user-facing behavior from QA evidence and current branch content',
+    );
+    expect(BUILT_IN_ROLES.roles['workspace-manager'].systemPrompt).toContain(
+      'You are the Workspace Manager',
+    );
+    expect(BUILT_IN_ROLES.roles['workspace-manager'].capabilities).toEqual(
+      expect.arrayContaining(['workspace-management', 'requirements']),
     );
   });
 

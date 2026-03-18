@@ -150,11 +150,13 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Execution queue');
     expect(source).toContain('Operator next step');
     expect(source).toContain('Approve Step');
+    expect(source).toContain('Override Output');
     expect(source).toContain('Request Changes');
     expect(source).toContain('Resume with Guidance');
     expect(source).toContain('Cancel Step');
     expect(source).toContain('StepChangesDialog');
     expect(source).toContain('StepEscalationDialog');
+    expect(source).toContain('StepOutputOverrideDialog');
     expect(source).toContain('WorkItemReassignDialog');
     expect(source).toContain('DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg"');
     expect(source).toContain('buildWorkItemTaskLinkActions');
@@ -173,6 +175,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('dashboardApi.approveWorkflowWorkItemTask');
     expect(source).toContain('dashboardApi.rejectWorkflowWorkItemTask');
     expect(source).toContain('dashboardApi.requestWorkflowWorkItemTaskChanges');
+    expect(source).toContain('dashboardApi.overrideWorkflowWorkItemTaskOutput');
     expect(source).toContain('dashboardApi.resolveWorkflowWorkItemTaskEscalation');
     expect(source).toContain('dashboardApi.cancelWorkflowWorkItemTask');
     expect(source).not.toContain('dashboardApi.approveTask(');

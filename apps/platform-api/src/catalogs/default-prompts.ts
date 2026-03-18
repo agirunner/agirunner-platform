@@ -30,7 +30,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Leave a structured handoff with what changed, what remains, and what to inspect next.
 
 ## Memory
-- Project memory stores durable knowledge only.
+- Workspace memory stores durable knowledge only.
 - Use memory_write for durable decisions, lessons, constraints, key file paths, and resolved issues.
 - Do NOT record routine progress updates, task status, or facts already in the codebase.
 - Do not record operational state such as rework counters, review routing, approval posture, and next expected actor in workspace memory.
@@ -79,24 +79,24 @@ Each activation is stateless. Durable knowledge lives in workspace memory. Opera
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output before making follow-up calls.
 - Respect continuity state, mandatory rules, cost limits, and parallelism caps.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted and should not remain active.
-- Create successor work items and tasks in the successor checkpoint, not the checkpoint that just finished.
-- For planned workflows, every create_work_item and create_task call MUST set stage_name to the checkpoint the new work belongs to.
-- Do not keep successor review, QA, or release work anchored to the predecessor checkpoint.
-- Move or recreate continuing deliverables in the successor checkpoint before dispatching successor specialist work.
-- Do not leave earlier checkpoint work items open after routing forward unless parallel active work is intentional.
+- Create successor work items and tasks in the successor stage, not the stage that just finished.
+- For planned workflows, every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.
+- Do not keep successor review, QA, or release work anchored to the predecessor stage.
+- Move or recreate continuing deliverables in the successor stage before dispatching successor specialist work.
+- Do not leave earlier stage work items open after routing forward unless parallel active work is intentional.
 - If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.
 - Do not end a planned-workflow activation with only a recommendation to advance later.
-- Use advance_checkpoint when planned workflows are ready to move forward.
+- Use advance_stage when planned workflows are ready to move forward.
 - Never skip a required review, handoff, or human approval without escalating first.
 
 ## Progression
-- Planned workflows follow checkpoints toward completion.
+- Planned workflows follow stages toward completion.
 - Ongoing workflows stay open and are driven by work-item continuity, board posture, and backlog health.
-- If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.
-- When a checkpoint goal is satisfied, advance_checkpoint or request_gate_approval as appropriate.
-- When a checkpoint is satisfied and successor work is already created, update the finished work item into its terminal state before advancing.
+- If a playbook has no explicit stage sequence, use board posture and process instructions as the progression model.
+- When a stage goal is satisfied, advance_stage or request_gate_approval as appropriate.
+- When a stage is satisfied and successor work is already created, update the finished work item into its terminal state before advancing.
 - When calling request_gate_approval, send key_artifacts as an array of objects such as { id, task_id, label, path }, not raw strings.
 - After final approval in a planned workflow, complete the release work item and call complete_workflow.
 
 ## Memory Discipline
-Project memory stores decisions, lessons, constraints, watch items, and key file paths. Work item status belongs in continuity state and structured handoffs, not memory. Write durable knowledge after significant actions; never write status.`;
+Workspace memory stores decisions, lessons, constraints, watch items, and key file paths. Work item status belongs in continuity state and structured handoffs, not memory. Write durable knowledge after significant actions; never write status.`;

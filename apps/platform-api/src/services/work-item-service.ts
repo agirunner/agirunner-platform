@@ -80,6 +80,34 @@ interface WorkflowStageContextRow {
   definition: unknown;
 }
 
+const WORK_ITEM_BASE_COLUMNS = [
+  'id',
+  'workflow_id',
+  'parent_work_item_id',
+  'request_id',
+  'stage_name',
+  'title',
+  'goal',
+  'acceptance_criteria',
+  'column_id',
+  'owner_role',
+  'next_expected_actor',
+  'next_expected_action',
+  'rework_count',
+  'priority',
+  'notes',
+  'created_by',
+  'metadata',
+  'completed_at',
+  'created_at',
+  'updated_at',
+] as const;
+
+function workItemColumnList(tableAlias?: string) {
+  const prefix = tableAlias ? `${tableAlias}.` : '';
+  return WORK_ITEM_BASE_COLUMNS.map((column) => `${prefix}${column}`).join(',\n              ');
+}
+
 export class WorkItemService {
   private readonly memoryScopeService: WorkspaceMemoryScopeService;
 
@@ -274,7 +302,7 @@ export class WorkItemService {
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL
          DO NOTHING
-         RETURNING *`,
+         RETURNING ${workItemColumnList()}`,
         [
           identity.tenantId,
           workflowId,
@@ -300,7 +328,7 @@ export class WorkItemService {
           throw new Error('Failed to create workflow work item');
         }
         const existing = await client.query(
-          `SELECT *
+          `SELECT ${workItemColumnList()}
              FROM workflow_work_items
             WHERE tenant_id = $1
               AND workflow_id = $2
@@ -617,7 +645,7 @@ export class WorkItemService {
     }
 
     const result = await this.pool.query(
-      `SELECT wi.*,
+      `SELECT ${workItemColumnList('wi')},
               COUNT(DISTINCT t.id)::int AS task_count,
               COUNT(DISTINCT child.id)::int AS children_count,
               COUNT(DISTINCT child.id) FILTER (WHERE child.completed_at IS NOT NULL)::int AS children_completed,
@@ -748,9 +776,8 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     allowSecretReferences: false,
   }) as Record<string, unknown>;
   const childrenCount = readCount(sanitizedRow.children_count);
-  const { current_checkpoint: _currentCheckpoint, ...rest } = sanitizedRow;
   return {
-    ...rest,
+    ...sanitizedRow,
     id: String(sanitizedRow.id ?? ''),
     workflow_id: String(sanitizedRow.workflow_id ?? ''),
     parent_work_item_id: typeof sanitizedRow.parent_work_item_id === 'string' ? sanitizedRow.parent_work_item_id : null,

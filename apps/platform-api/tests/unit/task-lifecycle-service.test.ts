@@ -1042,6 +1042,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
   it('fails and escalates when request-changes exceeds the configured max rework count', async () => {
     const eventService = { emit: vi.fn() };
+    const logService = { insert: vi.fn(async () => undefined) };
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -1109,6 +1110,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         },
       }),
       toTaskResponse: (task) => task,
+      logService: logService as never,
     });
 
     const result = await service.requestTaskChanges(
@@ -1134,6 +1136,25 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'task.escalation' }),
       expect.anything(),
+    );
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.max_rework_exceeded',
+        taskId: 'task-max-rework',
+        payload: expect.objectContaining({
+          event_type: 'task.max_rework_exceeded',
+          max_rework_count: 2,
+        }),
+      }),
+    );
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.escalation.policy',
+        taskId: 'task-max-rework',
+        payload: expect.objectContaining({
+          event_type: 'task.escalation',
+        }),
+      }),
     );
   });
 
@@ -1312,6 +1333,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
   it('schedules retry with backoff when lifecycle retry policy marks the failure retryable', async () => {
     const eventService = { emit: vi.fn() };
+    const logService = { insert: vi.fn(async () => undefined) };
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -1360,6 +1382,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         },
       }),
       toTaskResponse: (task) => task,
+      logService: logService as never,
     });
 
     const result = await service.failTask(
@@ -1382,6 +1405,17 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'task.retry_scheduled' }),
       expect.anything(),
+    );
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.retry.scheduled',
+        taskId: 'task-retry-policy',
+        payload: expect.objectContaining({
+          event_type: 'task.retry_scheduled',
+          retry_count: 1,
+          backoff_seconds: 5,
+        }),
+      }),
     );
   });
 
@@ -1947,6 +1981,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
   it('moves a manually escalated task into escalated state and records operator guidance metadata', async () => {
     const eventService = { emit: vi.fn() };
+    const logService = { insert: vi.fn(async () => undefined) };
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -1999,6 +2034,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         metadata: {},
       }),
       toTaskResponse: (task) => task,
+      logService: logService as never,
     });
 
     const result = await service.escalateTask(
@@ -2053,10 +2089,22 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       }),
       expect.anything(),
     );
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.escalation.manual',
+        taskId: 'task-manual-escalate',
+        payload: expect.objectContaining({
+          event_type: 'task.escalated',
+          escalation_target: 'human',
+          escalation_reason: 'Need operator guidance',
+        }),
+      }),
+    );
   });
 
   it('queues role-based escalation tasks in pending and preserves work-item scope when caps are full', async () => {
     const eventService = { emit: vi.fn() };
+    const logService = { insert: vi.fn(async () => undefined) };
     const parallelismService = {
       shouldQueueForCapacity: vi.fn(async () => true),
       releaseQueuedReadyTasks: vi.fn(async () => 1),
@@ -2127,6 +2175,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         max_escalation_depth: 2,
       })),
       parallelismService: parallelismService as never,
+      logService: logService as never,
     });
 
     await service.agentEscalate(
@@ -2161,6 +2210,32 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         data: expect.objectContaining({ state: 'pending' }),
       }),
       client,
+    );
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.escalation.agent',
+        taskId: 'task-role-escalate',
+        workItemId: 'wi-role',
+        stageName: 'build',
+        payload: expect.objectContaining({
+          event_type: 'task.agent_escalated',
+          escalation_target: 'reviewer',
+        }),
+      }),
+    );
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.escalation.task_created',
+        taskId: 'task-role-escalate',
+        workItemId: 'wi-role',
+        stageName: 'build',
+        payload: expect.objectContaining({
+          event_type: 'task.escalation_task_created',
+          escalation_task_id: 'role-escalation-task',
+          target_role: 'reviewer',
+          source_task_id: 'task-role-escalate',
+        }),
+      }),
     );
   });
 
@@ -2337,6 +2412,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
   });
 
   it('records structured human escalation input onto the escalation task', async () => {
+    const logService = { insert: vi.fn(async () => undefined) };
     const loadTaskOrThrow = vi
       .fn()
       .mockResolvedValueOnce({
@@ -2372,6 +2448,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow,
       toTaskResponse: (task) => task,
+      logService: logService as never,
     });
 
     const result = await service.respondToEscalation(
@@ -2395,6 +2472,16 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         instructions: 'Need a product decision',
       },
     });
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'task.escalation.response_recorded',
+        taskId: 'source-task',
+        payload: expect.objectContaining({
+          event_type: 'task.escalation_response_recorded',
+          escalation_task_id: 'escalation-task',
+        }),
+      }),
+    );
   });
 
   it('treats a repeated human escalation response as idempotent once it is recorded', async () => {

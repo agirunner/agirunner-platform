@@ -108,7 +108,7 @@ const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
     description: 'Investigates options, evaluates trade-offs, explores solutions.',
   },
   {
-    value: 'project-management',
+    value: 'workspace-management',
     label: 'Workspace management',
     category: 'Coordination',
     description: 'Plans, coordinates, tracks progress, and manages stakeholders.',
@@ -121,7 +121,7 @@ const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
   },
 ];
 
-export const KNOWN_TOOLS = ['file_read', 'file_write', 'file_edit', 'file_list', 'grep', 'glob', 'tool_search', 'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_write', 'web_fetch', 'escalate'];
+export const KNOWN_TOOLS = ['file_read', 'file_write', 'file_edit', 'file_list', 'grep', 'glob', 'tool_search', 'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_search', 'memory_write', 'web_fetch', 'escalate'];
 
 export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
   return {

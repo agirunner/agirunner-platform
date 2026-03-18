@@ -152,4 +152,44 @@ describe('public log row', () => {
       message: '[REDACTED]',
     });
   });
+
+  it('preserves non-secret token omission diagnostics in public payloads', () => {
+    const row = toPublicLogRow({
+      id: '1',
+      tenant_id: 'tenant-1',
+      trace_id: 'trace-1',
+      span_id: 'span-1',
+      parent_span_id: null,
+      source: 'runtime',
+      category: 'llm',
+      level: 'info',
+      operation: 'llm.chat_stream',
+      status: 'completed',
+      duration_ms: 10,
+      payload: {
+        max_output_tokens_omission_reason: 'not_supplied_in_task_contract',
+      },
+      error: null,
+      workspace_id: null,
+      workflow_id: 'workflow-1',
+      workflow_name: 'Flow',
+      workspace_name: null,
+      task_id: 'task-1',
+      work_item_id: 'work-item-1',
+      stage_name: 'review',
+      activation_id: 'activation-1',
+      is_orchestrator_task: false,
+      task_title: 'Run work',
+      role: 'developer',
+      actor_type: 'system',
+      actor_id: 'worker-1',
+      actor_name: 'worker-1',
+      resource_type: null,
+      resource_id: null,
+      resource_name: null,
+      created_at: '2026-03-11T00:00:00.000Z',
+    });
+
+    expect(row.payload.max_output_tokens_omission_reason).toBe('not_supplied_in_task_contract');
+  });
 });

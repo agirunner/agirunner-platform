@@ -16,7 +16,7 @@ corepack pnpm exec vitest run \
   tests/unit/task-claim-service.test.ts \
   tests/unit/task-write-service.test.ts \
   tests/unit/work-item-service.test.ts \
-  tests/unit/project-timeline-service.test.ts \
+  tests/unit/workspace-timeline-service.test.ts \
   --reporter=dot
 
 cd "$ROOT_DIR/apps/dashboard"
@@ -26,8 +26,8 @@ corepack pnpm exec vitest run \
   src/pages/workflow-detail-sections.test.ts \
   src/pages/work/approval-queue-page.test.ts \
   src/pages/mission-control/live-board-page.test.ts \
-  src/pages/projects/project-content-browser-support.test.ts \
-  src/pages/projects/project-memory-support.test.ts \
+  src/pages/workspaces/workspace-content-tables.test.ts \
+  src/pages/workspaces/workspace-memory-support.test.ts \
   src/pages/task-detail-page.test.ts \
   src/pages/work/task-detail-page.test.ts \
   src/pages/work/task-list-page.test.ts \

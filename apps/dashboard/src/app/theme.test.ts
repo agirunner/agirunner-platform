@@ -34,9 +34,9 @@ function mockDocument() {
 describe('FR-428: readTheme', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
 
-  it('returns "light" when no theme is stored', () => {
+  it('returns "dark" when no theme is stored', () => {
     mockLocalStorage();
-    expect(readTheme()).toBe('light');
+    expect(readTheme()).toBe('dark');
   });
 
   it('returns "dark" when "dark" is persisted in localStorage', () => {
@@ -44,14 +44,14 @@ describe('FR-428: readTheme', () => {
     expect(readTheme()).toBe('dark');
   });
 
-  it('returns "light" when an unrecognised value is stored', () => {
+  it('returns "dark" when an unrecognised value is stored', () => {
     mockLocalStorage({ 'agirunner.theme': 'solarized' });
-    expect(readTheme()).toBe('light');
+    expect(readTheme()).toBe('dark');
   });
 
-  it('returns "light" for an empty string stored value', () => {
+  it('returns "dark" for an empty string stored value', () => {
     mockLocalStorage({ 'agirunner.theme': '' });
-    expect(readTheme()).toBe('light');
+    expect(readTheme()).toBe('dark');
   });
 });
 

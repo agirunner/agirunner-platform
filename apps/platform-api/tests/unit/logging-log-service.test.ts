@@ -52,7 +52,7 @@ describe('LogService', () => {
         actorName: 'Mark',
         resourceType: 'workspace',
         resourceId: '00000000-0000-0000-0000-000000000111',
-        resourceName: 'My Project',
+        resourceName: 'My Workspace',
       });
 
       expect(pool.query).toHaveBeenCalledTimes(2);
