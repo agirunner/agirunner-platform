@@ -615,6 +615,43 @@ describe('LogService', () => {
       expect(error.message).toBe('badnews');
     });
 
+    it('redacts secrets inside full buffered llm payload fields', async () => {
+      const pool = createMockPool();
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'runtime' as const,
+        category: 'llm' as const,
+        level: 'info' as const,
+        operation: 'llm.chat_stream',
+        status: 'completed' as const,
+        payload: {
+          messages: [
+            { role: 'user', content: 'Use sk-live-secret-value for this call' },
+            { role: 'assistant', content: 'Bearer top-secret-token' },
+          ],
+          response_text: 'The key is sk-live-secret-value',
+          response_tool_calls: [
+            { id: 'call-1', name: 'web_fetch', input: { authorization: 'Bearer top-secret-token' } },
+          ],
+        },
+      });
+
+      const [, params] = getInsertCall(pool)!;
+      const payload = JSON.parse(params[10] as string);
+      expect(payload.messages).toEqual([
+        { role: 'user', content: '[REDACTED]' },
+        { role: 'assistant', content: '[REDACTED]' },
+      ]);
+      expect(payload.response_text).toBe('[REDACTED]');
+      expect(payload.response_tool_calls).toEqual([
+        { id: 'call-1', name: 'web_fetch', input: { authorization: '[REDACTED]' } },
+      ]);
+    });
+
     it('moves non-uuid resource identifiers into resource_name instead of rejecting the row', async () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
