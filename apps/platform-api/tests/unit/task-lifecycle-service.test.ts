@@ -1502,6 +1502,83 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('releases queued specialist tasks when a task enters output_pending_review', async () => {
+    const eventService = { emit: vi.fn() };
+    const parallelismService = {
+      releaseQueuedReadyTasks: vi.fn(async () => 1),
+    };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-review-slot',
+                state: 'output_pending_review',
+                workflow_id: 'wf-1',
+                is_orchestrator_task: false,
+                assigned_agent_id: 'agent-1',
+                assigned_worker_id: null,
+                metadata: {},
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: eventService as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-review-slot',
+        state: 'in_progress',
+        workflow_id: 'wf-1',
+        is_orchestrator_task: false,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        requires_output_review: true,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      parallelismService: parallelismService as never,
+      handoffService: {
+        assertRequiredTaskHandoffBeforeCompletion: vi.fn(async () => undefined),
+      } as never,
+    });
+
+    const result = await service.completeTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-review-slot',
+      {
+        output: { summary: 'ready for review' },
+      },
+    );
+
+    expect(result.state).toBe('output_pending_review');
+    expect(parallelismService.releaseQueuedReadyTasks).toHaveBeenCalledWith(
+      eventService,
+      'tenant-1',
+      'wf-1',
+      client,
+    );
+  });
+
   it('respects parallelism caps when a manual retry would reopen a failed task', async () => {
     const eventService = { emit: vi.fn() };
     const parallelismService = {

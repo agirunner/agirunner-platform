@@ -8,7 +8,6 @@ const ACTIVE_SPECIALIST_STATES: TaskState[] = [
   'claimed',
   'in_progress',
   'awaiting_approval',
-  'output_pending_review',
 ];
 const STORED_ACTIVE_SPECIALIST_STATES = ACTIVE_SPECIALIST_STATES.map(toStoredTaskState);
 

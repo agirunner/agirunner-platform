@@ -3,6 +3,43 @@ import { describe, expect, it, vi } from 'vitest';
 import { PlaybookTaskParallelismService } from '../../src/services/playbook-task-parallelism-service.js';
 
 describe('PlaybookTaskParallelismService', () => {
+  it('does not count output_pending_review tasks as active specialist slots', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                board: { columns: [{ id: 'todo', label: 'Todo' }] },
+                stages: [{ name: 'review', goal: 'Review it' }],
+                orchestrator: {
+                  max_active_tasks: 2,
+                  max_active_tasks_per_work_item: 1,
+                  allow_parallel_work_items: false,
+                },
+              },
+            }],
+          };
+        }
+        if (sql.includes('GROUP BY work_item_id')) {
+          expect(values?.[2]).toEqual(['ready', 'claimed', 'in_progress', 'awaiting_approval']);
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new PlaybookTaskParallelismService(pool as never);
+    const blocked = await service.shouldQueueForCapacity('tenant-1', {
+      workflowId: 'wf-1',
+      workItemId: 'wi-review',
+      isOrchestratorTask: false,
+    });
+
+    expect(blocked).toBe(false);
+  });
+
   it('queues specialist tasks when the workflow cap is full', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {

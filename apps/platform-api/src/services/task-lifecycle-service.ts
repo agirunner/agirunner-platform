@@ -114,7 +114,6 @@ const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
   'claimed',
   'in_progress',
   'awaiting_approval',
-  'output_pending_review',
 ];
 const DEFAULT_ORCHESTRATOR_ESCALATION_TARGET = 'human';
 const DEFAULT_ORCHESTRATOR_MAX_ESCALATION_DEPTH = 1;
