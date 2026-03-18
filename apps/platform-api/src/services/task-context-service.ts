@@ -16,12 +16,22 @@ const TASK_CONTEXT_MEMORY_INDEX_LIMIT = 100;
 const TASK_CONTEXT_ARTIFACT_INDEX_LIMIT = 100;
 const TASK_CONTEXT_RECENT_HANDOFF_LIMIT = 2;
 
+interface TaskContextAnchor {
+  source: 'task' | 'activation_event' | 'none';
+  event_type: string | null;
+  work_item_id: string | null;
+  stage_name: string | null;
+  triggering_task_id: string | null;
+}
+
 export async function buildTaskContext(
   db: DatabaseQueryable,
   tenantId: string,
   task: Record<string, unknown>,
   agentId?: string,
 ) {
+  const contextAnchor = resolveTaskContextAnchor(task);
+  const contextTask = applyTaskContextAnchor(task, contextAnchor);
   let agent = null;
   if (agentId) {
     const agentRes = await db.query(
@@ -38,7 +48,7 @@ export async function buildTaskContext(
   }
 
   const [workspaceRes, workflowRes, depsRes, documents, handoffResolution] = await Promise.all([
-    task.workspace_id
+    contextTask.workspace_id
       ? db.query(
           `SELECT id,
                   name,
@@ -49,10 +59,10 @@ export async function buildTaskContext(
              FROM workspaces
             WHERE tenant_id = $1
               AND id = $2`,
-          [tenantId, task.workspace_id],
+          [tenantId, contextTask.workspace_id],
         )
       : Promise.resolve({ rows: [] }),
-    task.workflow_id
+    contextTask.workflow_id
       ? db.query(
           `SELECT p.id, p.name, p.context, p.git_branch, p.parameters, p.resolved_config, p.instruction_config,
                   p.metadata,
@@ -62,17 +72,17 @@ export async function buildTaskContext(
            FROM workflows p
            LEFT JOIN playbooks pb ON pb.tenant_id = p.tenant_id AND pb.id = p.playbook_id
            WHERE p.tenant_id = $1 AND p.id = $2`,
-          [tenantId, task.workflow_id],
+          [tenantId, contextTask.workflow_id],
         )
       : Promise.resolve({ rows: [] }),
-    (task.depends_on as string[]).length > 0
+    (contextTask.depends_on as string[]).length > 0
       ? db.query(
           "SELECT id, role, title, output FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[]) AND state = 'completed'",
-          [tenantId, task.depends_on],
+          [tenantId, contextTask.depends_on],
         )
       : Promise.resolve({ rows: [] }),
-    listTaskDocuments(db, tenantId, task),
-    resolveRelevantHandoffs(db, tenantId, task, TASK_CONTEXT_RECENT_HANDOFF_LIMIT),
+    listTaskDocuments(db, tenantId, contextTask),
+    resolveRelevantHandoffs(db, tenantId, contextTask, TASK_CONTEXT_RECENT_HANDOFF_LIMIT),
   ]);
   const recentHandoffs = handoffResolution.handoffs;
   const predecessorHandoff = recentHandoffs[0] ?? null;
@@ -87,12 +97,12 @@ export async function buildTaskContext(
   const workflowRow = workflowRes.rows[0] as Record<string, unknown> | undefined;
   const continuousWorkflowRow =
     workflowRow && isContinuousWorkflowRow(workflowRow) ? workflowRow : null;
-  const workItem = await loadWorkItemContext(db, tenantId, task);
+  const workItem = await loadWorkItemContext(db, tenantId, contextTask);
   const workspaceContext = await loadWorkspaceContext(
     db,
     tenantId,
     workspaceRes.rows[0] as Record<string, unknown> | undefined,
-    task,
+    contextTask,
   );
   const stageProjection = workflowRow
     ? await loadWorkflowStageProjection(db, tenantId, String(workflowRow.id), {
@@ -161,6 +171,7 @@ export async function buildTaskContext(
       id: task.id,
       input: sanitizeTaskContextValue(task.input),
       context: sanitizeTaskContextValue(task.context),
+      context_anchor: sanitizeTaskContextValue(contextAnchor),
       work_item: sanitizeTaskContextValue(workItem),
       predecessor_handoff: sanitizeTaskContextValue(predecessorHandoff),
       predecessor_handoff_resolution: sanitizeTaskContextValue(handoffResolution),
@@ -173,6 +184,78 @@ export async function buildTaskContext(
       upstream_outputs: sanitizeTaskContextValue(upstreamOutputs),
     },
   };
+}
+
+function resolveTaskContextAnchor(task: Record<string, unknown>): TaskContextAnchor {
+  const workItemId = asOptionalString(task.work_item_id) ?? null;
+  const stageName = asOptionalString(task.stage_name) ?? null;
+  if (workItemId || stageName) {
+    return {
+      source: 'task',
+      event_type: null,
+      work_item_id: workItemId,
+      stage_name: stageName,
+      triggering_task_id: null,
+    };
+  }
+
+  const activationEvent = readActivationEventAnchor(asRecord(task.input));
+  if (!activationEvent) {
+    return {
+      source: 'none',
+      event_type: null,
+      work_item_id: null,
+      stage_name: null,
+      triggering_task_id: null,
+    };
+  }
+
+  return {
+    source: 'activation_event',
+    event_type: activationEvent.event_type,
+    work_item_id: activationEvent.work_item_id,
+    stage_name: activationEvent.stage_name,
+    triggering_task_id: activationEvent.triggering_task_id,
+  };
+}
+
+function applyTaskContextAnchor(
+  task: Record<string, unknown>,
+  contextAnchor: TaskContextAnchor,
+): Record<string, unknown> {
+  if (contextAnchor.source === 'none') {
+    return task;
+  }
+
+  return {
+    ...task,
+    work_item_id: contextAnchor.work_item_id ?? task.work_item_id,
+    stage_name: contextAnchor.stage_name ?? task.stage_name,
+  };
+}
+
+function readActivationEventAnchor(
+  taskInput: Record<string, unknown>,
+): Omit<TaskContextAnchor, 'source'> | null {
+  const events = Array.isArray(taskInput.events) ? taskInput.events : [];
+  for (const entry of events) {
+    const event = asRecord(entry);
+    const payload = asRecord(event.payload);
+    const workItemId = asOptionalString(event.work_item_id) ?? asOptionalString(payload.work_item_id) ?? null;
+    const stageName = asOptionalString(event.stage_name) ?? asOptionalString(payload.stage_name) ?? null;
+    const triggeringTaskId = asOptionalString(event.task_id) ?? asOptionalString(payload.task_id) ?? null;
+    const eventType = asOptionalString(event.type) ?? asOptionalString(event.event_type) ?? null;
+    if (!workItemId && !stageName && !triggeringTaskId) {
+      continue;
+    }
+    return {
+      event_type: eventType,
+      work_item_id: workItemId,
+      stage_name: stageName,
+      triggering_task_id: triggeringTaskId,
+    };
+  }
+  return null;
 }
 
 function buildWorkflowContextBase(params: {
@@ -664,6 +747,7 @@ export function summarizeTaskContextAttachments(
   const agentProfile = asRecord(asRecord(agent.metadata).profile);
   const predecessorHandoff = asRecord(task.predecessor_handoff);
   const predecessorResolution = asRecord(task.predecessor_handoff_resolution);
+  const contextAnchor = asRecord(task.context_anchor);
   const recentHandoffs = Array.isArray(task.recent_handoffs)
     ? task.recent_handoffs as unknown[]
     : [];
@@ -691,6 +775,11 @@ export function summarizeTaskContextAttachments(
     predecessor_handoff_present: Object.keys(predecessorHandoff).length > 0,
     predecessor_handoff_resolution_present: Object.keys(predecessorResolution).length > 0,
     predecessor_handoff_source: asOptionalString(predecessorResolution.source) ?? null,
+    context_anchor_source: asOptionalString(contextAnchor.source) ?? null,
+    context_anchor_event_type: asOptionalString(contextAnchor.event_type) ?? null,
+    context_anchor_work_item_id: asOptionalString(contextAnchor.work_item_id) ?? null,
+    context_anchor_stage_name: asOptionalString(contextAnchor.stage_name) ?? null,
+    context_anchor_triggering_task_id: asOptionalString(contextAnchor.triggering_task_id) ?? null,
     recent_handoff_count: recentHandoffs.length,
     work_item_continuity_present: Object.keys(workItem).length > 0,
     workspace_memory_index_present: Object.keys(memoryIndex).length > 0,

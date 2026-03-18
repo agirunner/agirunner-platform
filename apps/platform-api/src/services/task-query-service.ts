@@ -132,6 +132,7 @@ export class TaskQueryService {
   async getTaskContext(tenantId: string, taskId: string, agentId?: string) {
     const task = await this.loadTaskOrThrow(tenantId, taskId);
     const context = await buildTaskContext(this.pool, tenantId, task, agentId);
+    const contextTask = readTaskContextRecord(context.task);
     const resolution = readRelevantHandoffResolution(context.task);
     if (resolution) {
       await logPredecessorHandoffResolution(this.logService, {
@@ -139,6 +140,7 @@ export class TaskQueryService {
         operation: 'task.context.predecessor_handoff.attach',
         task,
         resolution,
+        contextAnchor: readTaskContextRecord(contextTask.context_anchor),
       });
     }
     await logTaskContextAttachments(this.logService, {
@@ -185,6 +187,10 @@ function sanitizeTaskRecord(task: Record<string, unknown>): Record<string, unkno
     redactionValue: SECRET_REDACTION,
     allowSecretReferences: false,
   }) as Record<string, unknown>;
+}
+
+function readTaskContextRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
 }
 
 function normalizeResponseTaskState(value: unknown): unknown {

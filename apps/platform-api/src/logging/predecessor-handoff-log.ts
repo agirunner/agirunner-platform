@@ -10,6 +10,7 @@ interface LogPredecessorHandoffResolutionInput {
   operation: string;
   task: Record<string, unknown>;
   resolution: RelevantHandoffResolution;
+  contextAnchor?: Record<string, unknown> | null;
 }
 
 export async function logPredecessorHandoffResolution(
@@ -43,6 +44,11 @@ export async function logPredecessorHandoffResolution(
       current_workflow_id: readOptionalString(input.task.workflow_id),
       current_work_item_id: readOptionalString(input.task.work_item_id),
       current_task_id: readOptionalString(input.task.id),
+      context_anchor_source: readOptionalString(input.contextAnchor?.source),
+      context_anchor_event_type: readOptionalString(input.contextAnchor?.event_type),
+      context_anchor_work_item_id: readOptionalString(input.contextAnchor?.work_item_id),
+      context_anchor_stage_name: readOptionalString(input.contextAnchor?.stage_name),
+      context_anchor_triggering_task_id: readOptionalString(input.contextAnchor?.triggering_task_id),
       resolution_source: input.resolution.source,
       has_predecessor_handoff: Boolean(selectedHandoff),
       source_work_item_id: input.resolution.source_work_item_id,
