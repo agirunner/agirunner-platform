@@ -18,7 +18,7 @@ export interface ArtifactStorageConfig {
   };
   gcs?: {
     bucket: string;
-    workspaceId?: string;
+    projectId?: string;
     keyFilename?: string;
     credentialsJson?: string;
   };

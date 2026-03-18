@@ -11,7 +11,7 @@ import type {
 
 export interface GcsArtifactStorageConfig {
   bucket: string;
-  workspaceId?: string;
+  projectId?: string;
   keyFilename?: string;
   credentialsJson?: string;
 }
@@ -116,8 +116,8 @@ export class GcsArtifactStorage implements ArtifactStorageAdapter {
 
 function buildStorageOptions(config: GcsArtifactStorageConfig): Record<string, unknown> {
   const options: Record<string, unknown> = {};
-  if (config.workspaceId) {
-    options.workspaceId = config.workspaceId;
+  if (config.projectId) {
+    options.projectId = config.projectId;
   }
   if (config.keyFilename) {
     options.keyFilename = config.keyFilename;
