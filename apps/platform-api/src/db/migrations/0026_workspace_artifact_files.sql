@@ -13,8 +13,8 @@ CREATE TABLE IF NOT EXISTS public.workspace_artifact_files (
     created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_workspace_artifact_files_tenant_project
+CREATE INDEX IF NOT EXISTS idx_workspace_artifact_files_tenant_workspace
     ON public.workspace_artifact_files (tenant_id, workspace_id);
 
-CREATE INDEX IF NOT EXISTS idx_workspace_artifact_files_tenant_project_key
+CREATE INDEX IF NOT EXISTS idx_workspace_artifact_files_tenant_workspace_key
     ON public.workspace_artifact_files (tenant_id, workspace_id, key);

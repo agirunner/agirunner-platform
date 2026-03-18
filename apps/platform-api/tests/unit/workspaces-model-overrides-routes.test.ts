@@ -18,7 +18,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-describe('project model override routes', () => {
+describe('workspace model override routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe('project model override routes', () => {
     }
   });
 
-  it('ignores retired project model overrides on project create instead of rejecting the request', async () => {
+  it('ignores retired legacy model overrides on workspace create instead of rejecting the request', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();

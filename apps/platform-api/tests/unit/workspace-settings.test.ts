@@ -7,7 +7,7 @@ import {
   validateWorkspaceSettingsShape,
 } from '../../src/services/workspace-settings.js';
 
-describe('project settings', () => {
+describe('workspace settings', () => {
   it('normalizes legacy top-level git settings into the canonical credentials shape', () => {
     const normalized = normalizeWorkspaceSettings({
       default_branch: 'develop',
@@ -72,7 +72,7 @@ describe('project settings', () => {
     });
   });
 
-  it('rejects the legacy singular project model override field', () => {
+  it('rejects the legacy singular model override field', () => {
     expect(() =>
       validateWorkspaceSettingsShape({
         model_override: {
@@ -82,7 +82,7 @@ describe('project settings', () => {
     ).toThrow(/model_override.*no longer supported/i);
   });
 
-  it('drops project model overrides from normalized project settings', () => {
+  it('drops legacy model overrides from normalized workspace settings', () => {
     expect(
       normalizeWorkspaceSettings({
         model_overrides: {

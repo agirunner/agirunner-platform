@@ -1192,7 +1192,7 @@ CREATE INDEX idx_oauth_states_state ON public.oauth_states USING btree (state);
 CREATE UNIQUE INDEX idx_orchestrator_grants_agent_workflow ON public.orchestrator_grants USING btree (agent_id, workflow_id) WHERE (revoked_at IS NULL);
 CREATE INDEX idx_orchestrator_grants_tenant ON public.orchestrator_grants USING btree (tenant_id);
 CREATE INDEX idx_platform_instruction_versions_tenant ON public.platform_instruction_versions USING btree (tenant_id, version DESC);
-CREATE INDEX idx_workspace_spec_versions_tenant_project ON public.workspace_spec_versions USING btree (tenant_id, workspace_id, version DESC);
+CREATE INDEX idx_workspace_spec_versions_tenant_workspace ON public.workspace_spec_versions USING btree (tenant_id, workspace_id, version DESC);
 CREATE INDEX idx_workspaces_tenant ON public.workspaces USING btree (tenant_id);
 CREATE INDEX idx_refresh_token_sessions_tenant_api_key ON public.refresh_token_sessions USING btree (tenant_id, api_key_id);
 CREATE INDEX idx_refresh_token_sessions_tenant_token ON public.refresh_token_sessions USING btree (tenant_id, token_id);
@@ -1235,7 +1235,7 @@ CREATE INDEX idx_workflows_workspace ON public.workflows USING btree (workspace_
 CREATE INDEX idx_workflows_state ON public.workflows USING btree (tenant_id, state);
 CREATE INDEX idx_workflows_tenant ON public.workflows USING btree (tenant_id);
 CREATE UNIQUE INDEX uq_platform_instruction_versions_tenant_version ON public.platform_instruction_versions USING btree (tenant_id, version);
-CREATE UNIQUE INDEX uq_workspace_spec_versions_project_version ON public.workspace_spec_versions USING btree (workspace_id, version);
+CREATE UNIQUE INDEX uq_workspace_spec_versions_workspace_version ON public.workspace_spec_versions USING btree (workspace_id, version);
 CREATE UNIQUE INDEX uq_webhook_work_item_trigger_invocations_dedupe ON public.webhook_work_item_trigger_invocations USING btree (trigger_id, dedupe_key) WHERE (dedupe_key IS NOT NULL);
 CREATE UNIQUE INDEX uq_workflow_documents_workflow_logical_name ON public.workflow_documents USING btree (tenant_id, workflow_id, logical_name);
 

@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceService } from '../../src/services/workspace-service.js';
 
 describe('WorkspaceService model overrides', () => {
-  it('drops retired project model overrides during project updates', async () => {
+  it('drops retired legacy model overrides during workspace updates', async () => {
     const pool = {
       query: vi
         .fn()

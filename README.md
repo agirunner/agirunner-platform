@@ -16,7 +16,7 @@ The active operator and integration model is V2-only:
 - activations wake the orchestrator
 - approvals happen through stage gates and task review flows
 - artifacts are previewed through platform permalinks
-- memory and history are explicit project/workflow/work-item surfaces
+- memory and history are explicit workspace/workflow/work-item surfaces
 
 Primary operator routes:
 

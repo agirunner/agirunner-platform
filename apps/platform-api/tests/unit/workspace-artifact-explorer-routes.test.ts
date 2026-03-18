@@ -26,7 +26,7 @@ vi.mock('../../src/services/workspace-artifact-explorer-service.js', () => ({
   })),
 }));
 
-describe('project artifact explorer routes', () => {
+describe('workspace artifact explorer routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -40,7 +40,7 @@ describe('project artifact explorer routes', () => {
     }
   });
 
-  it('serves project-scoped artifact queries through the bounded explorer route', async () => {
+  it('serves workspace-scoped artifact queries through the bounded explorer route', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     listWorkspaceArtifacts.mockResolvedValue({
@@ -114,7 +114,7 @@ describe('project artifact explorer routes', () => {
     });
   });
 
-  it('rejects invalid project artifact explorer query values', async () => {
+  it('rejects invalid workspace artifact explorer query values', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();

@@ -30,7 +30,7 @@ describe('WorkspaceTimelineService', () => {
     expect(workflowReadSql).not.toContain('current_stage');
   });
 
-  it('hydrates playbook project timelines from live activation, work-item, and gate rows', async () => {
+  it('hydrates playbook workspace timelines from live activation, work-item, and gate rows', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('FROM workflows')) {
         return {
@@ -238,7 +238,7 @@ describe('WorkspaceTimelineService', () => {
     expect(result[0]).not.toHaveProperty('phase_summary');
   });
 
-  it('ignores legacy timeline_summary-only metadata when loading project timelines', async () => {
+  it('ignores legacy timeline_summary-only metadata when loading workspace timelines', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({
         rowCount: 1,
@@ -580,17 +580,17 @@ describe('WorkspaceTimelineService', () => {
     expect(workflowUpdateCall?.[1]?.[2]).toEqual({
       run_summary: expect.objectContaining({ workflow_id: 'workflow-1' }),
     });
-    const projectUpdateCall = query.mock.calls.find((call) =>
+    const workspaceUpdateCall = query.mock.calls.find((call) =>
       String(call[0]).includes('UPDATE workspaces'),
     ) as [string, unknown[]] | undefined;
-    expect(projectUpdateCall?.[1]?.[2]).toEqual(
+    expect(workspaceUpdateCall?.[1]?.[2]).toEqual(
       expect.objectContaining({
         workspace_timeline: expect.any(Array),
         last_run_summary: expect.objectContaining({ workflow_id: 'workflow-1' }),
       }),
     );
-    expect(projectUpdateCall?.[1]?.[2]).not.toHaveProperty('last_workflow_summary');
-    expect(projectUpdateCall?.[1]?.[2]).not.toHaveProperty('run_summaries');
+    expect(workspaceUpdateCall?.[1]?.[2]).not.toHaveProperty('last_workflow_summary');
+    expect(workspaceUpdateCall?.[1]?.[2]).not.toHaveProperty('run_summaries');
     const eventCall = query.mock.calls.find((call) => String(call[0]).includes('FROM events')) as
       | [string, unknown[]]
       | undefined;
@@ -811,10 +811,10 @@ describe('WorkspaceTimelineService', () => {
       'redacted://workflow-summary-secret',
     );
 
-    const projectUpdateCall = query.mock.calls.find((call) =>
+    const workspaceUpdateCall = query.mock.calls.find((call) =>
       String(call[0]).includes('UPDATE workspaces'),
     ) as [string, unknown[]] | undefined;
-    const persistedWorkspaceMemory = projectUpdateCall?.[1]?.[2] as Record<string, any>;
+    const persistedWorkspaceMemory = workspaceUpdateCall?.[1]?.[2] as Record<string, any>;
     expect(persistedWorkspaceMemory.last_run_summary.stage_metrics[0].summary).toBe(
       'redacted://workflow-summary-secret',
     );

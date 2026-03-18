@@ -261,9 +261,9 @@ describe('WorkspaceService.findWorkspaceByRepositoryUrl', () => {
 /*  Git webhook signature verification with per-workspace secret         */
 /* ------------------------------------------------------------------ */
 
-describe('per-project git webhook signature verification', () => {
+describe('per-workspace git webhook signature verification', () => {
   it('verifies HMAC-SHA256 signature against per-workspace secret', () => {
-    const secret = 'per-project-secret-123';
+    const secret = 'per-workspace-secret-123';
     const body = Buffer.from(JSON.stringify({ action: 'opened' }));
     const signature = createHmac('sha256', secret).update(body).digest('hex');
 

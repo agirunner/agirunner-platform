@@ -18,7 +18,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-describe('project routes', () => {
+describe('workspace routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -32,7 +32,7 @@ describe('project routes', () => {
     }
   });
 
-  it('rejects legacy settings.model_override on project create', async () => {
+  it('rejects legacy settings.model_override on workspace create', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
@@ -80,7 +80,7 @@ describe('project routes', () => {
     expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
   });
 
-  it('returns project list summaries from the list route unchanged', async () => {
+  it('returns workspace list summaries from the list route unchanged', async () => {
     const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     const listWorkspaces = vi.fn().mockResolvedValue({

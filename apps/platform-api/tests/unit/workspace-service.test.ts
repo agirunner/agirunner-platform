@@ -18,7 +18,7 @@ function createEventService() {
 }
 
 describe('WorkspaceService typed settings contract', () => {
-  it('stores canonical typed settings on project create and redacts secrets in the response', async () => {
+  it('stores canonical typed settings on workspace create and redacts secrets in the response', async () => {
     let insertedSettings: Record<string, unknown> | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -90,7 +90,7 @@ describe('WorkspaceService typed settings contract', () => {
     });
   });
 
-  it('preserves stored secrets when project updates echo redacted credential posture', async () => {
+  it('preserves stored secrets when workspace updates echo redacted credential posture', async () => {
     let updatedSettings: Record<string, unknown> | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -174,7 +174,7 @@ describe('WorkspaceService typed settings contract', () => {
   });
 });
 
-describe('WorkspaceService project list summaries', () => {
+describe('WorkspaceService workspace list summaries', () => {
   it('returns workflow summary counts with a single aggregate query for the page', async () => {
     const workflowSummaryQueries: Array<unknown[] | undefined> = [];
     const pool = {

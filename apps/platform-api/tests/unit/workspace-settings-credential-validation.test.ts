@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { validateWorkspaceSettingsShape } from '../../src/services/workspace-settings.js';
 
-describe('project settings credential validation', () => {
+describe('workspace settings credential validation', () => {
   it('rejects git tokens with whitespace', () => {
     expect(() =>
       validateWorkspaceSettingsShape({
