@@ -1,7 +1,7 @@
 import type { FastifyInstance, FastifyPluginAsync } from 'fastify';
 import { z } from 'zod';
 
-import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import {
@@ -23,6 +23,7 @@ import { WorkflowActivationDispatchService } from '../../services/workflow-activ
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
+import { runIdempotentWorkflowBackedTaskAction } from './task-route-idempotency.js';
 
 const roleModelOverrideSchema = z.object({
   provider: z.string().min(1).max(120),
@@ -67,6 +68,30 @@ const workflowChainSchema = z.object({
 
 const workflowControlMutationSchema = z.object({
   request_id: requestIdSchema,
+});
+
+const workflowWorkItemTaskMutationSchema = z.object({
+  request_id: requestIdSchema.optional(),
+});
+
+const workflowWorkItemTaskRejectSchema = workflowWorkItemTaskMutationSchema.extend({
+  feedback: z.string().min(1).max(4000),
+});
+
+const workflowWorkItemTaskRequestChangesSchema = workflowWorkItemTaskRejectSchema.extend({
+  override_input: z.record(z.unknown()).optional(),
+  preferred_agent_id: z.string().uuid().optional(),
+  preferred_worker_id: z.string().uuid().optional(),
+});
+
+const workflowWorkItemTaskRetrySchema = workflowWorkItemTaskMutationSchema.extend({
+  override_input: z.record(z.unknown()).optional(),
+  force: z.boolean().optional(),
+});
+
+const workflowWorkItemTaskResolveEscalationSchema = workflowWorkItemTaskMutationSchema.extend({
+  instructions: z.string().min(1).max(4000),
+  context: z.record(z.unknown()).optional(),
 });
 
 const workItemCreateSchema = z.object({
@@ -142,7 +167,23 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
 }
 
 function parseCsv(raw?: string): string[] | undefined {
-  return raw?.split(',').map((value) => value.trim()).filter(Boolean);
+  return raw
+    ?.split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+async function assertTaskBelongsToWorkflowWorkItem(
+  app: FastifyInstance,
+  tenantId: string,
+  workflowId: string,
+  workItemId: string,
+  taskId: string,
+) {
+  const task = (await app.taskService.getTask(tenantId, taskId)) as Record<string, unknown>;
+  if (task.workflow_id !== workflowId || task.work_item_id !== workItemId) {
+    throw new ValidationError('Task must belong to the selected workflow work item');
+  }
 }
 
 export const workflowRoutes: FastifyPluginAsync = async (app) => {
@@ -163,6 +204,10 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       config: app.config,
     }),
   });
+  const workflowWorkItemTaskMutationPreHandler = [
+    authenticateApiKey,
+    withAllowedScopes(['admin', 'worker']),
+  ];
 
   app.post(
     '/api/v1/workflows',
@@ -281,7 +326,9 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
-      return { data: await approvalQueueService.listWorkflowGates(request.auth!.tenantId, params.id) };
+      return {
+        data: await approvalQueueService.listWorkflowGates(request.auth!.tenantId, params.id),
+      };
     },
   );
 
@@ -376,6 +423,202 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           request.auth!.tenantId,
           params.id,
           params.workItemId,
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/approve',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(workflowWorkItemTaskMutationSchema.safeParse(request.body ?? {}));
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_approve',
+          body.request_id,
+          (client) => app.taskService.approveTask(request.auth!, params.taskId, client),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/approve-output',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(workflowWorkItemTaskMutationSchema.safeParse(request.body ?? {}));
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_approve_output',
+          body.request_id,
+          (client) => app.taskService.approveTaskOutput(request.auth!, params.taskId, client),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/reject',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(workflowWorkItemTaskRejectSchema.safeParse(request.body));
+      const { request_id: requestId, ...payload } = body;
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_reject',
+          requestId,
+          () => app.taskService.rejectTask(request.auth!, params.taskId, payload),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/request-changes',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(workflowWorkItemTaskRequestChangesSchema.safeParse(request.body));
+      const { request_id: requestId, ...payload } = body;
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_request_changes',
+          requestId,
+          (client) =>
+            app.taskService.requestTaskChanges(request.auth!, params.taskId, payload, client),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/retry',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(workflowWorkItemTaskRetrySchema.safeParse(request.body ?? {}));
+      const { request_id: requestId, ...payload } = body;
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_retry',
+          requestId,
+          (client) => app.taskService.retryTask(request.auth!, params.taskId, payload, client),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/cancel',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(workflowWorkItemTaskMutationSchema.safeParse(request.body ?? {}));
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_cancel',
+          body.request_id,
+          (client) => app.taskService.cancelTask(request.auth!, params.taskId, client),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/resolve-escalation',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(
+        workflowWorkItemTaskResolveEscalationSchema.safeParse(request.body),
+      );
+      const { request_id: requestId, ...payload } = body;
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_resolve_escalation',
+          requestId,
+          () => app.taskService.resolveEscalation(request.auth!, params.taskId, payload),
         ),
       };
     },
@@ -483,13 +726,14 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           params.id,
           'operator_update_workflow_work_item',
           requestId,
-          (client) => workflowService.updateWorkflowWorkItem(
-            request.auth!,
-            params.id,
-            params.workItemId,
-            input,
-            client,
-          ),
+          (client) =>
+            workflowService.updateWorkflowWorkItem(
+              request.auth!,
+              params.id,
+              params.workItemId,
+              input,
+              client,
+            ),
         ),
       };
     },
@@ -510,7 +754,14 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           params.id,
           'act_on_stage_gate',
           requestId,
-          (client) => playbookControlService.actOnStageGate(request.auth!, params.id, params.name, decision, client),
+          (client) =>
+            playbookControlService.actOnStageGate(
+              request.auth!,
+              params.id,
+              params.name,
+              decision,
+              client,
+            ),
         ),
       };
     },
@@ -531,7 +782,8 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
         params.id,
         'act_on_gate',
         requestId,
-        (client) => playbookControlService.actOnGate(request.auth!, params.gateId, decision, client),
+        (client) =>
+          playbookControlService.actOnGate(request.auth!, params.gateId, decision, client),
       );
       return { data: gate };
     },
@@ -782,7 +1034,13 @@ async function runIdempotentTransactionalWorkflowAction<T extends object>(
   try {
     await client.query('BEGIN');
     if (normalizedRequestId) {
-      await toolResultService.lockRequest(tenantId, workflowId, toolName, normalizedRequestId, client);
+      await toolResultService.lockRequest(
+        tenantId,
+        workflowId,
+        toolName,
+        normalizedRequestId,
+        client,
+      );
       const existing = await toolResultService.getResult(
         tenantId,
         workflowId,
@@ -915,12 +1173,12 @@ function mergeWorkflowMetadata(
   };
 }
 
-function parseRoleQuery(
-  raw: string | undefined,
-  workflowOverrides: Record<string, unknown>,
-) {
+function parseRoleQuery(raw: string | undefined, workflowOverrides: Record<string, unknown>) {
   if (typeof raw === 'string' && raw.trim().length > 0) {
-    return raw.split(',').map((value) => value.trim()).filter(Boolean);
+    return raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
   }
   return Array.from(new Set([...Object.keys(workflowOverrides)]));
 }
@@ -942,7 +1200,9 @@ async function resolveEffectiveModels(
   projectOverrides: Record<string, unknown>,
   workflowOverrides: Record<string, unknown>,
 ) {
-  const providers = (await modelCatalogService.listProviders(tenantId)) as Array<Record<string, unknown>>;
+  const providers = (await modelCatalogService.listProviders(tenantId)) as Array<
+    Record<string, unknown>
+  >;
   const byId = new Map(providers.map((provider) => [String(provider.id), provider]));
   const byName = new Map(
     providers.flatMap((provider) => {
@@ -956,13 +1216,15 @@ async function resolveEffectiveModels(
 
   const results: Record<string, unknown> = {};
   for (const role of roles) {
-    const baseResolved = (await modelCatalogService.resolveRoleConfig(tenantId, role)) as
-      | Record<string, unknown>
-      | null;
+    const baseResolved = (await modelCatalogService.resolveRoleConfig(tenantId, role)) as Record<
+      string,
+      unknown
+    > | null;
     const sanitizedBaseResolved = sanitizeResolvedRoleConfig(baseResolved);
     const workflowOverride = asRecord(workflowOverrides[role]);
     const projectOverride = asRecord(projectOverrides[role]);
-    const activeOverride = Object.keys(workflowOverride).length > 0 ? workflowOverride : projectOverride;
+    const activeOverride =
+      Object.keys(workflowOverride).length > 0 ? workflowOverride : projectOverride;
     const source =
       Object.keys(workflowOverride).length > 0
         ? 'workflow'
@@ -991,14 +1253,13 @@ async function resolveEffectiveModels(
       continue;
     }
 
-    const models = (await modelCatalogService.listModels(
-      tenantId,
-      String(provider.id),
-    )) as Array<Record<string, unknown>>;
+    const models = (await modelCatalogService.listModels(tenantId, String(provider.id))) as Array<
+      Record<string, unknown>
+    >;
     const model = models.find(
       (entry) =>
-        String((entry as Record<string, unknown>).model_id) === String(activeOverride.model)
-        && (entry as Record<string, unknown>).is_enabled === true,
+        String((entry as Record<string, unknown>).model_id) === String(activeOverride.model) &&
+        (entry as Record<string, unknown>).is_enabled === true,
     );
     if (!model) {
       results[role] = {
@@ -1032,7 +1293,7 @@ async function resolveEffectiveModels(
         },
         reasoningConfig:
           activeOverride.reasoning_config === undefined
-            ? (baseResolved as Record<string, unknown> | null)?.reasoningConfig ?? null
+            ? ((baseResolved as Record<string, unknown> | null)?.reasoningConfig ?? null)
             : activeOverride.reasoning_config,
       },
       fallback: false,
@@ -1047,7 +1308,9 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
-function sanitizeResolvedRoleConfig(value: Record<string, unknown> | null): Record<string, unknown> | null {
+function sanitizeResolvedRoleConfig(
+  value: Record<string, unknown> | null,
+): Record<string, unknown> | null {
   if (!value) {
     return null;
   }

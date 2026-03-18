@@ -1500,7 +1500,10 @@ export interface DashboardApi {
   ): Promise<{ data: DashboardWorkflowRecord[]; meta?: Record<string, unknown> }>;
   listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
   createProject(payload: DashboardProjectCreateInput): Promise<DashboardProjectRecord>;
-  patchProject(projectId: string, payload: DashboardProjectPatchInput): Promise<DashboardProjectRecord>;
+  patchProject(
+    projectId: string,
+    payload: DashboardProjectPatchInput,
+  ): Promise<DashboardProjectRecord>;
   getProject(projectId: string): Promise<DashboardProjectRecord>;
   getProjectModelOverrides(projectId: string): Promise<DashboardProjectModelOverridesResponse>;
   getResolvedProjectModels(
@@ -1518,7 +1521,9 @@ export interface DashboardApi {
     version: number,
   ): Promise<DashboardPlatformInstructionVersionRecord>;
   getOrchestratorConfig(): Promise<{ prompt: string; updatedAt: string }>;
-  updateOrchestratorConfig(payload: { prompt: string }): Promise<{ prompt: string; updatedAt: string }>;
+  updateOrchestratorConfig(payload: {
+    prompt: string;
+  }): Promise<{ prompt: string; updatedAt: string }>;
   getProjectSpec(projectId: string): Promise<DashboardProjectSpecRecord>;
   listProjectArtifacts(
     projectId: string,
@@ -1699,11 +1704,19 @@ export interface DashboardApi {
   deletePlaybook(playbookId: string): Promise<void>;
   listToolTags(): Promise<DashboardToolTagRecord[]>;
   createToolTag(payload: DashboardToolTagCreateInput): Promise<DashboardToolTagRecord>;
-  updateToolTag(toolId: string, payload: DashboardToolTagUpdateInput): Promise<DashboardToolTagRecord>;
+  updateToolTag(
+    toolId: string,
+    payload: DashboardToolTagUpdateInput,
+  ): Promise<DashboardToolTagRecord>;
   deleteToolTag(toolId: string): Promise<void>;
   listWebhooks(): Promise<DashboardOutboundWebhookRecord[]>;
-  createWebhook(payload: DashboardOutboundWebhookCreateInput): Promise<DashboardOutboundWebhookRecord>;
-  updateWebhook(id: string, payload: DashboardOutboundWebhookUpdateInput): Promise<DashboardOutboundWebhookRecord>;
+  createWebhook(
+    payload: DashboardOutboundWebhookCreateInput,
+  ): Promise<DashboardOutboundWebhookRecord>;
+  updateWebhook(
+    id: string,
+    payload: DashboardOutboundWebhookUpdateInput,
+  ): Promise<DashboardOutboundWebhookRecord>;
   deleteWebhook(id: string): Promise<void>;
   listRuntimeDefaults(): Promise<DashboardRuntimeDefaultRecord[]>;
   upsertRuntimeDefault(input: DashboardRuntimeDefaultUpsertInput): Promise<void>;
@@ -1783,6 +1796,50 @@ export interface DashboardApi {
       metadata?: Record<string, unknown>;
     },
   ): Promise<DashboardWorkflowWorkItemRecord>;
+  approveWorkflowWorkItemTask(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+  ): Promise<unknown>;
+  approveWorkflowWorkItemTaskOutput(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+  ): Promise<unknown>;
+  rejectWorkflowWorkItemTask(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+    payload: { feedback: string },
+  ): Promise<unknown>;
+  requestWorkflowWorkItemTaskChanges(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+    payload: {
+      feedback: string;
+      override_input?: Record<string, unknown>;
+      preferred_agent_id?: string;
+      preferred_worker_id?: string;
+    },
+  ): Promise<unknown>;
+  retryWorkflowWorkItemTask(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+    payload?: { override_input?: Record<string, unknown>; force?: boolean },
+  ): Promise<unknown>;
+  resolveWorkflowWorkItemTaskEscalation(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+    payload: { instructions: string; context?: Record<string, unknown> },
+  ): Promise<unknown>;
+  cancelWorkflowWorkItemTask(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+  ): Promise<unknown>;
   cancelWorkflow(workflowId: string): Promise<unknown>;
   chainWorkflow(
     workflowId: string,
@@ -2088,6 +2145,21 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     return requestData<unknown>(path, {
       body: buildRequestBodyWithRequestId({}),
     });
+  }
+
+  function requestWorkflowWorkItemTaskAction(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+    action: string,
+    body: Record<string, unknown>,
+  ): Promise<unknown> {
+    return requestJson(
+      `/api/v1/workflows/${workflowId}/work-items/${workItemId}/tasks/${taskId}/${action}`,
+      {
+        body: buildRequestBodyWithRequestId(body),
+      },
+    );
   }
 
   function normalizeEventPage(page: {
@@ -2663,6 +2735,46 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           },
         ),
       ),
+    approveWorkflowWorkItemTask: (workflowId, workItemId, taskId) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'approve', {}),
+      ),
+    approveWorkflowWorkItemTaskOutput: (workflowId, workItemId, taskId) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'approve-output', {}),
+      ),
+    rejectWorkflowWorkItemTask: (workflowId, workItemId, taskId, payload) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'reject', payload),
+      ),
+    requestWorkflowWorkItemTaskChanges: (workflowId, workItemId, taskId, payload) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(
+          workflowId,
+          workItemId,
+          taskId,
+          'request-changes',
+          payload,
+        ),
+      ),
+    retryWorkflowWorkItemTask: (workflowId, workItemId, taskId, payload = {}) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'retry', payload),
+      ),
+    resolveWorkflowWorkItemTaskEscalation: (workflowId, workItemId, taskId, payload) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(
+          workflowId,
+          workItemId,
+          taskId,
+          'resolve-escalation',
+          payload,
+        ),
+      ),
+    cancelWorkflowWorkItemTask: (workflowId, workItemId, taskId) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'cancel', {}),
+      ),
     cancelWorkflow: (workflowId) =>
       withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/cancel`)),
     chainWorkflow: (workflowId, payload) =>
@@ -2843,13 +2955,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     updateToolTag: (toolId, payload) =>
       withRefresh(() =>
-        requestData<DashboardToolTagRecord>(
-          `/api/v1/tools/${encodeURIComponent(toolId)}`,
-          {
-            method: 'PATCH',
-            body: payload as unknown as Record<string, unknown>,
-          },
-        ),
+        requestData<DashboardToolTagRecord>(`/api/v1/tools/${encodeURIComponent(toolId)}`, {
+          method: 'PATCH',
+          body: payload as unknown as Record<string, unknown>,
+        }),
       ),
     deleteToolTag: (toolId) =>
       withRefresh(async () => {
@@ -2882,10 +2991,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       }),
     listRuntimeDefaults: () =>
       withRefresh(() =>
-        requestData<DashboardRuntimeDefaultRecord[]>(
-          '/api/v1/config/runtime-defaults',
-          { method: 'GET' },
-        ),
+        requestData<DashboardRuntimeDefaultRecord[]>('/api/v1/config/runtime-defaults', {
+          method: 'GET',
+        }),
       ),
     upsertRuntimeDefault: (input) =>
       withRefresh(async () => {
@@ -2920,10 +3028,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       }),
     getLlmSystemDefault: () =>
       withRefresh(() =>
-        requestData<DashboardLlmSystemDefaultRecord>(
-          '/api/v1/config/llm/system-default',
-          { method: 'GET' },
-        ),
+        requestData<DashboardLlmSystemDefaultRecord>('/api/v1/config/llm/system-default', {
+          method: 'GET',
+        }),
       ),
     updateLlmSystemDefault: (payload) =>
       withRefresh(async () => {
@@ -2934,20 +3041,16 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       }),
     listLlmAssignments: () =>
       withRefresh(() =>
-        requestData<DashboardLlmAssignmentRecord[]>(
-          '/api/v1/config/llm/assignments',
-          { method: 'GET' },
-        ),
+        requestData<DashboardLlmAssignmentRecord[]>('/api/v1/config/llm/assignments', {
+          method: 'GET',
+        }),
       ),
     updateLlmAssignment: (roleName, payload) =>
       withRefresh(async () => {
-        await requestJson(
-          `/api/v1/config/llm/assignments/${encodeURIComponent(roleName)}`,
-          {
-            method: 'PUT',
-            body: payload as unknown as Record<string, unknown>,
-          },
-        );
+        await requestJson(`/api/v1/config/llm/assignments/${encodeURIComponent(roleName)}`, {
+          method: 'PUT',
+          body: payload as unknown as Record<string, unknown>,
+        });
       }),
     createLlmProvider: (payload) =>
       withRefresh(() =>
@@ -2964,10 +3067,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       }),
     discoverLlmModels: (providerId) =>
       withRefresh(() =>
-        requestData<unknown[]>(
-          `/api/v1/config/llm/providers/${providerId}/discover`,
-          { method: 'POST' },
-        ),
+        requestData<unknown[]>(`/api/v1/config/llm/providers/${providerId}/discover`, {
+          method: 'POST',
+        }),
       ),
     updateLlmModel: (modelId, payload) =>
       withRefresh(async () => {
@@ -2978,10 +3080,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       }),
     listOAuthProfiles: () =>
       withRefresh(() =>
-        requestData<DashboardOAuthProfileRecord[]>(
-          '/api/v1/config/oauth/profiles',
-          { method: 'GET' },
-        ),
+        requestData<DashboardOAuthProfileRecord[]>('/api/v1/config/oauth/profiles', {
+          method: 'GET',
+        }),
       ),
     initiateOAuthFlow: (profileId) =>
       withRefresh(() =>
@@ -2998,10 +3099,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     disconnectOAuthProvider: (providerId) =>
       withRefresh(async () => {
-        await requestJson(
-          `/api/v1/config/oauth/providers/${providerId}/disconnect`,
-          { method: 'POST' },
-        );
+        await requestJson(`/api/v1/config/oauth/providers/${providerId}/disconnect`, {
+          method: 'POST',
+        });
       }),
     listIntegrations: () =>
       withRefresh(() =>

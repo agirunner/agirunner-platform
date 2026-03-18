@@ -408,7 +408,9 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
           <div className="grid gap-3">
             <div className={metaRowClass}>
               <Badge variant="secondary">Selected work item</Badge>
-              <Badge variant="outline">{describeCountLabel(props.tasks.length, 'linked step')}</Badge>
+              <Badge variant="outline">
+                {describeCountLabel(props.tasks.length, 'linked step')}
+              </Badge>
               {artifactQuery.data ? (
                 <Badge variant="outline">
                   {describeCountLabel(artifactQuery.data.length, 'artifact')}
@@ -526,6 +528,7 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
                 <TabsContent value="steps" className="mt-0 grid">
                   <WorkItemTasksSection
                     workflowId={props.workflowId}
+                    workItemId={props.workItemId}
                     tasks={props.tasks}
                     executionSummary={executionSummary}
                     isMilestone={isMilestoneWorkItem(boardWorkItem)}
@@ -801,7 +804,9 @@ function WorkItemOperatorSection(props: {
             <div className="grid gap-4 md:grid-cols-2">
               {!props.isMilestone ? (
                 <label className={fieldStackClass}>
-                  <span className="text-sm font-medium text-foreground">Reparent under milestone</span>
+                  <span className="text-sm font-medium text-foreground">
+                    Reparent under milestone
+                  </span>
                   <Select
                     value={props.parentWorkItemId || '__none__'}
                     onValueChange={(value) =>
@@ -823,8 +828,8 @@ function WorkItemOperatorSection(props: {
                 </label>
               ) : (
                 <div className="rounded-lg border border-border/70 bg-border/10 p-4 text-sm leading-6 text-muted">
-                  Parent milestones stay top-level. Move or reparent child work items instead of nesting
-                  milestones.
+                  Parent milestones stay top-level. Move or reparent child work items instead of
+                  nesting milestones.
                 </div>
               )}
               <label className={fieldStackClass}>
@@ -895,7 +900,9 @@ function WorkItemOperatorSection(props: {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs leading-5 text-muted">{selectedChildPriority?.description}</p>
+                    <p className="text-xs leading-5 text-muted">
+                      {selectedChildPriority?.description}
+                    </p>
                   </label>
                 </div>
                 <label className={fieldStackClass}>
@@ -914,7 +921,9 @@ function WorkItemOperatorSection(props: {
                     </span>
                     <Textarea
                       value={props.childAcceptanceCriteria}
-                      onChange={(event) => props.onChildAcceptanceCriteriaChange(event.target.value)}
+                      onChange={(event) =>
+                        props.onChildAcceptanceCriteriaChange(event.target.value)
+                      }
                       className="min-h-[124px]"
                       placeholder="List the acceptance criteria this child work item must satisfy."
                     />
@@ -1164,7 +1173,9 @@ function WorkItemHeader(props: {
             <Badge variant="outline">Checkpoint: {workItem.current_checkpoint}</Badge>
           ) : null}
           <Badge variant="outline">{workItem.column_id ?? 'Unassigned column'}</Badge>
-          <Badge variant="outline">{describeCountLabel(props.linkedTaskCount, 'linked step')}</Badge>
+          <Badge variant="outline">
+            {describeCountLabel(props.linkedTaskCount, 'linked step')}
+          </Badge>
           <Badge variant="outline">{describeCountLabel(props.artifactCount, 'artifact')}</Badge>
           {workItem.owner_role ? <Badge variant="outline">{workItem.owner_role}</Badge> : null}
           {typeof workItem.rework_count === 'number' && workItem.rework_count > 0 ? (
@@ -1344,7 +1355,9 @@ function MilestoneOperatorSummarySection(props: {
           Milestone group summary
         </div>
         <div className={metaRowClass}>
-          <Badge variant="outline">{describeCountLabel(props.summary.totalChildren, 'child item')}</Badge>
+          <Badge variant="outline">
+            {describeCountLabel(props.summary.totalChildren, 'child item')}
+          </Badge>
           <Badge variant="outline">{props.summary.completedChildren} complete</Badge>
           <Badge variant="outline">{props.summary.openChildren} open</Badge>
         </div>
@@ -1354,8 +1367,12 @@ function MilestoneOperatorSummarySection(props: {
           Operator attention
         </div>
         <div className={metaRowClass}>
-          <Badge variant="warning">{describeCountLabel(props.summary.awaitingStepReviews, 'step review')}</Badge>
-          <Badge variant="destructive">{describeCountLabel(props.summary.failedSteps, 'failed step')}</Badge>
+          <Badge variant="warning">
+            {describeCountLabel(props.summary.awaitingStepReviews, 'step review')}
+          </Badge>
+          <Badge variant="destructive">
+            {describeCountLabel(props.summary.failedSteps, 'failed step')}
+          </Badge>
           <Badge variant="outline">{props.summary.inFlightSteps} in flight</Badge>
         </div>
       </article>
@@ -1454,8 +1471,13 @@ function WorkItemContinuitySection(props: {
         </div>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {continuityFacts.map((fact) => (
-            <div key={fact.label} className="rounded-lg border border-border/70 bg-background/80 p-3">
-              <div className="text-xs font-medium uppercase tracking-wide text-muted">{fact.label}</div>
+            <div
+              key={fact.label}
+              className="rounded-lg border border-border/70 bg-background/80 p-3"
+            >
+              <div className="text-xs font-medium uppercase tracking-wide text-muted">
+                {fact.label}
+              </div>
               <div className="mt-1 text-sm text-foreground">{fact.value}</div>
             </div>
           ))}
@@ -1468,7 +1490,8 @@ function WorkItemContinuitySection(props: {
           </div>
           <strong className="text-base text-foreground">Most recent specialist handoff</strong>
           <p className={mutedBodyClass}>
-            Structured handoffs preserve what changed, what remains, and what the next actor should inspect.
+            Structured handoffs preserve what changed, what remains, and what the next actor should
+            inspect.
           </p>
         </div>
         {props.isLoading ? (
@@ -1504,10 +1527,7 @@ function WorkItemContinuitySection(props: {
   );
 }
 
-function WorkItemReviewClosure(props: {
-  title: string;
-  detail: string;
-}): JSX.Element {
+function WorkItemReviewClosure(props: { title: string; detail: string }): JSX.Element {
   return (
     <section className="grid gap-2 rounded-xl border border-dashed border-border/70 bg-background/80 p-3">
       <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
@@ -1529,7 +1549,9 @@ function WorkItemHandoffHistorySection(props: {
         <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
           Handoff history
         </div>
-        <strong className="text-base text-foreground">Full execution chain for this work item</strong>
+        <strong className="text-base text-foreground">
+          Full execution chain for this work item
+        </strong>
         <p className={mutedBodyClass}>
           Review the complete handoff trail when you need to see how work moved between specialists,
           what changed, and what still needs attention.
@@ -1604,6 +1626,7 @@ function readStageProgressWidth(percent: number | null): number {
 
 function WorkItemTasksSection(props: {
   workflowId: string;
+  workItemId: string;
   tasks: DashboardWorkItemTaskRecord[];
   executionSummary: ReturnType<typeof summarizeWorkItemExecution>;
   isMilestone: boolean;
@@ -1759,6 +1782,7 @@ function WorkItemTasksSection(props: {
           <TaskExecutionCard
             key={task.id}
             workflowId={props.workflowId}
+            workItemId={props.workItemId}
             task={task}
             onWorkItemChanged={props.onWorkItemChanged}
           />
@@ -1796,6 +1820,7 @@ function WorkItemTasksSection(props: {
                 <TableCell className="min-w-[18rem]">
                   <WorkItemTaskActionCell
                     workflowId={props.workflowId}
+                    workItemId={props.workItemId}
                     task={task}
                     onWorkItemChanged={props.onWorkItemChanged}
                   />
@@ -1811,6 +1836,7 @@ function WorkItemTasksSection(props: {
 
 function TaskExecutionCard(props: {
   workflowId: string;
+  workItemId: string;
   task: DashboardWorkItemTaskRecord;
   onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
@@ -1837,6 +1863,7 @@ function TaskExecutionCard(props: {
       </div>
       <WorkItemTaskActionCell
         workflowId={props.workflowId}
+        workItemId={props.workItemId}
         task={props.task}
         onWorkItemChanged={props.onWorkItemChanged}
       />
@@ -1871,6 +1898,7 @@ function TaskDependencySummary(props: { task: DashboardWorkItemTaskRecord }): JS
 
 function WorkItemTaskActionCell(props: {
   workflowId: string;
+  workItemId: string;
   task: DashboardWorkItemTaskRecord;
   onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
@@ -1880,6 +1908,7 @@ function WorkItemTaskActionCell(props: {
   const [instructions, setInstructions] = useState('');
   const [error, setError] = useState<string | null>(null);
   const state = props.task.state;
+  const scopedWorkItemId = props.task.work_item_id ?? props.workItemId;
   const taskLinks = buildWorkItemTaskLinkActions({
     workflowId: props.workflowId,
     taskId: props.task.id,
@@ -1890,8 +1919,16 @@ function WorkItemTaskActionCell(props: {
   const approveMutation = useMutation({
     mutationFn: () =>
       state === 'output_pending_review'
-        ? dashboardApi.approveTaskOutput(props.task.id)
-        : dashboardApi.approveTask(props.task.id),
+        ? dashboardApi.approveWorkflowWorkItemTaskOutput(
+            props.workflowId,
+            scopedWorkItemId,
+            props.task.id,
+          )
+        : dashboardApi.approveWorkflowWorkItemTask(
+            props.workflowId,
+            scopedWorkItemId,
+            props.task.id,
+          ),
     onSuccess: async () => {
       setError(null);
       await props.onWorkItemChanged();
@@ -1902,7 +1939,10 @@ function WorkItemTaskActionCell(props: {
   });
 
   const rejectMutation = useMutation({
-    mutationFn: () => dashboardApi.rejectTask(props.task.id, { feedback }),
+    mutationFn: () =>
+      dashboardApi.rejectWorkflowWorkItemTask(props.workflowId, scopedWorkItemId, props.task.id, {
+        feedback,
+      }),
     onSuccess: async () => {
       setError(null);
       setFeedback('');
@@ -1915,7 +1955,13 @@ function WorkItemTaskActionCell(props: {
   });
 
   const requestChangesMutation = useMutation({
-    mutationFn: () => dashboardApi.requestTaskChanges(props.task.id, { feedback }),
+    mutationFn: () =>
+      dashboardApi.requestWorkflowWorkItemTaskChanges(
+        props.workflowId,
+        scopedWorkItemId,
+        props.task.id,
+        { feedback },
+      ),
     onSuccess: async () => {
       setError(null);
       setFeedback('');
@@ -1930,7 +1976,8 @@ function WorkItemTaskActionCell(props: {
   });
 
   const retryMutation = useMutation({
-    mutationFn: () => dashboardApi.retryTask(props.task.id),
+    mutationFn: () =>
+      dashboardApi.retryWorkflowWorkItemTask(props.workflowId, scopedWorkItemId, props.task.id),
     onSuccess: async () => {
       setError(null);
       await props.onWorkItemChanged();
@@ -1941,7 +1988,12 @@ function WorkItemTaskActionCell(props: {
   });
   const resolveEscalationMutation = useMutation({
     mutationFn: () =>
-      dashboardApi.resolveEscalation(props.task.id, { instructions: instructions.trim() }),
+      dashboardApi.resolveWorkflowWorkItemTaskEscalation(
+        props.workflowId,
+        scopedWorkItemId,
+        props.task.id,
+        { instructions: instructions.trim() },
+      ),
     onSuccess: async () => {
       setError(null);
       setInstructions('');
@@ -1955,7 +2007,8 @@ function WorkItemTaskActionCell(props: {
     },
   });
   const cancelMutation = useMutation({
-    mutationFn: () => dashboardApi.cancelTask(props.task.id),
+    mutationFn: () =>
+      dashboardApi.cancelWorkflowWorkItemTask(props.workflowId, scopedWorkItemId, props.task.id),
     onSuccess: async () => {
       setError(null);
       setFeedback('');
@@ -2105,7 +2158,9 @@ function MilestoneChildrenSection(props: {
             <div className={metaRowClass}>
               <Badge variant="outline">Stage group</Badge>
               <strong>{stageName}</strong>
-              <span className="text-sm text-muted">{describeCountLabel(children.length, 'child item')}</span>
+              <span className="text-sm text-muted">
+                {describeCountLabel(children.length, 'child item')}
+              </span>
             </div>
             {children.map((child) => (
               <article
@@ -2228,9 +2283,7 @@ function ArtifactIdentity(props: { artifact: DashboardWorkItemArtifactRecord }):
   return (
     <div className="grid gap-1">
       <strong className="break-all">{identity.fileName}</strong>
-      {identity.displayPath ? (
-        <CopyableIdBadge value={identity.displayPath} label="Path" />
-      ) : null}
+      {identity.displayPath ? <CopyableIdBadge value={identity.displayPath} label="Path" /> : null}
     </div>
   );
 }

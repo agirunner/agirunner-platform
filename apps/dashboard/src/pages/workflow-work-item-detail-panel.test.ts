@@ -41,14 +41,16 @@ describe('workflow work item detail panel source', () => {
 
   it('renders dedicated tabs for steps, memory, artifacts, and event history', () => {
     const source = readSource();
-    expect(source).toContain("const responsiveTabTriggerClass = 'h-auto whitespace-normal px-3 py-2 text-center leading-5'");
+    expect(source).toContain(
+      "const responsiveTabTriggerClass = 'h-auto whitespace-normal px-3 py-2 text-center leading-5'",
+    );
     expect(source).toContain('TabsTrigger value="summary" className={responsiveTabTriggerClass}');
     expect(source).toContain('TabsTrigger value="operate" className={responsiveTabTriggerClass}');
     expect(source).toContain('TabsTrigger value="evidence" className={responsiveTabTriggerClass}');
     expect(source).toContain('grid h-auto w-full grid-cols-2');
     expect(source).toContain('xl:grid-cols-4');
-    expect(source).toContain('describeCountLabel(props.tasks.length, \'linked step\')');
-    expect(source).toContain('describeCountLabel(artifactQuery.data.length, \'artifact\')');
+    expect(source).toContain("describeCountLabel(props.tasks.length, 'linked step')");
+    expect(source).toContain("describeCountLabel(artifactQuery.data.length, 'artifact')");
     expect(source).toContain('TabsTrigger value="steps" className={responsiveTabTriggerClass}');
     expect(source).toContain('TabsTrigger value="memory" className={responsiveTabTriggerClass}');
     expect(source).toContain('TabsTrigger value="artifacts" className={responsiveTabTriggerClass}');
@@ -131,7 +133,9 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('WorkItemReviewClosure');
     expect(source).toContain('Summary complete');
     expect(source).toContain('Evidence packet complete');
-    expect(source).toContain('Review the summary first. Open controls only when routing or metadata needs to change.');
+    expect(source).toContain(
+      'Review the summary first. Open controls only when routing or metadata needs to change.',
+    );
     expect(source).toContain('need review');
     expect(source).toContain('history events');
     expect(source).toContain('Handoff history');
@@ -159,11 +163,20 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Open child work-item flow');
     expect(source).toContain('dashboardApi.updateWorkflowWorkItem');
     expect(source).toContain('dashboardApi.createWorkflowWorkItem');
-    expect(source).toContain('dashboardApi.approveTask');
-    expect(source).toContain('dashboardApi.requestTaskChanges');
-    expect(source).toContain('dashboardApi.retryTask');
-    expect(source).toContain('dashboardApi.resolveEscalation');
-    expect(source).toContain('dashboardApi.cancelTask');
+    expect(source).toContain('dashboardApi.approveWorkflowWorkItemTaskOutput');
+    expect(source).toContain('dashboardApi.approveWorkflowWorkItemTask');
+    expect(source).toContain('dashboardApi.rejectWorkflowWorkItemTask');
+    expect(source).toContain('dashboardApi.requestWorkflowWorkItemTaskChanges');
+    expect(source).toContain('dashboardApi.retryWorkflowWorkItemTask');
+    expect(source).toContain('dashboardApi.resolveWorkflowWorkItemTaskEscalation');
+    expect(source).toContain('dashboardApi.cancelWorkflowWorkItemTask');
+    expect(source).not.toContain('dashboardApi.approveTask(');
+    expect(source).not.toContain('dashboardApi.approveTaskOutput(');
+    expect(source).not.toContain('dashboardApi.rejectTask(');
+    expect(source).not.toContain('dashboardApi.requestTaskChanges(');
+    expect(source).not.toContain('dashboardApi.retryTask(');
+    expect(source).not.toContain('dashboardApi.resolveEscalation(');
+    expect(source).not.toContain('dashboardApi.cancelTask(');
     expect(source).toContain('Provide Operator Guidance');
     expect(source).toContain('Describe the operator guidance needed to resume this step...');
   });
