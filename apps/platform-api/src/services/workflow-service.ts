@@ -31,7 +31,9 @@ import {
   type WorkItemReadModel,
 } from './work-item-service.js';
 import {
-  currentStageNameFromStages,
+  deriveWorkflowStageProjection,
+} from './workflow-stage-projection.js';
+import {
   isActiveStageStatus,
   WorkflowStageService,
   type WorkflowStageResponse,
@@ -358,13 +360,18 @@ export class WorkflowService {
         playbook_definition: playbookDefinition,
       };
       const terminalColumns = readTerminalColumns(playbookDefinition);
-      const activeStages = Array.from(
-        new Set(
-          workItems
-            .filter((item) => isBoardItemOpen(item, terminalColumns))
-            .map((item) => String(item.stage_name)),
+      const projection = deriveWorkflowStageProjection({
+        lifecycle: workflowRow.lifecycle === 'ongoing' ? 'ongoing' : 'planned',
+        stageRows: workflowStages,
+        openWorkItemStageNames: Array.from(
+          new Set(
+            workItems
+              .filter((item) => isBoardItemOpen(item, terminalColumns))
+              .map((item) => String(item.stage_name)),
+          ),
         ),
-      );
+        definition: playbookDefinition,
+      });
       const normalizedWorkflow = normalizeWorkflowReadModel(
         sanitizeWorkflowReadModel(workflowReadModel),
         buildWorkflowWorkItemSummary(workItems, workflowStages, terminalColumns),
@@ -373,14 +380,14 @@ export class WorkflowService {
         ...normalizedWorkflow,
         ...(workflowRow.lifecycle !== 'ongoing'
           ? {
-              current_stage: currentStageNameFromStages(workflowStages as never) ?? null,
+              current_stage: projection.currentStage,
             }
           : {}),
         tasks: tasks.map((task) => sanitizeTaskReadModel(task)),
         work_items: workItems,
         activations,
         workflow_stages: workflowStages,
-        active_stages: normalizedWorkflow.active_stages ?? activeStages,
+        active_stages: projection.activeStages,
       } as Record<string, unknown>;
     }
     const workflowWithRelations = await this.attachWorkflowRelations(tenantId, [workflowRow]);

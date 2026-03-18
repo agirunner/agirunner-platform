@@ -1,5 +1,4 @@
 import type { DatabaseQueryable } from '../db/database.js';
-import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
@@ -7,11 +6,7 @@ import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { ProjectMemoryScopeService } from './project-memory-scope-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
-import {
-  currentStageNameFromStages,
-  normalizeWorkflowStageView,
-  type WorkflowStageViewInput,
-} from './workflow-stage-service.js';
+import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 
 const TASK_CONTEXT_SECRET_REDACTION = 'redacted://task-context-secret';
 const TASK_CONTEXT_MEMORY_INDEX_LIMIT = 100;
@@ -96,15 +91,13 @@ export async function buildTaskContext(
     projectRes.rows[0] as Record<string, unknown> | undefined,
     task,
   );
-  const activeStages = workflowRow
-    ? await loadWorkflowActiveStages(
-        db,
-        tenantId,
-        String(workflowRow.id),
-        workflowRow.playbook_definition,
-        continuousWorkflowRow ? 'ongoing' : 'planned',
-      )
-    : [];
+  const stageProjection = workflowRow
+    ? await loadWorkflowStageProjection(db, tenantId, String(workflowRow.id), {
+        lifecycle: continuousWorkflowRow ? 'ongoing' : 'planned',
+        definition: workflowRow.playbook_definition,
+      })
+    : null;
+  const activeStages = stageProjection?.activeStages ?? [];
   const workflowRelations = workflowRow
     ? await loadWorkflowRelations(db, tenantId, workflowRow)
     : null;
@@ -127,10 +120,9 @@ export async function buildTaskContext(
           parentWorkflowContext,
         })
       : await buildStandardWorkflowContext({
-          db,
-          tenantId,
           workflowRow,
           activeStages,
+          currentStage: stageProjection?.currentStage ?? null,
           workflowRelations,
           parentWorkflowContext,
         })
@@ -227,19 +219,14 @@ function buildContinuousWorkflowContext(params: {
 }
 
 async function buildStandardWorkflowContext(params: {
-  db: DatabaseQueryable;
-  tenantId: string;
   workflowRow: Record<string, unknown>;
   activeStages: string[];
+  currentStage: string | null;
   workflowRelations: Record<string, unknown> | null;
   parentWorkflowContext: Record<string, unknown> | null;
 }) {
   const context = buildWorkflowContextBase(params);
-  context.current_stage = await loadWorkflowCurrentStage(
-    params.db,
-    params.tenantId,
-    String(params.workflowRow.id),
-  );
+  context.current_stage = params.currentStage;
   return context;
 }
 
@@ -247,109 +234,6 @@ function isContinuousWorkflowRow(
   workflowRow: Record<string, unknown>,
 ): workflowRow is Record<string, unknown> & { lifecycle: 'ongoing' } {
   return workflowRow.lifecycle === 'ongoing';
-}
-
-async function loadWorkflowActiveStages(
-  db: DatabaseQueryable,
-  tenantId: string,
-  workflowId: string,
-  definition: unknown,
-  lifecycle: 'ongoing' | 'planned',
-): Promise<string[]> {
-  const result =
-    lifecycle === 'ongoing'
-      ? await loadContinuousWorkflowActiveStages(db, tenantId, workflowId)
-      : await loadStandardWorkflowActiveStages(db, tenantId, workflowId);
-  return orderStageNamesByDefinition(result.rows.map((row) => row.stage_name), definition);
-}
-
-async function loadContinuousWorkflowActiveStages(
-  db: DatabaseQueryable,
-  tenantId: string,
-  workflowId: string,
-) {
-  return db.query<{ stage_name: string }>(
-    `SELECT DISTINCT wi.stage_name
-       FROM workflow_work_items wi
-      WHERE wi.tenant_id = $1
-        AND wi.workflow_id = $2
-        AND wi.completed_at IS NULL
-        AND wi.stage_name IS NOT NULL
-      ORDER BY wi.stage_name ASC`,
-    [tenantId, workflowId],
-  );
-}
-
-async function loadStandardWorkflowActiveStages(
-  db: DatabaseQueryable,
-  tenantId: string,
-  workflowId: string,
-) {
-  return db.query<{ stage_name: string }>(
-    `SELECT DISTINCT stage_name
-       FROM (
-         SELECT wi.stage_name
-           FROM workflow_work_items wi
-          WHERE wi.tenant_id = $1
-            AND wi.workflow_id = $2
-            AND wi.completed_at IS NULL
-         UNION
-         SELECT ws.name AS stage_name
-           FROM workflow_stages ws
-          WHERE ws.tenant_id = $1
-            AND ws.workflow_id = $2
-            AND ws.gate_status IN ('awaiting_approval', 'changes_requested', 'rejected')
-       ) AS active_stage_names
-      WHERE stage_name IS NOT NULL
-      ORDER BY stage_name ASC`,
-    [tenantId, workflowId],
-  );
-}
-
-async function loadWorkflowCurrentStage(
-  db: DatabaseQueryable,
-  tenantId: string,
-  workflowId: string,
-): Promise<string | null> {
-  const result = await db.query<WorkflowStageViewInput>(
-    `SELECT ws.id,
-            w.lifecycle,
-            ws.name,
-            ws.position,
-            ws.goal,
-            ws.guidance,
-            ws.human_gate,
-            ws.status,
-            ws.gate_status,
-            ws.iteration_count,
-            ws.summary,
-            ws.started_at,
-            ws.completed_at,
-            COALESCE(work_item_summary.open_work_item_count, 0) AS open_work_item_count,
-            COALESCE(work_item_summary.total_work_item_count, 0) AS total_work_item_count,
-            work_item_summary.first_work_item_at,
-            work_item_summary.last_completed_work_item_at
-       FROM workflow_stages ws
-       JOIN workflows w
-         ON w.tenant_id = ws.tenant_id
-        AND w.id = ws.workflow_id
-       LEFT JOIN LATERAL (
-         SELECT COUNT(*) FILTER (WHERE wi.completed_at IS NULL)::int AS open_work_item_count,
-                COUNT(*)::int AS total_work_item_count,
-                MIN(wi.created_at) AS first_work_item_at,
-                MAX(wi.completed_at) AS last_completed_work_item_at
-           FROM workflow_work_items wi
-          WHERE wi.tenant_id = ws.tenant_id
-            AND wi.workflow_id = ws.workflow_id
-            AND wi.stage_name = ws.name
-       ) AS work_item_summary
-         ON true
-      WHERE ws.tenant_id = $1
-        AND ws.workflow_id = $2
-      ORDER BY ws.position ASC`,
-    [tenantId, workflowId],
-  );
-  return currentStageNameFromStages(result.rows.map(normalizeWorkflowStageView));
 }
 
 async function loadWorkItemContext(
@@ -867,41 +751,6 @@ function toWorkflowRelationRef(workflowId: string, row?: Record<string, unknown>
     is_terminal: ['completed', 'failed', 'cancelled'].includes(asOptionalString(row?.state) ?? ''),
     link: `/workflows/${workflowId}`,
   };
-}
-
-function orderStageNamesByDefinition(stageNames: string[], definition: unknown): string[] {
-  if (stageNames.length <= 1) {
-    return stageNames;
-  }
-  const stageOrder = readPlaybookStageOrder(definition);
-  if (stageOrder.length === 0) {
-    return stageNames;
-  }
-  const remaining = new Set(stageNames);
-  const ordered: string[] = [];
-  for (const stageName of stageOrder) {
-    if (!remaining.has(stageName)) {
-      continue;
-    }
-    ordered.push(stageName);
-    remaining.delete(stageName);
-  }
-  for (const stageName of stageNames) {
-    if (!remaining.has(stageName)) {
-      continue;
-    }
-    ordered.push(stageName);
-    remaining.delete(stageName);
-  }
-  return ordered;
-}
-
-function readPlaybookStageOrder(definition: unknown): string[] {
-  try {
-    return parsePlaybookDefinition(definition).stages.map((stage) => stage.name);
-  } catch {
-    return [];
-  }
 }
 
 function asOptionalNumber(value: unknown): number | undefined {

@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { readRequiredPositiveIntegerRuntimeDefaultMock } = vi.hoisted(() => ({
+type MockWorkflowStageProjection = {
+  stageRows: Array<Record<string, unknown>>;
+  currentStage: string | null;
+  activeStages: string[];
+};
+
+const { loadWorkflowStageProjectionMock, readRequiredPositiveIntegerRuntimeDefaultMock } = vi.hoisted(() => ({
+  loadWorkflowStageProjectionMock: vi.fn<() => Promise<MockWorkflowStageProjection>>(async () => ({
+    stageRows: [],
+    currentStage: null,
+    activeStages: [],
+  })),
   readRequiredPositiveIntegerRuntimeDefaultMock: vi.fn(async () => 30),
 }));
 
@@ -23,10 +34,27 @@ vi.mock('../../src/services/runtime-default-values.js', async () => {
   };
 });
 
+vi.mock('../../src/services/workflow-stage-projection.js', async () => {
+  const actual =
+    await vi.importActual<typeof import('../../src/services/workflow-stage-projection.js')>(
+      '../../src/services/workflow-stage-projection.js',
+    );
+  return {
+    ...actual,
+    loadWorkflowStageProjection: loadWorkflowStageProjectionMock,
+  };
+});
+
 import { WorkflowActivationDispatchService } from '../../src/services/workflow-activation-dispatch-service.js';
 
 describe('WorkflowActivationDispatchService', () => {
   beforeEach(() => {
+    loadWorkflowStageProjectionMock.mockReset();
+    loadWorkflowStageProjectionMock.mockResolvedValue({
+      stageRows: [],
+      currentStage: null,
+      activeStages: [],
+    });
     readRequiredPositiveIntegerRuntimeDefaultMock.mockReset();
     readRequiredPositiveIntegerRuntimeDefaultMock.mockResolvedValue(30);
   });
@@ -458,6 +486,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['triage'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-heartbeat');
 
@@ -574,6 +603,7 @@ describe('WorkflowActivationDispatchService', () => {
       } as never,
     });
 
+    expectWorkflowStageProjection({ activeStages: ['triage'] });
     readRequiredPositiveIntegerRuntimeDefaultMock.mockResolvedValueOnce(45);
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-runtime-default');
@@ -678,6 +708,7 @@ describe('WorkflowActivationDispatchService', () => {
       } as never,
     });
 
+    expectWorkflowStageProjection({ activeStages: ['triage'] });
     readRequiredPositiveIntegerRuntimeDefaultMock.mockRejectedValueOnce(
       new Error('Missing runtime default "tasks.default_timeout_minutes"'),
     );
@@ -807,6 +838,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['triage'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-heartbeat');
 
@@ -960,6 +992,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['implementation'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-heartbeat');
 
@@ -1017,7 +1050,7 @@ describe('WorkflowActivationDispatchService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
-          expect(sql).toContain("WHERE w.lifecycle <> 'ongoing'");
+          expect(sql).not.toContain('w.current_stage');
           return {
             rowCount: 1,
             rows: [{
@@ -1083,6 +1116,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['triage'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-1');
 
@@ -1127,8 +1161,7 @@ describe('WorkflowActivationDispatchService', () => {
         }
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).not.toContain('w.current_stage');
-          expect(sql).toContain('current_stage_summary.current_stage');
-          expect(sql).toContain('open_work_item_count');
+          expect(sql).toContain('p.definition AS playbook_definition');
           return {
             rowCount: 1,
             rows: [{
@@ -1250,6 +1283,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['implementation'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-1');
 
@@ -1353,6 +1387,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['implementation'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-1');
 
@@ -1512,6 +1547,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ currentStage: 'requirements' });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-repo');
 
@@ -1643,6 +1679,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ currentStage: 'requirements' });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-branch-only');
 
@@ -1759,6 +1796,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ currentStage: 'review', activeStages: ['review'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-9');
 
@@ -1874,6 +1912,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ currentStage: 'review', activeStages: ['review'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-11');
 
@@ -2049,6 +2088,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['implementation'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-1');
 
@@ -2222,6 +2262,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['implementation'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-1');
 
@@ -2359,6 +2400,7 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ activeStages: ['implementation'] });
     const finalizeSpy = vi.spyOn(service, 'finalizeActivationForTask').mockResolvedValue(undefined);
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-1');
@@ -3762,9 +3804,21 @@ describe('WorkflowActivationDispatchService', () => {
         WORKFLOW_ACTIVATION_STALE_AFTER_MS: 300_000,
       },
     });
+    expectWorkflowStageProjection({ currentStage: 'review', activeStages: ['review'] });
 
     const taskId = await service.dispatchActivation('tenant-1', 'activation-tools');
 
     expect(taskId).toBe('task-tools');
   });
 });
+
+function expectWorkflowStageProjection(projection: {
+  currentStage?: string | null;
+  activeStages?: string[];
+}) {
+  loadWorkflowStageProjectionMock.mockResolvedValueOnce({
+    stageRows: [],
+    currentStage: projection.currentStage ?? null,
+    activeStages: projection.activeStages ?? [],
+  });
+}

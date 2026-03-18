@@ -49,7 +49,7 @@ export function buildWorkflowInstructionLayer(
   const checkpointName =
     readString(focusedWorkItem.current_checkpoint)
     ?? readString(focusedWorkItem.stage_name)
-    ?? readString(workflow.current_stage)
+    ?? deriveSoleActiveCheckpointName(workflow)
     ?? null;
   const checkpoint = definition.checkpoints.find((entry) => entry.name === checkpointName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(focusedWorkItem.column_id));
@@ -85,6 +85,11 @@ export function buildWorkflowInstructionLayer(
     format: 'markdown',
     content: sections.join('\n\n'),
   };
+}
+
+function deriveSoleActiveCheckpointName(workflow: Record<string, unknown>) {
+  const activeStages = readStringArray(workflow.active_stages);
+  return activeStages.length === 1 ? activeStages[0] : null;
 }
 
 function buildOrchestratorSections(params: {

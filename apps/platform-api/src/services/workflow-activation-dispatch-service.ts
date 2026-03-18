@@ -8,6 +8,7 @@ import { EventService } from './event-service.js';
 import { readWorkflowActivationTimingDefaults } from './platform-timing-defaults.js';
 import { readProjectRepositorySettings } from './project-settings.js';
 import { resolveRepositoryBranchContext } from './repository-branch-context.js';
+import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
@@ -71,11 +72,25 @@ interface WorkflowDispatchRowBase {
   id: string;
   name: string;
   project_id: string | null;
-  lifecycle: string | null;
   active_stages: string[];
   playbook_id: string;
   playbook_name: string;
   playbook_outcome: string | null;
+  project_repository_url: string | null;
+  project_settings: Record<string, unknown> | null;
+  workflow_git_branch: string | null;
+  workflow_parameters: Record<string, unknown> | null;
+}
+
+interface WorkflowDispatchSourceRow {
+  id: string;
+  name: string;
+  project_id: string | null;
+  lifecycle: string | null;
+  playbook_id: string;
+  playbook_name: string;
+  playbook_outcome: string | null;
+  playbook_definition: Record<string, unknown> | null;
   project_repository_url: string | null;
   project_settings: Record<string, unknown> | null;
   workflow_git_branch: string | null;
@@ -945,16 +960,15 @@ export class WorkflowActivationDispatchService {
     workflowId: string,
     client: DatabaseClient,
   ): Promise<WorkflowDispatchRow | null> {
-    const result = await client.query<WorkflowDispatchRow>(
+    const result = await client.query<WorkflowDispatchSourceRow>(
       `SELECT w.id,
               w.name,
               w.project_id,
               w.lifecycle,
-              current_stage_summary.current_stage,
-              COALESCE(active_work_items.active_stages, '{}'::text[]) AS active_stages,
               w.playbook_id,
               p.name AS playbook_name,
               p.outcome AS playbook_outcome,
+              p.definition AS playbook_definition,
               proj.repository_url AS project_repository_url,
               proj.settings AS project_settings,
               w.git_branch AS workflow_git_branch,
@@ -966,67 +980,35 @@ export class WorkflowActivationDispatchService {
          LEFT JOIN projects proj
            ON proj.tenant_id = w.tenant_id
           AND proj.id = w.project_id
-         LEFT JOIN LATERAL (
-           SELECT ARRAY_AGG(DISTINCT active_stage_name ORDER BY active_stage_name) AS active_stages
-             FROM (
-               SELECT wi.stage_name AS active_stage_name
-                 FROM workflow_work_items wi
-                WHERE wi.tenant_id = w.tenant_id
-                  AND wi.workflow_id = w.id
-                  AND wi.completed_at IS NULL
-               UNION
-               SELECT ws.name AS active_stage_name
-                 FROM workflow_stages ws
-               WHERE w.lifecycle <> 'ongoing'
-                  AND ws.tenant_id = w.tenant_id
-                  AND ws.workflow_id = w.id
-                  AND ws.gate_status IN ('awaiting_approval', 'changes_requested', 'rejected')
-             ) AS active_stage_names
-         ) AS active_work_items ON true
-         LEFT JOIN LATERAL (
-           SELECT current_stage_view.name AS current_stage
-             FROM (
-               SELECT ws_current.name,
-                      ws_current.position,
-                      CASE
-                        WHEN ws_current.gate_status = 'awaiting_approval' THEN 'awaiting_gate'
-                        WHEN ws_current.gate_status = 'rejected' THEN 'blocked'
-                        WHEN COALESCE(work_item_summary.open_work_item_count, 0) > 0
-                          OR ws_current.gate_status = 'changes_requested' THEN 'active'
-                        WHEN COALESCE(work_item_summary.total_work_item_count, 0) > 0
-                          OR ws_current.status = 'completed' THEN 'completed'
-                        WHEN ws_current.status IN ('active', 'awaiting_gate', 'blocked') THEN ws_current.status
-                        ELSE 'pending'
-                      END AS derived_status
-                 FROM workflow_stages ws_current
-                 LEFT JOIN LATERAL (
-                   SELECT COUNT(*) FILTER (WHERE wi.completed_at IS NULL)::int AS open_work_item_count,
-                          COUNT(*)::int AS total_work_item_count
-                     FROM workflow_work_items wi
-                    WHERE wi.tenant_id = ws_current.tenant_id
-                      AND wi.workflow_id = ws_current.workflow_id
-                      AND wi.stage_name = ws_current.name
-                 ) AS work_item_summary
-                   ON true
-                WHERE w.lifecycle <> 'ongoing'
-                  AND ws_current.tenant_id = w.tenant_id
-                  AND ws_current.workflow_id = w.id
-             ) AS current_stage_view
-            WHERE current_stage_view.derived_status IN ('active', 'awaiting_gate', 'blocked')
-            ORDER BY CASE current_stage_view.derived_status
-                       WHEN 'awaiting_gate' THEN 0
-                       WHEN 'blocked' THEN 1
-                       ELSE 2
-                     END,
-                     current_stage_view.position ASC
-            LIMIT 1
-         ) AS current_stage_summary ON true
         WHERE w.tenant_id = $1
           AND w.id = $2
           AND w.state IN ('pending', 'active')`,
       [tenantId, workflowId],
     );
-    return result.rows[0] ?? null;
+    const workflow = result.rows[0];
+    if (!workflow) {
+      return null;
+    }
+
+    const lifecycle = workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
+    const projection = await loadWorkflowStageProjection(client, tenantId, workflowId, {
+      lifecycle,
+      definition: workflow.playbook_definition,
+    });
+
+    if (lifecycle === 'ongoing') {
+      return {
+        ...workflow,
+        lifecycle,
+        active_stages: projection.activeStages,
+      };
+    }
+
+    return {
+      ...workflow,
+      active_stages: projection.activeStages,
+      current_stage: projection.currentStage,
+    };
   }
 
   private async insertHeartbeatActivation(

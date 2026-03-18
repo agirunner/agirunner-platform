@@ -186,4 +186,35 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).not.toContain('git_token_secret_ref');
     expect(layer!.content).not.toContain('secret:GITHUB_TOKEN');
   });
+
+  it('prefers a sole active checkpoint over stale workflow-global current stage fallback', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        current_stage: 'review',
+        active_stages: ['implementation'],
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions: 'Follow the checkpoint sequence.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            checkpoints: [
+              { name: 'implementation', goal: 'Build the requested change' },
+              { name: 'review', goal: 'Review the requested change', human_gate: true },
+            ],
+          },
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Current Checkpoint\nimplementation');
+    expect(layer!.content).not.toContain('## Current Checkpoint\nreview');
+  });
 });
