@@ -1791,6 +1791,16 @@ export interface DashboardApi {
       metadata?: Record<string, unknown>;
     },
   ): Promise<DashboardWorkflowWorkItemRecord>;
+  retryWorkflowWorkItem(
+    workflowId: string,
+    workItemId: string,
+    payload?: { override_input?: Record<string, unknown>; force?: boolean },
+  ): Promise<unknown>;
+  skipWorkflowWorkItem(
+    workflowId: string,
+    workItemId: string,
+    payload: { reason: string },
+  ): Promise<unknown>;
   approveWorkflowWorkItemTask(
     workflowId: string,
     workItemId: string,
@@ -2156,6 +2166,17 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         body: buildRequestBodyWithRequestId(body),
       },
     );
+  }
+
+  function requestWorkflowWorkItemAction(
+    workflowId: string,
+    workItemId: string,
+    action: string,
+    body: Record<string, unknown>,
+  ): Promise<unknown> {
+    return requestJson(`/api/v1/workflows/${workflowId}/work-items/${workItemId}/${action}`, {
+      body: buildRequestBodyWithRequestId(body),
+    });
   }
 
   function normalizeEventPage(page: {
@@ -2731,6 +2752,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           },
         ),
       ),
+    retryWorkflowWorkItem: (workflowId, workItemId, payload = {}) =>
+      withRefresh(() => requestWorkflowWorkItemAction(workflowId, workItemId, 'retry', payload)),
+    skipWorkflowWorkItem: (workflowId, workItemId, payload) =>
+      withRefresh(() => requestWorkflowWorkItemAction(workflowId, workItemId, 'skip', payload)),
     approveWorkflowWorkItemTask: (workflowId, workItemId, taskId) =>
       withRefresh(() =>
         requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'approve', {}),

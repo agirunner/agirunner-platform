@@ -3,7 +3,11 @@ import { z } from 'zod';
 
 import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fastify-auth-hook.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
-import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
+import {
+  ConflictError,
+  SchemaValidationFailedError,
+  ValidationError,
+} from '../../errors/domain-errors.js';
 import {
   createWorkflowDocument,
   deleteWorkflowDocument,
@@ -188,6 +192,18 @@ async function assertTaskBelongsToWorkflowWorkItem(
   if (task.workflow_id !== workflowId || task.work_item_id !== workItemId) {
     throw new ValidationError('Task must belong to the selected workflow work item');
   }
+}
+
+function selectWorkflowWorkItemRecoveryTask(tasks: Record<string, unknown>[]) {
+  return (
+    tasks.find((task) => readTaskState(task.state) === 'failed') ??
+    tasks.find((task) => readTaskState(task.state) === 'escalated') ??
+    null
+  );
+}
+
+function readTaskState(value: unknown): string {
+  return typeof value === 'string' ? value.toLowerCase() : '';
 }
 
 export const workflowRoutes: FastifyPluginAsync = async (app) => {
@@ -427,6 +443,89 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           request.auth!.tenantId,
           params.id,
           params.workItemId,
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/retry',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string };
+      const body = parseOrThrow(workflowWorkItemTaskRetrySchema.safeParse(request.body ?? {}));
+      const tasks = (await workflowService.listWorkflowWorkItemTasks(
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+      )) as Record<string, unknown>[];
+      const selectedTask = selectWorkflowWorkItemRecoveryTask(tasks);
+      const selectedTaskId = selectedTask?.id;
+      if (!selectedTask || typeof selectedTaskId !== 'string') {
+        throw new ConflictError('No recovery step found for this work item');
+      }
+
+      const force = body.force ?? readTaskState(selectedTask.state) !== 'failed';
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        selectedTaskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_work_item_retry',
+          body.request_id,
+          (client) =>
+            app.taskService.retryTask(
+              request.auth!,
+              selectedTaskId,
+              { override_input: body.override_input, force },
+              client,
+            ),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/skip',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string };
+      const body = parseOrThrow(workflowWorkItemTaskSkipSchema.safeParse(request.body ?? {}));
+      const tasks = (await workflowService.listWorkflowWorkItemTasks(
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+      )) as Record<string, unknown>[];
+      const selectedTask = selectWorkflowWorkItemRecoveryTask(tasks);
+      const selectedTaskId = selectedTask?.id;
+      if (!selectedTask || typeof selectedTaskId !== 'string') {
+        throw new ConflictError('No recovery step found for this work item');
+      }
+
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        selectedTaskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_work_item_skip',
+          body.request_id,
+          () => app.taskService.skipTask(request.auth!, selectedTaskId, { reason: body.reason }),
         ),
       };
     },

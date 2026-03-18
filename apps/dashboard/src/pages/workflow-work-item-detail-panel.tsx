@@ -53,6 +53,7 @@ import {
 } from '../components/ui/select.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
 import { cn } from '../lib/utils.js';
+import { normalizeTaskState } from '../lib/task-state.js';
 import type { StructuredEntryDraft } from './projects/project-detail-support.js';
 import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';
 import {
@@ -475,7 +476,15 @@ export function WorkflowWorkItemDetailPanel(props: WorkflowWorkItemDetailPanelPr
                 stages={props.stages}
                 onSelectWorkItem={props.onSelectWorkItem}
               />
-              {recoveryBrief ? <WorkItemRecoveryBriefSection brief={recoveryBrief} /> : null}
+              {recoveryBrief ? (
+                <WorkItemRecoveryBriefSection
+                  brief={recoveryBrief}
+                  workflowId={props.workflowId}
+                  workItemId={props.workItemId}
+                  tasks={props.tasks}
+                  onWorkItemChanged={props.onWorkItemChanged}
+                />
+              ) : null}
               <WorkItemFocusPacket
                 executionSummary={executionSummary}
                 artifactCount={artifactQuery.data?.length ?? 0}
@@ -1307,7 +1316,60 @@ function WorkItemStageProgressCard(props: { stage: DashboardWorkflowStageRecord 
 
 function WorkItemRecoveryBriefSection(props: {
   brief: ReturnType<typeof buildWorkItemRecoveryBrief>;
+  workflowId: string;
+  workItemId: string;
+  tasks: DashboardWorkItemTaskRecord[];
+  onWorkItemChanged(): Promise<unknown> | unknown;
 }): JSX.Element {
+  const recoveryTask = useMemo(() => selectWorkItemRecoveryTask(props.tasks), [props.tasks]);
+  const shouldForceRetry = recoveryTask
+    ? normalizeTaskState(recoveryTask.state) !== 'failed'
+    : false;
+  const [isSkipDialogOpen, setIsSkipDialogOpen] = useState(false);
+  const [skipReason, setSkipReason] = useState('');
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsSkipDialogOpen(false);
+    setSkipReason('');
+    setActionError(null);
+  }, [props.workItemId]);
+
+  const retryMutation = useMutation({
+    mutationFn: () =>
+      dashboardApi.retryWorkflowWorkItem(props.workflowId, props.workItemId, {
+        force: shouldForceRetry,
+      }),
+    onSuccess: async () => {
+      setActionError(null);
+      await props.onWorkItemChanged();
+    },
+    onError: (mutationError) => {
+      setActionError(
+        mutationError instanceof Error ? mutationError.message : 'Failed to retry work item.',
+      );
+    },
+  });
+  const skipMutation = useMutation({
+    mutationFn: () =>
+      dashboardApi.skipWorkflowWorkItem(props.workflowId, props.workItemId, {
+        reason: skipReason.trim(),
+      }),
+    onSuccess: async () => {
+      setActionError(null);
+      setSkipReason('');
+      setIsSkipDialogOpen(false);
+      await props.onWorkItemChanged();
+    },
+    onError: (mutationError) => {
+      setActionError(
+        mutationError instanceof Error ? mutationError.message : 'Failed to skip work item.',
+      );
+    },
+  });
+  const canAct = recoveryTask !== null;
+  const retryLabel = shouldForceRetry ? 'Force Retry Work Item' : 'Retry Work Item';
+
   return (
     <section
       className={cn(
@@ -1339,6 +1401,69 @@ function WorkItemRecoveryBriefSection(props: {
           </Badge>
         ))}
       </div>
+      <div className="grid gap-3 rounded-lg border border-border/70 bg-background/80 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <strong className="text-sm text-foreground">Work-item recovery</strong>
+          <Badge variant={canAct ? 'warning' : 'outline'}>
+            {canAct ? 'Board-owned step recovery' : 'No retryable step selected'}
+          </Badge>
+        </div>
+        <p className={mutedBodyClass}>
+          {recoveryTask
+            ? `Actions apply to ${recoveryTask.title} so the board keeps recovery decisions attached to the work item instead of bouncing through the task detail surface.`
+            : 'No failed or escalated step is currently available for recovery from this work item.'}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            onClick={() => retryMutation.mutate()}
+            disabled={!canAct || retryMutation.isPending || skipMutation.isPending}
+          >
+            {retryLabel}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setIsSkipDialogOpen(true)}
+            disabled={!canAct || retryMutation.isPending || skipMutation.isPending}
+          >
+            Skip Work Item
+          </Button>
+        </div>
+      </div>
+      {actionError ? <p className={errorTextClass}>{actionError}</p> : null}
+      <Dialog open={isSkipDialogOpen} onOpenChange={setIsSkipDialogOpen}>
+        <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Skip Work Item</DialogTitle>
+            <DialogDescription>
+              Keep the bypass reason attached to the work item so recovery stays board-owned and
+              does not drift back to the raw task helper.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <Textarea
+              value={skipReason}
+              onChange={(event) => setSkipReason(event.target.value)}
+              placeholder="Describe why this work item recovery step should be skipped..."
+              rows={4}
+            />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsSkipDialogOpen(false)}
+                disabled={skipMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => skipMutation.mutate()}
+                disabled={!skipReason.trim() || skipMutation.isPending}
+              >
+                Skip Work Item
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </section>
   );
 }
@@ -1911,10 +2036,8 @@ function WorkItemTaskActionCell(props: {
 }): JSX.Element {
   const [isChangesDialogOpen, setIsChangesDialogOpen] = useState(false);
   const [isEscalationDialogOpen, setIsEscalationDialogOpen] = useState(false);
-  const [isSkipDialogOpen, setIsSkipDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [instructions, setInstructions] = useState('');
-  const [skipReason, setSkipReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const state = props.task.state;
   const scopedWorkItemId = props.task.work_item_id ?? props.workItemId;
@@ -1983,33 +2106,6 @@ function WorkItemTaskActionCell(props: {
       );
     },
   });
-
-  const retryMutation = useMutation({
-    mutationFn: () =>
-      dashboardApi.retryWorkflowWorkItemTask(props.workflowId, scopedWorkItemId, props.task.id),
-    onSuccess: async () => {
-      setError(null);
-      await props.onWorkItemChanged();
-    },
-    onError: (mutationError) => {
-      setError(mutationError instanceof Error ? mutationError.message : 'Failed to retry step.');
-    },
-  });
-  const skipMutation = useMutation({
-    mutationFn: () =>
-      dashboardApi.skipWorkflowWorkItemTask(props.workflowId, scopedWorkItemId, props.task.id, {
-        reason: skipReason.trim(),
-      }),
-    onSuccess: async () => {
-      setError(null);
-      setSkipReason('');
-      setIsSkipDialogOpen(false);
-      await props.onWorkItemChanged();
-    },
-    onError: (mutationError) => {
-      setError(mutationError instanceof Error ? mutationError.message : 'Failed to skip step.');
-    },
-  });
   const resolveEscalationMutation = useMutation({
     mutationFn: () =>
       dashboardApi.resolveWorkflowWorkItemTaskEscalation(
@@ -2049,16 +2145,12 @@ function WorkItemTaskActionCell(props: {
   const canApprove = state === 'awaiting_approval' || state === 'output_pending_review';
   const canRequestChanges =
     state === 'awaiting_approval' || state === 'output_pending_review' || state === 'failed';
-  const canRetry = state === 'failed';
   const canResolveEscalation = state === 'escalated';
   const canCancel = state === 'failed' || state === 'escalated' || state === 'in_progress';
-  const canSkip = canCancel;
   const isAnyMutationPending =
     approveMutation.isPending ||
     rejectMutation.isPending ||
     requestChangesMutation.isPending ||
-    retryMutation.isPending ||
-    skipMutation.isPending ||
     resolveEscalationMutation.isPending ||
     cancelMutation.isPending;
 
@@ -2092,26 +2184,6 @@ function WorkItemTaskActionCell(props: {
             Request Changes
           </Button>
         ) : null}
-        {canRetry ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => retryMutation.mutate()}
-            disabled={isAnyMutationPending}
-          >
-            Retry Step
-          </Button>
-        ) : null}
-        {canSkip ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() => setIsSkipDialogOpen(true)}
-            disabled={isAnyMutationPending}
-          >
-            Skip Step
-          </Button>
-        ) : null}
         {canResolveEscalation ? (
           <Button
             size="sm"
@@ -2134,40 +2206,6 @@ function WorkItemTaskActionCell(props: {
         ) : null}
       </div>
       {error ? <p className={errorTextClass}>{error}</p> : null}
-      <Dialog open={isSkipDialogOpen} onOpenChange={setIsSkipDialogOpen}>
-        <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Skip Step</DialogTitle>
-            <DialogDescription>
-              Keep the bypass reason attached to the selected work item without turning the action
-              row into another inline form.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4">
-            <Textarea
-              value={skipReason}
-              onChange={(event) => setSkipReason(event.target.value)}
-              placeholder="Describe why this step should be skipped..."
-              rows={4}
-            />
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setIsSkipDialogOpen(false)}
-                disabled={skipMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={() => skipMutation.mutate()}
-                disabled={!skipReason.trim() || skipMutation.isPending}
-              >
-                Skip Step
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
       <StepChangesDialog
         isOpen={isChangesDialogOpen}
         state={state}
@@ -2435,6 +2473,17 @@ function DetailStatCard(props: { label: string; value: string; detail: string })
       <div className="text-sm font-semibold text-foreground">{props.value}</div>
       <div className="text-xs leading-5 text-muted">{props.detail}</div>
     </div>
+  );
+}
+
+function selectWorkItemRecoveryTask(
+  tasks: DashboardWorkItemTaskRecord[],
+): DashboardWorkItemTaskRecord | null {
+  const ordered = sortTasksForOperatorReview(tasks);
+  return (
+    ordered.find((task) => normalizeTaskState(task.state) === 'failed') ??
+    ordered.find((task) => normalizeTaskState(task.state) === 'escalated') ??
+    null
   );
 }
 

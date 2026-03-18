@@ -150,7 +150,6 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Operator next step');
     expect(source).toContain('Approve Step');
     expect(source).toContain('Request Changes');
-    expect(source).toContain('Retry Step');
     expect(source).toContain('Resume with Guidance');
     expect(source).toContain('Cancel Step');
     expect(source).toContain('StepChangesDialog');
@@ -159,6 +158,11 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('buildWorkItemTaskLinkActions');
     expect(source).toContain('Open work-item flow');
     expect(source).toContain('Open step diagnostics');
+    expect(source).toContain('Board-owned step recovery');
+    expect(source).toContain('Force Retry Work Item');
+    expect(source).toContain('Skip Work Item');
+    expect(source).toContain('dashboardApi.retryWorkflowWorkItem(');
+    expect(source).toContain('dashboardApi.skipWorkflowWorkItem(');
     expect(source).toContain('Stage group');
     expect(source).toContain('Open child work-item flow');
     expect(source).toContain('dashboardApi.updateWorkflowWorkItem');
@@ -167,8 +171,6 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('dashboardApi.approveWorkflowWorkItemTask');
     expect(source).toContain('dashboardApi.rejectWorkflowWorkItemTask');
     expect(source).toContain('dashboardApi.requestWorkflowWorkItemTaskChanges');
-    expect(source).toContain('dashboardApi.retryWorkflowWorkItemTask');
-    expect(source).toContain('dashboardApi.skipWorkflowWorkItemTask');
     expect(source).toContain('dashboardApi.resolveWorkflowWorkItemTaskEscalation');
     expect(source).toContain('dashboardApi.cancelWorkflowWorkItemTask');
     expect(source).not.toContain('dashboardApi.approveTask(');
@@ -181,9 +183,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).not.toContain('dashboardApi.cancelTask(');
     expect(source).toContain('Provide Operator Guidance');
     expect(source).toContain('Describe the operator guidance needed to resume this step...');
-    expect(source).toContain('Skip Step');
-    expect(source).toContain('Describe why this step should be skipped...');
-    expect(source).toContain('dashboardApi.skipWorkflowWorkItemTask(props.workflowId, scopedWorkItemId, props.task.id');
+    expect(source).toContain('Describe why this work item recovery step should be skipped...');
   });
 
   it('uses a responsive card-plus-table execution layout instead of a table-only task presentation', () => {

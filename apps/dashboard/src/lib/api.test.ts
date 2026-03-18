@@ -115,11 +115,13 @@ describe('dashboard api auth/session behavior', () => {
   it('keeps workflow work-item actions on the workflow-scoped contract', () => {
     const source = readApiSource();
     const apiBlock = readExportBlock(source, 'DashboardApi');
-    expect(apiBlock).toContain(
-      'skipWorkflowWorkItemTask(',
-    );
+    expect(apiBlock).toContain('retryWorkflowWorkItem(');
     expect(source).toContain(
-      "requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'skip', payload)",
+      "requestWorkflowWorkItemAction(workflowId, workItemId, 'retry', payload)",
+    );
+    expect(apiBlock).toContain('skipWorkflowWorkItem(');
+    expect(source).toContain(
+      "requestWorkflowWorkItemAction(workflowId, workItemId, 'skip', payload)",
     );
   });
 
@@ -135,10 +137,14 @@ describe('dashboard api auth/session behavior', () => {
     expect(projectSettingsBlock).toContain('git_user_name?: string | null;');
     expect(projectSettingsBlock).toContain('git_user_email?: string | null;');
     expect(projectSettingsBlock).toContain('credentials?: DashboardProjectCredentialPosture;');
-    expect(projectSettingsBlock).toContain('model_overrides?: Record<string, DashboardRoleModelOverride>;');
+    expect(projectSettingsBlock).toContain(
+      'model_overrides?: Record<string, DashboardRoleModelOverride>;',
+    );
     expect(projectSettingsBlock).toContain('project_brief?: string | null;');
     expect(projectSettingsInputBlock).toContain('credentials?: DashboardProjectCredentialInput;');
-    expect(projectSettingsInputBlock).toContain('model_overrides?: Record<string, DashboardRoleModelOverride>;');
+    expect(projectSettingsInputBlock).toContain(
+      'model_overrides?: Record<string, DashboardRoleModelOverride>;',
+    );
     expect(projectSummaryBlock).toContain('active_workflow_count: number;');
     expect(projectSummaryBlock).toContain('completed_workflow_count: number;');
     expect(projectSummaryBlock).toContain('attention_workflow_count: number;');
@@ -358,7 +364,8 @@ describe('dashboard api auth/session behavior', () => {
     writeSession({ accessToken: 'artifact-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn() as unknown as typeof fetch;
-    vi.mocked(fetcher)
+    vi
+      .mocked(fetcher)
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -661,9 +668,7 @@ describe('dashboard api auth/session behavior', () => {
         }),
       }),
     );
-    expect(
-      JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}')),
-    ).toEqual({
+    expect(JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}'))).toEqual({
       request_id: 'request-123',
       reason: 'Reassess board state',
       event_type: 'operator.manual_enqueue',
@@ -710,9 +715,7 @@ describe('dashboard api auth/session behavior', () => {
         }),
       }),
     );
-    expect(
-      JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}')),
-    ).toEqual({
+    expect(JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}'))).toEqual({
       request_id: 'cancel-request-123',
     });
   });
@@ -754,9 +757,7 @@ describe('dashboard api auth/session behavior', () => {
         }),
       }),
     );
-    expect(
-      JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}')),
-    ).toEqual({
+    expect(JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}'))).toEqual({
       request_id: 'pause-request-123',
     });
   });
@@ -797,9 +798,7 @@ describe('dashboard api auth/session behavior', () => {
         }),
       }),
     );
-    expect(
-      JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}')),
-    ).toEqual({
+    expect(JSON.parse(String(vi.mocked(fetcher).mock.calls[0]?.[1]?.body ?? '{}'))).toEqual({
       request_id: 'resume-request-123',
     });
   });
@@ -1171,30 +1170,28 @@ describe('dashboard api auth/session behavior', () => {
   it('loads the cost dashboard summary through the shared dashboard client contract', async () => {
     writeSession({ accessToken: 'cost-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            data: {
-              today: 1,
-              this_week: 2,
-              this_month: 3,
-              budget_total: 4,
-              budget_remaining: 1,
-              by_workflow: [],
-              by_model: [],
-              daily_trend: [],
-              totalTokensInput: 10,
-              totalTokensOutput: 20,
-              totalCostUsd: 3,
-              totalWallTimeMs: 400,
-              eventCount: 2,
-            },
-          }),
-          { status: 200 },
-        ),
-      ) as unknown as typeof fetch;
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            today: 1,
+            this_week: 2,
+            this_month: 3,
+            budget_total: 4,
+            budget_remaining: 1,
+            by_workflow: [],
+            by_model: [],
+            daily_trend: [],
+            totalTokensInput: 10,
+            totalTokensOutput: 20,
+            totalCostUsd: 3,
+            totalWallTimeMs: 400,
+            eventCount: 2,
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -1469,8 +1466,23 @@ describe('dashboard api auth/session behavior', () => {
               },
               filters: {
                 workflows: [{ id: 'pipe-1', name: 'Ship release' }],
-                work_items: [{ id: 'wi-1', title: 'Package release', workflow_id: 'pipe-1', stage_name: 'delivery' }],
-                tasks: [{ id: 'task-1', title: 'Build release notes', workflow_id: 'pipe-1', work_item_id: 'wi-1', stage_name: 'delivery' }],
+                work_items: [
+                  {
+                    id: 'wi-1',
+                    title: 'Package release',
+                    workflow_id: 'pipe-1',
+                    stage_name: 'delivery',
+                  },
+                ],
+                tasks: [
+                  {
+                    id: 'task-1',
+                    title: 'Build release notes',
+                    workflow_id: 'pipe-1',
+                    work_item_id: 'wi-1',
+                    stage_name: 'delivery',
+                  },
+                ],
                 stages: ['delivery'],
                 roles: ['writer'],
                 content_types: ['text/markdown'],
@@ -1871,7 +1883,9 @@ describe('dashboard api auth/session behavior', () => {
           { status: 200 },
         ),
       )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }))
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }),
+      )
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -1925,7 +1939,9 @@ describe('dashboard api auth/session behavior', () => {
           { status: 200 },
         ),
       )
-      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }));
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ data: { deleted: true } }), { status: 200 }),
+      );
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -2044,7 +2060,8 @@ describe('dashboard api auth/session behavior', () => {
     writeSession({ accessToken: 'content-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn() as unknown as typeof fetch;
-    vi.mocked(fetcher)
+    vi
+      .mocked(fetcher)
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
@@ -2232,12 +2249,12 @@ describe('dashboard api auth/session behavior', () => {
                 cpu_limit: '2',
                 memory_limit: '2g',
                 network_policy: 'restricted',
-              environment: {},
-              llm_provider: 'openai',
-              llm_model: 'gpt-5',
-              llm_api_key_secret_ref_configured: true,
-              replicas: 1,
-              enabled: true,
+                environment: {},
+                llm_provider: 'openai',
+                llm_model: 'gpt-5',
+                llm_api_key_secret_ref_configured: true,
+                replicas: 1,
+                enabled: true,
                 restart_requested: false,
                 draining: false,
                 version: 1,
@@ -2311,15 +2328,9 @@ describe('dashboard api auth/session behavior', () => {
           { status: 200 },
         ),
       )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { ok: true } }), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: { ok: true } }), { status: 200 }),
-      )
-      .mockResolvedValueOnce(
-        new Response(JSON.stringify({ data: {} }), { status: 200 }),
-      );
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { ok: true } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: { ok: true } }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data: {} }), { status: 200 }));
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -2369,15 +2380,9 @@ describe('dashboard api auth/session behavior', () => {
     expect(workers[0]?.pool_kind).toBe('orchestrator');
     expect(created.pool_kind).toBe('specialist');
     expect(updated.llm_api_key_secret_ref_configured).toBe(true);
-    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/status',
-    );
-    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/workers',
-    );
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/workers',
-    );
+    expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('http://localhost:8080/api/v1/fleet/status');
+    expect(vi.mocked(fetcher).mock.calls[1][0]).toBe('http://localhost:8080/api/v1/fleet/workers');
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe('http://localhost:8080/api/v1/fleet/workers');
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
       'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
@@ -2449,9 +2454,7 @@ describe('dashboard api auth/session behavior', () => {
     });
 
     await expect(api.getPlatformInstructions()).resolves.toMatchObject({ version: 3 });
-    await expect(api.listPlatformInstructionVersions()).resolves.toMatchObject([
-      { version: 2 },
-    ]);
+    await expect(api.listPlatformInstructionVersions()).resolves.toMatchObject([{ version: 2 }]);
     await expect(
       api.updatePlatformInstructions({ content: '# Restored', format: 'markdown' }),
     ).resolves.toMatchObject({ version: 4 });
@@ -2498,22 +2501,20 @@ describe('dashboard api auth/session behavior', () => {
   it('updates project spec through the dashboard api surface', async () => {
     writeSession({ accessToken: 'spec-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            data: {
-              project_id: 'project-1',
-              version: 4,
-              spec: {
-                config: { repository: 'agirunner/agirunner-test-fixtures' },
-              },
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            project_id: 'project-1',
+            version: 4,
+            spec: {
+              config: { repository: 'agirunner/agirunner-test-fixtures' },
             },
-          }),
-          { status: 200 },
-        ),
-      ) as unknown as typeof fetch;
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -2551,24 +2552,22 @@ describe('dashboard api auth/session behavior', () => {
   it('unwraps project spec envelopes when reading the dashboard api surface', async () => {
     writeSession({ accessToken: 'spec-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi
-      .fn()
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            data: {
-              project_id: 'project-1',
-              version: 5,
-              created_at: '2026-03-14T19:00:00.000Z',
-              spec: {
-                config: { repository: 'agirunner/agirunner-test-fixtures' },
-                instructions: { summary: 'Keep the checkout steady.' },
-              },
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            project_id: 'project-1',
+            version: 5,
+            created_at: '2026-03-14T19:00:00.000Z',
+            spec: {
+              config: { repository: 'agirunner/agirunner-test-fixtures' },
+              instructions: { summary: 'Keep the checkout steady.' },
             },
-          }),
-          { status: 200 },
-        ),
-      ) as unknown as typeof fetch;
+          },
+        }),
+        { status: 200 },
+      ),
+    ) as unknown as typeof fetch;
 
     const client = {
       refreshSession: vi.fn(),
@@ -2676,9 +2675,11 @@ describe('dashboard global search', () => {
   it('deletes a project through the shared api client', async () => {
     writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
 
-    const fetcher = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({}), { status: 200 }),
-    ) as unknown as typeof fetch;
+    const fetcher = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({}), { status: 200 }),
+      ) as unknown as typeof fetch;
 
     const api = createDashboardApi({
       client: {} as never,
