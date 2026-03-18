@@ -1495,9 +1495,10 @@ async function emitWorkItemUpdateEvents(
 }
 
 function toWorkItemResponse(row: WorkflowWorkItemRow) {
+  const { current_checkpoint: _currentCheckpoint, ...rest } = row;
   return {
-    ...row,
-    current_checkpoint: row.stage_name ?? row.current_checkpoint ?? null,
+    ...rest,
+    stage_name: row.stage_name ?? row.current_checkpoint ?? null,
     completed_at: row.completed_at?.toISOString() ?? null,
     updated_at: row.updated_at.toISOString(),
   };

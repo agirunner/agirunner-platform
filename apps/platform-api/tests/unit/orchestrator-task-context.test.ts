@@ -180,12 +180,13 @@ describe('buildOrchestratorTaskContext', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: 'wi-1',
-          current_checkpoint: 'implementation',
+          stage_name: 'implementation',
           next_expected_actor: 'reviewer',
           next_expected_action: 'review',
           rework_count: 1,
         }),
       ]),
     );
+    expect(context?.board.work_items[0]).not.toHaveProperty('current_checkpoint');
   });
 });

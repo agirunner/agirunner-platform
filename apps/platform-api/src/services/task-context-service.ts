@@ -239,12 +239,13 @@ function isContinuousWorkflowRow(
   return workflowRow.lifecycle === 'ongoing';
 }
 
-function withCompatibilityCheckpoint(row: Record<string, unknown>) {
+function normalizeWorkItemStage(row: Record<string, unknown>) {
   const stageName = asOptionalString(row.stage_name);
-  const currentCheckpoint = asOptionalString(row.current_checkpoint);
+  const legacyCheckpoint = asOptionalString(row.current_checkpoint);
+  const { current_checkpoint: _currentCheckpoint, ...rest } = row;
   return {
-    ...row,
-    current_checkpoint: stageName ?? currentCheckpoint ?? null,
+    ...rest,
+    stage_name: stageName ?? legacyCheckpoint ?? null,
   };
 }
 
@@ -303,7 +304,7 @@ async function loadWorkItemContext(
     [tenantId, workItemId],
   );
   const workItem = (result.rows[0] as Record<string, unknown> | undefined) ?? null;
-  return workItem ? withCompatibilityCheckpoint(workItem) : null;
+  return workItem ? normalizeWorkItemStage(workItem) : null;
 }
 
 async function loadProjectContext(

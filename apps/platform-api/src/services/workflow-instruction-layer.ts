@@ -46,12 +46,11 @@ export function buildWorkflowInstructionLayer(
   const focusedWorkItem = input.isOrchestratorTask
     ? selectFocusedWorkItem(input.orchestratorContext)
     : asRecord(input.workItem);
-  const checkpointName =
+  const stageName =
     readString(focusedWorkItem.stage_name)
-    ?? readString(focusedWorkItem.current_checkpoint)
-    ?? deriveSoleActiveCheckpointName(workflow)
+    ?? deriveSoleActiveStageName(workflow)
     ?? null;
-  const checkpoint = definition.checkpoints.find((entry) => entry.name === checkpointName) ?? null;
+  const checkpoint = definition.checkpoints.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(focusedWorkItem.column_id));
   const repoBacked = isRepositoryBacked(input.project, workflow, input.taskInput);
   const sections = input.isOrchestratorTask
@@ -87,7 +86,7 @@ export function buildWorkflowInstructionLayer(
   };
 }
 
-function deriveSoleActiveCheckpointName(workflow: Record<string, unknown>) {
+function deriveSoleActiveStageName(workflow: Record<string, unknown>) {
   const activeStages = readStringArray(workflow.active_stages);
   return activeStages.length === 1 ? activeStages[0] : null;
 }
@@ -111,7 +110,7 @@ function buildOrchestratorSections(params: {
 
   if (params.checkpoint) {
     sections.push(
-      `## Current Checkpoint\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}\nHuman gate: ${params.checkpoint.human_gate ? 'yes' : 'no'}`,
+      `## Current Stage\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}\nHuman gate: ${params.checkpoint.human_gate ? 'yes' : 'no'}`,
     );
     const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
     if (params.lifecycle === 'planned') {
@@ -122,7 +121,7 @@ function buildOrchestratorSections(params: {
   }
 
   if (params.lifecycle === 'ongoing' && params.activeStages.length > 0) {
-    sections.push(`## Active Checkpoints\n${params.activeStages.join(', ')}`);
+    sections.push(`## Active Stages\n${params.activeStages.join(', ')}`);
   }
 
   sections.push(`## Rule Results\n${formatRuleResults(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem)}`);
@@ -162,7 +161,7 @@ function buildSpecialistSections(params: {
 
   if (params.checkpoint) {
     sections.push(
-      `## Current Checkpoint\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}`,
+      `## Current Stage\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}`,
     );
     const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
     if (params.lifecycle === 'planned') {

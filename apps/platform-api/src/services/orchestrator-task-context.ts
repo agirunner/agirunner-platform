@@ -211,11 +211,12 @@ function serializeDates(row: Record<string, unknown>) {
 function serializeWorkItem(row: Record<string, unknown>) {
   const serialized = serializeDates(row);
   const stageName = typeof serialized.stage_name === 'string' ? serialized.stage_name : null;
-  const currentCheckpoint =
+  const legacyCheckpoint =
     typeof serialized.current_checkpoint === 'string' ? serialized.current_checkpoint : null;
+  const { current_checkpoint: _currentCheckpoint, ...rest } = serialized;
   return {
-    ...serialized,
-    current_checkpoint: stageName ?? currentCheckpoint,
+    ...rest,
+    stage_name: stageName ?? legacyCheckpoint,
   };
 }
 

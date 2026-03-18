@@ -369,7 +369,7 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('## Workflow Mode: planned');
     expect(workflowLayer.content).toContain('## Process Instructions');
     expect(workflowLayer.content).toContain('Developer implements, reviewer reviews');
-    expect(workflowLayer.content).toContain('## Current Checkpoint');
+    expect(workflowLayer.content).toContain('## Current Stage');
     expect(workflowLayer.content).toContain('implementation');
     expect(workflowLayer.content).toContain('## Board Position');
     expect(workflowLayer.content).toContain('## Board Position\nLane: In Review');
@@ -382,13 +382,14 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('Implementation is ready for review.');
     expect((context.task as Record<string, unknown>).work_item).toEqual(
       expect.objectContaining({
-        current_checkpoint: 'implementation',
+        stage_name: 'implementation',
         latest_handoff_completion: 'partial',
         unresolved_findings: ['Investigate auth edge cases'],
         review_focus: ['Auth edge cases'],
         known_risks: ['Refresh token expiry handling'],
       }),
     );
+    expect((context.task as Record<string, any>).work_item).not.toHaveProperty('current_checkpoint');
     expect((context.task as Record<string, unknown>).predecessor_handoff).toEqual(
       expect.objectContaining({
         id: 'handoff-1',

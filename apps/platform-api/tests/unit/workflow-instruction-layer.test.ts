@@ -51,7 +51,7 @@ describe('buildWorkflowInstructionLayer', () => {
           work_items: [
             {
               id: 'wi-1',
-              current_checkpoint: 'review',
+              stage_name: 'review',
               column_id: 'review',
               next_expected_actor: 'human',
               next_expected_action: 'approve',
@@ -66,7 +66,7 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Workflow Mode: planned');
     expect(layer!.content).toContain('## Process Instructions');
     expect(layer!.content).toContain('## Progress Model\nCheckpoint-driven');
-    expect(layer!.content).toContain('## Current Checkpoint\nreview');
+    expect(layer!.content).toContain('## Current Stage\nreview');
     expect(layer!.content).toContain('Human gate: yes');
     expect(layer!.content).toContain('## Checkpoint Routing');
     expect(layer!.content).toContain('Successor checkpoint after acceptance: verification');
@@ -172,7 +172,7 @@ describe('buildWorkflowInstructionLayer', () => {
         },
       },
       workItem: {
-        current_checkpoint: 'implementation',
+        stage_name: 'implementation',
         column_id: 'planned',
         owner_role: 'developer',
       },
@@ -214,7 +214,7 @@ describe('buildWorkflowInstructionLayer', () => {
     });
 
     expect(layer).not.toBeNull();
-    expect(layer!.content).toContain('## Current Checkpoint\nimplementation');
-    expect(layer!.content).not.toContain('## Current Checkpoint\nreview');
+    expect(layer!.content).toContain('## Current Stage\nimplementation');
+    expect(layer!.content).not.toContain('## Current Stage\nreview');
   });
 });

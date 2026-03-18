@@ -138,9 +138,9 @@ describe('WorkItemService', () => {
       expect.objectContaining({
         id: 'work-item-1',
         stage_name: 'requirements',
-        current_checkpoint: 'requirements',
       }),
     );
+    expect(result).not.toHaveProperty('current_checkpoint');
   });
 
   it('marks webhook-triggered work items as webhook-created and emits system-scoped events', async () => {
@@ -766,7 +766,8 @@ describe('WorkItemService', () => {
 
     expect((workItem as Record<string, any>).metadata.webhook_secret).toBe('redacted://work-item-secret');
     expect((workItem as Record<string, any>).metadata.secret_ref).toBe('redacted://work-item-secret');
-    expect((workItem as Record<string, any>).current_checkpoint).toBe('triage');
+    expect((workItem as Record<string, any>).stage_name).toBe('triage');
+    expect((workItem as Record<string, any>).current_checkpoint).toBeUndefined();
     expect((workItem as Record<string, any>).next_expected_actor).toBe('reviewer');
     expect((workItem as Record<string, any>).next_expected_action).toBe('review');
     expect((workItem as Record<string, any>).rework_count).toBe(2);
@@ -1125,11 +1126,12 @@ describe('WorkItemService', () => {
     expect(workItem).toMatchObject({
       id: 'wi-1',
       workflow_id: 'wf-1',
-      current_checkpoint: 'release',
+      stage_name: 'release',
       gate_status: 'rejected',
       gate_decision_feedback:
         'Release approval rejected: expected CLI entrypoint hello.py is missing from the workflow branch.',
     });
+    expect(workItem).not.toHaveProperty('current_checkpoint');
     expect(workItem.gate_decided_at).toEqual(new Date('2026-03-16T16:31:49.959Z'));
   });
 });

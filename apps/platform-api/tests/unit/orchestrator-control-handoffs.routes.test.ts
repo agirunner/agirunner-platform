@@ -99,7 +99,6 @@ describe('orchestrator control handoff routes', () => {
     expect(response.json().data).toEqual({
       id: scopedWorkItemId,
       stage_name: 'implementation',
-      current_checkpoint: 'implementation',
       column_id: 'review',
       owner_role: 'developer',
       next_expected_actor: 'reviewer',
@@ -114,6 +113,7 @@ describe('orchestrator control handoff routes', () => {
       gate_decided_at: '2026-03-16T16:31:49.959Z',
       completed_at: null,
     });
+    expect(response.json().data).not.toHaveProperty('current_checkpoint');
   });
 
   it('returns latest and full handoff chain for an orchestrator-scoped work item', async () => {

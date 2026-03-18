@@ -159,7 +159,6 @@ describe('ApprovalQueueService', () => {
         work_item_id: 'work-item-1',
         work_item_title: 'Ship docs',
         stage_name: 'review',
-        current_checkpoint: 'review',
         next_expected_actor: 'reviewer',
         next_expected_action: 'review',
         role: 'qa',
@@ -180,6 +179,7 @@ describe('ApprovalQueueService', () => {
         },
       }),
     );
+    expect(queue.task_approvals[0]).not.toHaveProperty('current_checkpoint');
     expect(queue.stage_gates[0]).toEqual(
       expect.objectContaining({
         id: 'gate-1',

@@ -51,7 +51,6 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   workflow_id: string;
   parent_work_item_id: string | null;
   stage_name: string | null;
-  current_checkpoint: string | null;
   column_id: string | null;
   next_expected_actor: string | null;
   next_expected_action: string | null;
@@ -753,13 +752,13 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
   const stageName = typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null;
   const legacyCheckpoint =
     typeof sanitizedRow.current_checkpoint === 'string' ? sanitizedRow.current_checkpoint : null;
+  const { current_checkpoint: _currentCheckpoint, ...rest } = sanitizedRow;
   return {
-    ...sanitizedRow,
+    ...rest,
     id: String(sanitizedRow.id ?? ''),
     workflow_id: String(sanitizedRow.workflow_id ?? ''),
     parent_work_item_id: typeof sanitizedRow.parent_work_item_id === 'string' ? sanitizedRow.parent_work_item_id : null,
-    stage_name: stageName,
-    current_checkpoint: stageName ?? legacyCheckpoint,
+    stage_name: stageName ?? legacyCheckpoint,
     column_id: typeof sanitizedRow.column_id === 'string' ? sanitizedRow.column_id : null,
     next_expected_actor:
       typeof sanitizedRow.next_expected_actor === 'string' ? sanitizedRow.next_expected_actor : null,
