@@ -2324,6 +2324,13 @@ describe('TaskClaimService', () => {
               workspace_id: null,
               role_config: {},
               metadata: {},
+              resource_bindings: [{
+                type: 'git_repository',
+                repository_url: 'https://github.com/example/repo.git',
+                credentials: {
+                  token: 'secret:GITHUB_PAT',
+                },
+              }],
               is_orchestrator_task: false,
               max_iterations: null,
               llm_max_retries: null,
@@ -2352,6 +2359,13 @@ describe('TaskClaimService', () => {
               workspace_id: null,
               role_config: {},
               metadata: {},
+              resource_bindings: [{
+                type: 'git_repository',
+                repository_url: 'https://github.com/example/repo.git',
+                credentials: {
+                  token: 'secret:GITHUB_PAT',
+                },
+              }],
               is_orchestrator_task: false,
               max_iterations: null,
               llm_max_retries: null,
@@ -2415,6 +2429,11 @@ describe('TaskClaimService', () => {
         loop_mode: 'reactive',
         max_iterations: 100,
         llm_max_retries: 5,
+        git_repository_binding_count: 1,
+        binding_contains_git_credentials: false,
+        has_git_token: true,
+        has_git_ssh_private_key: false,
+        has_git_ssh_known_hosts: false,
       }),
     });
   });

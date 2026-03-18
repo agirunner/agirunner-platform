@@ -127,7 +127,9 @@ function buildExecutionContractLogPayload(input: {
   loopContract: TaskLoopContract;
   agentId: string;
   workerId: string | null;
+  task: Record<string, unknown>;
 }): Record<string, unknown> {
+  const gitContract = describeGitContract(input.task);
   return {
     agent_id: input.agentId,
     worker_id: input.workerId,
@@ -142,7 +144,56 @@ function buildExecutionContractLogPayload(input: {
     llm_reasoning_config: input.llmResolution.resolved.reasoningConfig,
     llm_input_cost_per_million_usd: input.llmResolution.resolved.model.inputCostPerMillionUsd,
     llm_output_cost_per_million_usd: input.llmResolution.resolved.model.outputCostPerMillionUsd,
+    ...gitContract,
   };
+}
+
+function describeGitContract(task: Record<string, unknown>): Record<string, unknown> {
+  const bindings = Array.isArray(task.resource_bindings) ? task.resource_bindings : [];
+  const credentials = isRecord(task.credentials) ? task.credentials : {};
+  return {
+    git_repository_binding_count: countGitRepositoryBindings(bindings),
+    binding_contains_git_credentials: bindingsContainGitCredentials(bindings),
+    has_git_token: typeof credentials.git_token === 'string' && credentials.git_token.trim().length > 0,
+    has_git_ssh_private_key:
+      typeof credentials.git_ssh_private_key === 'string' &&
+      credentials.git_ssh_private_key.trim().length > 0,
+    has_git_ssh_known_hosts:
+      typeof credentials.git_ssh_known_hosts === 'string' &&
+      credentials.git_ssh_known_hosts.trim().length > 0,
+  };
+}
+
+function countGitRepositoryBindings(bindings: unknown[]): number {
+  return bindings.filter(
+    (binding) => isRecord(binding) && String(binding.type ?? '').trim() === 'git_repository',
+  ).length;
+}
+
+function bindingsContainGitCredentials(bindings: unknown[]): boolean {
+  return bindings.some((binding) => {
+    if (!isRecord(binding) || String(binding.type ?? '').trim() !== 'git_repository') {
+      return false;
+    }
+    return recordContainsGitCredentials(binding) || recordContainsGitCredentials(binding.credentials);
+  });
+}
+
+function recordContainsGitCredentials(value: unknown): boolean {
+  if (!isRecord(value)) {
+    return false;
+  }
+  return [
+    'token',
+    'git_token',
+    'access_token',
+    'git_ssh_private_key',
+    'ssh_private_key',
+    'private_key',
+    'git_ssh_known_hosts',
+    'ssh_known_hosts',
+    'known_hosts',
+  ].some((key) => typeof value[key] === 'string' && value[key].trim().length > 0);
 }
 
 export class TaskClaimService {
@@ -335,25 +386,25 @@ export class TaskClaimService {
         (claimedTask as Record<string, unknown>).workspace_name = namesRes.rows[0].workspace_name;
       }
 
-      await logTaskGovernanceTransition(this.deps.logService, {
-        tenantId: identity.tenantId,
-        operation: 'task.execution_contract_resolved',
-        executor: client,
-        task: claimedTask,
-        payload: buildExecutionContractLogPayload({
-          llmResolution,
-          loopContract,
-          agentId: payload.agent_id,
-          workerId: payload.worker_id ?? null,
-        }),
-      });
-
       const enrichedTask = await this.enrichWithLLMCredentials(
         identity.tenantId,
         claimedTask,
         llmResolution,
       );
       const runtimeReadyTask = hydrateClaimGitCredentials(enrichedTask);
+      await logTaskGovernanceTransition(this.deps.logService, {
+        tenantId: identity.tenantId,
+        operation: 'task.execution_contract_resolved',
+        executor: client,
+        task: runtimeReadyTask,
+        payload: buildExecutionContractLogPayload({
+          llmResolution,
+          loopContract,
+          agentId: payload.agent_id,
+          workerId: payload.worker_id ?? null,
+          task: runtimeReadyTask,
+        }),
+      });
       const { context: _taskContext, ...claimedTaskBase } = runtimeReadyTask as Record<string, unknown>;
       const instructionContext = (await this.deps.getTaskContext(
         identity.tenantId,
