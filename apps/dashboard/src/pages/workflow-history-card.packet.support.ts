@@ -162,6 +162,10 @@ function buildWorkItemPacket(event: DashboardEventRecord, descriptor: TimelineDe
 
 function buildTaskPacket(event: DashboardEventRecord, descriptor: TimelineDescriptor): Omit<TimelineEventPacketDescriptor, 'hasStructuredDetail'> {
   const role = readString(event.data?.role) ?? readString(event.data?.assigned_role) ?? readRoleFromActor(descriptor.actorLabel);
+  const governancePacket = buildTaskGovernancePacket(event, descriptor, role);
+  if (governancePacket) {
+    return governancePacket;
+  }
   return {
     typeLabel: 'Specialist step',
     summary: ({
@@ -180,11 +184,44 @@ function buildTaskPacket(event: DashboardEventRecord, descriptor: TimelineDescri
     badges: buildBadges(descriptor, event),
     facts: buildFacts([
       descriptor.objectLabel ? { label: 'Step', value: descriptor.objectLabel } : null,
-      role ? { label: 'Role', value: role } : null,
+      role ? { label: 'Role', value: capitalizeToken(role) } : null,
       descriptor.stageName ? { label: 'Stage', value: descriptor.stageName } : null,
       descriptor.workItemId ? { label: 'Work item', value: descriptor.workItemLabel ?? descriptor.workItemId } : null,
     ]),
     disclosureLabel: 'Open full step packet',
+  };
+}
+
+function buildTaskGovernancePacket(
+  event: DashboardEventRecord,
+  descriptor: TimelineDescriptor,
+  role: string | null,
+): Omit<TimelineEventPacketDescriptor, 'hasStructuredDetail'> | null {
+  const governanceDescriptor = readTaskGovernancePacketDescriptor(event.type);
+  if (!governanceDescriptor) {
+    return null;
+  }
+  return {
+    typeLabel: governanceDescriptor.typeLabel,
+    summary: governanceDescriptor.summary(descriptor.objectLabel ?? 'Specialist step'),
+    detail:
+      readString(event.data?.summary)
+      ?? readString(event.data?.successor_context)
+      ?? readString(event.data?.feedback)
+      ?? readString(event.data?.recommendation)
+      ?? readString(event.data?.request_summary)
+      ?? readString(event.data?.reason)
+      ?? readString(event.data?.message)
+      ?? descriptor.scopeSummary
+      ?? governanceDescriptor.fallbackDetail,
+    badges: buildBadges(descriptor, event),
+    facts: buildFacts([
+      descriptor.objectLabel ? { label: 'Step', value: descriptor.objectLabel } : null,
+      role ? { label: 'Role', value: capitalizeToken(role) } : null,
+      descriptor.stageName ? { label: 'Stage', value: descriptor.stageName } : null,
+      descriptor.workItemId ? { label: 'Work item', value: descriptor.workItemLabel ?? descriptor.workItemId } : null,
+    ]),
+    disclosureLabel: governanceDescriptor.disclosureLabel,
   };
 }
 
@@ -224,6 +261,82 @@ function buildBudgetPacket(event: DashboardEventRecord, descriptor: TimelineDesc
   };
 }
 
+interface TaskGovernancePacketDescriptor {
+  typeLabel: string;
+  disclosureLabel: string;
+  fallbackDetail: string;
+  summary: (objectLabel: string) => string;
+}
+
+const TASK_GOVERNANCE_PACKET_DESCRIPTORS: Record<string, TaskGovernancePacketDescriptor> = {
+  'task.handoff_submitted': {
+    typeLabel: 'Handoff',
+    disclosureLabel: 'Open full handoff packet',
+    fallbackDetail: 'Handoff packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} submitted a specialist handoff.`,
+  },
+  'task.review_resolution_applied': {
+    typeLabel: 'Review resolution',
+    disclosureLabel: 'Open full review packet',
+    fallbackDetail: 'Review packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} applied review resolution.`,
+  },
+  'task.review_resolution_skipped': {
+    typeLabel: 'Review resolution',
+    disclosureLabel: 'Open full review packet',
+    fallbackDetail: 'Review packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} skipped review resolution.`,
+  },
+  'task.retry_scheduled': {
+    typeLabel: 'Recovery',
+    disclosureLabel: 'Open full recovery packet',
+    fallbackDetail: 'Recovery packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} scheduled another execution attempt.`,
+  },
+  'task.max_rework_exceeded': {
+    typeLabel: 'Recovery',
+    disclosureLabel: 'Open full recovery packet',
+    fallbackDetail: 'Recovery packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} exceeded the allowed rework limit.`,
+  },
+  'task.escalated': {
+    typeLabel: 'Escalation',
+    disclosureLabel: 'Open full escalation packet',
+    fallbackDetail: 'Escalation packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} escalated for operator follow-up.`,
+  },
+  'task.agent_escalated': {
+    typeLabel: 'Escalation',
+    disclosureLabel: 'Open full escalation packet',
+    fallbackDetail: 'Escalation packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} escalated to a specialist follow-up lane.`,
+  },
+  'task.escalation_task_created': {
+    typeLabel: 'Escalation',
+    disclosureLabel: 'Open full escalation packet',
+    fallbackDetail: 'Escalation packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} created a follow-up escalation task.`,
+  },
+  'task.escalation_response_recorded': {
+    typeLabel: 'Escalation',
+    disclosureLabel: 'Open full escalation packet',
+    fallbackDetail: 'Escalation packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} received an escalation response.`,
+  },
+  'task.escalation_resolved': {
+    typeLabel: 'Escalation',
+    disclosureLabel: 'Open full escalation packet',
+    fallbackDetail: 'Escalation packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} resolved the escalation.`,
+  },
+  'task.escalation_depth_exceeded': {
+    typeLabel: 'Escalation',
+    disclosureLabel: 'Open full escalation packet',
+    fallbackDetail: 'Escalation packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} exceeded the escalation depth limit.`,
+  },
+};
+
 function buildBadges(descriptor: TimelineDescriptor, event: DashboardEventRecord): string[] {
   const badges = new Set<string>(descriptor.signalBadges);
   if (event.type === 'operator.manual_enqueue') badges.add('Manual wake-up');
@@ -243,6 +356,12 @@ function buildFacts(facts: Array<DashboardPacketFact | null>): DashboardPacketFa
 
 function isActivationEvent(eventType: string): boolean {
   return eventType.startsWith('workflow.activation_') || eventType === 'operator.manual_enqueue';
+}
+
+function readTaskGovernancePacketDescriptor(
+  eventType: string,
+): TaskGovernancePacketDescriptor | null {
+  return TASK_GOVERNANCE_PACKET_DESCRIPTORS[eventType] ?? null;
 }
 
 function readRoleFromActor(actorLabel: string): string | null {
