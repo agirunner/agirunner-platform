@@ -111,6 +111,8 @@ describe('dashboard api auth/session behavior', () => {
     expect(approvalTaskBlock).toContain('state: DashboardTaskState;');
     expect(workflowBlock).not.toContain('current_checkpoint');
     expect(approvalTaskBlock).not.toContain('current_checkpoint');
+    expect(source).not.toContain('DashboardWorkflowWorkItemCheckpointCompatibility');
+    expect(source).not.toContain('DashboardWorkflowWorkItemCheckpointKey');
     expect(source).not.toContain('actOnStageGate(');
   });
 

@@ -436,15 +436,6 @@ export interface DashboardWorkflowStageRecord {
   total_work_item_count: number;
 }
 
-type DashboardWorkflowWorkItemCheckpointPrefix = 'current';
-type DashboardWorkflowWorkItemCheckpointSuffix = '_checkpoint';
-type DashboardWorkflowWorkItemCheckpointKey =
-  `${DashboardWorkflowWorkItemCheckpointPrefix}${DashboardWorkflowWorkItemCheckpointSuffix}`;
-
-type DashboardWorkflowWorkItemCheckpointCompatibility = {
-  [K in DashboardWorkflowWorkItemCheckpointKey]?: string | null;
-};
-
 export interface DashboardWorkflowWorkItemRecordBase {
   id: string;
   workflow_id: string;
@@ -475,8 +466,7 @@ export interface DashboardWorkflowWorkItemRecordBase {
   updated_at?: string;
 }
 
-export type DashboardWorkflowWorkItemRecord =
-  DashboardWorkflowWorkItemRecordBase & DashboardWorkflowWorkItemCheckpointCompatibility;
+export type DashboardWorkflowWorkItemRecord = DashboardWorkflowWorkItemRecordBase;
 
 export interface DashboardTaskHandoffRecord {
   id: string;

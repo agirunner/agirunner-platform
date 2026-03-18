@@ -42,7 +42,6 @@ describe('workflow inspector support', () => {
             id: 'work-item-1',
             workflow_id: 'workflow-1',
             stage_name: 'review',
-            current_checkpoint: 'review',
             rework_count: 2,
             title: 'Review release notes',
             column_id: 'review',
@@ -167,7 +166,6 @@ describe('workflow inspector support', () => {
       id: 'work-item-1',
       title: 'Review release notes',
       stageName: 'review',
-      currentCheckpoint: 'review',
       reworkCount: 2,
       nextExpectedActor: 'reviewer',
       nextExpectedAction: 'review',
@@ -220,7 +218,6 @@ describe('workflow inspector support', () => {
             id: 'work-item-5',
             workflow_id: 'workflow-5',
             stage_name: 'review',
-            current_checkpoint: 'review',
             rework_count: 2,
             title: 'Review release notes',
             column_id: 'review',
@@ -240,7 +237,6 @@ describe('workflow inspector support', () => {
       id: 'work-item-5',
       title: 'Review release notes',
       stageName: 'review',
-      currentCheckpoint: 'review',
       reworkCount: 2,
       nextExpectedActor: 'reviewer',
       nextExpectedAction: 'review',
@@ -274,7 +270,7 @@ describe('workflow inspector support', () => {
     ).toEqual({
       title: 'Focus on Review release notes',
       detail:
-        'Checkpoint review • 2 reworks • 1 unresolved finding • 1 review focus item • 1 known risk • Latest handoff: QA validated the approved branch successfully. • Successor context: Use the verified QA evidence as the release input. • Next actor: reviewer should review next',
+        'Stage review • 2 reworks • 1 unresolved finding • 1 review focus item • 1 known risk • Latest handoff: QA validated the approved branch successfully. • Successor context: Use the verified QA evidence as the release input. • Next actor: reviewer should review next',
       nextAction:
         'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',
@@ -392,7 +388,6 @@ describe('workflow inspector support', () => {
             id: 'work-item-5',
             workflow_id: 'workflow-5',
             stage_name: 'review',
-            current_checkpoint: 'review',
             title: 'Review release notes',
             column_id: 'review',
             next_expected_actor: 'reviewer',
@@ -430,7 +425,7 @@ describe('workflow inspector support', () => {
     ).toEqual({
       title: 'Focus on Review release notes',
       detail:
-        'Checkpoint review • 1 unresolved finding • 1 review focus item • 1 known risk • Next actor: reviewer should review next',
+        'Stage review • 1 unresolved finding • 1 review focus item • 1 known risk • Next actor: reviewer should review next',
       nextAction:
         'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',

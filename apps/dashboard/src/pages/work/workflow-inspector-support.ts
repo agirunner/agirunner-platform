@@ -30,7 +30,6 @@ export interface WorkflowInspectorFocusWorkItem {
   id: string;
   title: string;
   stageName: string;
-  currentCheckpoint: string | null;
   reworkCount?: number;
   nextExpectedActor: string | null;
   nextExpectedAction: string | null;
@@ -111,7 +110,6 @@ export function buildWorkflowInspectorTraceModel(input: {
           id: focusWorkItem.id,
           title: focusWorkItem.title,
           stageName: focusWorkItem.stage_name,
-          currentCheckpoint: focusWorkItem.current_checkpoint ?? null,
           reworkCount: focusWorkItem.rework_count ?? 0,
           nextExpectedActor: focusWorkItem.next_expected_actor ?? null,
           nextExpectedAction: focusWorkItem.next_expected_action ?? null,
@@ -231,8 +229,8 @@ function describeFocusContinuityDetail(
 ) {
   const fragments: string[] = [];
   const reworkCount = focusWorkItem.reworkCount ?? 0;
-  if (focusWorkItem.currentCheckpoint) {
-    fragments.push(`Checkpoint ${focusWorkItem.currentCheckpoint}`);
+  if (focusWorkItem.stageName.trim().length > 0) {
+    fragments.push(`Stage ${focusWorkItem.stageName}`);
   }
   if (reworkCount > 0) {
     fragments.push(`${reworkCount} rework${reworkCount === 1 ? '' : 's'}`);
