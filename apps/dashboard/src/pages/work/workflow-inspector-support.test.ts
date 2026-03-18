@@ -43,6 +43,7 @@ describe('workflow inspector support', () => {
             workflow_id: 'workflow-1',
             stage_name: 'review',
             current_checkpoint: 'review',
+            rework_count: 2,
             title: 'Review release notes',
             column_id: 'review',
             next_expected_actor: 'reviewer',
@@ -167,12 +168,117 @@ describe('workflow inspector support', () => {
       title: 'Review release notes',
       stageName: 'review',
       currentCheckpoint: 'review',
+      reworkCount: 2,
       nextExpectedActor: 'reviewer',
       nextExpectedAction: 'review',
       unresolvedFindingsCount: 1,
       reviewFocusCount: 1,
       knownRiskCount: 1,
       latestHandoffCompletion: 'partial',
+    });
+  });
+
+  it('surfaces focus continuity details and the latest handoff packet for the highlighted work item', () => {
+    const latestHandoff = {
+      id: 'handoff-1',
+      workflow_id: 'workflow-5',
+      work_item_id: 'work-item-5',
+      task_id: 'task-qa-1',
+      role: 'qa',
+      stage_name: 'review',
+      sequence: 4,
+      summary: 'QA validated the approved branch successfully.',
+      completion: 'partial',
+      changes: [],
+      decisions: [],
+      remaining_items: [],
+      blockers: [],
+      review_focus: [],
+      known_risks: [],
+      successor_context: 'Use the verified QA evidence as the release input.',
+      role_data: {},
+      artifact_ids: [],
+      created_at: '2026-03-16T02:00:00Z',
+    };
+
+    const traceModel = buildWorkflowInspectorTraceModel({
+      workflow: {
+        id: 'workflow-5',
+        name: 'Release board',
+        state: 'active',
+        created_at: '2026-03-10T00:00:00Z',
+        work_item_summary: {
+          total_work_items: 1,
+          open_work_item_count: 1,
+          completed_work_item_count: 0,
+          active_stage_count: 1,
+          awaiting_gate_count: 0,
+          active_stage_names: ['review'],
+        },
+        work_items: [
+          {
+            id: 'work-item-5',
+            workflow_id: 'workflow-5',
+            stage_name: 'review',
+            current_checkpoint: 'review',
+            rework_count: 2,
+            title: 'Review release notes',
+            column_id: 'review',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            unresolved_findings: ['Verify rollback notes'],
+            review_focus: ['Rollback notes'],
+            known_risks: ['Release timing'],
+            latest_handoff_completion: 'partial',
+            priority: 'high',
+          },
+        ],
+      },
+    });
+
+    expect(traceModel.focusWorkItem).toEqual({
+      id: 'work-item-5',
+      title: 'Review release notes',
+      stageName: 'review',
+      currentCheckpoint: 'review',
+      reworkCount: 2,
+      nextExpectedActor: 'reviewer',
+      nextExpectedAction: 'review',
+      unresolvedFindingsCount: 1,
+      reviewFocusCount: 1,
+      knownRiskCount: 1,
+      latestHandoffCompletion: 'partial',
+    });
+
+    expect(
+      buildWorkflowInspectorFocusSummary({
+        workflowId: 'workflow-5',
+        workflow: {
+          id: 'workflow-5',
+          name: 'Release board',
+          state: 'active',
+          created_at: '2026-03-10T00:00:00Z',
+          work_item_summary: {
+            total_work_items: 1,
+            open_work_item_count: 1,
+            completed_work_item_count: 0,
+            active_stage_count: 1,
+            awaiting_gate_count: 0,
+            active_stage_names: ['review'],
+          },
+        },
+        liveStageLabel: 'review',
+        traceModel,
+        latestHandoff,
+      }),
+    ).toEqual({
+      title: 'Focus on Review release notes',
+      detail:
+        'Checkpoint review • 2 reworks • 1 unresolved finding • 1 review focus item • 1 known risk • Latest handoff: QA validated the approved branch successfully. • Successor context: Use the verified QA evidence as the release input. • Next actor: reviewer should review next',
+      nextAction:
+        'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
+      actionLabel: 'Open focus work item',
+      actionHref: '/work/boards/workflow-5?work_item=work-item-5',
     });
   });
 
@@ -323,7 +429,8 @@ describe('workflow inspector support', () => {
       }),
     ).toEqual({
       title: 'Focus on Review release notes',
-      detail: 'review is live, reviewer should review next, and 1 unresolved finding is still open.',
+      detail:
+        'Checkpoint review • 1 unresolved finding • 1 review focus item • 1 known risk • Next actor: reviewer should review next',
       nextAction:
         'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',

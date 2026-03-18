@@ -19,6 +19,7 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('dashboardApi.getWorkflow');
     expect(source).toContain('dashboardApi.getProject');
     expect(source).toContain('dashboardApi.getLogStats');
+    expect(source).toContain('dashboardApi.getLatestWorkflowWorkItemHandoff');
     expect(source).toContain('dashboardApi.getWorkflowWorkItemMemoryHistory');
     expect(source).toContain('Workflow Board Inspector');
     expect(source).toContain('Workflow Board');

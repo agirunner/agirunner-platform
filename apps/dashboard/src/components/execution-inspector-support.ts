@@ -145,6 +145,22 @@ export function readInspectorView(searchParams: URLSearchParams): InspectorView 
   return view === 'summary' || view === 'detailed' || view === 'debug' ? view : 'raw';
 }
 
+export function describeTaskContextPacketKind(
+  operation: string,
+): 'attachments' | 'predecessor_handoff' | null {
+  if (operation === 'task.context.attachments') {
+    return 'attachments';
+  }
+  if (operation === 'task.context.predecessor_handoff.attach') {
+    return 'predecessor_handoff';
+  }
+  return null;
+}
+
+export function isTaskContextContinuityOperation(operation: string): boolean {
+  return describeTaskContextPacketKind(operation) !== null;
+}
+
 export function summarizeLogContext(entry: LogEntry): string[] {
   const items: string[] = [];
   if (entry.workflow_name || entry.workflow_id) {
@@ -162,10 +178,23 @@ export function summarizeLogContext(entry: LogEntry): string[] {
   if (entry.activation_id) {
     items.push(`activation ${shortId(entry.activation_id)}`);
   }
+  const packetKind = describeTaskContextPacketKind(entry.operation);
+  if (packetKind === 'attachments') {
+    items.push('Continuity packet');
+  } else if (packetKind === 'predecessor_handoff') {
+    items.push('Predecessor handoff packet');
+  }
   return items;
 }
 
 export function describeExecutionHeadline(entry: LogEntry): string {
+  const packetKind = describeTaskContextPacketKind(entry.operation);
+  if (packetKind === 'attachments') {
+    return `${readExecutionSubject(entry)} recorded continuity packet`;
+  }
+  if (packetKind === 'predecessor_handoff') {
+    return `${readExecutionSubject(entry)} attached predecessor handoff`;
+  }
   const subject = readExecutionSubject(entry);
   const action = describeExecutionOperationLabel(entry.operation);
 
@@ -223,6 +252,13 @@ export function describeExecutionOperationOption(value: string): string {
 }
 
 export function describeExecutionNextAction(entry: LogEntry): string {
+  const packetKind = describeTaskContextPacketKind(entry.operation);
+  if (packetKind === 'attachments') {
+    return 'Review the continuity packet before the next actor resumes the step.';
+  }
+  if (packetKind === 'predecessor_handoff') {
+    return 'Confirm the selected handoff before the step resumes.';
+  }
   if (entry.error?.message || entry.status === 'failed') {
     return 'Review the failure packet, then decide whether to retry, rework, or escalate the affected step.';
   }
@@ -240,6 +276,13 @@ export function describeExecutionNextAction(entry: LogEntry): string {
 
 export function readExecutionSignals(entry: LogEntry): string[] {
   const signals = new Set<string>();
+  const packetKind = describeTaskContextPacketKind(entry.operation);
+  if (packetKind) {
+    signals.add('Continuity');
+  }
+  if (packetKind === 'predecessor_handoff') {
+    signals.add('Handoff');
+  }
   if (entry.is_orchestrator_task) signals.add('Orchestrator');
   if (entry.activation_id) signals.add('Activation');
   if (entry.work_item_id) signals.add('Work item');
@@ -247,7 +290,7 @@ export function readExecutionSignals(entry: LogEntry): string[] {
   if (containsSignalKeyword(entry, 'gate')) signals.add('Gate');
   if (containsSignalKeyword(entry, 'escalat')) signals.add('Escalation');
   if (entry.error?.message || entry.status === 'failed') signals.add('Recovery');
-  return Array.from(signals).slice(0, 4);
+  return Array.from(signals).slice(0, 5);
 }
 
 export function shortId(value?: string | null): string {

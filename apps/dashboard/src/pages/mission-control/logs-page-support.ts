@@ -5,10 +5,10 @@ import type {
 } from '../../lib/api.js';
 import type { InspectorFilters } from '../../components/execution-inspector-support.js';
 import {
-  describeExecutionHeadline,
   describeExecutionNextAction,
   describeExecutionOperationLabel,
   describeExecutionSummary,
+  describeTaskContextPacketKind,
   formatCost,
   formatDuration,
   formatNumber,
@@ -89,22 +89,24 @@ export function buildRecentLogActivityPackets(
 ): RecentLogActivityPacket[] {
   return entries.slice(0, limit).map((entry) => {
     const actorLabel = describeLogActorLabel(entry);
+    const packetKind = describeTaskContextPacketKind(entry.operation);
     const emphasisTone = describeLogEmphasisTone(entry);
     const workflowContextHref = buildLogWorkflowContextLink(entry);
     const taskRecordHref = entry.task_id ? `/work/tasks/${entry.task_id}` : null;
-    const outcomeLabel = describeLogOutcomeLabel(entry);
+    const outcomeLabel = describeLogOutcomeLabel(entry, packetKind);
     const nextAction = describeExecutionNextAction(entry);
     const scopeSummary = buildLogScopeSummary(entry);
     const context = summarizeLogContext(entry);
     const signals = readExecutionSignals(entry);
+    const continuityContext = packetKind ? buildContinuityPacketContext(entry, packetKind) : [];
     return {
       id: entry.id,
       actorLabel,
-      emphasisLabel: describeLogEmphasisLabel(entry),
+      emphasisLabel: describeLogEmphasisLabel(entry, packetKind),
       emphasisTone,
-      narrativeHeadline: buildLogNarrativeHeadline(entry, actorLabel),
+      narrativeHeadline: buildLogNarrativeHeadline(entry, actorLabel, packetKind),
       summary: describeExecutionSummary(entry),
-      whyItMatters: describeLogWhyItMatters(entry),
+      whyItMatters: describeLogWhyItMatters(entry, packetKind),
       outcomeLabel,
       nextAction,
       scopeSummary,
@@ -115,7 +117,9 @@ export function buildRecentLogActivityPackets(
       }),
       context,
       signals,
-      supportingContext: dedupeActivityContext([...signals, ...context]),
+      supportingContext: dedupeActivityContext(
+        packetKind ? [...continuityContext, ...context] : [...signals, ...context],
+      ),
       createdAtLabel: formatRecentActivityAge(entry.created_at, now),
       createdAtIso: entry.created_at,
       createdAtDetail: new Date(entry.created_at).toLocaleString(),
@@ -192,7 +196,11 @@ function describeInspectorFocus(filters: InspectorFilters, scopedWorkflowId: str
   return 'All execution';
 }
 
-function buildLogNarrativeHeadline(entry: LogEntry, actorLabel: string): string {
+function buildLogNarrativeHeadline(
+  entry: LogEntry,
+  actorLabel: string,
+  packetKind: 'attachments' | 'predecessor_handoff' | null,
+): string {
   const target =
     entry.task_title ??
     entry.workflow_name ??
@@ -200,6 +208,17 @@ function buildLogNarrativeHeadline(entry: LogEntry, actorLabel: string): string 
     (entry.task_id ? `step ${shortId(entry.task_id)}` : null) ??
     (entry.workflow_id ? `board ${shortId(entry.workflow_id)}` : null);
   const operation = describeExecutionOperationLabel(entry.operation).toLowerCase();
+
+  if (packetKind === 'attachments') {
+    return target
+      ? `${actorLabel} recorded continuity packet for ${target}`
+      : `${actorLabel} recorded continuity packet`;
+  }
+  if (packetKind === 'predecessor_handoff') {
+    return target
+      ? `${actorLabel} attached predecessor handoff for ${target}`
+      : `${actorLabel} attached predecessor handoff`;
+  }
 
   if (entry.error?.message || entry.status === 'failed') {
     return target
@@ -249,7 +268,16 @@ function describeLogActorLabel(entry: LogEntry): string {
   return humanizeActorToken(entry.actor_type);
 }
 
-function describeLogEmphasisLabel(entry: LogEntry): string {
+function describeLogEmphasisLabel(
+  entry: LogEntry,
+  packetKind: 'attachments' | 'predecessor_handoff' | null,
+): string {
+  if (packetKind === 'attachments') {
+    return 'Continuity packet';
+  }
+  if (packetKind === 'predecessor_handoff') {
+    return 'Predecessor handoff';
+  }
   if (entry.error?.message || entry.status === 'failed') {
     return 'Needs recovery';
   }
@@ -283,9 +311,18 @@ function describeLogEmphasisTone(
   return 'secondary';
 }
 
-function describeLogOutcomeLabel(entry: LogEntry): string | null {
+function describeLogOutcomeLabel(
+  entry: LogEntry,
+  packetKind: 'attachments' | 'predecessor_handoff' | null,
+): string | null {
   if (entry.error?.message) {
     return entry.error.message;
+  }
+  if (packetKind === 'attachments') {
+    return 'Continuity packet recorded.';
+  }
+  if (packetKind === 'predecessor_handoff') {
+    return 'Predecessor handoff attached.';
   }
   if (entry.status === 'completed') {
     return 'Execution completed without runtime errors.';
@@ -299,7 +336,16 @@ function describeLogOutcomeLabel(entry: LogEntry): string | null {
   return null;
 }
 
-function describeLogWhyItMatters(entry: LogEntry): string {
+function describeLogWhyItMatters(
+  entry: LogEntry,
+  packetKind: 'attachments' | 'predecessor_handoff' | null,
+): string {
+  if (packetKind === 'attachments') {
+    return 'This packet preserves the task context attachments and predecessor handoff the next actor needs.';
+  }
+  if (packetKind === 'predecessor_handoff') {
+    return 'This packet preserves the selected predecessor handoff and successor context for the next actor.';
+  }
   if (entry.error?.message || entry.status === 'failed') {
     return 'This is the clearest recovery signal in the recent stream. Start here before scanning lower-severity activity.';
   }
@@ -313,6 +359,41 @@ function describeLogWhyItMatters(entry: LogEntry): string {
     return 'This packet closes a visible execution step and gives you the cleanest handoff into board or step diagnostics.';
   }
   return 'This packet is the newest scoped execution signal available for operator review.';
+}
+
+function buildContinuityPacketContext(
+  entry: LogEntry,
+  packetKind: 'attachments' | 'predecessor_handoff',
+): string[] {
+  const payload = asRecord(entry.payload);
+  if (packetKind === 'attachments') {
+    return [
+      'Continuity packet',
+      'task context attachments',
+      readNonEmptyString(payload.predecessor_handoff_source)
+        ? `predecessor handoff source ${readNonEmptyString(payload.predecessor_handoff_source)}`
+        : null,
+      readNumber(payload.recent_handoff_count) !== null
+        ? `recent handoffs ${readNumber(payload.recent_handoff_count)}`
+        : null,
+      payload.work_item_continuity_present === true ? 'work item continuity' : null,
+      payload.project_memory_index_present === true ? 'project memory index' : null,
+      payload.project_artifact_index_present === true ? 'project artifact index' : null,
+    ].filter((item): item is string => Boolean(item));
+  }
+
+  return [
+    'Predecessor handoff packet',
+    readNonEmptyString(payload.selected_handoff_role)
+      ? `selected role ${readNonEmptyString(payload.selected_handoff_role)}`
+      : null,
+    readNumber(payload.selected_handoff_sequence) !== null
+      ? `selected sequence ${readNumber(payload.selected_handoff_sequence)}`
+      : null,
+    readNonEmptyString(payload.resolution_source)
+      ? `resolution source ${readNonEmptyString(payload.resolution_source)}`
+      : null,
+  ].filter((item): item is string => Boolean(item));
 }
 
 function buildRecentLogActivityFacts(input: {
@@ -364,6 +445,21 @@ function humanizeActorToken(value: string): string {
     .filter((part) => part.length > 0)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function readNonEmptyString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }
 
 function humanizeRole(value: string): string {

@@ -104,7 +104,117 @@ describe('execution inspector support', () => {
       'Activation',
       'Work item',
       'Stage',
+      'Recovery',
     ]);
+  });
+
+  it('describes task context attachments as continuity packets', () => {
+    const entry = {
+      id: 2,
+      trace_id: 'trace-2',
+      span_id: 'span-2',
+      source: 'platform',
+      category: 'task_lifecycle',
+      level: 'info',
+      operation: 'task.context.attachments',
+      status: 'completed',
+      workflow_name: 'Delivery',
+      task_title: 'Review smoke result',
+      stage_name: 'qa',
+      work_item_id: 'work-item-12345678',
+      activation_id: 'activation-12345678',
+      actor_type: 'agent',
+      actor_id: 'agent-1',
+      actor_name: 'QA Agent',
+      created_at: '2026-03-11T00:00:00Z',
+      payload: {
+        predecessor_handoff_present: true,
+        predecessor_handoff_resolution_present: true,
+        predecessor_handoff_source: 'local_work_item',
+        recent_handoff_count: 1,
+        work_item_continuity_present: true,
+        project_memory_index_present: true,
+        project_memory_index_count: 2,
+        project_artifact_index_present: true,
+        project_artifact_index_count: 1,
+        document_count: 0,
+      },
+    } as const;
+
+    expect(describeExecutionHeadline(entry)).toBe(
+      'Step Review smoke result recorded continuity packet',
+    );
+    expect(summarizeLogContext(entry)).toEqual([
+      'board Delivery',
+      'step Review smoke result',
+      'stage qa',
+      'work item work-ite',
+      'activation activati',
+      'Continuity packet',
+    ]);
+    expect(readExecutionSignals(entry)).toEqual([
+      'Continuity',
+      'Activation',
+      'Work item',
+      'Stage',
+    ]);
+    expect(describeExecutionSummary(entry)).toContain('Continuity packet');
+  });
+
+  it('describes predecessor handoff attachments as continuity packets', () => {
+    const entry = {
+      id: 3,
+      trace_id: 'trace-3',
+      span_id: 'span-3',
+      source: 'platform',
+      category: 'task_lifecycle',
+      level: 'info',
+      operation: 'task.context.predecessor_handoff.attach',
+      status: 'completed',
+      workflow_name: 'Delivery',
+      task_title: 'Review smoke result',
+      stage_name: 'qa',
+      work_item_id: 'work-item-12345678',
+      activation_id: 'activation-12345678',
+      actor_type: 'agent',
+      actor_id: 'agent-1',
+      actor_name: 'QA Agent',
+      created_at: '2026-03-11T00:00:00Z',
+      payload: {
+        current_workflow_id: 'workflow-1',
+        current_work_item_id: 'work-item-12345678',
+        current_task_id: 'task-1',
+        resolution_source: 'local_work_item',
+        has_predecessor_handoff: true,
+        candidate_handoff_ids: ['handoff-ctx-1'],
+        candidate_task_ids: ['task-upstream-1'],
+        selected_handoff_id: 'handoff-ctx-1',
+        selected_handoff_workflow_id: 'workflow-1',
+        selected_handoff_work_item_id: 'work-item-12345678',
+        selected_handoff_role: 'developer',
+        selected_handoff_sequence: 4,
+      },
+    } as const;
+
+    expect(describeExecutionHeadline(entry)).toBe(
+      'Step Review smoke result attached predecessor handoff',
+    );
+    expect(summarizeLogContext(entry)).toEqual([
+      'board Delivery',
+      'step Review smoke result',
+      'stage qa',
+      'work item work-ite',
+      'activation activati',
+      'Predecessor handoff packet',
+    ]);
+    expect(readExecutionSignals(entry)).toEqual([
+      'Continuity',
+      'Handoff',
+      'Activation',
+      'Work item',
+      'Stage',
+    ]);
+    expect(describeExecutionSummary(entry)).toContain('Predecessor handoff packet');
   });
 
   it('humanizes execution activity labels for filters and summaries', () => {

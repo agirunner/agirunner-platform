@@ -86,6 +86,16 @@ export function WorkflowInspectorPage(): JSX.Element {
     enabled: workflowId.length > 0 && Boolean(traceModel.focusWorkItem?.id),
     staleTime: 30_000,
   });
+  const latestHandoffQuery = useQuery({
+    queryKey: ['workflow', workflowId, 'inspector-latest-handoff', traceModel.focusWorkItem?.id],
+    queryFn: () =>
+      dashboardApi.getLatestWorkflowWorkItemHandoff(
+        workflowId,
+        traceModel.focusWorkItem?.id ?? '',
+      ),
+    enabled: workflowId.length > 0 && Boolean(traceModel.focusWorkItem?.id),
+    staleTime: 30_000,
+  });
   const telemetryModel = buildWorkflowInspectorTelemetryModel({
     workflowId,
     workflow,
@@ -99,6 +109,7 @@ export function WorkflowInspectorPage(): JSX.Element {
     workflow,
     liveStageLabel: stageValue,
     traceModel,
+    latestHandoff: latestHandoffQuery.data,
   });
   const jumpSections = [
     {

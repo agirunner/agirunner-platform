@@ -1,6 +1,7 @@
 import type {
   DashboardProjectRecord,
   DashboardWorkflowActivationRecord,
+  DashboardTaskHandoffRecord,
   DashboardWorkflowRecord,
   DashboardWorkflowStageRecord,
   DashboardWorkflowWorkItemRecord,
@@ -30,6 +31,7 @@ export interface WorkflowInspectorFocusWorkItem {
   title: string;
   stageName: string;
   currentCheckpoint: string | null;
+  reworkCount?: number;
   nextExpectedActor: string | null;
   nextExpectedAction: string | null;
   unresolvedFindingsCount: number;
@@ -105,11 +107,12 @@ export function buildWorkflowInspectorTraceModel(input: {
     latestActivationSummary: describeLatestActivationSummary(activations),
     links: buildWorkflowInspectorTraceLinks(workflow, projectId, readLatestActivation),
     focusWorkItem: focusWorkItem
-      ? {
+        ? {
           id: focusWorkItem.id,
           title: focusWorkItem.title,
           stageName: focusWorkItem.stage_name,
           currentCheckpoint: focusWorkItem.current_checkpoint ?? null,
+          reworkCount: focusWorkItem.rework_count ?? 0,
           nextExpectedActor: focusWorkItem.next_expected_actor ?? null,
           nextExpectedAction: focusWorkItem.next_expected_action ?? null,
           unresolvedFindingsCount: focusWorkItem.unresolved_findings?.length ?? 0,
@@ -126,6 +129,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
   workflow?: DashboardWorkflowRecord;
   liveStageLabel: string;
   traceModel: WorkflowInspectorTraceModel;
+  latestHandoff?: DashboardTaskHandoffRecord | null;
 }): WorkflowInspectorFocusSummary {
   const awaitingGateCount = input.workflow?.work_item_summary?.awaiting_gate_count ?? 0;
   if (awaitingGateCount > 0) {
@@ -141,7 +145,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
 
   if (input.traceModel.focusWorkItem) {
     const focusItem = input.traceModel.focusWorkItem;
-    const continuityDetail = describeFocusContinuityDetail(focusItem);
+    const continuityDetail = describeFocusContinuityDetail(focusItem, input.latestHandoff ?? null);
     return {
       title: `Focus on ${focusItem.title}`,
       detail: continuityDetail,
@@ -221,15 +225,47 @@ function describeContinuityDetail(focusWorkItem: DashboardWorkflowWorkItemRecord
   return 'No unresolved findings are recorded on the focus work item right now.';
 }
 
-function describeFocusContinuityDetail(focusWorkItem: WorkflowInspectorFocusWorkItem) {
-  const actor = focusWorkItem.nextExpectedActor;
-  const action = focusWorkItem.nextExpectedAction;
-  const unresolvedCount = focusWorkItem.unresolvedFindingsCount;
-  if (actor && action && unresolvedCount > 0) {
-    return `${focusWorkItem.stageName} is live, ${actor} should ${action} next, and ${unresolvedCount} unresolved finding${unresolvedCount === 1 ? ' is' : 's are'} still open.`;
+function describeFocusContinuityDetail(
+  focusWorkItem: WorkflowInspectorFocusWorkItem,
+  latestHandoff: DashboardTaskHandoffRecord | null,
+) {
+  const fragments: string[] = [];
+  const reworkCount = focusWorkItem.reworkCount ?? 0;
+  if (focusWorkItem.currentCheckpoint) {
+    fragments.push(`Checkpoint ${focusWorkItem.currentCheckpoint}`);
   }
-  if (actor && action) {
-    return `${focusWorkItem.stageName} is live, and ${actor} should ${action} next.`;
+  if (reworkCount > 0) {
+    fragments.push(`${reworkCount} rework${reworkCount === 1 ? '' : 's'}`);
+  }
+  if (focusWorkItem.unresolvedFindingsCount > 0) {
+    fragments.push(
+      `${focusWorkItem.unresolvedFindingsCount} unresolved finding${focusWorkItem.unresolvedFindingsCount === 1 ? '' : 's'}`,
+    );
+  }
+  if (focusWorkItem.reviewFocusCount > 0) {
+    fragments.push(
+      `${focusWorkItem.reviewFocusCount} review focus item${focusWorkItem.reviewFocusCount === 1 ? '' : 's'}`,
+    );
+  }
+  if (focusWorkItem.knownRiskCount > 0) {
+    fragments.push(`${focusWorkItem.knownRiskCount} known risk${focusWorkItem.knownRiskCount === 1 ? '' : 's'}`);
+  }
+  if (latestHandoff?.summary) {
+    fragments.push(`Latest handoff: ${latestHandoff.summary}`);
+  }
+  if (latestHandoff?.successor_context) {
+    fragments.push(`Successor context: ${latestHandoff.successor_context}`);
+  }
+  if (focusWorkItem.nextExpectedActor && focusWorkItem.nextExpectedAction) {
+    fragments.push(`Next actor: ${focusWorkItem.nextExpectedActor} should ${focusWorkItem.nextExpectedAction} next`);
+  } else if (focusWorkItem.nextExpectedActor) {
+    fragments.push(`Next actor: ${focusWorkItem.nextExpectedActor}`);
+  } else if (focusWorkItem.nextExpectedAction) {
+    fragments.push(`Next action: ${focusWorkItem.nextExpectedAction}`);
+  }
+
+  if (fragments.length > 0) {
+    return fragments.join(' • ');
   }
   return `${focusWorkItem.stageName} is the most relevant live work-item context in this trace.`;
 }
