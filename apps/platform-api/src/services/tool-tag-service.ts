@@ -39,6 +39,7 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'artifact_list', name: 'Artifact List', description: 'List workflow artifacts', category: 'artifacts' },
   { id: 'artifact_read', name: 'Artifact Read', description: 'Read an artifact from the store', category: 'artifacts' },
   { id: 'memory_read', name: 'Memory Read', description: 'Read workspace memory', category: 'memory' },
+  { id: 'memory_search', name: 'Memory Search', description: 'Search workspace memory by key or value', category: 'memory' },
   { id: 'memory_write', name: 'Memory Write', description: 'Write workspace memory', category: 'memory' },
   { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a workspace memory key', category: 'memory' },
   { id: 'web_fetch', name: 'Web Fetch', description: 'Fetch and extract content from URLs', category: 'web' },

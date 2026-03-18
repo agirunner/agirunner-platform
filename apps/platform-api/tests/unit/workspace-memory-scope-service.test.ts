@@ -138,4 +138,68 @@ describe('WorkspaceMemoryScopeService', () => {
       more_available: true,
     });
   });
+
+  it('searches visible task memory case-insensitively across keys and values', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          {
+            id: 11,
+            type: 'workspace.memory_updated',
+            actor_type: 'agent',
+            actor_id: 'agent:key',
+            created_at: '2026-03-16T08:00:00.000Z',
+            data: { key: 'global_note' },
+          },
+          {
+            id: 12,
+            type: 'workspace.memory_updated',
+            actor_type: 'agent',
+            actor_id: 'agent:key',
+            created_at: '2026-03-16T08:01:00.000Z',
+            data: { key: 'decision_log', workflow_id: 'wf-1' },
+          },
+          {
+            id: 13,
+            type: 'workspace.memory_updated',
+            actor_type: 'agent',
+            actor_id: 'agent:key',
+            created_at: '2026-03-16T08:02:00.000Z',
+            data: { key: 'other_workflow', workflow_id: 'wf-old' },
+          },
+        ],
+        rowCount: 3,
+      }),
+    };
+
+    const service = new WorkspaceMemoryScopeService(pool as never);
+
+    const matches = await service.searchVisibleTaskMemory({
+      tenantId: 'tenant-1',
+      workspaceId: 'workspace-1',
+      workflowId: 'wf-1',
+      workItemId: 'wi-1',
+      currentMemory: {
+        global_note: 'Keep this around',
+        decision_log: { outcome: 'Ship now' },
+        other_workflow: 'Ship old flow',
+      },
+      query: 'SHIP',
+    });
+
+    expect(matches).toEqual([
+      {
+        key: 'decision_log',
+        value: { outcome: 'Ship now' },
+        event_id: 12,
+        updated_at: '2026-03-16T08:01:00.000Z',
+        actor_type: 'agent',
+        actor_id: 'agent:key',
+        workflow_id: 'wf-1',
+        work_item_id: null,
+        task_id: null,
+        stage_name: null,
+      },
+    ]);
+  });
 });

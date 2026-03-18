@@ -14,6 +14,7 @@ import { WorkspaceMemoryScopeService } from '../../services/workspace-memory-sco
 import { TaskAgentScopeService } from '../../services/task-agent-scope-service.js';
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
+import { registerTaskPlatformMemoryReadRoutes } from './task-platform-memory-read-routes.js';
 import { runIdempotentTaskRouteAction } from './task-route-idempotency.js';
 
 const memoryUpdatesSchema = z
@@ -78,30 +79,7 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
     app.config.ARTIFACT_PREVIEW_MAX_BYTES,
   );
 
-  app.get(
-    '/api/v1/tasks/:id/memory',
-    { preHandler: [authenticateApiKey, withScope('agent')] },
-    async (request) => {
-      const params = request.params as { id: string };
-      const query = request.query as { key?: string };
-      const task = await taskScopeService.loadAgentOwnedActiveTask(request.auth!, params.id);
-      if (!task.workspace_id) {
-        throw new ValidationError('Task is not linked to a workspace');
-      }
-      const workspace = await app.workspaceService.getWorkspace(request.auth!.tenantId, task.workspace_id);
-      const memory = await workspaceMemoryScopeService.filterVisibleTaskMemory({
-        tenantId: request.auth!.tenantId,
-        workspaceId: task.workspace_id as string,
-        workflowId: task.workflow_id as string,
-        workItemId: task.work_item_id,
-        currentMemory: (workspace.memory ?? {}) as Record<string, unknown>,
-      });
-      if (query.key) {
-        return { data: { key: query.key, value: memory[query.key] } };
-      }
-      return { data: { memory } };
-    },
-  );
+  registerTaskPlatformMemoryReadRoutes(app, { taskScopeService, workspaceMemoryScopeService });
 
   app.post(
     '/api/v1/tasks/:id/handoff',
