@@ -53,7 +53,8 @@ describe('task list page support', () => {
     });
   });
 
-  it('keeps stage-only tasks on the step record while exposing workflow context separately', () => {
+  it('routes workflow-linked tasks through the workflow flow, not the step record', () => {
+    // Stage-only: primary routes to workflow context, diagnostic to step record
     expect(
       buildTaskPrimaryOperatorAction({
         id: 'task-stage',
@@ -63,9 +64,10 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/work/tasks/task-stage',
-      label: 'Open step record',
-      helper: 'Use the step record for retry, rework, or rejection. Workflow context is available separately when you need stage history.',
+      href: '/work/boards/workflow-1?gate=review#gate-review',
+      label: 'Open workflow context',
+      helper:
+        'Review this step in its workflow stage context. Step diagnostics are available separately when you need execution details.',
       showsDiagnosticLink: true,
     });
     expect(
@@ -77,9 +79,38 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toEqual({
-      href: '/work/boards/workflow-1?gate=review#gate-review',
-      label: 'Open workflow context',
+      href: '/work/tasks/task-stage',
+      label: 'Open failed step diagnostics',
     });
+
+    // Workflow-only: primary routes to board, diagnostic to step record
+    expect(
+      buildTaskPrimaryOperatorAction({
+        id: 'task-board',
+        status: 'in_progress',
+        workflow_id: 'workflow-2',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toEqual({
+      href: '/work/boards/workflow-2',
+      label: 'Open workflow board',
+      helper:
+        'This step is linked to a workflow. Use the board for operator decisions so workflow state stays aligned.',
+      showsDiagnosticLink: true,
+    });
+    expect(
+      buildTaskDiagnosticAction({
+        id: 'task-board',
+        status: 'in_progress',
+        workflow_id: 'workflow-2',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toEqual({
+      href: '/work/tasks/task-board',
+      label: 'Open step diagnostics',
+    });
+
+    // Standalone: primary stays on step record, no diagnostic
     expect(
       buildTaskPrimaryOperatorAction({
         id: 'task-direct',
@@ -99,6 +130,38 @@ describe('task list page support', () => {
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toBeNull();
+  });
+
+  it('includes workflow flow description in next action guidance for all workflow-linked tasks', () => {
+    expect(
+      describeTaskNextAction({
+        id: 'task-stage-review',
+        status: 'awaiting_approval',
+        workflow_id: 'workflow-1',
+        stage_name: 'review',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toBe('Review and approve this step from the workflow stage context.');
+
+    expect(
+      describeTaskNextAction({
+        id: 'task-board-only',
+        status: 'failed',
+        workflow_id: 'workflow-1',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toBe(
+      'Inspect the failure from the workflow board and choose retry, rework, or escalation.',
+    );
+
+    // Standalone tasks get generic language without flow reference
+    expect(
+      describeTaskNextAction({
+        id: 'task-standalone',
+        status: 'failed',
+        created_at: '2026-03-12T12:00:00.000Z',
+      }),
+    ).toBe('Inspect the failure and choose retry, rework, or escalation.');
   });
 
   it('formats timing and status labels for operator scanning', () => {

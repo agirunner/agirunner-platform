@@ -43,4 +43,16 @@ describe('task detail page source', () => {
     expect(source).toContain('Open Workflow Operator Flow');
     expect(source).toContain('Use the workflow operator flow so board context stays aligned before mutating the step directly.');
   });
+
+  it('guards raw approve/reject/retry/cancel buttons behind the workflow operator flow check', () => {
+    const source = readSource();
+    const guardPos = source.indexOf('workflowOperatorPermalink && workflowOperatorFlow');
+    const approvePos = source.indexOf('Approve Step');
+    const rejectPos = source.indexOf('Reject Step');
+    const retryPos = source.indexOf('Retry Step');
+    expect(guardPos).toBeGreaterThan(-1);
+    expect(approvePos).toBeGreaterThan(guardPos);
+    expect(rejectPos).toBeGreaterThan(guardPos);
+    expect(retryPos).toBeGreaterThan(guardPos);
+  });
 });

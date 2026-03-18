@@ -40,10 +40,19 @@ export function buildTaskPrimaryOperatorAction(
   }
   if (workflowPermalink && task.workflow_id && task.stage_name) {
     return {
-      href: `/work/tasks/${task.id}`,
-      label: 'Open step record',
+      href: workflowPermalink,
+      label: 'Open workflow context',
       helper:
-        'Use the step record for retry, rework, or rejection. Workflow context is available separately when you need stage history.',
+        'Review this step in its workflow stage context. Step diagnostics are available separately when you need execution details.',
+      showsDiagnosticLink: true,
+    };
+  }
+  if (workflowPermalink && task.workflow_id) {
+    return {
+      href: workflowPermalink,
+      label: 'Open workflow board',
+      helper:
+        'This step is linked to a workflow. Use the board for operator decisions so workflow state stays aligned.',
       showsDiagnosticLink: true,
     };
   }
@@ -58,23 +67,7 @@ export function buildTaskPrimaryOperatorAction(
 export function buildTaskDiagnosticAction(
   task: TaskListOperatorScope,
 ): TaskDiagnosticAction | null {
-  const workflowPermalink = buildWorkflowOperatorPermalink(task);
-  if (!workflowPermalink) {
-    return null;
-  }
-  if (usesWorkItemOperatorFlow(task)) {
-    return {
-      href: `/work/tasks/${task.id}`,
-      label: isRecoveryStatus(task) ? 'Open failed step diagnostics' : 'Open step diagnostics',
-    };
-  }
-  if (task.workflow_id && task.stage_name) {
-    return {
-      href: workflowPermalink,
-      label: 'Open workflow context',
-    };
-  }
-  if (!usesContextualOperatorFlow(task)) {
+  if (!task.workflow_id) {
     return null;
   }
   return {
@@ -89,11 +82,13 @@ export function readTaskOperatorFlowDescription(
   if (usesWorkItemOperatorFlow(task)) {
     return 'grouped work-item flow';
   }
+  if (task.workflow_id && task.stage_name) {
+    return 'workflow stage context';
+  }
+  if (task.workflow_id) {
+    return 'workflow board';
+  }
   return null;
-}
-
-function usesContextualOperatorFlow(task: TaskListOperatorScope): boolean {
-  return usesWorkItemOperatorFlow(task) || Boolean(task.workflow_id && task.stage_name);
 }
 
 function isRecoveryStatus(task: TaskListOperatorScope): boolean {
