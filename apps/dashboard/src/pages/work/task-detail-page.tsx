@@ -37,7 +37,9 @@ import {
 import { TaskDetailArtifactsPanel } from './task-detail-artifacts-panel.js';
 import { TaskDetailContextSection } from './task-detail-context-section.js';
 import {
+  StepManualEscalationDialog,
   StepOutputOverrideDialog,
+  WorkItemReassignDialog,
   formatOutputOverrideDraft,
   parseOutputOverrideDraft,
 } from '../workflow-work-item-task-review-dialogs.js';
@@ -161,18 +163,30 @@ function InfoCard({
 
 function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   const queryClient = useQueryClient();
+  const agentsQuery = useQuery({
+    queryKey: ['task-detail-agents'],
+    queryFn: () => dashboardApi.listAgents(),
+    staleTime: 60_000,
+  });
   const status = resolveStatus(task);
   const isAwaitingApproval = status === 'awaiting_approval';
   const isOutputReview = status === 'output_pending_review';
   const isEscalated = status === 'escalated';
   const isFailed = status === 'failed';
   const isInProgress = status === 'in_progress';
+  const isClaimed = status === 'claimed';
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
   const workflowOperatorPermalink = buildWorkflowOperatorPermalink(task);
+  const [isManualEscalationDialogOpen, setIsManualEscalationDialogOpen] = useState(false);
   const [isOutputOverrideDialogOpen, setIsOutputOverrideDialogOpen] = useState(false);
+  const [isReassignDialogOpen, setIsReassignDialogOpen] = useState(false);
+  const [escalationReason, setEscalationReason] = useState('');
+  const [escalationTarget, setEscalationTarget] = useState('human');
   const [outputOverrideDraft, setOutputOverrideDraft] = useState(formatOutputOverrideDraft(task.output));
   const [outputOverrideReason, setOutputOverrideReason] = useState('');
+  const [reassignReason, setReassignReason] = useState('');
+  const [reassignAgentId, setReassignAgentId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
 
   const approveMutation = useMutation({
@@ -211,6 +225,56 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
     },
   });
+  const reassignMutation = useMutation({
+    mutationFn: () => {
+      const selectedAgentId = reassignAgentId?.trim();
+      if (!selectedAgentId) {
+        throw new Error('Select an agent before reassigning this step.');
+      }
+      const reason = reassignReason.trim();
+      if (!reason) {
+        throw new Error('Add a reason before reassigning this step.');
+      }
+      return dashboardApi.reassignTask(task.id, {
+        preferred_agent_id: selectedAgentId,
+        reason,
+      });
+    },
+    onSuccess: () => {
+      setActionError(null);
+      setReassignReason('');
+      setReassignAgentId(null);
+      setIsReassignDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : 'Failed to reassign step.');
+    },
+  });
+  const escalateMutation = useMutation({
+    mutationFn: () => {
+      const reason = escalationReason.trim();
+      if (!reason) {
+        throw new Error('Add a reason before escalating this step.');
+      }
+      return dashboardApi.escalateTask(task.id, {
+        reason,
+        escalation_target: escalationTarget.trim() || 'human',
+      });
+    },
+    onSuccess: () => {
+      setActionError(null);
+      setEscalationReason('');
+      setEscalationTarget('human');
+      setIsManualEscalationDialogOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['task', task.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks'] });
+    },
+    onError: (error) => {
+      setActionError(error instanceof Error ? error.message : 'Failed to escalate step.');
+    },
+  });
   const overrideOutputMutation = useMutation({
     mutationFn: () =>
       dashboardApi.overrideTaskOutput(task.id, {
@@ -232,10 +296,14 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
 
   const isActionPending =
     approveMutation.isPending ||
+    reassignMutation.isPending ||
+    escalateMutation.isPending ||
     overrideOutputMutation.isPending ||
     rejectMutation.isPending ||
     retryMutation.isPending ||
     cancelMutation.isPending;
+  const canReassign = status !== 'completed' && status !== 'escalated';
+  const canEscalate = isClaimed || isInProgress;
 
   if (workflowOperatorPermalink && workflowOperatorFlow) {
     return (
@@ -313,6 +381,38 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
           </a>
         </Button>
       )}
+      {canEscalate && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isActionPending}
+          onClick={() => {
+            setActionError(null);
+            setEscalationReason('');
+            setEscalationTarget('human');
+            setIsManualEscalationDialogOpen(true);
+          }}
+        >
+          <Workflow className="h-4 w-4" />
+          Escalate Step
+        </Button>
+      )}
+      {canReassign && (
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={isActionPending}
+          onClick={() => {
+            setActionError(null);
+            setReassignReason('');
+            setReassignAgentId(null);
+            setIsReassignDialogOpen(true);
+          }}
+        >
+          <RotateCcw className="h-4 w-4" />
+          Reassign Step
+        </Button>
+      )}
       {isFailed && (
         <Button
           variant="outline"
@@ -337,6 +437,24 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
       )}
       </div>
       {actionError ? <p className="text-xs text-destructive">{actionError}</p> : null}
+      <StepManualEscalationDialog
+        isOpen={isManualEscalationDialogOpen}
+        taskTitle={task.title ?? task.name ?? task.id}
+        escalationTarget={escalationTarget}
+        reason={escalationReason}
+        error={isManualEscalationDialogOpen ? actionError : null}
+        isPending={isActionPending}
+        onOpenChange={(open) => {
+          setIsManualEscalationDialogOpen(open);
+          if (!open) {
+            setEscalationReason('');
+            setEscalationTarget('human');
+          }
+        }}
+        onEscalationTargetChange={setEscalationTarget}
+        onReasonChange={setEscalationReason}
+        onSubmit={() => escalateMutation.mutate()}
+      />
       <StepOutputOverrideDialog
         isOpen={isOutputOverrideDialogOpen}
         taskTitle={task.title ?? task.name ?? task.id}
@@ -355,6 +473,25 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
         onOutputDraftChange={setOutputOverrideDraft}
         onReasonChange={setOutputOverrideReason}
         onSubmit={() => overrideOutputMutation.mutate()}
+      />
+      <WorkItemReassignDialog
+        isOpen={isReassignDialogOpen}
+        taskTitle={task.title ?? task.name ?? task.id}
+        agents={agentsQuery.data ?? []}
+        selectedAgentId={reassignAgentId}
+        reason={reassignReason}
+        isLoadingAgents={agentsQuery.isLoading}
+        isPending={isActionPending}
+        onOpenChange={(open) => {
+          setIsReassignDialogOpen(open);
+          if (!open) {
+            setReassignReason('');
+            setReassignAgentId(null);
+          }
+        }}
+        onAgentChange={setReassignAgentId}
+        onReasonChange={setReassignReason}
+        onSubmit={() => reassignMutation.mutate()}
       />
     </div>
   );

@@ -21,6 +21,9 @@ describe('task detail page source', () => {
     expect(source).toContain('approveTaskOutput');
     expect(source).toContain('overrideTaskOutput');
     expect(source).toContain('escalated');
+    expect(source).toContain('dashboardApi.listAgents()');
+    expect(source).toContain('dashboardApi.reassignTask');
+    expect(source).toContain('dashboardApi.escalateTask');
     expect(source).toContain('Open Escalation Context');
     expect(source).toContain('Open Work Item Flow');
     expect(source).toContain('buildWorkflowOperatorPermalink');
@@ -30,6 +33,10 @@ describe('task detail page source', () => {
     expect(source).toContain('Operator Output Packet');
     expect(source).toContain('Override Output');
     expect(source).toContain('StepOutputOverrideDialog');
+    expect(source).toContain('WorkItemReassignDialog');
+    expect(source).toContain('StepManualEscalationDialog');
+    expect(source).toContain('Reassign Step');
+    expect(source).toContain('Escalate Step');
     expect(source).not.toContain("status === 'running' || status === 'claimed'");
     expect(source).toContain("return 'Specialist step'");
   });

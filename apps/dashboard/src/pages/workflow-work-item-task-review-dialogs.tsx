@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '../components/ui/dialog.js';
+import { Input } from '../components/ui/input.js';
 import { Textarea } from '../components/ui/textarea.js';
 
 function sortAgents(agents: DashboardAgentRecord[]): DashboardAgentRecord[] {
@@ -221,6 +222,66 @@ export function StepOutputOverrideDialog(props: {
               disabled={!props.reason.trim() || !props.outputDraft.trim() || props.isPending}
             >
               Override Output
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function StepManualEscalationDialog(props: {
+  isOpen: boolean;
+  taskTitle: string;
+  escalationTarget: string;
+  reason: string;
+  isPending: boolean;
+  error: string | null;
+  onOpenChange(open: boolean): void;
+  onEscalationTargetChange(value: string): void;
+  onReasonChange(value: string): void;
+  onSubmit(): void;
+}): JSX.Element {
+  const canSubmit = Boolean(props.reason.trim()) && !props.isPending;
+
+  return (
+    <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
+      <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Escalate Step</DialogTitle>
+          <DialogDescription>
+            Pause &ldquo;{props.taskTitle}&rdquo; and record why it needs human or cross-role help.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <div className="text-sm font-medium">Escalation target</div>
+            <Input
+              value={props.escalationTarget}
+              onChange={(event) => props.onEscalationTargetChange(event.target.value)}
+              placeholder="human"
+            />
+            <p className="text-xs leading-5 text-muted">
+              Leave this as &ldquo;human&rdquo; unless a different escalation destination is already defined.
+            </p>
+          </div>
+          <Textarea
+            value={props.reason}
+            onChange={(event) => props.onReasonChange(event.target.value)}
+            placeholder="Explain what is blocked and what decision or intervention is needed..."
+            rows={4}
+          />
+          {props.error ? <p className="text-sm text-destructive">{props.error}</p> : null}
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => props.onOpenChange(false)}
+              disabled={props.isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={props.onSubmit} disabled={!canSubmit}>
+              Escalate Step
             </Button>
           </div>
         </div>
