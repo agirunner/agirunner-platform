@@ -65,4 +65,21 @@ describe('built-in playbooks', () => {
       ]),
     );
   });
+
+  it('uses workspace terminology for the built-in planning playbook copy', () => {
+    const planning = BUILT_IN_PLAYBOOKS.find((playbook) => playbook.slug === 'project-planning-v2');
+    expect(planning).toBeDefined();
+    expect(planning!.name).toBe('Workspace Planning');
+
+    const parameters = Array.isArray(planning!.definition.parameters)
+      ? planning!.definition.parameters as Array<{ name: string; description?: string }>
+      : [];
+    expect(parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ name: 'workspace_name', description: 'Workspace name' }),
+        expect.objectContaining({ name: 'workspace_brief', description: 'Workspace brief to analyze' }),
+        expect.objectContaining({ name: 'workspace_id', description: 'Workspace identifier' }),
+      ]),
+    );
+  });
 });

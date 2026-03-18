@@ -383,7 +383,7 @@ async function loadProjectSpec(
     [tenantId, workspaceId, targetVersion],
   );
   if (!result.rowCount) {
-    throw new NotFoundError('Project spec version not found');
+    throw new NotFoundError('Workspace spec version not found');
   }
 
   return {
@@ -411,7 +411,7 @@ async function resolveSpecVersion(
     [tenantId, workspaceId],
   );
   if (!workspaceResult.rowCount) {
-    throw new NotFoundError('Project not found');
+    throw new NotFoundError('Workspace not found');
   }
   return workspaceResult.rows[0].current_spec_version;
 }

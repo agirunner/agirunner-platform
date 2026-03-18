@@ -238,4 +238,46 @@ describe('document reference service', () => {
       deleteWorkflowDocument(db as never, 'tenant-1', 'workflow-1', 'plan'),
     ).resolves.toBeUndefined();
   });
+
+  it('uses workspace terminology when a backing workspace is missing', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT workspace_id, workspace_spec_version')) {
+          return {
+            rowCount: 1,
+            rows: [{ workspace_id: 'workspace-1', workspace_spec_version: null }],
+          };
+        }
+        if (sql.includes('SELECT current_spec_version') && sql.includes('FROM workspaces')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    await expect(listWorkflowDocuments(db as never, 'tenant-1', 'workflow-1')).rejects.toThrow(
+      'Workspace not found',
+    );
+  });
+
+  it('uses workspace terminology when a workspace spec version is missing', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('SELECT workspace_id, workspace_spec_version')) {
+          return {
+            rowCount: 1,
+            rows: [{ workspace_id: 'workspace-1', workspace_spec_version: 1 }],
+          };
+        }
+        if (sql.includes('FROM workspace_spec_versions')) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    await expect(listWorkflowDocuments(db as never, 'tenant-1', 'workflow-1')).rejects.toThrow(
+      'Workspace spec version not found',
+    );
+  });
 });

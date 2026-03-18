@@ -11,7 +11,7 @@ export const WORKSPACE_PLANNING_PLAYBOOK_SLUG = 'project-planning-v2';
 
 export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
   {
-    name: 'Project Planning',
+    name: 'Workspace Planning',
     slug: WORKSPACE_PLANNING_PLAYBOOK_SLUG,
     description: 'Planning workflow that turns a workspace brief into a scoped execution plan.',
     outcome: 'A prioritized execution plan with initial work items.',
@@ -25,21 +25,21 @@ export const BUILT_IN_PLAYBOOKS: BuiltInPlaybook[] = [
           type: 'string',
           required: true,
           category: 'input',
-          description: 'Project name',
+          description: 'Workspace name',
         },
         {
           name: 'workspace_brief',
           type: 'string',
           required: true,
           category: 'input',
-          description: 'Project brief to analyze',
+          description: 'Workspace brief to analyze',
         },
         {
           name: 'workspace_id',
           type: 'string',
           required: true,
           category: 'input',
-          description: 'Project identifier',
+          description: 'Workspace identifier',
         },
       ],
       roles: ['product-manager', 'architect'],
