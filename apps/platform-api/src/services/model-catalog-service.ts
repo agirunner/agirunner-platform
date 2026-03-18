@@ -533,12 +533,18 @@ export class ModelCatalogService {
       }
     }
 
+    if (!effective.model_id) {
+      throw new ValidationError(
+        'No LLM model is configured for this scope. Set a default model on the LLM Providers page or add an override before continuing.',
+      );
+    }
+
     return {
       modelId: effective.model_id,
       reasoningConfig: effective.reasoning_config,
       modelSource,
       reasoningSource,
-      model: effective.model_id ? await this.getModelWithProvider(tenantId, effective.model_id) : null,
+      model: await this.getModelWithProvider(tenantId, effective.model_id),
     };
   }
 

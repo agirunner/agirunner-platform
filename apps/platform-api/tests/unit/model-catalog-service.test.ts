@@ -358,6 +358,26 @@ describe('ModelCatalogService', () => {
   });
 
   describe('effective model resolution', () => {
+    it('fails fast when no effective model is configured for the requested scope', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({
+          rows: [{
+            project_id: null,
+            resolved_config: {},
+            config_layers: {},
+          }],
+          rowCount: 1,
+        });
+
+      await expect(
+        service.resolveEffectiveModel(TENANT_ID, { workflowId: 'workflow-1' }),
+      ).rejects.toThrow(
+        'No LLM model is configured for this scope. Set a default model on the LLM Providers page or add an override before continuing.',
+      );
+    });
+
     it('does not invent a reasoning config from model metadata when the llm page did not configure one', async () => {
       pool.query
         .mockResolvedValueOnce({
