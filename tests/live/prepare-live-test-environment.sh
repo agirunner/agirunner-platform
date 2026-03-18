@@ -16,6 +16,8 @@ LIVE_TEST_PLATFORM_ROOT="${LIVE_TEST_PLATFORM_ROOT:-${REPO_ROOT}}"
 LIVE_TEST_COMPOSE_FILE="${LIVE_TEST_COMPOSE_FILE:-${LIVE_TEST_PLATFORM_ROOT}/docker-compose.yml}"
 LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT:-${LIVE_TEST_ROOT}/library}"
 LIVE_TEST_PROFILE="${LIVE_TEST_PROFILE:-sdlc-baseline}"
+LIVE_TEST_REPO_SEED_DIR="${LIVE_TEST_REPO_SEED_DIR:-${LIVE_TEST_LIBRARY_ROOT}/${LIVE_TEST_PROFILE}/repo-seed}"
+LIVE_TEST_RESET_FIXTURE_REMOTE="${LIVE_TEST_RESET_FIXTURE_REMOTE:-true}"
 RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
 FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH:-${REPO_ROOT}/../agirunner-test-fixtures}"
 RUNTIME_IMAGE="${RUNTIME_IMAGE:-agirunner-runtime:local}"
@@ -57,10 +59,13 @@ log_live_test "building execution image ${EXECUTION_IMAGE}"
 docker build -f "${RUNTIME_REPO_PATH}/Dockerfile.execution" -t "${EXECUTION_IMAGE}" "${RUNTIME_REPO_PATH}"
 
 log_live_test "resetting fixtures repo ${FIXTURES_REPO_PATH}"
-git -C "${FIXTURES_REPO_PATH}" fetch origin
-git -C "${FIXTURES_REPO_PATH}" checkout "${LIVE_TEST_DEFAULT_BRANCH}"
-git -C "${FIXTURES_REPO_PATH}" reset --hard "origin/${LIVE_TEST_DEFAULT_BRANCH}"
-git -C "${FIXTURES_REPO_PATH}" clean -fdx
+reset_live_test_fixture_repo \
+  "${FIXTURES_REPO_PATH}" \
+  "${LIVE_TEST_DEFAULT_BRANCH}" \
+  "${LIVE_TEST_REPO_SEED_DIR}" \
+  "${LIVE_TEST_GIT_USER_NAME}" \
+  "${LIVE_TEST_GIT_USER_EMAIL}" \
+  "${LIVE_TEST_RESET_FIXTURE_REMOTE}"
 
 log_live_test "rebuilding standard docker compose stack"
 (
