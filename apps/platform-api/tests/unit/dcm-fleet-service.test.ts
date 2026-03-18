@@ -10,6 +10,19 @@ const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const PLAYBOOK_ID = '00000000-0000-0000-0000-000000000010';
 const RUNTIME_ID = '00000000-0000-0000-0000-000000000020';
 
+function createRuntimeTargetDefaultRows(overrides: Record<string, string> = {}) {
+  const defaults = {
+    default_cpu: '1',
+    default_memory: '256m',
+    default_pull_policy: 'if-not-present',
+    default_grace_period: '30',
+    default_idle_timeout_seconds: '300',
+    default_runtime_image: 'agirunner-runtime:local',
+    ...overrides,
+  };
+  return Object.entries(defaults).map(([config_key, config_value]) => ({ config_key, config_value }));
+}
+
 describe('FleetService DCM', () => {
   let pool: ReturnType<typeof createMockPool>;
   let service: FleetService;
@@ -62,7 +75,10 @@ describe('FleetService DCM', () => {
   describe('getRuntimeTargets', () => {
     it('returns targets derived from playbooks with runtime config', async () => {
       // First call: loadRuntimeDefaults
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({
+        rows: createRuntimeTargetDefaultRows({ default_memory: '512m' }),
+        rowCount: 6,
+      });
       // Second call: playbooks query
       pool.query.mockResolvedValueOnce({
         rows: [{
@@ -135,7 +151,7 @@ describe('FleetService DCM', () => {
       expect(result[1].active_workflows).toBe(1);
     });
 
-    it('applies hardcoded fallbacks when no runtime defaults configured', async () => {
+    it('fails fast when required runtime defaults are missing', async () => {
       // First call: loadRuntimeDefaults (empty)
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
       // Second call: playbooks query
@@ -164,39 +180,21 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       });
 
-      const result = await service.getRuntimeTargets(TENANT_ID);
-
-      expect(result[0].pool_kind).toBe('specialist');
-      expect(result[0].capability_tags).toEqual([
-        'developer',
-        'role:developer',
-        'coding',
-        'testing',
-        'git',
-        'python',
-      ]);
-      expect(result[0].pool_mode).toBe('warm');
-      expect(result[0].max_runtimes).toBe(1);
-      expect(result[0].priority).toBe(0);
-      expect(result[0].idle_timeout_seconds).toBe(300);
-      expect(result[0].grace_period_seconds).toBe(180);
-      expect(result[0].image).toBe('agirunner-runtime:local');
-      expect(result[0].pull_policy).toBe('if-not-present');
-      expect(result[0].cpu).toBe('1');
-      expect(result[0].memory).toBe('256m');
+      await expect(service.getRuntimeTargets(TENANT_ID)).rejects.toThrow(
+        'Missing runtime default "default_runtime_image"',
+      );
     });
 
     it('uses runtime_defaults table values as fallbacks', async () => {
       // First call: loadRuntimeDefaults with seeded values
       pool.query.mockResolvedValueOnce({
-        rows: [
-          { config_key: 'default_cpu', config_value: '1' },
-          { config_key: 'default_memory', config_value: '512m' },
-          { config_key: 'default_pull_policy', config_value: 'always' },
-          { config_key: 'default_grace_period', config_value: '30' },
-          { config_key: 'default_runtime_image', config_value: 'agirunner-runtime:v2' },
-        ],
-        rowCount: 5,
+        rows: createRuntimeTargetDefaultRows({
+          default_memory: '512m',
+          default_pull_policy: 'always',
+          default_idle_timeout_seconds: '240',
+          default_runtime_image: 'agirunner-runtime:v2',
+        }),
+        rowCount: 6,
       });
       // Second call: playbooks query
       pool.query.mockResolvedValueOnce({
@@ -229,6 +227,7 @@ describe('FleetService DCM', () => {
       expect(result[0].cpu).toBe('1');
       expect(result[0].memory).toBe('512m');
       expect(result[0].pull_policy).toBe('always');
+      expect(result[0].idle_timeout_seconds).toBe(240);
       expect(result[0].grace_period_seconds).toBe(30);
       expect(result[0].image).toBe('agirunner-runtime:v2');
     });
@@ -263,7 +262,10 @@ describe('FleetService DCM', () => {
     });
 
     it('includes all playbook role tags and capabilities for specialist pools', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({
+        rows: createRuntimeTargetDefaultRows(),
+        rowCount: 6,
+      });
       pool.query.mockResolvedValueOnce({
         rows: [{
           playbook_id: PLAYBOOK_ID,
@@ -544,8 +546,8 @@ describe('FleetService DCM', () => {
       });
       // Third call: loadRuntimeDefaults (inside getRuntimeTargets)
       pool.query.mockResolvedValueOnce({
-        rows: [{ config_key: 'global_max_runtimes', config_value: '10' }],
-        rowCount: 1,
+        rows: createRuntimeTargetDefaultRows(),
+        rowCount: 6,
       });
       // Fourth call: runtime targets playbooks query
       pool.query.mockResolvedValueOnce({

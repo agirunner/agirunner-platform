@@ -765,6 +765,7 @@ export class FleetService {
          AND p.definition::jsonb ? 'runtime'`,
       [tenantId],
     );
+    const targetDefaults = result.rows.length > 0 ? readRuntimeTargetDefaults(defaults) : null;
 
     const roleCapabilities = await this.loadRoleCapabilities(tenantId, result.rows);
 
@@ -790,13 +791,12 @@ export class FleetService {
           pool_mode: runtime.pool_mode ?? 'warm',
           max_runtimes: runtime.max_runtimes ?? 1,
           priority: runtime.priority ?? 0,
-          idle_timeout_seconds: runtime.idle_timeout_seconds ?? 300,
-          grace_period_seconds:
-            runtime.grace_period_seconds ?? Number(defaults.get('default_grace_period') || '180'),
-          image: runtime.image ?? defaults.get('default_runtime_image') ?? 'agirunner-runtime:local',
-          pull_policy: runtime.pull_policy ?? defaults.get('default_pull_policy') ?? 'if-not-present',
-          cpu: runtime.cpu ?? defaults.get('default_cpu') ?? '1',
-          memory: runtime.memory ?? defaults.get('default_memory') ?? '256m',
+          idle_timeout_seconds: runtime.idle_timeout_seconds ?? targetDefaults!.idleTimeoutSeconds,
+          grace_period_seconds: runtime.grace_period_seconds ?? targetDefaults!.gracePeriodSeconds,
+          image: runtime.image ?? targetDefaults!.image,
+          pull_policy: runtime.pull_policy ?? targetDefaults!.pullPolicy,
+          cpu: runtime.cpu ?? targetDefaults!.cpu,
+          memory: runtime.memory ?? targetDefaults!.memory,
           pending_tasks:
             poolTarget.pool_kind === 'orchestrator'
               ? row.pending_orchestrator_tasks
@@ -1280,6 +1280,15 @@ interface RoleCapabilityRow {
   capabilities: string[];
 }
 
+const RUNTIME_TARGET_DEFAULT_KEYS = {
+  image: 'default_runtime_image',
+  cpu: 'default_cpu',
+  memory: 'default_memory',
+  pullPolicy: 'default_pull_policy',
+  idleTimeoutSeconds: 'default_idle_timeout_seconds',
+  gracePeriodSeconds: 'default_grace_period',
+} as const;
+
 const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
   platformApiRequestTimeoutSeconds: 'platform.api_request_timeout_seconds',
   platformLogIngestTimeoutSeconds: 'platform.log_ingest_timeout_seconds',
@@ -1364,6 +1373,51 @@ function readRequiredIntegerDefault(
 ): number {
   const parsed = Number(defaults.get(key) ?? '');
   if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new ValidationError(`Missing runtime default "${key}"`);
+  }
+  return parsed;
+}
+
+interface RuntimeTargetDefaults {
+  image: string;
+  cpu: string;
+  memory: string;
+  pullPolicy: string;
+  idleTimeoutSeconds: number;
+  gracePeriodSeconds: number;
+}
+
+function readRuntimeTargetDefaults(defaults: Map<string, string>): RuntimeTargetDefaults {
+  return {
+    image: readRequiredStringDefault(defaults, RUNTIME_TARGET_DEFAULT_KEYS.image),
+    cpu: readRequiredStringDefault(defaults, RUNTIME_TARGET_DEFAULT_KEYS.cpu),
+    memory: readRequiredStringDefault(defaults, RUNTIME_TARGET_DEFAULT_KEYS.memory),
+    pullPolicy: readRequiredStringDefault(defaults, RUNTIME_TARGET_DEFAULT_KEYS.pullPolicy),
+    idleTimeoutSeconds: readRequiredNonNegativeIntegerDefault(
+      defaults,
+      RUNTIME_TARGET_DEFAULT_KEYS.idleTimeoutSeconds,
+    ),
+    gracePeriodSeconds: readRequiredIntegerDefault(
+      defaults,
+      RUNTIME_TARGET_DEFAULT_KEYS.gracePeriodSeconds,
+    ),
+  };
+}
+
+function readRequiredStringDefault(defaults: Map<string, string>, key: string): string {
+  const value = defaults.get(key)?.trim();
+  if (!value) {
+    throw new ValidationError(`Missing runtime default "${key}"`);
+  }
+  return value;
+}
+
+function readRequiredNonNegativeIntegerDefault(
+  defaults: Map<string, string>,
+  key: string,
+): number {
+  const parsed = Number(defaults.get(key) ?? '');
+  if (!Number.isInteger(parsed) || parsed < 0) {
     throw new ValidationError(`Missing runtime default "${key}"`);
   }
   return parsed;

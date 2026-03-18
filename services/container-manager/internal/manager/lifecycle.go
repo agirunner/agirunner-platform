@@ -8,8 +8,6 @@ import (
 	"time"
 )
 
-const defaultGracePeriodSeconds = 180
-
 // startupSweep adopts or removes DCM-managed containers based on current targets.
 func (m *Manager) startupSweep(ctx context.Context) error {
 	targets, err := m.platform.FetchRuntimeTargets()
@@ -111,16 +109,16 @@ func (m *Manager) adoptOrRemoveRuntimes(
 }
 
 // gracePeriodForContainer returns a stop timeout based on the container's
-// grace_period label. Falls back to defaultGracePeriodSeconds when the label
-// is missing or cannot be parsed.
-func gracePeriodForContainer(c ContainerInfo) time.Duration {
+// grace_period label. Falls back to the provided timeout when the label is
+// missing or cannot be parsed.
+func gracePeriodForContainer(c ContainerInfo, fallback time.Duration) time.Duration {
 	raw, ok := c.Labels[labelDCMGracePeriod]
 	if !ok || raw == "" {
-		return time.Duration(defaultGracePeriodSeconds) * time.Second
+		return fallback
 	}
 	seconds, err := strconv.Atoi(raw)
 	if err != nil || seconds <= 0 {
-		return time.Duration(defaultGracePeriodSeconds) * time.Second
+		return fallback
 	}
 	return time.Duration(seconds) * time.Second
 }
@@ -195,7 +193,7 @@ func (m *Manager) shutdownRuntimes(ctx context.Context) int {
 	}
 
 	for _, c := range containers {
-		gracePeriod := gracePeriodForContainer(c)
+		gracePeriod := gracePeriodForContainer(c, m.config.StopTimeout)
 		m.logger.Info("shutdown: stopping runtime", "container", c.ID)
 		m.stopAndRemove(ctx, c.ID, gracePeriod)
 		m.emitLogWithResource("container", "lifecycle.shutdown_runtime_remove", "info", "completed", map[string]any{

@@ -856,7 +856,7 @@ func TestFallbackHeartbeatNotTriggeredBeforeGracePeriod(t *testing.T) {
 	}
 	mgr := newDCMTestManager(docker, platform)
 
-	// First reconcile — starts tracking, but grace period (180s) hasn't elapsed.
+	// First reconcile — starts tracking, but the configured stop timeout hasn't elapsed.
 	err := mgr.reconcileDCM(context.Background())
 
 	if err != nil {

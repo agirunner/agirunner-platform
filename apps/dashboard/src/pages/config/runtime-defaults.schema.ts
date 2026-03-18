@@ -80,6 +80,17 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     options: PULL_POLICY_OPTIONS,
   },
   {
+    key: 'default_idle_timeout_seconds',
+    label: 'Idle timeout (seconds)',
+    description: 'How long an idle warm runtime may sit before the fleet can clean it up.',
+    configType: 'number',
+    placeholder: '300',
+    section: 'containers',
+    inputMode: 'numeric',
+    min: 0,
+    step: 1,
+  },
+  {
     key: 'default_grace_period',
     label: 'Grace period (seconds)',
     description: 'How long a runtime gets to finish work before forced shutdown.',

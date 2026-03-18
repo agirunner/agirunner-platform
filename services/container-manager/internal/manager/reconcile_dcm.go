@@ -305,10 +305,9 @@ func (m *Manager) executePreemptions(
 		}
 
 		victimTarget, ok := targetMap[plan.VictimTargetKey]
-		defaultGrace := time.Duration(defaultGracePeriodSeconds) * time.Second
-		gracePeriod := defaultGrace
+		gracePeriod := m.config.StopTimeout
 		if ok {
-			gracePeriod = gracePeriodDuration(victimTarget.GracePeriodSeconds, defaultGrace)
+			gracePeriod = gracePeriodDuration(victimTarget.GracePeriodSeconds, gracePeriod)
 		}
 
 		m.logger.Info("preempting idle runtime",
@@ -426,10 +425,10 @@ func (m *Manager) buildFallbackHeartbeatMap(containers []ContainerInfo) map[stri
 		trackedSince := m.failedHeartbeatSince[runtimeID]
 		elapsed := now.Sub(trackedSince)
 
-		// After the default grace period without heartbeat data, treat
+		// After the configured grace period without heartbeat data, treat
 		// the runtime as idle since tracking started. This allows idle
 		// timeout to trigger cleanup.
-		if elapsed >= time.Duration(defaultGracePeriodSeconds)*time.Second {
+		if elapsed >= gracePeriodForContainer(c, m.config.StopTimeout) {
 			result[runtimeID] = RuntimeHeartbeat{
 				RuntimeID:       runtimeID,
 				PlaybookID:      c.Labels[labelDCMPlaybookID],

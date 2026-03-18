@@ -265,7 +265,7 @@ describe('runtime defaults page support', () => {
           key: 'containers',
           title: 'Agent container defaults',
           configuredCount: 1,
-          fieldCount: 5,
+          fieldCount: 6,
           errorCount: 0,
         },
         {

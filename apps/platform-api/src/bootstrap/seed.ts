@@ -234,6 +234,13 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'default_idle_timeout_seconds',
+    configValue: '300',
+    configType: 'number',
+    description: 'Default idle timeout in seconds before a warm runtime is eligible for cleanup',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'default_grace_period',
     configValue: '30',
     configType: 'number',

@@ -13,7 +13,7 @@ func TestGracePeriodForContainerReadsLabel(t *testing.T) {
 	c := makeDCMContainer("c-1", "tmpl-1", "img:v1", "rt-1")
 	c.Labels[labelDCMGracePeriod] = "60"
 
-	got := gracePeriodForContainer(c)
+	got := gracePeriodForContainer(c, 45*time.Second)
 	want := 60 * time.Second
 
 	if got != want {
@@ -25,11 +25,11 @@ func TestGracePeriodForContainerFallsBackWhenLabelMissing(t *testing.T) {
 	c := makeDCMContainer("c-1", "tmpl-1", "img:v1", "rt-1")
 	// No grace period label set.
 
-	got := gracePeriodForContainer(c)
-	want := time.Duration(defaultGracePeriodSeconds) * time.Second
+	want := 45 * time.Second
+	got := gracePeriodForContainer(c, want)
 
 	if got != want {
-		t.Errorf("expected default %v, got %v", want, got)
+		t.Errorf("expected fallback %v, got %v", want, got)
 	}
 }
 
@@ -37,11 +37,11 @@ func TestGracePeriodForContainerFallsBackWhenLabelUnparseable(t *testing.T) {
 	c := makeDCMContainer("c-1", "tmpl-1", "img:v1", "rt-1")
 	c.Labels[labelDCMGracePeriod] = "not-a-number"
 
-	got := gracePeriodForContainer(c)
-	want := time.Duration(defaultGracePeriodSeconds) * time.Second
+	want := 45 * time.Second
+	got := gracePeriodForContainer(c, want)
 
 	if got != want {
-		t.Errorf("expected default %v for unparseable label, got %v", want, got)
+		t.Errorf("expected fallback %v for unparseable label, got %v", want, got)
 	}
 }
 
@@ -49,11 +49,11 @@ func TestGracePeriodForContainerFallsBackWhenLabelZero(t *testing.T) {
 	c := makeDCMContainer("c-1", "tmpl-1", "img:v1", "rt-1")
 	c.Labels[labelDCMGracePeriod] = "0"
 
-	got := gracePeriodForContainer(c)
-	want := time.Duration(defaultGracePeriodSeconds) * time.Second
+	want := 45 * time.Second
+	got := gracePeriodForContainer(c, want)
 
 	if got != want {
-		t.Errorf("expected default %v for zero label, got %v", want, got)
+		t.Errorf("expected fallback %v for zero label, got %v", want, got)
 	}
 }
 
@@ -61,11 +61,11 @@ func TestGracePeriodForContainerFallsBackWhenLabelNegative(t *testing.T) {
 	c := makeDCMContainer("c-1", "tmpl-1", "img:v1", "rt-1")
 	c.Labels[labelDCMGracePeriod] = "-10"
 
-	got := gracePeriodForContainer(c)
-	want := time.Duration(defaultGracePeriodSeconds) * time.Second
+	want := 45 * time.Second
+	got := gracePeriodForContainer(c, want)
 
 	if got != want {
-		t.Errorf("expected default %v for negative label, got %v", want, got)
+		t.Errorf("expected fallback %v for negative label, got %v", want, got)
 	}
 }
 
@@ -233,12 +233,12 @@ func TestPreemptionUsesDefaultGracePeriodWhenTargetGracePeriodZero(t *testing.T)
 }
 
 func TestGracePeriodDurationFallsBackToDefaultNotStopTimeout(t *testing.T) {
-	// When GracePeriodSeconds is 0, fallback should be 180s not StopTimeout.
-	defaultGrace := time.Duration(defaultGracePeriodSeconds) * time.Second
-	result := gracePeriodDuration(0, defaultGrace)
+	// When GracePeriodSeconds is 0, fallback should be the provided timeout.
+	fallback := 45 * time.Second
+	result := gracePeriodDuration(0, fallback)
 
-	if result != defaultGrace {
-		t.Errorf("expected %v, got %v", defaultGrace, result)
+	if result != fallback {
+		t.Errorf("expected %v, got %v", fallback, result)
 	}
 	if result == 30*time.Second {
 		t.Error("grace period should not fall back to StopTimeout (30s)")

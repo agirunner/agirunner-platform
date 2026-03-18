@@ -9,6 +9,7 @@ const RUNTIME_DEFAULT_SECRET_REDACTION = 'redacted://runtime-default-secret';
 const runtimeDefaultSecretKeyPattern =
   /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|webhook_url|known_hosts)/i;
 const INTEGER_DEFAULT_RULES = new Map([
+  ['default_idle_timeout_seconds', { min: 0 }],
   ['default_grace_period', { min: 1 }],
   ['global_max_runtimes', { min: 1 }],
   ['server.shutdown_timeout_seconds', { min: 1 }],

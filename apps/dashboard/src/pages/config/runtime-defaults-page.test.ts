@@ -44,6 +44,7 @@ describe('runtime defaults page source', () => {
     expect(FIELD_DEFINITIONS.map((field) => field.key)).toEqual(
       expect.arrayContaining([
         'default_runtime_image',
+        'default_idle_timeout_seconds',
         'default_pull_policy',
         'log.level',
         'server.shutdown_timeout_seconds',
