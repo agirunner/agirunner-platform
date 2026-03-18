@@ -10,7 +10,7 @@ describe('WorkItemService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
             rows: [
@@ -36,7 +36,7 @@ describe('WorkItemService', () => {
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
-          expect(params?.[5]).toBe('requirements');
+          expect(params?.[4]).toBe('requirements');
           return {
             rows: [
               {
@@ -149,7 +149,7 @@ describe('WorkItemService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
             rows: [
@@ -172,9 +172,9 @@ describe('WorkItemService', () => {
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
-          expect(params?.[5]).toBe('triage');
-          expect(params?.[13]).toBe(0);
-          expect(params?.[16]).toBe('webhook');
+          expect(params?.[4]).toBe('triage');
+          expect(params?.[12]).toBe(0);
+          expect(params?.[15]).toBe('webhook');
           return {
             rows: [
               {
@@ -255,7 +255,7 @@ describe('WorkItemService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
             rows: [
@@ -353,7 +353,7 @@ describe('WorkItemService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           return {
             rows: [
               {
@@ -435,7 +435,7 @@ describe('WorkItemService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           return {
             rows: [
               {
@@ -533,7 +533,7 @@ describe('WorkItemService', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('SELECT w.id,') && sql.includes('active_stage.name AS active_stage_name')) {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           expect(sql).toContain('FOR UPDATE OF w');
           return {
             rows: [{

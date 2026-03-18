@@ -315,7 +315,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         data: {
           id: workItem.id,
           stage_name: workItem.stage_name ?? null,
-          current_checkpoint: workItem.current_checkpoint ?? workItem.stage_name ?? null,
+          current_checkpoint: workItem.stage_name ?? workItem.current_checkpoint ?? null,
           column_id: workItem.column_id ?? null,
           owner_role: workItem.owner_role ?? null,
           next_expected_actor: workItem.next_expected_actor ?? null,

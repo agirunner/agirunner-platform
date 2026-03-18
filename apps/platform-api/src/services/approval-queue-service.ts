@@ -227,7 +227,7 @@ export class ApprovalQueueService {
         work_item_id: row.work_item_id,
         work_item_title: row.work_item_title,
         stage_name: row.stage_name,
-        current_checkpoint: row.current_checkpoint,
+        current_checkpoint: row.stage_name ?? row.current_checkpoint,
         next_expected_actor: row.next_expected_actor,
         next_expected_action: row.next_expected_action,
         role: row.role,

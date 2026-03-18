@@ -47,8 +47,8 @@ export function buildWorkflowInstructionLayer(
     ? selectFocusedWorkItem(input.orchestratorContext)
     : asRecord(input.workItem);
   const checkpointName =
-    readString(focusedWorkItem.current_checkpoint)
-    ?? readString(focusedWorkItem.stage_name)
+    readString(focusedWorkItem.stage_name)
+    ?? readString(focusedWorkItem.current_checkpoint)
     ?? deriveSoleActiveCheckpointName(workflow)
     ?? null;
   const checkpoint = definition.checkpoints.find((entry) => entry.name === checkpointName) ?? null;

@@ -18,6 +18,7 @@ import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
+import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.js';
 
 export interface CreateWorkItemInput {
@@ -267,10 +268,10 @@ export class WorkItemService {
 
       const result = await client.query(
         `INSERT INTO workflow_work_items (
-           tenant_id, workflow_id, parent_work_item_id, request_id, stage_name, current_checkpoint, title, goal,
+           tenant_id, workflow_id, parent_work_item_id, request_id, stage_name, title, goal,
            acceptance_criteria, column_id, owner_role, next_expected_actor, next_expected_action, rework_count,
            priority, notes, created_by, metadata
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL
          DO NOTHING
@@ -280,7 +281,6 @@ export class WorkItemService {
           workflowId,
           input.parent_work_item_id ?? null,
           input.request_id ?? null,
-          stageName,
           stageName,
           input.title.trim(),
           input.goal?.trim() ?? null,
@@ -416,7 +416,6 @@ export class WorkItemService {
     const predecessorResult = await client.query<{
       id: string;
       stage_name: string | null;
-      current_checkpoint: string | null;
       column_id: string;
       completed_at: Date | null;
       human_gate: boolean;
@@ -424,7 +423,6 @@ export class WorkItemService {
     }>(
       `SELECT wi.id,
               wi.stage_name,
-              wi.current_checkpoint,
               wi.column_id,
               wi.completed_at,
               COALESCE(ws.human_gate, false) AS human_gate,
@@ -433,7 +431,7 @@ export class WorkItemService {
          LEFT JOIN workflow_stages ws
            ON ws.tenant_id = wi.tenant_id
           AND ws.workflow_id = wi.workflow_id
-          AND ws.name = COALESCE(wi.current_checkpoint, wi.stage_name)
+          AND ws.name = wi.stage_name
         WHERE wi.tenant_id = $1
           AND wi.workflow_id = $2
           AND wi.id = $3
@@ -446,7 +444,7 @@ export class WorkItemService {
       return;
     }
 
-    const predecessorStageName = predecessor.current_checkpoint ?? predecessor.stage_name;
+    const predecessorStageName = predecessor.stage_name;
     if (!shouldAutoClosePredecessorCheckpoint(definition, predecessorStageName, successorStageName)) {
       return;
     }
@@ -491,7 +489,7 @@ export class WorkItemService {
       workflow_id: workflowId,
       work_item_id: parentWorkItemId,
       stage_name: predecessor.stage_name,
-      current_checkpoint: predecessor.current_checkpoint,
+      current_checkpoint: predecessor.stage_name,
       successor_work_item_id: successorWorkItemId,
       successor_stage_name: successorStageName,
       previous_column_id: predecessor.column_id,
@@ -546,22 +544,11 @@ export class WorkItemService {
     const result = await client.query(
       `SELECT w.id,
               w.lifecycle,
-              active_stage.name AS active_stage_name,
               p.definition
          FROM workflows w
          JOIN playbooks p
            ON p.tenant_id = w.tenant_id
           AND p.id = w.playbook_id
-         LEFT JOIN LATERAL (
-           SELECT ws.name
-             FROM workflow_stages ws
-            WHERE ws.tenant_id = w.tenant_id
-              AND ws.workflow_id = w.id
-              AND ws.status IN ('active', 'awaiting_gate', 'blocked')
-            ORDER BY ws.position ASC
-            LIMIT 1
-        ) AS active_stage
-           ON true
         WHERE w.tenant_id = $1
           AND w.id = $2
         FOR UPDATE OF w`,
@@ -570,7 +557,21 @@ export class WorkItemService {
     if (!result.rowCount) {
       throw new NotFoundError('Playbook workflow not found');
     }
-    return result.rows[0] as WorkflowStageContextRow;
+    const workflow = result.rows[0] as WorkflowStageContextRow;
+    if (Object.hasOwn(workflow, 'active_stage_name')) {
+      return {
+        ...workflow,
+        active_stage_name: typeof workflow.active_stage_name === 'string' ? workflow.active_stage_name : null,
+      } satisfies WorkflowStageContextRow;
+    }
+    const projection = await loadWorkflowStageProjection(client, tenantId, workflowId, {
+      lifecycle: workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned',
+      definition: workflow.definition,
+    });
+    return {
+      ...workflow,
+      active_stage_name: projection.currentStage,
+    } satisfies WorkflowStageContextRow;
   }
 
   private async loadWorkItemContext(tenantId: string, workflowId: string, workItemId: string) {
@@ -639,7 +640,7 @@ export class WorkItemService {
          LEFT JOIN workflow_stages ws
            ON ws.tenant_id = wi.tenant_id
           AND ws.workflow_id = wi.workflow_id
-          AND ws.name = COALESCE(wi.current_checkpoint, wi.stage_name)
+          AND ws.name = wi.stage_name
          LEFT JOIN LATERAL (
            SELECT th.completion AS latest_handoff_completion,
                   array_cat(
@@ -749,14 +750,16 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     allowSecretReferences: false,
   }) as Record<string, unknown>;
   const childrenCount = readCount(sanitizedRow.children_count);
+  const stageName = typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null;
+  const legacyCheckpoint =
+    typeof sanitizedRow.current_checkpoint === 'string' ? sanitizedRow.current_checkpoint : null;
   return {
     ...sanitizedRow,
     id: String(sanitizedRow.id ?? ''),
     workflow_id: String(sanitizedRow.workflow_id ?? ''),
     parent_work_item_id: typeof sanitizedRow.parent_work_item_id === 'string' ? sanitizedRow.parent_work_item_id : null,
-    stage_name: typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null,
-    current_checkpoint:
-      typeof sanitizedRow.current_checkpoint === 'string' ? sanitizedRow.current_checkpoint : null,
+    stage_name: stageName,
+    current_checkpoint: stageName ?? legacyCheckpoint,
     column_id: typeof sanitizedRow.column_id === 'string' ? sanitizedRow.column_id : null,
     next_expected_actor:
       typeof sanitizedRow.next_expected_actor === 'string' ? sanitizedRow.next_expected_actor : null,

@@ -11,7 +11,6 @@ interface WorkItemContinuityContextRow {
   workflow_id: string;
   work_item_id: string;
   stage_name: string | null;
-  current_checkpoint: string | null;
   rework_count: number | null;
   owner_role: string | null;
   next_expected_actor: string | null;
@@ -58,14 +57,13 @@ export class WorkItemContinuityService {
     const checkpointName = readCheckpointName(task, context);
     await db.query(
       `UPDATE workflow_work_items
-          SET current_checkpoint = $4,
-              next_expected_actor = NULL,
+          SET next_expected_actor = NULL,
               next_expected_action = NULL,
               updated_at = now()
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND id = $3`,
-      [tenantId, context.workflow_id, context.work_item_id, checkpointName],
+      [tenantId, context.workflow_id, context.work_item_id],
     );
 
     await logWorkItemContinuityTransition(this.logService, {
@@ -128,10 +126,9 @@ export class WorkItemContinuityService {
 
     await db.query(
       `UPDATE workflow_work_items
-          SET current_checkpoint = $4,
-              next_expected_actor = $5,
-              next_expected_action = $6,
-              rework_count = rework_count + $7,
+          SET next_expected_actor = $4,
+              next_expected_action = $5,
+              rework_count = rework_count + $6,
               updated_at = now()
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -140,7 +137,6 @@ export class WorkItemContinuityService {
         tenantId,
         context.workflow_id,
         context.work_item_id,
-        checkpointName,
         normalizedEvaluation.nextExpectedActor,
         normalizedEvaluation.nextExpectedAction,
         normalizedEvaluation.reworkDelta,
@@ -221,7 +217,6 @@ export class WorkItemContinuityService {
       `SELECT wi.workflow_id,
               wi.id AS work_item_id,
               wi.stage_name,
-              wi.current_checkpoint,
               wi.rework_count,
               wi.owner_role,
               wi.next_expected_actor,
@@ -269,7 +264,6 @@ function readCheckpointName(
 ) {
   return (
     readOptionalString(task.stage_name)
-    ?? context.current_checkpoint
     ?? context.stage_name
     ?? null
   );

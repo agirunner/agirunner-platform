@@ -99,7 +99,7 @@ describe('buildOrchestratorTaskContext', () => {
               {
                 id: 'wi-1',
                 stage_name: 'implementation',
-                current_checkpoint: 'implementation',
+                current_checkpoint: 'legacy-implementation',
                 next_expected_actor: 'reviewer',
                 next_expected_action: 'review',
                 rework_count: 1,

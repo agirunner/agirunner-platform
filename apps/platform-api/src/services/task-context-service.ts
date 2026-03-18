@@ -239,6 +239,15 @@ function isContinuousWorkflowRow(
   return workflowRow.lifecycle === 'ongoing';
 }
 
+function withCompatibilityCheckpoint(row: Record<string, unknown>) {
+  const stageName = asOptionalString(row.stage_name);
+  const currentCheckpoint = asOptionalString(row.current_checkpoint);
+  return {
+    ...row,
+    current_checkpoint: stageName ?? currentCheckpoint ?? null,
+  };
+}
+
 async function loadWorkItemContext(
   db: DatabaseQueryable,
   tenantId: string,
@@ -293,7 +302,8 @@ async function loadWorkItemContext(
         AND id = $2`,
     [tenantId, workItemId],
   );
-  return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+  const workItem = (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+  return workItem ? withCompatibilityCheckpoint(workItem) : null;
 }
 
 async function loadProjectContext(

@@ -65,7 +65,7 @@ describe('orchestrator control handoff routes', () => {
       getWorkflowWorkItem: vi.fn().mockResolvedValue({
         id: scopedWorkItemId,
         stage_name: 'implementation',
-        current_checkpoint: 'implementation',
+        current_checkpoint: 'legacy-review',
         column_id: 'review',
         owner_role: 'developer',
         next_expected_actor: 'reviewer',

@@ -11,6 +11,7 @@ import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
+import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.js';
 import { toGateResponse, type WorkflowStageGateRecord } from './workflow-stage-gate-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
@@ -556,9 +557,9 @@ export class PlaybookWorkflowControlService {
                 next_expected_actor = NULL,
                 next_expected_action = NULL,
                 updated_at = now()
-          WHERE tenant_id = $1
-            AND workflow_id = $2
-            AND current_checkpoint = $3
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+            AND stage_name = $3
             AND completed_at IS NULL`,
         [tenantId, workflowId, checkpointName, terminalColumnId],
       );
@@ -573,7 +574,7 @@ export class PlaybookWorkflowControlService {
               updated_at = now()
         WHERE tenant_id = $1
           AND workflow_id = $2
-          AND current_checkpoint = $3
+          AND stage_name = $3
           AND completed_at IS NULL`,
       [tenantId, workflowId, checkpointName],
     );
@@ -721,7 +722,6 @@ export class PlaybookWorkflowControlService {
               w.project_id,
               w.playbook_id,
               w.lifecycle,
-              active_stage.name AS active_stage_name,
               w.state,
               p.definition
               , w.orchestration_state
@@ -729,16 +729,6 @@ export class PlaybookWorkflowControlService {
          JOIN playbooks p
            ON p.tenant_id = w.tenant_id
           AND p.id = w.playbook_id
-         LEFT JOIN LATERAL (
-           SELECT ws.name
-             FROM workflow_stages ws
-            WHERE ws.tenant_id = w.tenant_id
-              AND ws.workflow_id = w.id
-              AND ws.status IN ('active', 'awaiting_gate', 'blocked')
-            ORDER BY ws.position ASC
-            LIMIT 1
-        ) AS active_stage
-           ON true
         WHERE w.tenant_id = $1
           AND w.id = $2
         FOR UPDATE OF w`,
@@ -747,7 +737,21 @@ export class PlaybookWorkflowControlService {
     if (!result.rowCount) {
       throw new NotFoundError('Playbook workflow not found');
     }
-    return result.rows[0];
+    const workflow = result.rows[0] as WorkflowContextRow;
+    if (Object.hasOwn(workflow, 'active_stage_name')) {
+      return {
+        ...workflow,
+        active_stage_name: typeof workflow.active_stage_name === 'string' ? workflow.active_stage_name : null,
+      } satisfies WorkflowContextRow;
+    }
+    const projection = await loadWorkflowStageProjection(db, tenantId, workflowId, {
+      lifecycle: workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned',
+      definition: workflow.definition,
+    });
+    return {
+      ...workflow,
+      active_stage_name: projection.currentStage,
+    } satisfies WorkflowContextRow;
   }
 
   private async loadWorkItem(
@@ -830,7 +834,6 @@ export class PlaybookWorkflowControlService {
               goal = $6,
               acceptance_criteria = $7,
               stage_name = $8,
-              current_checkpoint = $8,
               column_id = $9,
               owner_role = $10,
               priority = $11,
@@ -1130,7 +1133,7 @@ export class PlaybookWorkflowControlService {
               updated_at = now()
         WHERE tenant_id = $1
           AND workflow_id = $2
-          AND current_checkpoint = $3
+          AND stage_name = $3
           AND next_expected_action = 'approve'`,
       [identity.tenantId, workflowId, stage.name],
     );
@@ -1494,6 +1497,7 @@ async function emitWorkItemUpdateEvents(
 function toWorkItemResponse(row: WorkflowWorkItemRow) {
   return {
     ...row,
+    current_checkpoint: row.stage_name ?? row.current_checkpoint ?? null,
     completed_at: row.completed_at?.toISOString() ?? null,
     updated_at: row.updated_at.toISOString(),
   };

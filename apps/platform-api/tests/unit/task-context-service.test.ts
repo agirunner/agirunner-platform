@@ -310,7 +310,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'wi-1',
               stage_name: 'implementation',
-              current_checkpoint: 'implementation',
+              current_checkpoint: 'legacy-implementation',
               column_id: 'review',
               title: 'Implement auth',
               goal: 'Ship the auth change',
@@ -382,6 +382,7 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('Implementation is ready for review.');
     expect((context.task as Record<string, unknown>).work_item).toEqual(
       expect.objectContaining({
+        current_checkpoint: 'implementation',
         latest_handoff_completion: 'partial',
         unresolved_findings: ['Investigate auth edge cases'],
         review_focus: ['Auth edge cases'],

@@ -167,7 +167,7 @@ export async function buildOrchestratorTaskContext(
     activation: activationRes.rows[0] ? serializeActivationBatch(activationId ?? activationRes.rows[0].id, activationRes.rows) : null,
     workflow: workflowContext,
     board: {
-      work_items: workItemsRes.rows.map(serializeDates),
+      work_items: workItemsRes.rows.map(serializeWorkItem),
       stages: stageRows,
       tasks: tasksRes.rows.map(serializeDates),
       queued_activations: queuedActivationsRes.rows.map(serializeDates),
@@ -206,6 +206,17 @@ function serializeDates(row: Record<string, unknown>) {
     serialized[key] = value instanceof Date ? value.toISOString() : value;
   }
   return serialized;
+}
+
+function serializeWorkItem(row: Record<string, unknown>) {
+  const serialized = serializeDates(row);
+  const stageName = typeof serialized.stage_name === 'string' ? serialized.stage_name : null;
+  const currentCheckpoint =
+    typeof serialized.current_checkpoint === 'string' ? serialized.current_checkpoint : null;
+  return {
+    ...serialized,
+    current_checkpoint: stageName ?? currentCheckpoint,
+  };
 }
 
 function activeStageNames(rows: Record<string, unknown>[]): string[] {

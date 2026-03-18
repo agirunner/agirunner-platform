@@ -46,7 +46,7 @@ describe('WorkItemContinuityService', () => {
     });
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
-      ['tenant-1', 'workflow-1', 'work-item-1', 'implementation', 'reviewer', 'review', 0],
+      ['tenant-1', 'workflow-1', 'work-item-1', 'reviewer', 'review', 0],
     );
   });
 
@@ -98,7 +98,7 @@ describe('WorkItemContinuityService', () => {
     });
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
-      ['tenant-1', 'workflow-1', 'work-item-1', 'implementation', 'developer', 'rework', 1],
+      ['tenant-1', 'workflow-1', 'work-item-1', 'developer', 'rework', 1],
     );
   });
 
@@ -154,7 +154,7 @@ describe('WorkItemContinuityService', () => {
     });
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
-      ['tenant-1', 'workflow-1', 'work-item-1', 'review', 'developer', 'rework', 1],
+      ['tenant-1', 'workflow-1', 'work-item-1', 'developer', 'rework', 1],
     );
   });
 
@@ -188,7 +188,7 @@ describe('WorkItemContinuityService', () => {
 
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('next_expected_actor = NULL'),
-      ['tenant-1', 'workflow-1', 'work-item-1', 'implementation'],
+      ['tenant-1', 'workflow-1', 'work-item-1'],
     );
   });
 
@@ -235,7 +235,7 @@ describe('WorkItemContinuityService', () => {
     });
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
-      ['tenant-1', 'workflow-1', 'work-item-1', 'requirements', 'human', 'approve', 0],
+      ['tenant-1', 'workflow-1', 'work-item-1', 'human', 'approve', 0],
     );
   });
 
