@@ -2,7 +2,7 @@ const DEFAULT_SECRET_REDACTION = 'redacted://secret';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts|webhook_url)/i;
 const explicitSecretReferencePattern = /secret:[A-Za-z0-9_:-]+/i;
 const secretLikeValuePattern =
-  /(?:enc:v\d+:|Bearer\s+\S+|sk-[A-Za-z0-9_-]+|[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
+  /^(?:enc:v\d+:.*|Bearer\s+\S+|sk-[A-Za-z0-9_-]+|[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
 
 export interface SecretRedactionOptions {
   redactionValue?: string;
