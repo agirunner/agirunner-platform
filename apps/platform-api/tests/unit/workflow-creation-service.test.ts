@@ -55,6 +55,7 @@ describe('WorkflowCreationService', () => {
           };
         }
         if (sql.includes('INSERT INTO workflows')) {
+          expect(params?.[6]).toBeNull();
           expect(params?.[9]).toEqual({
             runtime: { timeout: 45 },
             model_override: {

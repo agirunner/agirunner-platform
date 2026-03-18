@@ -484,14 +484,6 @@ export class PlaybookWorkflowControlService {
           AND name = $3`,
       [identity.tenantId, workflowId, nextStage.name],
     );
-    await db.query(
-      `UPDATE workflows
-          SET current_stage = $3,
-              updated_at = now()
-        WHERE tenant_id = $1
-          AND id = $2`,
-      [identity.tenantId, workflowId, nextStage.name],
-    );
 
     await this.deps.eventService.emit(
       {
@@ -665,8 +657,7 @@ export class PlaybookWorkflowControlService {
 
     await db.query(
       `UPDATE workflows
-          SET current_stage = NULL,
-              orchestration_state = jsonb_set(
+          SET orchestration_state = jsonb_set(
                 jsonb_set(
                   COALESCE(orchestration_state, '{}'::jsonb),
                   '{completion_summary}',

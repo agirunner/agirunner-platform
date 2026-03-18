@@ -1591,8 +1591,8 @@ describe('PlaybookWorkflowControlService', () => {
         if (sql.includes('UPDATE workflow_stages') && params?.[2] === 'stage-1') {
           return { rowCount: 1, rows: [] };
         }
-        if (sql.includes('UPDATE workflows') && !sql.includes('orchestration_state')) {
-          return { rowCount: 1, rows: [] };
+        if (sql.includes('UPDATE workflows')) {
+          throw new Error('planned work item updates should not persist workflow.current_stage');
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -2299,9 +2299,8 @@ describe('PlaybookWorkflowControlService', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation', 'done']);
           return { rowCount: 1, rows: [] };
         }
-        if (sql.includes('UPDATE workflows') && !sql.includes('orchestration_state')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation']);
-          return { rowCount: 1, rows: [] };
+        if (sql.includes('UPDATE workflows') && sql.includes('current_stage')) {
+          throw new Error('planned stage advancement should not persist workflow.current_stage');
         }
         if (sql.includes('SELECT name') && sql.includes('FROM workflow_stages')) {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
@@ -2481,9 +2480,8 @@ describe('PlaybookWorkflowControlService', () => {
           ]);
           return { rowCount: 1, rows: [] };
         }
-        if (sql.includes('UPDATE workflows') && !sql.includes('orchestration_state')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', null]);
-          return { rowCount: 1, rows: [] };
+        if (sql.includes('UPDATE workflows') && sql.includes('current_stage')) {
+          throw new Error('planned workflow completion should not persist workflow.current_stage');
         }
         if (sql.includes('SELECT name') && sql.includes('FROM workflow_stages')) {
           expect(params).toEqual(['tenant-1', 'workflow-1']);

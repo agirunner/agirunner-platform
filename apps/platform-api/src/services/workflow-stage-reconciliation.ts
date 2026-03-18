@@ -85,17 +85,6 @@ export async function reconcilePlannedWorkflowStages(
   }
 
   const currentStage = currentStageNameFromStages(stages);
-  await db.query(
-    `UPDATE workflows
-        SET current_stage = $3,
-            updated_at = CASE
-              WHEN current_stage IS DISTINCT FROM $3 THEN now()
-              ELSE updated_at
-            END
-      WHERE tenant_id = $1
-        AND id = $2`,
-    [tenantId, workflowId, currentStage],
-  );
 
   return {
     currentStage,

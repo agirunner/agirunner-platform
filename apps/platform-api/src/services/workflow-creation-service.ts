@@ -95,7 +95,7 @@ export class WorkflowCreationService {
           playbook.version,
           input.name,
           definition.lifecycle,
-          initialStageName,
+          null,
           input.parameters ?? {},
           input.metadata ?? {},
           resolvedConfig.resolved,

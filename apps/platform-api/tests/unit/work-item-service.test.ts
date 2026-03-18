@@ -98,9 +98,8 @@ describe('WorkItemService', () => {
             rowCount: 2,
           };
         }
-        if (sql.includes('UPDATE workflows') && sql.includes('current_stage = $3')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
-          return { rows: [], rowCount: 1 };
+        if (sql.includes('UPDATE workflows')) {
+          throw new Error('planned work-item reconciliation should not persist workflow.current_stage');
         }
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
