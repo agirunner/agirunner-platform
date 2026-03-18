@@ -88,7 +88,8 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('props.brief.facts.map((fact) => (');
     expect(source).toContain('Operator breadcrumb');
     expect(source).toContain('Current routing');
-    expect(source).toContain('Checkpoint: {workItem.current_checkpoint}');
+    expect(source).toContain("workItem.stage_name ?? 'Unassigned stage'");
+    expect(source).not.toContain('current_checkpoint');
     expect(source).toContain('readContinuitySummary(workItem)');
     expect(source).toContain('Operator next step:');
     expect(source).toContain('rework loop');

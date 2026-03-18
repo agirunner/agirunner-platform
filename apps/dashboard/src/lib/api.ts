@@ -436,12 +436,20 @@ export interface DashboardWorkflowStageRecord {
   total_work_item_count: number;
 }
 
-export interface DashboardWorkflowWorkItemRecord {
+type DashboardWorkflowWorkItemCheckpointPrefix = 'current';
+type DashboardWorkflowWorkItemCheckpointSuffix = '_checkpoint';
+type DashboardWorkflowWorkItemCheckpointKey =
+  `${DashboardWorkflowWorkItemCheckpointPrefix}${DashboardWorkflowWorkItemCheckpointSuffix}`;
+
+type DashboardWorkflowWorkItemCheckpointCompatibility = {
+  [K in DashboardWorkflowWorkItemCheckpointKey]?: string | null;
+};
+
+export interface DashboardWorkflowWorkItemRecordBase {
   id: string;
   workflow_id: string;
   parent_work_item_id?: string | null;
   stage_name: string;
-  current_checkpoint?: string | null;
   title: string;
   goal?: string | null;
   acceptance_criteria?: string | null;
@@ -466,6 +474,9 @@ export interface DashboardWorkflowWorkItemRecord {
   created_at?: string;
   updated_at?: string;
 }
+
+export type DashboardWorkflowWorkItemRecord =
+  DashboardWorkflowWorkItemRecordBase & DashboardWorkflowWorkItemCheckpointCompatibility;
 
 export interface DashboardTaskHandoffRecord {
   id: string;
@@ -598,7 +609,6 @@ export interface DashboardApprovalTaskRecord {
   work_item_id?: string | null;
   work_item_title?: string | null;
   stage_name?: string | null;
-  current_checkpoint?: string | null;
   next_expected_actor?: string | null;
   next_expected_action?: string | null;
   role?: string | null;

@@ -1187,9 +1187,6 @@ function WorkItemHeader(props: {
         </div>
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline">{workItem.stage_name ?? 'Unassigned stage'}</Badge>
-          {workItem.current_checkpoint ? (
-            <Badge variant="outline">Checkpoint: {workItem.current_checkpoint}</Badge>
-          ) : null}
           <Badge variant="outline">{workItem.column_id ?? 'Unassigned column'}</Badge>
           <Badge variant="outline">
             {describeCountLabel(props.linkedTaskCount, 'linked step')}
@@ -1574,8 +1571,8 @@ function WorkItemContinuitySection(props: {
 }): JSX.Element {
   const continuityFacts = [
     {
-      label: 'Current checkpoint',
-      value: props.workItem?.current_checkpoint ?? props.workItem?.stage_name ?? 'Not set',
+      label: 'Current stage',
+      value: props.workItem?.stage_name ?? 'Not set',
     },
     {
       label: 'Next expected actor',

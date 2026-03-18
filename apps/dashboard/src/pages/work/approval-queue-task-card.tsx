@@ -252,9 +252,6 @@ export function TaskApprovalCard(props: {
               <QueueInfoTile label="Work item" value={task.work_item_title} />
             ) : null}
             {task.stage_name ? <QueueInfoTile label="Stage" value={task.stage_name} /> : null}
-            {task.current_checkpoint ? (
-              <QueueInfoTile label="Current checkpoint" value={task.current_checkpoint} />
-            ) : null}
             {task.role ? <QueueInfoTile label="Role" value={task.role} /> : null}
             <QueueInfoTile label="Operator flow" value={operatorFlowLabel} />
             <QueueInfoTile label={stepReferenceLabel} value={task.id} monospace />

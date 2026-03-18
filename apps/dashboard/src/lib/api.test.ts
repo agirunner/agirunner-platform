@@ -109,6 +109,8 @@ describe('dashboard api auth/session behavior', () => {
     expect(workflowBlock).toContain("lifecycle?: 'planned' | null;");
     expect(workflowBlock).toContain('current_stage?: string | null;');
     expect(approvalTaskBlock).toContain('state: DashboardTaskState;');
+    expect(workflowBlock).not.toContain('current_checkpoint');
+    expect(approvalTaskBlock).not.toContain('current_checkpoint');
     expect(source).not.toContain('actOnStageGate(');
   });
 

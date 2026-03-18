@@ -28,6 +28,8 @@ describe('approval queue task card source', () => {
     expect(source).toContain('buildApprovalDecisionPacket');
     expect(source).toContain('buildApprovalRecoveryPacket');
     expect(source).toContain('buildApprovalOutputPacket');
+    expect(source).not.toContain('Current checkpoint');
+    expect(source).not.toContain('current_checkpoint');
     expect(source).toContain('Current continuity');
     expect(source).toContain('Latest handoff');
     expect(source).toContain('Next expected actor');
