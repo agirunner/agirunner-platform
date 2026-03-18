@@ -78,7 +78,7 @@ export class EventQueryService {
       values.push(filters.workflowScopeId);
       const workflowScopeIndex = values.length;
       conditions.push(
-        `(entity_id = $${workflowScopeIndex} OR ${WORKFLOW_ID_SQL} = $${workflowScopeIndex})`,
+        `(entity_id::text = $${workflowScopeIndex} OR ${WORKFLOW_ID_SQL} = $${workflowScopeIndex})`,
       );
     }
 

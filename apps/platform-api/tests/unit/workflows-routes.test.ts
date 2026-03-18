@@ -278,7 +278,7 @@ describe('workflow routes', () => {
     expect(response.statusCode).toBe(200);
     const [selectSql, selectParams] = query.mock.calls[0];
     expect(selectSql).toContain(
-      "(entity_id = $2 OR COALESCE(data->>'workflow_id', CASE WHEN entity_type = 'workflow' THEN entity_id::text ELSE '' END) = $2)",
+      "(entity_id::text = $2 OR COALESCE(data->>'workflow_id', CASE WHEN entity_type = 'workflow' THEN entity_id::text ELSE '' END) = $2)",
     );
     expect(selectSql).toContain("COALESCE(data->>'activation_id', '') = $");
     expect(selectSql).toContain("COALESCE(data->>'stage_name', '') = $");
