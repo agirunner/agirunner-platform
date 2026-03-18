@@ -145,10 +145,13 @@ describe('worker registration service', () => {
 
     const result = await listWorkers({ pool } as never, 'tenant-1');
 
-    expect(result[0].metadata.notes).toBe('redacted://worker-secret');
-    expect(result[0].metadata.safe).toBe('no secrets here');
-    expect((result[0].host_info as Record<string, unknown>).env_note).toBe('redacted://worker-secret');
-    expect((result[0].host_info as Record<string, unknown>).hostname).toBe('builder-01');
+    const metadata = result[0].metadata as Record<string, unknown>;
+    const hostInfo = result[0].host_info as Record<string, unknown>;
+
+    expect(metadata.notes).toBe('redacted://worker-secret');
+    expect(metadata.safe).toBe('no secrets here');
+    expect(hostInfo.env_note).toBe('redacted://worker-secret');
+    expect(hostInfo.hostname).toBe('builder-01');
   });
 
   it('redacts secret-bearing worker metadata and host info on list reads', async () => {
