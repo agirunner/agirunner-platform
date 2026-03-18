@@ -43,7 +43,7 @@ describe('WorkItemService', () => {
                 id: 'work-item-1',
                 workflow_id: 'workflow-1',
                 stage_name: 'requirements',
-                current_checkpoint: 'requirements',
+
                 column_id: 'planned',
                 next_expected_actor: null,
                 next_expected_action: null,
@@ -181,7 +181,7 @@ describe('WorkItemService', () => {
                 id: 'work-item-1',
                 workflow_id: 'workflow-1',
                 stage_name: 'triage',
-                current_checkpoint: 'triage',
+
                 column_id: 'planned',
                 next_expected_actor: null,
                 next_expected_action: null,
@@ -286,7 +286,7 @@ describe('WorkItemService', () => {
                 request_id: 'req-1',
                 parent_work_item_id: null,
                 stage_name: 'triage',
-                current_checkpoint: 'triage',
+
                 title: 'Incoming webhook item',
                 goal: null,
                 acceptance_criteria: null,
@@ -465,7 +465,7 @@ describe('WorkItemService', () => {
                 request_id: 'req-1',
                 parent_work_item_id: null,
                 stage_name: 'triage',
-                current_checkpoint: 'triage',
+
                 title: 'Existing title',
                 goal: null,
                 acceptance_criteria: null,
@@ -555,7 +555,6 @@ describe('WorkItemService', () => {
               id: 'work-item-1',
               workflow_id: 'workflow-1',
               stage_name: 'triage',
-              current_checkpoint: 'triage',
               column_id: 'planned',
               next_expected_actor: null,
               next_expected_action: null,
@@ -717,7 +716,7 @@ describe('WorkItemService', () => {
                 workflow_id: 'workflow-1',
                 parent_work_item_id: null,
                 stage_name: 'triage',
-                current_checkpoint: 'triage',
+
                 column_id: 'planned',
                 next_expected_actor: 'reviewer',
                 next_expected_action: 'review',
@@ -790,7 +789,7 @@ describe('WorkItemService', () => {
                 workflow_id: 'workflow-1',
                 parent_work_item_id: null,
                 stage_name: 'requirements',
-                current_checkpoint: 'requirements',
+
                 column_id: 'done',
                 completed_at: completedAt,
                 created_at: createdAt,
@@ -1095,7 +1094,6 @@ describe('WorkItemService', () => {
               workflow_id: 'wf-1',
               parent_work_item_id: null,
               stage_name: 'release',
-              current_checkpoint: 'release',
               column_id: 'planned',
               owner_role: 'product-manager',
               next_expected_actor: 'human',

@@ -488,7 +488,6 @@ export class WorkItemService {
       workflow_id: workflowId,
       work_item_id: parentWorkItemId,
       stage_name: predecessor.stage_name,
-      current_checkpoint: predecessor.stage_name,
       successor_work_item_id: successorWorkItemId,
       successor_stage_name: successorStageName,
       previous_column_id: predecessor.column_id,
@@ -749,16 +748,13 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     allowSecretReferences: false,
   }) as Record<string, unknown>;
   const childrenCount = readCount(sanitizedRow.children_count);
-  const stageName = typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null;
-  const legacyCheckpoint =
-    typeof sanitizedRow.current_checkpoint === 'string' ? sanitizedRow.current_checkpoint : null;
   const { current_checkpoint: _currentCheckpoint, ...rest } = sanitizedRow;
   return {
     ...rest,
     id: String(sanitizedRow.id ?? ''),
     workflow_id: String(sanitizedRow.workflow_id ?? ''),
     parent_work_item_id: typeof sanitizedRow.parent_work_item_id === 'string' ? sanitizedRow.parent_work_item_id : null,
-    stage_name: stageName ?? legacyCheckpoint,
+    stage_name: typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null,
     column_id: typeof sanitizedRow.column_id === 'string' ? sanitizedRow.column_id : null,
     next_expected_actor:
       typeof sanitizedRow.next_expected_actor === 'string' ? sanitizedRow.next_expected_actor : null,

@@ -16,7 +16,6 @@ interface ApprovalTaskRow {
   work_item_id: string | null;
   work_item_title: string | null;
   stage_name: string | null;
-  current_checkpoint: string | null;
   next_expected_actor: string | null;
   next_expected_action: string | null;
   role: string | null;
@@ -59,7 +58,6 @@ export class ApprovalQueueService {
                 t.work_item_id::text AS work_item_id,
                 wi.title AS work_item_title,
                 t.stage_name,
-                wi.current_checkpoint,
                 wi.next_expected_actor,
                 wi.next_expected_action,
                 t.role,
@@ -226,7 +224,7 @@ export class ApprovalQueueService {
         workflow_name: row.workflow_name,
         work_item_id: row.work_item_id,
         work_item_title: row.work_item_title,
-        stage_name: row.stage_name ?? row.current_checkpoint,
+        stage_name: row.stage_name,
         next_expected_actor: row.next_expected_actor,
         next_expected_action: row.next_expected_action,
         role: row.role,

@@ -82,7 +82,6 @@ export async function buildOrchestratorTaskContext(
         `SELECT id,
                 parent_work_item_id,
                 stage_name,
-                current_checkpoint,
                 title,
                 goal,
                 column_id,
@@ -210,13 +209,10 @@ function serializeDates(row: Record<string, unknown>) {
 
 function serializeWorkItem(row: Record<string, unknown>) {
   const serialized = serializeDates(row);
-  const stageName = typeof serialized.stage_name === 'string' ? serialized.stage_name : null;
-  const legacyCheckpoint =
-    typeof serialized.current_checkpoint === 'string' ? serialized.current_checkpoint : null;
   const { current_checkpoint: _currentCheckpoint, ...rest } = serialized;
   return {
     ...rest,
-    stage_name: stageName ?? legacyCheckpoint,
+    stage_name: typeof serialized.stage_name === 'string' ? serialized.stage_name : null,
   };
 }
 

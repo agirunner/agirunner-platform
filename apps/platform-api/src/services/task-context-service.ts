@@ -240,12 +240,10 @@ function isContinuousWorkflowRow(
 }
 
 function normalizeWorkItemStage(row: Record<string, unknown>) {
-  const stageName = asOptionalString(row.stage_name);
-  const legacyCheckpoint = asOptionalString(row.current_checkpoint);
   const { current_checkpoint: _currentCheckpoint, ...rest } = row;
   return {
     ...rest,
-    stage_name: stageName ?? legacyCheckpoint ?? null,
+    stage_name: asOptionalString(row.stage_name) ?? null,
   };
 }
 
@@ -262,7 +260,6 @@ async function loadWorkItemContext(
   const result = await db.query(
       `SELECT id,
             stage_name,
-            current_checkpoint,
             column_id,
             title,
             goal,

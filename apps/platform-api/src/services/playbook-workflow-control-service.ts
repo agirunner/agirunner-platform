@@ -31,7 +31,6 @@ interface WorkflowWorkItemRow {
   id: string;
   parent_work_item_id: string | null;
   stage_name: string;
-  current_checkpoint: string | null;
   title: string;
   goal: string | null;
   acceptance_criteria: string | null;
@@ -764,7 +763,6 @@ export class PlaybookWorkflowControlService {
       `SELECT id,
               parent_work_item_id,
               stage_name,
-              current_checkpoint,
               title,
               goal,
               acceptance_criteria,
@@ -1495,10 +1493,8 @@ async function emitWorkItemUpdateEvents(
 }
 
 function toWorkItemResponse(row: WorkflowWorkItemRow) {
-  const { current_checkpoint: _currentCheckpoint, ...rest } = row;
   return {
-    ...rest,
-    stage_name: row.stage_name ?? row.current_checkpoint ?? null,
+    ...row,
     completed_at: row.completed_at?.toISOString() ?? null,
     updated_at: row.updated_at.toISOString(),
   };

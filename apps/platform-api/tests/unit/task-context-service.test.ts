@@ -310,7 +310,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'wi-1',
               stage_name: 'implementation',
-              current_checkpoint: 'legacy-implementation',
+
               column_id: 'review',
               title: 'Implement auth',
               goal: 'Ship the auth change',
@@ -483,7 +483,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'wi-design',
               stage_name: 'design',
-              current_checkpoint: 'design',
+
               column_id: 'active',
               title: 'Design hello world',
               goal: 'Produce the design for hello world',
@@ -592,7 +592,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'wi-release',
               stage_name: 'release',
-              current_checkpoint: 'release',
+
               column_id: 'active',
               title: 'Confirm release readiness',
               goal: 'Confirm release readiness',
@@ -787,7 +787,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'wi-release',
               stage_name: 'release',
-              current_checkpoint: 'release',
+
               column_id: 'active',
               title: 'Confirm release readiness',
               goal: 'Confirm release readiness',
@@ -924,7 +924,7 @@ describe('buildTaskContext active stage semantics', () => {
               summary: null,
               description: null,
               stage_name: 'implementation',
-              current_checkpoint: 'implementation',
+
               current_lane: 'in_review',
               state: 'in_progress',
               assigned_role: 'reviewer',
@@ -1105,7 +1105,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'wi-2',
               stage_name: null,
-              current_checkpoint: null,
+
               column_id: 'active',
               title: 'Investigate alert',
               goal: 'Clear the incident',
@@ -1226,7 +1226,7 @@ describe('buildTaskContext active stage semantics', () => {
             rows: [{
               id: 'wi-ctx-1',
               stage_name: 'implementation',
-              current_checkpoint: 'implementation',
+
               column_id: 'active',
               title: 'Implement hello world',
               goal: 'Implement hello world',

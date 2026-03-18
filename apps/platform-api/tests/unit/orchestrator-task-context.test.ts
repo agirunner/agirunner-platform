@@ -99,7 +99,7 @@ describe('buildOrchestratorTaskContext', () => {
               {
                 id: 'wi-1',
                 stage_name: 'implementation',
-                current_checkpoint: 'legacy-implementation',
+
                 next_expected_actor: 'reviewer',
                 next_expected_action: 'review',
                 rework_count: 1,
@@ -108,7 +108,7 @@ describe('buildOrchestratorTaskContext', () => {
               {
                 id: 'wi-2',
                 stage_name: 'triage',
-                current_checkpoint: 'triage',
+
                 next_expected_actor: null,
                 next_expected_action: null,
                 rework_count: 0,
@@ -117,7 +117,7 @@ describe('buildOrchestratorTaskContext', () => {
               {
                 id: 'wi-3',
                 stage_name: 'triage',
-                current_checkpoint: 'triage',
+
                 next_expected_actor: null,
                 next_expected_action: null,
                 rework_count: 0,
@@ -126,7 +126,7 @@ describe('buildOrchestratorTaskContext', () => {
               {
                 id: 'wi-4',
                 stage_name: 'done',
-                current_checkpoint: 'done',
+
                 next_expected_actor: null,
                 next_expected_action: null,
                 rework_count: 0,

@@ -18,7 +18,6 @@ describe('ApprovalQueueService', () => {
               work_item_id: 'work-item-1',
               work_item_title: 'Ship docs',
               stage_name: 'review',
-              current_checkpoint: 'legacy-review',
               next_expected_actor: 'reviewer',
               next_expected_action: 'review',
               role: 'qa',
