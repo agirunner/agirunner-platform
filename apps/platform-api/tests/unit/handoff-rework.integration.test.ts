@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { HandoffService } from '../../src/services/handoff-service.js';
+import { RuntimeDefaultsService } from '../../src/services/runtime-defaults-service.js';
 import {
   TEST_IDENTITY as identity,
   createV2Harness,
@@ -30,6 +31,32 @@ describe('handoff rework integration', () => {
     }
 
     harness = createV2Harness(db, { WORKFLOW_ACTIVATION_DELAY_MS: 0 });
+    const runtimeDefaultsService = new RuntimeDefaultsService(db.pool);
+    for (const [configKey, configValue] of [
+      ['tasks.default_timeout_minutes', '30'],
+      ['agent.max_iterations', '10'],
+      ['agent.llm_max_retries', '5'],
+      ['platform.workflow_activation_delay_ms', '10000'],
+      ['platform.workflow_activation_heartbeat_interval_ms', '900000'],
+      ['platform.workflow_activation_stale_after_ms', '300000'],
+      ['platform.task_cancel_signal_grace_period_ms', '60000'],
+      ['platform.worker_dispatch_ack_timeout_ms', '15000'],
+      ['platform.worker_default_heartbeat_interval_seconds', '30'],
+      ['platform.worker_offline_grace_period_ms', '300000'],
+      ['platform.worker_offline_threshold_multiplier', '2'],
+      ['platform.worker_degraded_threshold_multiplier', '1'],
+      ['platform.worker_key_expiry_ms', '60000'],
+      ['platform.agent_default_heartbeat_interval_seconds', '30'],
+      ['platform.agent_heartbeat_grace_period_ms', '300000'],
+      ['platform.agent_heartbeat_threshold_multiplier', '2'],
+      ['platform.agent_key_expiry_ms', '60000'],
+    ] as const) {
+      await runtimeDefaultsService.createDefault(identity.tenantId, {
+        configKey,
+        configValue,
+        configType: 'number',
+      });
+    }
     await harness.roleDefinitionService.createRole(identity.tenantId, {
       name: 'developer',
       description: 'Implements workflow tasks in integration tests.',

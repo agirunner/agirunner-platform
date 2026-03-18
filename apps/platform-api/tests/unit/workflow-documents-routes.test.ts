@@ -14,6 +14,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
       keyPrefix: 'prefix',
     };
   },
+  withAllowedScopes: () => async () => {},
   withScope: () => async () => {},
 }));
 
@@ -77,29 +78,58 @@ describe('workflow document routes', () => {
 
   it('creates workflow documents through the workflow route surface', async () => {
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
-    const query = vi
-      .fn()
-      .mockResolvedValueOnce({
-        rowCount: 1,
-        rows: [{ workspace_id: 'workspace-1', workspace_spec_version: 1 }],
-      })
-      .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-      .mockResolvedValueOnce({
-        rowCount: 1,
-        rows: [{
-          id: 'doc-1',
-          logical_name: 'brief',
-          source: 'external',
-          location: 'https://example.com/brief',
-          artifact_id: null,
-          content_type: null,
-          title: 'Brief',
-          description: null,
-          metadata: {},
-          task_id: null,
-          created_at: new Date('2026-03-12T00:00:00Z'),
-        }],
-      });
+    const createdDocument = {
+      id: 'doc-1',
+      logical_name: 'brief',
+      source: 'external',
+      location: 'https://example.com/brief',
+      artifact_id: null,
+      content_type: null,
+      title: 'Brief',
+      description: null,
+      metadata: {},
+      task_id: null,
+      created_at: new Date('2026-03-12T00:00:00Z'),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('FROM workflow_tool_results')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'operator_create_workflow_document',
+            'workflow-document-create-1',
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT workspace_id, workspace_spec_version') && sql.includes('FROM workflows')) {
+          return {
+            rowCount: 1,
+            rows: [{ workspace_id: 'workspace-1', workspace_spec_version: 1 }],
+          };
+        }
+        if (sql.includes('SELECT id, logical_name') && sql.includes('FROM workflow_documents')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_documents')) {
+          return { rowCount: 1, rows: [createdDocument] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{ response: params?.[4] ?? createdDocument }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
 
     app = fastify();
     registerErrorHandler(app);
@@ -124,7 +154,13 @@ describe('workflow document routes', () => {
       resumeWorkflow: vi.fn(),
       deleteWorkflow: vi.fn(),
     } as never);
-    app.decorate('pgPool', { query } as never);
+    app.decorate(
+      'pgPool',
+      {
+        connect: vi.fn(async () => client),
+        query: vi.fn(),
+      } as never,
+    );
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
     app.decorate('eventService', { emit: vi.fn() } as never);
     app.decorate('workspaceService', { getWorkspace: vi.fn() } as never);
@@ -142,6 +178,7 @@ describe('workflow document routes', () => {
       url: '/api/v1/workflows/workflow-1/documents',
       headers: { authorization: 'Bearer test' },
       payload: {
+        request_id: 'workflow-document-create-1',
         logical_name: 'brief',
         source: 'external',
         url: 'https://example.com/brief',

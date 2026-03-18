@@ -41,17 +41,8 @@ export class WorkspaceMemoryScopeService {
     workItemId: string | null;
     currentMemory: Record<string, unknown>;
   }): Promise<Record<string, unknown>> {
-    const visibleMemory = { ...input.currentMemory };
     const visibleEntries = await listVisibleTaskMemoryEntries(this.pool, input);
-    const visibleKeys = new Set(visibleEntries.map((entry) => entry.key));
-
-    for (const key of Object.keys(visibleMemory)) {
-      if (!visibleKeys.has(key)) {
-        delete visibleMemory[key];
-      }
-    }
-
-    return visibleMemory;
+    return Object.fromEntries(visibleEntries.map((entry) => [entry.key, entry.value]));
   }
 
   async listWorkItemMemoryEntries(input: {

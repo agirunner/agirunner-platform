@@ -202,4 +202,31 @@ describe('WorkspaceMemoryScopeService', () => {
       },
     ]);
   });
+
+  it('keeps legacy workspace memory keys visible when scoped events do not exist yet', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rows: [],
+        rowCount: 0,
+      }),
+    };
+
+    const service = new WorkspaceMemoryScopeService(pool as never);
+
+    const visible = await service.filterVisibleTaskMemory({
+      tenantId: 'tenant-1',
+      workspaceId: 'workspace-1',
+      workflowId: 'wf-1',
+      workItemId: 'wi-1',
+      currentMemory: {
+        deployment_token: 'deploy-secret',
+        release_note: 'Ship it',
+      },
+    });
+
+    expect(visible).toEqual({
+      deployment_token: 'redacted://workspace-memory-secret',
+      release_note: 'Ship it',
+    });
+  });
 });

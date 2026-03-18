@@ -14,6 +14,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
       keyPrefix: 'prefix',
     };
   },
+  withAllowedScopes: () => async () => {},
   withScope: () => async () => {},
 }));
 

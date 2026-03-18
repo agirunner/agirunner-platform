@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { configureProviderSecretEncryptionKey } from '../../src/lib/oauth-crypto.js';
 import { OAuthService } from '../../src/services/oauth-service.js';
 
 describe('OAuthService', () => {
@@ -47,6 +48,7 @@ describe('OAuthService', () => {
 
   it('returns encrypted oauth secret material instead of plaintext tokens', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
+    configureProviderSecretEncryptionKey('test-encryption-key');
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {

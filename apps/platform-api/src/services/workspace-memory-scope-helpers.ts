@@ -55,11 +55,18 @@ export async function listVisibleTaskMemoryEntries(
     [input.tenantId, input.workspaceId, [...WORKSPACE_MEMORY_EVENT_TYPES], keys],
   );
 
-  return result.rows
+  const scopedEntries = result.rows
     .map((row) => toScopedMemoryEntry(row, input.currentMemory))
-    .filter((entry): entry is ScopedMemoryEntry => entry !== null)
-    .filter((entry) => isVisibleToTask(entry, input.workflowId, input.workItemId))
-    .sort(compareMemoryEntriesByRecency);
+    .filter((entry): entry is ScopedMemoryEntry => entry !== null);
+  const visibleEventEntries = scopedEntries.filter((entry) =>
+    isVisibleToTask(entry, input.workflowId, input.workItemId),
+  );
+  const eventKeys = new Set(scopedEntries.map((entry) => entry.key));
+  const fallbackEntries = keys
+    .filter((key) => !eventKeys.has(key))
+    .map((key) => createFallbackMemoryEntry(key, input.currentMemory[key]));
+
+  return [...visibleEventEntries, ...fallbackEntries].sort(compareMemoryEntriesByRecency);
 }
 
 export function memoryEntryMatchesQuery(
@@ -130,12 +137,33 @@ function compareMemoryEntriesByRecency(
   left: Pick<ScopedMemoryEntry, 'updated_at' | 'event_id'>,
   right: Pick<ScopedMemoryEntry, 'updated_at' | 'event_id'>,
 ) {
-  const leftTime = Date.parse(left.updated_at);
-  const rightTime = Date.parse(right.updated_at);
+  const leftTime = toSortableTimestamp(left.updated_at);
+  const rightTime = toSortableTimestamp(right.updated_at);
   if (leftTime !== rightTime) {
     return rightTime - leftTime;
   }
   return right.event_id - left.event_id;
+}
+
+function createFallbackMemoryEntry(key: string, value: unknown): ScopedMemoryEntry {
+  return {
+    key,
+    value: sanitizeMemoryValue(key, value),
+    event_id: 0,
+    event_type: 'updated',
+    updated_at: '',
+    actor_type: 'system',
+    actor_id: null,
+    workflow_id: null,
+    work_item_id: null,
+    task_id: null,
+    stage_name: null,
+  };
+}
+
+function toSortableTimestamp(value: string): number {
+  const parsed = Date.parse(value);
+  return Number.isFinite(parsed) ? parsed : 0;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

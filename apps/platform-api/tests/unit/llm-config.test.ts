@@ -22,7 +22,7 @@ const sampleProvider = {
   auth_mode: 'api_key',
   is_enabled: true,
   rate_limit_rpm: null,
-  metadata: {},
+  metadata: { providerType: 'anthropic' },
   created_at: new Date(),
   updated_at: new Date(),
 };
