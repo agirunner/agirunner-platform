@@ -59,6 +59,14 @@ describe('methodToAction', () => {
     expect(methodToAction('overrideTaskOutput')).toBe('overrode');
   });
 
+  it('convertsExactAcknowledgedMethodOverrides', () => {
+    expect(methodToAction('acknowledgeSignal')).toBe('acknowledged');
+  });
+
+  it('convertsExactInvokeMethodOverrides', () => {
+    expect(methodToAction('invokeTrigger')).toBe('invoked');
+  });
+
   it('fallsBackToMethodNameForUnknownPrefix', () => {
     expect(methodToAction('doSomething')).toBe('doSomething');
   });
@@ -279,6 +287,28 @@ describe('createLoggedService', () => {
         operation: 'task_lifecycle.workflow_activation.enqueued',
         resourceType: 'workflow_activation',
         resourceId: 'activation-row-1',
+      }),
+    );
+  });
+
+  it('logsExplicitlyConfiguredMethodsWithoutMutationPrefixes', async () => {
+    const service = {
+      invokeTrigger: vi.fn().mockResolvedValue({ id: 'trigger-1', name: 'Nightly Sync' }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'WebhookWorkItemTriggerService', logService as never);
+    await wrapped.invokeTrigger('tenant-1', 'trigger-1');
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'config.work_item_trigger.invoked',
+        resourceType: 'work_item_trigger',
+        resourceId: 'trigger-1',
+        resourceName: 'Nightly Sync',
       }),
     );
   });
