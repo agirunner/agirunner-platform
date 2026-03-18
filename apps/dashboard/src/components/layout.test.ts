@@ -74,43 +74,43 @@ describe('layout breadcrumbs', () => {
     ]);
   });
 
-  it('keeps project scoped explorer breadcrumbs clickable without exposing raw UUID labels', () => {
+  it('keeps workspace scoped explorer breadcrumbs clickable without exposing raw UUID labels', () => {
     expect(
       buildBreadcrumbs(
-        '/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3/memory',
-        { projectLabel: 'Release Automation' },
+        '/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3/memory',
+        { workspaceLabel: 'Release Automation' },
       ),
     ).toEqual([
-      { label: 'Projects', href: '/projects' },
-      { label: 'Release Automation', href: '/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3' },
+      { label: 'Workspaces', href: '/workspaces' },
+      { label: 'Release Automation', href: '/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3' },
       { label: 'Memory' },
     ]);
   });
 
-  it('uses project labels from history state when the current route already knows the name', () => {
+  it('uses workspace labels from history state when the current route already knows the name', () => {
     stubBreadcrumbWindow({
       usr: {
-        projectLabel: 'Release Automation',
+        workspaceLabel: 'Release Automation',
       },
     });
 
-    expect(buildBreadcrumbs('/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3')).toEqual([
-      { label: 'Projects', href: '/projects' },
+    expect(buildBreadcrumbs('/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3')).toEqual([
+      { label: 'Workspaces', href: '/workspaces' },
       { label: 'Release Automation' },
     ]);
   });
 
-  it('uses cached project labels for direct project loads when history state is empty', () => {
+  it('uses cached workspace labels for direct workspace loads when history state is empty', () => {
     stubBreadcrumbWindow(
       null,
       {
-        'agirunner.projectLabel.321ddb16-0ac7-4af4-b008-94afe2592ee3': 'Release Automation',
+        'agirunner.workspaceLabel.321ddb16-0ac7-4af4-b008-94afe2592ee3': 'Release Automation',
       },
     );
 
-    expect(buildBreadcrumbs('/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3/artifacts')).toEqual([
-      { label: 'Projects', href: '/projects' },
-      { label: 'Release Automation', href: '/projects/321ddb16-0ac7-4af4-b008-94afe2592ee3' },
+    expect(buildBreadcrumbs('/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3/artifacts')).toEqual([
+      { label: 'Workspaces', href: '/workspaces' },
+      { label: 'Release Automation', href: '/workspaces/321ddb16-0ac7-4af4-b008-94afe2592ee3' },
       { label: 'Artifacts' },
     ]);
   });

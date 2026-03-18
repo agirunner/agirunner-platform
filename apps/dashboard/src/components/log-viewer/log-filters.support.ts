@@ -37,8 +37,8 @@ export function mapSavedViewToUrlParams(saved: SavedViewFilters): Record<string,
   for (const [key, value] of Object.entries(saved)) {
     if (!value || key === 'viewMode') continue;
     const urlKey =
-      key === 'project_id'
-        ? 'project'
+      key === 'workspace_id'
+        ? 'workspace'
         : key === 'workflow_id'
           ? 'workflow'
           : key === 'task_id'

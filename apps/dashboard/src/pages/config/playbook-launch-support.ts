@@ -1,6 +1,6 @@
 import type {
   DashboardPlaybookRecord,
-  DashboardProjectRecord,
+  DashboardWorkspaceRecord,
   DashboardRoleModelOverride,
   DashboardWorkflowBudgetInput,
 } from '../../lib/api.js';
@@ -65,7 +65,7 @@ export interface LaunchValidationResult {
 }
 
 export interface LaunchParameterResolutionStep {
-  key: 'playbook-default' | 'project-autofill' | 'launch-override';
+  key: 'playbook-default' | 'workspace-autofill' | 'launch-override';
   label: string;
   detail: string;
   value?: string;
@@ -77,7 +77,7 @@ export interface LaunchParameterResolutionState {
   detail: string;
   activeSource: LaunchParameterResolutionStep['key'] | 'unset';
   steps: LaunchParameterResolutionStep[];
-  canRestoreProjectValue: boolean;
+  canRestoreWorkspaceValue: boolean;
   canRestoreDefaultValue: boolean;
 }
 
@@ -242,21 +242,21 @@ export function syncRoleOverrideDrafts(
   return [...ordered, ...custom];
 }
 
-export function readMappedProjectParameterDraft(
+export function readMappedWorkspaceParameterDraft(
   spec: LaunchParameterSpec,
-  project: DashboardProjectRecord | null,
+  workspace: DashboardWorkspaceRecord | null,
 ): string | undefined {
-  const mappedValue = readMappedProjectValue(project, spec.mapsTo);
+  const mappedValue = readMappedWorkspaceValue(workspace, spec.mapsTo);
   if (mappedValue === undefined) {
     return undefined;
   }
   return defaultParameterDraftValue(mappedValue, spec.inputType);
 }
 
-export function describeMappedProjectPath(mapsTo: string | undefined): string {
-  const normalized = mapsTo?.trim().replace(/^project\./, '') ?? '';
+export function describeMappedWorkspacePath(mapsTo: string | undefined): string {
+  const normalized = mapsTo?.trim().replace(/^workspace\./, '') ?? '';
   if (!normalized) {
-    return 'project field';
+    return 'workspace field';
   }
   return normalized
     .split('.')
@@ -273,13 +273,13 @@ export function describeMappedProjectPath(mapsTo: string | undefined): string {
 
 export function describeLaunchParameterResolution(input: {
   spec: LaunchParameterSpec;
-  project: DashboardProjectRecord | null;
+  workspace: DashboardWorkspaceRecord | null;
   currentValue: string;
 }): LaunchParameterResolutionState {
-  const hasProjectMapping = Boolean(input.spec.mapsTo);
-  const sourceLabel = describeMappedProjectPath(input.spec.mapsTo);
+  const hasWorkspaceMapping = Boolean(input.spec.mapsTo);
+  const sourceLabel = describeMappedWorkspacePath(input.spec.mapsTo);
   const defaultValue = readParameterSourceValue(input.spec.defaultValue, input.spec.inputType);
-  const mappedValue = readMappedProjectParameterDraft(input.spec, input.project);
+  const mappedValue = readMappedWorkspaceParameterDraft(input.spec, input.workspace);
   const hasInheritedValue = Boolean(defaultValue) || mappedValue !== undefined;
   const hasCurrentValue = input.currentValue.trim().length > 0;
 
@@ -287,7 +287,7 @@ export function describeLaunchParameterResolution(input: {
   if (!hasCurrentValue && hasInheritedValue) {
     activeSource = 'launch-override';
   } else if (mappedValue !== undefined && input.currentValue === mappedValue) {
-    activeSource = 'project-autofill';
+    activeSource = 'workspace-autofill';
   } else if (defaultValue !== undefined && input.currentValue === defaultValue) {
     activeSource = 'playbook-default';
   } else if (hasCurrentValue) {
@@ -308,15 +308,15 @@ export function describeLaunchParameterResolution(input: {
 
   if (input.spec.mapsTo) {
     steps.push({
-      key: 'project-autofill',
-      label: 'Project autofill',
-      detail: readProjectAutofillDetail({
-        project: input.project,
+      key: 'workspace-autofill',
+      label: 'Workspace autofill',
+      detail: readWorkspaceAutofillDetail({
+        workspace: input.workspace,
         sourceLabel,
         mappedValue,
       }),
       value: mappedValue,
-      isActive: activeSource === 'project-autofill',
+      isActive: activeSource === 'workspace-autofill',
     });
   }
 
@@ -327,8 +327,8 @@ export function describeLaunchParameterResolution(input: {
       activeSource,
       hasCurrentValue,
       hasInheritedValue,
-      hasProjectMapping,
-      project: input.project,
+      hasWorkspaceMapping,
+      workspace: input.workspace,
       sourceLabel,
       hasPlaybookDefault: defaultValue !== undefined,
     }),
@@ -340,16 +340,16 @@ export function describeLaunchParameterResolution(input: {
     badgeLabel: readResolutionBadgeLabel(activeSource, hasCurrentValue),
     detail: readResolutionDetail({
       activeSource,
-      project: input.project,
+      workspace: input.workspace,
       sourceLabel,
       mappedValue,
-      hasProjectMapping,
+      hasWorkspaceMapping,
       hasPlaybookDefault: defaultValue !== undefined,
       hasCurrentValue,
     }),
     activeSource,
     steps,
-    canRestoreProjectValue: mappedValue !== undefined && input.currentValue !== mappedValue,
+    canRestoreWorkspaceValue: mappedValue !== undefined && input.currentValue !== mappedValue,
     canRestoreDefaultValue: defaultValue !== undefined && input.currentValue !== defaultValue,
   };
 }
@@ -588,26 +588,26 @@ function readParameterSourceValue(
   return draftValue === '' ? undefined : draftValue;
 }
 
-function readProjectAutofillDetail(input: {
-  project: DashboardProjectRecord | null;
+function readWorkspaceAutofillDetail(input: {
+  workspace: DashboardWorkspaceRecord | null;
   sourceLabel: string;
   mappedValue: string | undefined;
 }): string {
-  if (!input.project) {
-    return `Select a project to autofill from ${input.sourceLabel}.`;
+  if (!input.workspace) {
+    return `Select a workspace to autofill from ${input.sourceLabel}.`;
   }
   if (input.mappedValue === undefined) {
-    return `${input.project.name} does not currently provide ${input.sourceLabel}.`;
+    return `${input.workspace.name} does not currently provide ${input.sourceLabel}.`;
   }
-  return `Mapped from ${input.project.name} → ${input.sourceLabel}.`;
+  return `Mapped from ${input.workspace.name} → ${input.sourceLabel}.`;
 }
 
 function readLaunchOverrideDetail(input: {
   activeSource: LaunchParameterResolutionState['activeSource'];
   hasCurrentValue: boolean;
   hasInheritedValue: boolean;
-  hasProjectMapping: boolean;
-  project: DashboardProjectRecord | null;
+  hasWorkspaceMapping: boolean;
+  workspace: DashboardWorkspaceRecord | null;
   sourceLabel: string;
   hasPlaybookDefault: boolean;
 }): string {
@@ -617,8 +617,8 @@ function readLaunchOverrideDetail(input: {
   if (!input.hasCurrentValue && input.hasInheritedValue) {
     return 'This run clears the inherited value until you restore a source below.';
   }
-  if (input.project && input.hasProjectMapping) {
-    return `This run overrides ${input.project.name} → ${input.sourceLabel}.`;
+  if (input.workspace && input.hasWorkspaceMapping) {
+    return `This run overrides ${input.workspace.name} → ${input.sourceLabel}.`;
   }
   if (input.hasPlaybookDefault) {
     return 'This run overrides the playbook default for this parameter.';
@@ -633,8 +633,8 @@ function readResolutionBadgeLabel(
   if (activeSource === 'playbook-default') {
     return 'Using playbook default';
   }
-  if (activeSource === 'project-autofill') {
-    return 'Using project autofill';
+  if (activeSource === 'workspace-autofill') {
+    return 'Using workspace autofill';
   }
   if (activeSource === 'launch-override') {
     return hasCurrentValue ? 'Launch override active' : 'Launch override clears inherited value';
@@ -644,41 +644,41 @@ function readResolutionBadgeLabel(
 
 function readResolutionDetail(input: {
   activeSource: LaunchParameterResolutionState['activeSource'];
-  project: DashboardProjectRecord | null;
+  workspace: DashboardWorkspaceRecord | null;
   sourceLabel: string;
   mappedValue: string | undefined;
-  hasProjectMapping: boolean;
+  hasWorkspaceMapping: boolean;
   hasPlaybookDefault: boolean;
   hasCurrentValue: boolean;
 }): string {
   if (input.activeSource === 'playbook-default') {
-    if (!input.hasProjectMapping) {
+    if (!input.hasWorkspaceMapping) {
       return 'This run uses the playbook default until you override it at launch.';
     }
-    if (input.project && input.hasProjectMapping && input.mappedValue !== undefined) {
-      return `This run stays pinned to the playbook default instead of ${input.project.name} autofill.`;
+    if (input.workspace && input.hasWorkspaceMapping && input.mappedValue !== undefined) {
+      return `This run stays pinned to the playbook default instead of ${input.workspace.name} autofill.`;
     }
-    if (input.project && input.hasProjectMapping && input.mappedValue === undefined) {
-      return `${input.project.name} does not currently supply ${input.sourceLabel}, so the playbook default stays in effect.`;
+    if (input.workspace && input.hasWorkspaceMapping && input.mappedValue === undefined) {
+      return `${input.workspace.name} does not currently supply ${input.sourceLabel}, so the playbook default stays in effect.`;
     }
-    return 'This run uses the playbook default until you attach project context or override it.';
+    return 'This run uses the playbook default until you attach workspace context or override it.';
   }
-  if (input.activeSource === 'project-autofill' && input.project && input.hasProjectMapping) {
-    return `${input.project.name} supplies ${input.sourceLabel}, so this run inherits that value unless you override it at launch.`;
+  if (input.activeSource === 'workspace-autofill' && input.workspace && input.hasWorkspaceMapping) {
+    return `${input.workspace.name} supplies ${input.sourceLabel}, so this run inherits that value unless you override it at launch.`;
   }
   if (input.activeSource === 'launch-override') {
     if (!input.hasCurrentValue) {
       return 'This run clears the inherited value and will send nothing unless you restore a source.';
     }
-    if (input.project && input.hasProjectMapping && input.mappedValue !== undefined) {
-      return `This run overrides the ${input.project.name} autofill for this parameter.`;
+    if (input.workspace && input.hasWorkspaceMapping && input.mappedValue !== undefined) {
+      return `This run overrides the ${input.workspace.name} autofill for this parameter.`;
     }
     if (input.hasPlaybookDefault) {
       return 'This run overrides the playbook default for this parameter.';
     }
     return 'This run provides a launch-only value for this parameter.';
   }
-  return 'No playbook default, project autofill, or launch override is active yet.';
+  return 'No playbook default, workspace autofill, or launch override is active yet.';
 }
 
 function parseDraftValue(
@@ -804,18 +804,18 @@ function nextDraftId(prefix: string): string {
   return `${prefix}-${draftCounter}`;
 }
 
-function readMappedProjectValue(
-  project: DashboardProjectRecord | null,
+function readMappedWorkspaceValue(
+  workspace: DashboardWorkspaceRecord | null,
   mapsTo: string | undefined,
 ): unknown {
-  if (!project || !mapsTo) {
+  if (!workspace || !mapsTo) {
     return undefined;
   }
-  const normalized = mapsTo.trim().replace(/^project\./, '');
+  const normalized = mapsTo.trim().replace(/^workspace\./, '');
   if (!normalized) {
     return undefined;
   }
-  let current: unknown = project;
+  let current: unknown = workspace;
   for (const segment of normalized.split('.')) {
     if (!segment) {
       return undefined;

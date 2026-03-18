@@ -3,7 +3,7 @@ import {
   objectToStructuredDrafts,
   type StructuredEntryDraft,
   type StructuredValueType,
-} from './projects/project-detail-support.js';
+} from './workspaces/workspace-detail-support.js';
 
 export type WorkItemPriority = 'critical' | 'high' | 'normal' | 'low';
 

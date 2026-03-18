@@ -891,7 +891,7 @@ function readParameterDraftErrors(parameter: ParameterDraft): {
     secret?: string;
   } = {};
 
-  if (mapsTo === 'project.credentials.git_token') {
+  if (mapsTo === 'workspace.credentials.git_token') {
     if (!isSecret) {
       errors.secret = 'Git token mappings must be marked secret.';
     }
@@ -900,7 +900,7 @@ function readParameterDraftErrors(parameter: ParameterDraft): {
     }
   }
 
-  if (mapsTo === 'project.repository_url' || mapsTo === 'project.settings.default_branch') {
+  if (mapsTo === 'workspace.repository_url' || mapsTo === 'workspace.settings.default_branch') {
     if (isSecret) {
       errors.secret = 'Repository metadata mappings cannot be marked secret.';
     }

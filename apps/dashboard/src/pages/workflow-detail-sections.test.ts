@@ -91,10 +91,10 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('aria-labelledby={`child-workflow-heading-${entry.workflow_id}`}');
   });
 
-  it('turns the workflow-detail project timeline into a continuity packet surface', () => {
+  it('turns the workflow-detail workspace timeline into a continuity packet surface', () => {
     const source = readSource();
-    expect(source).toContain('buildWorkflowProjectTimelineOverview');
-    expect(source).toContain('buildWorkflowProjectTimelinePacket');
+    expect(source).toContain('buildWorkflowWorkspaceTimelineOverview');
+    expect(source).toContain('buildWorkflowWorkspaceTimelinePacket');
     expect(source).toContain('Run continuity');
     expect(source).toContain('Current board');
     expect(source).toContain('Best next step:');

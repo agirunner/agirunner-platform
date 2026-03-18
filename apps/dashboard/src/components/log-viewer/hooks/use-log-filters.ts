@@ -5,7 +5,7 @@ import type { TimeRange } from '../ui/time-range-picker.js';
 import { resolveTimeRange } from '../ui/time-range-picker.js';
 
 export interface LogFilters {
-  project: string | null;
+  workspace: string | null;
   workflow: string | null;
   task: string | null;
   workItem: string | null;
@@ -60,7 +60,7 @@ export function useLogFilters() {
 
   const filters: LogFilters = useMemo(
     () => ({
-      project: searchParams.get('project'),
+      workspace: searchParams.get('workspace'),
       workflow: searchParams.get('workflow'),
       task: searchParams.get('task'),
       workItem: searchParams.get('work_item'),
@@ -130,7 +130,7 @@ export function useLogFilters() {
   const setEntityScope = useCallback(
     (
       scope: {
-        project: string | null;
+        workspace: string | null;
         workflow: string | null;
         task: string | null;
         workItem?: string | null;
@@ -141,10 +141,10 @@ export function useLogFilters() {
         (prev) => {
           const next = new URLSearchParams(prev);
 
-          if (scope.project) {
-            next.set('project', scope.project);
+          if (scope.workspace) {
+            next.set('workspace', scope.workspace);
           } else {
-            next.delete('project');
+            next.delete('workspace');
           }
 
           if (scope.workflow) {
@@ -186,7 +186,7 @@ export function useLogFilters() {
   const toQueryParams = useCallback((): Record<string, string> => {
     const params: Record<string, string> = {};
 
-    if (filters.project) params.project_id = filters.project;
+    if (filters.workspace) params.workspace_id = filters.workspace;
     if (filters.workflow) params.workflow_id = filters.workflow;
     if (filters.task) params.task_id = filters.task;
     if (filters.workItem) params.work_item_id = filters.workItem;

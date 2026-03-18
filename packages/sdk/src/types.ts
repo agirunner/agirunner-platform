@@ -72,7 +72,7 @@ export interface Worker {
   updated_at: string;
 }
 
-export interface Project {
+export interface Workspace {
   id: string;
   tenant_id: string;
   name: string;
@@ -101,7 +101,7 @@ export interface Playbook {
   updated_at: string;
 }
 
-export interface ProjectTimelineEntry {
+export interface WorkspaceTimelineEntry {
   kind?: string;
   workflow_id: string;
   name: string;
@@ -153,7 +153,7 @@ export interface ResolvedWorkflowConfig {
 
 export interface ResolvedDocumentReference {
   logical_name: string;
-  scope: 'project' | 'workflow';
+  scope: 'workspace' | 'workflow';
   source: 'repository' | 'artifact' | 'external';
   title?: string;
   description?: string;
@@ -202,7 +202,7 @@ export interface UpdateWorkflowDocumentInput {
 export interface TaskArtifact {
   id: string;
   workflow_id?: string | null;
-  project_id?: string | null;
+  workspace_id?: string | null;
   task_id: string;
   logical_path: string;
   content_type: string;
@@ -221,7 +221,7 @@ export interface TaskArtifact {
 interface WorkflowBase {
   id: string;
   tenant_id: string;
-  project_id: string | null;
+  workspace_id: string | null;
   playbook_id?: string | null;
   playbook_version?: number | null;
   name: string;
@@ -433,7 +433,7 @@ export interface TaskArtifactCatalogEntry {
   task_id: string;
   workflow_id?: string | null;
   work_item_id?: string | null;
-  project_id?: string | null;
+  workspace_id?: string | null;
   name: string;
   logical_path?: string | null;
   content_type: string;
@@ -447,7 +447,7 @@ export interface Task {
   id: string;
   tenant_id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
   parent_id: string | null;
   title: string;
   description: string | null;
@@ -493,7 +493,7 @@ export interface CreateTaskInput {
   description?: string;
   priority?: TaskPriority;
   workflow_id?: string;
-  project_id?: string;
+  workspace_id?: string;
   parent_id?: string;
   role?: string;
   input?: Record<string, unknown>;
@@ -532,7 +532,7 @@ export interface UpdatePlaybookInput {
 export interface CreateWorkflowInput {
   playbook_id: string;
   name: string;
-  project_id?: string;
+  workspace_id?: string;
   parameters?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
   config_overrides?: Record<string, unknown>;

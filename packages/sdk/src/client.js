@@ -165,26 +165,26 @@ export class PlatformApiClient {
         const response = await this.request(`/api/v1/workflows/${workflowId}/activations`);
         return response.data;
     }
-    async listProjects(query = {}) {
-        return this.request(this.withQuery('/api/v1/projects', query));
+    async listWorkspaces(query = {}) {
+        return this.request(this.withQuery('/api/v1/workspaces', query));
     }
-    async getProject(projectId) {
-        const response = await this.request(`/api/v1/projects/${projectId}`);
+    async getWorkspace(workspaceId) {
+        const response = await this.request(`/api/v1/workspaces/${workspaceId}`);
         return response.data;
     }
-    async patchProjectMemory(projectId, payload) {
-        const response = await this.request(`/api/v1/projects/${projectId}/memory`, {
+    async patchWorkspaceMemory(workspaceId, payload) {
+        const response = await this.request(`/api/v1/workspaces/${workspaceId}/memory`, {
             method: 'PATCH',
             body: payload,
         });
         return response.data;
     }
-    async getProjectTimeline(projectId) {
-        const response = await this.request(`/api/v1/projects/${projectId}/timeline`);
+    async getWorkspaceTimeline(workspaceId) {
+        const response = await this.request(`/api/v1/workspaces/${workspaceId}/timeline`);
         return response.data;
     }
-    async createPlanningWorkflow(projectId, payload) {
-        const response = await this.request(`/api/v1/projects/${projectId}/planning-workflow`, {
+    async createPlanningWorkflow(workspaceId, payload) {
+        const response = await this.request(`/api/v1/workspaces/${workspaceId}/planning-workflow`, {
             method: 'POST',
             body: payload,
         });

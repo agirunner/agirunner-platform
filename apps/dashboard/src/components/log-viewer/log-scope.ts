@@ -1,5 +1,5 @@
 export interface LogScope {
-  projectId?: string;
+  workspaceId?: string;
   workflowId?: string;
   taskId?: string;
   workItemId?: string;
@@ -12,8 +12,8 @@ export function applyLogScope(
 ): Record<string, string> {
   const scoped = { ...params };
 
-  if (scope?.projectId) {
-    scoped.project_id = scope.projectId;
+  if (scope?.workspaceId) {
+    scoped.workspace_id = scope.workspaceId;
   }
   if (scope?.workflowId) {
     scoped.workflow_id = scope.workflowId;

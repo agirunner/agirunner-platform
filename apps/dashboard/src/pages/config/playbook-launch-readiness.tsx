@@ -1,5 +1,5 @@
 import { Badge } from '../../components/ui/badge.js';
-import type { DashboardPlaybookRecord, DashboardProjectRecord } from '../../lib/api.js';
+import type { DashboardPlaybookRecord, DashboardWorkspaceRecord } from '../../lib/api.js';
 import {
   summarizeWorkflowBudgetDraft,
   type LaunchValidationResult,
@@ -8,7 +8,7 @@ import {
 
 export function LaunchReadinessPanel(props: {
   selectedPlaybook: DashboardPlaybookRecord | null;
-  selectedProject: DashboardProjectRecord | null;
+  selectedWorkspace: DashboardWorkspaceRecord | null;
   workflowName: string;
   hasStructuredParameters: boolean;
   hasMetadataEntries: boolean;
@@ -58,7 +58,7 @@ interface ReadinessCheck {
 function buildReadinessChecks(
   props: {
     selectedPlaybook: DashboardPlaybookRecord | null;
-    selectedProject: DashboardProjectRecord | null;
+    selectedWorkspace: DashboardWorkspaceRecord | null;
     workflowName: string;
     hasStructuredParameters: boolean;
     hasMetadataEntries: boolean;
@@ -83,8 +83,8 @@ function buildReadinessChecks(
       isReady: !props.validation.fieldErrors.workflowName,
     },
     {
-      label: 'Project context',
-      detail: props.selectedProject?.name ?? 'Standalone workflow',
+      label: 'Workspace context',
+      detail: props.selectedWorkspace?.name ?? 'Standalone workflow',
       isReady: true,
     },
     {

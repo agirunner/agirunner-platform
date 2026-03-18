@@ -3,24 +3,24 @@ import { SearchableCombobox } from './ui/searchable-combobox.js';
 import { useCascadingEntities, type CascadingEntityState } from './hooks/use-cascading-entities.js';
 
 interface LogEntityScopeProps {
-  projectId: string | null;
+  workspaceId: string | null;
   workflowId: string | null;
   taskId: string | null;
-  onChangeEntity: (scope: { project: string | null; workflow: string | null; task: string | null }) => void;
+  onChangeEntity: (scope: { workspace: string | null; workflow: string | null; task: string | null }) => void;
 }
 
 export function LogEntityScope({
-  projectId,
+  workspaceId,
   workflowId,
   taskId,
   onChangeEntity,
 }: LogEntityScopeProps): JSX.Element {
-  const state: CascadingEntityState = { projectId, workflowId, taskId };
+  const state: CascadingEntityState = { workspaceId, workflowId, taskId };
 
   const handleChange = useCallback(
     (next: CascadingEntityState) => {
       onChangeEntity({
-        project: next.projectId,
+        workspace: next.workspaceId,
         workflow: next.workflowId,
         task: next.taskId,
       });
@@ -33,14 +33,14 @@ export function LogEntityScope({
   return (
     <div className="flex flex-wrap items-center gap-2">
       <SearchableCombobox
-        items={entities.projects}
-        value={projectId}
-        onChange={entities.setProject}
-        placeholder="All projects"
-        searchPlaceholder="Search projects..."
-        allGroupLabel="All Projects"
-        onSearch={entities.searchProjects}
-        isLoading={entities.isLoadingProjects}
+        items={entities.workspaces}
+        value={workspaceId}
+        onChange={entities.setWorkspace}
+        placeholder="All workspaces"
+        searchPlaceholder="Search workspaces..."
+        allGroupLabel="All Workspaces"
+        onSearch={entities.searchWorkspaces}
+        isLoading={entities.isLoadingWorkspaces}
         className="w-48"
       />
       <SearchableCombobox

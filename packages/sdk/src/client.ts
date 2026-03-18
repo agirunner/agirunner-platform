@@ -19,8 +19,8 @@ import type {
   WorkflowBoard,
   WorkflowStage,
   WorkflowWorkItem,
-  Project,
-  ProjectTimelineEntry,
+  Workspace,
+  WorkspaceTimelineEntry,
   ResolvedDocumentReference,
   ResolvedWorkflowConfig,
   Task,
@@ -315,21 +315,21 @@ export class PlatformApiClient {
     return response.data;
   }
 
-  async listProjects(query: Query = {}): Promise<ApiListResponse<Project>> {
-    return this.request<ApiListResponse<Project>>(this.withQuery('/api/v1/projects', query));
+  async listWorkspaces(query: Query = {}): Promise<ApiListResponse<Workspace>> {
+    return this.request<ApiListResponse<Workspace>>(this.withQuery('/api/v1/workspaces', query));
   }
 
-  async getProject(projectId: string): Promise<Project> {
-    const response = await this.request<ApiDataResponse<Project>>(`/api/v1/projects/${projectId}`);
+  async getWorkspace(workspaceId: string): Promise<Workspace> {
+    const response = await this.request<ApiDataResponse<Workspace>>(`/api/v1/workspaces/${workspaceId}`);
     return response.data;
   }
 
-  async patchProjectMemory(
-    projectId: string,
+  async patchWorkspaceMemory(
+    workspaceId: string,
     payload: { key: string; value: unknown },
-  ): Promise<Project> {
-    const response = await this.request<ApiDataResponse<Project>>(
-      `/api/v1/projects/${projectId}/memory`,
+  ): Promise<Workspace> {
+    const response = await this.request<ApiDataResponse<Workspace>>(
+      `/api/v1/workspaces/${workspaceId}/memory`,
       {
         method: 'PATCH',
         body: payload,
@@ -338,19 +338,19 @@ export class PlatformApiClient {
     return response.data;
   }
 
-  async getProjectTimeline(projectId: string): Promise<ProjectTimelineEntry[]> {
-    const response = await this.request<ApiDataResponse<ProjectTimelineEntry[]>>(
-      `/api/v1/projects/${projectId}/timeline`,
+  async getWorkspaceTimeline(workspaceId: string): Promise<WorkspaceTimelineEntry[]> {
+    const response = await this.request<ApiDataResponse<WorkspaceTimelineEntry[]>>(
+      `/api/v1/workspaces/${workspaceId}/timeline`,
     );
     return response.data;
   }
 
   async createPlanningWorkflow(
-    projectId: string,
+    workspaceId: string,
     payload: { brief: string; name?: string },
   ): Promise<Workflow> {
     const response = await this.request<ApiDataResponse<Workflow>>(
-      `/api/v1/projects/${projectId}/planning-workflow`,
+      `/api/v1/workspaces/${workspaceId}/planning-workflow`,
       {
         method: 'POST',
         body: payload,
@@ -451,8 +451,8 @@ export class PlatformApiClient {
   async patchTaskMemory(
     taskId: string,
     payload: { key: string; value: unknown },
-  ): Promise<Project> {
-    const response = await this.request<ApiDataResponse<Project>>(
+  ): Promise<Workspace> {
+    const response = await this.request<ApiDataResponse<Workspace>>(
       `/api/v1/tasks/${taskId}/memory`,
       {
         method: 'PATCH',

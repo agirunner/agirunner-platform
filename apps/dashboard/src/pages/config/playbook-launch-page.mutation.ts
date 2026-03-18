@@ -22,7 +22,7 @@ interface UsePlaybookLaunchMutationInput {
   navigate: NavigateFunction;
   selectedPlaybookId: string;
   workflowName: string;
-  projectId: string;
+  workspaceId: string;
   launchDefinition: ReturnType<typeof readLaunchDefinition>;
   parameterDrafts: Record<string, string>;
   extraParameterDrafts: StructuredEntryDraft[];
@@ -48,7 +48,7 @@ export function usePlaybookLaunchMutation(input: UsePlaybookLaunchMutationInput)
       return dashboardApi.createWorkflow({
         playbook_id: input.selectedPlaybookId,
         name: input.workflowName.trim(),
-        project_id: input.projectId || undefined,
+        workspace_id: input.workspaceId || undefined,
         parameters,
         metadata,
         config_overrides: buildWorkflowConfigOverrides({

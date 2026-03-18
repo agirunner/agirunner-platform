@@ -294,7 +294,7 @@ function WorkflowScopeField(props: {
         value={props.value}
         onChange={props.onChange}
         placeholder="Select workflow"
-        searchPlaceholder="Search workflows by name, state, project, or playbook"
+        searchPlaceholder="Search workflows by name, state, workspace, or playbook"
         allGroupLabel="Workflow scopes"
         isLoading={props.isLoading}
         disabled={props.isLoading || props.hasError || isEmpty}

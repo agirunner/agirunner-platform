@@ -340,7 +340,7 @@ export function PlaybookListPage(): JSX.Element {
                 </div>
                 <div>
                   <div className="font-medium text-foreground">Inputs</div>
-                  Launch parameters and project-linked workflow inputs.
+                  Launch parameters and workspace-linked workflow inputs.
                 </div>
                 <div>
                   <div className="font-medium text-foreground">Advanced</div>

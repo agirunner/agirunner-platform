@@ -85,7 +85,7 @@ describe('artifact preview page support', () => {
     });
   });
 
-  it('prefers explicit project and content return paths when provided', () => {
+  it('prefers explicit workspace and content return paths when provided', () => {
     expect(
       buildArtifactPreviewOperatorNavigation({
         taskId: 'task-1',
@@ -94,19 +94,19 @@ describe('artifact preview page support', () => {
           work_item_id: 'work-item-1',
         },
         returnContext: {
-          returnTo: '/projects/project-1/artifacts?workflow_id=workflow-1',
-          returnSource: 'project-artifacts',
+          returnTo: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
+          returnSource: 'workspace-artifacts',
         },
       }),
     ).toEqual({
-      primaryHref: '/projects/project-1/artifacts?workflow_id=workflow-1',
-      primaryLabel: 'Back to project artifacts',
+      primaryHref: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
+      primaryLabel: 'Back to workspace artifacts',
       primaryHelper:
-        'Return to the project artifact explorer so the selected workflow scope, filters, and artifact packet stay intact.',
+        'Return to the workspace artifact explorer so the selected workflow scope, filters, and artifact packet stay intact.',
       diagnosticHref: '/work/tasks/task-1',
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
-        'This preview was opened from the project artifact explorer, so return there first to keep project-level browsing, provenance checks, and adjacent artifact review intact.',
+        'This preview was opened from the workspace artifact explorer, so return there first to keep workspace-level browsing, provenance checks, and adjacent artifact review intact.',
     });
 
     expect(
@@ -114,19 +114,19 @@ describe('artifact preview page support', () => {
         taskId: 'task-1',
         task: null,
         returnContext: {
-          returnTo: '/projects/project-1/content?tab=artifacts&workflow=workflow-1',
-          returnSource: 'project-content',
+          returnTo: '/workspaces/workspace-1/content?tab=artifacts&workflow=workflow-1',
+          returnSource: 'workspace-content',
         },
       }),
     ).toEqual({
-      primaryHref: '/projects/project-1/content?tab=artifacts&workflow=workflow-1',
-      primaryLabel: 'Back to project content',
+      primaryHref: '/workspaces/workspace-1/content?tab=artifacts&workflow=workflow-1',
+      primaryLabel: 'Back to workspace content',
       primaryHelper:
-        'Return to the project content surface so artifact review stays attached to the current workflow and task packet.',
+        'Return to the workspace content surface so artifact review stays attached to the current workflow and task packet.',
       diagnosticHref: '/work/tasks/task-1',
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
-        'This preview was opened from the project content surface, so return there first to continue document and artifact management in one place.',
+        'This preview was opened from the workspace content surface, so return there first to continue document and artifact management in one place.',
     });
   });
 

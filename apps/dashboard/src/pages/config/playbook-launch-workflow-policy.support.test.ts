@@ -42,7 +42,7 @@ describe('playbook launch workflow policy support', () => {
           },
         },
         default_instruction_config: {
-          suppress_layers: ['project', 'task'],
+          suppress_layers: ['workspace', 'task'],
         },
       },
     });
@@ -69,7 +69,7 @@ describe('playbook launch workflow policy support', () => {
         defaultValue: 'duckduckgo',
       },
     ]);
-    expect(definition.defaultSuppressedLayers).toEqual(['project', 'task']);
+    expect(definition.defaultSuppressedLayers).toEqual(['workspace', 'task']);
   });
 
   it('builds nested config overrides from structured fields and dotted-path entries', () => {
@@ -192,14 +192,14 @@ describe('playbook launch workflow policy support', () => {
   it('tracks custom instruction suppression and omits payloads when the selection matches defaults', () => {
     expect(
       buildInstructionConfig({
-        suppressedLayers: ['project', 'task'],
-        defaultSuppressedLayers: ['project', 'task'],
+        suppressedLayers: ['workspace', 'task'],
+        defaultSuppressedLayers: ['workspace', 'task'],
       }),
     ).toBeUndefined();
     expect(
       buildInstructionConfig({
         suppressedLayers: ['platform', 'task'],
-        defaultSuppressedLayers: ['project', 'task'],
+        defaultSuppressedLayers: ['workspace', 'task'],
       }),
     ).toEqual({
       suppress_layers: ['platform', 'task'],
@@ -207,10 +207,10 @@ describe('playbook launch workflow policy support', () => {
     expect(
       summarizeInstructionLayerSelection({
         suppressedLayers: ['platform', 'task'],
-        defaultSuppressedLayers: ['project', 'task'],
+        defaultSuppressedLayers: ['workspace', 'task'],
       }),
     ).toBe('Workflow launch will suppress platform, task.');
-    expect(haveSameInstructionLayers(['project', 'task'], ['project', 'task'])).toBe(true);
+    expect(haveSameInstructionLayers(['workspace', 'task'], ['workspace', 'task'])).toBe(true);
   });
 
   it('counts configured overrides and toggles instruction layers with stable ordering', () => {

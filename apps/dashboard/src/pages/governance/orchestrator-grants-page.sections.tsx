@@ -186,7 +186,7 @@ export function GrantsFilterBar(props: {
       <CardContent className="grid gap-4 md:grid-cols-2">
         <FilterField
           label="Workflow scope"
-          description="Search by workflow name, state, project, or playbook."
+          description="Search by workflow name, state, workspace, or playbook."
           isLoading={props.workflowsLoading}
           hasError={props.workflowsError}
           isEmpty={props.workflowItems.length === 0}
@@ -197,7 +197,7 @@ export function GrantsFilterBar(props: {
             value={props.filters.workflowId}
             onChange={props.onWorkflowChange}
             placeholder="All workflows"
-            searchPlaceholder="Search workflows by name, state, project, or playbook"
+            searchPlaceholder="Search workflows by name, state, workspace, or playbook"
             allGroupLabel="Workflow scopes"
             isLoading={props.workflowsLoading}
             disabled={props.workflowsLoading || props.workflowsError || props.workflowItems.length === 0}

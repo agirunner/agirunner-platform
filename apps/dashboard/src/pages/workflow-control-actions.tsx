@@ -20,7 +20,7 @@ import { getWorkflowControlAvailability } from './workflow-control-actions.suppo
 interface WorkflowControlActionsProps {
   workflowId: string;
   workflowState?: string | null;
-  projectId?: string | null;
+  workspaceId?: string | null;
   size?: ButtonProps['size'];
   className?: string;
 }
@@ -28,10 +28,10 @@ interface WorkflowControlActionsProps {
 async function invalidateWorkflowControlQueries(
   queryClient: ReturnType<typeof useQueryClient>,
   workflowId: string,
-  projectId?: string | null,
+  workspaceId?: string | null,
 ) {
   await Promise.all([
-    invalidateWorkflowQueries(queryClient, workflowId, projectId ?? undefined),
+    invalidateWorkflowQueries(queryClient, workflowId, workspaceId ?? undefined),
     queryClient.invalidateQueries({ queryKey: ['workflows'] }),
     queryClient.invalidateQueries({ queryKey: ['tasks'] }),
     queryClient.invalidateQueries({ queryKey: ['approval-queue'] }),
@@ -54,7 +54,7 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
   const pauseMutation = useMutation({
     mutationFn: () => dashboardApi.pauseWorkflow(props.workflowId),
     onSuccess: async () => {
-      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.projectId);
+      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.workspaceId);
       toast.success('Workflow paused');
     },
     onError: (error) => {
@@ -64,7 +64,7 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
   const resumeMutation = useMutation({
     mutationFn: () => dashboardApi.resumeWorkflow(props.workflowId),
     onSuccess: async () => {
-      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.projectId);
+      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.workspaceId);
       toast.success('Workflow resumed');
     },
     onError: (error) => {
@@ -75,7 +75,7 @@ export function WorkflowControlActions(props: WorkflowControlActionsProps): JSX.
     mutationFn: () => dashboardApi.cancelWorkflow(props.workflowId),
     onSuccess: async () => {
       setIsCancelDialogOpen(false);
-      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.projectId);
+      await invalidateWorkflowControlQueries(queryClient, props.workflowId, props.workspaceId);
       toast.success('Workflow cancellation requested');
     },
     onError: (error) => {

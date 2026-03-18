@@ -144,10 +144,10 @@ function TraceContextSection({ entry }: { entry: LogEntry }): JSX.Element {
         <DetailRow label="Duration">
           <span className="font-mono text-xs">{formatDuration(entry.duration_ms)}</span>
         </DetailRow>
-        {(entry.project_name || entry.project_id) && (
-          <DetailRow label="Project">
-            {entry.project_name ?? (
-              <span className="font-mono text-xs text-muted-foreground/60">{entry.project_id}</span>
+        {(entry.workspace_name || entry.workspace_id) && (
+          <DetailRow label="Workspace">
+            {entry.workspace_name ?? (
+              <span className="font-mono text-xs text-muted-foreground/60">{entry.workspace_id}</span>
             )}
           </DetailRow>
         )}

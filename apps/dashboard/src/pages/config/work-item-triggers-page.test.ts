@@ -26,7 +26,7 @@ describe('trigger overview page source', () => {
     const source = readSource();
     expect(source).toContain('space-y-4 lg:hidden');
     expect(source).toContain('hidden overflow-x-auto lg:block');
-    expect(source).toContain('Review cadence, next-run posture, and the owning project');
+    expect(source).toContain('Review cadence, next-run posture, and the owning workspace');
     expect(source).toContain('Manage inbound webhook trigger rules');
     expect(source).toContain('Operator focus');
   });

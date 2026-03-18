@@ -36,7 +36,7 @@ export function PlaybookLaunchPage(): JSX.Element {
   const params = useParams<{ id: string }>();
   const [selectedPlaybookId, setSelectedPlaybookId] = useState(params.id ?? '');
   const [workflowName, setWorkflowName] = useState('');
-  const [projectId, setProjectId] = useState('');
+  const [workspaceId, setWorkspaceId] = useState('');
   const [parameterDrafts, setParameterDrafts] = useState<Record<string, string>>({});
   const [extraParameterDrafts, setExtraParameterDrafts] = useState<StructuredEntryDraft[]>([]);
   const [metadataDrafts, setMetadataDrafts] = useState<StructuredEntryDraft[]>([]);
@@ -57,9 +57,9 @@ export function PlaybookLaunchPage(): JSX.Element {
     queryKey: ['playbooks'],
     queryFn: () => dashboardApi.listPlaybooks(),
   });
-  const projectsQuery = useQuery({
-    queryKey: ['projects'],
-    queryFn: () => dashboardApi.listProjects(),
+  const workspacesQuery = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: () => dashboardApi.listWorkspaces(),
   });
   const llmProvidersQuery = useQuery({
     queryKey: ['llm-providers'],
@@ -152,31 +152,31 @@ export function PlaybookLaunchPage(): JSX.Element {
     roleOverrideValidation.blockingIssues[0] ?? workflowOverrides.error;
   const workflowConfigBlockingError =
     workflowConfigValidation.blockingIssues[0] ?? extraWorkflowConfigValidation.blockingIssues[0];
-  const projectResolvedModelsQuery = useQuery({
-    queryKey: ['project-models', projectId],
-    queryFn: () => dashboardApi.getResolvedProjectModels(projectId),
-    enabled: projectId.length > 0,
+  const workspaceResolvedModelsQuery = useQuery({
+    queryKey: ['workspace-models', workspaceId],
+    queryFn: () => dashboardApi.getResolvedWorkspaceModels(workspaceId),
+    enabled: workspaceId.length > 0,
   });
   const previewQuery = useQuery({
     queryKey: [
       'workflow-model-preview',
-      projectId,
+      workspaceId,
       JSON.stringify(workflowOverrides.value ?? {}),
-      JSON.stringify(projectResolvedModelsQuery.data?.project_model_overrides ?? {}),
+      JSON.stringify(workspaceResolvedModelsQuery.data?.workspace_model_overrides ?? {}),
     ],
     queryFn: () =>
       dashboardApi.previewEffectiveModels({
         roles: launchDefinition.roles,
-        project_model_overrides: projectResolvedModelsQuery.data?.project_model_overrides ?? {},
+        workspace_model_overrides: workspaceResolvedModelsQuery.data?.workspace_model_overrides ?? {},
         workflow_model_overrides: workflowOverrides.value ?? {},
       }),
     enabled:
       selectedPlaybookId.length > 0 &&
       !workflowOverrideBlockingError &&
-      (Object.keys(workflowOverrides.value ?? {}).length > 0 || projectId.length > 0),
+      (Object.keys(workflowOverrides.value ?? {}).length > 0 || workspaceId.length > 0),
   });
-  const projects = projectsQuery.data?.data ?? [];
-  const selectedProject = projects.find((project) => project.id === projectId) ?? null;
+  const workspaces = workspacesQuery.data?.data ?? [];
+  const selectedWorkspace = workspaces.find((workspace) => workspace.id === workspaceId) ?? null;
   const launchValidation = useMemo(
     () =>
       validateLaunchDraft({
@@ -215,10 +215,10 @@ export function PlaybookLaunchPage(): JSX.Element {
     paramsId: params.id,
     selectedPlaybookId,
     selectedPlaybook,
-    selectedProject,
+    selectedWorkspace,
     launchDefinition,
     workflowName,
-    projectId,
+    workspaceId,
     extraParameterDrafts,
     metadataDrafts,
     workflowConfigDrafts,
@@ -237,7 +237,7 @@ export function PlaybookLaunchPage(): JSX.Element {
     navigate,
     selectedPlaybookId,
     workflowName,
-    projectId,
+    workspaceId,
     launchDefinition,
     parameterDrafts,
     extraParameterDrafts,
@@ -262,10 +262,10 @@ export function PlaybookLaunchPage(): JSX.Element {
         isSelectedPlaybookArchived={isSelectedPlaybookArchived}
         launchablePlaybooks={launchablePlaybooks}
         workflowName={workflowName}
-        projectId={projectId}
-        projects={projects}
+        workspaceId={workspaceId}
+        workspaces={workspaces}
         selectedPlaybook={selectedPlaybook}
-        selectedProject={selectedProject}
+        selectedWorkspace={selectedWorkspace}
         launchValidation={launchValidation}
         launchDefinition={launchDefinition}
         parameterDrafts={parameterDrafts}
@@ -292,11 +292,11 @@ export function PlaybookLaunchPage(): JSX.Element {
         workflowOverrides={workflowOverrides.value ?? {}}
         workflowConfigBlockingError={workflowConfigBlockingError}
         workflowOverrideBlockingError={workflowOverrideBlockingError}
-        projectResolvedModels={projectResolvedModelsQuery.data}
+        workspaceResolvedModels={workspaceResolvedModelsQuery.data}
         previewData={previewQuery.data}
         previewError={previewQuery.error}
         previewLoading={previewQuery.isLoading}
-        isLoadingSummary={playbooksQuery.isLoading || projectsQuery.isLoading}
+        isLoadingSummary={playbooksQuery.isLoading || workspacesQuery.isLoading}
         error={error}
         canLaunch={canLaunch}
         isLaunching={launchMutation.isPending}
@@ -308,7 +308,7 @@ export function PlaybookLaunchPage(): JSX.Element {
           setWorkflowName(name);
           setError(null);
         }}
-        onProjectChange={setProjectId}
+        onWorkspaceChange={setWorkspaceId}
         onParameterChange={(key, value) => {
           setError(null);
           setParameterDrafts((current) => ({ ...current, [key]: value }));

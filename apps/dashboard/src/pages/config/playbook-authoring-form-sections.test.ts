@@ -35,11 +35,11 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Playbooks use active role definitions from the shared role catalog.');
     expect(source).toContain('Before completion');
     expect(source).toContain('the next specialist always receives the right predecessor context');
-    expect(source).toContain('project.repository_url');
-    expect(source).toContain('project.settings.default_branch');
-    expect(source).toContain('project.credentials.git_token');
+    expect(source).toContain('workspace.repository_url');
+    expect(source).toContain('workspace.settings.default_branch');
+    expect(source).toContain('workspace.credentials.git_token');
     expect(source).toContain('Help text');
-    expect(source).toContain('Project mapping');
+    expect(source).toContain('Workspace mapping');
     expect(source).toContain('Category');
     expect(source).toContain('Operator label');
     expect(source).toContain('Description');

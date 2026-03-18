@@ -73,18 +73,18 @@ describe('sdk full client coverage', () => {
         const [, options] = vi.mocked(fetcher).mock.calls[0];
         expect((options?.headers).Authorization).toBe('Bearer new-token');
     });
-    it('covers project, workflow, document, and artifact parity methods through sdk wrappers', async () => {
+    it('covers workspace, workflow, document, and artifact parity methods through sdk wrappers', async () => {
         const fetcher = vi
             .fn()
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'project-1' }] }), { status: 200 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'project-1', memory: {} } }), { status: 200 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'project-1', memory: { last_run_summary: {} } } }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ id: 'workspace-1' }] }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'workspace-1', memory: {} } }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'workspace-1', memory: { last_run_summary: {} } } }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: [{ workflow_id: 'pipe-1', kind: 'run_summary' }] }), {
             status: 200,
         }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { workflow_id: 'pipe-1', resolved_config: { retries: 2 } } }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({
-            data: [{ logical_name: 'brief', scope: 'project', source: 'repository', metadata: {} }],
+            data: [{ logical_name: 'brief', scope: 'workspace', source: 'repository', metadata: {} }],
         }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({
             data: { logical_name: 'brief', scope: 'workflow', source: 'external', metadata: {} },
@@ -102,13 +102,13 @@ describe('sdk full client coverage', () => {
             accessToken: 'token',
             fetcher,
         });
-        const projects = await client.listProjects();
-        const project = await client.getProject('project-1');
-        const patched = await client.patchProjectMemory('project-1', {
+        const workspaces = await client.listWorkspaces();
+        const workspace = await client.getWorkspace('workspace-1');
+        const patched = await client.patchWorkspaceMemory('workspace-1', {
             key: 'last_run_summary',
             value: {},
         });
-        const timeline = await client.getProjectTimeline('project-1');
+        const timeline = await client.getWorkspaceTimeline('workspace-1');
         const config = await client.getResolvedWorkflowConfig('pipe-1', true);
         const documents = await client.listWorkflowDocuments('pipe-1');
         const createdDocument = await client.createWorkflowDocument('pipe-1', {
@@ -120,10 +120,10 @@ describe('sdk full client coverage', () => {
             title: 'Brief',
         });
         await client.deleteWorkflowDocument('pipe-1', 'brief');
-        const planning = await client.createPlanningWorkflow('project-1', { brief: 'Plan next run' });
+        const planning = await client.createPlanningWorkflow('workspace-1', { brief: 'Plan next run' });
         const artifacts = await client.listTaskArtifacts('task-1');
-        expect(projects.data[0].id).toBe('project-1');
-        expect(project.id).toBe('project-1');
+        expect(workspaces.data[0].id).toBe('workspace-1');
+        expect(workspace.id).toBe('workspace-1');
         expect(patched.memory).toEqual({ last_run_summary: {} });
         expect(timeline[0].workflow_id).toBe('pipe-1');
         expect(config.resolved_config).toEqual({ retries: 2 });
@@ -339,7 +339,7 @@ describe('sdk full client coverage', () => {
             },
         }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({ data: { memory: { architecture: 'v2' } } }), { status: 200 }))
-            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'project-1', memory: { architecture: 'v2' } } }), { status: 200 }))
+            .mockResolvedValueOnce(new Response(JSON.stringify({ data: { id: 'workspace-1', memory: { architecture: 'v2' } } }), { status: 200 }))
             .mockResolvedValueOnce(new Response(JSON.stringify({
             data: [
                 {

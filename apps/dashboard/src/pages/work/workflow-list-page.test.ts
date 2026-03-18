@@ -23,7 +23,7 @@ describe('workflow board page source', () => {
     expect(source).toContain('attentionCount={collectionSummary.gated + collectionSummary.blocked}');
     expect(source).toContain('spentBoards={collectionSummary.spentBoards}');
     expect(source).toContain('All Postures');
-    expect(source).toContain('Search runs, stages, gates, or projects...');
+    expect(source).toContain('Search runs, stages, gates, or workspaces...');
     expect(source).toContain('Failed to load workflow boards. Please try again later.');
     expect(source).toContain('No runs match the current filters.');
     expect(source).toContain('Clear the filters or launch a new playbook run');
@@ -56,7 +56,7 @@ describe('workflow board page source', () => {
     expect(source).toContain('WorkflowControlActions');
     expect(source).toContain('TableHead className="text-right">Controls</TableHead>');
     expect(source).toContain('workflowState={workflow.state ?? workflow.status}');
-    expect(source).toContain('projectId={workflow.project_id}');
+    expect(source).toContain('workspaceId={workflow.workspace_id}');
     expect(source).toContain('Open board');
   });
 });

@@ -73,7 +73,7 @@ export function WorkflowListPage(): JSX.Element {
     if (!normalizedSearch) {
       return true;
     }
-    return `${workflow.name} ${workflow.project_name ?? ''} ${stageSummary} ${workflow.work_item_summary?.active_stage_names?.join(' ') ?? ''} ${describeGateSummary(workflow)}`
+    return `${workflow.name} ${workflow.workspace_name ?? ''} ${stageSummary} ${workflow.work_item_summary?.active_stage_names?.join(' ') ?? ''} ${describeGateSummary(workflow)}`
       .toLowerCase()
       .includes(normalizedSearch);
   });
@@ -222,7 +222,7 @@ function WorkflowFilterCard(props: {
           <div className="relative min-w-0">
             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted" />
             <Input
-              placeholder="Search runs, stages, gates, or projects..."
+              placeholder="Search runs, stages, gates, or workspaces..."
               className="pl-9"
               value={props.searchQuery}
               onChange={(event) => props.onSearchQueryChange(event.target.value)}

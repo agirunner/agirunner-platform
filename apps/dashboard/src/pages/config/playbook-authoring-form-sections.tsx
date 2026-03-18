@@ -60,11 +60,11 @@ const PARAMETER_CATEGORY_OPTIONS = [
   { value: 'credential', label: 'Credential' },
 ] as const;
 
-const PROJECT_MAPPING_OPTIONS = [
+const WORKSPACE_MAPPING_OPTIONS = [
   '',
-  'project.repository_url',
-  'project.settings.default_branch',
-  'project.credentials.git_token',
+  'workspace.repository_url',
+  'workspace.settings.default_branch',
+  'workspace.credentials.git_token',
 ];
 
 export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
@@ -1068,7 +1068,7 @@ function ParameterFields(props: {
       <LabeledField label="Operator label">
         <Input value={props.parameter.label} onChange={(event) => props.onChange('label', event.target.value)} />
       </LabeledField>
-      <LabeledField label="Project mapping">
+      <LabeledField label="Workspace mapping">
         <Select
           value={props.parameter.maps_to || ENTRY_COLUMN_UNSET}
           onValueChange={(value) => {
@@ -1078,11 +1078,11 @@ function ParameterFields(props: {
           }}
         >
           <SelectTrigger>
-            <SelectValue placeholder="Optional project mapping" />
+            <SelectValue placeholder="Optional workspace mapping" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value={ENTRY_COLUMN_UNSET}>No project mapping</SelectItem>
-            {PROJECT_MAPPING_OPTIONS.filter(Boolean).map((option) => (
+            <SelectItem value={ENTRY_COLUMN_UNSET}>No workspace mapping</SelectItem>
+            {WORKSPACE_MAPPING_OPTIONS.filter(Boolean).map((option) => (
               <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>

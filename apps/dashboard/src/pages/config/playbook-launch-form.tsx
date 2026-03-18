@@ -5,8 +5,8 @@ import type {
   DashboardLlmModelRecord,
   DashboardLlmProviderRecord,
   DashboardPlaybookRecord,
-  DashboardProjectRecord,
-  DashboardProjectResolvedModelsResponse,
+  DashboardWorkspaceRecord,
+  DashboardWorkspaceResolvedModelsResponse,
   DashboardRoleModelOverride,
 } from '../../lib/api.js';
 import type {
@@ -46,10 +46,10 @@ export function PlaybookLaunchForm(props: {
   isSelectedPlaybookArchived: boolean;
   launchablePlaybooks: DashboardPlaybookRecord[];
   workflowName: string;
-  projectId: string;
-  projects: DashboardProjectRecord[];
+  workspaceId: string;
+  workspaces: DashboardWorkspaceRecord[];
   selectedPlaybook: DashboardPlaybookRecord | null;
-  selectedProject: DashboardProjectRecord | null;
+  selectedWorkspace: DashboardWorkspaceRecord | null;
   launchValidation: LaunchValidationResult;
   launchDefinition: LaunchDefinitionSummary;
   parameterDrafts: Record<string, string>;
@@ -76,10 +76,10 @@ export function PlaybookLaunchForm(props: {
   workflowOverrides: Record<string, DashboardRoleModelOverride>;
   workflowConfigBlockingError?: string;
   workflowOverrideBlockingError?: string;
-  projectResolvedModels?: DashboardProjectResolvedModelsResponse;
+  workspaceResolvedModels?: DashboardWorkspaceResolvedModelsResponse;
   previewData?: {
     roles: string[];
-    project_model_overrides: Record<string, DashboardRoleModelOverride>;
+    workspace_model_overrides: Record<string, DashboardRoleModelOverride>;
     workflow_model_overrides: Record<string, DashboardRoleModelOverride>;
     effective_models: Record<string, DashboardEffectiveModelResolution>;
   };
@@ -91,7 +91,7 @@ export function PlaybookLaunchForm(props: {
   isLaunching: boolean;
   onPlaybookChange(id: string): void;
   onWorkflowNameChange(name: string): void;
-  onProjectChange(id: string): void;
+  onWorkspaceChange(id: string): void;
   onParameterChange(key: string, value: string): void;
   onExtraParameterDraftsChange(drafts: StructuredEntryDraft[]): void;
   onMetadataDraftsChange(drafts: StructuredEntryDraft[]): void;
@@ -139,7 +139,7 @@ export function PlaybookLaunchForm(props: {
             <div className="space-y-1">
               <CardTitle>Process-First Launch</CardTitle>
               <p className="text-sm text-muted">
-                Start with the playbook process, add project context when it can autofill inputs,
+                Start with the playbook process, add workspace context when it can autofill inputs,
                 then open advanced launch policy only when this run needs extra control.
               </p>
             </div>
@@ -150,12 +150,12 @@ export function PlaybookLaunchForm(props: {
               isSelectedPlaybookArchived={props.isSelectedPlaybookArchived}
               launchablePlaybooks={props.launchablePlaybooks}
               workflowName={props.workflowName}
-              projectId={props.projectId}
-              projects={props.projects}
+              workspaceId={props.workspaceId}
+              workspaces={props.workspaces}
               launchValidation={props.launchValidation}
               onPlaybookChange={props.onPlaybookChange}
               onWorkflowNameChange={props.onWorkflowNameChange}
-              onProjectChange={props.onProjectChange}
+              onWorkspaceChange={props.onWorkspaceChange}
             />
 
             <StructuredSection
@@ -172,7 +172,7 @@ export function PlaybookLaunchForm(props: {
             <StructuredSection
               id="launch-inputs"
               title="Launch Inputs"
-              description="Resolution order is playbook default, then project autofill, then any launch override you enter here."
+              description="Resolution order is playbook default, then workspace autofill, then any launch override you enter here."
             >
               <ResolutionOrderPanel />
 
@@ -182,7 +182,7 @@ export function PlaybookLaunchForm(props: {
                     <ParameterField
                       key={spec.key}
                       spec={spec}
-                      project={props.selectedProject}
+                      workspace={props.selectedWorkspace}
                       value={props.parameterDrafts[spec.key] ?? ''}
                       onChange={(value) => props.onParameterChange(spec.key, value)}
                     />
@@ -339,9 +339,9 @@ export function PlaybookLaunchForm(props: {
           />
           <PlaybookSummaryCard
             playbook={props.selectedPlaybook}
-            projects={props.projects}
-            selectedProjectId={props.projectId}
-            projectResolvedModels={props.projectResolvedModels}
+            workspaces={props.workspaces}
+            selectedWorkspaceId={props.workspaceId}
+            workspaceResolvedModels={props.workspaceResolvedModels}
             previewData={props.previewData}
             previewError={props.previewError}
             previewLoading={props.previewLoading}
@@ -353,7 +353,7 @@ export function PlaybookLaunchForm(props: {
           />
           <LaunchReadinessPanel
             selectedPlaybook={props.selectedPlaybook}
-            selectedProject={props.selectedProject}
+            selectedWorkspace={props.selectedWorkspace}
             workflowName={props.workflowName}
             hasStructuredParameters={
               props.launchDefinition.parameterSpecs.length > 0 || hasAdditionalParameters

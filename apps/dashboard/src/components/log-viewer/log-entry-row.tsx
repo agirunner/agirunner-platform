@@ -382,10 +382,10 @@ function buildScopeItems(
   const scopeItems: Array<{ value: string; title: string; tone: string }> = [];
   const stageName = getCanonicalStageName(entry);
 
-  if (entry.project_name || entry.project_id) {
+  if (entry.workspace_name || entry.workspace_id) {
     scopeItems.push({
-      value: entry.project_name ?? entry.project_id!.slice(0, 8),
-      title: entry.project_name ?? entry.project_id ?? '',
+      value: entry.workspace_name ?? entry.workspace_id!.slice(0, 8),
+      title: entry.workspace_name ?? entry.workspace_id ?? '',
       tone: 'bg-cyan-50 text-cyan-700',
     });
   }

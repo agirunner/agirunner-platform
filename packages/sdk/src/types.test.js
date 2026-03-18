@@ -56,7 +56,7 @@ describe('sdk shared state contracts', () => {
         const workflowBaseBlock = readInterfaceBlock(source, 'WorkflowBase');
         const workflowBlock = readExportBlock(source, 'Workflow');
         const relationBlock = readInterfaceBlock(source, 'WorkflowRelationRef');
-        const timelineBlock = readInterfaceBlock(source, 'ProjectTimelineEntry');
+        const timelineBlock = readInterfaceBlock(source, 'WorkspaceTimelineEntry');
         expect(source).toContain('export type WorkflowState =');
         expect(workflowBaseBlock).toContain('state: WorkflowState;');
         expect(workflowBlock).toContain("lifecycle: 'ongoing';");

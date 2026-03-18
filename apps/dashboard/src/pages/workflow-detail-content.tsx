@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 
 import {
   dashboardApi,
-  type DashboardProjectRecord,
+  type DashboardWorkspaceRecord,
   type DashboardResolvedDocumentReference,
 } from '../lib/api.js';
 import { buildArtifactPermalink } from '../components/artifact-preview-support.js';
@@ -29,12 +29,12 @@ import {
 } from '../components/ui/select.js';
 import { Textarea } from '../components/ui/textarea.js';
 import type {
-  DashboardProjectMemoryEntry,
+  DashboardWorkspaceMemoryEntry,
   DashboardWorkflowTaskRow,
 } from './workflow-detail-support.js';
 import {
   describeDocumentReference,
-  describeProjectMemoryEntry,
+  describeWorkspaceMemoryEntry,
 } from './workflow-detail-content-support.js';
 import {
   readPacketNestedKeys,
@@ -49,7 +49,7 @@ import {
 import {
   buildStructuredObject,
   type StructuredEntryDraft,
-} from './projects/project-detail-support.js';
+} from './workspaces/workspace-detail-support.js';
 import {
   buildMetadataRecord,
   createMetadataDraft,
@@ -57,7 +57,7 @@ import {
   type MetadataDraft,
   type MetadataValueType,
   updateMetadataDraft,
-} from './projects/content-browser-metadata-support.js';
+} from './workspaces/content-browser-metadata-support.js';
 import {
   buildWorkflowDocumentCreatePayload,
   buildWorkflowDocumentUpdatePayload,
@@ -437,7 +437,7 @@ export function WorkflowDocumentsCard(props: {
                 disabled={documentMode === 'edit'}
                 onBlur={() => markFieldTouched('logicalName')}
                 onChange={(event) => updateDocumentDraft({ logicalName: event.target.value })}
-                placeholder="e.g. project_brief"
+                placeholder="e.g. workspace_brief"
               />
               <FieldMessage message={showFieldError('logicalName')} />
             </label>
@@ -725,9 +725,9 @@ export function WorkflowDocumentsCard(props: {
   );
 }
 
-export function ProjectMemoryCard(props: {
-  project?: DashboardProjectRecord;
-  entries: DashboardProjectMemoryEntry[];
+export function WorkspaceMemoryCard(props: {
+  workspace?: DashboardWorkspaceRecord;
+  entries: DashboardWorkspaceMemoryEntry[];
   isLoading: boolean;
   hasError: boolean;
   memoryKey: string;
@@ -741,23 +741,23 @@ export function ProjectMemoryCard(props: {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Project Memory</CardTitle>
+        <CardTitle>Workspace Memory</CardTitle>
         <CardDescription>
           Operator-visible shared memory for future runs and workers.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         <SurfaceMessage tone="default" show={props.isLoading}>
-          Loading project memory...
+          Loading workspace memory...
         </SurfaceMessage>
         <SurfaceMessage tone="destructive" show={props.hasError}>
-          Failed to load project memory.
+          Failed to load workspace memory.
         </SurfaceMessage>
-        {props.project ? (
+        {props.workspace ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <SummaryPanel
-              label="Project"
-              value={props.project.name}
+              label="Workspace"
+              value={props.workspace.name}
               detail="Shared memory propagates to future board runs and operators."
             />
             <SummaryPanel
@@ -769,13 +769,13 @@ export function ProjectMemoryCard(props: {
         ) : null}
         <div className="grid gap-3">
           {props.entries.map((entry) => (
-            <ProjectMemoryEntryCard key={entry.key} entry={entry} />
+            <WorkspaceMemoryEntryCard key={entry.key} entry={entry} />
           ))}
           {props.entries.length === 0 && !props.isLoading && !props.hasError ? (
             <ContentEmptyState
-              title="No project memory recorded yet"
+              title="No workspace memory recorded yet"
               badge="No shared handoff notes"
-              summary="Project memory is still empty for this workflow family."
+              summary="Workspace memory is still empty for this workflow family."
               detail="Write a structured memory entry below when you need future runs, child boards, or downstream operators to inherit shared context."
             />
           ) : null}
@@ -786,15 +786,15 @@ export function ProjectMemoryCard(props: {
               Memory compose
             </div>
             <div className="text-sm leading-6 text-muted">
-              Add a structured project note for future runs, downstream child boards, and operator handoff.
+              Add a structured workspace note for future runs, downstream child boards, and operator handoff.
             </div>
           </div>
           <div className="grid gap-1.5">
-            <label htmlFor="project-memory-key" className="text-sm font-medium text-foreground">
+            <label htmlFor="workspace-memory-key" className="text-sm font-medium text-foreground">
               Memory key
             </label>
             <Input
-              id="project-memory-key"
+              id="workspace-memory-key"
               value={props.memoryKey}
               onChange={(event) => props.onMemoryKeyChange(event.target.value)}
             />
@@ -829,11 +829,11 @@ export function ProjectMemoryCard(props: {
   );
 }
 
-function ProjectMemoryEntryCard(props: {
-  entry: DashboardProjectMemoryEntry;
+function WorkspaceMemoryEntryCard(props: {
+  entry: DashboardWorkspaceMemoryEntry;
 }): JSX.Element {
   const [isExpanded, setIsExpanded] = useState(false);
-  const packet = describeProjectMemoryEntry(props.entry.value);
+  const packet = describeWorkspaceMemoryEntry(props.entry.value);
   const scalarFacts = readPacketScalarFacts(props.entry.value, 4);
   const nestedKeys = readPacketNestedKeys(props.entry.value, 4);
 
@@ -1290,7 +1290,7 @@ function parseMemoryDrafts(
   drafts: StructuredEntryDraft[],
 ): { value: Record<string, unknown> | null; error: string | null } {
   try {
-    return { value: buildStructuredObject(drafts, 'Project memory') ?? {}, error: null };
+    return { value: buildStructuredObject(drafts, 'Workspace memory') ?? {}, error: null };
   } catch (error) {
     return {
       value: null,

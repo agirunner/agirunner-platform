@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { applyLogScope } from './log-scope.js';
 
 describe('applyLogScope', () => {
-  it('overlaysWorkflowTaskAndProjectScope', () => {
+  it('overlaysWorkflowTaskAndWorkspaceScope', () => {
     expect(
       applyLogScope(
         {
@@ -11,7 +11,7 @@ describe('applyLogScope', () => {
           workflow_id: 'wf-old',
         },
         {
-          projectId: 'project-1',
+          workspaceId: 'workspace-1',
           workflowId: 'workflow-1',
           taskId: 'task-1',
           workItemId: 'work-item-1',
@@ -20,7 +20,7 @@ describe('applyLogScope', () => {
       ),
     ).toEqual({
       category: 'tool',
-      project_id: 'project-1',
+      workspace_id: 'workspace-1',
       workflow_id: 'workflow-1',
       task_id: 'task-1',
       work_item_id: 'work-item-1',

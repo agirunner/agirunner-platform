@@ -127,7 +127,7 @@ describe('live board page source', () => {
     const source = readSource();
     expect(source).toContain('WorkflowControlActions');
     expect(source).toContain('workflowState={workflow.state ?? workflow.status}');
-    expect(source).toContain('projectId={workflow.project_id}');
+    expect(source).toContain('workspaceId={workflow.workspace_id}');
     expect(source).toContain('Most active work');
     expect(source).toContain('Open board');
   });

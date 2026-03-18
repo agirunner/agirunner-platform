@@ -89,7 +89,7 @@ describe('workflow detail document support', () => {
     expect(
       buildWorkflowDocumentCreatePayload(
         {
-          logicalName: 'project_brief',
+          logicalName: 'workspace_brief',
           source: 'artifact',
           title: 'Brief',
           description: 'Operator handoff',
@@ -103,7 +103,7 @@ describe('workflow detail document support', () => {
         { owner: 'ops' },
       ),
     ).toEqual({
-      logical_name: 'project_brief',
+      logical_name: 'workspace_brief',
       source: 'artifact',
       title: 'Brief',
       description: 'Operator handoff',
@@ -116,7 +116,7 @@ describe('workflow detail document support', () => {
     expect(
       buildWorkflowDocumentUpdatePayload(
         {
-          logicalName: 'project_brief',
+          logicalName: 'workspace_brief',
           source: 'external',
           title: '',
           description: 'Published brief',

@@ -23,10 +23,10 @@ describe('work item triggers page support', () => {
         [
           {
             id: 'scheduled-1',
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             workflow_id: 'workflow-1',
             name: 'Daily triage',
-            source: 'project.schedule',
+            source: 'workspace.schedule',
             schedule_type: 'interval',
             cadence_minutes: 60,
             daily_time: null,
@@ -42,7 +42,7 @@ describe('work item triggers page support', () => {
         [
           {
             id: 'webhook-1',
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             workflow_id: 'workflow-1',
             name: 'GitHub push',
             source: 'github.webhook',
@@ -58,7 +58,7 @@ describe('work item triggers page support', () => {
       {
         label: 'Automation coverage',
         value: '1 rules',
-        detail: '1 active recurring rule across project automation',
+        detail: '1 active recurring rule across workspace automation',
       },
       {
         label: 'Recovery pressure',
@@ -77,10 +77,10 @@ describe('work item triggers page support', () => {
     expect(
       describeScheduledTriggerPacket({
         id: 'scheduled-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         workflow_id: 'workflow-1',
         name: 'Daily triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         schedule_type: 'interval',
         cadence_minutes: 90,
         daily_time: null,
@@ -94,13 +94,13 @@ describe('work item triggers page support', () => {
       }),
     ).toMatchObject({
       cadence: 'Every 1 hr 30 min',
-      source: 'project.schedule',
-      nextAction: 'Monitor the next run and adjust cadence or defaults from project automation if the work changed.',
+      source: 'workspace.schedule',
+      nextAction: 'Monitor the next run and adjust cadence or defaults from workspace automation if the work changed.',
     });
     expect(
       describeWebhookTriggerPacket({
         id: 'webhook-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         workflow_id: 'workflow-1',
         name: 'GitHub push',
         source: 'github.webhook',
@@ -122,10 +122,10 @@ describe('work item triggers page support', () => {
     expect(
       describeScheduledTriggerHealth({
         id: 'scheduled-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         workflow_id: 'workflow-1',
         name: 'Daily triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         schedule_type: 'interval',
         cadence_minutes: 60,
         daily_time: null,
@@ -146,10 +146,10 @@ describe('work item triggers page support', () => {
         [
           {
             id: 'scheduled-1',
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             workflow_id: 'workflow-1',
             name: 'Daily triage',
-            source: 'project.schedule',
+            source: 'workspace.schedule',
             schedule_type: 'interval',
             cadence_minutes: 60,
             daily_time: null,
@@ -167,16 +167,16 @@ describe('work item triggers page support', () => {
     ).toEqual({
       title: 'Recover overdue automation',
       value: '1 due now',
-      detail: 'Open the owning project automation settings and confirm the recurring work-item rule can fire immediately.',
+      detail: 'Open the owning workspace automation settings and confirm the recurring work-item rule can fire immediately.',
     });
 
     expect(
       describeScheduledTriggerNextAction({
         id: 'scheduled-2',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         workflow_id: 'workflow-1',
         name: 'Disabled triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         schedule_type: 'interval',
         cadence_minutes: 60,
         daily_time: null,
@@ -189,13 +189,13 @@ describe('work item triggers page support', () => {
         updated_at: '2026-03-01T00:00:00.000Z',
       }),
     ).toBe(
-      'Re-enable only after confirming cadence, board target, and default routing in project automation.',
+      'Re-enable only after confirming cadence, board target, and default routing in workspace automation.',
     );
 
     expect(
       describeWebhookTriggerActivity({
         id: 'webhook-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         workflow_id: 'workflow-1',
         name: 'GitHub push',
         source: 'github.webhook',
@@ -210,7 +210,7 @@ describe('work item triggers page support', () => {
     expect(
       describeWebhookTriggerNextAction({
         id: 'webhook-2',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         workflow_id: 'workflow-1',
         name: 'Paused push',
         source: 'github.webhook',
@@ -241,7 +241,7 @@ describe('work item triggers page support', () => {
       id: 'wh-1',
       name: 'GitHub PR',
       source: 'github.webhook',
-      project_id: 'proj-1',
+      workspace_id: 'proj-1',
       workflow_id: 'wf-1',
       event_header: 'x-github-event',
       event_types: ['pull_request', 'push'],
@@ -255,7 +255,7 @@ describe('work item triggers page support', () => {
       updated_at: '2026-03-01T00:00:00.000Z',
     });
     expect(form.name).toBe('GitHub PR');
-    expect(form.projectId).toBe('proj-1');
+    expect(form.workspaceId).toBe('proj-1');
     expect(form.eventTypes).toBe('pull_request, push');
     expect(form.secret).toBe('');
     expect(form.secretConfigured).toBe(true);
@@ -348,7 +348,7 @@ describe('work item triggers page support', () => {
       ...createWebhookTriggerFormState(),
       name: 'GitHub PR',
       source: 'github.webhook',
-      projectId: 'proj-1',
+      workspaceId: 'proj-1',
       workflowId: 'wf-1',
       eventHeader: 'x-github-event',
       eventTypes: 'push, pull_request',
@@ -361,7 +361,7 @@ describe('work item triggers page support', () => {
     };
     const payload = buildWebhookTriggerCreatePayload(form);
     expect(payload.name).toBe('GitHub PR');
-    expect(payload.project_id).toBe('proj-1');
+    expect(payload.workspace_id).toBe('proj-1');
     expect(payload.event_types).toEqual(['push', 'pull_request']);
     expect(payload.field_mappings).toEqual({ title: '$.title' });
     expect(payload.defaults).toEqual({ priority: 'medium' });
@@ -380,6 +380,6 @@ describe('work item triggers page support', () => {
     const payload = buildWebhookTriggerUpdatePayload(form);
     expect(payload.name).toBe('Updated');
     expect(payload).not.toHaveProperty('secret');
-    expect(payload.project_id).toBeNull();
+    expect(payload.workspace_id).toBeNull();
   });
 });

@@ -6,14 +6,14 @@ import {
 } from './workflow-inspector-support.js';
 
 describe('workflow inspector support', () => {
-  it('builds trace coverage metrics, links, and stage spend context from workflow and project records', () => {
+  it('builds trace coverage metrics, links, and stage spend context from workflow and workspace records', () => {
     const model = buildWorkflowInspectorTraceModel({
       workflow: {
         id: 'workflow-1',
         name: 'Release board',
         state: 'active',
         created_at: '2026-03-10T00:00:00Z',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         work_item_summary: {
           total_work_items: 5,
           open_work_item_count: 2,
@@ -80,13 +80,13 @@ describe('workflow inspector support', () => {
           },
         },
       },
-      project: {
-        id: 'project-1',
-        name: 'Release project',
-        slug: 'release-project',
+      workspace: {
+        id: 'workspace-1',
+        name: 'Release workspace',
+        slug: 'release-workspace',
         memory: {
           last_run_summary: {},
-          project_timeline: [],
+          workspace_timeline: [],
           release_risk: { level: 'medium' },
         },
       },
@@ -116,12 +116,12 @@ describe('workflow inspector support', () => {
       {
         label: 'Artifacts',
         value: '2',
-        detail: 'Run summary artifacts are ready for project-level preview and download.',
+        detail: 'Run summary artifacts are ready for workspace-level preview and download.',
       },
       {
         label: 'Memory handoff',
         value: '1 keys',
-        detail: 'Project memory includes operator-visible handoff keys alongside the run timeline packets.',
+        detail: 'Workspace memory includes operator-visible handoff keys alongside the run timeline packets.',
       },
     ]);
     expect(model.topStageSpend).toBe(
@@ -152,13 +152,13 @@ describe('workflow inspector support', () => {
         detail: 'review is carrying the current gate posture for this workflow.',
       },
       {
-        label: 'Project memory',
-        href: '/projects/project-1/memory',
+        label: 'Workspace memory',
+        href: '/workspaces/workspace-1/memory',
         detail: 'Inspect memory versions, diffs, and run handoff packets.',
       },
       {
-        label: 'Project artifacts',
-        href: '/projects/project-1/artifacts?workflow_id=workflow-1',
+        label: 'Workspace artifacts',
+        href: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
         detail: 'Review delivered artifacts and workflow output packets.',
       },
     ]);
@@ -296,7 +296,7 @@ describe('workflow inspector support', () => {
     expect(model.metrics[5]).toEqual({
       label: 'Memory handoff',
       value: 'Not recorded',
-      detail: 'No project memory handoff packets are available for this workflow yet.',
+      detail: 'No workspace memory handoff packets are available for this workflow yet.',
     });
     expect(model.topStageSpend).toBeNull();
     expect(model.latestActivationSummary).toBeNull();

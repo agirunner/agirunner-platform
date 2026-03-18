@@ -5,7 +5,7 @@ import type {
 } from './playbook-launch-entry-validation.js';
 import type { StructuredEntryDraft, StructuredValueType } from './playbook-launch-support.js';
 
-export type InstructionLayerName = 'platform' | 'project' | 'playbook' | 'role' | 'task';
+export type InstructionLayerName = 'platform' | 'workspace' | 'playbook' | 'role' | 'task';
 
 export interface WorkflowConfigOverrideSpec {
   path: string;
@@ -31,7 +31,7 @@ export interface WorkflowConfigOverrideValidationResult {
 
 const INSTRUCTION_LAYER_ORDER: InstructionLayerName[] = [
   'platform',
-  'project',
+  'workspace',
   'playbook',
   'role',
   'task',
@@ -514,7 +514,7 @@ function readInstructionLayers(value: unknown): InstructionLayerName[] {
     value.filter(
       (entry): entry is InstructionLayerName =>
         entry === 'platform' ||
-        entry === 'project' ||
+        entry === 'workspace' ||
         entry === 'playbook' ||
         entry === 'role' ||
         entry === 'task',

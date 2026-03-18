@@ -3,7 +3,7 @@ import type { QueryClient } from '@tanstack/react-query';
 export async function invalidateWorkflowQueries(
   queryClient: QueryClient,
   workflowId: string,
-  projectId?: string,
+  workspaceId?: string,
 ) {
   await Promise.all([
     queryClient.invalidateQueries({ queryKey: ['workflow', workflowId] }),
@@ -18,9 +18,9 @@ export async function invalidateWorkflowQueries(
     queryClient.invalidateQueries({ queryKey: ['workflow-history', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-config', workflowId] }),
     queryClient.invalidateQueries({ queryKey: ['workflow-documents', workflowId] }),
-    projectId ? queryClient.invalidateQueries({ queryKey: ['project', projectId] }) : Promise.resolve(),
-    projectId
-      ? queryClient.invalidateQueries({ queryKey: ['project-timeline', projectId] })
+    workspaceId ? queryClient.invalidateQueries({ queryKey: ['workspace', workspaceId] }) : Promise.resolve(),
+    workspaceId
+      ? queryClient.invalidateQueries({ queryKey: ['workspace-timeline', workspaceId] })
       : Promise.resolve(),
   ]);
 }

@@ -72,7 +72,7 @@ describe('playbook detail support', () => {
             name: 'repository_url',
             type: 'string',
             category: 'repository',
-            maps_to: 'project.repository_url',
+            maps_to: 'workspace.repository_url',
           },
         ],
         runtime: {
@@ -92,7 +92,7 @@ describe('playbook detail support', () => {
     expect(snapshot).toContain('"slug": "delivery-playbook"');
     expect(snapshot).toContain('"entry_column_id": "active"');
     expect(snapshot).toContain('"guidance": "Require a final human check"');
-    expect(snapshot).toContain('"maps_to": "project.repository_url"');
+    expect(snapshot).toContain('"maps_to": "workspace.repository_url"');
     expect(snapshot).toContain('"image": "agirunner-runtime:stable"');
   });
 });

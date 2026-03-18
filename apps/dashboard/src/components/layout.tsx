@@ -110,7 +110,7 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Configuration',
     icon: Cog,
     items: [
-      { label: 'Projects', href: '/projects', icon: FolderOpen },
+      { label: 'Workspaces', href: '/workspaces', icon: FolderOpen },
       { label: 'Playbooks', href: '/config/playbooks', icon: Workflow },
       { label: 'Orchestrator', href: '/config/orchestrator', icon: Bot, keywords: ['orchestrator', 'prompt', 'model routing', 'pool posture'] },
       { label: 'Roles', href: '/config/roles', icon: Users, keywords: ['specialist', 'agent roles', 'role definitions'] },
@@ -675,7 +675,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
                     Search the workspace
                   </DialogTitle>
                   <DialogDescription className="text-xs text-muted">
-                    Workflow boards, tasks, projects, playbooks, workers, and agents.
+                    Workflow boards, tasks, workspaces, playbooks, workers, and agents.
                   </DialogDescription>
                 </div>
                 <div className="flex items-center gap-2">

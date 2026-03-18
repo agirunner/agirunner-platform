@@ -8,10 +8,10 @@ import {
   clearWorkflowBudgetDraft,
   createWorkflowBudgetDraft,
   describeLaunchParameterResolution,
-  describeMappedProjectPath,
+  describeMappedWorkspacePath,
   defaultParameterDraftValue,
   readWorkflowBudgetMode,
-  readMappedProjectParameterDraft,
+  readMappedWorkspaceParameterDraft,
   readLaunchDefinition,
   summarizeWorkflowBudgetDraft,
   syncRoleOverrideDrafts,
@@ -198,8 +198,8 @@ describe('playbook launch support', () => {
     expect(defaultParameterDraftValue(undefined, 'string')).toBe('');
   });
 
-  it('reads project-mapped launch parameter values through maps_to paths', () => {
-    const repositoryDraft = readMappedProjectParameterDraft(
+  it('reads workspace-mapped launch parameter values through maps_to paths', () => {
+    const repositoryDraft = readMappedWorkspaceParameterDraft(
       {
         key: 'repository_url',
         label: 'Repository URL',
@@ -207,17 +207,17 @@ describe('playbook launch support', () => {
         helpText: '',
         inputType: 'string',
         options: [],
-        mapsTo: 'project.repository_url',
+        mapsTo: 'workspace.repository_url',
       },
       {
-        id: 'project-1',
+        id: 'workspace-1',
         name: 'Demo',
         slug: 'demo',
         repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
         settings: { default_branch: 'main' },
       },
     );
-    const branchDraft = readMappedProjectParameterDraft(
+    const branchDraft = readMappedWorkspaceParameterDraft(
       {
         key: 'default_branch',
         label: 'Default Branch',
@@ -225,17 +225,17 @@ describe('playbook launch support', () => {
         helpText: '',
         inputType: 'string',
         options: [],
-        mapsTo: 'project.settings.default_branch',
+        mapsTo: 'workspace.settings.default_branch',
       },
       {
-        id: 'project-1',
+        id: 'workspace-1',
         name: 'Demo',
         slug: 'demo',
         repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
         settings: { default_branch: 'main' },
       },
     );
-    const knowledgeDraft = readMappedProjectParameterDraft(
+    const knowledgeDraft = readMappedWorkspaceParameterDraft(
       {
         key: 'release_window',
         label: 'Release window',
@@ -243,10 +243,10 @@ describe('playbook launch support', () => {
         helpText: '',
         inputType: 'string',
         options: [],
-        mapsTo: 'project.settings.knowledge.release_window',
+        mapsTo: 'workspace.settings.knowledge.release_window',
       },
       {
-        id: 'project-1',
+        id: 'workspace-1',
         name: 'Demo',
         slug: 'demo',
         repository_url: 'https://github.com/agirunner/agirunner-test-fixtures',
@@ -262,8 +262,8 @@ describe('playbook launch support', () => {
     expect(knowledgeDraft).toBe('Friday 16:00 Pacific');
   });
 
-  it('describes launch parameter resolution through playbook default, project autofill, and launch override', () => {
-    expect(describeMappedProjectPath('project.settings.default_branch')).toBe(
+  it('describes launch parameter resolution through playbook default, workspace autofill, and launch override', () => {
+    expect(describeMappedWorkspacePath('workspace.settings.default_branch')).toBe(
       'settings → default branch',
     );
     expect(
@@ -276,10 +276,10 @@ describe('playbook launch support', () => {
           inputType: 'string',
           options: [],
           defaultValue: 'main',
-          mapsTo: 'project.settings.default_branch',
+          mapsTo: 'workspace.settings.default_branch',
         },
-        project: {
-          id: 'project-1',
+        workspace: {
+          id: 'workspace-1',
           name: 'Demo',
           slug: 'demo',
           settings: {
@@ -289,9 +289,9 @@ describe('playbook launch support', () => {
         currentValue: 'release/2026',
       }),
     ).toMatchObject({
-      badgeLabel: 'Using project autofill',
-      activeSource: 'project-autofill',
-      canRestoreProjectValue: false,
+      badgeLabel: 'Using workspace autofill',
+      activeSource: 'workspace-autofill',
+      canRestoreWorkspaceValue: false,
       canRestoreDefaultValue: true,
       steps: [
         {
@@ -301,8 +301,8 @@ describe('playbook launch support', () => {
           isActive: false,
         },
         {
-          key: 'project-autofill',
-          label: 'Project autofill',
+          key: 'workspace-autofill',
+          label: 'Workspace autofill',
           value: 'release/2026',
           isActive: true,
         },
@@ -325,10 +325,10 @@ describe('playbook launch support', () => {
           inputType: 'string',
           options: [],
           defaultValue: 'main',
-          mapsTo: 'project.settings.default_branch',
+          mapsTo: 'workspace.settings.default_branch',
         },
-        project: {
-          id: 'project-1',
+        workspace: {
+          id: 'workspace-1',
           name: 'Demo',
           slug: 'demo',
           settings: {
@@ -340,7 +340,7 @@ describe('playbook launch support', () => {
     ).toMatchObject({
       badgeLabel: 'Launch override active',
       activeSource: 'launch-override',
-      canRestoreProjectValue: true,
+      canRestoreWorkspaceValue: true,
       canRestoreDefaultValue: true,
       steps: [
         {
@@ -350,8 +350,8 @@ describe('playbook launch support', () => {
           isActive: false,
         },
         {
-          key: 'project-autofill',
-          label: 'Project autofill',
+          key: 'workspace-autofill',
+          label: 'Workspace autofill',
           value: 'release/2026',
           isActive: false,
         },
@@ -373,10 +373,10 @@ describe('playbook launch support', () => {
           inputType: 'string',
           options: [],
           defaultValue: 'main',
-          mapsTo: 'project.settings.default_branch',
+          mapsTo: 'workspace.settings.default_branch',
         },
-        project: {
-          id: 'project-1',
+        workspace: {
+          id: 'workspace-1',
           name: 'Demo',
           slug: 'demo',
           settings: {
@@ -388,7 +388,7 @@ describe('playbook launch support', () => {
     ).toMatchObject({
       badgeLabel: 'Launch override clears inherited value',
       activeSource: 'launch-override',
-      canRestoreProjectValue: true,
+      canRestoreWorkspaceValue: true,
       canRestoreDefaultValue: true,
     });
   });

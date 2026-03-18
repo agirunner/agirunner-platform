@@ -25,17 +25,17 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain("localStorage.setItem('refresh_token'");
   });
 
-  it('keeps legacy project-scoped explorer routes as redirects back to knowledge and preserves inspector routes', () => {
+  it('keeps legacy workspace-scoped explorer routes as redirects back to knowledge and preserves inspector routes', () => {
     const source = readSource();
-    expect(source).toContain('path="/projects/:id/memory"');
-    expect(source).toContain('path="/projects/:id/content"');
-    expect(source).toContain('path="/projects/:id/artifacts"');
-    expect(source).toContain('function LegacyProjectKnowledgeRedirect()');
+    expect(source).toContain('path="/workspaces/:id/memory"');
+    expect(source).toContain('path="/workspaces/:id/content"');
+    expect(source).toContain('path="/workspaces/:id/artifacts"');
+    expect(source).toContain('function LegacyWorkspaceKnowledgeRedirect()');
     expect(source).toContain("const panel = location.pathname.endsWith('/memory')");
     expect(source).toContain("? 'memory'");
     expect(source).toContain("location.pathname.endsWith('/artifacts')");
     expect(source).toContain("? 'artifacts'");
-    expect(source).toContain('Navigate to={`/projects/${id}?tab=knowledge&panel=${panel}`} replace');
+    expect(source).toContain('Navigate to={`/workspaces/${id}?tab=knowledge&panel=${panel}`} replace');
     expect(source).toContain('path="/work/boards/:id/inspector"');
     expect(source).toContain('path="/work/workflows/*"');
     expect(source).toContain("replace('/work/workflows', '/work/boards')");

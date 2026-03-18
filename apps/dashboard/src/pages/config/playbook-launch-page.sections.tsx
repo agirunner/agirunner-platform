@@ -87,7 +87,7 @@ export function ResolutionOrderPanel(): JSX.Element {
         <div className="font-medium text-foreground">Resolution order</div>
         <p className="mt-1 text-sm text-muted">
           Every launch input resolves in the same order so operators can see what belongs to the
-          playbook, what came from the project, and what this run overrides.
+          playbook, what came from the workspace, and what this run overrides.
         </p>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
@@ -98,8 +98,8 @@ export function ResolutionOrderPanel(): JSX.Element {
         />
         <ResolutionStep
           step="2"
-          title="Project autofill"
-          detail="If the parameter maps to project data, that project value replaces the default."
+          title="Workspace autofill"
+          detail="If the parameter maps to workspace data, that workspace value replaces the default."
         />
         <ResolutionStep
           step="3"

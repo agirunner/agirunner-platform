@@ -13,20 +13,20 @@ import {
   type DashboardWorkflowRecord,
   type DashboardWorkflowResolvedModelsResponse,
   type DashboardWorkflowStageRecord,
-  type DashboardProjectRecord,
-  type DashboardProjectTimelineEntry,
+  type DashboardWorkspaceRecord,
+  type DashboardWorkspaceTimelineEntry,
   type DashboardResolvedDocumentReference,
   type DashboardResolvedConfigResponse,
 } from '../lib/api.js';
-import { buildProjectArtifactBrowserPath } from '../lib/artifact-navigation.js';
+import { buildWorkspaceArtifactBrowserPath } from '../lib/artifact-navigation.js';
 import { subscribeToEvents } from '../lib/sse.js';
 import {
   deriveWorkflowRoleOptions,
   groupTasksByStage,
   readPacketNestedKeys,
   readPacketScalarFacts,
-  readWorkflowProjectId,
-  readProjectMemoryEntries,
+  readWorkflowWorkspaceId,
+  readWorkspaceMemoryEntries,
   readWorkflowRunSummary,
   summarizeConfigLayers,
   shouldInvalidateWorkflowRealtimeEvent,
@@ -38,7 +38,7 @@ import {
   createStructuredEntryDraft,
   objectToStructuredDrafts,
   type StructuredEntryDraft,
-} from './projects/project-detail-support.js';
+} from './workspaces/workspace-detail-support.js';
 import {
   buildWorkItemMetadata,
   normalizeWorkItemPriority,
@@ -58,7 +58,7 @@ import {
 import {
   MissionControlCard,
   PlaybookBoardCard,
-  ProjectTimelineCard,
+  WorkspaceTimelineCard,
   TaskGraphCard,
   WorkflowActivationsCard,
   WorkflowStagesCard,
@@ -68,7 +68,7 @@ import {
   describeTimelineEvent,
   WorkflowInteractionTimelineCard,
 } from './workflow-history-card.js';
-import { WorkflowDocumentsCard, ProjectMemoryCard } from './workflow-detail-content.js';
+import { WorkflowDocumentsCard, WorkspaceMemoryCard } from './workflow-detail-content.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { deriveWorkflowStageDisplay } from './workflow-detail-stage-presentation.js';
 import { WorkflowSurfaceRecoveryState } from './workflow-surface-recovery-state.js';
@@ -297,11 +297,11 @@ export function WorkflowDetailPage(): JSX.Element {
     enabled: workflowId.length > 0,
   });
 
-  const projectId = readWorkflowProjectId(workflowQuery.data);
-  const projectQuery = useQuery({
-    queryKey: ['project', projectId],
-    queryFn: () => dashboardApi.getProject(projectId ?? '') as Promise<DashboardProjectRecord>,
-    enabled: Boolean(projectId),
+  const workspaceId = readWorkflowWorkspaceId(workflowQuery.data);
+  const workspaceQuery = useQuery({
+    queryKey: ['workspace', workspaceId],
+    queryFn: () => dashboardApi.getWorkspace(workspaceId ?? '') as Promise<DashboardWorkspaceRecord>,
+    enabled: Boolean(workspaceId),
   });
   const documentQuery = useQuery({
     queryKey: ['workflow-documents', workflowId],
@@ -312,10 +312,10 @@ export function WorkflowDetailPage(): JSX.Element {
     enabled: workflowId.length > 0,
   });
   const timelineQuery = useQuery({
-    queryKey: ['project-timeline', projectId],
+    queryKey: ['workspace-timeline', workspaceId],
     queryFn: () =>
-      dashboardApi.getProjectTimeline(projectId ?? '') as Promise<DashboardProjectTimelineEntry[]>,
-    enabled: Boolean(projectId),
+      dashboardApi.getWorkspaceTimeline(workspaceId ?? '') as Promise<DashboardWorkspaceTimelineEntry[]>,
+    enabled: Boolean(workspaceId),
   });
 
   useEffect(() => {
@@ -356,9 +356,9 @@ export function WorkflowDetailPage(): JSX.Element {
       if (!shouldInvalidateWorkflowRealtimeEvent(eventType, workflowId, payload)) {
         return;
       }
-      void invalidateWorkflowQueries(queryClient, workflowId, projectId);
+      void invalidateWorkflowQueries(queryClient, workflowId, workspaceId);
     });
-  }, [workflowId, projectId, queryClient]);
+  }, [workflowId, workspaceId, queryClient]);
 
   useEffect(() => {
     if (selectedChildWorkflowId) {
@@ -495,10 +495,10 @@ export function WorkflowDetailPage(): JSX.Element {
     [workflowQuery.data],
   );
   const memoryEntries = useMemo(
-    () => readProjectMemoryEntries(projectQuery.data),
-    [projectQuery.data],
+    () => readWorkspaceMemoryEntries(workspaceQuery.data),
+    [workspaceQuery.data],
   );
-  const projectTimelineEntries = useMemo(
+  const workspaceTimelineEntries = useMemo(
     () =>
       mergeTimelineEntriesWithWorkflowRelations(
         timelineQuery.data ?? [],
@@ -563,7 +563,7 @@ export function WorkflowDetailPage(): JSX.Element {
     activeFocusTargetId,
     activationsQuery.data?.length,
     boardQuery.data?.columns.length,
-    projectTimelineEntries.length,
+    workspaceTimelineEntries.length,
     selectedWorkItemId,
     stagesQuery.data?.length,
   ]);
@@ -595,8 +595,8 @@ export function WorkflowDetailPage(): JSX.Element {
 
   async function handleMemorySave() {
     let parsedValue: Record<string, unknown> | undefined;
-    if (!projectId) {
-      setMemoryError('Project memory is only available for project-backed workflows.');
+    if (!workspaceId) {
+      setMemoryError('Workspace memory is only available for workspace-backed workflows.');
       return;
     }
     if (!memoryKey.trim()) {
@@ -604,7 +604,7 @@ export function WorkflowDetailPage(): JSX.Element {
       return;
     }
     try {
-      parsedValue = buildStructuredObject(memoryDrafts, 'Project memory');
+      parsedValue = buildStructuredObject(memoryDrafts, 'Workspace memory');
     } catch (error) {
       setMemoryError(error instanceof Error ? error.message : 'Memory fields are invalid.');
       return;
@@ -615,12 +615,12 @@ export function WorkflowDetailPage(): JSX.Element {
     }
     setMemoryError(null);
     setMemoryMessage(null);
-    await dashboardApi.patchProjectMemory(projectId, {
+    await dashboardApi.patchWorkspaceMemory(workspaceId, {
       key: memoryKey.trim(),
       value: parsedValue,
     });
-    setMemoryMessage(`Updated project memory key '${memoryKey.trim()}'.`);
-    await invalidateWorkflowQueries(queryClient, workflowId, projectId);
+    setMemoryMessage(`Updated workspace memory key '${memoryKey.trim()}'.`);
+    await invalidateWorkflowQueries(queryClient, workflowId, workspaceId);
   }
 
   const createWorkItemMutation = useMutation({
@@ -650,7 +650,7 @@ export function WorkflowDetailPage(): JSX.Element {
       setIsCreateWorkItemDialogOpen(false);
       setPrimarySurface('board');
       updateWorkflowSelection('work_item', createdWorkItem.id);
-      await invalidateWorkflowQueries(queryClient, workflowId, projectId);
+      await invalidateWorkflowQueries(queryClient, workflowId, workspaceId);
     },
     onError: (error) => {
       setWorkItemError(error instanceof Error ? error.message : 'Failed to create work item');
@@ -761,7 +761,7 @@ export function WorkflowDetailPage(): JSX.Element {
                           {workflowQuery.data.playbook_name
                             ? `${workflowQuery.data.playbook_name} orchestrated board run`
                             : 'Playbook-backed orchestrated board run'}
-                          {workflowQuery.data.project_id ? ' linked to a project.' : '.'}
+                          {workflowQuery.data.workspace_id ? ' linked to a workspace.' : '.'}
                         </p>
                       </div>
                       <div className="flex flex-wrap gap-2">
@@ -771,16 +771,16 @@ export function WorkflowDetailPage(): JSX.Element {
                         {workflowQuery.data.lifecycle ? (
                           <Badge variant="secondary">{workflowQuery.data.lifecycle}</Badge>
                         ) : null}
-                        {workflowQuery.data.project_id ? (
-                          <Badge variant="outline">Project-linked</Badge>
+                        {workflowQuery.data.workspace_id ? (
+                          <Badge variant="outline">Workspace-linked</Badge>
                         ) : null}
                         <Button asChild size="sm" variant="outline">
                           <Link to={`/work/boards/${workflowId}/inspector`}>Open Inspector</Link>
                         </Button>
-                        {projectId ? (
+                        {workspaceId ? (
                           <Button asChild size="sm" variant="outline">
                             <Link
-                              to={buildProjectArtifactBrowserPath(projectId, {
+                              to={buildWorkspaceArtifactBrowserPath(workspaceId, {
                                 workflowId,
                               })}
                             >
@@ -841,10 +841,10 @@ export function WorkflowDetailPage(): JSX.Element {
                       </div>
                       <div className="grid gap-1">
                         <dt className="text-xs font-medium uppercase tracking-wide text-muted">
-                          Project
+                          Workspace
                         </dt>
                         <dd className="text-foreground">
-                          {projectQuery.data?.name ?? (workflowQuery.data.project_id ? 'Linked project' : 'Standalone workflow')}
+                          {workspaceQuery.data?.name ?? (workflowQuery.data.workspace_id ? 'Linked workspace' : 'Standalone workflow')}
                         </dd>
                       </div>
                     </dl>
@@ -859,7 +859,7 @@ export function WorkflowDetailPage(): JSX.Element {
               workflow={{
                 id: workflowId,
                 state: workflowQuery.data?.state,
-                project_id: projectId,
+                workspace_id: workspaceId,
               }}
               summary={summary}
               workItemSummary={workflowQuery.data?.work_item_summary}
@@ -946,7 +946,7 @@ export function WorkflowDetailPage(): JSX.Element {
                       selectedWorkItemId={selectedWorkItemId}
                       onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
                       onBoardChanged={() =>
-                        invalidateWorkflowQueries(queryClient, workflowId, projectId)
+                        invalidateWorkflowQueries(queryClient, workflowId, workspaceId)
                       }
                     />
                   </section>
@@ -969,7 +969,7 @@ export function WorkflowDetailPage(): JSX.Element {
                         tasks={selectedWorkItemTasks}
                         onSelectWorkItem={(workItemId) => updateWorkflowSelection('work_item', workItemId)}
                         onWorkItemChanged={() =>
-                          invalidateWorkflowQueries(queryClient, workflowId, projectId)
+                          invalidateWorkflowQueries(queryClient, workflowId, workspaceId)
                         }
                         onClearSelection={() => clearWorkflowSelection('work_item')}
                       />
@@ -1065,7 +1065,7 @@ export function WorkflowDetailPage(): JSX.Element {
                     updateWorkflowSelection('activation', activationId)
                   }
                   onActivationQueued={() =>
-                    invalidateWorkflowQueries(queryClient, workflowId, projectId)
+                    invalidateWorkflowQueries(queryClient, workflowId, workspaceId)
                   }
                 />
               </TabsContent>
@@ -1133,7 +1133,7 @@ export function WorkflowDetailPage(): JSX.Element {
                 <CardHeader>
                   <CardTitle>Model Overrides</CardTitle>
                   <CardDescription>
-                    Board-run overrides take precedence over project-level model settings.
+                    Board-run overrides take precedence over workspace-level model settings.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-4">
@@ -1167,7 +1167,7 @@ export function WorkflowDetailPage(): JSX.Element {
                 <CardHeader>
                   <CardTitle>Effective Models</CardTitle>
                   <CardDescription>
-                    Resolved models after applying defaults, project overrides, and workflow
+                    Resolved models after applying defaults, workspace overrides, and workflow
                     launch overrides.
                   </CardDescription>
                 </CardHeader>
@@ -1199,7 +1199,7 @@ export function WorkflowDetailPage(): JSX.Element {
                 <CardHeader>
                   <CardTitle>Resolved Config</CardTitle>
                   <CardDescription>
-                    Merged playbook, project, and board-run configuration for this operator
+                    Merged playbook, workspace, and board-run configuration for this operator
                     surface.
                   </CardDescription>
                 </CardHeader>
@@ -1212,7 +1212,7 @@ export function WorkflowDetailPage(): JSX.Element {
                   {configQuery.error ? (
                     <WorkflowSurfaceRecoveryState
                       title="Resolved board configuration is unavailable"
-                      detail="The merged playbook, project, and board-run config packet failed to load. Retry before validating launch inputs or escalation settings from this surface."
+                      detail="The merged playbook, workspace, and board-run config packet failed to load. Retry before validating launch inputs or escalation settings from this surface."
                       onRetry={() => {
                         void configQuery.refetch();
                       }}
@@ -1230,7 +1230,7 @@ export function WorkflowDetailPage(): JSX.Element {
               <CardHeader>
                 <CardTitle>Board Summary</CardTitle>
                 <CardDescription>
-                  Continuity summary written into project memory when the board run reaches a
+                  Continuity summary written into workspace memory when the board run reaches a
                   terminal state.
                 </CardDescription>
               </CardHeader>
@@ -1260,11 +1260,11 @@ export function WorkflowDetailPage(): JSX.Element {
               hasTasksError={Boolean(taskQuery.error)}
             />
 
-            <ProjectMemoryCard
-              project={projectQuery.data}
+            <WorkspaceMemoryCard
+              workspace={workspaceQuery.data}
               entries={memoryEntries}
-              isLoading={projectQuery.isLoading}
-              hasError={Boolean(projectQuery.error)}
+              isLoading={workspaceQuery.isLoading}
+              hasError={Boolean(workspaceQuery.error)}
               memoryKey={memoryKey}
               memoryDrafts={memoryDrafts}
               memoryError={memoryError}
@@ -1299,11 +1299,11 @@ export function WorkflowDetailPage(): JSX.Element {
               />
             </div>
 
-            {projectId ? (
-              <ProjectTimelineCard
+            {workspaceId ? (
+              <WorkspaceTimelineCard
                 isLoading={timelineQuery.isLoading}
                 hasError={Boolean(timelineQuery.error)}
-                entries={projectTimelineEntries}
+                entries={workspaceTimelineEntries}
                 currentWorkflowId={workflowId}
                 selectedChildWorkflowId={selectedChildWorkflowId}
                 onSelectChildWorkflow={(childWorkflowId) =>
@@ -2129,9 +2129,9 @@ function hasStructuredEntries(
 }
 
 function mergeTimelineEntriesWithWorkflowRelations(
-  timelineEntries: DashboardProjectTimelineEntry[],
+  timelineEntries: DashboardWorkspaceTimelineEntry[],
   childRelations: DashboardWorkflowRelationRef[],
-): DashboardProjectTimelineEntry[] {
+): DashboardWorkspaceTimelineEntry[] {
   if (childRelations.length === 0) {
     return timelineEntries;
   }

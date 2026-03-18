@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { Card, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { dashboardApi } from '../../lib/api.js';
 import type {
-  DashboardProjectRecord,
+  DashboardWorkspaceRecord,
   DashboardScheduledWorkItemTriggerRecord,
   DashboardWebhookWorkItemTriggerRecord,
   DashboardWorkflowRecord,
@@ -28,9 +28,9 @@ export function WorkItemTriggersPage(): JSX.Element {
   const [deleteTarget, setDeleteTarget] = useState<DashboardWebhookWorkItemTriggerRecord | null>(null);
   const [inspectTarget, setInspectTarget] = useState<DashboardWebhookWorkItemTriggerRecord | null>(null);
 
-  const projectsQuery = useQuery({
-    queryKey: ['projects', 'trigger-overview'],
-    queryFn: () => dashboardApi.listProjects(),
+  const workspacesQuery = useQuery({
+    queryKey: ['workspaces', 'trigger-overview'],
+    queryFn: () => dashboardApi.listWorkspaces(),
   });
   const workflowsQuery = useQuery({
     queryKey: ['workflows', 'trigger-overview'],
@@ -94,7 +94,7 @@ export function WorkItemTriggersPage(): JSX.Element {
     },
   });
 
-  if (projectsQuery.isLoading || workflowsQuery.isLoading || scheduledQuery.isLoading || webhookQuery.isLoading) {
+  if (workspacesQuery.isLoading || workflowsQuery.isLoading || scheduledQuery.isLoading || webhookQuery.isLoading) {
     return (
       <div className="flex items-center justify-center p-12">
         <Loader2 className="h-6 w-6 animate-spin text-muted" />
@@ -102,7 +102,7 @@ export function WorkItemTriggersPage(): JSX.Element {
     );
   }
 
-  if (projectsQuery.error || workflowsQuery.error || scheduledQuery.error || webhookQuery.error) {
+  if (workspacesQuery.error || workflowsQuery.error || scheduledQuery.error || webhookQuery.error) {
     return (
       <div className="p-6">
         <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
@@ -112,7 +112,7 @@ export function WorkItemTriggersPage(): JSX.Element {
     );
   }
 
-  const projects = (projectsQuery.data?.data ?? []) as DashboardProjectRecord[];
+  const workspaces = (workspacesQuery.data?.data ?? []) as DashboardWorkspaceRecord[];
   const workflows = (workflowsQuery.data?.data ?? []) as DashboardWorkflowRecord[];
   const scheduled = (scheduledQuery.data?.data ?? []) as DashboardScheduledWorkItemTriggerRecord[];
   const webhooks = (webhookQuery.data?.data ?? []) as DashboardWebhookWorkItemTriggerRecord[];
@@ -139,7 +139,7 @@ export function WorkItemTriggersPage(): JSX.Element {
           <div className="space-y-2">
             <CardTitle className="text-2xl">Trigger Overview</CardTitle>
             <p className="max-w-3xl text-sm text-muted">
-              Manage webhook work-item triggers and review scheduled automation posture across projects.
+              Manage webhook work-item triggers and review scheduled automation posture across workspaces.
             </p>
           </div>
         </CardHeader>
@@ -147,12 +147,12 @@ export function WorkItemTriggersPage(): JSX.Element {
 
       <TriggerSummarySection focus={operatorFocus} summaries={summaryCards} />
       <ScheduledTriggerSection
-        projects={projects}
+        workspaces={workspaces}
         workflows={workflows}
         triggers={scheduled.slice().sort((left, right) => left.next_fire_at.localeCompare(right.next_fire_at))}
       />
       <WebhookTriggerSection
-        projects={projects}
+        workspaces={workspaces}
         workflows={workflows}
         triggers={webhooks.slice().sort((left, right) => left.name.localeCompare(right.name))}
         isMutating={isMutating}
@@ -167,7 +167,7 @@ export function WorkItemTriggersPage(): JSX.Element {
         mode={editorMode}
         trigger={editorTrigger}
         open={editorTarget !== null}
-        projects={projects}
+        workspaces={workspaces}
         workflows={workflows}
         isPending={createMutation.isPending || updateMutation.isPending}
         errorMessage={editorMutationError ? String(editorMutationError) : null}
@@ -186,7 +186,7 @@ export function WorkItemTriggersPage(): JSX.Element {
       <WebhookTriggerInspectDialog
         trigger={inspectTarget}
         open={inspectTarget !== null}
-        projects={projects}
+        workspaces={workspaces}
         workflows={workflows}
         onOpenChange={(open) => { if (!open) setInspectTarget(null); }}
       />

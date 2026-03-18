@@ -94,7 +94,7 @@ export function PlatformInstructionsPage(): JSX.Element {
         <CardHeader>
           <CardTitle>Instructions</CardTitle>
           <CardDescription>
-            These instructions are prepended to every agent's system prompt across all workflows and projects.
+            These instructions are prepended to every agent's system prompt across all workflows and workspaces.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">

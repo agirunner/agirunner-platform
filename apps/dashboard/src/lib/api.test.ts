@@ -136,32 +136,32 @@ describe('dashboard api auth/session behavior', () => {
     expect(source).toContain('/resolve-escalation');
   });
 
-  it('exposes typed project settings posture in the dashboard api contract', () => {
+  it('exposes typed workspace settings posture in the dashboard api contract', () => {
     const source = readApiSource();
-    const projectSettingsBlock = readExportBlock(source, 'DashboardProjectSettingsRecord');
-    const projectSettingsInputBlock = readExportBlock(source, 'DashboardProjectSettingsInput');
-    const projectSummaryBlock = readExportBlock(source, 'DashboardProjectListSummary');
-    const projectRecordBlock = readExportBlock(source, 'DashboardProjectRecord');
-    const patchProjectBlock = readExportBlock(source, 'DashboardProjectPatchInput');
+    const workspaceSettingsBlock = readExportBlock(source, 'DashboardWorkspaceSettingsRecord');
+    const workspaceSettingsInputBlock = readExportBlock(source, 'DashboardWorkspaceSettingsInput');
+    const workspaceSummaryBlock = readExportBlock(source, 'DashboardWorkspaceListSummary');
+    const workspaceRecordBlock = readExportBlock(source, 'DashboardWorkspaceRecord');
+    const patchWorkspaceBlock = readExportBlock(source, 'DashboardWorkspacePatchInput');
 
-    expect(projectSettingsBlock).toContain('default_branch?: string | null;');
-    expect(projectSettingsBlock).toContain('git_user_name?: string | null;');
-    expect(projectSettingsBlock).toContain('git_user_email?: string | null;');
-    expect(projectSettingsBlock).toContain('credentials?: DashboardProjectCredentialPosture;');
-    expect(projectSettingsBlock).toContain(
+    expect(workspaceSettingsBlock).toContain('default_branch?: string | null;');
+    expect(workspaceSettingsBlock).toContain('git_user_name?: string | null;');
+    expect(workspaceSettingsBlock).toContain('git_user_email?: string | null;');
+    expect(workspaceSettingsBlock).toContain('credentials?: DashboardWorkspaceCredentialPosture;');
+    expect(workspaceSettingsBlock).toContain(
       'model_overrides?: Record<string, DashboardRoleModelOverride>;',
     );
-    expect(projectSettingsBlock).toContain('project_brief?: string | null;');
-    expect(projectSettingsInputBlock).toContain('credentials?: DashboardProjectCredentialInput;');
-    expect(projectSettingsInputBlock).toContain(
+    expect(workspaceSettingsBlock).toContain('workspace_brief?: string | null;');
+    expect(workspaceSettingsInputBlock).toContain('credentials?: DashboardWorkspaceCredentialInput;');
+    expect(workspaceSettingsInputBlock).toContain(
       'model_overrides?: Record<string, DashboardRoleModelOverride>;',
     );
-    expect(projectSummaryBlock).toContain('active_workflow_count: number;');
-    expect(projectSummaryBlock).toContain('completed_workflow_count: number;');
-    expect(projectSummaryBlock).toContain('attention_workflow_count: number;');
-    expect(projectRecordBlock).toContain('settings?: DashboardProjectSettingsRecord;');
-    expect(projectRecordBlock).toContain('summary?: DashboardProjectListSummary;');
-    expect(patchProjectBlock).toContain('settings?: DashboardProjectSettingsInput;');
+    expect(workspaceSummaryBlock).toContain('active_workflow_count: number;');
+    expect(workspaceSummaryBlock).toContain('completed_workflow_count: number;');
+    expect(workspaceSummaryBlock).toContain('attention_workflow_count: number;');
+    expect(workspaceRecordBlock).toContain('settings?: DashboardWorkspaceSettingsRecord;');
+    expect(workspaceRecordBlock).toContain('summary?: DashboardWorkspaceListSummary;');
+    expect(patchWorkspaceBlock).toContain('settings?: DashboardWorkspaceSettingsInput;');
   });
 
   it('refreshes token and retries request when access token is expired', async () => {
@@ -329,13 +329,13 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
-  it('deletes project memory entries through the dedicated project-memory delete route', async () => {
+  it('deletes workspace memory entries through the dedicated workspace-memory delete route', async () => {
     writeSession({ accessToken: 'api-token', tenantId: 'tenant-1' });
 
     const fetcher = vi
       .fn()
       .mockResolvedValue(
-        new Response(JSON.stringify({ data: { id: 'project-1', memory: {} } }), { status: 200 }),
+        new Response(JSON.stringify({ data: { id: 'workspace-1', memory: {} } }), { status: 200 }),
       ) as unknown as typeof fetch;
 
     const client = {
@@ -357,10 +357,10 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    await api.removeProjectMemory('project-1', 'operator_note');
+    await api.removeWorkspaceMemory('workspace-1', 'operator_note');
 
     expect(fetcher).toHaveBeenCalledWith(
-      'http://localhost:8080/api/v1/projects/project-1/memory/operator_note',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/memory/operator_note',
       expect.objectContaining({
         method: 'DELETE',
         credentials: 'include',
@@ -371,7 +371,7 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
-  it('manages project-owned artifact files through dedicated project file routes', async () => {
+  it('manages workspace-owned artifact files through dedicated workspace file routes', async () => {
     writeSession({ accessToken: 'artifact-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn() as unknown as typeof fetch;
@@ -383,14 +383,14 @@ describe('dashboard api auth/session behavior', () => {
             data: [
               {
                 id: 'file-1',
-                project_id: 'project-1',
+                workspace_id: 'workspace-1',
                 key: 'brief-md',
                 description: 'Initial brief',
                 file_name: 'brief.md',
                 content_type: 'text/markdown',
                 size_bytes: 128,
                 created_at: '2026-03-14T18:00:00.000Z',
-                download_url: '/api/v1/projects/project-1/files/file-1/content',
+                download_url: '/api/v1/workspaces/workspace-1/files/file-1/content',
               },
             ],
           }),
@@ -403,14 +403,14 @@ describe('dashboard api auth/session behavior', () => {
             data: [
               {
                 id: 'file-1',
-                project_id: 'project-1',
+                workspace_id: 'workspace-1',
                 key: 'brief-md',
                 description: 'Initial brief',
                 file_name: 'brief.md',
                 content_type: 'text/markdown',
                 size_bytes: 128,
                 created_at: '2026-03-14T18:00:00.000Z',
-                download_url: '/api/v1/projects/project-1/files/file-1/content',
+                download_url: '/api/v1/workspaces/workspace-1/files/file-1/content',
               },
             ],
           }),
@@ -448,8 +448,8 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    const files = await api.listProjectArtifactFiles('project-1');
-    await api.uploadProjectArtifactFiles('project-1', [
+    const files = await api.listWorkspaceArtifactFiles('workspace-1');
+    await api.uploadWorkspaceArtifactFiles('workspace-1', [
       {
         file_name: 'brief.md',
         description: 'Initial brief',
@@ -457,23 +457,23 @@ describe('dashboard api auth/session behavior', () => {
         content_type: 'text/markdown',
       },
     ]);
-    const download = await api.downloadProjectArtifactFile('project-1', 'file-1');
-    await api.deleteProjectArtifactFile('project-1', 'file-1');
+    const download = await api.downloadWorkspaceArtifactFile('workspace-1', 'file-1');
+    await api.deleteWorkspaceArtifactFile('workspace-1', 'file-1');
 
     expect(files[0]?.key).toBe('brief-md');
     expect(download.file_name).toBe('brief.md');
     expect(download.content_type).toBe('text/markdown; charset=utf-8');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/files',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/files',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/files/batch',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/files/batch',
     );
     expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/files/file-1/content',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/files/file-1/content',
     );
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/files/file-1',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/files/file-1',
     );
   });
 
@@ -857,7 +857,7 @@ describe('dashboard api auth/session behavior', () => {
         new Response(
           JSON.stringify({
             data: {
-              id: 'project-1',
+              id: 'workspace-1',
               name: 'Atlas',
               slug: 'atlas',
               settings: {
@@ -874,7 +874,7 @@ describe('dashboard api auth/session behavior', () => {
         new Response(
           JSON.stringify({
             data: {
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               model_overrides: {
                 architect: { provider: 'openai', model: 'gpt-5' },
               },
@@ -887,13 +887,13 @@ describe('dashboard api auth/session behavior', () => {
         new Response(
           JSON.stringify({
             data: {
-              project_id: 'project-1',
-              project_model_overrides: {
+              workspace_id: 'workspace-1',
+              workspace_model_overrides: {
                 architect: { provider: 'openai', model: 'gpt-5' },
               },
               effective_models: {
                 architect: {
-                  source: 'project',
+                  source: 'workspace',
                   fallback: false,
                   resolved: {
                     provider: { name: 'openai', providerType: 'openai' },
@@ -911,7 +911,7 @@ describe('dashboard api auth/session behavior', () => {
           JSON.stringify({
             data: {
               roles: ['architect'],
-              project_model_overrides: {
+              workspace_model_overrides: {
                 architect: { provider: 'openai', model: 'gpt-5' },
               },
               workflow_model_overrides: {
@@ -950,8 +950,8 @@ describe('dashboard api auth/session behavior', () => {
           JSON.stringify({
             data: {
               workflow_id: 'wf-1',
-              project_id: 'project-1',
-              project_model_overrides: {
+              workspace_id: 'workspace-1',
+              workspace_model_overrides: {
                 architect: { provider: 'openai', model: 'gpt-5' },
               },
               workflow_model_overrides: {
@@ -991,17 +991,17 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    const patchedProject = await api.patchProject('project-1', {
+    const patchedWorkspace = await api.patchWorkspace('workspace-1', {
       settings: {
         model_overrides: {
           architect: { provider: 'openai', model: 'gpt-5' },
         },
       },
     });
-    const projectOverrides = await api.getProjectModelOverrides('project-1');
-    const resolvedProject = await api.getResolvedProjectModels('project-1', ['architect']);
+    const workspaceOverrides = await api.getWorkspaceModelOverrides('workspace-1');
+    const resolvedWorkspace = await api.getResolvedWorkspaceModels('workspace-1', ['architect']);
     const preview = await api.previewEffectiveModels({
-      project_model_overrides: {
+      workspace_model_overrides: {
         architect: { provider: 'openai', model: 'gpt-5' },
       },
       workflow_model_overrides: {
@@ -1012,22 +1012,22 @@ describe('dashboard api auth/session behavior', () => {
     const resolvedWorkflow = await api.getResolvedWorkflowModels('wf-1', ['architect']);
 
     expect(
-      ((patchedProject.settings ?? {}) as { model_overrides?: Record<string, { model?: string }> })
+      ((patchedWorkspace.settings ?? {}) as { model_overrides?: Record<string, { model?: string }> })
         .model_overrides?.architect?.model,
     ).toBe('gpt-5');
-    expect(projectOverrides.model_overrides.architect?.provider).toBe('openai');
-    expect(resolvedProject.effective_models.architect?.source).toBe('project');
+    expect(workspaceOverrides.model_overrides.architect?.provider).toBe('openai');
+    expect(resolvedWorkspace.effective_models.architect?.source).toBe('workspace');
     expect(preview.effective_models.architect?.source).toBe('workflow');
     expect(workflowOverrides.model_overrides.architect?.provider).toBe('anthropic');
     expect(resolvedWorkflow.workflow_model_overrides.architect?.model).toBe('claude-opus-4.1');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1',
+      'http://localhost:8080/api/v1/workspaces/workspace-1',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/model-overrides',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/model-overrides',
     );
     expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/model-overrides/resolved?roles=architect',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/model-overrides/resolved?roles=architect',
     );
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
       'http://localhost:8080/api/v1/config/llm/resolve-preview',
@@ -1523,8 +1523,8 @@ describe('dashboard api auth/session behavior', () => {
     });
 
     const config = await api.getResolvedWorkflowConfig('pipe-1', true);
-    const timeline = await api.getProjectTimeline('project-1');
-    const artifacts = await api.listProjectArtifacts('project-1', {
+    const timeline = await api.getWorkspaceTimeline('workspace-1');
+    const artifacts = await api.listWorkspaceArtifacts('workspace-1', {
       q: 'release',
       preview_mode: 'inline',
       page: '1',
@@ -1539,14 +1539,14 @@ describe('dashboard api auth/session behavior', () => {
       'http://localhost:8080/api/v1/workflows/pipe-1/config/resolved?show_layers=true',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/timeline',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/timeline',
     );
     expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/artifacts?q=release&preview_mode=inline&page=1&per_page=50',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/artifacts?q=release&preview_mode=inline&page=1&per_page=50',
     );
   });
 
-  it('lists projects and starts a planning workflow through typed dashboard methods', async () => {
+  it('lists workspaces and starts a planning workflow through typed dashboard methods', async () => {
     writeSession({ accessToken: 'planning-token', tenantId: 'tenant-1' });
 
     const fetcher = vi
@@ -1556,7 +1556,7 @@ describe('dashboard api auth/session behavior', () => {
           JSON.stringify({
             data: [
               {
-                id: 'project-1',
+                id: 'workspace-1',
                 name: 'Alpha',
                 slug: 'alpha',
                 summary: {
@@ -1595,24 +1595,24 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    const projects = await api.listProjects();
-    const planning = await api.createPlanningWorkflow('project-1', {
+    const workspaces = await api.listWorkspaces();
+    const planning = await api.createPlanningWorkflow('workspace-1', {
       brief: 'Plan the next workflow increment.',
       name: 'AI Planning',
     });
 
-    expect(projects.data[0].id).toBe('project-1');
-    expect(projects.data[0].summary).toEqual({
+    expect(workspaces.data[0].id).toBe('workspace-1');
+    expect(workspaces.data[0].summary).toEqual({
       active_workflow_count: 1,
       completed_workflow_count: 3,
       attention_workflow_count: 2,
     });
     expect((planning as { data?: { id?: string } }).data?.id).toBe('pipe-9');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/projects?per_page=50',
+      'http://localhost:8080/api/v1/workspaces?per_page=50',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/planning-workflow',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/planning-workflow',
     );
   });
 
@@ -1625,7 +1625,7 @@ describe('dashboard api auth/session behavior', () => {
         new Response(
           JSON.stringify({
             data: {
-              id: 'project-1',
+              id: 'workspace-1',
               name: 'Atlas',
               slug: 'atlas',
               memory: {
@@ -1640,7 +1640,7 @@ describe('dashboard api auth/session behavior', () => {
         new Response(
           JSON.stringify({
             data: {
-              id: 'project-1',
+              id: 'workspace-1',
               name: 'Atlas',
               slug: 'atlas',
               memory: {
@@ -1657,8 +1657,8 @@ describe('dashboard api auth/session behavior', () => {
           JSON.stringify({
             data: [
               {
-                logical_name: 'project_brief',
-                scope: 'project',
+                logical_name: 'workspace_brief',
+                scope: 'workspace',
                 source: 'repository',
                 repository: 'origin',
                 path: 'docs/brief.md',
@@ -1776,8 +1776,8 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    const project = await api.getProject('project-1');
-    const updated = await api.patchProjectMemory('project-1', {
+    const workspace = await api.getWorkspace('workspace-1');
+    const updated = await api.patchWorkspaceMemory('workspace-1', {
       key: 'operator_note',
       value: { summary: 'check rollout' },
     });
@@ -1788,9 +1788,9 @@ describe('dashboard api auth/session behavior', () => {
     const artifactContent = await api.readTaskArtifactContent('task-1', 'artifact-1');
     const artifactDownload = await api.downloadTaskArtifact('task-1', 'artifact-1');
 
-    expect(project.memory?.last_run_summary).toEqual({ kind: 'run_summary' });
+    expect(workspace.memory?.last_run_summary).toEqual({ kind: 'run_summary' });
     expect(updated.memory?.operator_note).toEqual({ summary: 'check rollout' });
-    expect(documents[0].logical_name).toBe('project_brief');
+    expect(documents[0].logical_name).toBe('workspace_brief');
     expect(artifacts[0].id).toBe('artifact-1');
     expect(workItemMemory.entries[0]?.key).toBe('summary');
     expect(workItemMemoryHistory.history[0]?.event_type).toBe('updated');
@@ -1799,10 +1799,10 @@ describe('dashboard api auth/session behavior', () => {
     expect(artifactDownload.file_name).toBe('bundle.zip');
     expect(artifactDownload.content_type).toBe('application/octet-stream');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1',
+      'http://localhost:8080/api/v1/workspaces/workspace-1',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/projects/project-1/memory',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/memory',
     );
     expect(vi.mocked(fetcher).mock.calls[2][0]).toBe(
       'http://localhost:8080/api/v1/workflows/pipe-1/documents',
@@ -1836,8 +1836,8 @@ describe('dashboard api auth/session behavior', () => {
               {
                 id: 'sched-1',
                 name: 'Daily triage',
-                source: 'project.schedule',
-                project_id: 'project-1',
+                source: 'workspace.schedule',
+                workspace_id: 'workspace-1',
                 workflow_id: 'wf-1',
                 schedule_type: 'interval',
                 cadence_minutes: 60,
@@ -1858,8 +1858,8 @@ describe('dashboard api auth/session behavior', () => {
             data: {
               id: 'sched-2',
               name: 'Hourly sweep',
-              source: 'project.schedule',
-              project_id: 'project-1',
+              source: 'workspace.schedule',
+              workspace_id: 'workspace-1',
               workflow_id: 'wf-1',
               schedule_type: 'interval',
               cadence_minutes: 30,
@@ -1879,8 +1879,8 @@ describe('dashboard api auth/session behavior', () => {
             data: {
               id: 'sched-2',
               name: 'Hourly sweep',
-              source: 'project.schedule',
-              project_id: 'project-1',
+              source: 'workspace.schedule',
+              workspace_id: 'workspace-1',
               workflow_id: 'wf-1',
               schedule_type: 'interval',
               cadence_minutes: 30,
@@ -1905,7 +1905,7 @@ describe('dashboard api auth/session behavior', () => {
                 id: 'hook-1',
                 name: 'GitHub PR',
                 source: 'github',
-                project_id: 'project-1',
+                workspace_id: 'workspace-1',
                 workflow_id: 'wf-1',
                 signature_header: 'X-Signature',
                 signature_mode: 'hmac_sha256',
@@ -1923,7 +1923,7 @@ describe('dashboard api auth/session behavior', () => {
               id: 'hook-2',
               name: 'GitLab MR',
               source: 'gitlab',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               workflow_id: 'wf-1',
               signature_header: 'X-Signature',
               signature_mode: 'shared_secret',
@@ -1940,7 +1940,7 @@ describe('dashboard api auth/session behavior', () => {
               id: 'hook-2',
               name: 'GitLab MR',
               source: 'gitlab',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               workflow_id: 'wf-1',
               signature_header: 'X-Signature',
               signature_mode: 'shared_secret',
@@ -2077,10 +2077,10 @@ describe('dashboard api auth/session behavior', () => {
         new Response(
           JSON.stringify({
             data: {
-              logical_name: 'project_brief',
+              logical_name: 'workspace_brief',
               scope: 'workflow',
               source: 'repository',
-              title: 'Project Brief',
+              title: 'Workspace Brief',
               description: 'Primary brief',
               metadata: { audience: 'operator' },
               repository: 'org/repo',
@@ -2094,10 +2094,10 @@ describe('dashboard api auth/session behavior', () => {
         new Response(
           JSON.stringify({
             data: {
-              logical_name: 'project_brief',
+              logical_name: 'workspace_brief',
               scope: 'workflow',
               source: 'external',
-              title: 'Project Brief',
+              title: 'Workspace Brief',
               description: 'Updated brief',
               metadata: { audience: 'operator' },
               url: 'https://example.com/brief',
@@ -2148,18 +2148,18 @@ describe('dashboard api auth/session behavior', () => {
     });
 
     const createdDocument = await api.createWorkflowDocument('pipe-1', {
-      logical_name: 'project_brief',
+      logical_name: 'workspace_brief',
       source: 'repository',
       repository: 'org/repo',
       path: 'docs/brief.md',
       metadata: { audience: 'operator' },
     });
-    const updatedDocument = await api.updateWorkflowDocument('pipe-1', 'project_brief', {
+    const updatedDocument = await api.updateWorkflowDocument('pipe-1', 'workspace_brief', {
       source: 'external',
       url: 'https://example.com/brief',
       description: 'Updated brief',
     });
-    await api.deleteWorkflowDocument('pipe-1', 'project_brief');
+    await api.deleteWorkflowDocument('pipe-1', 'workspace_brief');
     const uploadedArtifact = await api.uploadTaskArtifact('task-1', {
       path: 'artifact:task-1/report.md',
       content_base64: 'Ym9keQ==',
@@ -2168,17 +2168,17 @@ describe('dashboard api auth/session behavior', () => {
     });
     await api.deleteTaskArtifact('task-1', 'artifact-2');
 
-    expect(createdDocument.logical_name).toBe('project_brief');
+    expect(createdDocument.logical_name).toBe('workspace_brief');
     expect(updatedDocument.source).toBe('external');
     expect(uploadedArtifact.id).toBe('artifact-2');
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe(
       'http://localhost:8080/api/v1/workflows/pipe-1/documents',
     );
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe(
-      'http://localhost:8080/api/v1/workflows/pipe-1/documents/project_brief',
+      'http://localhost:8080/api/v1/workflows/pipe-1/documents/workspace_brief',
     );
     expect(String(vi.mocked(fetcher).mock.calls[2][0])).toMatch(
-      /^http:\/\/localhost:8080\/api\/v1\/workflows\/pipe-1\/documents\/project_brief\?request_id=/,
+      /^http:\/\/localhost:8080\/api\/v1\/workflows\/pipe-1\/documents\/workspace_brief\?request_id=/,
     );
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
       'http://localhost:8080/api/v1/tasks/task-1/artifacts',
@@ -2509,14 +2509,14 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
-  it('updates project spec through the dashboard api surface', async () => {
+  it('updates workspace spec through the dashboard api surface', async () => {
     writeSession({ accessToken: 'spec-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
           data: {
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             version: 4,
             spec: {
               config: { repository: 'agirunner/agirunner-test-fixtures' },
@@ -2546,13 +2546,13 @@ describe('dashboard api auth/session behavior', () => {
     });
 
     await expect(
-      api.updateProjectSpec('project-1', {
+      api.updateWorkspaceSpec('workspace-1', {
         config: { repository: 'agirunner/agirunner-test-fixtures' },
       }),
     ).resolves.toMatchObject({ version: 4 });
 
     expect(fetcher).toHaveBeenCalledWith(
-      'http://localhost:8080/api/v1/projects/project-1/spec',
+      'http://localhost:8080/api/v1/workspaces/workspace-1/spec',
       expect.objectContaining({
         method: 'PUT',
         credentials: 'include',
@@ -2560,14 +2560,14 @@ describe('dashboard api auth/session behavior', () => {
     );
   });
 
-  it('unwraps project spec envelopes when reading the dashboard api surface', async () => {
+  it('unwraps workspace spec envelopes when reading the dashboard api surface', async () => {
     writeSession({ accessToken: 'spec-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn().mockResolvedValue(
       new Response(
         JSON.stringify({
           data: {
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             version: 5,
             created_at: '2026-03-14T19:00:00.000Z',
             spec: {
@@ -2599,8 +2599,8 @@ describe('dashboard api auth/session behavior', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    await expect(api.getProjectSpec('project-1')).resolves.toEqual({
-      project_id: 'project-1',
+    await expect(api.getWorkspaceSpec('workspace-1')).resolves.toEqual({
+      workspace_id: 'workspace-1',
       version: 5,
       created_at: '2026-03-14T19:00:00.000Z',
       created_by_id: undefined,
@@ -2615,11 +2615,11 @@ describe('dashboard api auth/session behavior', () => {
 });
 
 describe('dashboard global search', () => {
-  it('buildSearchResults creates task, workflow, project, playbook, worker, and agent route targets', () => {
+  it('buildSearchResults creates task, workflow, workspace, playbook, worker, and agent route targets', () => {
     const results = buildSearchResults('build', {
       workflows: [{ id: 'workflow-1', name: 'Build Workflow', state: 'running' }],
       tasks: [{ id: 'task-1', title: 'Build artifact', state: 'ready' }],
-      projects: [{ id: 'project-1', name: 'Build Project' }],
+      workspaces: [{ id: 'workspace-1', name: 'Build Workspace' }],
       playbooks: [{ id: 'playbook-1', name: 'Build Playbook' }],
       workers: [{ id: 'worker-1', name: 'Builder worker', status: 'online' }],
       agents: [{ id: 'agent-1', name: 'Builder agent', status: 'idle' }],
@@ -2628,14 +2628,14 @@ describe('dashboard global search', () => {
     expect(results.map((result) => result.type)).toEqual([
       'workflow',
       'task',
-      'project',
+      'workspace',
       'playbook',
       'worker',
       'agent',
     ]);
     expect(results[0].href).toBe('/work/boards/workflow-1');
     expect(results[1].href).toBe('/work/tasks/task-1');
-    expect(results[2].href).toBe('/projects/project-1');
+    expect(results[2].href).toBe('/workspaces/workspace-1');
     expect(results[3].href).toBe('/config/playbooks/playbook-1');
     expect(results[4].href).toBe('/fleet/workers');
     expect(results[5].href).toBe('/fleet/agents');
@@ -2663,9 +2663,9 @@ describe('dashboard global search', () => {
       listAgents: vi
         .fn()
         .mockResolvedValue([{ id: 'agent-1', name: 'Test agent', status: 'idle' }]),
-      listProjects: vi
+      listWorkspaces: vi
         .fn()
-        .mockResolvedValue({ data: [{ id: 'project-1', name: 'Test project' }] }),
+        .mockResolvedValue({ data: [{ id: 'workspace-1', name: 'Test workspace' }] }),
       listPlaybooks: vi
         .fn()
         .mockResolvedValue({ data: [{ id: 'playbook-1', name: 'Test playbook' }] }),
@@ -2679,11 +2679,11 @@ describe('dashboard global search', () => {
     expect(results).toHaveLength(6);
     expect(client.listWorkflows).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listTasks).toHaveBeenCalledWith({ per_page: 50 });
-    expect(client.listProjects).toHaveBeenCalledWith({ per_page: 50 });
+    expect(client.listWorkspaces).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listPlaybooks).toHaveBeenCalled();
   });
 
-  it('deletes a project through the shared api client', async () => {
+  it('deletes a workspace through the shared api client', async () => {
     writeSession({ accessToken: 'delete-token', tenantId: 'tenant-1' });
 
     const fetcher = vi
@@ -2698,10 +2698,10 @@ describe('dashboard global search', () => {
       baseUrl: 'http://localhost:8080',
     });
 
-    await api.deleteProject('project-42');
+    await api.deleteWorkspace('workspace-42');
 
     expect(fetcher).toHaveBeenCalledWith(
-      'http://localhost:8080/api/v1/projects/project-42',
+      'http://localhost:8080/api/v1/workspaces/workspace-42',
       expect.objectContaining({
         method: 'DELETE',
         credentials: 'include',
@@ -2765,7 +2765,7 @@ describe('dashboard global search', () => {
         JSON.stringify({
           error: {
             code: 'SCHEMA_VALIDATION_FAILED',
-            message: 'Workflow and project targets must belong to the same project scope',
+            message: 'Workflow and workspace targets must belong to the same workspace scope',
           },
         }),
         {
@@ -2785,14 +2785,14 @@ describe('dashboard global search', () => {
       api.createWebhookWorkItemTrigger({
         name: 'GitHub push',
         source: 'github',
-        project_id: '11111111-1111-4111-8111-111111111111',
+        workspace_id: '11111111-1111-4111-8111-111111111111',
         workflow_id: '22222222-2222-4222-8222-222222222222',
         signature_header: 'x-hub-signature-256',
         signature_mode: 'hmac_sha256',
         secret: 'secret123',
       }),
     ).rejects.toThrow(
-      'HTTP 422: Workflow and project targets must belong to the same project scope',
+      'HTTP 422: Workflow and workspace targets must belong to the same workspace scope',
     );
   });
 });

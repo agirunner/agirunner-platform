@@ -66,8 +66,8 @@ const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-pag
 const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
 const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
-const ProjectListPage = lazyWithRetry(() => import('../pages/projects/project-list-page.js').then((m) => ({ default: m.ProjectListPage })));
-const ProjectDetailPage = lazyWithRetry(() => import('../pages/projects/project-detail-page.js').then((m) => ({ default: m.ProjectDetailPage })));
+const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspaces/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));
+const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspaces/workspace-detail-page.js').then((m) => ({ default: m.WorkspaceDetailPage })));
 
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
 const OrchestratorPage = lazyWithRetry(() => import('../pages/config/orchestrator-page.js').then((m) => ({ default: m.OrchestratorPage })));
@@ -203,14 +203,14 @@ export function App(): JSX.Element {
             <Route path="/artifacts/tasks/:taskId/:artifactId" element={<ArtifactPreviewPage />} />
             <Route path="/work/approvals" element={<ApprovalQueuePage />} />
 
-            {/* Projects */}
-            <Route path="/projects" element={<ProjectListPage />} />
-            <Route path="/projects/:id" element={<ProjectDetailPage />} />
-            <Route path="/projects/:id/memory" element={<LegacyProjectKnowledgeRedirect />} />
-            <Route path="/projects/:id/content" element={<LegacyProjectKnowledgeRedirect />} />
-            <Route path="/projects/:id/artifacts" element={<LegacyProjectKnowledgeRedirect />} />
-            <Route path="/projects/memory" element={<Navigate to="/projects" replace />} />
-            <Route path="/projects/content" element={<Navigate to="/projects" replace />} />
+            {/* Workspaces */}
+            <Route path="/workspaces" element={<WorkspaceListPage />} />
+            <Route path="/workspaces/:id" element={<WorkspaceDetailPage />} />
+            <Route path="/workspaces/:id/memory" element={<LegacyWorkspaceKnowledgeRedirect />} />
+            <Route path="/workspaces/:id/content" element={<LegacyWorkspaceKnowledgeRedirect />} />
+            <Route path="/workspaces/:id/artifacts" element={<LegacyWorkspaceKnowledgeRedirect />} />
+            <Route path="/workspaces/memory" element={<Navigate to="/workspaces" replace />} />
+            <Route path="/workspaces/content" element={<Navigate to="/workspaces" replace />} />
 
             {/* Configuration */}
             <Route path="/config/playbooks" element={<PlaybookListPage />} />
@@ -280,18 +280,18 @@ function LegacyWorkflowBoardRedirect(): JSX.Element {
   );
 }
 
-function LegacyProjectKnowledgeRedirect(): JSX.Element {
+function LegacyWorkspaceKnowledgeRedirect(): JSX.Element {
   const location = useLocation();
   const { id } = useParams<{ id: string }>();
   if (!id) {
-    return <Navigate to="/projects" replace />;
+    return <Navigate to="/workspaces" replace />;
   }
   const panel = location.pathname.endsWith('/memory')
     ? 'memory'
     : location.pathname.endsWith('/artifacts')
       ? 'artifacts'
       : 'artifacts';
-  return <Navigate to={`/projects/${id}?tab=knowledge&panel=${panel}`} replace />;
+  return <Navigate to={`/workspaces/${id}?tab=knowledge&panel=${panel}`} replace />;
 }
 
 function SSOCallbackPage(): JSX.Element {

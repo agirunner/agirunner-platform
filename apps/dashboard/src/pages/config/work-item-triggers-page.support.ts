@@ -6,7 +6,7 @@ import type {
 export interface WebhookTriggerFormState {
   name: string;
   source: string;
-  projectId: string;
+  workspaceId: string;
   workflowId: string;
   eventHeader: string;
   eventTypes: string;
@@ -29,7 +29,7 @@ export function createWebhookTriggerFormState(): WebhookTriggerFormState {
   return {
     name: '',
     source: '',
-    projectId: '',
+    workspaceId: '',
     workflowId: '',
     eventHeader: '',
     eventTypes: '',
@@ -49,7 +49,7 @@ export function hydrateWebhookTriggerForm(
   return {
     name: trigger.name,
     source: trigger.source,
-    projectId: trigger.project_id ?? '',
+    workspaceId: trigger.workspace_id ?? '',
     workflowId: trigger.workflow_id,
     eventHeader: trigger.event_header ?? '',
     eventTypes: (trigger.event_types ?? []).join(', '),
@@ -105,7 +105,7 @@ export function buildWebhookTriggerCreatePayload(form: WebhookTriggerFormState) 
   return {
     name: form.name.trim(),
     source: form.source.trim(),
-    ...(form.projectId ? { project_id: form.projectId } : {}),
+    ...(form.workspaceId ? { workspace_id: form.workspaceId } : {}),
     workflow_id: form.workflowId,
     ...(form.eventHeader.trim() ? { event_header: form.eventHeader.trim() } : {}),
     ...(eventTypes.length > 0 ? { event_types: eventTypes } : {}),
@@ -123,7 +123,7 @@ export function buildWebhookTriggerUpdatePayload(form: WebhookTriggerFormState) 
   return {
     name: form.name.trim(),
     source: form.source.trim(),
-    project_id: form.projectId || null,
+    workspace_id: form.workspaceId || null,
     workflow_id: form.workflowId,
     event_header: form.eventHeader.trim() || null,
     event_types: eventTypes,
@@ -218,7 +218,7 @@ export function summarizeTriggerOverview(
       detail:
         scheduled.length === 0
           ? 'No recurring work-item rules configured yet'
-          : `${scheduled.filter((trigger) => trigger.is_active).length} active recurring rule${scheduled.filter((trigger) => trigger.is_active).length === 1 ? '' : 's'} across project automation`,
+          : `${scheduled.filter((trigger) => trigger.is_active).length} active recurring rule${scheduled.filter((trigger) => trigger.is_active).length === 1 ? '' : 's'} across workspace automation`,
     },
     {
       label: 'Recovery pressure',
@@ -253,7 +253,7 @@ export function buildTriggerOperatorFocus(
     return {
       title: 'Recover overdue automation',
       value: `${dueScheduled} due now`,
-      detail: 'Open the owning project automation settings and confirm the recurring work-item rule can fire immediately.',
+      detail: 'Open the owning workspace automation settings and confirm the recurring work-item rule can fire immediately.',
     };
   }
   if (disabledScheduled + disabledWebhooks > 0) {
@@ -266,7 +266,7 @@ export function buildTriggerOperatorFocus(
   return {
     title: 'Automation posture is healthy',
     value: 'No recovery queue',
-    detail: 'Recurring and inbound automation are active. Use the owning project settings if scope or cadence changes.',
+    detail: 'Recurring and inbound automation are active. Use the owning workspace settings if scope or cadence changes.',
   };
 }
 
@@ -284,7 +284,7 @@ export function describeScheduledTriggerPacket(trigger: DashboardScheduledWorkIt
   return {
     cadence: formatScheduledTrigger(trigger),
     nextRun: formatDateTime(trigger.next_fire_at),
-    source: trigger.source || 'project.schedule',
+    source: trigger.source || 'workspace.schedule',
     nextAction: describeScheduledTriggerNextAction(trigger),
   };
 }
@@ -310,12 +310,12 @@ export function describeScheduledTriggerNextAction(
 ): string {
   const health = describeScheduledTriggerHealth(trigger);
   if (health.label === 'Due') {
-    return 'Open the owning project and confirm the recurring work-item rule can fire now.';
+    return 'Open the owning workspace and confirm the recurring work-item rule can fire now.';
   }
   if (health.label === 'Disabled') {
-    return 'Re-enable only after confirming cadence, board target, and default routing in project automation.';
+    return 'Re-enable only after confirming cadence, board target, and default routing in workspace automation.';
   }
-  return 'Monitor the next run and adjust cadence or defaults from project automation if the work changed.';
+  return 'Monitor the next run and adjust cadence or defaults from workspace automation if the work changed.';
 }
 
 export function describeWebhookTriggerNextAction(
@@ -324,7 +324,7 @@ export function describeWebhookTriggerNextAction(
   if (!trigger.is_active) {
     return 'Re-enable only after validating signature mode, headers, and source-system wiring.';
   }
-  return 'Keep the source system wired to this intake rule and open the owning project if delivery stops.';
+  return 'Keep the source system wired to this intake rule and open the owning workspace if delivery stops.';
 }
 
 export function formatCadence(minutes: number): string {

@@ -109,7 +109,7 @@ const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
   },
   {
     value: 'project-management',
-    label: 'Project management',
+    label: 'Workspace management',
     category: 'Coordination',
     description: 'Plans, coordinates, tracks progress, and manages stakeholders.',
   },

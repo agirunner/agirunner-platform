@@ -1,12 +1,12 @@
 export type ArtifactPreviewReturnSource =
-  | 'project-artifacts'
-  | 'project-content'
+  | 'workspace-artifacts'
+  | 'workspace-content'
   | 'workflow-board'
   | 'workflow-inspector'
   | 'task-record';
 
-export type ProjectArtifactRoutePreviewMode = 'all' | 'inline' | 'download';
-export type ProjectArtifactRouteSort =
+export type WorkspaceArtifactRoutePreviewMode = 'all' | 'inline' | 'download';
+export type WorkspaceArtifactRouteSort =
   | 'newest'
   | 'oldest'
   | 'largest'
@@ -17,7 +17,7 @@ interface SearchParamReader {
   get(name: string): string | null;
 }
 
-export interface ProjectArtifactRouteState {
+export interface WorkspaceArtifactRouteState {
   query: string;
   workflowId: string;
   workItemId: string;
@@ -25,15 +25,15 @@ export interface ProjectArtifactRouteState {
   stageName: string;
   role: string;
   contentType: string;
-  previewMode: ProjectArtifactRoutePreviewMode;
+  previewMode: WorkspaceArtifactRoutePreviewMode;
   createdFrom: string;
   createdTo: string;
-  sort: ProjectArtifactRouteSort;
+  sort: WorkspaceArtifactRouteSort;
   page: number;
   artifactId: string;
 }
 
-export const DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE: ProjectArtifactRouteState = {
+export const DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE: WorkspaceArtifactRouteState = {
   query: '',
   workflowId: '',
   workItemId: '',
@@ -79,49 +79,49 @@ export function readArtifactPreviewReturnState(searchParams: SearchParamReader):
   };
 }
 
-export function readProjectArtifactRouteState(
+export function readWorkspaceArtifactRouteState(
   searchParams: SearchParamReader,
-): ProjectArtifactRouteState {
+): WorkspaceArtifactRouteState {
   return {
-    query: readOptionalParam(searchParams, 'q') ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.query,
+    query: readOptionalParam(searchParams, 'q') ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.query,
     workflowId:
       readOptionalParam(searchParams, 'workflow_id')
       ?? readOptionalParam(searchParams, 'workflow')
-      ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.workflowId,
+      ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.workflowId,
     workItemId:
       readOptionalParam(searchParams, 'work_item_id')
       ?? readOptionalParam(searchParams, 'work_item')
-      ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.workItemId,
+      ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.workItemId,
     taskId:
-      readOptionalParam(searchParams, 'task_id') ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.taskId,
+      readOptionalParam(searchParams, 'task_id') ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.taskId,
     stageName:
       readOptionalParam(searchParams, 'stage_name')
-      ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.stageName,
-    role: readOptionalParam(searchParams, 'role') ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.role,
+      ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.stageName,
+    role: readOptionalParam(searchParams, 'role') ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.role,
     contentType:
       readOptionalParam(searchParams, 'content_type')
-      ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.contentType,
+      ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.contentType,
     previewMode:
       readPreviewMode(searchParams.get('preview_mode'))
-      ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.previewMode,
+      ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.previewMode,
     createdFrom:
       readOptionalParam(searchParams, 'created_from')
-      ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.createdFrom,
+      ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.createdFrom,
     createdTo:
       readOptionalParam(searchParams, 'created_to')
-      ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.createdTo,
+      ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.createdTo,
     sort:
-      readSort(searchParams.get('sort')) ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.sort,
+      readSort(searchParams.get('sort')) ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.sort,
     page: readPage(searchParams.get('page')),
     artifactId:
       readOptionalParam(searchParams, 'artifact_id')
-      ?? DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.artifactId,
+      ?? DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.artifactId,
   };
 }
 
-export function buildProjectArtifactBrowserPath(
-  projectId: string,
-  state: Partial<ProjectArtifactRouteState>,
+export function buildWorkspaceArtifactBrowserPath(
+  workspaceId: string,
+  state: Partial<WorkspaceArtifactRouteState>,
 ): string {
   const searchParams = new URLSearchParams();
   appendStateParam(searchParams, 'q', state.query);
@@ -144,7 +144,7 @@ export function buildProjectArtifactBrowserPath(
   }
   appendStateParam(searchParams, 'artifact_id', state.artifactId);
   const query = searchParams.toString();
-  const path = `/projects/${encodeURIComponent(projectId)}/artifacts`;
+  const path = `/workspaces/${encodeURIComponent(workspaceId)}/artifacts`;
   return query ? `${path}?${query}` : path;
 }
 
@@ -167,11 +167,11 @@ function readOptionalParam(
   return value ? value : null;
 }
 
-function readPreviewMode(value: string | null): ProjectArtifactRoutePreviewMode | null {
+function readPreviewMode(value: string | null): WorkspaceArtifactRoutePreviewMode | null {
   return value === 'inline' || value === 'download' || value === 'all' ? value : null;
 }
 
-function readSort(value: string | null): ProjectArtifactRouteSort | null {
+function readSort(value: string | null): WorkspaceArtifactRouteSort | null {
   return value === 'newest'
     || value === 'oldest'
     || value === 'largest'
@@ -182,8 +182,8 @@ function readSort(value: string | null): ProjectArtifactRouteSort | null {
 }
 
 function readReturnSource(value: string | null): ArtifactPreviewReturnSource | null {
-  return value === 'project-artifacts'
-    || value === 'project-content'
+  return value === 'workspace-artifacts'
+    || value === 'workspace-content'
     || value === 'workflow-board'
     || value === 'workflow-inspector'
     || value === 'task-record'
@@ -194,7 +194,7 @@ function readReturnSource(value: string | null): ArtifactPreviewReturnSource | n
 function readPage(value: string | null): number {
   const page = Number(value);
   if (!Number.isInteger(page) || page < 1) {
-    return DEFAULT_PROJECT_ARTIFACT_ROUTE_STATE.page;
+    return DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE.page;
   }
   return page;
 }

@@ -14,7 +14,7 @@ describe('workflow list page source', () => {
     expect(source).toContain('WorkflowSummaryCards');
     expect(source).toContain('Board posture view');
     expect(source).toContain('describeGateSummary');
-    expect(source).toContain('Search runs, stages, gates, or projects...');
+    expect(source).toContain('Search runs, stages, gates, or workspaces...');
   });
 
   it('uses current V2 launch and saved-view controls', () => {

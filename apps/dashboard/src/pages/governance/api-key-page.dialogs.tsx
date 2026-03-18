@@ -171,7 +171,7 @@ export function CreateApiKeyDialog(props: {
                 id="key-label"
                 value={label}
                 onChange={(event) => setLabel(event.target.value)}
-                placeholder="Deploy automation for Project Atlas"
+                placeholder="Deploy automation for Workspace Atlas"
               />
               <p className="text-xs leading-5 text-muted">
                 Use a label that explains who or what owns this key.

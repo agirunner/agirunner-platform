@@ -17,7 +17,7 @@ export interface ArtifactPreviewTaskContext {
   work_item_id?: string | null;
   stage_name?: string | null;
   activation_id?: string | null;
-  project_id?: string | null;
+  workspace_id?: string | null;
 }
 
 export interface ArtifactPreviewReturnContext {
@@ -129,29 +129,29 @@ function buildContextualArtifactNavigation(
     return null;
   }
 
-  if (returnContext.returnSource === 'project-artifacts') {
+  if (returnContext.returnSource === 'workspace-artifacts') {
     return {
       primaryHref: returnContext.returnTo,
-      primaryLabel: 'Back to project artifacts',
+      primaryLabel: 'Back to workspace artifacts',
       primaryHelper:
-        'Return to the project artifact explorer so the selected workflow scope, filters, and artifact packet stay intact.',
+        'Return to the workspace artifact explorer so the selected workflow scope, filters, and artifact packet stay intact.',
       diagnosticHref: `/work/tasks/${encodeURIComponent(taskId)}`,
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
-        'This preview was opened from the project artifact explorer, so return there first to keep project-level browsing, provenance checks, and adjacent artifact review intact.',
+        'This preview was opened from the workspace artifact explorer, so return there first to keep workspace-level browsing, provenance checks, and adjacent artifact review intact.',
     };
   }
 
-  if (returnContext.returnSource === 'project-content') {
+  if (returnContext.returnSource === 'workspace-content') {
     return {
       primaryHref: returnContext.returnTo,
-      primaryLabel: 'Back to project content',
+      primaryLabel: 'Back to workspace content',
       primaryHelper:
-        'Return to the project content surface so artifact review stays attached to the current workflow and task packet.',
+        'Return to the workspace content surface so artifact review stays attached to the current workflow and task packet.',
       diagnosticHref: `/work/tasks/${encodeURIComponent(taskId)}`,
       diagnosticLabel: 'Open step diagnostics',
       sourceContextBody:
-        'This preview was opened from the project content surface, so return there first to continue document and artifact management in one place.',
+        'This preview was opened from the workspace content surface, so return there first to continue document and artifact management in one place.',
     };
   }
 
@@ -189,6 +189,6 @@ function buildContextualArtifactNavigation(
     diagnosticHref: `/work/tasks/${encodeURIComponent(taskId)}`,
     diagnosticLabel: 'Open step diagnostics',
     sourceContextBody:
-      'This preview was opened from the source step record, so return there first unless you need a broader board or project surface.',
+      'This preview was opened from the source step record, so return there first unless you need a broader board or workspace surface.',
   };
 }

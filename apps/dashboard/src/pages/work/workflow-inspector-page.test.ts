@@ -17,7 +17,7 @@ describe('workflow inspector page source', () => {
     const source = readSource();
     expect(source).toContain('useParams');
     expect(source).toContain('dashboardApi.getWorkflow');
-    expect(source).toContain('dashboardApi.getProject');
+    expect(source).toContain('dashboardApi.getWorkspace');
     expect(source).toContain('dashboardApi.getLogStats');
     expect(source).toContain('dashboardApi.getLatestWorkflowWorkItemHandoff');
     expect(source).toContain('dashboardApi.getWorkflowWorkItemMemoryHistory');
@@ -35,8 +35,8 @@ describe('workflow inspector page source', () => {
     expect(source).toContain('Trace drill-in posture');
     expect(source).toContain('WorkflowInspectorTelemetryPanel');
     expect(source).toContain('telemetry={telemetryModel}');
-    expect(source).toContain('Project Memory');
-    expect(source).toContain('Project Artifacts');
+    expect(source).toContain('Workspace Memory');
+    expect(source).toContain('Workspace Artifacts');
     expect(source).toContain('Highest reported stage spend');
     expect(source).toContain('Latest activation packet');
     expect(source).toContain('gate lanes');

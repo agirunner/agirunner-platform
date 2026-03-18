@@ -53,7 +53,7 @@ const CATEGORY_DESCRIPTORS: Record<ToolCategory, ToolCategoryDescriptor> = {
   },
   memory: {
     label: 'Memory',
-    detail: 'Read and write project memory.',
+    detail: 'Read and write workspace memory.',
     badgeVariant: 'secondary',
   },
   web: {

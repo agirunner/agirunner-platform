@@ -3,20 +3,20 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import type {
   DashboardEffectiveModelResolution,
   DashboardPlaybookRecord,
-  DashboardProjectRecord,
-  DashboardProjectResolvedModelsResponse,
+  DashboardWorkspaceRecord,
+  DashboardWorkspaceResolvedModelsResponse,
   DashboardRoleModelOverride,
 } from '../../lib/api.js';
 import type { readLaunchDefinition } from './playbook-launch-support.js';
 
 export function PlaybookSummaryCard(props: {
   playbook: DashboardPlaybookRecord | null;
-  projects: DashboardProjectRecord[];
-  selectedProjectId: string;
-  projectResolvedModels?: DashboardProjectResolvedModelsResponse;
+  workspaces: DashboardWorkspaceRecord[];
+  selectedWorkspaceId: string;
+  workspaceResolvedModels?: DashboardWorkspaceResolvedModelsResponse;
   previewData?: {
     roles: string[];
-    project_model_overrides: Record<string, DashboardRoleModelOverride>;
+    workspace_model_overrides: Record<string, DashboardRoleModelOverride>;
     workflow_model_overrides: Record<string, DashboardRoleModelOverride>;
     effective_models: Record<string, DashboardEffectiveModelResolution>;
   };
@@ -28,8 +28,8 @@ export function PlaybookSummaryCard(props: {
   launchDefinition: ReturnType<typeof readLaunchDefinition>;
   isLoading: boolean;
 }): JSX.Element {
-  const selectedProject =
-    props.projects.find((project) => project.id === props.selectedProjectId) ?? null;
+  const selectedWorkspace =
+    props.workspaces.find((workspace) => workspace.id === props.selectedWorkspaceId) ?? null;
 
   return (
     <Card>
@@ -46,10 +46,10 @@ export function PlaybookSummaryCard(props: {
         {props.playbook ? (
           <PlaybookSummaryBody
             playbook={props.playbook}
-            selectedProject={selectedProject}
+            selectedWorkspace={selectedWorkspace}
             launchDefinition={props.launchDefinition}
             workflowOverrides={props.workflowOverrides}
-            projectResolvedModels={props.projectResolvedModels}
+            workspaceResolvedModels={props.workspaceResolvedModels}
             previewData={props.previewData}
             previewError={props.previewError}
             previewLoading={props.previewLoading}
@@ -64,10 +64,10 @@ export function PlaybookSummaryCard(props: {
 
 function PlaybookSummaryBody(props: {
   playbook: DashboardPlaybookRecord;
-  selectedProject: DashboardProjectRecord | null;
+  selectedWorkspace: DashboardWorkspaceRecord | null;
   launchDefinition: ReturnType<typeof readLaunchDefinition>;
   workflowOverrides: Record<string, DashboardRoleModelOverride>;
-  projectResolvedModels?: DashboardProjectResolvedModelsResponse;
+  workspaceResolvedModels?: DashboardWorkspaceResolvedModelsResponse;
   previewData?: {
     effective_models: Record<string, DashboardEffectiveModelResolution>;
   };
@@ -109,7 +109,7 @@ function PlaybookSummaryBody(props: {
         />
       ) : null}
       <SummaryDetail label="Outcome" value={props.playbook.outcome} />
-      <SummaryDetail label="Project" value={props.selectedProject?.name ?? 'Standalone workflow'} />
+      <SummaryDetail label="Workspace" value={props.selectedWorkspace?.name ?? 'Standalone workflow'} />
       <SummaryDetail
         label="Workflow override roles"
         value={
@@ -133,7 +133,7 @@ function PlaybookSummaryBody(props: {
         previewLoading={props.previewLoading}
         previewError={props.previewError}
         previewData={props.previewData}
-        projectResolvedModels={props.projectResolvedModels}
+        workspaceResolvedModels={props.workspaceResolvedModels}
       />
     </>
   );
@@ -143,7 +143,7 @@ function EffectiveModelPreview(props: {
   previewLoading: boolean;
   previewError: unknown;
   previewData?: { effective_models: Record<string, DashboardEffectiveModelResolution> };
-  projectResolvedModels?: DashboardProjectResolvedModelsResponse;
+  workspaceResolvedModels?: DashboardWorkspaceResolvedModelsResponse;
 }): JSX.Element {
   return (
     <div className="rounded-md border border-border bg-muted/20 p-3 text-sm">
@@ -154,12 +154,12 @@ function EffectiveModelPreview(props: {
         <p className="text-red-600 dark:text-red-400">Failed to resolve effective models.</p>
       ) : props.previewData && Object.keys(props.previewData.effective_models).length > 0 ? (
         <ResolvedModelList effectiveModels={props.previewData.effective_models} />
-      ) : props.projectResolvedModels &&
-        Object.keys(props.projectResolvedModels.effective_models).length > 0 ? (
-        <ResolvedModelList effectiveModels={props.projectResolvedModels.effective_models} />
+      ) : props.workspaceResolvedModels &&
+        Object.keys(props.workspaceResolvedModels.effective_models).length > 0 ? (
+        <ResolvedModelList effectiveModels={props.workspaceResolvedModels.effective_models} />
       ) : (
         <p className="text-muted">
-          Add project or workflow overrides to preview the effective model stack.
+          Add workspace or workflow overrides to preview the effective model stack.
         </p>
       )}
     </div>

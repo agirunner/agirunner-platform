@@ -24,9 +24,9 @@ describe('workflow detail content source', () => {
     expect(source).toContain('ChainStructuredEntryEditor');
     expect(source).toContain('DocumentCard');
     expect(source).toContain('DocumentMetadataEntryEditor');
-    expect(source).toContain('ProjectMemoryEntryCard');
+    expect(source).toContain('WorkspaceMemoryEntryCard');
     expect(source).toContain('ContentEmptyState');
-    expect(source).toContain('describeProjectMemoryEntry');
+    expect(source).toContain('describeWorkspaceMemoryEntry');
     expect(source).toContain('dashboardApi.createWorkflowDocument');
     expect(source).toContain('dashboardApi.updateWorkflowDocument');
     expect(source).toContain('dashboardApi.deleteWorkflowDocument');

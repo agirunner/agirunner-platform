@@ -109,8 +109,8 @@ export function describeAgentOption(agent: DashboardAgentRecord): string {
 
 export function describeWorkflowOption(workflow: DashboardWorkflowRecord): string {
   const parts: string[] = [workflow.state];
-  if (workflow.project_name) {
-    parts.push(workflow.project_name);
+  if (workflow.workspace_name) {
+    parts.push(workflow.workspace_name);
   }
   if (workflow.playbook_name) {
     parts.push(workflow.playbook_name);
@@ -146,8 +146,8 @@ export function describeSelectedWorkflow(
   const details: Array<{ label: string; value: string }> = [
     { label: 'State', value: workflow.state || 'unknown' },
   ];
-  if (workflow.project_name) {
-    details.push({ label: 'Project', value: workflow.project_name });
+  if (workflow.workspace_name) {
+    details.push({ label: 'Workspace', value: workflow.workspace_name });
   }
   if (workflow.playbook_name) {
     details.push({ label: 'Playbook', value: workflow.playbook_name });

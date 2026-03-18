@@ -83,7 +83,7 @@ interface StoredCommandPaletteItem {
 const SEARCH_RESULT_SECTION_ORDER: Array<DashboardSearchResult['type']> = [
   'workflow',
   'task',
-  'project',
+  'workspace',
   'playbook',
   'worker',
   'agent',
@@ -92,7 +92,7 @@ const SEARCH_RESULT_SECTION_ORDER: Array<DashboardSearchResult['type']> = [
 const SEARCH_RESULT_SECTION_LABELS: Record<DashboardSearchResult['type'], string> = {
   workflow: 'Workflow Boards',
   task: 'Tasks',
-  project: 'Projects',
+  workspace: 'Workspaces',
   playbook: 'Playbooks',
   worker: 'Workers',
   agent: 'Agents',

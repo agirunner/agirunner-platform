@@ -81,7 +81,7 @@ import {
 interface WorkflowRecord {
   id: string;
   name: string;
-  project_id?: string | null;
+  workspace_id?: string | null;
   playbook_id?: string | null;
   lifecycle?: 'planned' | 'ongoing' | null;
   current_stage?: string | null;
@@ -1421,7 +1421,7 @@ function ActivePlaybookBoards(props: {
                         <WorkflowControlActions
                           workflowId={workflow.id}
                           workflowState={workflow.state ?? workflow.status}
-                          projectId={workflow.project_id}
+                          workspaceId={workflow.workspace_id}
                         />
                         <Button size="sm" variant="outline" asChild>
                           <Link to={`/work/boards/${workflow.id}`}>Open board</Link>

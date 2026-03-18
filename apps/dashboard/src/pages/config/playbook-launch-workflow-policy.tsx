@@ -23,12 +23,12 @@ const INSTRUCTION_LAYER_DETAILS: Array<{
   {
     value: 'platform',
     label: 'Platform instructions',
-    description: 'Shared system-wide guidance applied before project or playbook layers.',
+    description: 'Shared system-wide guidance applied before workspace or playbook layers.',
   },
   {
-    value: 'project',
-    label: 'Project instructions',
-    description: 'Project-specific instructions and run context resolved for the selected project.',
+    value: 'workspace',
+    label: 'Workspace instructions',
+    description: 'Workspace-specific instructions and run context resolved for the selected workspace.',
   },
   {
     value: 'playbook',
@@ -239,7 +239,7 @@ function WorkflowConfigOverrideField(props: {
           <span className="text-xs text-red-600 dark:text-red-400">{props.fieldError}</span>
         ) : (
           <span className="text-xs text-muted">
-            Leave this empty to keep the playbook and project-resolved value.
+            Leave this empty to keep the playbook and workspace-resolved value.
           </span>
         )}
       </div>

@@ -4,12 +4,12 @@ import type {
   DashboardWorkflowStageRecord,
   DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
-import { buildProjectArtifactBrowserPath } from '../../lib/artifact-navigation.js';
+import { buildWorkspaceArtifactBrowserPath } from '../../lib/artifact-navigation.js';
 import type { WorkflowInspectorTraceLink } from './workflow-inspector-support.js';
 
 export function buildWorkflowInspectorTraceLinks(
   workflow: DashboardWorkflowRecord | undefined,
-  projectId: string | null,
+  workspaceId: string | null,
   readLatestActivation: (
     activations: DashboardWorkflowActivationRecord[],
   ) => DashboardWorkflowActivationRecord | null,
@@ -58,16 +58,16 @@ export function buildWorkflowInspectorTraceLinks(
     });
   }
 
-  if (projectId) {
+  if (workspaceId) {
     links.push(
       {
-        label: 'Project memory',
-        href: `/projects/${projectId}/memory`,
+        label: 'Workspace memory',
+        href: `/workspaces/${workspaceId}/memory`,
         detail: 'Inspect memory versions, diffs, and run handoff packets.',
       },
       {
-        label: 'Project artifacts',
-        href: buildProjectArtifactBrowserPath(projectId, { workflowId }),
+        label: 'Workspace artifacts',
+        href: buildWorkspaceArtifactBrowserPath(workspaceId, { workflowId }),
         detail: 'Review delivered artifacts and workflow output packets.',
       },
     );

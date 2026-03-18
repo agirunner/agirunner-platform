@@ -43,7 +43,7 @@ export interface DashboardAgentRecord {
 }
 
 export interface DashboardSearchResult {
-  type: 'workflow' | 'task' | 'worker' | 'agent' | 'project' | 'playbook';
+  type: 'workflow' | 'task' | 'worker' | 'agent' | 'workspace' | 'playbook';
   id: string;
   label: string;
   subtitle: string;
@@ -110,7 +110,7 @@ export interface DashboardRoleModelOverride {
   reasoning_config?: Record<string, unknown> | null;
 }
 
-export interface DashboardProjectCredentialPosture {
+export interface DashboardWorkspaceCredentialPosture {
   git_token?: string | null;
   git_token_configured?: boolean;
   git_ssh_private_key?: string | null;
@@ -121,9 +121,9 @@ export interface DashboardProjectCredentialPosture {
   webhook_secret_configured?: boolean;
 }
 
-export interface DashboardProjectArtifactFileRecord {
+export interface DashboardWorkspaceArtifactFileRecord {
   id: string;
-  project_id: string;
+  workspace_id: string;
   key: string;
   description?: string | null;
   file_name: string;
@@ -133,7 +133,7 @@ export interface DashboardProjectArtifactFileRecord {
   download_url: string;
 }
 
-export interface DashboardProjectArtifactFileUploadInput {
+export interface DashboardWorkspaceArtifactFileUploadInput {
   key?: string;
   description?: string;
   file_name: string;
@@ -141,7 +141,7 @@ export interface DashboardProjectArtifactFileUploadInput {
   content_type?: string;
 }
 
-export interface DashboardProjectCredentialInput {
+export interface DashboardWorkspaceCredentialInput {
   git_token?: string | null;
   git_token_configured?: boolean;
   git_ssh_private_key?: string | null;
@@ -152,38 +152,38 @@ export interface DashboardProjectCredentialInput {
   webhook_secret_configured?: boolean;
 }
 
-export type DashboardProjectSettingsRecord = Record<string, unknown> & {
+export type DashboardWorkspaceSettingsRecord = Record<string, unknown> & {
   default_branch?: string | null;
   git_user_name?: string | null;
   git_user_email?: string | null;
-  credentials?: DashboardProjectCredentialPosture;
+  credentials?: DashboardWorkspaceCredentialPosture;
   model_overrides?: Record<string, DashboardRoleModelOverride>;
-  project_brief?: string | null;
+  workspace_brief?: string | null;
 };
 
-export type DashboardProjectSettingsInput = Record<string, unknown> & {
+export type DashboardWorkspaceSettingsInput = Record<string, unknown> & {
   default_branch?: string | null;
   git_user_name?: string | null;
   git_user_email?: string | null;
-  credentials?: DashboardProjectCredentialInput;
+  credentials?: DashboardWorkspaceCredentialInput;
   model_overrides?: Record<string, DashboardRoleModelOverride>;
-  project_brief?: string | null;
+  workspace_brief?: string | null;
 };
 
-export interface DashboardProjectCreateInput {
+export interface DashboardWorkspaceCreateInput {
   name: string;
   slug: string;
   description?: string;
   repository_url?: string;
-  settings?: DashboardProjectSettingsInput;
+  settings?: DashboardWorkspaceSettingsInput;
 }
 
-export interface DashboardProjectPatchInput {
+export interface DashboardWorkspacePatchInput {
   name?: string;
   slug?: string;
   description?: string;
   repository_url?: string;
-  settings?: DashboardProjectSettingsInput;
+  settings?: DashboardWorkspaceSettingsInput;
   is_active?: boolean;
 }
 
@@ -318,7 +318,7 @@ export interface DashboardOAuthStatusRecord {
 }
 
 export interface DashboardEffectiveModelResolution {
-  source: 'base' | 'project' | 'workflow';
+  source: 'base' | 'workspace' | 'workflow';
   resolved: {
     provider: {
       name: string;
@@ -340,14 +340,14 @@ export interface DashboardEffectiveModelResolution {
   fallback_reason?: string;
 }
 
-export interface DashboardProjectModelOverridesResponse {
-  project_id: string;
+export interface DashboardWorkspaceModelOverridesResponse {
+  workspace_id: string;
   model_overrides: Record<string, DashboardRoleModelOverride>;
 }
 
-export interface DashboardProjectResolvedModelsResponse {
-  project_id: string;
-  project_model_overrides: Record<string, DashboardRoleModelOverride>;
+export interface DashboardWorkspaceResolvedModelsResponse {
+  workspace_id: string;
+  workspace_model_overrides: Record<string, DashboardRoleModelOverride>;
   effective_models: Record<string, DashboardEffectiveModelResolution>;
 }
 
@@ -358,8 +358,8 @@ export interface DashboardWorkflowModelOverridesResponse {
 
 export interface DashboardWorkflowResolvedModelsResponse {
   workflow_id: string;
-  project_id?: string | null;
-  project_model_overrides: Record<string, DashboardRoleModelOverride>;
+  workspace_id?: string | null;
+  workspace_model_overrides: Record<string, DashboardRoleModelOverride>;
   workflow_model_overrides: Record<string, DashboardRoleModelOverride>;
   effective_models: Record<string, DashboardEffectiveModelResolution>;
 }
@@ -557,8 +557,8 @@ interface DashboardWorkflowRecordBase {
   name: string;
   state: DashboardWorkflowState;
   created_at: string;
-  project_id?: string | null;
-  project_name?: string | null;
+  workspace_id?: string | null;
+  workspace_name?: string | null;
   playbook_id?: string | null;
   playbook_name?: string | null;
   lifecycle?: 'planned' | 'ongoing' | null;
@@ -700,7 +700,7 @@ export interface DashboardApprovalQueueResponse {
   stage_gates: DashboardApprovalStageGateRecord[];
 }
 
-export interface DashboardProjectTimelineEntry {
+export interface DashboardWorkspaceTimelineEntry {
   kind?: string;
   workflow_id: string;
   name: string;
@@ -719,7 +719,7 @@ export interface DashboardProjectTimelineEntry {
   workflow_relations?: DashboardWorkflowRelations;
 }
 
-export interface DashboardProjectListSummary {
+export interface DashboardWorkspaceListSummary {
   active_workflow_count: number;
   completed_workflow_count: number;
   attention_workflow_count: number;
@@ -727,7 +727,7 @@ export interface DashboardProjectListSummary {
   last_workflow_activity_at: string | null;
 }
 
-export interface DashboardProjectRecord {
+export interface DashboardWorkspaceRecord {
   id: string;
   name: string;
   slug: string;
@@ -735,33 +735,33 @@ export interface DashboardProjectRecord {
   repository_url?: string | null;
   is_active?: boolean;
   memory?: Record<string, unknown>;
-  settings?: DashboardProjectSettingsRecord;
-  summary?: DashboardProjectListSummary;
+  settings?: DashboardWorkspaceSettingsRecord;
+  summary?: DashboardWorkspaceListSummary;
   git_webhook_provider?: string | null;
   git_webhook_secret_configured?: boolean;
   created_at?: string;
   updated_at?: string;
 }
 
-export interface DashboardProjectCreateInput {
+export interface DashboardWorkspaceCreateInput {
   name: string;
   slug: string;
   description?: string;
   repository_url?: string;
-  settings?: DashboardProjectSettingsInput;
+  settings?: DashboardWorkspaceSettingsInput;
 }
 
-export interface DashboardProjectPatchInput {
+export interface DashboardWorkspacePatchInput {
   name?: string;
   slug?: string;
   description?: string;
   repository_url?: string;
-  settings?: DashboardProjectSettingsInput;
+  settings?: DashboardWorkspaceSettingsInput;
   is_active?: boolean;
 }
 
-export interface DashboardProjectSpecRecord {
-  project_id: string;
+export interface DashboardWorkspaceSpecRecord {
+  workspace_id: string;
   version?: number;
   resources?: Record<string, unknown>;
   documents?: Record<string, unknown>;
@@ -774,8 +774,8 @@ export interface DashboardProjectSpecRecord {
   created_by_id?: string | null;
 }
 
-interface DashboardProjectSpecEnvelope {
-  project_id: string;
+interface DashboardWorkspaceSpecEnvelope {
+  workspace_id: string;
   version?: number;
   spec?: {
     resources?: Record<string, unknown>;
@@ -792,14 +792,14 @@ interface DashboardProjectSpecEnvelope {
 export interface DashboardTaskWorkflowRef {
   id: string;
   name?: string | null;
-  project_id?: string | null;
+  workspace_id?: string | null;
 }
 
-function normalizeProjectSpecRecord(
-  envelope: DashboardProjectSpecEnvelope,
-): DashboardProjectSpecRecord {
+function normalizeWorkspaceSpecRecord(
+  envelope: DashboardWorkspaceSpecEnvelope,
+): DashboardWorkspaceSpecRecord {
   return {
-    project_id: envelope.project_id,
+    workspace_id: envelope.workspace_id,
     version: envelope.version,
     config: envelope.spec?.config,
     instructions: envelope.spec?.instructions,
@@ -815,7 +815,7 @@ function normalizeProjectSpecRecord(
 export interface DashboardTaskRecord extends Task {
   workflow?: DashboardTaskWorkflowRef | null;
   workflow_name?: string | null;
-  project_name?: string | null;
+  workspace_name?: string | null;
   work_item_id?: string | null;
   work_item_title?: string | null;
   stage_name?: string | null;
@@ -843,7 +843,7 @@ export interface DashboardPlatformInstructionVersionRecord {
   created_by_id?: string | null;
 }
 
-export interface DashboardProjectResourceRecord {
+export interface DashboardWorkspaceResourceRecord {
   id?: string;
   type?: string;
   name?: string;
@@ -852,7 +852,7 @@ export interface DashboardProjectResourceRecord {
   [key: string]: unknown;
 }
 
-export interface DashboardProjectToolCatalog {
+export interface DashboardWorkspaceToolCatalog {
   available?: unknown[];
   blocked?: unknown[];
   [key: string]: unknown;
@@ -862,7 +862,7 @@ export interface DashboardWebhookWorkItemTriggerRecord {
   id: string;
   name: string;
   source: string;
-  project_id?: string | null;
+  workspace_id?: string | null;
   workflow_id: string;
   event_header?: string | null;
   event_types?: string[];
@@ -880,7 +880,7 @@ export interface DashboardScheduledWorkItemTriggerRecord {
   id: string;
   name: string;
   source: string;
-  project_id?: string | null;
+  workspace_id?: string | null;
   workflow_id: string;
   schedule_type: 'interval' | 'daily_time';
   cadence_minutes: number | null;
@@ -943,7 +943,7 @@ export interface DashboardConfigAssistantResponse {
 
 export interface DashboardResolvedDocumentReference {
   logical_name: string;
-  scope: 'project' | 'workflow';
+  scope: 'workspace' | 'workflow';
   source: 'repository' | 'artifact' | 'external';
   title?: string;
   description?: string;
@@ -992,7 +992,7 @@ export interface DashboardWorkflowDocumentUpdateInput {
 export interface DashboardTaskArtifactRecord {
   id: string;
   workflow_id?: string | null;
-  project_id?: string | null;
+  workspace_id?: string | null;
   task_id: string;
   logical_path: string;
   content_type: string;
@@ -1008,7 +1008,7 @@ export interface DashboardTaskArtifactRecord {
   storage_backend?: string;
 }
 
-export interface DashboardProjectArtifactRecord {
+export interface DashboardWorkspaceArtifactRecord {
   id: string;
   workflow_id: string | null;
   task_id: string;
@@ -1030,7 +1030,7 @@ export interface DashboardProjectArtifactRecord {
   preview_mode: 'text' | 'image' | 'pdf' | 'unsupported';
 }
 
-export interface DashboardProjectArtifactSummary {
+export interface DashboardWorkspaceArtifactSummary {
   total_artifacts: number;
   previewable_artifacts: number;
   total_bytes: number;
@@ -1040,19 +1040,19 @@ export interface DashboardProjectArtifactSummary {
   role_count: number;
 }
 
-export interface DashboardProjectArtifactWorkflowOption {
+export interface DashboardWorkspaceArtifactWorkflowOption {
   id: string;
   name: string;
 }
 
-export interface DashboardProjectArtifactWorkItemOption {
+export interface DashboardWorkspaceArtifactWorkItemOption {
   id: string;
   title: string;
   workflow_id: string | null;
   stage_name: string | null;
 }
 
-export interface DashboardProjectArtifactTaskOption {
+export interface DashboardWorkspaceArtifactTaskOption {
   id: string;
   title: string;
   workflow_id: string | null;
@@ -1060,19 +1060,19 @@ export interface DashboardProjectArtifactTaskOption {
   stage_name: string | null;
 }
 
-export interface DashboardProjectArtifactResponse {
-  data: DashboardProjectArtifactRecord[];
+export interface DashboardWorkspaceArtifactResponse {
+  data: DashboardWorkspaceArtifactRecord[];
   meta: {
     page: number;
     per_page: number;
     total: number;
     total_pages: number;
     has_more: boolean;
-    summary: DashboardProjectArtifactSummary;
+    summary: DashboardWorkspaceArtifactSummary;
     filters: {
-      workflows: DashboardProjectArtifactWorkflowOption[];
-      work_items: DashboardProjectArtifactWorkItemOption[];
-      tasks: DashboardProjectArtifactTaskOption[];
+      workflows: DashboardWorkspaceArtifactWorkflowOption[];
+      work_items: DashboardWorkspaceArtifactWorkItemOption[];
+      tasks: DashboardWorkspaceArtifactTaskOption[];
       stages: string[];
       roles: string[];
       content_types: string[];
@@ -1094,7 +1094,7 @@ export interface DashboardTaskArtifactDownload {
   size_bytes: number;
 }
 
-export interface DashboardProjectArtifactFileDownload {
+export interface DashboardWorkspaceArtifactFileDownload {
   blob: Blob;
   content_type: string;
   file_name?: string | null;
@@ -1363,8 +1363,8 @@ export interface LogEntry {
   duration_ms?: number | null;
   payload?: Record<string, unknown> | null;
   error?: { code?: string; message: string } | null;
-  project_id?: string | null;
-  project_name?: string | null;
+  workspace_id?: string | null;
+  workspace_name?: string | null;
   workflow_id?: string | null;
   workflow_name?: string | null;
   task_id?: string | null;
@@ -1493,18 +1493,18 @@ export interface DashboardApi {
   listWorkflows(
     filters?: Record<string, string>,
   ): Promise<{ data: DashboardWorkflowRecord[]; meta?: Record<string, unknown> }>;
-  listProjects(): Promise<{ data: DashboardProjectRecord[]; meta?: Record<string, unknown> }>;
-  createProject(payload: DashboardProjectCreateInput): Promise<DashboardProjectRecord>;
-  patchProject(
-    projectId: string,
-    payload: DashboardProjectPatchInput,
-  ): Promise<DashboardProjectRecord>;
-  getProject(projectId: string): Promise<DashboardProjectRecord>;
-  getProjectModelOverrides(projectId: string): Promise<DashboardProjectModelOverridesResponse>;
-  getResolvedProjectModels(
-    projectId: string,
+  listWorkspaces(): Promise<{ data: DashboardWorkspaceRecord[]; meta?: Record<string, unknown> }>;
+  createWorkspace(payload: DashboardWorkspaceCreateInput): Promise<DashboardWorkspaceRecord>;
+  patchWorkspace(
+    workspaceId: string,
+    payload: DashboardWorkspacePatchInput,
+  ): Promise<DashboardWorkspaceRecord>;
+  getWorkspace(workspaceId: string): Promise<DashboardWorkspaceRecord>;
+  getWorkspaceModelOverrides(workspaceId: string): Promise<DashboardWorkspaceModelOverridesResponse>;
+  getResolvedWorkspaceModels(
+    workspaceId: string,
     roles?: string[],
-  ): Promise<DashboardProjectResolvedModelsResponse>;
+  ): Promise<DashboardWorkspaceResolvedModelsResponse>;
   getPlatformInstructions(): Promise<DashboardPlatformInstructionRecord>;
   updatePlatformInstructions(payload: {
     content: string;
@@ -1519,41 +1519,41 @@ export interface DashboardApi {
   updateOrchestratorConfig(payload: {
     prompt: string;
   }): Promise<{ prompt: string; updatedAt: string }>;
-  getProjectSpec(projectId: string): Promise<DashboardProjectSpecRecord>;
-  listProjectArtifacts(
-    projectId: string,
+  getWorkspaceSpec(workspaceId: string): Promise<DashboardWorkspaceSpecRecord>;
+  listWorkspaceArtifacts(
+    workspaceId: string,
     filters?: Record<string, string>,
-  ): Promise<DashboardProjectArtifactResponse>;
-  listProjectArtifactFiles(projectId: string): Promise<DashboardProjectArtifactFileRecord[]>;
-  downloadProjectArtifactFile(
-    projectId: string,
+  ): Promise<DashboardWorkspaceArtifactResponse>;
+  listWorkspaceArtifactFiles(workspaceId: string): Promise<DashboardWorkspaceArtifactFileRecord[]>;
+  downloadWorkspaceArtifactFile(
+    workspaceId: string,
     fileId: string,
-  ): Promise<DashboardProjectArtifactFileDownload>;
-  uploadProjectArtifactFiles(
-    projectId: string,
-    payload: DashboardProjectArtifactFileUploadInput[],
-  ): Promise<DashboardProjectArtifactFileRecord[]>;
-  deleteProjectArtifactFile(projectId: string, fileId: string): Promise<void>;
-  updateProjectSpec(
-    projectId: string,
+  ): Promise<DashboardWorkspaceArtifactFileDownload>;
+  uploadWorkspaceArtifactFiles(
+    workspaceId: string,
+    payload: DashboardWorkspaceArtifactFileUploadInput[],
+  ): Promise<DashboardWorkspaceArtifactFileRecord[]>;
+  deleteWorkspaceArtifactFile(workspaceId: string, fileId: string): Promise<void>;
+  updateWorkspaceSpec(
+    workspaceId: string,
     payload: Record<string, unknown>,
-  ): Promise<DashboardProjectSpecRecord>;
-  listProjectResources(projectId: string): Promise<{ data: DashboardProjectResourceRecord[] }>;
-  listProjectTools(projectId: string): Promise<{ data: DashboardProjectToolCatalog }>;
-  patchProjectMemory(
-    projectId: string,
+  ): Promise<DashboardWorkspaceSpecRecord>;
+  listWorkspaceResources(workspaceId: string): Promise<{ data: DashboardWorkspaceResourceRecord[] }>;
+  listWorkspaceTools(workspaceId: string): Promise<{ data: DashboardWorkspaceToolCatalog }>;
+  patchWorkspaceMemory(
+    workspaceId: string,
     payload: { key: string; value: unknown },
-  ): Promise<DashboardProjectRecord>;
-  removeProjectMemory(projectId: string, key: string): Promise<DashboardProjectRecord>;
+  ): Promise<DashboardWorkspaceRecord>;
+  removeWorkspaceMemory(workspaceId: string, key: string): Promise<DashboardWorkspaceRecord>;
   configureGitWebhook(
-    projectId: string,
+    workspaceId: string,
     payload: { provider: string; secret: string },
   ): Promise<Record<string, unknown>>;
   listWebhookWorkItemTriggers(): Promise<{ data: DashboardWebhookWorkItemTriggerRecord[] }>;
   createWebhookWorkItemTrigger(payload: {
     name: string;
     source: string;
-    project_id?: string;
+    workspace_id?: string;
     workflow_id: string;
     event_header?: string;
     event_types?: string[];
@@ -1569,7 +1569,7 @@ export interface DashboardApi {
     payload: Partial<{
       name: string;
       source: string;
-      project_id: string | null;
+      workspace_id: string | null;
       workflow_id: string;
       event_header: string | null;
       event_types: string[];
@@ -1586,7 +1586,7 @@ export interface DashboardApi {
   createScheduledWorkItemTrigger(payload: {
     name: string;
     source?: string;
-    project_id?: string;
+    workspace_id?: string;
     workflow_id: string;
     schedule_type?: 'interval' | 'daily_time';
     cadence_minutes?: number | null;
@@ -1601,7 +1601,7 @@ export interface DashboardApi {
     payload: Partial<{
       name: string;
       source: string | null;
-      project_id: string | null;
+      workspace_id: string | null;
       workflow_id: string;
       schedule_type: 'interval' | 'daily_time';
       cadence_minutes: number | null;
@@ -1741,7 +1741,7 @@ export interface DashboardApi {
   createWorkflow(payload: {
     playbook_id: string;
     name: string;
-    project_id?: string;
+    workspace_id?: string;
     parameters?: Record<string, unknown>;
     metadata?: Record<string, unknown>;
     config_overrides?: Record<string, unknown>;
@@ -1751,11 +1751,11 @@ export interface DashboardApi {
   }): Promise<DashboardWorkflowRecord>;
   previewEffectiveModels(payload: {
     roles?: string[];
-    project_model_overrides?: Record<string, DashboardRoleModelOverride>;
+    workspace_model_overrides?: Record<string, DashboardRoleModelOverride>;
     workflow_model_overrides?: Record<string, DashboardRoleModelOverride>;
   }): Promise<{
     roles: string[];
-    project_model_overrides: Record<string, DashboardRoleModelOverride>;
+    workspace_model_overrides: Record<string, DashboardRoleModelOverride>;
     workflow_model_overrides: Record<string, DashboardRoleModelOverride>;
     effective_models: Record<string, DashboardEffectiveModelResolution>;
   }>;
@@ -1933,9 +1933,9 @@ export interface DashboardApi {
     workflowId: string,
     showLayers?: boolean,
   ): Promise<DashboardResolvedConfigResponse>;
-  getProjectTimeline(projectId: string): Promise<DashboardProjectTimelineEntry[]>;
+  getWorkspaceTimeline(workspaceId: string): Promise<DashboardWorkspaceTimelineEntry[]>;
   createPlanningWorkflow(
-    projectId: string,
+    workspaceId: string,
     payload: { brief: string; name?: string },
   ): Promise<unknown>;
   listRoleDefinitions(): Promise<
@@ -2056,7 +2056,7 @@ export interface DashboardApi {
   getLogRoles(filters?: Record<string, string>): Promise<{ data: LogRoleRecord[] }>;
   getLogActors(filters?: Record<string, string>): Promise<{ data: LogActorRecord[] }>;
   exportLogs(filters: Record<string, string>): Promise<Blob>;
-  deleteProject(projectId: string): Promise<void>;
+  deleteWorkspace(workspaceId: string): Promise<void>;
   askConfigAssistant(question: string): Promise<DashboardConfigAssistantResponse>;
 }
 
@@ -2316,44 +2316,44 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       }
     },
     listWorkflows: (filters) => withRefresh(() => client.listWorkflows(filters ?? {})),
-    listProjects: () =>
+    listWorkspaces: () =>
       withRefresh(
         () =>
-          requestJson('/api/v1/projects?per_page=50', { method: 'GET' }) as Promise<{
-            data: DashboardProjectRecord[];
+          requestJson('/api/v1/workspaces?per_page=50', { method: 'GET' }) as Promise<{
+            data: DashboardWorkspaceRecord[];
             meta?: Record<string, unknown>;
           }>,
       ),
-    createProject: (payload) =>
+    createWorkspace: (payload) =>
       withRefresh(() =>
-        requestData<DashboardProjectRecord>('/api/v1/projects', {
+        requestData<DashboardWorkspaceRecord>('/api/v1/workspaces', {
           body: payload as unknown as Record<string, unknown>,
         }),
       ),
-    patchProject: (projectId, payload) =>
+    patchWorkspace: (workspaceId, payload) =>
       withRefresh(() =>
-        requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}`, {
+        requestData<DashboardWorkspaceRecord>(`/api/v1/workspaces/${workspaceId}`, {
           method: 'PATCH',
           body: payload as Record<string, unknown>,
         }),
       ),
-    getProject: (projectId) =>
+    getWorkspace: (workspaceId) =>
       withRefresh(() =>
-        requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}`, {
+        requestData<DashboardWorkspaceRecord>(`/api/v1/workspaces/${workspaceId}`, {
           method: 'GET',
         }),
       ),
-    getProjectModelOverrides: (projectId) =>
+    getWorkspaceModelOverrides: (workspaceId) =>
       withRefresh(() =>
-        requestData<DashboardProjectModelOverridesResponse>(
-          `/api/v1/projects/${projectId}/model-overrides`,
+        requestData<DashboardWorkspaceModelOverridesResponse>(
+          `/api/v1/workspaces/${workspaceId}/model-overrides`,
           { method: 'GET' },
         ),
       ),
-    getResolvedProjectModels: (projectId, roles) =>
+    getResolvedWorkspaceModels: (workspaceId, roles) =>
       withRefresh(() =>
-        requestData<DashboardProjectResolvedModelsResponse>(
-          `/api/v1/projects/${projectId}/model-overrides/resolved${buildRolesQuery(roles)}`,
+        requestData<DashboardWorkspaceResolvedModelsResponse>(
+          `/api/v1/workspaces/${workspaceId}/model-overrides/resolved${buildRolesQuery(roles)}`,
           { method: 'GET' },
         ),
       ),
@@ -2407,57 +2407,57 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           body: payload as Record<string, unknown>,
         }),
       ),
-    getProjectSpec: (projectId) =>
+    getWorkspaceSpec: (workspaceId) =>
       withRefresh(async () =>
-        normalizeProjectSpecRecord(
-          await requestData<DashboardProjectSpecEnvelope>(`/api/v1/projects/${projectId}/spec`, {
+        normalizeWorkspaceSpecRecord(
+          await requestData<DashboardWorkspaceSpecEnvelope>(`/api/v1/workspaces/${workspaceId}/spec`, {
             method: 'GET',
           }),
         ),
       ),
-    updateProjectSpec: (projectId, payload) =>
+    updateWorkspaceSpec: (workspaceId, payload) =>
       withRefresh(async () =>
-        normalizeProjectSpecRecord(
-          await requestData<DashboardProjectSpecEnvelope>(`/api/v1/projects/${projectId}/spec`, {
+        normalizeWorkspaceSpecRecord(
+          await requestData<DashboardWorkspaceSpecEnvelope>(`/api/v1/workspaces/${workspaceId}/spec`, {
             method: 'PUT',
             body: payload,
           }),
         ),
       ),
-    listProjectResources: (projectId) =>
+    listWorkspaceResources: (workspaceId) =>
       withRefresh(() =>
-        requestJson<{ data: DashboardProjectResourceRecord[] }>(
-          `/api/v1/projects/${projectId}/resources`,
+        requestJson<{ data: DashboardWorkspaceResourceRecord[] }>(
+          `/api/v1/workspaces/${workspaceId}/resources`,
           {
             method: 'GET',
           },
         ),
       ),
-    listProjectTools: (projectId) =>
+    listWorkspaceTools: (workspaceId) =>
       withRefresh(() =>
-        requestJson<{ data: DashboardProjectToolCatalog }>(`/api/v1/projects/${projectId}/tools`, {
+        requestJson<{ data: DashboardWorkspaceToolCatalog }>(`/api/v1/workspaces/${workspaceId}/tools`, {
           method: 'GET',
         }),
       ),
-    patchProjectMemory: (projectId, payload) =>
+    patchWorkspaceMemory: (workspaceId, payload) =>
       withRefresh(() =>
-        requestData<DashboardProjectRecord>(`/api/v1/projects/${projectId}/memory`, {
+        requestData<DashboardWorkspaceRecord>(`/api/v1/workspaces/${workspaceId}/memory`, {
           method: 'PATCH',
           body: payload as Record<string, unknown>,
         }),
       ),
-    removeProjectMemory: (projectId, key) =>
+    removeWorkspaceMemory: (workspaceId, key) =>
       withRefresh(() =>
-        requestData<DashboardProjectRecord>(
-          `/api/v1/projects/${projectId}/memory/${encodeURIComponent(key)}`,
+        requestData<DashboardWorkspaceRecord>(
+          `/api/v1/workspaces/${workspaceId}/memory/${encodeURIComponent(key)}`,
           {
             method: 'DELETE',
           },
         ),
       ),
-    configureGitWebhook: (projectId, payload) =>
+    configureGitWebhook: (workspaceId, payload) =>
       withRefresh(() =>
-        requestData<Record<string, unknown>>(`/api/v1/projects/${projectId}/git-webhook`, {
+        requestData<Record<string, unknown>>(`/api/v1/workspaces/${workspaceId}/git-webhook`, {
           method: 'PUT',
           body: payload as Record<string, unknown>,
         }),
@@ -2745,7 +2745,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() =>
         requestData<{
           roles: string[];
-          project_model_overrides: Record<string, DashboardRoleModelOverride>;
+          workspace_model_overrides: Record<string, DashboardRoleModelOverride>;
           workflow_model_overrides: Record<string, DashboardRoleModelOverride>;
           effective_models: Record<string, DashboardEffectiveModelResolution>;
         }>('/api/v1/config/llm/resolve-preview', {
@@ -2931,31 +2931,31 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           { method: 'GET' },
         ),
       ),
-    getProjectTimeline: (projectId) =>
+    getWorkspaceTimeline: (workspaceId) =>
       withRefresh(() =>
-        requestData<DashboardProjectTimelineEntry[]>(`/api/v1/projects/${projectId}/timeline`, {
+        requestData<DashboardWorkspaceTimelineEntry[]>(`/api/v1/workspaces/${workspaceId}/timeline`, {
           method: 'GET',
         }),
       ),
-    listProjectArtifacts: (projectId, filters) =>
+    listWorkspaceArtifacts: (workspaceId, filters) =>
       withRefresh(() =>
-        requestJson<DashboardProjectArtifactResponse>(
-          `/api/v1/projects/${projectId}/artifacts${buildQueryString(filters)}`,
+        requestJson<DashboardWorkspaceArtifactResponse>(
+          `/api/v1/workspaces/${workspaceId}/artifacts${buildQueryString(filters)}`,
           {
             method: 'GET',
           },
         ),
       ),
-    listProjectArtifactFiles: (projectId) =>
+    listWorkspaceArtifactFiles: (workspaceId) =>
       withRefresh(() =>
-        requestData<DashboardProjectArtifactFileRecord[]>(`/api/v1/projects/${projectId}/files`, {
+        requestData<DashboardWorkspaceArtifactFileRecord[]>(`/api/v1/workspaces/${workspaceId}/files`, {
           method: 'GET',
         }),
       ),
-    downloadProjectArtifactFile: (projectId, fileId) =>
+    downloadWorkspaceArtifactFile: (workspaceId, fileId) =>
       withRefresh(async () => {
         const response = await requestBinary(
-          `/api/v1/projects/${projectId}/files/${fileId}/content`,
+          `/api/v1/workspaces/${workspaceId}/files/${fileId}/content`,
           {
             method: 'GET',
           },
@@ -2967,25 +2967,25 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           size_bytes: Number(response.headers.get('content-length') ?? '0'),
         };
       }),
-    uploadProjectArtifactFiles: (projectId, payload) =>
+    uploadWorkspaceArtifactFiles: (workspaceId, payload) =>
       withRefresh(() =>
-        requestData<DashboardProjectArtifactFileRecord[]>(
-          `/api/v1/projects/${projectId}/files/batch`,
+        requestData<DashboardWorkspaceArtifactFileRecord[]>(
+          `/api/v1/workspaces/${workspaceId}/files/batch`,
           {
             body: { files: payload as unknown as Record<string, unknown>[] },
           },
         ),
       ),
-    deleteProjectArtifactFile: (projectId, fileId) =>
+    deleteWorkspaceArtifactFile: (workspaceId, fileId) =>
       withRefresh(async () => {
-        await requestJson(`/api/v1/projects/${projectId}/files/${fileId}`, {
+        await requestJson(`/api/v1/workspaces/${workspaceId}/files/${fileId}`, {
           method: 'DELETE',
           allowNoContent: true,
         });
       }),
-    createPlanningWorkflow: (projectId, payload) =>
+    createPlanningWorkflow: (workspaceId, payload) =>
       withRefresh(() =>
-        requestJson(`/api/v1/projects/${projectId}/planning-workflow`, {
+        requestJson(`/api/v1/workspaces/${workspaceId}/planning-workflow`, {
           body: payload,
         }),
       ),
@@ -3248,12 +3248,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           return [];
         }
 
-        const [workflows, tasks, workers, agents, projects, playbooks] = await Promise.allSettled([
+        const [workflows, tasks, workers, agents, workspaces, playbooks] = await Promise.allSettled([
           client.listWorkflows({ per_page: 50 }),
           client.listTasks({ per_page: 50 }),
           client.listWorkers(),
           client.listAgents(),
-          client.listProjects({ per_page: 50 }),
+          client.listWorkspaces({ per_page: 50 }),
           client.listPlaybooks(),
         ]);
 
@@ -3262,7 +3262,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           tasks: extractListResult(tasks),
           workers: extractDataResult(workers),
           agents: extractDataResult(agents),
-          projects: extractListResult(projects),
+          workspaces: extractListResult(workspaces),
           playbooks: extractDataResult(playbooks),
         });
       }),
@@ -3472,9 +3472,9 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         if (!res.ok) throw new Error(`Export failed: ${res.status}`);
         return res.blob();
       }),
-    deleteProject: (projectId) =>
+    deleteWorkspace: (workspaceId) =>
       withRefresh(async () => {
-        await requestJson(`/api/v1/projects/${projectId}`, { method: 'DELETE' });
+        await requestJson(`/api/v1/workspaces/${workspaceId}`, { method: 'DELETE' });
       }),
     askConfigAssistant: (question) =>
       withRefresh(async () => {
@@ -3531,7 +3531,7 @@ export function buildSearchResults(
     tasks: NamedRecord[];
     workers: NamedRecord[];
     agents: NamedRecord[];
-    projects: NamedRecord[];
+    workspaces: NamedRecord[];
     playbooks: NamedRecord[];
   },
 ): DashboardSearchResult[] {
@@ -3567,12 +3567,12 @@ export function buildSearchResults(
     href: '/fleet/agents',
   }));
 
-  const projectMatches = filterRecords(collections.projects, normalizedQuery).map((item) => ({
-    type: 'project' as const,
+  const workspaceMatches = filterRecords(collections.workspaces, normalizedQuery).map((item) => ({
+    type: 'workspace' as const,
     id: item.id,
     label: item.name ?? item.id,
-    subtitle: item.status ?? 'project',
-    href: `/projects/${item.id}`,
+    subtitle: item.status ?? 'workspace',
+    href: `/workspaces/${item.id}`,
   }));
 
   const playbookMatches = filterRecords(collections.playbooks, normalizedQuery).map((item) => ({
@@ -3586,7 +3586,7 @@ export function buildSearchResults(
   return [
     ...workflowMatches,
     ...taskMatches,
-    ...projectMatches,
+    ...workspaceMatches,
     ...playbookMatches,
     ...workerMatches,
     ...agentMatches,

@@ -80,7 +80,7 @@ describe('FR-030: modern SPA structure', () => {
     expect(source).toContain('/mission-control');
     expect(source).toContain('/work/boards');
     expect(source).toContain('/artifacts/tasks/:taskId/:artifactId');
-    expect(source).toContain('/projects');
+    expect(source).toContain('/workspaces');
     expect(source).toContain('/config/playbooks');
     expect(source).not.toContain('/config/templates');
     expect(source).toContain('/fleet/workers');
@@ -221,23 +221,23 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
     expect(source).toContain('.state');
   });
 
-  it('workflow-detail-page exposes playbook board state, resolved config, and project timeline', () => {
+  it('workflow-detail-page exposes playbook board state, resolved config, and workspace timeline', () => {
     const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
     expect(source).toContain('Create Work Item');
     expect(source).toContain('Live stages');
     expect(source).toContain('Orchestrator Activations');
     expect(source).toContain('Resolved Config');
-    expect(source).toContain('Project Timeline');
+    expect(source).toContain('Workspace Timeline');
     expect(source).not.toContain('Manual Rework');
     expect(source).not.toContain('readWorkflowPhases');
   });
 
-  it('workflow-detail-page exposes workflow documents and project memory controls', () => {
+  it('workflow-detail-page exposes workflow documents and workspace memory controls', () => {
     const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}\n${readComponent('pages/workflow-detail-content.tsx')}`;
     expect(source).toContain('Workflow Documents');
-    expect(source).toContain('Project Memory');
+    expect(source).toContain('Workspace Memory');
     expect(source).toContain('listWorkflowDocuments');
-    expect(source).toContain('patchProjectMemory');
+    expect(source).toContain('patchWorkspaceMemory');
   });
 });
 
@@ -354,7 +354,7 @@ describe('FR-427: dashboard navigation and layout', () => {
     const source = readComponent('components/layout.tsx');
     expect(source).toContain('Mission Control');
     expect(source).toContain('Work');
-    expect(source).toContain('Projects');
+    expect(source).toContain('Workspaces');
     expect(source).toContain('Configuration');
     expect(source).toContain('Fleet');
     expect(source).toContain('Governance');
@@ -372,12 +372,12 @@ describe('FR-427: dashboard navigation and layout', () => {
 });
 
 describe('operator information architecture', () => {
-  it('projects page exposes project continuity controls', () => {
-    const source = readComponent('pages/projects-page.tsx');
-    expect(source).toContain('export function ProjectsPage');
-    expect(source).toContain('Project Timeline');
+  it('workspaces page exposes workspace continuity controls', () => {
+    const source = readComponent('pages/workspaces-page.tsx');
+    expect(source).toContain('export function WorkspacesPage');
+    expect(source).toContain('Workspace Timeline');
     expect(source).toContain('Run Summary');
-    expect(source).toContain('createProject');
+    expect(source).toContain('createWorkspace');
     expect(source).toContain('StructuredRecordView data={toolsQuery.data?.data}');
   });
 

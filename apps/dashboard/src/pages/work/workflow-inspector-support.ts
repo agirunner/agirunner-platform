@@ -1,5 +1,5 @@
 import type {
-  DashboardProjectRecord,
+  DashboardWorkspaceRecord,
   DashboardWorkflowActivationRecord,
   DashboardTaskHandoffRecord,
   DashboardWorkflowRecord,
@@ -12,7 +12,7 @@ import {
   readHighlightedWorkItem,
 } from './workflow-inspector-trace-links.js';
 
-const PROJECT_MEMORY_TRACE_KEYS = new Set(['project_timeline', 'last_run_summary']);
+const WORKSPACE_MEMORY_TRACE_KEYS = new Set(['workspace_timeline', 'last_run_summary']);
 
 export interface WorkflowInspectorTraceMetric {
   label: string;
@@ -51,7 +51,7 @@ export interface WorkflowInspectorFocusSummary { title: string; detail: string; 
 
 export function buildWorkflowInspectorTraceModel(input: {
   workflow?: DashboardWorkflowRecord;
-  project?: DashboardProjectRecord;
+  workspace?: DashboardWorkspaceRecord;
 }): WorkflowInspectorTraceModel {
   const workflow = input.workflow;
   const runSummary = readWorkflowRunSummary(workflow);
@@ -60,8 +60,8 @@ export function buildWorkflowInspectorTraceModel(input: {
   const workItemSummary = workflow?.work_item_summary ?? null;
   const producedArtifacts = asArray(asRecord(runSummary).produced_artifacts);
   const analytics = asRecord(asRecord(runSummary).orchestrator_analytics);
-  const projectId = workflow?.project_id ?? input.project?.id ?? null;
-  const traceMemory = readProjectMemoryTraceSummary(input.project);
+  const workspaceId = workflow?.workspace_id ?? input.workspace?.id ?? null;
+  const traceMemory = readWorkspaceMemoryTraceSummary(input.workspace);
   const focusWorkItem = readHighlightedWorkItem(
     Array.isArray(workflow?.work_items) ? workflow.work_items : [],
   );
@@ -93,7 +93,7 @@ export function buildWorkflowInspectorTraceModel(input: {
         value: formatCount(producedArtifacts.length),
         detail:
           producedArtifacts.length > 0
-            ? 'Run summary artifacts are ready for project-level preview and download.'
+            ? 'Run summary artifacts are ready for workspace-level preview and download.'
             : 'No delivered artifacts were recorded in the current run summary.',
       },
       {
@@ -104,7 +104,7 @@ export function buildWorkflowInspectorTraceModel(input: {
     ],
     topStageSpend: describeTopStageSpend(analytics),
     latestActivationSummary: describeLatestActivationSummary(activations),
-    links: buildWorkflowInspectorTraceLinks(workflow, projectId, readLatestActivation),
+    links: buildWorkflowInspectorTraceLinks(workflow, workspaceId, readLatestActivation),
     focusWorkItem: focusWorkItem
         ? {
           id: focusWorkItem.id,
@@ -159,7 +159,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
       title: 'Latest activation is the best starting point',
       detail: input.traceModel.latestActivationSummary,
       nextAction:
-        'Review the latest orchestrator batch first, then move into board or project drill-ins only if the activation packet does not explain the current workflow posture.',
+        'Review the latest orchestrator batch first, then move into board or workspace drill-ins only if the activation packet does not explain the current workflow posture.',
       actionLabel: 'Open board trace',
       actionHref: `/work/boards/${input.workflowId}`,
     };
@@ -341,30 +341,30 @@ function readAttentionGateCount(
   ).length;
 }
 
-function readProjectMemoryTraceSummary(project?: DashboardProjectRecord): {
+function readWorkspaceMemoryTraceSummary(workspace?: DashboardWorkspaceRecord): {
   value: string;
   detail: string;
 } {
-  const memory = asRecord(project?.memory);
-  const operatorKeys = Object.keys(memory).filter((key) => !PROJECT_MEMORY_TRACE_KEYS.has(key));
+  const memory = asRecord(workspace?.memory);
+  const operatorKeys = Object.keys(memory).filter((key) => !WORKSPACE_MEMORY_TRACE_KEYS.has(key));
   const hasTimelinePackets =
-    memory.project_timeline !== undefined || memory.last_run_summary !== undefined;
+    memory.workspace_timeline !== undefined || memory.last_run_summary !== undefined;
 
   if (operatorKeys.length > 0) {
     return {
       value: `${operatorKeys.length} keys`,
-      detail: 'Project memory includes operator-visible handoff keys alongside the run timeline packets.',
+      detail: 'Workspace memory includes operator-visible handoff keys alongside the run timeline packets.',
     };
   }
   if (hasTimelinePackets) {
     return {
       value: 'Timeline ready',
-      detail: 'Project memory already carries the run summary and timeline packets for cross-run inspection.',
+      detail: 'Workspace memory already carries the run summary and timeline packets for cross-run inspection.',
     };
   }
   return {
     value: 'Not recorded',
-    detail: 'No project memory handoff packets are available for this workflow yet.',
+    detail: 'No workspace memory handoff packets are available for this workflow yet.',
   };
 }
 

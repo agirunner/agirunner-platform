@@ -26,7 +26,7 @@ export interface MissionControlSummary {
   failed: number;
 }
 
-export interface DashboardProjectMemoryEntry {
+export interface DashboardWorkspaceMemoryEntry {
   key: string;
   value: unknown;
 }
@@ -48,9 +48,9 @@ export interface DashboardConfigLayerSummary {
   keys: string[];
 }
 
-export function readWorkflowProjectId(workflow: unknown): string | undefined {
+export function readWorkflowWorkspaceId(workflow: unknown): string | undefined {
   const record = asRecord(workflow);
-  return readNonEmptyString(record.project_id);
+  return readNonEmptyString(record.workspace_id);
 }
 
 export function readWorkflowRunSummary(workflow: unknown): Record<string, unknown> | undefined {
@@ -85,8 +85,8 @@ export function groupTasksByStage(
   }));
 }
 
-export function readProjectMemoryEntries(project: unknown): DashboardProjectMemoryEntry[] {
-  return Object.entries(asRecord(asRecord(project).memory))
+export function readWorkspaceMemoryEntries(workspace: unknown): DashboardWorkspaceMemoryEntry[] {
+  return Object.entries(asRecord(asRecord(workspace).memory))
     .map(([key, value]) => ({ key, value }))
     .sort((left, right) => left.key.localeCompare(right.key));
 }

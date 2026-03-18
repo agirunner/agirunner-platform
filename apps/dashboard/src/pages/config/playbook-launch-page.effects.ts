@@ -2,23 +2,23 @@ import { useEffect, type Dispatch, type MutableRefObject, type SetStateAction } 
 
 import {
   defaultParameterDraftValue,
-  readMappedProjectParameterDraft,
+  readMappedWorkspaceParameterDraft,
   syncRoleOverrideDrafts,
   type RoleOverrideDraft,
   type StructuredEntryDraft,
   type WorkflowBudgetDraft,
   type readLaunchDefinition,
 } from './playbook-launch-support.js';
-import type { DashboardPlaybookRecord, DashboardProjectRecord } from '../../lib/api.js';
+import type { DashboardPlaybookRecord, DashboardWorkspaceRecord } from '../../lib/api.js';
 
 interface UsePlaybookLaunchPageEffectsInput {
   paramsId?: string;
   selectedPlaybookId: string;
   selectedPlaybook: DashboardPlaybookRecord | null;
-  selectedProject: DashboardProjectRecord | null;
+  selectedWorkspace: DashboardWorkspaceRecord | null;
   launchDefinition: ReturnType<typeof readLaunchDefinition>;
   workflowName: string;
-  projectId: string;
+  workspaceId: string;
   extraParameterDrafts: StructuredEntryDraft[];
   metadataDrafts: StructuredEntryDraft[];
   workflowConfigDrafts: Record<string, string>;
@@ -51,7 +51,7 @@ export function usePlaybookLaunchPageEffects(input: UsePlaybookLaunchPageEffects
       const nextAutoFilled: Record<string, string> = {};
       for (const spec of input.launchDefinition.parameterSpecs) {
         const defaultValue = defaultParameterDraftValue(spec.defaultValue, spec.inputType);
-        const mappedValue = readMappedProjectParameterDraft(spec, input.selectedProject);
+        const mappedValue = readMappedWorkspaceParameterDraft(spec, input.selectedWorkspace);
         const currentValue = current[spec.key];
         const priorAutoFilled = input.autoFilledParameterDraftsRef.current[spec.key];
         if (mappedValue !== undefined) {
@@ -77,7 +77,7 @@ export function usePlaybookLaunchPageEffects(input: UsePlaybookLaunchPageEffects
   }, [
     input.autoFilledParameterDraftsRef,
     input.launchDefinition.parameterSpecs,
-    input.selectedProject,
+    input.selectedWorkspace,
     input.setParameterDrafts,
   ]);
 
@@ -96,7 +96,7 @@ export function usePlaybookLaunchPageEffects(input: UsePlaybookLaunchPageEffects
     input.metadataDrafts,
     input.workflowConfigDrafts,
     input.modelOverrideDrafts,
-    input.projectId,
+    input.workspaceId,
     input.selectedPlaybookId,
     input.setError,
     input.workflowBudgetDraft,

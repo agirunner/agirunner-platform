@@ -125,7 +125,7 @@ describe('orchestrator grants support', () => {
         name: 'Zulu Run',
         state: 'active',
         created_at: '2026-03-12T00:00:00.000Z',
-        project_name: 'Project Z',
+        workspace_name: 'Workspace Z',
         playbook_name: 'Incident',
         lifecycle: 'ongoing',
       },
@@ -134,7 +134,7 @@ describe('orchestrator grants support', () => {
         name: 'Alpha Run',
         state: 'completed',
         created_at: '2026-03-12T00:00:00.000Z',
-        project_name: 'Project A',
+        workspace_name: 'Workspace A',
         playbook_name: 'Deploy',
       },
     ];
@@ -142,18 +142,18 @@ describe('orchestrator grants support', () => {
     const sorted = sortWorkflows(workflows);
     expect(sorted.map((workflow) => workflow.id)).toEqual(['workflow-1', 'workflow-2']);
     expect(workflowDisplayName(sorted[0])).toBe('Alpha Run');
-    expect(describeWorkflowOption(sorted[0])).toBe('completed • Project A • Deploy');
+    expect(describeWorkflowOption(sorted[0])).toBe('completed • Workspace A • Deploy');
     expect(buildWorkflowItems(sorted)).toEqual([
       {
         id: 'workflow-1',
         label: 'Alpha Run',
-        subtitle: 'completed • Project A • Deploy',
+        subtitle: 'completed • Workspace A • Deploy',
         status: 'completed',
       },
       {
         id: 'workflow-2',
         label: 'Zulu Run',
-        subtitle: 'active • Project Z • Incident',
+        subtitle: 'active • Workspace Z • Incident',
         status: 'pending',
       },
     ]);
@@ -161,7 +161,7 @@ describe('orchestrator grants support', () => {
     expect(findWorkflow(sorted, 'missing')).toBeNull();
     expect(describeSelectedWorkflow(sorted[1])).toEqual([
       { label: 'State', value: 'active' },
-      { label: 'Project', value: 'Project Z' },
+      { label: 'Workspace', value: 'Workspace Z' },
       { label: 'Playbook', value: 'Incident' },
       { label: 'Lifecycle', value: 'ongoing' },
     ]);

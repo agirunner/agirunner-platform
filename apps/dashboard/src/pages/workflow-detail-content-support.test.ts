@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { describeDocumentReference, describeProjectMemoryEntry } from './workflow-detail-content-support.js';
+import { describeDocumentReference, describeWorkspaceMemoryEntry } from './workflow-detail-content-support.js';
 
 describe('workflow detail content support', () => {
   it('describes document references as operator review packets', () => {
@@ -23,9 +23,9 @@ describe('workflow detail content support', () => {
     });
   });
 
-  it('describes structured project memory with drill-down badges', () => {
+  it('describes structured workspace memory with drill-down badges', () => {
     expect(
-      describeProjectMemoryEntry({
+      describeWorkspaceMemoryEntry({
         summary: 'Ready for operator handoff',
         stage: 'verification',
         follow_up: { owner: 'reviewer' },

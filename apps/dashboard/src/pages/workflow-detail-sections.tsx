@@ -5,7 +5,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
 
 import type {
-  DashboardProjectTimelineEntry,
+  DashboardWorkspaceTimelineEntry,
   DashboardWorkflowActivationRecord,
   DashboardWorkflowBoardResponse,
   DashboardWorkflowBoardColumn,
@@ -27,9 +27,9 @@ import {
 } from './workflow-detail-permalinks.js';
 import { formatUsdDisplay } from './workflow-ux-formatting.js';
 import {
-  buildWorkflowProjectTimelineOverview,
-  buildWorkflowProjectTimelinePacket,
-} from './workflow-project-timeline-support.js';
+  buildWorkflowWorkspaceTimelineOverview,
+  buildWorkflowWorkspaceTimelinePacket,
+} from './workflow-workspace-timeline-support.js';
 import { WorkflowControlActions } from './workflow-control-actions.js';
 import {
   CopyableIdBadge,
@@ -88,7 +88,7 @@ export function MissionControlCard(props: {
   workflow: {
     id: string;
     state?: string | null;
-    project_id?: string | null;
+    workspace_id?: string | null;
   };
   summary: MissionControlSummary;
   workItemSummary?: {
@@ -118,7 +118,7 @@ export function MissionControlCard(props: {
           <WorkflowControlActions
             workflowId={props.workflow.id}
             workflowState={props.workflow.state}
-            projectId={props.workflow.project_id}
+            workspaceId={props.workflow.workspace_id}
           />
         </div>
       </CardHeader>
@@ -1354,28 +1354,28 @@ function asActivationPayload(value: unknown): Record<string, unknown> | undefine
     : undefined;
 }
 
-export function ProjectTimelineCard(props: {
+export function WorkspaceTimelineCard(props: {
   isLoading: boolean;
   hasError: boolean;
-  entries: DashboardProjectTimelineEntry[];
+  entries: DashboardWorkspaceTimelineEntry[];
   currentWorkflowId: string;
   selectedChildWorkflowId?: string | null;
   onSelectChildWorkflow?(workflowId: string): void;
 }) {
   const location = useLocation();
-  const overview = buildWorkflowProjectTimelineOverview(props.entries);
+  const overview = buildWorkflowWorkspaceTimelineOverview(props.entries);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Project Timeline</CardTitle>
+        <CardTitle>Workspace Timeline</CardTitle>
         <CardDescription>
-          Run-level continuity for this project, including chained lineage.
+          Run-level continuity for this workspace, including chained lineage.
         </CardDescription>
       </CardHeader>
       <CardContent className="grid gap-4">
         {props.isLoading ? <p className="text-sm text-muted">Loading timeline...</p> : null}
-        {props.hasError ? <p className="text-sm text-red-600">Failed to load project timeline.</p> : null}
+        {props.hasError ? <p className="text-sm text-red-600">Failed to load workspace timeline.</p> : null}
         {props.entries.length > 0 ? (
           <div className="grid gap-4 rounded-xl border border-border/70 bg-background/70 p-4">
             <div className="grid gap-1">
@@ -1399,7 +1399,7 @@ export function ProjectTimelineCard(props: {
         ) : null}
         <div className="grid gap-4">
         {props.entries.map((entry) => {
-          const packet = buildWorkflowProjectTimelinePacket(entry);
+          const packet = buildWorkflowWorkspaceTimelinePacket(entry);
           const isCurrentWorkflow = entry.workflow_id === props.currentWorkflowId;
           return (
           <article

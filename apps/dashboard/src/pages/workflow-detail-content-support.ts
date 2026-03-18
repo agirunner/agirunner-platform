@@ -1,6 +1,6 @@
 import type { DashboardResolvedDocumentReference } from '../lib/api.js';
 
-export interface ProjectMemoryEntryPacket {
+export interface WorkspaceMemoryEntryPacket {
   typeLabel: string;
   summary: string;
   detail: string;
@@ -16,7 +16,7 @@ export interface DocumentReferencePacket {
   hasMetadata: boolean;
 }
 
-export function describeProjectMemoryEntry(value: unknown): ProjectMemoryEntryPacket {
+export function describeWorkspaceMemoryEntry(value: unknown): WorkspaceMemoryEntryPacket {
   if (value === null || value === undefined || value === '') {
     return {
       typeLabel: 'Empty',

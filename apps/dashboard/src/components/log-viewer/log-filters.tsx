@@ -171,7 +171,7 @@ export function LogFilters({
       <div className="flex flex-wrap items-center gap-2">
         {!hideEntityScope && (
           <LogEntityScope
-            projectId={filters.project}
+            workspaceId={filters.workspace}
             workflowId={filters.workflow}
             taskId={filters.task}
             onChangeEntity={setEntityScope}

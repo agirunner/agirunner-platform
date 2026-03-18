@@ -4,10 +4,10 @@ export interface LayoutBreadcrumb {
 }
 
 interface BreadcrumbBuildOptions {
-  projectLabel?: string;
+  workspaceLabel?: string;
 }
 
-export const PROJECT_BREADCRUMB_STORAGE_PREFIX = 'agirunner.projectLabel.';
+export const WORKSPACE_BREADCRUMB_STORAGE_PREFIX = 'agirunner.workspaceLabel.';
 
 const SEGMENT_LABELS: Record<string, string> = {
   boards: 'Workflow Boards',
@@ -33,9 +33,9 @@ const ROUTABLE_PATHS: ReadonlySet<string> = new Set([
   '/work/boards',
   '/work/tasks',
   '/work/approvals',
-  '/projects',
-  '/projects/memory',
-  '/projects/content',
+  '/workspaces',
+  '/workspaces/memory',
+  '/workspaces/content',
   '/config/playbooks',
   '/config/roles',
   '/config/llm',
@@ -66,29 +66,29 @@ function isUuidLike(segment: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(segment);
 }
 
-function readProjectLabelFromHistoryState(): string | null {
+function readWorkspaceLabelFromHistoryState(): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
   const historyState = window.history.state as
     | {
-        usr?: { projectLabel?: unknown };
-        projectLabel?: unknown;
+        usr?: { workspaceLabel?: unknown };
+        workspaceLabel?: unknown;
       }
     | null;
-  const candidate = historyState?.usr?.projectLabel ?? historyState?.projectLabel;
+  const candidate = historyState?.usr?.workspaceLabel ?? historyState?.workspaceLabel;
   return typeof candidate === 'string' && candidate.trim().length > 0 ? candidate.trim() : null;
 }
 
-function readProjectLabelFromStorage(pathname: string): string | null {
+function readWorkspaceLabelFromStorage(pathname: string): string | null {
   if (typeof window === 'undefined') {
     return null;
   }
-  const projectId = extractProjectIdentitySegment(pathname);
-  if (!projectId) {
+  const workspaceId = extractWorkspaceIdentitySegment(pathname);
+  if (!workspaceId) {
     return null;
   }
-  const storageKey = `${PROJECT_BREADCRUMB_STORAGE_PREFIX}${projectId}`;
+  const storageKey = `${WORKSPACE_BREADCRUMB_STORAGE_PREFIX}${workspaceId}`;
   for (const storage of [window.sessionStorage, window.localStorage]) {
     try {
       const candidate = storage?.getItem(storageKey);
@@ -102,19 +102,19 @@ function readProjectLabelFromStorage(pathname: string): string | null {
   return null;
 }
 
-export function rememberProjectBreadcrumbLabel(projectId: string, projectLabel: string): void {
+export function rememberWorkspaceBreadcrumbLabel(workspaceId: string, workspaceLabel: string): void {
   if (typeof window === 'undefined') {
     return;
   }
-  const normalizedProjectId = projectId.trim();
-  const normalizedProjectLabel = projectLabel.trim();
-  if (!normalizedProjectId || !normalizedProjectLabel) {
+  const normalizedWorkspaceId = workspaceId.trim();
+  const normalizedWorkspaceLabel = workspaceLabel.trim();
+  if (!normalizedWorkspaceId || !normalizedWorkspaceLabel) {
     return;
   }
-  const storageKey = `${PROJECT_BREADCRUMB_STORAGE_PREFIX}${normalizedProjectId}`;
+  const storageKey = `${WORKSPACE_BREADCRUMB_STORAGE_PREFIX}${normalizedWorkspaceId}`;
   for (const storage of [window.sessionStorage, window.localStorage]) {
     try {
-      storage?.setItem(storageKey, normalizedProjectLabel);
+      storage?.setItem(storageKey, normalizedWorkspaceLabel);
     } catch {
       continue;
     }
@@ -127,8 +127,8 @@ export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptio
 
   const crumbs: LayoutBreadcrumb[] = [];
   let currentPath = '';
-  const projectLabel =
-    options.projectLabel?.trim() || readProjectLabelFromHistoryState() || readProjectLabelFromStorage(pathname);
+  const workspaceLabel =
+    options.workspaceLabel?.trim() || readWorkspaceLabelFromHistoryState() || readWorkspaceLabelFromStorage(pathname);
 
   for (let i = 0; i < segments.length; i++) {
     const segment = segments[i];
@@ -136,19 +136,19 @@ export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptio
     const normalizedSegment = segment === 'workflows' ? 'boards' : segment;
     currentPath += `/${normalizedSegment}`;
     const isLast = i === segments.length - 1;
-    const isProjectIdentitySegment =
-      previousSegment === 'projects' && !ROUTABLE_PATHS.has(currentPath);
+    const isWorkspaceIdentitySegment =
+      previousSegment === 'workspaces' && !ROUTABLE_PATHS.has(currentPath);
     const href = !isLast
       ? ROUTABLE_PATHS.has(currentPath)
         ? currentPath
-        : isProjectIdentitySegment
-          ? `/projects/${segment}`
+        : isWorkspaceIdentitySegment
+          ? `/workspaces/${segment}`
           : undefined
       : undefined;
 
     crumbs.push({
-      label: isProjectIdentitySegment
-        ? projectLabel ?? fallbackProjectLabel(segment)
+      label: isWorkspaceIdentitySegment
+        ? workspaceLabel ?? fallbackWorkspaceLabel(segment)
         : SEGMENT_LABELS[segment] ?? capitalizeSegment(segment),
       ...(href ? { href } : {}),
     });
@@ -157,15 +157,15 @@ export function buildBreadcrumbs(pathname: string, options: BreadcrumbBuildOptio
   return crumbs;
 }
 
-function extractProjectIdentitySegment(pathname: string): string | null {
+function extractWorkspaceIdentitySegment(pathname: string): string | null {
   const segments = pathname.split('/').filter(Boolean);
-  if (segments[0] !== 'projects' || !segments[1]) {
+  if (segments[0] !== 'workspaces' || !segments[1]) {
     return null;
   }
   const normalizedSegment = segments[1] === 'workflows' ? 'boards' : segments[1];
-  return ROUTABLE_PATHS.has(`/projects/${normalizedSegment}`) ? null : segments[1];
+  return ROUTABLE_PATHS.has(`/workspaces/${normalizedSegment}`) ? null : segments[1];
 }
 
-function fallbackProjectLabel(segment: string): string {
-  return isUuidLike(segment) ? 'Project' : capitalizeSegment(segment);
+function fallbackWorkspaceLabel(segment: string): string {
+  return isUuidLike(segment) ? 'Workspace' : capitalizeSegment(segment);
 }

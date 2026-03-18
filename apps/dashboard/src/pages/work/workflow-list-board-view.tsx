@@ -109,7 +109,7 @@ function BoardColumnView(props: BoardSection): JSX.Element {
                     {workflow.name}
                   </Link>
                   <p className="truncate text-xs text-muted">
-                    {workflow.project_name ?? 'No project'}
+                    {workflow.workspace_name ?? 'No workspace'}
                   </p>
                 </div>
                 <Badge variant="outline">{describeWorkflowType(workflow)}</Badge>
@@ -132,7 +132,7 @@ function BoardColumnView(props: BoardSection): JSX.Element {
                 <WorkflowControlActions
                   workflowId={workflow.id}
                   workflowState={workflow.state ?? workflow.status}
-                  projectId={workflow.project_id}
+                  workspaceId={workflow.workspace_id}
                 />
                 <Button variant="outline" size="sm" asChild>
                   <Link to={`/work/boards/${workflow.id}`}>Open board</Link>

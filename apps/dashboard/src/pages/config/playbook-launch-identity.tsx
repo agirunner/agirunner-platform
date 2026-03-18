@@ -29,7 +29,7 @@ export function LaunchPageHeader(props: { selectedPlaybookId: string }): JSX.Ele
       <div>
         <h1 className="text-2xl font-semibold">Launch Workflow</h1>
         <p className="text-sm text-muted">
-          Start a workflow from a playbook with structured launch inputs, project autofill, and
+          Start a workflow from a playbook with structured launch inputs, workspace autofill, and
           workflow-scoped policy overrides.
         </p>
       </div>
@@ -42,19 +42,19 @@ export function RunIdentitySection(props: {
   isSelectedPlaybookArchived: boolean;
   launchablePlaybooks: Array<{ id: string; name: string }>;
   workflowName: string;
-  projectId: string;
-  projects: Array<{ id: string; name: string }>;
+  workspaceId: string;
+  workspaces: Array<{ id: string; name: string }>;
   launchValidation: LaunchValidationResult;
   onPlaybookChange(id: string): void;
   onWorkflowNameChange(name: string): void;
-  onProjectChange(id: string): void;
+  onWorkspaceChange(id: string): void;
 }): JSX.Element {
   return (
     <div className="grid gap-4 rounded-xl border border-border/70 bg-muted/10 p-4">
       <div className="grid gap-1">
         <div className="text-sm font-medium text-foreground">Workflow Basics</div>
         <p className="text-sm text-muted">
-          Choose the playbook, name the workflow, and decide whether it belongs to a project before
+          Choose the playbook, name the workflow, and decide whether it belongs to a workspace before
           launch.
         </p>
       </div>
@@ -111,19 +111,19 @@ export function RunIdentitySection(props: {
       </label>
 
       <label className="grid gap-2 text-sm">
-        <span className="font-medium">Project</span>
+        <span className="font-medium">Workspace</span>
         <Select
-          value={props.projectId || '__none__'}
-          onValueChange={(value) => props.onProjectChange(value === '__none__' ? '' : value)}
+          value={props.workspaceId || '__none__'}
+          onValueChange={(value) => props.onWorkspaceChange(value === '__none__' ? '' : value)}
         >
           <SelectTrigger>
             <SelectValue placeholder="Standalone workflow" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="__none__">Standalone workflow</SelectItem>
-            {props.projects.map((project) => (
-              <SelectItem key={project.id} value={project.id}>
-                {project.name}
+            {props.workspaces.map((workspace) => (
+              <SelectItem key={workspace.id} value={workspace.id}>
+                {workspace.name}
               </SelectItem>
             ))}
           </SelectContent>

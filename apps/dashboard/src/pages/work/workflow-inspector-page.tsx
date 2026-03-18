@@ -4,7 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 
 import { LogsSurface } from '../mission-control/logs-page.js';
 import { dashboardApi } from '../../lib/api.js';
-import { buildProjectArtifactBrowserPath } from '../../lib/artifact-navigation.js';
+import { buildWorkspaceArtifactBrowserPath } from '../../lib/artifact-navigation.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import {
@@ -45,10 +45,10 @@ export function WorkflowInspectorPage(): JSX.Element {
   });
 
   const workflow = workflowQuery.data;
-  const projectQuery = useQuery({
-    queryKey: ['project', workflow?.project_id, 'inspector-trace'],
-    queryFn: () => dashboardApi.getProject(workflow?.project_id ?? ''),
-    enabled: Boolean(workflow?.project_id),
+  const workspaceQuery = useQuery({
+    queryKey: ['workspace', workflow?.workspace_id, 'inspector-trace'],
+    queryFn: () => dashboardApi.getWorkspace(workflow?.workspace_id ?? ''),
+    enabled: Boolean(workflow?.workspace_id),
     staleTime: 30_000,
   });
   const stageLabel = describeWorkflowStageLabel(workflow);
@@ -56,7 +56,7 @@ export function WorkflowInspectorPage(): JSX.Element {
   const scopeSummary = describeWorkflowScopeSummary(workflow);
   const traceModel = buildWorkflowInspectorTraceModel({
     workflow,
-    project: projectQuery.data,
+    workspace: workspaceQuery.data,
   });
   const taskCostQuery = useQuery({
     queryKey: ['workflow', workflowId, 'inspector-task-cost'],
@@ -160,30 +160,30 @@ export function WorkflowInspectorPage(): JSX.Element {
                   <ExternalLink className="h-4 w-4" />
                 </Link>
               </Button>
-              {workflow?.project_id ? (
+              {workflow?.workspace_id ? (
                 <Button asChild variant="outline">
-                  <Link to={`/projects/${workflow.project_id}`}>
-                    Project
+                  <Link to={`/workspaces/${workflow.workspace_id}`}>
+                    Workspace
                     <ExternalLink className="h-4 w-4" />
                   </Link>
                 </Button>
               ) : null}
-              {workflow?.project_id ? (
+              {workflow?.workspace_id ? (
                 <Button asChild variant="outline">
-                  <Link to={`/projects/${workflow.project_id}/memory`}>
-                    Project Memory
+                  <Link to={`/workspaces/${workflow.workspace_id}/memory`}>
+                    Workspace Memory
                     <ExternalLink className="h-4 w-4" />
                   </Link>
                 </Button>
               ) : null}
-              {workflow?.project_id ? (
+              {workflow?.workspace_id ? (
                 <Button asChild variant="outline">
                   <Link
-                    to={buildProjectArtifactBrowserPath(workflow.project_id, {
+                    to={buildWorkspaceArtifactBrowserPath(workflow.workspace_id, {
                       workflowId,
                     })}
                   >
-                    Project Artifacts
+                    Workspace Artifacts
                     <ExternalLink className="h-4 w-4" />
                   </Link>
                 </Button>
@@ -239,7 +239,7 @@ export function WorkflowInspectorPage(): JSX.Element {
                       <div className="space-y-1 text-sm">
                         <p className="font-medium text-foreground">Current operator scope</p>
                         <p className="text-muted">
-                          {workflow.project_name ? `${workflow.project_name} · ` : ''}
+                          {workflow.workspace_name ? `${workflow.workspace_name} · ` : ''}
                           {scopeSummary}
                         </p>
                       </div>

@@ -42,7 +42,7 @@ export function buildWorkflowInspectorMemoryPacket(input: {
 
   return {
     title: `Memory evolution · ${focus.title}`,
-    detail: `Latest recorded memory changes for the ${focus.stageName} work item, with previous values summarized inline so operators can spot drift without opening the project memory browser.`,
+    detail: `Latest recorded memory changes for the ${focus.stageName} work item, with previous values summarized inline so operators can spot drift without opening the workspace memory browser.`,
     emptyMessage: `No memory history has been recorded for ${focus.title} yet.`,
     changes: history.slice(0, 4).map((entry, index) => {
       const previous = history

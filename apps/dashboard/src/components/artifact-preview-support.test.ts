@@ -13,10 +13,10 @@ describe('artifact preview support', () => {
     expect(buildArtifactPermalink('task-1', 'artifact-1')).toBe('/artifacts/tasks/task-1/artifact-1');
     expect(
       buildArtifactPermalink('task-1', 'artifact-1', {
-        returnTo: '/projects/project-1/artifacts?workflow_id=workflow-1',
-        returnSource: 'project-artifacts',
+        returnTo: '/workspaces/workspace-1/artifacts?workflow_id=workflow-1',
+        returnSource: 'workspace-artifacts',
       }),
-    ).toContain('return_source=project-artifacts');
+    ).toContain('return_source=workspace-artifacts');
   });
 
   it('classifies markdown, html, json, text, and binary artifacts', () => {

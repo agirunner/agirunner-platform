@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import type { DashboardProjectRecord } from '../../lib/api.js';
+import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 import {
   describeLaunchParameterResolution,
   type LaunchParameterSpec,
@@ -19,16 +19,16 @@ import {
 
 export function ParameterField(props: {
   spec: LaunchParameterSpec;
-  project: DashboardProjectRecord | null;
+  workspace: DashboardWorkspaceRecord | null;
   value: string;
   onChange(value: string): void;
 }): JSX.Element {
   const resolution = describeLaunchParameterResolution({
     spec: props.spec,
-    project: props.project,
+    workspace: props.workspace,
     currentValue: props.value,
   });
-  const projectStep = resolution.steps.find((step) => step.key === 'project-autofill');
+  const workspaceStep = resolution.steps.find((step) => step.key === 'workspace-autofill');
   const defaultStep = resolution.steps.find((step) => step.key === 'playbook-default');
 
   return (
@@ -71,16 +71,16 @@ export function ParameterField(props: {
         />
       </div>
 
-      {resolution.canRestoreProjectValue || resolution.canRestoreDefaultValue ? (
+      {resolution.canRestoreWorkspaceValue || resolution.canRestoreDefaultValue ? (
         <div className="flex flex-wrap gap-2">
-          {resolution.canRestoreProjectValue && projectStep?.value !== undefined ? (
+          {resolution.canRestoreWorkspaceValue && workspaceStep?.value !== undefined ? (
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => props.onChange(projectStep.value ?? '')}
+              onClick={() => props.onChange(workspaceStep.value ?? '')}
             >
-              Use project autofill
+              Use workspace autofill
             </Button>
           ) : null}
           {resolution.canRestoreDefaultValue && defaultStep?.value !== undefined ? (

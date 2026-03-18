@@ -377,8 +377,8 @@ function buildContinuityPacketContext(
         ? `recent handoffs ${readNumber(payload.recent_handoff_count)}`
         : null,
       payload.work_item_continuity_present === true ? 'work item continuity' : null,
-      payload.project_memory_index_present === true ? 'project memory index' : null,
-      payload.project_artifact_index_present === true ? 'project artifact index' : null,
+      payload.workspace_memory_index_present === true ? 'workspace memory index' : null,
+      payload.workspace_artifact_index_present === true ? 'workspace artifact index' : null,
     ].filter((item): item is string => Boolean(item));
   }
 

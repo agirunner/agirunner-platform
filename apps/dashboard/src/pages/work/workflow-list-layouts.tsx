@@ -67,7 +67,7 @@ export function WorkflowTable(props: { workflows: WorkflowListRecord[] }): JSX.E
                         {workflow.name}
                       </Link>
                       <div className="flex flex-wrap gap-2 text-xs text-muted">
-                        <span>{workflow.project_name ?? 'No project linked'}</span>
+                        <span>{workflow.workspace_name ?? 'No workspace linked'}</span>
                         <span>{describeWorkflowType(workflow)}</span>
                       </div>
                     </div>
@@ -108,7 +108,7 @@ export function WorkflowTable(props: { workflows: WorkflowListRecord[] }): JSX.E
                     <WorkflowControlActions
                       workflowId={workflow.id}
                       workflowState={workflow.state ?? workflow.status}
-                      projectId={workflow.project_id}
+                      workspaceId={workflow.workspace_id}
                       className="justify-end"
                     />
                   </TableCell>
@@ -136,7 +136,7 @@ function WorkflowListCard(props: { workflow: WorkflowListRecord }): JSX.Element 
               {props.workflow.name}
             </Link>
             <p className="text-sm text-muted">
-              {props.workflow.project_name ?? 'No project linked'}
+              {props.workflow.workspace_name ?? 'No workspace linked'}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
@@ -162,7 +162,7 @@ function WorkflowListCard(props: { workflow: WorkflowListRecord }): JSX.Element 
             <WorkflowControlActions
               workflowId={props.workflow.id}
               workflowState={props.workflow.state ?? props.workflow.status}
-              projectId={props.workflow.project_id}
+              workspaceId={props.workflow.workspace_id}
             />
             <Button size="sm" asChild>
               <Link to={`/work/boards/${props.workflow.id}`}>Open board</Link>

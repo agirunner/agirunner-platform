@@ -249,7 +249,7 @@ describe('playbook authoring support', () => {
     });
   });
 
-  it('validates parameter category, secret, and project mapping posture together', () => {
+  it('validates parameter category, secret, and workspace mapping posture together', () => {
     expect(
       validateParameterDrafts([
         {
@@ -258,7 +258,7 @@ describe('playbook authoring support', () => {
           required: false,
           secret: false,
           category: 'input',
-          maps_to: 'project.credentials.git_token',
+          maps_to: 'workspace.credentials.git_token',
           description: '',
           default_value: '',
           label: '',
@@ -271,7 +271,7 @@ describe('playbook authoring support', () => {
           required: false,
           secret: true,
           category: 'credential',
-          maps_to: 'project.settings.default_branch',
+          maps_to: 'workspace.settings.default_branch',
           description: '',
           default_value: '',
           label: '',
@@ -309,7 +309,7 @@ describe('playbook authoring support', () => {
           required: false,
           secret: false,
           category: 'repository',
-          maps_to: 'project.repository_url',
+          maps_to: 'workspace.repository_url',
           description: '',
           default_value: '',
           label: '',
@@ -322,7 +322,7 @@ describe('playbook authoring support', () => {
           required: false,
           secret: true,
           category: 'credential',
-          maps_to: 'project.credentials.git_token',
+          maps_to: 'workspace.credentials.git_token',
           description: '',
           default_value: '',
           label: '',

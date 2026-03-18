@@ -108,7 +108,7 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('Reasoning profile');
     expect(source).toContain('Effective resolution');
     expect(source).toContain('ResolvedModelResolutionList');
-    expect(source).toContain('Board-run overrides take precedence over project-level model settings.');
+    expect(source).toContain('Board-run overrides take precedence over workspace-level model settings.');
   });
 
   it('loads and renders workflow budget visibility alongside mission-control actions', () => {
@@ -153,7 +153,7 @@ describe('workflow detail model override display', () => {
     expect(source).toContain('workflowState={workflowQuery.data?.state}');
     expect(source).toContain('canEnqueueManualActivation={canEnqueueManualActivation}');
     expect(source).toContain('onActivationQueued={() =>');
-    expect(source).toContain('invalidateWorkflowQueries(queryClient, workflowId, projectId)');
+    expect(source).toContain('invalidateWorkflowQueries(queryClient, workflowId, workspaceId)');
   });
 });
 
@@ -277,7 +277,7 @@ describe('workflow detail deep links', () => {
     expect(source).not.toContain('selectedWorkItemId !== selection.implicitWorkItemId');
   });
 
-  it('hydrates child workflow lineage from workflow relations when project timeline is lagging', () => {
+  it('hydrates child workflow lineage from workflow relations when workspace timeline is lagging', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-detail-page.tsx'),
       'utf8',
@@ -305,7 +305,7 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('aria-label="Selected work-item focus"');
     expect(source).toContain('onWorkItemChanged={() =>');
     expect(source).toContain('onBoardChanged={() =>');
-    expect(source).toContain('invalidateWorkflowQueries(queryClient, workflowId, projectId)');
+    expect(source).toContain('invalidateWorkflowQueries(queryClient, workflowId, workspaceId)');
   });
 
   it('broadens workflow detail invalidation to board, stages, activations, gates, and effective models', () => {
@@ -394,13 +394,13 @@ describe('workflow detail deep links', () => {
     expect(source).toContain('Retry config');
   });
 
-  it('routes workflow artifact navigation through the project explorer with canonical workflow filters', () => {
+  it('routes workflow artifact navigation through the workspace explorer with canonical workflow filters', () => {
     const source = readFileSync(
       resolve(import.meta.dirname, './workflow-detail-page.tsx'),
       'utf8',
     );
 
-    expect(source).toContain('buildProjectArtifactBrowserPath');
+    expect(source).toContain('buildWorkspaceArtifactBrowserPath');
     expect(source).toContain('Workflow Artifacts');
     expect(source).not.toContain('/artifacts?workflow=');
   });

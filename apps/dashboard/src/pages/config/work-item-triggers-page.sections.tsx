@@ -21,7 +21,7 @@ import {
   TableRow,
 } from '../../components/ui/table.js';
 import type {
-  DashboardProjectRecord,
+  DashboardWorkspaceRecord,
   DashboardScheduledWorkItemTriggerRecord,
   DashboardWebhookWorkItemTriggerRecord,
   DashboardWorkflowRecord,
@@ -68,7 +68,7 @@ export function TriggerSummarySection(props: {
             <p className="max-w-3xl text-sm leading-6 text-muted">{props.focus.detail}</p>
           </div>
           <Button asChild variant="outline" className="w-full sm:w-auto">
-            <Link to="/projects">Open project settings</Link>
+            <Link to="/workspaces">Open workspace settings</Link>
           </Button>
         </CardContent>
       </Card>
@@ -91,11 +91,11 @@ export function TriggerSummarySection(props: {
 }
 
 export function ScheduledTriggerSection(props: {
-  projects: DashboardProjectRecord[];
+  workspaces: DashboardWorkspaceRecord[];
   workflows: DashboardWorkflowRecord[];
   triggers: DashboardScheduledWorkItemTriggerRecord[];
 }): JSX.Element {
-  const projectsById = new Map(props.projects.map((project) => [project.id, project.name] as const));
+  const workspacesById = new Map(props.workspaces.map((workspace) => [workspace.id, workspace.name] as const));
   const workflowsById = new Map(
     props.workflows.map((workflow) => [workflow.id, workflow.name || workflow.id] as const),
   );
@@ -105,7 +105,7 @@ export function ScheduledTriggerSection(props: {
       <CardHeader className="space-y-2">
         <CardTitle>Scheduled Triggers</CardTitle>
         <p className="max-w-3xl text-sm leading-6 text-muted">
-          Review cadence, next-run posture, and the owning project before changing recurring
+          Review cadence, next-run posture, and the owning workspace before changing recurring
           work-item automation.
         </p>
       </CardHeader>
@@ -122,7 +122,7 @@ export function ScheduledTriggerSection(props: {
                     <Badge variant={health.variant}>{health.label}</Badge>
                   </div>
                   <p className="text-sm text-muted">
-                    {describeProjectLabel(projectsById, trigger.project_id)}
+                    {describeWorkspaceLabel(workspacesById, trigger.workspace_id)}
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-3 text-sm">
@@ -136,7 +136,7 @@ export function ScheduledTriggerSection(props: {
                   <TriggerInfo label="Next action" value={packet.nextAction} />
                   <div className="flex flex-wrap gap-2 pt-1">
                     <Button asChild size="sm" variant="outline">
-                      <Link to={`/projects/${trigger.project_id}`}>Open project</Link>
+                      <Link to={`/workspaces/${trigger.workspace_id}`}>Open workspace</Link>
                     </Button>
                     <Button asChild size="sm" variant="outline">
                       <Link to={`/work/boards/${trigger.workflow_id}`}>Open board</Link>
@@ -153,7 +153,7 @@ export function ScheduledTriggerSection(props: {
             <TableHeader>
               <TableRow>
                 <TableHead>Rule</TableHead>
-                <TableHead>Project</TableHead>
+                <TableHead>Workspace</TableHead>
                 <TableHead>Cadence</TableHead>
                 <TableHead>Next run</TableHead>
                 <TableHead>Status</TableHead>
@@ -168,7 +168,7 @@ export function ScheduledTriggerSection(props: {
                 return (
                   <TableRow key={trigger.id}>
                     <TableCell className="font-medium">{trigger.name}</TableCell>
-                    <TableCell>{describeProjectLabel(projectsById, trigger.project_id)}</TableCell>
+                    <TableCell>{describeWorkspaceLabel(workspacesById, trigger.workspace_id)}</TableCell>
                     <TableCell>{packet.cadence}</TableCell>
                     <TableCell>{packet.nextRun}</TableCell>
                     <TableCell>
@@ -178,7 +178,7 @@ export function ScheduledTriggerSection(props: {
                     <TableCell>
                       <div className="flex justify-end gap-2">
                         <Button asChild size="sm" variant="outline">
-                          <Link to={`/projects/${trigger.project_id}`}>Open project</Link>
+                          <Link to={`/workspaces/${trigger.workspace_id}`}>Open workspace</Link>
                         </Button>
                         <Button asChild size="sm" variant="outline">
                           <Link to={`/work/boards/${trigger.workflow_id}`}>Open board</Link>
@@ -197,7 +197,7 @@ export function ScheduledTriggerSection(props: {
 }
 
 export function WebhookTriggerSection(props: {
-  projects: DashboardProjectRecord[];
+  workspaces: DashboardWorkspaceRecord[];
   workflows: DashboardWorkflowRecord[];
   triggers: DashboardWebhookWorkItemTriggerRecord[];
   isMutating: boolean;
@@ -207,7 +207,7 @@ export function WebhookTriggerSection(props: {
   onToggle(trigger: DashboardWebhookWorkItemTriggerRecord, isActive: boolean): void;
   onDeleteClick(trigger: DashboardWebhookWorkItemTriggerRecord): void;
 }): JSX.Element {
-  const projectsById = new Map(props.projects.map((project) => [project.id, project.name] as const));
+  const workspacesById = new Map(props.workspaces.map((workspace) => [workspace.id, workspace.name] as const));
   const workflowsById = new Map(
     props.workflows.map((workflow) => [workflow.id, workflow.name || workflow.id] as const),
   );
@@ -251,7 +251,7 @@ export function WebhookTriggerSection(props: {
                       <Badge variant={activity.variant}>{activity.label}</Badge>
                     </div>
                     <p className="text-sm text-muted">
-                      {describeProjectLabel(projectsById, trigger.project_id)}
+                      {describeWorkspaceLabel(workspacesById, trigger.workspace_id)}
                     </p>
                   </CardHeader>
                   <CardContent className="space-y-3 text-sm">
@@ -294,7 +294,7 @@ export function WebhookTriggerSection(props: {
               <TableHeader>
                 <TableRow>
                   <TableHead>Trigger</TableHead>
-                  <TableHead>Project</TableHead>
+                  <TableHead>Workspace</TableHead>
                   <TableHead>Source</TableHead>
                   <TableHead>Signature mode</TableHead>
                   <TableHead>Status</TableHead>
@@ -309,7 +309,7 @@ export function WebhookTriggerSection(props: {
                   return (
                     <TableRow key={trigger.id}>
                       <TableCell className="font-medium">{trigger.name}</TableCell>
-                      <TableCell>{describeProjectLabel(projectsById, trigger.project_id)}</TableCell>
+                      <TableCell>{describeWorkspaceLabel(workspacesById, trigger.workspace_id)}</TableCell>
                       <TableCell>{packet.source}</TableCell>
                       <TableCell>{packet.mode}</TableCell>
                       <TableCell>
@@ -351,9 +351,9 @@ export function WebhookTriggerEditorDialog(props: {
   mode: 'create' | 'edit';
   trigger?: DashboardWebhookWorkItemTriggerRecord | null;
   open: boolean;
-  defaultProjectId?: string;
-  projectScoped?: boolean;
-  projects: DashboardProjectRecord[];
+  defaultWorkspaceId?: string;
+  workspaceScoped?: boolean;
+  workspaces: DashboardWorkspaceRecord[];
   workflows: DashboardWorkflowRecord[];
   isPending: boolean;
   errorMessage?: string | null;
@@ -368,16 +368,16 @@ export function WebhookTriggerEditorDialog(props: {
     if (props.trigger) {
       const hydrated = hydrateWebhookTriggerForm(props.trigger);
       setForm(hydrated);
-      setShowAdvanced(props.projectScoped ? hasAdvancedWebhookConfig(hydrated) : true);
+      setShowAdvanced(props.workspaceScoped ? hasAdvancedWebhookConfig(hydrated) : true);
     } else {
       const initial = createWebhookTriggerFormState();
-      if (props.defaultProjectId) {
-        initial.projectId = props.defaultProjectId;
+      if (props.defaultWorkspaceId) {
+        initial.workspaceId = props.defaultWorkspaceId;
       }
       setForm(initial);
-      setShowAdvanced(!props.projectScoped);
+      setShowAdvanced(!props.workspaceScoped);
     }
-  }, [props.trigger, props.open, props.defaultProjectId, props.projectScoped]);
+  }, [props.trigger, props.open, props.defaultWorkspaceId, props.workspaceScoped]);
 
   const isCreate = props.mode === 'create';
   const validation = validateWebhookTriggerForm(form, props.mode);
@@ -396,8 +396,8 @@ export function WebhookTriggerEditorDialog(props: {
         <DialogHeader>
           <DialogTitle>{isCreate ? 'Create webhook trigger' : 'Edit webhook trigger'}</DialogTitle>
           <DialogDescription>
-            {props.projectScoped
-              ? 'Configure a project-scoped inbound webhook that creates work items from external events.'
+            {props.workspaceScoped
+              ? 'Configure a workspace-scoped inbound webhook that creates work items from external events.'
               : 'Configure an inbound webhook rule that creates work items from external events.'}
           </DialogDescription>
         </DialogHeader>
@@ -452,17 +452,17 @@ export function WebhookTriggerEditorDialog(props: {
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
-            {props.projectScoped ? null : (
+            {props.workspaceScoped ? null : (
               <ConfigSelectField
-                fieldId="webhook-trigger-project-scope"
-                label="Project scope"
-                value={form.projectId || '__none__'}
-                description="Leave this unscoped to accept events for any project, or pin the trigger to one project."
+                fieldId="webhook-trigger-workspace-scope"
+                label="Workspace scope"
+                value={form.workspaceId || '__none__'}
+                description="Leave this unscoped to accept events for any workspace, or pin the trigger to one workspace."
                 options={[
                   { value: '__none__', label: 'Unscoped' },
-                  ...props.projects.map((project) => ({ value: project.id, label: project.name })),
+                  ...props.workspaces.map((workspace) => ({ value: workspace.id, label: workspace.name })),
                 ]}
-                onValueChange={(value) => update('projectId', value === '__none__' ? '' : value)}
+                onValueChange={(value) => update('workspaceId', value === '__none__' ? '' : value)}
               />
             )}
             <ConfigSelectField
@@ -667,12 +667,12 @@ export function WebhookTriggerDeleteDialog(props: {
 export function WebhookTriggerInspectDialog(props: {
   trigger: DashboardWebhookWorkItemTriggerRecord | null;
   open: boolean;
-  projects: DashboardProjectRecord[];
+  workspaces: DashboardWorkspaceRecord[];
   workflows: DashboardWorkflowRecord[];
   onOpenChange(open: boolean): void;
 }): JSX.Element | null {
   if (!props.trigger) return null;
-  const projectsById = new Map(props.projects.map((project) => [project.id, project.name] as const));
+  const workspacesById = new Map(props.workspaces.map((workspace) => [workspace.id, workspace.name] as const));
   const workflowsById = new Map(props.workflows.map((workflow) => [workflow.id, workflow.name || workflow.id] as const));
   const trigger = props.trigger;
   const packet = describeWebhookTriggerPacket(trigger);
@@ -690,7 +690,7 @@ export function WebhookTriggerInspectDialog(props: {
           <div className="grid gap-3 md:grid-cols-2">
             <TriggerInfo label="Source" value={packet.source} />
             <TriggerInfo label="Signature mode" value={packet.mode} />
-            <TriggerInfo label="Project" value={describeProjectLabel(projectsById, trigger.project_id)} />
+            <TriggerInfo label="Workspace" value={describeWorkspaceLabel(workspacesById, trigger.workspace_id)} />
             <TriggerInfo label="Workflow" value={workflowsById.get(trigger.workflow_id) ?? trigger.workflow_id} />
             <TriggerInfo label="Status" value={trigger.is_active ? 'Active' : 'Disabled'} />
             <TriggerInfo label="Secret configured" value={trigger.secret_configured ? 'Yes' : 'No'} />
@@ -735,12 +735,12 @@ function TriggerInfo(props: { label: string; value: string }) {
   );
 }
 
-function describeProjectLabel(
-  projectsById: Map<string, string>,
-  projectId: string | null | undefined,
+function describeWorkspaceLabel(
+  workspacesById: Map<string, string>,
+  workspaceId: string | null | undefined,
 ): string {
-  if (!projectId) {
-    return 'Unscoped project';
+  if (!workspaceId) {
+    return 'Unscoped workspace';
   }
-  return projectsById.get(projectId) ?? projectId;
+  return workspacesById.get(workspaceId) ?? workspaceId;
 }

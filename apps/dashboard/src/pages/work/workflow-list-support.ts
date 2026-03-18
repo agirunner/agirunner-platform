@@ -1,8 +1,8 @@
 export interface WorkflowListRecord {
   id: string;
   name: string;
-  project_name?: string;
-  project_id?: string;
+  workspace_name?: string;
+  workspace_id?: string;
   playbook_id?: string | null;
   status: string;
   state?: string;
