@@ -146,11 +146,11 @@ describe.runIf(canRunIntegration)('resetPlaybookRedesignState', () => {
         config_value: JSON.stringify({ reasoning_effort: 'low' }),
       },
     ]);
-    expect(playbooks.rows.some((row) => row.slug === 'custom-redesign-reset')).toBe(false);
+    expect(playbooks.rows).toEqual([]);
     expect(workflows.rows).toHaveLength(0);
     expect(tasks.rows).toHaveLength(0);
     expect(prompts.rows[0]?.content?.length ?? 0).toBeGreaterThan(0);
     expect(prompts.rows[0]?.prompt?.length ?? 0).toBeGreaterThan(0);
-    expect(roles.rows.length).toBeGreaterThan(0);
+    expect(roles.rows).toEqual([]);
   }, 120_000);
 });

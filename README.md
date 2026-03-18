@@ -123,39 +123,13 @@ pnpm build      # TypeScript compilation
 ## Platform Validation Lanes
 
 ```bash
-pnpm test:core       # Deterministic control-plane default gate (LLM-free, fast subset)
-pnpm test:core:all   # Full deterministic core scenario matrix
-pnpm test:live       # Live SDLC scenario lane (LLM use via SUT; requires provider API key)
-pnpm test:live:all   # Full live scenario matrix across providers
-pnpm test:batch      # Single-command batch (unit + core + integration/dashboard + live)
+pnpm test:v2-contract                            # Deterministic contract lane
+bash tests/live/scenarios/run-sdlc-baseline-live-test.sh
 ```
 
-See `docs/testing/batch-runner.md` for CLI options, isolation model, and report schema.
+See `tests/live/README.md` for the supported live workflow test path.
 
-- **Core lane**: deterministic AP/OT/IT/SI control-plane validations only; no live provider calls.
-  - `test:core` runs the default fast subset.
-  - `test:core:all` runs the full deterministic matrix.
-  - Core lane rejects `--provider` and scenario selections outside the deterministic matrix.
-- **Live lane**: explicit live-environment SDLC checks where LLM behavior is exercised through agent/orchestrator SUT flows.
-  - Requires provider API keys and is never part of default `pnpm test`/`pnpm test:ci` gates.
-  - Harness/framework code does not call provider APIs directly; providers are exercised only through SUT execution.
-  - Live/integration execution is scripted-only (`pnpm test:live*` / `pnpm test:core`), no manual/ad-hoc gate execution.
-  - Docker image build reuse is enabled by default for harness startup:
-    - If repository image inputs are unchanged, harness runs `docker compose up -d ...` (no forced rebuild).
-    - If inputs changed, harness runs `docker compose up -d --build ...`.
-    - Fingerprint source is current git commit when workspace is clean; otherwise a deterministic workspace fingerprint.
-    - Cache stamp path: `.cache/live-harness/compose-build-fingerprint.v1.json`.
-    - Set `LIVE_FORCE_DOCKER_BUILD=true` to force rebuild and refresh cache.
-
-### Live test evaluation configuration
-
-Test-result interpretation defaults to deterministic schema/state assertions (no evaluator LLM).
-
-Optional explicit evaluator config surface:
-
-- `LIVE_EVALUATION_MODE=deterministic|llm` (default: `deterministic`)
-- `LIVE_EVALUATION_PROVIDER=<openai|anthropic|google>` (required when `LIVE_EVALUATION_MODE=llm`)
-- `LIVE_EVALUATION_MODEL=<model-name>` (required when `LIVE_EVALUATION_MODE=llm`)
-
-`tests/reports/` is reserved for canonical committed JSON only (`test-cases.v1.json`, `results.v1.json`, `batch-results.v1.json`, optional `traceability*.json`).
-Per-run/ad-hoc outputs (for example `run-*.json`, `run-*.md`, screenshots, Playwright JSON) are written under `tests/artifacts/` and must not be committed.
+- Deterministic contract verification remains under package scripts.
+- Live workflow verification now runs only from `tests/live/`.
+- Live tests must bootstrap state through platform APIs, not DB mutation.
+- Live test artifacts default to `.tmp/live-tests/` and are intentionally untracked.

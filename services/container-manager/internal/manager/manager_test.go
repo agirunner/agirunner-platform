@@ -47,6 +47,7 @@ type mockDockerClient struct {
 	updatedLabels   []labelUpdate
 	pulledImages    []pullRecord
 	createErr       error
+	connectErr      error
 	listErr         error
 	stopErr         error
 	removeErr       error
@@ -135,6 +136,9 @@ func (m *mockDockerClient) PullImage(_ context.Context, img, policy string) erro
 
 func (m *mockDockerClient) ConnectNetwork(_ context.Context, containerID string, networkName string) error {
 	m.networkConnects = append(m.networkConnects, networkConnectCall{ContainerID: containerID, NetworkName: networkName})
+	if m.connectErr != nil {
+		return m.connectErr
+	}
 	return nil
 }
 
@@ -782,6 +786,92 @@ func TestReconcileOnceRestartRequestedDoesNotAcknowledgeWhenRecreateFails(t *tes
 	}
 	if len(platform.ackedRestarts) != 0 {
 		t.Fatalf("expected no restart acknowledgement after recreate failure, got %v", platform.ackedRestarts)
+	}
+}
+
+func TestReconcileOnceRestartRequestedReattachesOrchestratorInternalNetwork(t *testing.T) {
+	docker := newMockDockerClient()
+	existing := makeContainerInfo("c-1", "orchestrator-primary", "agirunner-runtime:local", "ds-1", 1)
+	existing.Labels[labelExecutionMode] = orchestratorExecutionMode
+	existing.Labels[labelPlatformContract] = orchestratorContractLabel
+	existing.Labels[labelPlatformAPIURL] = "http://platform-api:8080"
+	existing.Labels[labelDockerHost] = "tcp://socket-proxy:2375"
+	existing.Labels[labelRuntimeNetwork] = "agirunner-platform_platform_net"
+	existing.Labels[labelRuntimeInternalNetwork] = "agirunner-platform_runtime_internal"
+	docker.containers = []ContainerInfo{existing}
+
+	ds := makeDesiredState("ds-1", "orchestrator-primary", "agirunner-runtime:local", 1, 1)
+	ds.Role = "orchestrator"
+	ds.PoolKind = "orchestrator"
+	ds.RestartRequested = true
+	platform := &mockPlatformClient{
+		desiredStates: []DesiredState{ds},
+	}
+	manager := newTestManager(docker, platform)
+	manager.config.PlatformAPIURL = "http://platform-api:8080"
+	manager.config.PlatformAdminAPIKey = "test-admin-key"
+	manager.config.DockerHost = "tcp://socket-proxy:2375"
+	manager.config.RuntimeNetwork = "agirunner-platform_platform_net"
+	manager.config.RuntimeInternalNetwork = "agirunner-platform_runtime_internal"
+
+	err := manager.reconcileOnce(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.networkConnects) != 1 {
+		t.Fatalf("expected one internal-network reconnect, got %d", len(docker.networkConnects))
+	}
+	if docker.networkConnects[0].ContainerID != "container-1" || docker.networkConnects[0].NetworkName != "agirunner-platform_runtime_internal" {
+		t.Fatalf("expected container-1 connected to internal network, got %#v", docker.networkConnects[0])
+	}
+	if len(platform.ackedRestarts) != 1 || platform.ackedRestarts[0] != "ds-1" {
+		t.Fatalf("expected restart acknowledgement for ds-1, got %v", platform.ackedRestarts)
+	}
+}
+
+func TestReconcileOnceRestartRequestedDoesNotAcknowledgeWhenOrchestratorNetworkReconnectFails(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.connectErr = fmt.Errorf("boom")
+	existing := makeContainerInfo("c-1", "orchestrator-primary", "agirunner-runtime:local", "ds-1", 1)
+	existing.Labels[labelExecutionMode] = orchestratorExecutionMode
+	existing.Labels[labelPlatformContract] = orchestratorContractLabel
+	existing.Labels[labelPlatformAPIURL] = "http://platform-api:8080"
+	existing.Labels[labelDockerHost] = "tcp://socket-proxy:2375"
+	existing.Labels[labelRuntimeNetwork] = "agirunner-platform_platform_net"
+	existing.Labels[labelRuntimeInternalNetwork] = "agirunner-platform_runtime_internal"
+	docker.containers = []ContainerInfo{existing}
+
+	ds := makeDesiredState("ds-1", "orchestrator-primary", "agirunner-runtime:local", 1, 1)
+	ds.Role = "orchestrator"
+	ds.PoolKind = "orchestrator"
+	ds.RestartRequested = true
+	platform := &mockPlatformClient{
+		desiredStates: []DesiredState{ds},
+	}
+	manager := newTestManager(docker, platform)
+	manager.config.PlatformAPIURL = "http://platform-api:8080"
+	manager.config.PlatformAdminAPIKey = "test-admin-key"
+	manager.config.DockerHost = "tcp://socket-proxy:2375"
+	manager.config.RuntimeNetwork = "agirunner-platform_platform_net"
+	manager.config.RuntimeInternalNetwork = "agirunner-platform_runtime_internal"
+
+	err := manager.reconcileOnce(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.networkConnects) != 1 {
+		t.Fatalf("expected one internal-network reconnect attempt, got %d", len(docker.networkConnects))
+	}
+	if len(platform.ackedRestarts) != 0 {
+		t.Fatalf("expected no restart acknowledgement after reconnect failure, got %v", platform.ackedRestarts)
+	}
+	if len(docker.removedIDs) != 2 {
+		t.Fatalf("expected old and failed replacement containers removed, got %v", docker.removedIDs)
+	}
+	if docker.removedIDs[0] != "c-1" || docker.removedIDs[1] != "container-1" {
+		t.Fatalf("expected original and replacement containers removed, got %v", docker.removedIDs)
 	}
 }
 

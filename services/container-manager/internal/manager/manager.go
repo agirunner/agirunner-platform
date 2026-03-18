@@ -408,24 +408,24 @@ func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existin
 			}, err.Error())
 			continue
 		}
-		if internalNetwork := orchestratorInternalNetwork(m.config, ds); internalNetwork != "" {
-			if err := m.docker.ConnectNetwork(ctx, containerID, internalNetwork); err != nil {
-				m.logger.Error("failed to connect orchestrator runtime to internal network",
-					"worker", ds.WorkerName,
-					"container", containerID,
-					"network", internalNetwork,
-					"error", err,
-				)
-				m.emitLogError("container", "container.wds_network_connect", map[string]any{
-					"action":           "network_connect",
-					"worker":           ds.WorkerName,
-					"container_id":     containerID,
-					"network":          internalNetwork,
-					"desired_state_id": ds.ID,
-					"version":          ds.Version,
-					"role":             ds.Role,
-				}, err.Error())
-			}
+		if err := m.attachDesiredStateInternalNetwork(ctx, ds, containerID); err != nil {
+			m.logger.Error("failed to finalize container runtime contract",
+				"worker", ds.WorkerName,
+				"container", containerID,
+				"error", err,
+			)
+			_ = m.docker.RemoveContainer(ctx, containerID)
+			m.emitLogError("container", "container.wds_create", map[string]any{
+				"action":           "create",
+				"worker":           ds.WorkerName,
+				"container_id":     containerID,
+				"image":            ds.RuntimeImage,
+				"desired_state_id": ds.ID,
+				"version":          ds.Version,
+				"role":             ds.Role,
+				"reason":           "runtime_contract_attach_failed",
+			}, err.Error())
+			continue
 		}
 		m.logger.Info("created container", "worker", ds.WorkerName, "container", containerID)
 		m.emitLog("container", "container.wds_create", "info", "completed", map[string]any{
@@ -488,6 +488,15 @@ func (m *Manager) handleRestart(ctx context.Context, ds DesiredState, existing [
 		containerID, err := m.docker.CreateContainer(ctx, spec)
 		if err != nil {
 			m.logger.Error("failed to recreate container after restart", "worker", ds.WorkerName, "error", err)
+			continue
+		}
+		if err := m.attachDesiredStateInternalNetwork(ctx, ds, containerID); err != nil {
+			m.logger.Error("failed to finalize restarted container runtime contract",
+				"worker", ds.WorkerName,
+				"container", containerID,
+				"error", err,
+			)
+			_ = m.docker.RemoveContainer(ctx, containerID)
 			continue
 		}
 		created++
@@ -554,6 +563,35 @@ func shouldDeferOrchestratorReplacement(ds DesiredState, c ContainerInfo) bool {
 		return false
 	}
 	return isContainerRunning(c.Status)
+}
+
+func (m *Manager) attachDesiredStateInternalNetwork(ctx context.Context, ds DesiredState, containerID string) error {
+	internalNetwork := orchestratorInternalNetwork(m.config, ds)
+	if internalNetwork == "" {
+		return nil
+	}
+	if err := m.docker.ConnectNetwork(ctx, containerID, internalNetwork); err != nil {
+		m.emitLogError("container", "container.wds_network_connect", map[string]any{
+			"action":           "network_connect",
+			"worker":           ds.WorkerName,
+			"container_id":     containerID,
+			"network":          internalNetwork,
+			"desired_state_id": ds.ID,
+			"version":          ds.Version,
+			"role":             ds.Role,
+		}, err.Error())
+		return fmt.Errorf("connect desired-state container to internal network: %w", err)
+	}
+	m.emitLog("container", "container.wds_network_connect", "info", "completed", map[string]any{
+		"action":           "network_connect",
+		"worker":           ds.WorkerName,
+		"container_id":     containerID,
+		"network":          internalNetwork,
+		"desired_state_id": ds.ID,
+		"version":          ds.Version,
+		"role":             ds.Role,
+	})
+	return nil
 }
 
 func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) ContainerSpec {

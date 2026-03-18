@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LIVE_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${LIVE_TEST_ROOT}/../.." && pwd)"
+
+# shellcheck disable=SC1091
+source "${LIVE_TEST_ROOT}/lib/common.sh"
+
+LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
+LIVE_TEST_ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
+LIVE_TEST_BOOTSTRAP_DIR="${LIVE_TEST_BOOTSTRAP_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/bootstrap}"
+LIVE_TEST_BOOTSTRAP_CONTEXT_FILE="${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE:-${LIVE_TEST_BOOTSTRAP_DIR}/context.json}"
+LIVE_TEST_TRACE_DIR="${LIVE_TEST_TRACE_DIR:-${LIVE_TEST_BOOTSTRAP_DIR}/api-trace}"
+LIVE_TEST_PLATFORM_ROOT="${LIVE_TEST_PLATFORM_ROOT:-${REPO_ROOT}}"
+LIVE_TEST_COMPOSE_FILE="${LIVE_TEST_COMPOSE_FILE:-${LIVE_TEST_PLATFORM_ROOT}/docker-compose.yml}"
+LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT:-${LIVE_TEST_ROOT}/library}"
+LIVE_TEST_PROFILE="${LIVE_TEST_PROFILE:-sdlc-baseline}"
+RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
+FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH:-${REPO_ROOT}/../agirunner-test-fixtures}"
+RUNTIME_IMAGE="${RUNTIME_IMAGE:-agirunner-runtime:local}"
+EXECUTION_IMAGE="${EXECUTION_IMAGE:-agirunner-runtime-execution:local}"
+ORCHESTRATOR_WORKER_NAME="${ORCHESTRATOR_WORKER_NAME:-orchestrator-primary}"
+LIVE_TEST_PROVIDER_TYPE="${LIVE_TEST_PROVIDER_TYPE:-openai}"
+LIVE_TEST_PROVIDER_NAME="${LIVE_TEST_PROVIDER_NAME:-OpenAI}"
+LIVE_TEST_PROVIDER_BASE_URL="${LIVE_TEST_PROVIDER_BASE_URL:-https://api.openai.com/v1}"
+LIVE_TEST_PROVIDER_API_KEY="${LIVE_TEST_PROVIDER_API_KEY:-${LIVE_TEST_OPENAI_API_KEY:-}}"
+LIVE_TEST_MODEL_ID="${LIVE_TEST_MODEL_ID:-gpt-5.4}"
+LIVE_TEST_MODEL_ENDPOINT_TYPE="${LIVE_TEST_MODEL_ENDPOINT_TYPE:-responses}"
+LIVE_TEST_SYSTEM_REASONING_EFFORT="${LIVE_TEST_SYSTEM_REASONING_EFFORT:-low}"
+LIVE_TEST_REPOSITORY_URL="${LIVE_TEST_REPOSITORY_URL:-https://github.com/agirunner/agirunner-test-fixtures.git}"
+LIVE_TEST_DEFAULT_BRANCH="${LIVE_TEST_DEFAULT_BRANCH:-main}"
+LIVE_TEST_WORKSPACE_NAME="${LIVE_TEST_WORKSPACE_NAME:-SDLC Proof Workspace}"
+LIVE_TEST_WORKSPACE_SLUG="${LIVE_TEST_WORKSPACE_SLUG:-sdlc-proof-workspace}"
+LIVE_TEST_GIT_USER_NAME="${LIVE_TEST_GIT_USER_NAME:-sirmarkz}"
+LIVE_TEST_GIT_USER_EMAIL="${LIVE_TEST_GIT_USER_EMAIL:-250921129+sirmarkz@users.noreply.github.com}"
+
+require_live_test_dir "${RUNTIME_REPO_PATH}" "runtime repo"
+require_live_test_dir "${FIXTURES_REPO_PATH}" "fixtures repo"
+require_live_test_dir "${LIVE_TEST_PLATFORM_ROOT}/apps/platform-api" "platform api app"
+require_live_test_file "${LIVE_TEST_COMPOSE_FILE}" "platform docker compose file"
+require_live_test_dir "${LIVE_TEST_LIBRARY_ROOT}" "live test library"
+require_live_test_file "${RUNTIME_REPO_PATH}/Dockerfile.execution" "execution Dockerfile"
+load_live_test_env "${LIVE_TEST_ENV_FILE}"
+
+require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
+require_live_test_value "LIVE_TEST_PROVIDER_API_KEY" "${LIVE_TEST_PROVIDER_API_KEY:-}"
+require_live_test_value "LIVE_TEST_GITHUB_TOKEN" "${LIVE_TEST_GITHUB_TOKEN:-}"
+
+PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
+mkdir -p "${LIVE_TEST_BOOTSTRAP_DIR}" "${LIVE_TEST_TRACE_DIR}"
+
+log_live_test "building runtime image ${RUNTIME_IMAGE}"
+docker build -t "${RUNTIME_IMAGE}" "${RUNTIME_REPO_PATH}"
+
+log_live_test "building execution image ${EXECUTION_IMAGE}"
+docker build -f "${RUNTIME_REPO_PATH}/Dockerfile.execution" -t "${EXECUTION_IMAGE}" "${RUNTIME_REPO_PATH}"
+
+log_live_test "resetting fixtures repo ${FIXTURES_REPO_PATH}"
+git -C "${FIXTURES_REPO_PATH}" fetch origin
+git -C "${FIXTURES_REPO_PATH}" checkout "${LIVE_TEST_DEFAULT_BRANCH}"
+git -C "${FIXTURES_REPO_PATH}" reset --hard "origin/${LIVE_TEST_DEFAULT_BRANCH}"
+git -C "${FIXTURES_REPO_PATH}" clean -fdx
+
+log_live_test "rebuilding standard docker compose stack"
+(
+  cd "${LIVE_TEST_PLATFORM_ROOT}"
+  docker compose -f "${LIVE_TEST_COMPOSE_FILE}" down -v --remove-orphans
+  docker compose -f "${LIVE_TEST_COMPOSE_FILE}" up -d --build
+)
+
+wait_for_live_test_http "${PLATFORM_API_BASE_URL}/health" "platform api health"
+
+log_live_test "seeding platform state through API"
+export PLATFORM_API_BASE_URL
+export LIVE_TEST_TRACE_DIR
+export LIVE_TEST_PROVIDER_TYPE
+export LIVE_TEST_PROVIDER_NAME
+export LIVE_TEST_PROVIDER_BASE_URL
+export LIVE_TEST_PROVIDER_API_KEY
+export LIVE_TEST_MODEL_ID
+export LIVE_TEST_MODEL_ENDPOINT_TYPE
+export LIVE_TEST_SYSTEM_REASONING_EFFORT
+export LIVE_TEST_REPOSITORY_URL
+export LIVE_TEST_DEFAULT_BRANCH
+export LIVE_TEST_WORKSPACE_NAME
+export LIVE_TEST_WORKSPACE_SLUG
+export LIVE_TEST_GIT_USER_NAME
+export LIVE_TEST_GIT_USER_EMAIL
+export LIVE_TEST_LIBRARY_ROOT
+export LIVE_TEST_PROFILE
+export ORCHESTRATOR_WORKER_NAME
+export RUNTIME_IMAGE
+
+python3 "${LIVE_TEST_PLATFORM_ROOT}/tests/live/lib/seed_live_test_environment.py" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"
+
+log_live_test "bootstrap context written to ${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"

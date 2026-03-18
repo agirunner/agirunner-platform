@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { runWorkflowActivationDispatchTick } from '../../src/jobs/lifecycle-monitor.js';
 import { seedConfigTables } from '../../src/bootstrap/seed.js';
 import { ApprovalQueueService } from '../../src/services/approval-queue-service.js';
+import { RoleDefinitionService } from '../../src/services/role-definition-service.js';
 import { ScheduledWorkItemTriggerService } from '../../src/services/scheduled-work-item-trigger-service.js';
 import { WebhookWorkItemTriggerService } from '../../src/services/webhook-work-item-trigger-service.js';
 import { WorkflowChainingService } from '../../src/services/workflow-chaining-service.js';
@@ -112,6 +113,27 @@ describe('playbook workflow integration', () => {
       ],
     );
     await seedConfigTables(db.pool);
+    const roleService = new RoleDefinitionService(db.pool);
+
+    await roleService.createRole(identity.tenantId, {
+      name: 'product-manager',
+      description: 'Integration-test product manager role',
+      systemPrompt: 'Clarify scope, plan the work, and submit a structured handoff.',
+      allowedTools: ['submit_handoff'],
+      capabilities: ['planning'],
+      verificationStrategy: 'peer_review',
+      isActive: true,
+    });
+
+    await roleService.createRole(identity.tenantId, {
+      name: 'developer',
+      description: 'Integration-test developer role',
+      systemPrompt: 'Implement the requested change and submit a structured handoff.',
+      allowedTools: ['shell_exec', 'submit_handoff'],
+      capabilities: ['coding'],
+      verificationStrategy: 'peer_review',
+      isActive: true,
+    });
   }, 120_000);
 
   afterAll(async () => {

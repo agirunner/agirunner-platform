@@ -3,8 +3,6 @@ import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
-import { BUILT_IN_PLAYBOOKS } from '../../src/catalogs/built-in-playbooks.js';
-import { loadBuiltInRolesConfig } from '../../src/catalogs/built-in-roles.js';
 import { runMigrations } from '../../src/db/migrations/run-migrations.js';
 import { seedDefaultTenant } from '../../src/db/seed.js';
 import { seedConfigTables } from '../../src/bootstrap/seed.js';
@@ -165,10 +163,10 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
       },
     ]);
     expect(Number(workspaceCount.rows[0]?.count ?? '0')).toBe(0);
-    expect(Number(playbookCount.rows[0]?.count ?? '0')).toBe(BUILT_IN_PLAYBOOKS.length);
+    expect(Number(playbookCount.rows[0]?.count ?? '0')).toBe(0);
     expect(Number(promptCount.rows[0]?.count ?? '0')).toBe(1);
     expect(Number(apiKeyCount.rows[0]?.count ?? '0')).toBeGreaterThan(0);
-    expect(developerRole.rows).toEqual([{ escalation_target: 'human', max_escalation_depth: 5 }]);
+    expect(developerRole.rows).toEqual([]);
   }, 120_000);
 });
 
@@ -195,17 +193,13 @@ async function captureSeedSnapshot(pool: TestDatabase['pool']) {
 
   return {
     role_names: roles.rows.map((row) => row.name),
-    expected_role_names: Object.keys(loadBuiltInRolesConfig().roles).sort(),
+    expected_role_names: [],
     playbooks: playbooks.rows.map((row) => ({
       slug: row.slug,
       lifecycle: row.lifecycle,
       version: Number(row.version),
     })),
-    expected_playbooks: BUILT_IN_PLAYBOOKS.map((playbook) => ({
-      slug: playbook.slug,
-      lifecycle: playbook.lifecycle,
-      version: 1,
-    })).sort((left, right) => left.slug.localeCompare(right.slug)),
+    expected_playbooks: [],
     runtime_defaults: defaults.rows.map((row) => ({
       config_key: row.config_key,
       config_value: row.config_value,

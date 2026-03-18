@@ -36,3 +36,6 @@ tests/live/reports/
 # Local working scratch
 tasks/
 .secrets/
+.cache/
+.tmp/
+tests/live/env/local.env

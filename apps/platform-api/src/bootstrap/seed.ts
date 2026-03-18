@@ -1,20 +1,16 @@
 /**
  * Configuration seeding — idempotent first-run setup.
  *
- * Seeds role definitions, runtime defaults, built-in playbooks, and the admin user.
- * Skips seeding if roles already exist for the default tenant.
+ * Seeds global platform bootstrap state only.
+ *
+ * Runtime defaults, prompts, orchestrator worker state, and the admin user are
+ * platform bootstrap. Role definitions and playbooks are workflow content and
+ * MUST be created explicitly by operators or test fixtures, not by default seed.
  */
 import type pg from 'pg';
 
 import type { AppEnv } from '../config/schema.js';
 import type { DatabaseQueryable } from '../db/database.js';
-import { BUILT_IN_PLAYBOOKS } from '../catalogs/built-in-playbooks.js';
-import {
-  loadBuiltInRolesConfig,
-  type BuiltInRolesConfig,
-  type RoleName,
-} from '../catalogs/built-in-roles.js';
-import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
 import { UserService } from '../services/user-service.js';
 import { DEFAULT_ADMIN_KEY_PREFIX, DEFAULT_TENANT_ID } from '../db/seed.js';
@@ -41,10 +37,9 @@ export async function seedConfigTables(
   db: DatabaseQueryable,
   config?: Pick<AppEnv, 'AGIRUNNER_ADMIN_EMAIL'>,
 ): Promise<void> {
-  await seedRolesAndDefaults(db);
+  await seedRuntimeDefaultsAndPrompts(db);
   await seedOrchestratorWorker(db);
   await seedAdminUser(db, config?.AGIRUNNER_ADMIN_EMAIL);
-  await seedBuiltInPlaybooks(db);
 }
 
 export async function resetPlaybookRedesignState(pool: pg.Pool): Promise<void> {
@@ -79,121 +74,14 @@ export async function resetPlaybookRedesignState(pool: pg.Pool): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Roles + runtime defaults
+// Runtime defaults + prompts
 // ---------------------------------------------------------------------------
 
-async function seedRolesAndDefaults(db: DatabaseQueryable): Promise<void> {
-  const roleService = new RoleDefinitionService(db);
+async function seedRuntimeDefaultsAndPrompts(db: DatabaseQueryable): Promise<void> {
   const defaultsService = new RuntimeDefaultsService(db);
 
-  const existingRoles = await roleService.listRoles(DEFAULT_TENANT_ID);
-  const rolesConfig = loadBuiltInRolesConfig();
-
-  if (existingRoles.length === 0) {
-    await seedRoleDefinitions(roleService, rolesConfig);
-    console.info('[seed] Role definitions and runtime defaults seeded.');
-  } else {
-    await seedMissingRoles(roleService, rolesConfig, existingRoles);
-    await syncBuiltInRoles(roleService, rolesConfig, existingRoles);
-  }
-
   await seedRuntimeDefaults(defaultsService);
-
   await seedDefaultPrompts(db);
-}
-
-async function seedMissingRoles(
-  service: RoleDefinitionService,
-  config: BuiltInRolesConfig,
-  existingRoles: Array<{ name: string }>,
-): Promise<void> {
-  const existingNames = new Set(existingRoles.map((r) => r.name));
-  const allNames = Object.keys(config.roles) as RoleName[];
-  const missing = allNames.filter((name) => !existingNames.has(name));
-
-  for (const name of missing) {
-    const role = config.roles[name];
-    await service.createRole(DEFAULT_TENANT_ID, {
-      name,
-      description: role.description,
-      systemPrompt: role.systemPrompt,
-      allowedTools: role.allowedTools,
-      verificationStrategy: role.verificationStrategy,
-      capabilities: role.capabilities,
-      escalationTarget: role.escalationTarget ?? null,
-      maxEscalationDepth: role.maxEscalationDepth ?? 5,
-      isBuiltIn: true,
-      isActive: true,
-    });
-    console.info(`[seed] Added missing role: ${name}`);
-  }
-}
-
-async function syncBuiltInRoles(
-  service: RoleDefinitionService,
-  config: BuiltInRolesConfig,
-  existingRoles: Array<{ name: string }>,
-): Promise<void> {
-  for (const existing of existingRoles) {
-    const roleConfig = config.roles[existing.name as RoleName];
-    if (!roleConfig) {
-      continue;
-    }
-    const stored = await service.getRoleByName(DEFAULT_TENANT_ID, existing.name);
-    if (!stored?.is_built_in) {
-      continue;
-    }
-    const mergedAllowedTools = [
-      ...new Set([...(stored.allowed_tools ?? []), ...roleConfig.allowedTools]),
-    ];
-    const mergedCapabilities = [
-      ...new Set([...(stored.capabilities ?? []), ...roleConfig.capabilities]),
-    ];
-    const toolsChanged = mergedAllowedTools.length !== (stored.allowed_tools ?? []).length;
-    const capabilitiesChanged = mergedCapabilities.length !== (stored.capabilities ?? []).length;
-    const escalationTarget = roleConfig.escalationTarget ?? null;
-    const escalationTargetChanged = (stored.escalation_target ?? null) !== escalationTarget;
-    const maxEscalationDepth = roleConfig.maxEscalationDepth ?? stored.max_escalation_depth ?? 5;
-    const maxEscalationDepthChanged = stored.max_escalation_depth !== maxEscalationDepth;
-    if (
-      !toolsChanged &&
-      !capabilitiesChanged &&
-      !escalationTargetChanged &&
-      !maxEscalationDepthChanged
-    ) {
-      continue;
-    }
-    await service.updateRole(DEFAULT_TENANT_ID, stored.id, {
-      allowedTools: mergedAllowedTools,
-      capabilities: mergedCapabilities,
-      escalationTarget,
-      maxEscalationDepth,
-    });
-    console.info(`[seed] Synced built-in role defaults: ${existing.name}`);
-  }
-}
-
-async function seedRoleDefinitions(
-  service: RoleDefinitionService,
-  config: BuiltInRolesConfig,
-): Promise<void> {
-  const roleNames = Object.keys(config.roles) as RoleName[];
-
-  for (const name of roleNames) {
-    const role = config.roles[name];
-    await service.createRole(DEFAULT_TENANT_ID, {
-      name,
-      description: role.description,
-      systemPrompt: role.systemPrompt,
-      allowedTools: role.allowedTools,
-      verificationStrategy: role.verificationStrategy,
-      capabilities: role.capabilities,
-      escalationTarget: role.escalationTarget ?? null,
-      maxEscalationDepth: role.maxEscalationDepth ?? 5,
-      isBuiltIn: true,
-      isActive: true,
-    });
-  }
 }
 
 async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<void> {
@@ -759,32 +647,4 @@ async function seedAdminUser(
   });
 
   console.info(`[seed] Admin user created: ${adminEmail}`);
-}
-
-async function seedBuiltInPlaybooks(db: DatabaseQueryable): Promise<void> {
-  for (const playbook of BUILT_IN_PLAYBOOKS) {
-    const existing = await db.query(
-      'SELECT id FROM playbooks WHERE tenant_id = $1 AND slug = $2 AND version = 1 LIMIT 1',
-      [DEFAULT_TENANT_ID, playbook.slug],
-    );
-    if (existing.rowCount && existing.rowCount > 0) {
-      continue;
-    }
-
-    await db.query(
-      `INSERT INTO playbooks (tenant_id, name, slug, description, outcome, lifecycle, version, definition, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, 1, $7, true)`,
-      [
-        DEFAULT_TENANT_ID,
-        playbook.name,
-        playbook.slug,
-        playbook.description,
-        playbook.outcome,
-        playbook.lifecycle,
-        playbook.definition,
-      ],
-    );
-
-    console.info(`[seed] Built-in playbook seeded: ${playbook.slug}`);
-  }
 }
