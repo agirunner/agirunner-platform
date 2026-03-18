@@ -104,4 +104,52 @@ describe('public log row', () => {
       stack: '[REDACTED]',
     });
   });
+
+  it('redacts embedded token-like secrets inside longer public prose fields', () => {
+    const row = toPublicLogRow({
+      id: '1',
+      tenant_id: 'tenant-1',
+      trace_id: 'trace-1',
+      span_id: 'span-1',
+      parent_span_id: null,
+      source: 'runtime',
+      category: 'auth',
+      level: 'error',
+      operation: 'auth.oauth_connection.failed',
+      status: 'failed',
+      duration_ms: 10,
+      payload: {
+        detail:
+          'User pasted eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature into the transcript.',
+      },
+      error: {
+        code: 'AUTH_FAILED',
+        message: 'Captured sk-live-abc123xyz987 in the failure summary.',
+      },
+      project_id: null,
+      workflow_id: 'workflow-1',
+      workflow_name: 'Flow',
+      project_name: null,
+      task_id: 'task-1',
+      work_item_id: 'work-item-1',
+      stage_name: 'review',
+      activation_id: 'activation-1',
+      is_orchestrator_task: false,
+      task_title: 'Run work',
+      role: 'developer',
+      actor_type: 'system',
+      actor_id: 'worker-1',
+      actor_name: 'worker-1',
+      resource_type: null,
+      resource_id: null,
+      resource_name: null,
+      created_at: '2026-03-11T00:00:00.000Z',
+    });
+
+    expect(row.payload.detail).toBe('[REDACTED]');
+    expect(row.error).toEqual({
+      code: 'AUTH_FAILED',
+      message: '[REDACTED]',
+    });
+  });
 });

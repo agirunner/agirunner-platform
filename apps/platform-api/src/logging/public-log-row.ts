@@ -1,4 +1,5 @@
 import type { LogRow } from './log-service.js';
+import { sanitizeSecretLikeValue } from '../services/secret-redaction.js';
 
 export interface PublicLogRow extends LogRow {
   stage_name: string | null;
@@ -37,6 +38,12 @@ export const PUBLIC_LOG_CSV_COLUMNS = [
   'payload',
 ] as const;
 
+const LOG_SECRET_REDACTION = '[REDACTED]';
+const LOG_SECRET_REDACTION_OPTIONS = {
+  redactionValue: LOG_SECRET_REDACTION,
+  allowSecretReferences: false,
+} as const;
+
 export function toPublicLogRow(row: LogRow): PublicLogRow {
   return {
     ...row,
@@ -60,16 +67,24 @@ export function toPublicLogSummaryRow(row: LogRow): PublicLogSummaryRow {
   };
 }
 
-const SECRET_PATTERN =
-  /(?:api[_-]?key|password|secret|(?:^|[_-])token(?!s)|authorization|bearer|credential|private[_-]?key)/i;
-const SECRET_VALUE_PATTERN =
-  /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
-
 const REDACT_EXEMPT_KEYS = new Set([
   'system_prompt',
   'prompt_summary',
   'response_summary',
   'description',
+]);
+
+const NON_SECRET_TOKEN_METRIC_KEYS = new Set([
+  'tokens_in',
+  'tokens_out',
+  'total_tokens',
+  'input_tokens',
+  'output_tokens',
+  'tokens_input',
+  'tokens_output',
+  'total_tokens_input',
+  'total_tokens_output',
+  'max_output_tokens',
 ]);
 
 function redactPayload(payload: Record<string, unknown>): Record<string, unknown> {
@@ -92,24 +107,31 @@ function redactError(error: LogRow['error']): LogRow['error'] {
 }
 
 function redactValue(key: string, value: unknown): unknown {
-  if (SECRET_PATTERN.test(key)) {
-    return '[REDACTED]';
+  if (REDACT_EXEMPT_KEYS.has(key) || NON_SECRET_TOKEN_METRIC_KEYS.has(key)) {
+    return value;
   }
-  if (typeof value === 'string') {
-    return redactString(key, value);
+  if (isSecretLikeLogKey(key)) {
+    return LOG_SECRET_REDACTION;
   }
-  if (Array.isArray(value)) {
-    return value.map((item) => redactValue(key, item));
-  }
-  if (value && typeof value === 'object') {
-    return redactPayload(value as Record<string, unknown>);
-  }
-  return value;
+  return sanitizeLogSecretValue(key, value);
 }
 
 function redactString(key: string, value: string): string {
-  if (REDACT_EXEMPT_KEYS.has(key)) {
+  if (REDACT_EXEMPT_KEYS.has(key) || NON_SECRET_TOKEN_METRIC_KEYS.has(key)) {
     return value;
   }
-  return SECRET_PATTERN.test(value) || SECRET_VALUE_PATTERN.test(value) ? '[REDACTED]' : value;
+  const redacted = sanitizeLogSecretValue(key, value);
+  return typeof redacted === 'string' ? redacted : LOG_SECRET_REDACTION;
+}
+
+function sanitizeLogSecretValue(key: string, value: unknown): unknown {
+  const sanitized = sanitizeSecretLikeValue({ [key]: value }, LOG_SECRET_REDACTION_OPTIONS) as Record<
+    string,
+    unknown
+  >;
+  return sanitized[key];
+}
+
+function isSecretLikeLogKey(key: string): boolean {
+  return sanitizeLogSecretValue(key, 'present') === LOG_SECRET_REDACTION;
 }

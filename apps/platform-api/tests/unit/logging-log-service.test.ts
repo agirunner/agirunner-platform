@@ -143,6 +143,34 @@ describe('LogService', () => {
       expect(params[10]).toBe('{"provider":"openai","model":"gpt-4.1-mini"}');
     });
 
+    it('redacts embedded token-like secrets inside longer prose before insert', async () => {
+      const pool = createMockPool();
+      const service = new LogService(pool as never);
+
+      await service.insert({
+        tenantId: 'tenant-1',
+        traceId: 'trace-1',
+        spanId: 'span-1',
+        source: 'platform',
+        category: 'auth',
+        level: 'error',
+        operation: 'auth.oauth_connection.failed',
+        status: 'failed',
+        payload: {
+          detail:
+            'User pasted eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.signature into the transcript.',
+        },
+        error: {
+          code: 'AUTH_FAILED',
+          message: 'Captured sk-live-abc123xyz987 in the failure summary.',
+        },
+      });
+
+      const [, params] = getInsertCall(pool)!;
+      expect(params[10]).toBe('{"detail":"[REDACTED]"}');
+      expect(params[11]).toBe('{"code":"AUTH_FAILED","message":"[REDACTED]"}');
+    });
+
     it('serializesErrorAsJson', async () => {
       const pool = createMockPool();
       const service = new LogService(pool as never);
