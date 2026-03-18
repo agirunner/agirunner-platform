@@ -284,23 +284,23 @@ export const webhookRoutes: FastifyPluginAsync = async (app) => {
 };
 
 async function resolveWebhookSecret(
-  app: { projectService: { findProjectByRepositoryUrl(url: string): Promise<{ id: string; tenant_id: string } | null>; getGitWebhookSecret(tenantId: string, projectId: string): Promise<{ provider: string; secret: string } | null> } },
+  app: { workspaceService: { findWorkspaceByRepositoryUrl(url: string): Promise<{ id: string; tenant_id: string } | null>; getGitWebhookSecret(tenantId: string, workspaceId: string): Promise<{ provider: string; secret: string } | null> } },
   inbound: { provider: 'github' | 'gitea' | 'gitlab'; eventType: string; signature?: string },
   repoUrl: string | undefined,
 ): Promise<InboundWebhookIdentity> {
   if (!repoUrl) {
-    throw new NotFoundError('No matching project found for webhook');
+    throw new NotFoundError('No matching workspace found for webhook');
   }
-  const project = await app.projectService.findProjectByRepositoryUrl(repoUrl);
-  if (!project) {
-    throw new NotFoundError('No matching project found for webhook');
+  const workspace = await app.workspaceService.findWorkspaceByRepositoryUrl(repoUrl);
+  if (!workspace) {
+    throw new NotFoundError('No matching workspace found for webhook');
   }
-  const webhookConfig = await app.projectService.getGitWebhookSecret(
-    project.tenant_id,
-    project.id,
+  const webhookConfig = await app.workspaceService.getGitWebhookSecret(
+    workspace.tenant_id,
+    workspace.id,
   );
   if (!webhookConfig || webhookConfig.provider !== inbound.provider) {
-    throw new UnauthorizedError('No matching project git webhook secret is configured');
+    throw new UnauthorizedError('No matching workspace git webhook secret is configured');
   }
   return {
     provider: inbound.provider,

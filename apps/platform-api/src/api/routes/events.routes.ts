@@ -17,7 +17,7 @@ async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply
     event_type?: string;
     entity_type?: string;
     entity_id?: string;
-    project_id?: string;
+    workspace_id?: string;
     workflow_id?: string;
     work_item_id?: string;
     stage_name?: string;
@@ -38,7 +38,7 @@ async function streamEvents(app: FastifyInstance, request: FastifyRequest, reply
       types: parseCsv(query.event_type),
       entityTypes: parseCsv(query.entity_type),
       entityId: query.entity_id,
-      projectId: query.project_id,
+      workspaceId: query.workspace_id,
       workflowId: query.workflow_id,
       workItemId: query.work_item_id,
       stageName: query.stage_name,
@@ -75,7 +75,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       event_type?: string;
       entity_type?: string;
       entity_id?: string;
-      project_id?: string;
+      workspace_id?: string;
       workflow_id?: string;
       work_item_id?: string;
       stage_name?: string;
@@ -89,7 +89,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       tenantId: request.auth!.tenantId,
       entityTypes: parseCsv(query.entity_type),
       entityId: query.entity_id,
-      projectId: query.project_id,
+      workspaceId: query.workspace_id,
       workflowId: query.workflow_id,
       workItemId: query.work_item_id,
       stageName: query.stage_name,

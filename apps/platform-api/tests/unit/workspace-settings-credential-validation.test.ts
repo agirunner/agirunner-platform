@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { validateProjectSettingsShape } from '../../src/services/project-settings.js';
+import { validateWorkspaceSettingsShape } from '../../src/services/workspace-settings.js';
 
-describe('project settings credential validation', () => {
+describe('workspace settings credential validation', () => {
   it('rejects git tokens with whitespace', () => {
     expect(() =>
-      validateProjectSettingsShape({
+      validateWorkspaceSettingsShape({
         credentials: {
           git_token: 'url.https://x-access-token:token@github.com/.insteadof https://github.com/',
         },

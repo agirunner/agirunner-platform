@@ -34,7 +34,7 @@ describe('FR-192: context versioning', () => {
       if (sql.includes('agents') && sql.includes('assigned_agent_id')) {
         return Promise.resolve({ rows: [] });
       }
-      if (sql.includes('projects')) return Promise.resolve({ rows: [] });
+      if (sql.includes('workspaces')) return Promise.resolve({ rows: [] });
       if (sql.includes('workflows')) return Promise.resolve({ rows: [] });
       if (sql.includes("state = 'completed'") || sql.includes('depends_on')) {
         return Promise.resolve({
@@ -133,10 +133,10 @@ describe('FR-192: context versioning', () => {
           }],
         });
       }
-      if (sql.includes('FROM workflows') && sql.includes('project_spec_version')) {
+      if (sql.includes('FROM workflows') && sql.includes('workspace_spec_version')) {
         return Promise.resolve({
           rowCount: 1,
-          rows: [{ project_id: null, project_spec_version: null }],
+          rows: [{ workspace_id: null, workspace_spec_version: null }],
         });
       }
       if (sql.includes('FROM workflow_work_items')) {

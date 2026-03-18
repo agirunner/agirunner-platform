@@ -6,14 +6,14 @@ import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 const ARTIFACT_METADATA_SECRET_REDACTION = 'redacted://artifact-metadata-secret';
 const MAX_FILTER_OPTIONS = 100;
 
-export type ProjectArtifactExplorerSort =
+export type WorkspaceArtifactExplorerSort =
   | 'newest'
   | 'oldest'
   | 'largest'
   | 'smallest'
   | 'name';
 
-export interface ProjectArtifactExplorerListInput {
+export interface WorkspaceArtifactExplorerListInput {
   q?: string;
   workflow_id?: string;
   work_item_id?: string;
@@ -24,12 +24,12 @@ export interface ProjectArtifactExplorerListInput {
   preview_mode?: 'inline' | 'download';
   created_from?: string;
   created_to?: string;
-  sort?: ProjectArtifactExplorerSort;
+  sort?: WorkspaceArtifactExplorerSort;
   page: number;
   per_page: number;
 }
 
-export interface ProjectArtifactExplorerRecord {
+export interface WorkspaceArtifactExplorerRecord {
   id: string;
   workflow_id: string | null;
   task_id: string;
@@ -51,7 +51,7 @@ export interface ProjectArtifactExplorerRecord {
   preview_mode: 'text' | 'image' | 'pdf' | 'unsupported';
 }
 
-interface ProjectArtifactSummary {
+interface WorkspaceArtifactSummary {
   total_artifacts: number;
   previewable_artifacts: number;
   total_bytes: number;
@@ -61,19 +61,19 @@ interface ProjectArtifactSummary {
   role_count: number;
 }
 
-interface ProjectArtifactWorkflowFilterOption {
+interface WorkspaceArtifactWorkflowFilterOption {
   id: string;
   name: string;
 }
 
-interface ProjectArtifactWorkItemFilterOption {
+interface WorkspaceArtifactWorkItemFilterOption {
   id: string;
   title: string;
   workflow_id: string | null;
   stage_name: string | null;
 }
 
-interface ProjectArtifactTaskFilterOption {
+interface WorkspaceArtifactTaskFilterOption {
   id: string;
   title: string;
   workflow_id: string | null;
@@ -81,29 +81,29 @@ interface ProjectArtifactTaskFilterOption {
   stage_name: string | null;
 }
 
-interface ProjectArtifactExplorerMeta {
+interface WorkspaceArtifactExplorerMeta {
   page: number;
   per_page: number;
   total: number;
   total_pages: number;
   has_more: boolean;
-  summary: ProjectArtifactSummary;
+  summary: WorkspaceArtifactSummary;
   filters: {
-    workflows: ProjectArtifactWorkflowFilterOption[];
-    work_items: ProjectArtifactWorkItemFilterOption[];
-    tasks: ProjectArtifactTaskFilterOption[];
+    workflows: WorkspaceArtifactWorkflowFilterOption[];
+    work_items: WorkspaceArtifactWorkItemFilterOption[];
+    tasks: WorkspaceArtifactTaskFilterOption[];
     stages: string[];
     roles: string[];
     content_types: string[];
   };
 }
 
-interface ProjectArtifactExplorerListResult {
-  data: ProjectArtifactExplorerRecord[];
-  meta: ProjectArtifactExplorerMeta;
+interface WorkspaceArtifactExplorerListResult {
+  data: WorkspaceArtifactExplorerRecord[];
+  meta: WorkspaceArtifactExplorerMeta;
 }
 
-interface ProjectArtifactExplorerRow {
+interface WorkspaceArtifactExplorerRow {
   id: string;
   workflow_id: string | null;
   task_id: string;
@@ -122,7 +122,7 @@ interface ProjectArtifactExplorerRow {
   task_state: string;
 }
 
-interface ProjectArtifactExplorerSummaryRow {
+interface WorkspaceArtifactExplorerSummaryRow {
   total_artifacts: number | string | null;
   previewable_artifacts: number | string | null;
   total_bytes: number | string | null;
@@ -148,17 +148,17 @@ interface SqlFilterBuildOptions {
   previewMaxBytesIndex?: number;
 }
 
-export class ProjectArtifactExplorerService {
+export class WorkspaceArtifactExplorerService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly previewMaxBytes = 1024 * 1024,
   ) {}
 
-  async listProjectArtifacts(
+  async listWorkspaceArtifacts(
     tenantId: string,
-    projectId: string,
-    input: ProjectArtifactExplorerListInput,
-  ): Promise<ProjectArtifactExplorerListResult> {
+    workspaceId: string,
+    input: WorkspaceArtifactExplorerListInput,
+  ): Promise<WorkspaceArtifactExplorerListResult> {
     const usesPreviewFilter = input.preview_mode === 'inline' || input.preview_mode === 'download';
     const summaryFilters = buildFilterSql(input, {
       firstFilterParameterIndex: 4,
@@ -170,7 +170,7 @@ export class ProjectArtifactExplorerService {
     });
     const summaryParams = [
       tenantId,
-      projectId,
+      workspaceId,
       this.previewMaxBytes,
       ...summaryFilters.values,
       MAX_FILTER_OPTIONS,
@@ -178,7 +178,7 @@ export class ProjectArtifactExplorerService {
     const pageParams = usesPreviewFilter
       ? [
           tenantId,
-          projectId,
+          workspaceId,
           this.previewMaxBytes,
           ...pageFilters.values,
           input.per_page,
@@ -186,18 +186,18 @@ export class ProjectArtifactExplorerService {
         ]
       : [
           tenantId,
-          projectId,
+          workspaceId,
           ...pageFilters.values,
           input.per_page,
           (input.page - 1) * input.per_page,
         ];
 
     const [summaryResult, pageResult] = await Promise.all([
-      this.pool.query<ProjectArtifactExplorerSummaryRow>(
+      this.pool.query<WorkspaceArtifactExplorerSummaryRow>(
         buildSummaryQuery(summaryFilters.sql, summaryParams.length),
         summaryParams,
       ),
-      this.pool.query<ProjectArtifactExplorerRow>(
+      this.pool.query<WorkspaceArtifactExplorerRow>(
         buildPageQuery(
           pageFilters.sql,
           buildOrderBySql(input.sort ?? 'newest'),
@@ -245,9 +245,9 @@ export class ProjectArtifactExplorerService {
 }
 
 function mapArtifactRow(
-  row: ProjectArtifactExplorerRow,
+  row: WorkspaceArtifactExplorerRow,
   previewMaxBytes: number,
-): ProjectArtifactExplorerRecord {
+): WorkspaceArtifactExplorerRecord {
   const preview = describeArtifactPreview(
     row.content_type,
     readInteger(row.size_bytes),
@@ -400,13 +400,13 @@ function buildFilteredArtifactsQuery(filterSql: string): string {
       ON wi.tenant_id = t.tenant_id
      AND wi.id = t.work_item_id
     WHERE fa.tenant_id = $1
-      AND COALESCE(fa.project_id, t.project_id) = $2
+      AND COALESCE(fa.workspace_id, t.workspace_id) = $2
       ${filterSql}
   `;
 }
 
 function buildFilterSql(
-  input: ProjectArtifactExplorerListInput,
+  input: WorkspaceArtifactExplorerListInput,
   options: SqlFilterBuildOptions,
 ): SqlFilters {
   const values: unknown[] = [];
@@ -506,7 +506,7 @@ function buildFilterSql(
   };
 }
 
-function buildOrderBySql(sort: ProjectArtifactExplorerSort): string {
+function buildOrderBySql(sort: WorkspaceArtifactExplorerSort): string {
   if (sort === 'oldest') {
     return 'created_at ASC, id ASC';
   }
@@ -616,7 +616,7 @@ function readStringArray(value: unknown): string[] {
     .map((entry) => entry.trim());
 }
 
-function readWorkflowOptions(value: unknown): ProjectArtifactWorkflowFilterOption[] {
+function readWorkflowOptions(value: unknown): WorkspaceArtifactWorkflowFilterOption[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -631,7 +631,7 @@ function readWorkflowOptions(value: unknown): ProjectArtifactWorkflowFilterOptio
   });
 }
 
-function readWorkItemOptions(value: unknown): ProjectArtifactWorkItemFilterOption[] {
+function readWorkItemOptions(value: unknown): WorkspaceArtifactWorkItemFilterOption[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -651,7 +651,7 @@ function readWorkItemOptions(value: unknown): ProjectArtifactWorkItemFilterOptio
   });
 }
 
-function readTaskOptions(value: unknown): ProjectArtifactTaskFilterOption[] {
+function readTaskOptions(value: unknown): WorkspaceArtifactTaskFilterOption[] {
   if (!Array.isArray(value)) {
     return [];
   }

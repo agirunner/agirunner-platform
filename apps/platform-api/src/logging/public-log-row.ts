@@ -19,7 +19,7 @@ export const PUBLIC_LOG_CSV_COLUMNS = [
   'operation',
   'status',
   'duration_ms',
-  'project_id',
+  'workspace_id',
   'workflow_id',
   'task_id',
   'work_item_id',

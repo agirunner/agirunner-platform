@@ -1,10 +1,10 @@
 import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
-import type { StoredProjectSettings } from '../../services/project-settings.js';
+import type { StoredWorkspaceSettings } from '../../services/workspace-settings.js';
 
-export const projects = pgTable(
-  'projects',
+export const workspaces = pgTable(
+  'workspaces',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id')
@@ -19,7 +19,7 @@ export const projects = pgTable(
     memoryMaxBytes: integer('memory_max_bytes').notNull().default(1048576),
     currentSpecVersion: integer('current_spec_version').notNull().default(0),
     settings: jsonb('settings')
-      .$type<StoredProjectSettings>()
+      .$type<StoredWorkspaceSettings>()
       .notNull()
       .default({ credentials: {}, model_overrides: {} }),
     gitWebhookProvider: text('git_webhook_provider'),
@@ -29,7 +29,7 @@ export const projects = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex('uq_project_tenant_slug').on(table.tenantId, table.slug),
-    index('idx_projects_tenant').on(table.tenantId),
+    uniqueIndex('uq_workspace_tenant_slug').on(table.tenantId, table.slug),
+    index('idx_workspaces_tenant').on(table.tenantId),
   ],
 );

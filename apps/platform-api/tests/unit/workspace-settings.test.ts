@@ -1,15 +1,15 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  normalizeProjectSettings,
-  readProjectSettingsExtras,
-  readProjectRepositorySettings,
-  validateProjectSettingsShape,
-} from '../../src/services/project-settings.js';
+  normalizeWorkspaceSettings,
+  readWorkspaceSettingsExtras,
+  readWorkspaceRepositorySettings,
+  validateWorkspaceSettingsShape,
+} from '../../src/services/workspace-settings.js';
 
-describe('project settings', () => {
+describe('workspace settings', () => {
   it('normalizes legacy top-level git settings into the canonical credentials shape', () => {
-    const normalized = normalizeProjectSettings({
+    const normalized = normalizeWorkspaceSettings({
       default_branch: 'develop',
       git_user_name: 'Jane Example',
       git_user_email: 'jane@example.com',
@@ -29,7 +29,7 @@ describe('project settings', () => {
 
   it('reads repository settings from canonical settings', () => {
     expect(
-      readProjectRepositorySettings({
+      readWorkspaceRepositorySettings({
         default_branch: 'main',
         git_user_name: 'Jane Example',
         git_user_email: 'jane@example.com',
@@ -45,12 +45,12 @@ describe('project settings', () => {
     });
   });
 
-  it('separates typed project settings from extra config payloads', () => {
+  it('separates typed workspace settings from extra config payloads', () => {
     expect(
-      readProjectSettingsExtras({
+      readWorkspaceSettingsExtras({
         default_branch: 'main',
         git_user_name: 'Smoke Bot',
-        project_brief: 'Ship it',
+        workspace_brief: 'Ship it',
         config: {
           runtime: {
             timeout: 45,
@@ -72,9 +72,9 @@ describe('project settings', () => {
     });
   });
 
-  it('rejects the legacy singular project model override field', () => {
+  it('rejects the legacy singular workspace model override field', () => {
     expect(() =>
-      validateProjectSettingsShape({
+      validateWorkspaceSettingsShape({
         model_override: {
           model_id: '00000000-0000-0000-0000-000000000020',
         },
@@ -82,9 +82,9 @@ describe('project settings', () => {
     ).toThrow(/model_override.*no longer supported/i);
   });
 
-  it('drops project model overrides from normalized project settings', () => {
+  it('drops workspace model overrides from normalized workspace settings', () => {
     expect(
-      normalizeProjectSettings({
+      normalizeWorkspaceSettings({
         model_overrides: {
           architect: {
             provider: '',

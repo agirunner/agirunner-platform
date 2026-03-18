@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import { ValidationError } from '../../src/errors/domain-errors.js';
-import { assertProjectMemoryWritesAreDurableKnowledge } from '../../src/services/project-memory-write-guard.js';
+import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../src/services/workspace-memory-write-guard.js';
 
-describe('assertProjectMemoryWritesAreDurableKnowledge', () => {
+describe('assertWorkspaceMemoryWritesAreDurableKnowledge', () => {
   it('allows durable knowledge entries', () => {
     expect(() =>
-      assertProjectMemoryWritesAreDurableKnowledge([
+      assertWorkspaceMemoryWritesAreDurableKnowledge([
         {
           key: 'workflow/hello-world/design-routing',
           value: {
@@ -21,7 +21,7 @@ describe('assertProjectMemoryWritesAreDurableKnowledge', () => {
 
   it('rejects structured operational status entries', () => {
     expect(() =>
-      assertProjectMemoryWritesAreDurableKnowledge([
+      assertWorkspaceMemoryWritesAreDurableKnowledge([
         {
           key: 'requirements_gate_status',
           value: {

@@ -10,7 +10,7 @@ import { EventService } from './event-service.js';
 import type { ModelCatalogService } from './model-catalog-service.js';
 import { currentStageNameFromStages, WorkflowStageService } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
-import { readProjectSettingsExtras } from './project-settings.js';
+import { readWorkspaceSettingsExtras } from './workspace-settings.js';
 
 interface WorkflowCreationDeps {
   pool: DatabasePool;
@@ -69,7 +69,7 @@ export class WorkflowCreationService {
 
       const playbook = playbookResult.rows[0] as Record<string, unknown>;
       const definition = parsePlaybookDefinition(playbook.definition);
-      const projectConfig = await this.loadProjectConfig(identity.tenantId, input.project_id ?? null, client);
+      const workspaceConfig = await this.loadWorkspaceConfig(identity.tenantId, input.workspace_id ?? null, client);
       await this.deps.modelCatalogService.validateModelOverride(
         identity.tenantId,
         input.config_overrides ? input.config_overrides.model_override : undefined,
@@ -77,20 +77,20 @@ export class WorkflowCreationService {
       );
       const resolvedConfig = resolveWorkflowConfig(
         playbook.definition as Record<string, unknown>,
-        projectConfig,
+        workspaceConfig,
         input.config_overrides ?? {},
       );
       const initialStageName = initialWorkflowStageName(definition);
       const workflowResult = await client.query(
         `INSERT INTO workflows (
-           tenant_id, project_id, playbook_id, playbook_version, name, state, lifecycle,
+           tenant_id, workspace_id, playbook_id, playbook_version, name, state, lifecycle,
            current_stage, parameters, metadata, resolved_config, config_layers,
            instruction_config, token_budget, cost_cap_usd, max_duration_minutes, orchestration_state
          ) VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, '{}'::jsonb)
          RETURNING *`,
         [
           identity.tenantId,
-          input.project_id ?? null,
+          input.workspace_id ?? null,
           playbook.id,
           playbook.version,
           input.name,
@@ -183,23 +183,23 @@ export class WorkflowCreationService {
     }
   }
 
-  private async loadProjectConfig(
+  private async loadWorkspaceConfig(
     tenantId: string,
-    projectId: string | null,
+    workspaceId: string | null,
     client: { query: DatabasePool['query'] },
   ): Promise<Record<string, unknown>> {
-    if (!projectId) {
+    if (!workspaceId) {
       return {};
     }
 
     const result = await client.query<{ settings: Record<string, unknown> | null }>(
-      'SELECT settings FROM projects WHERE tenant_id = $1 AND id = $2',
-      [tenantId, projectId],
+      'SELECT settings FROM workspaces WHERE tenant_id = $1 AND id = $2',
+      [tenantId, workspaceId],
     );
     if (!result.rowCount) {
       throw new NotFoundError('Project not found');
     }
-    return readProjectSettingsExtras(result.rows[0].settings);
+    return readWorkspaceSettingsExtras(result.rows[0].settings);
   }
 }
 

@@ -4,11 +4,11 @@ import { createLoggedService, methodToAction } from '../../src/logging/create-lo
 
 describe('methodToAction', () => {
   it('convertsCreatePrefix', () => {
-    expect(methodToAction('createProject')).toBe('created');
+    expect(methodToAction('createWorkspace')).toBe('created');
   });
 
   it('convertsUpdatePrefix', () => {
-    expect(methodToAction('updateProject')).toBe('updated');
+    expect(methodToAction('updateWorkspace')).toBe('updated');
   });
 
   it('convertsDeletePrefix', () => {
@@ -55,12 +55,12 @@ describe('createLoggedService', () => {
   it('proxiesMutationMethodsAndLogsSuccessfully', async () => {
     const service = {
       createSomething: vi.fn().mockResolvedValue({ id: 'proj-1', name: 'Test Project' }),
-      getProject: vi.fn().mockResolvedValue({ id: 'proj-1' }),
+      getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),
     };
     const logInsert = vi.fn().mockResolvedValue(undefined);
     const logService = { insert: logInsert };
 
-    const wrapped = createLoggedService(service, 'ProjectService', logService as never);
+    const wrapped = createLoggedService(service, 'WorkspaceService', logService as never);
 
     const result = await wrapped.createSomething({ name: 'Test Project' });
     expect(result).toEqual({ id: 'proj-1', name: 'Test Project' });
@@ -74,8 +74,8 @@ describe('createLoggedService', () => {
         category: 'config',
         level: 'info',
         status: 'completed',
-        operation: 'config.project.created',
-        resourceType: 'project',
+        operation: 'config.workspace.created',
+        resourceType: 'workspace',
         resourceId: 'proj-1',
         resourceName: 'Test Project',
       }),
@@ -84,13 +84,13 @@ describe('createLoggedService', () => {
 
   it('skipsLoggingForIgnoredMethods', async () => {
     const service = {
-      getProject: vi.fn().mockResolvedValue({ id: 'proj-1' }),
+      getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),
     };
     const logInsert = vi.fn().mockResolvedValue(undefined);
     const logService = { insert: logInsert };
 
-    const wrapped = createLoggedService(service, 'ProjectService', logService as never);
-    await wrapped.getProject('proj-1');
+    const wrapped = createLoggedService(service, 'WorkspaceService', logService as never);
+    await wrapped.getWorkspace('proj-1');
 
     expect(logInsert).not.toHaveBeenCalled();
   });
@@ -98,14 +98,14 @@ describe('createLoggedService', () => {
   it('logsFailedMutationsWithErrorLevel', async () => {
     const error = new Error('Database connection lost');
     const service = {
-      createProject: vi.fn().mockRejectedValue(error),
+      createWorkspace: vi.fn().mockRejectedValue(error),
     };
     const logInsert = vi.fn().mockResolvedValue(undefined);
     const logService = { insert: logInsert };
 
-    const wrapped = createLoggedService(service, 'ProjectService', logService as never);
+    const wrapped = createLoggedService(service, 'WorkspaceService', logService as never);
 
-    await expect(wrapped.createProject({ name: 'Test' })).rejects.toThrow(
+    await expect(wrapped.createWorkspace({ name: 'Test' })).rejects.toThrow(
       'Database connection lost',
     );
 
@@ -115,7 +115,7 @@ describe('createLoggedService', () => {
       expect.objectContaining({
         level: 'error',
         status: 'failed',
-        operation: 'config.project.created',
+        operation: 'config.workspace.created',
         error: expect.objectContaining({ message: 'Database connection lost' }),
       }),
     );
@@ -124,11 +124,11 @@ describe('createLoggedService', () => {
   it('passesNonFunctionPropertiesThrough', () => {
     const service = {
       pool: { query: vi.fn() },
-      listProjects: vi.fn(),
+      listWorkspaces: vi.fn(),
     };
     const logService = { insert: vi.fn().mockResolvedValue(undefined) };
 
-    const wrapped = createLoggedService(service, 'ProjectService', logService as never);
+    const wrapped = createLoggedService(service, 'WorkspaceService', logService as never);
     expect(wrapped.pool).toBe(service.pool);
   });
 
@@ -139,7 +139,7 @@ describe('createLoggedService', () => {
     const logInsert = vi.fn().mockResolvedValue(undefined);
     const logService = { insert: logInsert };
 
-    const wrapped = createLoggedService(service, 'ProjectService', logService as never);
+    const wrapped = createLoggedService(service, 'WorkspaceService', logService as never);
     const result = await wrapped._internalHelper();
 
     expect(result).toBe('result');

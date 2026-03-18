@@ -2,7 +2,7 @@ import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-cor
 
 import { workflowArtifacts } from './workflow-artifacts.js';
 import { workflows } from './workflows.js';
-import { projects } from './projects.js';
+import { workspaces } from './workspaces.js';
 import { tasks } from './tasks.js';
 import { tenants } from './tenants.js';
 
@@ -16,7 +16,7 @@ export const workflowDocuments = pgTable(
     workflowId: uuid('workflow_id')
       .notNull()
       .references(() => workflows.id),
-    projectId: uuid('project_id').references(() => projects.id),
+    workspaceId: uuid('workspace_id').references(() => workspaces.id),
     taskId: uuid('task_id').references(() => tasks.id),
     logicalName: text('logical_name').notNull(),
     source: text('source').notNull(),

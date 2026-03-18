@@ -5,22 +5,22 @@ import { authenticateApiKey, withAllowedScopes, withScope } from '../../auth/fas
 import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
 import { DEFAULT_PAGE, DEFAULT_PER_PAGE, MAX_PER_PAGE } from '../pagination.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { ProjectPlanningService } from '../../services/project-planning-service.js';
-import { ProjectArtifactExplorerService } from '../../services/project-artifact-explorer-service.js';
-import { deriveProjectArtifactKey } from '../../services/project-artifact-file-service.js';
-import { parseProjectSettingsInput } from '../../services/project-settings.js';
-import { ProjectSpecService } from '../../services/project-spec-service.js';
+import { WorkspacePlanningService } from '../../services/workspace-planning-service.js';
+import { WorkspaceArtifactExplorerService } from '../../services/workspace-artifact-explorer-service.js';
+import { deriveWorkspaceArtifactKey } from '../../services/workspace-artifact-file-service.js';
+import { parseWorkspaceSettingsInput } from '../../services/workspace-settings.js';
+import { WorkspaceSpecService } from '../../services/workspace-spec-service.js';
 
-const projectCreateSchema = z.object({
+const workspaceCreateSchema = z.object({
   name: z.string().min(1).max(255),
   slug: z.string().min(1).max(255),
   description: z.string().max(2000).optional(),
   repository_url: z.string().url().optional(),
   settings: z.record(z.unknown()).optional(),
   memory: z.record(z.unknown()).optional(),
-}).superRefine((value, ctx) => validateProjectModelOverrides(value.settings, ctx));
+}).superRefine((value, ctx) => validateWorkspaceModelOverrides(value.settings, ctx));
 
-const projectUpdateSchema = z
+const workspaceUpdateSchema = z
   .object({
     name: z.string().min(1).max(255).optional(),
     slug: z.string().min(1).max(255).optional(),
@@ -29,7 +29,7 @@ const projectUpdateSchema = z
     settings: z.record(z.unknown()).optional(),
     is_active: z.boolean().optional(),
   })
-  .superRefine((value, ctx) => validateProjectModelOverrides(value.settings, ctx))
+  .superRefine((value, ctx) => validateWorkspaceModelOverrides(value.settings, ctx))
   .refine((value) => Object.keys(value).length > 0, {
     message: 'At least one field is required',
   });
@@ -39,7 +39,7 @@ const gitWebhookConfigSchema = z.object({
   secret: z.string().min(8),
 });
 
-const projectMemoryPatchSchema = z.object({
+const workspaceMemoryPatchSchema = z.object({
   key: z.string().min(1).max(256),
   value: z.unknown(),
 });
@@ -49,7 +49,7 @@ const planningWorkflowSchema = z.object({
   name: z.string().min(1).max(255).optional(),
 });
 
-const projectSpecSchema = z.object({
+const workspaceSpecSchema = z.object({
   resources: z.record(z.unknown()).optional(),
   documents: z.record(z.unknown()).optional(),
   tools: z.record(z.unknown()).optional(),
@@ -57,7 +57,7 @@ const projectSpecSchema = z.object({
   instructions: z.record(z.unknown()).optional(),
 });
 
-const projectArtifactListQuerySchema = z.object({
+const workspaceArtifactListQuerySchema = z.object({
   q: z.string().max(200).optional(),
   workflow_id: z.string().min(1).max(255).optional(),
   work_item_id: z.string().min(1).max(255).optional(),
@@ -73,7 +73,7 @@ const projectArtifactListQuerySchema = z.object({
   per_page: z.coerce.number().int().min(1).max(MAX_PER_PAGE).default(DEFAULT_PER_PAGE),
 });
 
-const projectArtifactFileUploadSchema = z.object({
+const workspaceArtifactFileUploadSchema = z.object({
   key: z.string().min(1).max(120).optional(),
   description: z.string().max(2000).optional(),
   file_name: z.string().min(1).max(255),
@@ -81,8 +81,8 @@ const projectArtifactFileUploadSchema = z.object({
   content_type: z.string().min(1).max(255).optional(),
 });
 
-const projectArtifactFileBatchUploadSchema = z.object({
-  files: z.array(projectArtifactFileUploadSchema).min(1),
+const workspaceArtifactFileBatchUploadSchema = z.object({
+  files: z.array(workspaceArtifactFileUploadSchema).min(1),
 });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
@@ -93,24 +93,24 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
 }
 
-export const projectRoutes: FastifyPluginAsync = async (app) => {
-  const projectService = app.projectService;
-  const projectArtifactFileService = app.projectArtifactFileService;
-  const projectSpecService = new ProjectSpecService(app.pgPool, app.eventService);
-  const projectArtifactExplorerService = new ProjectArtifactExplorerService(
+export const workspaceRoutes: FastifyPluginAsync = async (app) => {
+  const workspaceService = app.workspaceService;
+  const workspaceArtifactFileService = app.workspaceArtifactFileService;
+  const workspaceSpecService = new WorkspaceSpecService(app.pgPool, app.eventService);
+  const workspaceArtifactExplorerService = new WorkspaceArtifactExplorerService(
     app.pgPool,
     app.config.ARTIFACT_PREVIEW_MAX_BYTES,
   );
   const workflowService = app.workflowService;
-  const projectPlanningService = new ProjectPlanningService(app.pgPool, workflowService);
+  const workspacePlanningService = new WorkspacePlanningService(app.pgPool, workflowService);
 
-  app.post('/api/v1/projects', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
-    const body = parseOrThrow(projectCreateSchema.safeParse(request.body));
-    const project = await projectService.createProject(request.auth!, body);
-    return reply.status(201).send({ data: project });
+  app.post('/api/v1/workspaces', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request, reply) => {
+    const body = parseOrThrow(workspaceCreateSchema.safeParse(request.body));
+    const workspace = await workspaceService.createWorkspace(request.auth!, body);
+    return reply.status(201).send({ data: workspace });
   });
 
-  app.get('/api/v1/projects', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+  app.get('/api/v1/workspaces', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const query = request.query as Record<string, string | undefined>;
     const page = Number(query.page ?? DEFAULT_PAGE);
     const perPage = Number(query.per_page ?? DEFAULT_PER_PAGE);
@@ -125,7 +125,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
       throw new ValidationError('Invalid pagination values');
     }
 
-    return projectService.listProjects(request.auth!.tenantId, {
+    return workspaceService.listWorkspaces(request.auth!.tenantId, {
       page,
       per_page: perPage,
       q: query.q,
@@ -133,21 +133,21 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     });
   });
 
-  app.get('/api/v1/projects/:id', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+  app.get('/api/v1/workspaces/:id', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const params = request.params as { id: string };
-    const project = await projectService.getProject(request.auth!.tenantId, params.id);
-    return { data: project };
+    const workspace = await workspaceService.getWorkspace(request.auth!.tenantId, params.id);
+    return { data: workspace };
   });
 
   app.get(
-    '/api/v1/projects/:id/model-overrides',
+    '/api/v1/workspaces/:id/model-overrides',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
-      const project = await projectService.getProject(request.auth!.tenantId, params.id);
+      const workspace = await workspaceService.getWorkspace(request.auth!.tenantId, params.id);
       return {
         data: {
-          project_id: params.id,
+          workspace_id: params.id,
           model_overrides: {},
         },
       };
@@ -155,41 +155,41 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    '/api/v1/projects/:id/model-overrides/resolved',
+    '/api/v1/workspaces/:id/model-overrides/resolved',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
       const query = request.query as { roles?: string };
-      await projectService.getProject(request.auth!.tenantId, params.id);
-      const projectOverrides = {};
+      await workspaceService.getWorkspace(request.auth!.tenantId, params.id);
+      const workspaceOverrides = {};
       const roles = parseRoleQuery(query.roles);
       return {
         data: {
-          project_id: params.id,
-          project_model_overrides: projectOverrides,
+          workspace_id: params.id,
+          workspace_model_overrides: workspaceOverrides,
           effective_models: await resolveEffectiveModels(
             app.modelCatalogService,
             request.auth!.tenantId,
             roles,
-            projectOverrides,
+            workspaceOverrides,
           ),
         },
       };
     },
   );
 
-  app.get('/api/v1/projects/:id/timeline', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+  app.get('/api/v1/workspaces/:id/timeline', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const params = request.params as { id: string };
-    const timeline = await workflowService.getProjectTimeline(request.auth!.tenantId, params.id);
+    const timeline = await workflowService.getWorkspaceTimeline(request.auth!.tenantId, params.id);
     return { data: timeline };
   });
 
   app.get(
-    '/api/v1/projects/:id/files',
+    '/api/v1/workspaces/:id/files',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
-      const files = await projectArtifactFileService.listProjectArtifactFiles(
+      const files = await workspaceArtifactFileService.listWorkspaceArtifactFiles(
         request.auth!.tenantId,
         params.id,
       );
@@ -198,12 +198,12 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    '/api/v1/projects/:id/files',
+    '/api/v1/workspaces/:id/files',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const body = parseOrThrow(projectArtifactFileUploadSchema.safeParse(request.body));
-      const file = await projectArtifactFileService.uploadProjectArtifactFile(
+      const body = parseOrThrow(workspaceArtifactFileUploadSchema.safeParse(request.body));
+      const file = await workspaceArtifactFileService.uploadWorkspaceArtifactFile(
         request.auth!,
         params.id,
         {
@@ -219,16 +219,16 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
-    '/api/v1/projects/:id/files/batch',
+    '/api/v1/workspaces/:id/files/batch',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const params = request.params as { id: string };
-      const body = parseOrThrow(projectArtifactFileBatchUploadSchema.safeParse(request.body));
-      const files = await projectArtifactFileService.uploadProjectArtifactFiles(
+      const body = parseOrThrow(workspaceArtifactFileBatchUploadSchema.safeParse(request.body));
+      const files = await workspaceArtifactFileService.uploadWorkspaceArtifactFiles(
         request.auth!,
         params.id,
         body.files.map((entry) => ({
-          key: entry.key ?? deriveProjectArtifactKey(entry.file_name),
+          key: entry.key ?? deriveWorkspaceArtifactKey(entry.file_name),
           description: entry.description,
           fileName: entry.file_name,
           contentBase64: entry.content_base64,
@@ -240,11 +240,11 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    '/api/v1/projects/:id/files/:fileId/content',
+    '/api/v1/workspaces/:id/files/:fileId/content',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request, reply) => {
       const params = request.params as { id: string; fileId: string };
-      const result = await projectArtifactFileService.downloadProjectArtifactFile(
+      const result = await workspaceArtifactFileService.downloadWorkspaceArtifactFile(
         request.auth!.tenantId,
         params.id,
         params.fileId,
@@ -255,11 +255,11 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.delete(
-    '/api/v1/projects/:id/files/:fileId',
+    '/api/v1/workspaces/:id/files/:fileId',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const params = request.params as { id: string; fileId: string };
-      await projectArtifactFileService.deleteProjectArtifactFile(
+      await workspaceArtifactFileService.deleteWorkspaceArtifactFile(
         request.auth!,
         params.id,
         params.fileId,
@@ -269,13 +269,13 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.get(
-    '/api/v1/projects/:id/artifacts',
+    '/api/v1/workspaces/:id/artifacts',
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string };
-      const query = parseOrThrow(projectArtifactListQuerySchema.safeParse(request.query ?? {}));
-      await projectService.getProject(request.auth!.tenantId, params.id);
-      return projectArtifactExplorerService.listProjectArtifacts(
+      const query = parseOrThrow(workspaceArtifactListQuerySchema.safeParse(request.query ?? {}));
+      await workspaceService.getWorkspace(request.auth!.tenantId, params.id);
+      return workspaceArtifactExplorerService.listWorkspaceArtifacts(
         request.auth!.tenantId,
         params.id,
         query,
@@ -283,7 +283,7 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
-  app.get('/api/v1/projects/:id/spec', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+  app.get('/api/v1/workspaces/:id/spec', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const params = request.params as { id: string };
     const query = request.query as { version?: string };
     const version =
@@ -291,71 +291,71 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
     if (Number.isNaN(version)) {
       throw new ValidationError('version must be a valid integer');
     }
-    const spec = await projectSpecService.getProjectSpec(request.auth!.tenantId, params.id, version);
+    const spec = await workspaceSpecService.getWorkspaceSpec(request.auth!.tenantId, params.id, version);
     return { data: spec };
   });
 
-  app.put('/api/v1/projects/:id/spec', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+  app.put('/api/v1/workspaces/:id/spec', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };
-    const body = parseOrThrow(projectSpecSchema.safeParse(request.body ?? {}));
-    const spec = await projectSpecService.putProjectSpec(request.auth!, params.id, body);
+    const body = parseOrThrow(workspaceSpecSchema.safeParse(request.body ?? {}));
+    const spec = await workspaceSpecService.putWorkspaceSpec(request.auth!, params.id, body);
     return { data: spec };
   });
 
-  app.get('/api/v1/projects/:id/resources', { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'admin'])] }, async (request) => {
+  app.get('/api/v1/workspaces/:id/resources', { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'admin'])] }, async (request) => {
     const params = request.params as { id: string };
     const query = request.query as { type?: string; task_id?: string };
-    const resources = await projectSpecService.listProjectResources(request.auth!, params.id, query);
+    const resources = await workspaceSpecService.listWorkspaceResources(request.auth!, params.id, query);
     return resources;
   });
 
-  app.get('/api/v1/projects/:id/tools', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
+  app.get('/api/v1/workspaces/:id/tools', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {
     const params = request.params as { id: string };
-    const tools = await projectSpecService.listProjectTools(request.auth!.tenantId, params.id);
+    const tools = await workspaceSpecService.listWorkspaceTools(request.auth!.tenantId, params.id);
     return tools;
   });
 
-  app.patch('/api/v1/projects/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+  app.patch('/api/v1/workspaces/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };
-    const body = parseOrThrow(projectUpdateSchema.safeParse(request.body));
-    const project = await projectService.updateProject(request.auth!, params.id, body);
-    return { data: project };
+    const body = parseOrThrow(workspaceUpdateSchema.safeParse(request.body));
+    const workspace = await workspaceService.updateWorkspace(request.auth!, params.id, body);
+    return { data: workspace };
   });
 
   app.patch(
-    '/api/v1/projects/:id/memory',
+    '/api/v1/workspaces/:id/memory',
     { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'admin'])] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(
-        projectMemoryPatchSchema.safeParse(request.body),
-      ) as z.infer<typeof projectMemoryPatchSchema>;
-      const project = await projectService.patchProjectMemory(request.auth!, params.id, body);
-      return { data: project };
+        workspaceMemoryPatchSchema.safeParse(request.body),
+      ) as z.infer<typeof workspaceMemoryPatchSchema>;
+      const workspace = await workspaceService.patchWorkspaceMemory(request.auth!, params.id, body);
+      return { data: workspace };
     },
   );
 
   app.delete(
-    '/api/v1/projects/:id/memory/:key',
+    '/api/v1/workspaces/:id/memory/:key',
     { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'admin'])] },
     async (request) => {
       const params = request.params as { id: string; key: string };
-      const project = await projectService.removeProjectMemory(
+      const workspace = await workspaceService.removeWorkspaceMemory(
         request.auth!,
         params.id,
         params.key,
       );
-      return { data: project };
+      return { data: workspace };
     },
   );
 
   app.post(
-    '/api/v1/projects/:id/planning-workflow',
+    '/api/v1/workspaces/:id/planning-workflow',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request, reply) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(planningWorkflowSchema.safeParse(request.body));
-      const workflow = await projectPlanningService.createPlanningWorkflow(
+      const workflow = await workspacePlanningService.createPlanningWorkflow(
         request.auth!,
         params.id,
         body,
@@ -365,30 +365,30 @@ export const projectRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.put(
-    '/api/v1/projects/:id/git-webhook',
+    '/api/v1/workspaces/:id/git-webhook',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(gitWebhookConfigSchema.safeParse(request.body));
-      const result = await projectService.setGitWebhookConfig(request.auth!, params.id, body);
+      const result = await workspaceService.setGitWebhookConfig(request.auth!, params.id, body);
       return { data: result };
     },
   );
 
-  app.delete('/api/v1/projects/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
+  app.delete('/api/v1/workspaces/:id', { preHandler: [authenticateApiKey, withScope('admin')] }, async (request) => {
     const params = request.params as { id: string };
-    const result = await projectService.deleteProject(request.auth!, params.id);
+    const result = await workspaceService.deleteWorkspace(request.auth!, params.id);
     return { data: result };
   });
 };
 
-function validateProjectModelOverrides(settings: unknown, ctx: z.RefinementCtx) {
+function validateWorkspaceModelOverrides(settings: unknown, ctx: z.RefinementCtx) {
   try {
-    parseProjectSettingsInput(settings);
+    parseWorkspaceSettingsInput(settings);
   } catch (error) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
-      message: error instanceof Error ? error.message : 'settings must be valid project settings',
+      message: error instanceof Error ? error.message : 'settings must be valid workspace settings',
       path: ['settings'],
     });
   }
@@ -410,7 +410,7 @@ async function resolveEffectiveModels(
   },
   tenantId: string,
   roles: string[],
-  projectOverrides: Record<string, unknown>,
+  workspaceOverrides: Record<string, unknown>,
 ) {
   const providers = (await modelCatalogService.listProviders(tenantId)) as Array<Record<string, unknown>>;
   const byId = new Map(providers.map((provider) => [String(provider.id), provider]));
@@ -430,9 +430,9 @@ async function resolveEffectiveModels(
       | Record<string, unknown>
       | null;
     const sanitizedBaseResolved = sanitizeResolvedRoleConfig(baseResolved);
-    const projectOverride = asRecord(projectOverrides[role]);
+    const workspaceOverride = asRecord(workspaceOverrides[role]);
 
-    if (Object.keys(projectOverride).length === 0) {
+    if (Object.keys(workspaceOverride).length === 0) {
       results[role] = {
         source: 'base',
         resolved: sanitizedBaseResolved,
@@ -441,11 +441,11 @@ async function resolveEffectiveModels(
       continue;
     }
 
-    const providerRef = String(projectOverride.provider);
+    const providerRef = String(workspaceOverride.provider);
     const provider = byId.get(providerRef) ?? byName.get(providerRef);
     if (!provider) {
       results[role] = {
-        source: 'project',
+        source: 'workspace',
         resolved: sanitizedBaseResolved,
         fallback: true,
         fallback_reason: `provider '${providerRef}' is not available`,
@@ -459,15 +459,15 @@ async function resolveEffectiveModels(
     )) as Array<Record<string, unknown>>;
     const model = models.find(
       (entry) =>
-        String((entry as Record<string, unknown>).model_id) === String(projectOverride.model)
+        String((entry as Record<string, unknown>).model_id) === String(workspaceOverride.model)
         && (entry as Record<string, unknown>).is_enabled === true,
     );
     if (!model) {
       results[role] = {
-        source: 'project',
+        source: 'workspace',
         resolved: sanitizedBaseResolved,
         fallback: true,
-        fallback_reason: `model '${String(projectOverride.model)}' is not enabled for provider '${providerRef}'`,
+        fallback_reason: `model '${String(workspaceOverride.model)}' is not enabled for provider '${providerRef}'`,
       };
       continue;
     }
@@ -477,7 +477,7 @@ async function resolveEffectiveModels(
       String((provider as Record<string, unknown>).id),
     )) as Record<string, unknown>;
     results[role] = {
-      source: 'project',
+      source: 'workspace',
       resolved: {
         provider: {
           name: providerDetails.name,
@@ -493,9 +493,9 @@ async function resolveEffectiveModels(
           reasoningConfig: model.reasoning_config ?? null,
         },
         reasoningConfig:
-          projectOverride.reasoning_config === undefined
+          workspaceOverride.reasoning_config === undefined
             ? (baseResolved as Record<string, unknown> | null)?.reasoningConfig ?? null
-            : projectOverride.reasoning_config,
+            : workspaceOverride.reasoning_config,
       },
       fallback: false,
     };

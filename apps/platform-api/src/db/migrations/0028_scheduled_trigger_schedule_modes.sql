@@ -7,8 +7,8 @@ ALTER TABLE scheduled_work_item_triggers
   ALTER COLUMN cadence_minutes DROP NOT NULL;
 
 UPDATE scheduled_work_item_triggers
-   SET source = 'project.schedule'
- WHERE source IS DISTINCT FROM 'project.schedule';
+   SET source = 'workspace.schedule'
+ WHERE source IS DISTINCT FROM 'workspace.schedule';
 
 ALTER TABLE scheduled_work_item_triggers
   ADD CONSTRAINT chk_scheduled_work_item_trigger_schedule_mode

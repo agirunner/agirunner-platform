@@ -38,7 +38,7 @@ describe('workflow model override routes', () => {
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {});
-    app.decorate('projectService', { getProject: vi.fn() });
+    app.decorate('workspaceService', { getWorkspace: vi.fn() });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn(),
       listProviders: vi.fn(),
@@ -73,7 +73,7 @@ describe('workflow model override routes', () => {
       headers: { authorization: 'Bearer test' },
       payload: {
         playbook_id: '11111111-1111-1111-1111-111111111111',
-        project_id: '22222222-2222-2222-2222-222222222222',
+        workspace_id: '22222222-2222-2222-2222-222222222222',
         name: 'Workflow',
         metadata: { source: 'launch' },
         model_overrides: {
@@ -102,15 +102,15 @@ describe('workflow model override routes', () => {
     );
   });
 
-  it('returns resolved workflow models without project-level override participation', async () => {
+  it('returns resolved workflow models without workspace-level override participation', async () => {
     const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {});
-    app.decorate('projectService', {
-      getProject: vi.fn().mockResolvedValue({
-        id: 'project-1',
+    app.decorate('workspaceService', {
+      getWorkspace: vi.fn().mockResolvedValue({
+        id: 'workspace-1',
         settings: {},
       }),
     });
@@ -167,7 +167,7 @@ describe('workflow model override routes', () => {
       listWorkflows: vi.fn(),
       getWorkflow: vi.fn().mockResolvedValue({
         id: 'workflow-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         metadata: {
           model_overrides: {
             developer: {
@@ -203,7 +203,7 @@ describe('workflow model override routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json().data.project_model_overrides).toEqual({});
+    expect(response.json().data.workspace_model_overrides).toEqual({});
     expect(response.json().data.effective_models.developer.source).toBe('workflow');
     expect(response.json().data.effective_models.developer.resolved.model.modelId).toBe(
       'claude-sonnet-4-6',
@@ -220,9 +220,9 @@ describe('workflow model override routes', () => {
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {});
-    app.decorate('projectService', {
-      getProject: vi.fn().mockResolvedValue({
-        id: 'project-1',
+    app.decorate('workspaceService', {
+      getWorkspace: vi.fn().mockResolvedValue({
+        id: 'workspace-1',
         settings: {},
       }),
     });
@@ -246,7 +246,7 @@ describe('workflow model override routes', () => {
       listWorkflows: vi.fn(),
       getWorkflow: vi.fn().mockResolvedValue({
         id: 'workflow-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         metadata: {
           model_overrides: {
             developer: {

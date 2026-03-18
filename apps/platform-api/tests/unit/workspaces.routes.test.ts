@@ -18,7 +18,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-describe('project routes', () => {
+describe('workspace routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -32,38 +32,38 @@ describe('project routes', () => {
     }
   });
 
-  it('rejects legacy settings.model_override on project create', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('rejects legacy settings.model_override on workspace create', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
     app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn(),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/projects',
+      url: '/api/v1/workspaces',
       headers: { authorization: 'Bearer test' },
       payload: {
         name: 'Demo',
@@ -80,13 +80,13 @@ describe('project routes', () => {
     expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
   });
 
-  it('returns project list summaries from the list route unchanged', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('returns workspace list summaries from the list route unchanged', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
-    const listProjects = vi.fn().mockResolvedValue({
+    const listWorkspaces = vi.fn().mockResolvedValue({
       data: [
         {
-          id: 'project-1',
+          id: 'workspace-1',
           name: 'Demo',
           slug: 'demo',
           summary: {
@@ -111,35 +111,35 @@ describe('project routes', () => {
     app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn(),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects,
+      deleteWorkspace: vi.fn(),
+      listWorkspaces,
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/projects?per_page=50',
+      url: '/api/v1/workspaces?per_page=50',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(listProjects).toHaveBeenCalledWith('tenant-1', {
+    expect(listWorkspaces).toHaveBeenCalledWith('tenant-1', {
       page: 1,
       per_page: 50,
       q: undefined,
@@ -148,7 +148,7 @@ describe('project routes', () => {
     expect(response.json()).toEqual({
       data: [
         {
-          id: 'project-1',
+          id: 'workspace-1',
           name: 'Demo',
           slug: 'demo',
           summary: {
@@ -169,11 +169,11 @@ describe('project routes', () => {
     });
   });
 
-  it('deletes project memory entries through the project admin routes', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('deletes workspace memory entries through the workspace admin routes', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
-    const removeProjectMemory = vi.fn().mockResolvedValue({
-      id: 'project-1',
+    const removeWorkspaceMemory = vi.fn().mockResolvedValue({
+      id: 'workspace-1',
       memory: {},
     });
 
@@ -182,37 +182,37 @@ describe('project routes', () => {
     app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn(),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory,
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory,
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'DELETE',
-      url: '/api/v1/projects/project-1/memory/operator_note',
+      url: '/api/v1/workspaces/workspace-1/memory/operator_note',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(removeProjectMemory).toHaveBeenCalledWith(
+    expect(removeWorkspaceMemory).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'project-1',
+      'workspace-1',
       'operator_note',
     );
   });

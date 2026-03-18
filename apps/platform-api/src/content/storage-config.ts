@@ -46,7 +46,7 @@ export function buildArtifactStorageConfig(env: ArtifactStorageEnv): ArtifactSto
       env.ARTIFACT_STORAGE_BACKEND === 'gcs'
         ? {
             bucket: env.ARTIFACT_GCS_BUCKET!,
-            projectId: env.ARTIFACT_GCS_PROJECT_ID,
+            workspaceId: env.ARTIFACT_GCS_PROJECT_ID,
             keyFilename: env.ARTIFACT_GCS_KEY_FILE,
             credentialsJson: env.ARTIFACT_GCS_CREDENTIALS_JSON,
           }

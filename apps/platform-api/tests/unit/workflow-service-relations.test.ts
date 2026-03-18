@@ -85,7 +85,7 @@ describe('WorkflowService workflow relations', () => {
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({
           rows: [{
-            project_id: null,
+            workspace_id: null,
             resolved_config: {},
             config_layers: {
               run: {
@@ -197,7 +197,7 @@ describe('WorkflowService workflow relations', () => {
             api_key: 'redacted://workflow-config-secret',
           },
         },
-        project: {},
+        workspace: {},
         run: {
           headers: {
             authorization: 'redacted://workflow-config-secret',

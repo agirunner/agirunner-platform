@@ -31,7 +31,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -161,7 +161,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -230,7 +230,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -390,7 +390,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -514,7 +514,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -639,7 +639,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -779,7 +779,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -1070,7 +1070,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -1199,7 +1199,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -1326,7 +1326,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -1488,7 +1488,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -1691,7 +1691,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -1779,7 +1779,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -1845,7 +1845,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -1957,7 +1957,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -2046,7 +2046,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'requirements',
@@ -2129,7 +2129,7 @@ describe('PlaybookWorkflowControlService', () => {
     });
     const loadWorkflow = vi.spyOn(service as never, 'loadWorkflow').mockResolvedValue({
       id: 'workflow-1',
-      project_id: 'project-1',
+      workspace_id: 'workspace-1',
       playbook_id: 'playbook-1',
       lifecycle: 'planned',
       active_stage_name: 'implementation',
@@ -2180,7 +2180,7 @@ describe('PlaybookWorkflowControlService', () => {
     });
     vi.spyOn(service as never, 'loadWorkflow').mockResolvedValue({
       id: 'workflow-1',
-      project_id: 'project-1',
+      workspace_id: 'workspace-1',
       playbook_id: 'playbook-1',
       lifecycle: 'planned',
       active_stage_name: null,
@@ -2214,7 +2214,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: 'implementation',
@@ -2381,7 +2381,7 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 1,
             rows: [{
               id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               playbook_id: 'playbook-1',
               lifecycle: 'planned',
               active_stage_name: workflowLoadCount === 1 ? 'requirements' : null,

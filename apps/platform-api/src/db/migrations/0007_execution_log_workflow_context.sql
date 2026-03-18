@@ -38,7 +38,7 @@ BEGIN
     'category', NEW.category,
     'level', NEW.level,
     'operation', NEW.operation,
-    'project_id', NEW.project_id,
+    'workspace_id', NEW.workspace_id,
     'workflow_id', NEW.workflow_id,
     'task_id', NEW.task_id,
     'work_item_id', NEW.work_item_id,

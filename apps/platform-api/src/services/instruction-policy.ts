@@ -1,7 +1,7 @@
 import { ValidationError } from '../errors/domain-errors.js';
 
 export type InstructionFormat = 'text' | 'markdown';
-export type InstructionLayerName = 'platform' | 'project' | 'playbook' | 'role' | 'task';
+export type InstructionLayerName = 'platform' | 'workspace' | 'playbook' | 'role' | 'task';
 
 export interface InstructionDocument {
   content: string;
@@ -104,7 +104,7 @@ export function normalizeSuppressedLayers(value: unknown): InstructionLayerName[
   for (const entry of value) {
     if (
       entry === 'platform' ||
-      entry === 'project' ||
+      entry === 'workspace' ||
       entry === 'playbook' ||
       entry === 'role' ||
       entry === 'task'

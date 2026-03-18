@@ -2,10 +2,10 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ForbiddenError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
-import { validateProjectDocumentRegistry } from './document-reference-service.js';
+import { validateWorkspaceDocumentRegistry } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
-import { readProjectToolTags, validateProjectToolTags } from './tool-tag-service.js';
+import { readWorkspaceToolTags, validateWorkspaceToolTags } from './tool-tag-service.js';
 
 type ResourceType =
   | 'repository'
@@ -15,7 +15,7 @@ type ResourceType =
   | 'artifact_store'
   | 'api';
 
-interface ProjectSpecVersionRow {
+interface WorkspaceSpecVersionRow {
   id: string;
   version: number;
   spec: Record<string, unknown>;
@@ -24,7 +24,7 @@ interface ProjectSpecVersionRow {
   created_by_id: string | null;
 }
 
-interface ProjectRow {
+interface WorkspaceRow {
   id: string;
   current_spec_version: number;
 }
@@ -46,7 +46,7 @@ const resourceFieldsByType: Record<ResourceType, string[]> = {
 };
 
 const blockedBindingKeys = /(secret|token|password|api[_-]?key|credential)/i;
-const PROJECT_SPEC_SECRET_REDACTION = 'redacted://project-spec-secret';
+const WORKSPACE_SPEC_SECRET_REDACTION = 'redacted://workspace-spec-secret';
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -71,19 +71,19 @@ function validateUrlField(value: unknown, fieldName: string): void {
   }
 }
 
-export class ProjectSpecService {
+export class WorkspaceSpecService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly eventService: EventService,
   ) {}
 
-  async getProjectSpec(tenantId: string, projectId: string, version?: number) {
-    const project = await this.loadProjectOrThrow(tenantId, projectId);
-    const targetVersion = version ?? project.current_spec_version;
+  async getWorkspaceSpec(tenantId: string, workspaceId: string, version?: number) {
+    const workspace = await this.loadWorkspaceOrThrow(tenantId, workspaceId);
+    const targetVersion = version ?? workspace.current_spec_version;
 
     if (targetVersion === 0) {
       return {
-        project_id: projectId,
+        workspace_id: workspaceId,
         version: 0,
         spec: {},
         created_at: null,
@@ -92,45 +92,45 @@ export class ProjectSpecService {
       };
     }
 
-    const result = await this.pool.query<ProjectSpecVersionRow>(
+    const result = await this.pool.query<WorkspaceSpecVersionRow>(
       `SELECT id, version, spec, created_at, created_by_type, created_by_id
-         FROM project_spec_versions
+         FROM workspace_spec_versions
         WHERE tenant_id = $1
-          AND project_id = $2
+          AND workspace_id = $2
           AND version = $3`,
-      [tenantId, projectId, targetVersion],
+      [tenantId, workspaceId, targetVersion],
     );
 
     if (!result.rowCount) {
-      throw new NotFoundError('Project spec version not found');
+      throw new NotFoundError('Workspace spec version not found');
     }
 
     const row = result.rows[0];
     return {
-      project_id: projectId,
+      workspace_id: workspaceId,
       version: row.version,
-      spec: sanitizeProjectSpecForRead(row.spec),
+      spec: sanitizeWorkspaceSpecForRead(row.spec),
       created_at: row.created_at.toISOString(),
       created_by_type: row.created_by_type,
       created_by_id: row.created_by_id,
     };
   }
 
-  async putProjectSpec(identity: ApiKeyIdentity, projectId: string, spec: Record<string, unknown>) {
-    this.validateProjectSpec(spec);
+  async putWorkspaceSpec(identity: ApiKeyIdentity, workspaceId: string, spec: Record<string, unknown>) {
+    this.validateWorkspaceSpec(spec);
 
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
-      const project = await this.loadProjectOrThrow(identity.tenantId, projectId, client, true);
-      const nextVersion = project.current_spec_version + 1;
+      const workspace = await this.loadWorkspaceOrThrow(identity.tenantId, workspaceId, client, true);
+      const nextVersion = workspace.current_spec_version + 1;
 
       await client.query(
-        `INSERT INTO project_spec_versions (tenant_id, project_id, version, spec, created_by_type, created_by_id)
+        `INSERT INTO workspace_spec_versions (tenant_id, workspace_id, version, spec, created_by_type, created_by_id)
          VALUES ($1,$2,$3,$4::jsonb,$5,$6)`,
         [
           identity.tenantId,
-          projectId,
+          workspaceId,
           nextVersion,
           spec,
           identity.scope,
@@ -139,20 +139,20 @@ export class ProjectSpecService {
       );
 
       await client.query(
-        `UPDATE projects
+        `UPDATE workspaces
             SET current_spec_version = $3,
                 updated_at = now()
           WHERE tenant_id = $1
             AND id = $2`,
-        [identity.tenantId, projectId, nextVersion],
+        [identity.tenantId, workspaceId, nextVersion],
       );
 
       await this.eventService.emit(
         {
           tenantId: identity.tenantId,
-          type: 'project.spec_updated',
-          entityType: 'project',
-          entityId: projectId,
+          type: 'workspace.spec_updated',
+          entityType: 'workspace',
+          entityId: workspaceId,
           actorType: identity.scope,
           actorId: identity.keyPrefix,
           data: { version: nextVersion },
@@ -161,7 +161,7 @@ export class ProjectSpecService {
       );
 
       await client.query('COMMIT');
-      return this.getProjectSpec(identity.tenantId, projectId, nextVersion);
+      return this.getWorkspaceSpec(identity.tenantId, workspaceId, nextVersion);
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;
@@ -170,12 +170,12 @@ export class ProjectSpecService {
     }
   }
 
-  async listProjectResources(
+  async listWorkspaceResources(
     identity: ApiKeyIdentity,
-    projectId: string,
+    workspaceId: string,
     query: { type?: string; task_id?: string },
   ) {
-    const specEnvelope = await this.getProjectSpec(identity.tenantId, projectId);
+    const specEnvelope = await this.getWorkspaceSpec(identity.tenantId, workspaceId);
     const resources = this.readResources(specEnvelope.spec);
     const filteredByType =
       query.type && query.type.length > 0
@@ -187,24 +187,24 @@ export class ProjectSpecService {
     }
 
     if (!query.task_id) {
-      throw new ValidationError('task_id is required when an agent lists project resources');
+      throw new ValidationError('task_id is required when an agent lists workspace resources');
     }
 
-    const task = await this.loadTaskForAgent(identity, query.task_id, projectId);
+    const task = await this.loadTaskForAgent(identity, query.task_id, workspaceId);
     const allowedNames = this.readTaskResourceNames(task.resource_bindings);
     return {
       data: filteredByType.filter((resource) => allowedNames.has(resource.logical_name)),
     };
   }
 
-  async listProjectTools(tenantId: string, projectId: string) {
-    const specEnvelope = await this.getProjectSpec(tenantId, projectId);
+  async listWorkspaceTools(tenantId: string, workspaceId: string) {
+    const specEnvelope = await this.getWorkspaceSpec(tenantId, workspaceId);
     return {
-      data: readProjectToolTags(specEnvelope.spec),
+      data: readWorkspaceToolTags(specEnvelope.spec),
     };
   }
 
-  private validateProjectSpec(spec: Record<string, unknown>): void {
+  private validateWorkspaceSpec(spec: Record<string, unknown>): void {
     assertNoPlaintextSecretsInSpec(spec);
 
     const resources = this.readResourceMap(spec);
@@ -223,9 +223,9 @@ export class ProjectSpecService {
       this.validateBinding(type, logicalName, binding);
     }
 
-    validateProjectDocumentRegistry(spec);
-    validateProjectToolTags(spec);
-    normalizeInstructionDocument(spec.instructions, 'project instructions', 20_000);
+    validateWorkspaceDocumentRegistry(spec);
+    validateWorkspaceToolTags(spec);
+    normalizeInstructionDocument(spec.instructions, 'workspace instructions', 20_000);
   }
 
   private validateBinding(type: ResourceType, logicalName: string, binding: Record<string, unknown>): void {
@@ -268,14 +268,14 @@ export class ProjectSpecService {
     return asRecord(spec.resources);
   }
 
-  private async loadTaskForAgent(identity: ApiKeyIdentity, taskId: string, projectId: string) {
+  private async loadTaskForAgent(identity: ApiKeyIdentity, taskId: string, workspaceId: string) {
     const result = await this.pool.query<{ resource_bindings: unknown; assigned_agent_id: string | null }>(
       `SELECT resource_bindings, assigned_agent_id
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2
-          AND project_id = $3`,
-      [identity.tenantId, taskId, projectId],
+          AND workspace_id = $3`,
+      [identity.tenantId, taskId, workspaceId],
     );
 
     if (!result.rowCount) {
@@ -309,23 +309,23 @@ export class ProjectSpecService {
     );
   }
 
-  private async loadProjectOrThrow(
+  private async loadWorkspaceOrThrow(
     tenantId: string,
-    projectId: string,
+    workspaceId: string,
     client?: DatabaseClient,
     forUpdate = false,
-  ): Promise<ProjectRow> {
+  ): Promise<WorkspaceRow> {
     const db = client ?? this.pool;
-    const result = await db.query<ProjectRow>(
+    const result = await db.query<WorkspaceRow>(
       `SELECT id, current_spec_version
-         FROM projects
+         FROM workspaces
         WHERE tenant_id = $1
           AND id = $2${forUpdate ? ' FOR UPDATE' : ''}`,
-      [tenantId, projectId],
+      [tenantId, workspaceId],
     );
 
     if (!result.rowCount) {
-      throw new NotFoundError('Project not found');
+      throw new NotFoundError('Workspace not found');
     }
 
     return result.rows[0];
@@ -343,23 +343,23 @@ export class ProjectSpecService {
   }
 }
 
-function sanitizeProjectSpecForRead(value: unknown): Record<string, unknown> {
+function sanitizeWorkspaceSpecForRead(value: unknown): Record<string, unknown> {
   return sanitizeSecretLikeRecord(value, {
-    redactionValue: PROJECT_SPEC_SECRET_REDACTION,
+    redactionValue: WORKSPACE_SPEC_SECRET_REDACTION,
     allowSecretReferences: false,
   });
 }
 
-function sanitizeProjectSpecForValidation(value: unknown): Record<string, unknown> {
-  return sanitizeSecretLikeRecord(value, { redactionValue: PROJECT_SPEC_SECRET_REDACTION });
+function sanitizeWorkspaceSpecForValidation(value: unknown): Record<string, unknown> {
+  return sanitizeSecretLikeRecord(value, { redactionValue: WORKSPACE_SPEC_SECRET_REDACTION });
 }
 
 function assertNoPlaintextSecretsInSpec(spec: Record<string, unknown>): void {
-  const sanitized = sanitizeProjectSpecForValidation(spec);
+  const sanitized = sanitizeWorkspaceSpecForValidation(spec);
   if (JSON.stringify(sanitized) === JSON.stringify(spec)) {
     return;
   }
   throw new ValidationError(
-    'Project spec contains plaintext secret-bearing values. Use secret: references or external secret storage instead.',
+    'Workspace spec contains plaintext secret-bearing values. Use secret: references or external secret storage instead.',
   );
 }

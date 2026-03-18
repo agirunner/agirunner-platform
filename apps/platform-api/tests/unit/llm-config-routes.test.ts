@@ -45,7 +45,7 @@ describe('llm config model override preview route', () => {
       url: '/api/v1/config/llm/resolve-preview',
       headers: { authorization: 'Bearer test' },
       payload: {
-        project_model_overrides: {
+        workspace_model_overrides: {
           developer: {
             provider: '',
             model: 'gpt-5',
@@ -103,7 +103,7 @@ describe('llm config model override preview route', () => {
       url: '/api/v1/config/llm/resolve-preview',
       headers: { authorization: 'Bearer test' },
       payload: {
-        project_model_overrides: {
+        workspace_model_overrides: {
           developer: {
             provider: 'anthropic',
             model: 'claude-sonnet-4-6',

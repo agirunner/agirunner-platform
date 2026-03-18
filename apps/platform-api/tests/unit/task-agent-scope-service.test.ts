@@ -10,7 +10,7 @@ describe('TaskAgentScopeService', () => {
         rows: [{
           id: 'task-1',
           workflow_id: 'workflow-1',
-          project_id: 'project-1',
+          workspace_id: 'workspace-1',
           work_item_id: 'wi-1',
           stage_name: 'implementation',
           activation_id: 'activation-1',
@@ -44,7 +44,7 @@ describe('TaskAgentScopeService', () => {
         rows: [{
           id: 'task-1',
           workflow_id: 'workflow-1',
-          project_id: 'project-1',
+          workspace_id: 'workspace-1',
           work_item_id: 'wi-1',
           stage_name: 'implementation',
           activation_id: 'activation-1',

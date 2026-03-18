@@ -18,7 +18,7 @@ interface WorkflowInstructionLayerInput {
   isOrchestratorTask: boolean;
   role?: string;
   workflow?: WorkflowContextLike | null;
-  project?: Record<string, unknown> | null;
+  workspace?: Record<string, unknown> | null;
   taskInput?: Record<string, unknown> | null;
   workItem?: Record<string, unknown> | null;
   predecessorHandoff?: Record<string, unknown> | null;
@@ -52,7 +52,7 @@ export function buildWorkflowInstructionLayer(
     ?? null;
   const checkpoint = definition.checkpoints.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(focusedWorkItem.column_id));
-  const repoBacked = isRepositoryBacked(input.project, workflow, input.taskInput);
+  const repoBacked = isRepositoryBacked(input.workspace, workflow, input.taskInput);
   const sections = input.isOrchestratorTask
     ? buildOrchestratorSections({
         lifecycle,
@@ -462,13 +462,13 @@ function selectFocusedWorkItem(orchestratorContext: Record<string, unknown> | nu
 }
 
 function isRepositoryBacked(
-  project: Record<string, unknown> | null | undefined,
+  workspace: Record<string, unknown> | null | undefined,
   workflow: Record<string, unknown>,
   taskInput?: Record<string, unknown> | null,
 ) {
   const repository = asRecord(asRecord(taskInput).repository);
   return Boolean(
-    readString(asRecord(project).repository_url)
+    readString(asRecord(workspace).repository_url)
       ?? readString(asRecord(workflow.variables).repository_url)
       ?? readString(repository.repository_url),
   );

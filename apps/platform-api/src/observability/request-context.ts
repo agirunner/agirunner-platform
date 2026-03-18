@@ -8,7 +8,7 @@ export interface RequestContext {
   requestId: string;
   sourceIp: string;
   auth?: ApiKeyIdentity;
-  projectId?: string;
+  workspaceId?: string;
   workflowId?: string;
   taskId?: string;
 }

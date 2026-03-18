@@ -9,7 +9,7 @@ import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 const triggerSchema = z.object({
   name: z.string().min(1).max(255),
   source: z.string().min(1).max(255),
-  project_id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid().optional(),
   workflow_id: z.string().uuid(),
   event_header: z.string().min(1).max(255).optional(),
   event_types: z.array(z.string().min(1)).optional(),
@@ -25,7 +25,7 @@ const triggerPatchSchema = z
   .object({
     name: z.string().min(1).max(255).optional(),
     source: z.string().min(1).max(255).optional(),
-    project_id: z.string().uuid().nullable().optional(),
+    workspace_id: z.string().uuid().nullable().optional(),
     workflow_id: z.string().uuid().optional(),
     event_header: z.string().min(1).max(255).nullable().optional(),
     event_types: z.array(z.string().min(1)).optional(),

@@ -1,13 +1,13 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import {
   BUILT_IN_PLAYBOOKS,
-  PROJECT_PLANNING_PLAYBOOK_SLUG,
+  WORKSPACE_PLANNING_PLAYBOOK_SLUG,
 } from '../catalogs/built-in-playbooks.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { WorkflowService } from './workflow-service.js';
 
-export class ProjectPlanningService {
+export class WorkspacePlanningService {
   constructor(
     private readonly pool: DatabasePool,
     private readonly workflowService: WorkflowService,
@@ -15,44 +15,44 @@ export class ProjectPlanningService {
 
   async createPlanningWorkflow(
     identity: ApiKeyIdentity,
-    projectId: string,
+    workspaceId: string,
     payload: { brief: string; name?: string },
   ) {
-    const projectResult = await this.pool.query(
-      'SELECT * FROM projects WHERE tenant_id = $1 AND id = $2',
-      [identity.tenantId, projectId],
+    const workspaceResult = await this.pool.query(
+      'SELECT * FROM workspaces WHERE tenant_id = $1 AND id = $2',
+      [identity.tenantId, workspaceId],
     );
-    if (!projectResult.rowCount) {
-      throw new NotFoundError('Project not found');
+    if (!workspaceResult.rowCount) {
+      throw new NotFoundError('Workspace not found');
     }
 
-    const project = projectResult.rows[0] as Record<string, unknown>;
+    const workspace = workspaceResult.rows[0] as Record<string, unknown>;
     const playbookId = await this.ensurePlanningPlaybook(identity.tenantId);
 
     await this.pool.query(
-      `UPDATE projects
+      `UPDATE workspaces
           SET settings = settings || $3::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
       [
         identity.tenantId,
-        projectId,
+        workspaceId,
         {
-          project_brief: payload.brief,
-          project_brief_updated_at: new Date().toISOString(),
+          workspace_brief: payload.brief,
+          workspace_brief_updated_at: new Date().toISOString(),
         },
       ],
     );
 
     return this.workflowService.createWorkflow(identity, {
       playbook_id: playbookId,
-      project_id: projectId,
-      name: payload.name ?? `Planning: ${String(project.name)}`,
+      workspace_id: workspaceId,
+      name: payload.name ?? `Planning: ${String(workspace.name)}`,
       parameters: {
-        project_name: String(project.name),
-        project_brief: payload.brief,
-        project_id: projectId,
+        workspace_name: String(workspace.name),
+        workspace_brief: payload.brief,
+        workspace_id: workspaceId,
       },
       metadata: {
         planning_workflow: true,
@@ -69,14 +69,14 @@ export class ProjectPlanningService {
           AND is_active = true
         ORDER BY version DESC, created_at DESC
         LIMIT 1`,
-      [tenantId, PROJECT_PLANNING_PLAYBOOK_SLUG],
+      [tenantId, WORKSPACE_PLANNING_PLAYBOOK_SLUG],
     );
     if (existing.rowCount) {
       return String(existing.rows[0].id);
     }
 
     const builtIn = BUILT_IN_PLAYBOOKS.find(
-      (playbook) => playbook.slug === PROJECT_PLANNING_PLAYBOOK_SLUG,
+      (playbook) => playbook.slug === WORKSPACE_PLANNING_PLAYBOOK_SLUG,
     );
     if (!builtIn) {
       throw new NotFoundError('Built-in planning playbook is not configured');

@@ -18,7 +18,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-describe('project model override routes', () => {
+describe('workspace model override routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -32,38 +32,38 @@ describe('project model override routes', () => {
     }
   });
 
-  it('ignores retired project model overrides on project create instead of rejecting the request', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('ignores retired workspace model overrides on workspace create instead of rejecting the request', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
     app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn(),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/projects',
+      url: '/api/v1/workspaces',
       headers: { authorization: 'Bearer test' },
       payload: {
         name: 'Demo',
@@ -82,11 +82,11 @@ describe('project model override routes', () => {
     expect(response.statusCode).toBe(201);
   });
 
-  it('returns shared resolved project models without project-specific overrides', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('returns shared resolved workspace models without workspace-specific overrides', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
-    const getProject = vi.fn().mockResolvedValue({
-      id: 'project-1',
+    const getWorkspace = vi.fn().mockResolvedValue({
+      id: 'workspace-1',
       settings: {},
     });
 
@@ -95,23 +95,23 @@ describe('project model override routes', () => {
     app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject,
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace,
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn().mockResolvedValue({
@@ -141,17 +141,17 @@ describe('project model override routes', () => {
       }),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/projects/project-1/model-overrides/resolved?roles=developer',
+      url: '/api/v1/workspaces/workspace-1/model-overrides/resolved?roles=developer',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(getProject).toHaveBeenCalledWith('tenant-1', 'project-1');
-    expect(response.json().data.project_model_overrides).toEqual({});
+    expect(getWorkspace).toHaveBeenCalledWith('tenant-1', 'workspace-1');
+    expect(response.json().data.workspace_model_overrides).toEqual({});
     expect(response.json().data.effective_models.developer.source).toBe('base');
     expect(response.json().data.effective_models.developer.resolved.model.modelId).toBe('gpt-4.1');
     expect(response.json().data.effective_models.developer.resolved.provider).not.toHaveProperty(
@@ -159,34 +159,34 @@ describe('project model override routes', () => {
     );
   });
 
-  it('sanitizes base resolved project models when no overrides are present', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('sanitizes base resolved workspace models when no overrides are present', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
     app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn().mockResolvedValue({
-        id: 'project-1',
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn().mockResolvedValue({
+        id: 'workspace-1',
         settings: {},
       }),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: vi.fn().mockResolvedValue({
@@ -204,11 +204,11 @@ describe('project model override routes', () => {
       getProviderForOperations: vi.fn(),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/projects/project-1/model-overrides/resolved?roles=developer',
+      url: '/api/v1/workspaces/workspace-1/model-overrides/resolved?roles=developer',
       headers: { authorization: 'Bearer test' },
     });
 

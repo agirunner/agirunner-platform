@@ -41,7 +41,7 @@ describe('task platform routes', () => {
     const taskRow = {
       id: 'task-1',
       workflow_id: workflowId,
-      project_id: 'project-1',
+      workspace_id: 'workspace-1',
       work_item_id: 'work-item-1',
       stage_name: 'design',
       activation_id: null,
@@ -83,7 +83,7 @@ describe('task platform routes', () => {
     return {
       connect: vi.fn(async () => client),
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('SELECT id, workflow_id, project_id')) {
+        if (sql.includes('SELECT id, workflow_id, workspace_id')) {
           return { rowCount: 1, rows: [taskRow] };
         }
         throw new Error(`Unexpected SQL in replay pool: ${sql}`);
@@ -102,7 +102,7 @@ describe('task platform routes', () => {
   it('registers artifact catalog preview and permalink endpoints', async () => {
     app = fastify();
     app.decorate('pgPool', {} as never);
-    app.decorate('projectService', {} as never);
+    app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
       ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
@@ -119,8 +119,8 @@ describe('task platform routes', () => {
   });
 
   it('accepts design-shaped memory updates objects on task memory patch', async () => {
-    const patchProjectMemoryEntries = vi.fn().mockResolvedValue({
-      id: 'project-1',
+    const patchWorkspaceMemoryEntries = vi.fn().mockResolvedValue({
+      id: 'workspace-1',
       memory: {
         summary: 'Scoped note',
         decision: { outcome: 'ship' },
@@ -135,7 +135,7 @@ describe('task platform routes', () => {
         rows: [{
           id: 'task-1',
           workflow_id: 'workflow-1',
-          project_id: 'project-1',
+          workspace_id: 'workspace-1',
           work_item_id: 'work-item-1',
           stage_name: 'design',
           activation_id: null,
@@ -145,9 +145,9 @@ describe('task platform routes', () => {
         }],
       }),
     } as never);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      patchProjectMemoryEntries,
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      patchWorkspaceMemoryEntries,
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
@@ -171,9 +171,9 @@ describe('task platform routes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(patchProjectMemoryEntries).toHaveBeenCalledWith(
+    expect(patchWorkspaceMemoryEntries).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'project-1',
+      'workspace-1',
       [
         {
           key: 'summary',
@@ -204,7 +204,7 @@ describe('task platform routes', () => {
   });
 
   it('rejects task memory patches that try to persist workflow status', async () => {
-    const patchProjectMemoryEntries = vi.fn();
+    const patchWorkspaceMemoryEntries = vi.fn();
 
     app = fastify();
     registerErrorHandler(app);
@@ -214,7 +214,7 @@ describe('task platform routes', () => {
         rows: [{
           id: 'task-1',
           workflow_id: 'workflow-1',
-          project_id: 'project-1',
+          workspace_id: 'workspace-1',
           work_item_id: 'work-item-1',
           stage_name: 'design',
           activation_id: null,
@@ -224,9 +224,9 @@ describe('task platform routes', () => {
         }],
       }),
     } as never);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      patchProjectMemoryEntries,
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      patchWorkspaceMemoryEntries,
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
@@ -254,7 +254,7 @@ describe('task platform routes', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().error.code).toBe('VALIDATION_ERROR');
-    expect(patchProjectMemoryEntries).not.toHaveBeenCalled();
+    expect(patchWorkspaceMemoryEntries).not.toHaveBeenCalled();
   });
 
   it('filters task memory reads to the current workflow and work item scope', async () => {
@@ -262,13 +262,13 @@ describe('task platform routes', () => {
     registerErrorHandler(app);
     app.decorate('pgPool', {
       query: vi.fn(async (sql: string) => {
-        if (sql.includes('SELECT id, workflow_id, project_id')) {
+        if (sql.includes('SELECT id, workflow_id, workspace_id')) {
           return {
             rowCount: 1,
             rows: [{
               id: 'task-1',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'requirements',
               activation_id: null,
@@ -284,7 +284,7 @@ describe('task platform routes', () => {
             rows: [
               {
                 id: 21,
-                type: 'project.memory_updated',
+                type: 'workspace.memory_updated',
                 actor_type: 'agent',
                 actor_id: 'agent:key',
                 created_at: '2026-03-16T08:00:00.000Z',
@@ -292,7 +292,7 @@ describe('task platform routes', () => {
               },
               {
                 id: 22,
-                type: 'project.memory_updated',
+                type: 'workspace.memory_updated',
                 actor_type: 'agent',
                 actor_id: 'agent:key',
                 created_at: '2026-03-16T08:01:00.000Z',
@@ -304,16 +304,16 @@ describe('task platform routes', () => {
         throw new Error(`Unexpected SQL in task memory read test: ${sql}`);
       }),
     } as never);
-    app.decorate('projectService', {
-      getProject: vi.fn().mockResolvedValue({
-        id: 'project-1',
+    app.decorate('workspaceService', {
+      getWorkspace: vi.fn().mockResolvedValue({
+        id: 'workspace-1',
         memory: {
           global_note: 'keep this',
           stale_dispatch: 'hide this',
         },
       }),
-      patchProjectMemory: vi.fn(),
-      patchProjectMemoryEntries: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      patchWorkspaceMemoryEntries: vi.fn(),
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
@@ -337,8 +337,8 @@ describe('task platform routes', () => {
   });
 
   it('deduplicates repeated task memory patch requests by request_id', async () => {
-    const patchProjectMemoryEntries = vi.fn().mockResolvedValue({
-      id: 'project-1',
+    const patchWorkspaceMemoryEntries = vi.fn().mockResolvedValue({
+      id: 'workspace-1',
       memory: {
         summary: 'Scoped note',
       },
@@ -347,9 +347,9 @@ describe('task platform routes', () => {
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', createWorkflowReplayPool('workflow-1', 'task_memory_patch') as never);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      patchProjectMemoryEntries,
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      patchWorkspaceMemoryEntries,
     } as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
@@ -382,10 +382,10 @@ describe('task platform routes', () => {
 
     expect(first.statusCode).toBe(200);
     expect(second.statusCode).toBe(200);
-    expect(patchProjectMemoryEntries).toHaveBeenCalledTimes(1);
-    expect(patchProjectMemoryEntries).toHaveBeenCalledWith(
+    expect(patchWorkspaceMemoryEntries).toHaveBeenCalledTimes(1);
+    expect(patchWorkspaceMemoryEntries).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'project-1',
+      'workspace-1',
       [{
         key: 'summary',
         value: 'Scoped note',
@@ -417,7 +417,7 @@ describe('task platform routes', () => {
         rows: [{
           id: 'task-1',
           workflow_id: 'workflow-1',
-          project_id: 'project-1',
+          workspace_id: 'workspace-1',
           work_item_id: 'work-item-1',
           stage_name: 'design',
           activation_id: null,
@@ -427,7 +427,7 @@ describe('task platform routes', () => {
         }],
       }),
     } as never);
-    app.decorate('projectService', {} as never);
+    app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
       ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',

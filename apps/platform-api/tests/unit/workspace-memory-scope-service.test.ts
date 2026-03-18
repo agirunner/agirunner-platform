@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectMemoryScopeService } from '../../src/services/project-memory-scope-service.js';
+import { WorkspaceMemoryScopeService } from '../../src/services/workspace-memory-scope-service.js';
 
-describe('ProjectMemoryScopeService', () => {
+describe('WorkspaceMemoryScopeService', () => {
   it('filters visible task memory to global and current workflow scope', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({
         rows: [
           {
             id: 11,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:00:00.000Z',
@@ -17,7 +17,7 @@ describe('ProjectMemoryScopeService', () => {
           },
           {
             id: 12,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:01:00.000Z',
@@ -25,7 +25,7 @@ describe('ProjectMemoryScopeService', () => {
           },
           {
             id: 13,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:02:00.000Z',
@@ -33,7 +33,7 @@ describe('ProjectMemoryScopeService', () => {
           },
           {
             id: 14,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:03:00.000Z',
@@ -41,7 +41,7 @@ describe('ProjectMemoryScopeService', () => {
           },
           {
             id: 15,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:04:00.000Z',
@@ -52,11 +52,11 @@ describe('ProjectMemoryScopeService', () => {
       }),
     };
 
-    const service = new ProjectMemoryScopeService(pool as never);
+    const service = new WorkspaceMemoryScopeService(pool as never);
 
     const visible = await service.filterVisibleTaskMemory({
       tenantId: 'tenant-1',
-      projectId: 'project-1',
+      workspaceId: 'workspace-1',
       workflowId: 'wf-1',
       workItemId: 'wi-1',
       currentMemory: {
@@ -81,7 +81,7 @@ describe('ProjectMemoryScopeService', () => {
         rows: [
           {
             id: 11,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:00:00.000Z',
@@ -89,7 +89,7 @@ describe('ProjectMemoryScopeService', () => {
           },
           {
             id: 12,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:01:00.000Z',
@@ -97,7 +97,7 @@ describe('ProjectMemoryScopeService', () => {
           },
           {
             id: 13,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:02:00.000Z',
@@ -105,7 +105,7 @@ describe('ProjectMemoryScopeService', () => {
           },
           {
             id: 14,
-            type: 'project.memory_updated',
+            type: 'workspace.memory_updated',
             actor_type: 'agent',
             actor_id: 'agent:key',
             created_at: '2026-03-16T08:03:00.000Z',
@@ -116,11 +116,11 @@ describe('ProjectMemoryScopeService', () => {
       }),
     };
 
-    const service = new ProjectMemoryScopeService(pool as never);
+    const service = new WorkspaceMemoryScopeService(pool as never);
 
     const index = await service.listVisibleTaskMemoryKeys({
       tenantId: 'tenant-1',
-      projectId: 'project-1',
+      workspaceId: 'workspace-1',
       workflowId: 'wf-1',
       workItemId: 'wi-1',
       currentMemory: {

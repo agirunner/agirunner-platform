@@ -7,11 +7,11 @@ const sourceRoot =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src';
 const apiRoutesRoot = path.join(sourceRoot, 'api', 'routes');
 const workflowRuntimePath = path.join(sourceRoot, 'orchestration', 'workflow-runtime.ts');
-const projectRunSummaryPath = path.join(sourceRoot, 'services', 'project-run-summary.ts');
-const projectTimelineSummaryLoaderPath = path.join(
+const workspaceRunSummaryPath = path.join(sourceRoot, 'services', 'workspace-run-summary.ts');
+const workspaceTimelineSummaryLoaderPath = path.join(
   sourceRoot,
   'services',
-  'project-timeline-summary-loader.ts',
+  'workspace-timeline-summary-loader.ts',
 );
 
 const LEGACY_RUNTIME_SUMMARY_MARKERS = [
@@ -28,8 +28,8 @@ const LEGACY_RUNTIME_SUMMARY_MARKERS = [
 describe('v2 runtime/summary legacy removal', () => {
   it('keeps the deleted legacy runtime and summary modules out of the active source tree', () => {
     expect(existsSync(workflowRuntimePath)).toBe(false);
-    expect(existsSync(projectRunSummaryPath)).toBe(false);
-    expect(existsSync(projectTimelineSummaryLoaderPath)).toBe(true);
+    expect(existsSync(workspaceRunSummaryPath)).toBe(false);
+    expect(existsSync(workspaceTimelineSummaryLoaderPath)).toBe(true);
   });
 
   it('does not reintroduce template or phase summary markers in active orchestration, service, or route code', () => {

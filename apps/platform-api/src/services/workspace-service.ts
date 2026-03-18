@@ -4,48 +4,48 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { TenantScopedRepository, type TenantRow } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
-import type { ProjectMemoryMutationContext } from './project-memory-scope-service.js';
+import type { WorkspaceMemoryMutationContext } from './workspace-memory-scope-service.js';
 import {
-  normalizeProjectSettings,
-  parseProjectSettingsInput,
-  serializeProjectSettings,
-  type StoredProjectSettings,
-} from './project-settings.js';
+  normalizeWorkspaceSettings,
+  parseWorkspaceSettingsInput,
+  serializeWorkspaceSettings,
+  type StoredWorkspaceSettings,
+} from './workspace-settings.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import { encryptWebhookSecret, decryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 
-interface ProjectListQuery {
+interface WorkspaceListQuery {
   page: number;
   per_page: number;
   q?: string;
   is_active?: boolean;
 }
 
-interface CreateProjectInput {
+interface CreateWorkspaceInput {
   name: string;
   slug: string;
   description?: string;
   repository_url?: string;
-  settings?: Record<string, unknown> | StoredProjectSettings;
+  settings?: Record<string, unknown> | StoredWorkspaceSettings;
   memory?: Record<string, unknown>;
 }
 
-interface UpdateProjectInput {
+interface UpdateWorkspaceInput {
   name?: string;
   slug?: string;
   description?: string;
   repository_url?: string;
-  settings?: Record<string, unknown> | StoredProjectSettings;
+  settings?: Record<string, unknown> | StoredWorkspaceSettings;
   is_active?: boolean;
 }
 
-interface ProjectMemoryPatch {
+interface WorkspaceMemoryPatch {
   key: string;
   value?: unknown;
-  context?: ProjectMemoryMutationContext;
+  context?: WorkspaceMemoryMutationContext;
 }
 
-interface ProjectListSummary {
+interface WorkspaceListSummary {
   active_workflow_count: number;
   completed_workflow_count: number;
   attention_workflow_count: number;
@@ -53,8 +53,8 @@ interface ProjectListSummary {
   last_workflow_activity_at: string | null;
 }
 
-interface ProjectWorkflowSummaryRow {
-  project_id: string;
+interface WorkspaceWorkflowSummaryRow {
+  workspace_id: string;
   active_workflow_count: number;
   completed_workflow_count: number;
   attention_workflow_count: number;
@@ -62,9 +62,9 @@ interface ProjectWorkflowSummaryRow {
   last_workflow_activity_at: string | null;
 }
 
-type ProjectRow = TenantRow & Record<string, unknown>;
-const PROJECT_MEMORY_SECRET_REDACTION = 'redacted://project-memory-secret';
-const PROJECT_SETTINGS_SECRET_REDACTION = 'redacted://project-settings-secret';
+type WorkspaceRow = TenantRow & Record<string, unknown>;
+const WORKSPACE_MEMORY_SECRET_REDACTION = 'redacted://workspace-memory-secret';
+const WORKSPACE_SETTINGS_SECRET_REDACTION = 'redacted://workspace-settings-secret';
 
 function byteLengthJson(value: Record<string, unknown>): number {
   return Buffer.byteLength(JSON.stringify(value), 'utf8');
@@ -80,11 +80,11 @@ function normalizeRecord(value: unknown): Record<string, unknown> {
 function sanitizeMemoryEventValue(key: string, value: unknown): unknown {
   return sanitizeSecretLikeRecord(
     { [key]: value },
-    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION, allowSecretReferences: false },
+    { redactionValue: WORKSPACE_MEMORY_SECRET_REDACTION, allowSecretReferences: false },
   )[key];
 }
 
-function sanitizeProjectRecordValue(key: string, value: unknown, redactionValue: string): unknown {
+function sanitizeWorkspaceRecordValue(key: string, value: unknown, redactionValue: string): unknown {
   return sanitizeSecretLikeRecord(
     { [key]: value },
     { redactionValue, allowSecretReferences: false },
@@ -113,7 +113,7 @@ interface GitWebhookConfig {
   secret: string;
 }
 
-export class ProjectService {
+export class WorkspaceService {
   private readonly encryptionKey: string;
 
   constructor(
@@ -124,14 +124,14 @@ export class ProjectService {
     this.encryptionKey = config?.WEBHOOK_ENCRYPTION_KEY ?? '';
   }
 
-  async createProject(identity: ApiKeyIdentity, input: CreateProjectInput) {
+  async createWorkspace(identity: ApiKeyIdentity, input: CreateWorkspaceInput) {
     const memory = sanitizeMemoryForPersistence(normalizeRecord(input.memory));
     const memorySizeBytes = byteLengthJson(memory);
-    const settings = parseProjectSettingsInput(input.settings);
+    const settings = parseWorkspaceSettingsInput(input.settings);
 
     try {
       const result = await this.pool.query<Record<string, unknown>>(
-        `INSERT INTO projects (
+        `INSERT INTO workspaces (
           tenant_id, name, slug, description, repository_url, settings, memory, memory_size_bytes
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         RETURNING *`,
@@ -147,27 +147,27 @@ export class ProjectService {
         ],
       );
 
-      const project = result.rows[0] as ProjectRow;
+      const workspace = result.rows[0] as WorkspaceRow;
       await this.eventService.emit({
         tenantId: identity.tenantId,
-        type: 'project.created',
-        entityType: 'project',
-        entityId: project.id as string,
+        type: 'workspace.created',
+        entityType: 'workspace',
+        entityId: workspace.id as string,
         actorType: identity.scope,
         actorId: identity.keyPrefix,
-        data: { slug: project.slug },
+        data: { slug: workspace.slug },
       });
 
-      return redactProjectSecrets(project);
+      return redactWorkspaceSecrets(workspace);
     } catch (error) {
-      if (isUniqueViolation(error, 'uq_project_tenant_slug')) {
-        throw new ConflictError('Project slug already exists');
+      if (isUniqueViolation(error, 'uq_workspace_tenant_slug')) {
+        throw new ConflictError('Workspace slug already exists');
       }
       throw error;
     }
   }
 
-  async listProjects(tenantId: string, query: ProjectListQuery) {
+  async listWorkspaces(tenantId: string, query: WorkspaceListQuery) {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const conditions: string[] = [];
     const values: unknown[] = [];
@@ -185,9 +185,9 @@ export class ProjectService {
     const offset = (query.page - 1) * query.per_page;
 
     const [total, rows] = await Promise.all([
-      repo.count('projects', conditions, values),
-      repo.findAllPaginated<ProjectRow>(
-        'projects',
+      repo.count('workspaces', conditions, values),
+      repo.findAllPaginated<WorkspaceRow>(
+        'workspaces',
         '*',
         conditions,
         values,
@@ -198,15 +198,15 @@ export class ProjectService {
     ]);
 
     const migratedRows = await Promise.all(rows.map((row) => this.ensureGitWebhookSecretEncrypted(tenantId, row)));
-    const workflowSummaryByProjectId = await this.loadProjectWorkflowSummaries(
+    const workflowSummaryByProjectId = await this.loadWorkspaceWorkflowSummaries(
       tenantId,
       migratedRows.map((row) => String(row.id)),
     );
 
     return {
       data: migratedRows.map((row) => ({
-        ...redactProjectSecrets(row),
-        summary: workflowSummaryByProjectId.get(String(row.id)) ?? emptyProjectListSummary(),
+        ...redactWorkspaceSecrets(row),
+        summary: workflowSummaryByProjectId.get(String(row.id)) ?? emptyWorkspaceListSummary(),
       })),
       meta: {
         total,
@@ -217,26 +217,26 @@ export class ProjectService {
     };
   }
 
-  async getProject(tenantId: string, projectId: string) {
+  async getWorkspace(tenantId: string, workspaceId: string) {
     const repo = new TenantScopedRepository(this.pool, tenantId);
-    const project = await repo.findById<ProjectRow>('projects', '*', projectId);
-    if (!project) {
-      throw new NotFoundError('Project not found');
+    const workspace = await repo.findById<WorkspaceRow>('workspaces', '*', workspaceId);
+    if (!workspace) {
+      throw new NotFoundError('Workspace not found');
     }
-    return redactProjectSecrets(await this.ensureGitWebhookSecretEncrypted(tenantId, project));
+    return redactWorkspaceSecrets(await this.ensureGitWebhookSecretEncrypted(tenantId, workspace));
   }
 
-  async updateProject(identity: ApiKeyIdentity, projectId: string, input: UpdateProjectInput) {
-    const existing = await this.loadProjectRecord(identity.tenantId, projectId);
-    const existingSettings = normalizeProjectSettings(existing.settings);
+  async updateWorkspace(identity: ApiKeyIdentity, workspaceId: string, input: UpdateWorkspaceInput) {
+    const existing = await this.loadWorkspaceRecord(identity.tenantId, workspaceId);
+    const existingSettings = normalizeWorkspaceSettings(existing.settings);
     const settings =
       input.settings !== undefined
-        ? parseProjectSettingsInput(input.settings, existingSettings)
+        ? parseWorkspaceSettingsInput(input.settings, existingSettings)
         : existingSettings;
 
     try {
       const result = await this.pool.query<Record<string, unknown>>(
-        `UPDATE projects
+        `UPDATE workspaces
          SET name = COALESCE($3, name),
              slug = COALESCE($4, slug),
              description = COALESCE($5, description),
@@ -248,7 +248,7 @@ export class ProjectService {
          RETURNING *`,
         [
           identity.tenantId,
-          projectId,
+          workspaceId,
           input.name ?? null,
           input.slug ?? null,
           input.description ?? null,
@@ -259,50 +259,50 @@ export class ProjectService {
       );
 
       if (!result.rowCount) {
-        throw new NotFoundError('Project not found');
+        throw new NotFoundError('Workspace not found');
       }
 
-      const project = result.rows[0] as ProjectRow;
+      const workspace = result.rows[0] as WorkspaceRow;
       await this.eventService.emit({
         tenantId: identity.tenantId,
-        type: 'project.updated',
-        entityType: 'project',
-        entityId: projectId,
+        type: 'workspace.updated',
+        entityType: 'workspace',
+        entityId: workspaceId,
         actorType: identity.scope,
         actorId: identity.keyPrefix,
         data: {
-          name: project.name,
-          slug: project.slug,
-          is_active: project.is_active,
+          name: workspace.name,
+          slug: workspace.slug,
+          is_active: workspace.is_active,
         },
       });
 
-      return redactProjectSecrets(project);
+      return redactWorkspaceSecrets(workspace);
     } catch (error) {
-      if (isUniqueViolation(error, 'uq_project_tenant_slug')) {
-        throw new ConflictError('Project slug already exists');
+      if (isUniqueViolation(error, 'uq_workspace_tenant_slug')) {
+        throw new ConflictError('Workspace slug already exists');
       }
       throw error;
     }
   }
 
-  async patchProjectMemory(
+  async patchWorkspaceMemory(
     identity: ApiKeyIdentity,
-    projectId: string,
-    patch: ProjectMemoryPatch,
+    workspaceId: string,
+    patch: WorkspaceMemoryPatch,
     client?: DatabaseClient,
   ) {
-    return this.patchProjectMemoryEntries(identity, projectId, [patch], client);
+    return this.patchWorkspaceMemoryEntries(identity, workspaceId, [patch], client);
   }
 
-  async patchProjectMemoryEntries(
+  async patchWorkspaceMemoryEntries(
     identity: ApiKeyIdentity,
-    projectId: string,
-    patches: ProjectMemoryPatch[],
+    workspaceId: string,
+    patches: WorkspaceMemoryPatch[],
     client?: DatabaseClient,
   ) {
     if (patches.length === 0) {
-      throw new ValidationError('Project memory updates cannot be empty');
+      throw new ValidationError('Workspace memory updates cannot be empty');
     }
 
     const ownsTransaction = !client;
@@ -313,12 +313,12 @@ export class ProjectService {
         await db.query('BEGIN');
       }
 
-      let project = await this.loadProjectForMemoryMutation(identity.tenantId, projectId, db);
-      let currentMemory = normalizeRecord(project.memory);
+      let workspace = await this.loadWorkspaceForMemoryMutation(identity.tenantId, workspaceId, db);
+      let currentMemory = normalizeRecord(workspace.memory);
 
       for (const patch of patches) {
         if (!patch.key || patch.key.length > 256) {
-          throw new ValidationError('Project memory key must be between 1 and 256 characters');
+          throw new ValidationError('Workspace memory key must be between 1 and 256 characters');
         }
 
         const sanitizedValue = sanitizeMemoryValueForPersistence(patch.key, patch.value);
@@ -326,11 +326,11 @@ export class ProjectService {
           ...currentMemory,
           [patch.key]: sanitizedValue,
         };
-        const memoryMaxBytes = Number(project.memory_max_bytes ?? 1_048_576);
+        const memoryMaxBytes = Number(workspace.memory_max_bytes ?? 1_048_576);
         const memorySizeBytes = byteLengthJson(nextMemory);
 
         if (memorySizeBytes > memoryMaxBytes) {
-          throw new ValidationError('Project memory patch exceeds memory_max_bytes', {
+          throw new ValidationError('Workspace memory patch exceeds memory_max_bytes', {
             memory_size_bytes: memorySizeBytes,
             memory_max_bytes: memoryMaxBytes,
             key: patch.key,
@@ -338,30 +338,30 @@ export class ProjectService {
         }
 
         const result = await db.query<Record<string, unknown>>(
-          `UPDATE projects
+          `UPDATE workspaces
            SET memory = $3,
                memory_size_bytes = $4,
                updated_at = now()
            WHERE tenant_id = $1 AND id = $2
            RETURNING *`,
-          [identity.tenantId, projectId, nextMemory, memorySizeBytes],
+          [identity.tenantId, workspaceId, nextMemory, memorySizeBytes],
         );
 
-        project = result.rows[0] as ProjectRow;
-        currentMemory = normalizeRecord(project.memory);
+        workspace = result.rows[0] as WorkspaceRow;
+        currentMemory = normalizeRecord(workspace.memory);
 
         await this.eventService.emit(
           {
             tenantId: identity.tenantId,
-            type: 'project.memory_updated',
-            entityType: 'project',
-            entityId: projectId,
+            type: 'workspace.memory_updated',
+            entityType: 'workspace',
+            entityId: workspaceId,
             actorType: identity.scope,
             actorId: identity.keyPrefix,
             data: {
               key: patch.key,
               value: sanitizeMemoryEventValue(patch.key, patch.value),
-              project_id: projectId,
+              workspace_id: workspaceId,
               workflow_id: patch.context?.workflow_id ?? null,
               work_item_id: patch.context?.work_item_id ?? null,
               task_id: patch.context?.task_id ?? null,
@@ -377,7 +377,7 @@ export class ProjectService {
         await db.query('COMMIT');
       }
 
-      return redactProjectSecrets(project);
+      return redactWorkspaceSecrets(workspace);
     } catch (error) {
       if (ownsTransaction) {
         await db.query('ROLLBACK');
@@ -390,17 +390,17 @@ export class ProjectService {
     }
   }
 
-  async removeProjectMemory(
+  async removeWorkspaceMemory(
     identity: ApiKeyIdentity,
-    projectId: string,
+    workspaceId: string,
     key: string,
     client?: DatabaseClient,
-    context?: ProjectMemoryMutationContext,
+    context?: WorkspaceMemoryMutationContext,
   ) {
-    const project = await this.getProject(identity.tenantId, projectId);
-    const currentMemory = normalizeRecord(project.memory);
+    const workspace = await this.getWorkspace(identity.tenantId, workspaceId);
+    const currentMemory = normalizeRecord(workspace.memory);
     if (!(key in currentMemory)) {
-      return project;
+      return workspace;
     }
 
     const nextMemory = { ...currentMemory };
@@ -409,28 +409,28 @@ export class ProjectService {
 
     const db = client ?? this.pool;
     const result = await db.query<Record<string, unknown>>(
-      `UPDATE projects
+      `UPDATE workspaces
        SET memory = $3,
            memory_size_bytes = $4,
            updated_at = now()
        WHERE tenant_id = $1 AND id = $2
        RETURNING *`,
-      [identity.tenantId, projectId, nextMemory, memorySizeBytes],
+      [identity.tenantId, workspaceId, nextMemory, memorySizeBytes],
     );
 
-    const updatedProject = result.rows[0] as ProjectRow;
+    const updatedProject = result.rows[0] as WorkspaceRow;
     await this.eventService.emit(
       {
         tenantId: identity.tenantId,
-        type: 'project.memory_deleted',
-        entityType: 'project',
-        entityId: projectId,
+        type: 'workspace.memory_deleted',
+        entityType: 'workspace',
+        entityId: workspaceId,
         actorType: identity.scope,
         actorId: identity.keyPrefix,
         data: {
           key,
           deleted_value: sanitizeMemoryEventValue(key, currentMemory[key]),
-          project_id: projectId,
+          workspace_id: workspaceId,
           workflow_id: context?.workflow_id ?? null,
           work_item_id: context?.work_item_id ?? null,
           task_id: context?.task_id ?? null,
@@ -441,68 +441,68 @@ export class ProjectService {
       client,
     );
 
-    return redactProjectSecrets(updatedProject);
+    return redactWorkspaceSecrets(updatedProject);
   }
 
-  async deleteProject(identity: ApiKeyIdentity, projectId: string) {
-    await this.getProject(identity.tenantId, projectId);
+  async deleteWorkspace(identity: ApiKeyIdentity, workspaceId: string) {
+    await this.getWorkspace(identity.tenantId, workspaceId);
 
     const [workflows, tasks] = await Promise.all([
       this.pool.query<{ total: string }>(
-        'SELECT count(*)::text AS total FROM workflows WHERE tenant_id = $1 AND project_id = $2',
-        [identity.tenantId, projectId],
+        'SELECT count(*)::text AS total FROM workflows WHERE tenant_id = $1 AND workspace_id = $2',
+        [identity.tenantId, workspaceId],
       ),
       this.pool.query<{ total: string }>(
-        'SELECT count(*)::text AS total FROM tasks WHERE tenant_id = $1 AND project_id = $2',
-        [identity.tenantId, projectId],
+        'SELECT count(*)::text AS total FROM tasks WHERE tenant_id = $1 AND workspace_id = $2',
+        [identity.tenantId, workspaceId],
       ),
     ]);
 
     if (Number(workflows.rows[0]?.total ?? '0') > 0 || Number(tasks.rows[0]?.total ?? '0') > 0) {
-      throw new ConflictError('Project cannot be deleted while workflows or tasks reference it');
+      throw new ConflictError('Workspace cannot be deleted while workflows or tasks reference it');
     }
 
-    await this.pool.query('DELETE FROM projects WHERE tenant_id = $1 AND id = $2', [
+    await this.pool.query('DELETE FROM workspaces WHERE tenant_id = $1 AND id = $2', [
       identity.tenantId,
-      projectId,
+      workspaceId,
     ]);
 
     await this.eventService.emit({
       tenantId: identity.tenantId,
-      type: 'project.deleted',
-      entityType: 'project',
-      entityId: projectId,
+      type: 'workspace.deleted',
+      entityType: 'workspace',
+      entityId: workspaceId,
       actorType: identity.scope,
       actorId: identity.keyPrefix,
       data: {},
     });
 
-    return { id: projectId, deleted: true };
+    return { id: workspaceId, deleted: true };
   }
 
   async setGitWebhookConfig(
     identity: ApiKeyIdentity,
-    projectId: string,
+    workspaceId: string,
     input: GitWebhookConfig,
   ) {
-    await this.getProject(identity.tenantId, projectId);
+    await this.getWorkspace(identity.tenantId, workspaceId);
 
     const encryptedSecret = encryptWebhookSecret(input.secret, this.encryptionKey);
     const result = await this.pool.query<Record<string, unknown>>(
-      `UPDATE projects
+      `UPDATE workspaces
        SET git_webhook_provider = $3,
            git_webhook_secret = $4,
            updated_at = now()
        WHERE tenant_id = $1 AND id = $2
        RETURNING id, name, slug, git_webhook_provider, is_active, updated_at`,
-      [identity.tenantId, projectId, input.provider, encryptedSecret],
+      [identity.tenantId, workspaceId, input.provider, encryptedSecret],
     );
 
     await this.eventService.emit({
       tenantId: identity.tenantId,
-      type: 'project.git_webhook_configured',
-      entityType: 'project',
-      entityId: projectId,
+      type: 'workspace.git_webhook_configured',
+      entityType: 'workspace',
+      entityId: workspaceId,
       actorType: identity.scope,
       actorId: identity.keyPrefix,
       data: { provider: input.provider },
@@ -517,14 +517,14 @@ export class ProjectService {
 
   async getGitWebhookSecret(
     tenantId: string,
-    projectId: string,
+    workspaceId: string,
   ): Promise<{ provider: GitWebhookProvider; secret: string } | null> {
     const result = await this.pool.query<{
       git_webhook_provider: GitWebhookProvider | null;
       git_webhook_secret: string | null;
     }>(
-      'SELECT git_webhook_provider, git_webhook_secret FROM projects WHERE tenant_id = $1 AND id = $2',
-      [tenantId, projectId],
+      'SELECT git_webhook_provider, git_webhook_secret FROM workspaces WHERE tenant_id = $1 AND id = $2',
+      [tenantId, workspaceId],
     );
 
     if (!result.rowCount) {
@@ -536,9 +536,9 @@ export class ProjectService {
       return null;
     }
 
-    const secret = await this.ensureProjectWebhookSecretEncrypted(
+    const secret = await this.ensureWorkspaceWebhookSecretEncrypted(
       tenantId,
-      projectId,
+      workspaceId,
       row.git_webhook_secret,
     );
 
@@ -548,12 +548,12 @@ export class ProjectService {
     };
   }
 
-  async findProjectByRepositoryUrl(
+  async findWorkspaceByRepositoryUrl(
     repositoryUrl: string,
   ): Promise<{ id: string; tenant_id: string } | null> {
     const normalized = normalizeRepoUrl(repositoryUrl);
     const result = await this.pool.query<{ id: string; tenant_id: string }>(
-      `SELECT id, tenant_id FROM projects
+      `SELECT id, tenant_id FROM workspaces
        WHERE LOWER(REPLACE(REPLACE(repository_url, '.git', ''), 'http://', 'https://')) = $1
          AND is_active = true
        LIMIT 1`,
@@ -563,40 +563,40 @@ export class ProjectService {
     return result.rowCount ? result.rows[0] : null;
   }
 
-  async getProjectModelOverride(
+  async getWorkspaceModelOverride(
     tenantId: string,
-    projectId: string,
+    workspaceId: string,
   ): Promise<null> {
-    await this.getProject(tenantId, projectId);
+    await this.getWorkspace(tenantId, workspaceId);
     return null;
   }
 
-  private async ensureGitWebhookSecretEncrypted(tenantId: string, project: ProjectRow): Promise<ProjectRow> {
-    const record = project as Record<string, unknown>;
+  private async ensureGitWebhookSecretEncrypted(tenantId: string, workspace: WorkspaceRow): Promise<WorkspaceRow> {
+    const record = workspace as Record<string, unknown>;
     const secret = typeof record.git_webhook_secret === 'string' ? record.git_webhook_secret : null;
     if (!secret) {
-      return project;
+      return workspace;
     }
 
-    const encryptedSecret = await this.ensureProjectWebhookSecretEncrypted(
+    const encryptedSecret = await this.ensureWorkspaceWebhookSecretEncrypted(
       tenantId,
       String(record.id),
       secret,
     );
     if (encryptedSecret === secret) {
-      return project;
+      return workspace;
     }
 
     return {
-      ...project,
+      ...workspace,
       git_webhook_secret: encryptedSecret,
       updated_at: new Date(),
     };
   }
 
-  private async ensureProjectWebhookSecretEncrypted(
+  private async ensureWorkspaceWebhookSecretEncrypted(
     tenantId: string,
-    projectId: string,
+    workspaceId: string,
     secret: string,
   ): Promise<string> {
     if (isWebhookSecretEncrypted(secret)) {
@@ -605,54 +605,54 @@ export class ProjectService {
 
     const encryptedSecret = encryptWebhookSecret(secret, this.encryptionKey);
     await this.pool.query(
-      `UPDATE projects
+      `UPDATE workspaces
           SET git_webhook_secret = $3,
               updated_at = now()
         WHERE tenant_id = $1
           AND id = $2`,
-      [tenantId, projectId, encryptedSecret],
+      [tenantId, workspaceId, encryptedSecret],
     );
     return encryptedSecret;
   }
 
-  private async loadProjectForMemoryMutation(
+  private async loadWorkspaceForMemoryMutation(
     tenantId: string,
-    projectId: string,
+    workspaceId: string,
     client: DatabaseClient,
-  ): Promise<ProjectRow> {
+  ): Promise<WorkspaceRow> {
     const result = await client.query<Record<string, unknown>>(
       `SELECT *
-         FROM projects
+         FROM workspaces
         WHERE tenant_id = $1
           AND id = $2
         FOR UPDATE`,
-      [tenantId, projectId],
+      [tenantId, workspaceId],
     );
     if (!result.rowCount) {
-      throw new NotFoundError('Project not found');
+      throw new NotFoundError('Workspace not found');
     }
-    return result.rows[0] as ProjectRow;
+    return result.rows[0] as WorkspaceRow;
   }
 
-  private async loadProjectRecord(tenantId: string, projectId: string): Promise<ProjectRow> {
+  private async loadWorkspaceRecord(tenantId: string, workspaceId: string): Promise<WorkspaceRow> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
-    const project = await repo.findById<ProjectRow>('projects', '*', projectId);
-    if (!project) {
-      throw new NotFoundError('Project not found');
+    const workspace = await repo.findById<WorkspaceRow>('workspaces', '*', workspaceId);
+    if (!workspace) {
+      throw new NotFoundError('Workspace not found');
     }
-    return project;
+    return workspace;
   }
 
-  private async loadProjectWorkflowSummaries(
+  private async loadWorkspaceWorkflowSummaries(
     tenantId: string,
-    projectIds: string[],
-  ): Promise<Map<string, ProjectListSummary>> {
-    if (projectIds.length === 0) {
+    workspaceIds: string[],
+  ): Promise<Map<string, WorkspaceListSummary>> {
+    if (workspaceIds.length === 0) {
       return new Map();
     }
 
-    const result = await this.pool.query<ProjectWorkflowSummaryRow>(
-      `SELECT project_id::text AS project_id,
+    const result = await this.pool.query<WorkspaceWorkflowSummaryRow>(
+      `SELECT workspace_id::text AS workspace_id,
               COUNT(*) FILTER (WHERE state = 'active')::int AS active_workflow_count,
               COUNT(*) FILTER (WHERE state = 'completed')::int AS completed_workflow_count,
               COUNT(*) FILTER (WHERE state IN ('failed', 'paused'))::int AS attention_workflow_count,
@@ -660,14 +660,14 @@ export class ProjectService {
               MAX(COALESCE(completed_at, started_at, updated_at, created_at))::text AS last_workflow_activity_at
          FROM workflows
         WHERE tenant_id = $1
-          AND project_id = ANY($2::uuid[])
-        GROUP BY project_id`,
-      [tenantId, projectIds],
+          AND workspace_id = ANY($2::uuid[])
+        GROUP BY workspace_id`,
+      [tenantId, workspaceIds],
     );
 
     return new Map(
       result.rows.map((row) => [
-        row.project_id,
+        row.workspace_id,
         {
           active_workflow_count: Number(row.active_workflow_count ?? 0),
           completed_workflow_count: Number(row.completed_workflow_count ?? 0),
@@ -683,28 +683,28 @@ export class ProjectService {
   }
 }
 
-function redactProjectSecrets(project: ProjectRow): Record<string, unknown> {
-  const record = project as Record<string, unknown>;
+function redactWorkspaceSecrets(workspace: WorkspaceRow): Record<string, unknown> {
+  const record = workspace as Record<string, unknown>;
   const hasSecret = typeof record.git_webhook_secret === 'string' && record.git_webhook_secret.length > 0;
   const { git_webhook_secret: _removed, settings, memory, ...rest } = record;
   return {
     ...rest,
-    settings: serializeProjectSettings(settings),
-    memory: sanitizeProjectMemory(memory),
+    settings: serializeWorkspaceSettings(settings),
+    memory: sanitizeWorkspaceMemory(memory),
     git_webhook_secret_configured: hasSecret,
   };
 }
 
-function sanitizeProjectMemory(value: unknown): Record<string, unknown> {
+function sanitizeWorkspaceMemory(value: unknown): Record<string, unknown> {
   return Object.fromEntries(
     Object.entries(normalizeRecord(value)).map(([key, entry]) => [
       key,
-      sanitizeProjectRecordValue(key, entry, PROJECT_MEMORY_SECRET_REDACTION),
+      sanitizeWorkspaceRecordValue(key, entry, WORKSPACE_MEMORY_SECRET_REDACTION),
     ]),
   );
 }
 
-function emptyProjectListSummary(): ProjectListSummary {
+function emptyWorkspaceListSummary(): WorkspaceListSummary {
   return {
     active_workflow_count: 0,
     completed_workflow_count: 0,
@@ -716,7 +716,7 @@ function emptyProjectListSummary(): ProjectListSummary {
 
 function sanitizeMemoryForPersistence(memory: Record<string, unknown>): Record<string, unknown> {
   return sanitizeSecretLikeRecord(memory, {
-    redactionValue: PROJECT_MEMORY_SECRET_REDACTION,
+    redactionValue: WORKSPACE_MEMORY_SECRET_REDACTION,
     allowSecretReferences: true,
   });
 }
@@ -724,7 +724,7 @@ function sanitizeMemoryForPersistence(memory: Record<string, unknown>): Record<s
 function sanitizeMemoryValueForPersistence(key: string, value: unknown): unknown {
   return sanitizeSecretLikeRecord(
     { [key]: value },
-    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION, allowSecretReferences: true },
+    { redactionValue: WORKSPACE_MEMORY_SECRET_REDACTION, allowSecretReferences: true },
   )[key];
 }
 

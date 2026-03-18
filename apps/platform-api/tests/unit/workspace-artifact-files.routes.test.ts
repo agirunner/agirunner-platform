@@ -18,7 +18,7 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-describe('project artifact file routes', () => {
+describe('workspace artifact file routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -32,20 +32,20 @@ describe('project artifact file routes', () => {
     }
   });
 
-  it('lists project-owned artifact files from a dedicated project route', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('lists workspace-owned artifact files from a dedicated workspace route', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
-    const listProjectArtifactFiles = vi.fn().mockResolvedValue([
+    const listWorkspaceArtifactFiles = vi.fn().mockResolvedValue([
       {
         id: 'file-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         key: 'design_brief',
         description: 'Source brief for operators',
         file_name: 'brief.md',
         content_type: 'text/markdown',
         size_bytes: 128,
         created_at: '2026-03-14T18:00:00.000Z',
-        download_url: '/api/v1/projects/project-1/files/file-1/content',
+        download_url: '/api/v1/workspaces/workspace-1/files/file-1/content',
       },
     ]);
 
@@ -54,56 +54,56 @@ describe('project artifact file routes', () => {
     app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn(),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles,
-      uploadProjectArtifactFile: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles,
+      uploadWorkspaceArtifactFile: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/projects/project-1/files',
+      url: '/api/v1/workspaces/workspace-1/files',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(listProjectArtifactFiles).toHaveBeenCalledWith('tenant-1', 'project-1');
+    expect(listWorkspaceArtifactFiles).toHaveBeenCalledWith('tenant-1', 'workspace-1');
     expect(response.json().data[0]).toEqual(
       expect.objectContaining({
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         key: 'design_brief',
         file_name: 'brief.md',
       }),
     );
   });
 
-  it('uploads project-owned artifact files without requiring workflow or task scope', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('uploads workspace-owned artifact files without requiring workflow or task scope', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
-    const uploadProjectArtifactFile = vi.fn().mockResolvedValue({
+    const uploadWorkspaceArtifactFile = vi.fn().mockResolvedValue({
       id: 'file-1',
-      project_id: 'project-1',
+      workspace_id: 'workspace-1',
       key: 'design_brief',
       description: 'Source brief for operators',
       file_name: 'brief.md',
       content_type: 'text/markdown',
       size_bytes: 128,
       created_at: '2026-03-14T18:00:00.000Z',
-      download_url: '/api/v1/projects/project-1/files/file-1/content',
+      download_url: '/api/v1/workspaces/workspace-1/files/file-1/content',
     });
 
     app = fastify();
@@ -111,29 +111,29 @@ describe('project artifact file routes', () => {
     app.decorate('config', { ARTIFACT_PREVIEW_MAX_BYTES: 1_000_000 });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn(),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile,
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile,
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/projects/project-1/files',
+      url: '/api/v1/workspaces/workspace-1/files',
       headers: { authorization: 'Bearer test' },
       payload: {
         key: 'design_brief',
@@ -145,9 +145,9 @@ describe('project artifact file routes', () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(uploadProjectArtifactFile).toHaveBeenCalledWith(
+    expect(uploadWorkspaceArtifactFile).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'project-1',
+      'workspace-1',
       expect.objectContaining({
         key: 'design_brief',
         description: 'Source brief for operators',
@@ -156,31 +156,31 @@ describe('project artifact file routes', () => {
     );
   });
 
-  it('uploads multiple project-owned artifact files in one request and defaults keys from filenames', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('uploads multiple workspace-owned artifact files in one request and defaults keys from filenames', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
-    const uploadProjectArtifactFiles = vi.fn().mockResolvedValue([
+    const uploadWorkspaceArtifactFiles = vi.fn().mockResolvedValue([
       {
         id: 'file-1',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         key: 'brief-md',
         description: null,
         file_name: 'brief.md',
         content_type: 'text/markdown',
         size_bytes: 128,
         created_at: '2026-03-14T18:00:00.000Z',
-        download_url: '/api/v1/projects/project-1/files/file-1/content',
+        download_url: '/api/v1/workspaces/workspace-1/files/file-1/content',
       },
       {
         id: 'file-2',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         key: 'diagram-png',
         description: 'Architecture diagram',
         file_name: 'diagram.png',
         content_type: 'image/png',
         size_bytes: 2048,
         created_at: '2026-03-14T18:00:00.000Z',
-        download_url: '/api/v1/projects/project-1/files/file-2/content',
+        download_url: '/api/v1/workspaces/workspace-1/files/file-2/content',
       },
     ]);
 
@@ -193,30 +193,30 @@ describe('project artifact file routes', () => {
     });
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn(),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles,
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles,
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'POST',
-      url: '/api/v1/projects/project-1/files/batch',
+      url: '/api/v1/workspaces/workspace-1/files/batch',
       headers: { authorization: 'Bearer test' },
       payload: {
         files: [
@@ -236,9 +236,9 @@ describe('project artifact file routes', () => {
     });
 
     expect(response.statusCode).toBe(201);
-    expect(uploadProjectArtifactFiles).toHaveBeenCalledWith(
+    expect(uploadWorkspaceArtifactFiles).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'project-1',
+      'workspace-1',
       [
         expect.objectContaining({
           key: 'brief-md',

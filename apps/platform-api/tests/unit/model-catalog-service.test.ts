@@ -364,7 +364,7 @@ describe('ModelCatalogService', () => {
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({
           rows: [{
-            project_id: null,
+            workspace_id: null,
             resolved_config: {},
             config_layers: {},
           }],
@@ -520,13 +520,13 @@ describe('ModelCatalogService', () => {
       ).resolves.toBeUndefined();
     });
 
-    it('resolves effective model with workflow override precedence over project and tenant defaults', async () => {
+    it('resolves effective model with workflow override precedence over workspace and tenant defaults', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [{ config_value: MODEL_ID }], rowCount: 1 })
         .mockResolvedValueOnce({ rows: [{ config_value: JSON.stringify({ effort: 'low' }) }], rowCount: 1 })
         .mockResolvedValueOnce({
           rows: [{
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             resolved_config: {
               model_override: {
                 model_id: '00000000-0000-0000-0000-000000000030',

@@ -21,7 +21,7 @@ describe('ScheduledWorkItemTriggerService', () => {
     vi.useRealTimers();
   });
 
-  it('creates a project scheduled trigger with canonical source and sanitized defaults', async () => {
+  it('creates a workspace scheduled trigger with canonical source and sanitized defaults', async () => {
     const trigger = buildTriggerRow();
     pool.query
       .mockResolvedValueOnce({ rows: [buildWorkflowScopeRow()], rowCount: 1 })
@@ -51,7 +51,7 @@ describe('ScheduledWorkItemTriggerService', () => {
     expect(result).toEqual(
       expect.objectContaining({
         id: 'trigger-1',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         schedule_type: 'interval',
         cadence_minutes: 60,
         daily_time: null,
@@ -73,7 +73,7 @@ describe('ScheduledWorkItemTriggerService', () => {
         type: 'trigger.created',
         data: expect.objectContaining({
           trigger_id: 'trigger-1',
-          source: 'project.schedule',
+          source: 'workspace.schedule',
           trigger_kind: 'schedule',
         }),
       }),
@@ -108,7 +108,7 @@ describe('ScheduledWorkItemTriggerService', () => {
       },
       {
         name: 'Morning triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         workflow_id: 'workflow-1',
         schedule_type: 'daily_time',
         cadence_minutes: null,
@@ -134,8 +134,8 @@ describe('ScheduledWorkItemTriggerService', () => {
       expect.arrayContaining([
         'tenant-1',
         'Morning triage',
-        'project.schedule',
-        'project-1',
+        'workspace.schedule',
+        'workspace-1',
         'workflow-1',
         'daily_time',
         null,
@@ -278,7 +278,7 @@ describe('ScheduledWorkItemTriggerService', () => {
 
   it('rejects scheduled triggers that target a non-playbook workflow', async () => {
     pool.query.mockResolvedValueOnce({
-      rows: [{ project_id: 'project-1', playbook_id: null, definition: null }],
+      rows: [{ workspace_id: 'workspace-1', playbook_id: null, definition: null }],
       rowCount: 1,
     });
 
@@ -293,7 +293,7 @@ describe('ScheduledWorkItemTriggerService', () => {
       },
       {
         name: 'Daily triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         workflow_id: 'workflow-1',
         schedule_type: 'interval',
         cadence_minutes: 60,
@@ -319,7 +319,7 @@ describe('ScheduledWorkItemTriggerService', () => {
       },
       {
         name: 'Morning triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         workflow_id: 'workflow-1',
         schedule_type: 'daily_time',
         cadence_minutes: null,
@@ -346,7 +346,7 @@ describe('ScheduledWorkItemTriggerService', () => {
       },
       {
         name: 'Daily triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         workflow_id: 'workflow-1',
         schedule_type: 'interval',
         cadence_minutes: 60,
@@ -375,7 +375,7 @@ describe('ScheduledWorkItemTriggerService', () => {
       },
       {
         name: 'Daily triage',
-        source: 'project.schedule',
+        source: 'workspace.schedule',
         workflow_id: 'workflow-1',
         schedule_type: 'interval',
         cadence_minutes: 60,
@@ -400,8 +400,8 @@ function buildTriggerRow(overrides: Partial<{
     id: 'trigger-1',
     tenant_id: 'tenant-1',
     name: 'Daily triage',
-    source: 'project.schedule',
-    project_id: 'project-1',
+    source: 'workspace.schedule',
+    workspace_id: 'workspace-1',
     workflow_id: 'workflow-1',
     schedule_type: overrides.schedule_type ?? 'interval',
     cadence_minutes: overrides.cadence_minutes ?? 60,
@@ -429,7 +429,7 @@ function buildTriggerRow(overrides: Partial<{
 
 function buildWorkflowScopeRow() {
   return {
-    project_id: 'project-1',
+    workspace_id: 'workspace-1',
     playbook_id: 'playbook-1',
     definition: {
       roles: ['triager'],

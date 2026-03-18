@@ -152,7 +152,7 @@ function createWorkflowRoutesApp(overrides?: {
   );
   routeApp.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
   routeApp.decorate('eventService', { emit: async () => undefined } as never);
-  routeApp.decorate('projectService', { getProject: async () => ({ settings: {} }) } as never);
+  routeApp.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) } as never);
   routeApp.decorate(
     'modelCatalogService',
     {
@@ -202,7 +202,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', {});
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -260,7 +260,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', { query });
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -401,7 +401,7 @@ describe('workflow routes', () => {
         createWorkflow,
         getWorkflow: vi.fn(async () => ({
           id: 'workflow-1',
-          project_id: 'project-1',
+          workspace_id: 'workspace-1',
           metadata: {},
         })),
       },
@@ -540,7 +540,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', { query });
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -623,7 +623,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', { query: vi.fn() });
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -680,7 +680,7 @@ describe('workflow routes', () => {
     const query = vi.fn(async (sql: string, params?: unknown[]) => {
       if (
         sql.includes(
-          'SELECT id, project_id, name, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
+          'SELECT id, workspace_id, name, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
         )
       ) {
         expect(params).toEqual(['tenant-1', 'workflow-1']);
@@ -689,7 +689,7 @@ describe('workflow routes', () => {
           rows: [{
             id: 'workflow-1',
             name: 'Source Flow',
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             state: 'active',
             metadata: sourceMetadata,
           }],
@@ -735,7 +735,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', { query });
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -770,7 +770,7 @@ describe('workflow routes', () => {
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.objectContaining({
         playbook_id: playbookId,
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         name: 'Follow-up Flow',
         metadata: expect.objectContaining({
           parent_workflow_id: 'workflow-1',
@@ -820,7 +820,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', pool);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -880,7 +880,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', pool);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -939,7 +939,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', pool);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -1005,7 +1005,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', pool);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -1087,7 +1087,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', pool);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],
@@ -1159,7 +1159,7 @@ describe('workflow routes', () => {
     app.decorate('pgPool', pool);
     app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
     app.decorate('eventService', { emit: async () => undefined });
-    app.decorate('projectService', { getProject: async () => ({ settings: {} }) });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
     app.decorate('modelCatalogService', {
       resolveRoleConfig: async () => null,
       listProviders: async () => [],

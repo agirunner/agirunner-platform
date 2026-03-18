@@ -2,7 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import type {
   WorkflowSummarySnapshot,
   WorkflowSummarySource,
-} from './project-timeline-summary-support.js';
+} from './workspace-timeline-summary-support.js';
 
 const WORKFLOW_TIMELINE_EVENT_TYPES = [
   'stage.started',

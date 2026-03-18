@@ -1,6 +1,6 @@
 import { ValidationError } from '../errors/domain-errors.js';
 
-interface ProjectMemoryWriteEntry {
+interface WorkspaceMemoryWriteEntry {
   key: string;
   value: unknown;
 }
@@ -28,15 +28,15 @@ const OPERATIONAL_VALUE_KEYS = new Set([
   'rework_count',
 ]);
 
-export function assertProjectMemoryWritesAreDurableKnowledge(
-  entries: ProjectMemoryWriteEntry[],
+export function assertWorkspaceMemoryWritesAreDurableKnowledge(
+  entries: WorkspaceMemoryWriteEntry[],
 ) {
   for (const entry of entries) {
     if (!looksLikeOperationalState(entry.key, entry.value)) {
       continue;
     }
     throw new ValidationError(
-      'Project memory stores durable knowledge only; write workflow status, gate posture, and continuity state to work items or handoffs instead',
+      'Workspace memory stores durable knowledge only; write workflow status, gate posture, and continuity state to work items or handoffs instead',
       { key: entry.key },
     );
   }

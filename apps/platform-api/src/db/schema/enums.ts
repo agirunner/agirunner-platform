@@ -50,7 +50,7 @@ export const eventEntityTypeEnum = pgEnum('event_entity_type', [
   'workflow',
   'agent',
   'worker',
-  'project',
+  'workspace',
   'system',
 ]);
 

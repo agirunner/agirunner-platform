@@ -940,7 +940,7 @@ describe('playbook workflow integration', () => {
     expect(finishedWorkItems.every((item) => item.completed_at)).toBe(true);
   }, 120_000);
 
-  it('projects grouped multi-milestone workflows through grouped reads and board rollups', async (context) => {
+  it('workspaces grouped multi-milestone workflows through grouped reads and board rollups', async (context) => {
     if (!canRunIntegration) {
       context.skip();
     }

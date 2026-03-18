@@ -39,8 +39,8 @@ describe('webhook routes', () => {
     app.decorate('config', {});
     app.log.warn = vi.fn();
     app.decorate('pgPool', { query: vi.fn() });
-    app.decorate('projectService', {
-      findProjectByRepositoryUrl: vi.fn(),
+    app.decorate('workspaceService', {
+      findWorkspaceByRepositoryUrl: vi.fn(),
       getGitWebhookSecret: vi.fn(),
     });
     app.decorate('taskLifecycleService', {
@@ -94,8 +94,8 @@ describe('webhook routes', () => {
     app.decorate('config', {});
     app.log.warn = vi.fn();
     app.decorate('pgPool', { query: vi.fn() });
-    app.decorate('projectService', {
-      findProjectByRepositoryUrl: vi.fn(),
+    app.decorate('workspaceService', {
+      findWorkspaceByRepositoryUrl: vi.fn(),
       getGitWebhookSecret: vi.fn(),
     });
     app.decorate('taskLifecycleService', {
@@ -139,7 +139,7 @@ describe('webhook routes', () => {
     ]);
   });
 
-  it('rejects git webhooks when the matched project has no configured per-project secret', async () => {
+  it('rejects git webhooks when the matched workspace has no configured per-workspace secret', async () => {
     const { webhookRoutes } = await import('../../src/api/routes/webhooks.routes.js');
 
     app = fastify();
@@ -147,8 +147,8 @@ describe('webhook routes', () => {
     app.decorate('config', { GIT_WEBHOOK_MAX_PER_MINUTE: 60 } as never);
     app.log.warn = vi.fn();
     app.decorate('pgPool', { query: vi.fn() });
-    app.decorate('projectService', {
-      findProjectByRepositoryUrl: vi.fn().mockResolvedValue({ id: 'project-1', tenant_id: 'tenant-1' }),
+    app.decorate('workspaceService', {
+      findWorkspaceByRepositoryUrl: vi.fn().mockResolvedValue({ id: 'workspace-1', tenant_id: 'tenant-1' }),
       getGitWebhookSecret: vi.fn().mockResolvedValue(null),
     });
     app.decorate('taskLifecycleService', { receiveGitEvent: vi.fn() });
@@ -177,7 +177,7 @@ describe('webhook routes', () => {
     expect(response.statusCode).toBe(401);
     expect(response.json()).toMatchObject({
       error: {
-        message: 'No matching project git webhook secret is configured',
+        message: 'No matching workspace git webhook secret is configured',
       },
     });
   });

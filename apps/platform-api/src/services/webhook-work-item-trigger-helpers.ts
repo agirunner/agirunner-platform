@@ -13,7 +13,7 @@ export interface WorkItemTriggerRow {
   tenant_id: string;
   name: string;
   source: string;
-  project_id: string | null;
+  workspace_id: string | null;
   workflow_id: string;
   event_header: string | null;
   event_types: string[] | null;
@@ -70,7 +70,7 @@ export function toPublicTrigger(row: WorkItemTriggerRow) {
     id: row.id,
     name: row.name,
     source: row.source,
-    project_id: row.project_id,
+    workspace_id: row.workspace_id,
     workflow_id: row.workflow_id,
     event_header: row.event_header,
     event_types: row.event_types ?? [],

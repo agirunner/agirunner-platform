@@ -18,7 +18,7 @@ import { WorkflowStateService } from './workflow-state-service.js';
 
 interface WorkflowContextRow {
   id: string;
-  project_id: string | null;
+  workspace_id: string | null;
   playbook_id: string;
   lifecycle: string | null;
   active_stage_name: string | null;
@@ -718,7 +718,7 @@ export class PlaybookWorkflowControlService {
   private async loadWorkflow(tenantId: string, workflowId: string, db: DatabaseClient | DatabasePool) {
     const result = await db.query<WorkflowContextRow>(
       `SELECT w.id,
-              w.project_id,
+              w.workspace_id,
               w.playbook_id,
               w.lifecycle,
               w.state,

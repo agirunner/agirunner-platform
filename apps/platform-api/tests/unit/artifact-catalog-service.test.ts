@@ -27,7 +27,7 @@ describe('ArtifactCatalogService', () => {
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: 'task-1', workflow_id: 'wf-1', project_id: 'proj-1' }],
+          rows: [{ id: 'task-1', workflow_id: 'wf-1', workspace_id: 'proj-1' }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -35,7 +35,7 @@ describe('ArtifactCatalogService', () => {
             {
               id: 'artifact-1',
               workflow_id: 'wf-1',
-              project_id: 'proj-1',
+              workspace_id: 'proj-1',
               task_id: 'task-2',
               work_item_id: 'work-item-1',
               logical_path: 'artifact:wf-1/spec.pdf',
@@ -80,7 +80,7 @@ describe('ArtifactCatalogService', () => {
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: 'task-1', workflow_id: 'wf-1', project_id: 'proj-1' }],
+          rows: [{ id: 'task-1', workflow_id: 'wf-1', workspace_id: 'proj-1' }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -88,7 +88,7 @@ describe('ArtifactCatalogService', () => {
             {
               id: 'artifact-1',
               workflow_id: 'wf-1',
-              project_id: 'proj-1',
+              workspace_id: 'proj-1',
               task_id: 'task-2',
               work_item_id: 'work-item-1',
               logical_path: 'artifact:wf-1/spec.pdf',
@@ -120,7 +120,7 @@ describe('ArtifactCatalogService', () => {
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: 'task-1', workflow_id: 'wf-1', project_id: 'proj-1' }],
+          rows: [{ id: 'task-1', workflow_id: 'wf-1', workspace_id: 'proj-1' }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -128,7 +128,7 @@ describe('ArtifactCatalogService', () => {
             {
               id: 'artifact-1',
               workflow_id: 'wf-1',
-              project_id: 'proj-1',
+              workspace_id: 'proj-1',
               task_id: 'task-2',
               work_item_id: 'work-item-1',
               logical_path: 'artifact:wf-1/spec.pdf',
@@ -170,7 +170,7 @@ describe('ArtifactCatalogService', () => {
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: 'task-1', workflow_id: 'wf-1', project_id: 'proj-1' }],
+          rows: [{ id: 'task-1', workflow_id: 'wf-1', workspace_id: 'proj-1' }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -178,7 +178,7 @@ describe('ArtifactCatalogService', () => {
             {
               id: 'artifact-1',
               workflow_id: 'wf-1',
-              project_id: 'proj-1',
+              workspace_id: 'proj-1',
               task_id: 'task-2',
               work_item_id: 'work-item-1',
               logical_path: 'artifact:wf-1/spec.pdf',

@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectTimelineService } from '../../src/services/project-timeline-service.js';
+import { WorkspaceTimelineService } from '../../src/services/workspace-timeline-service.js';
 
-describe('ProjectTimelineService', () => {
+describe('WorkspaceTimelineService', () => {
   it('rejects terminal-state recording for non-playbook workflows', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({
@@ -10,27 +10,27 @@ describe('ProjectTimelineService', () => {
         rows: [
           {
             id: 'workflow-1',
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             playbook_id: null,
             metadata: {},
           },
         ],
       }),
     };
-    const service = new ProjectTimelineService(pool as never);
+    const service = new WorkspaceTimelineService(pool as never);
 
     await expect(service.recordWorkflowTerminalState('tenant-1', 'workflow-1')).rejects.toThrow(
       'only support playbook workflows',
     );
     const workflowReadSql = String(pool.query.mock.calls[0]?.[0] ?? '').replace(/\s+/g, ' ');
     expect(workflowReadSql).toContain(
-      'SELECT id, project_id, playbook_id, name, state, lifecycle, metadata, created_at, started_at, completed_at FROM workflows',
+      'SELECT id, workspace_id, playbook_id, name, state, lifecycle, metadata, created_at, started_at, completed_at FROM workflows',
     );
     expect(workflowReadSql).not.toContain('SELECT * FROM workflows');
     expect(workflowReadSql).not.toContain('current_stage');
   });
 
-  it('hydrates playbook project timelines from live activation, work-item, and gate rows', async () => {
+  it('hydrates playbook workspace timelines from live activation, work-item, and gate rows', async () => {
     const query = vi.fn(async (sql: string) => {
       if (sql.includes('FROM workflows')) {
         return {
@@ -211,9 +211,9 @@ describe('ProjectTimelineService', () => {
       }
       return { rowCount: 0, rows: [] };
     });
-    const service = new ProjectTimelineService({ query } as never);
+    const service = new WorkspaceTimelineService({ query } as never);
 
-    const result = await service.getProjectTimeline('tenant-1', 'project-1');
+    const result = await service.getWorkspaceTimeline('tenant-1', 'workspace-1');
 
     expect(result).toHaveLength(1);
     expect(result[0]).toEqual(
@@ -238,7 +238,7 @@ describe('ProjectTimelineService', () => {
     expect(result[0]).not.toHaveProperty('phase_summary');
   });
 
-  it('ignores legacy timeline_summary-only metadata when loading project timelines', async () => {
+  it('ignores legacy timeline_summary-only metadata when loading workspace timelines', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({
         rowCount: 1,
@@ -257,9 +257,9 @@ describe('ProjectTimelineService', () => {
         ],
       }),
     };
-    const service = new ProjectTimelineService(pool as never);
+    const service = new WorkspaceTimelineService(pool as never);
 
-    const result = await service.getProjectTimeline('tenant-1', 'project-1');
+    const result = await service.getWorkspaceTimeline('tenant-1', 'workspace-1');
 
     expect(result).toEqual([]);
   });
@@ -276,7 +276,7 @@ describe('ProjectTimelineService', () => {
               state: 'completed',
               lifecycle: 'planned',
               playbook_id: 'playbook-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               metadata: {},
               created_at: '2026-03-10T00:00:00.000Z',
               started_at: '2026-03-10T00:10:00.000Z',
@@ -510,12 +510,12 @@ describe('ProjectTimelineService', () => {
           ],
         };
       }
-      if (sql.includes('SELECT memory FROM projects')) {
+      if (sql.includes('SELECT memory FROM workspaces')) {
         return { rowCount: 1, rows: [{ memory: {} }] };
       }
       return { rowCount: 0, rows: [] };
     });
-    const service = new ProjectTimelineService({ query } as never);
+    const service = new WorkspaceTimelineService({ query } as never);
 
     const summary = await service.recordWorkflowTerminalState('tenant-1', 'workflow-1');
 
@@ -580,17 +580,17 @@ describe('ProjectTimelineService', () => {
     expect(workflowUpdateCall?.[1]?.[2]).toEqual({
       run_summary: expect.objectContaining({ workflow_id: 'workflow-1' }),
     });
-    const projectUpdateCall = query.mock.calls.find((call) =>
-      String(call[0]).includes('UPDATE projects'),
+    const workspaceUpdateCall = query.mock.calls.find((call) =>
+      String(call[0]).includes('UPDATE workspaces'),
     ) as [string, unknown[]] | undefined;
-    expect(projectUpdateCall?.[1]?.[2]).toEqual(
+    expect(workspaceUpdateCall?.[1]?.[2]).toEqual(
       expect.objectContaining({
-        project_timeline: expect.any(Array),
+        workspace_timeline: expect.any(Array),
         last_run_summary: expect.objectContaining({ workflow_id: 'workflow-1' }),
       }),
     );
-    expect(projectUpdateCall?.[1]?.[2]).not.toHaveProperty('last_workflow_summary');
-    expect(projectUpdateCall?.[1]?.[2]).not.toHaveProperty('run_summaries');
+    expect(workspaceUpdateCall?.[1]?.[2]).not.toHaveProperty('last_workflow_summary');
+    expect(workspaceUpdateCall?.[1]?.[2]).not.toHaveProperty('run_summaries');
     const eventCall = query.mock.calls.find((call) => String(call[0]).includes('FROM events')) as
       | [string, unknown[]]
       | undefined;
@@ -638,7 +638,7 @@ describe('ProjectTimelineService', () => {
               state: 'completed',
               lifecycle: 'planned',
               playbook_id: 'playbook-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               metadata: {},
               created_at: '2026-03-10T00:00:00.000Z',
               started_at: '2026-03-10T00:05:00.000Z',
@@ -757,7 +757,7 @@ describe('ProjectTimelineService', () => {
           ],
         };
       }
-      if (sql.includes('SELECT memory FROM projects')) {
+      if (sql.includes('SELECT memory FROM workspaces')) {
         return {
           rowCount: 1,
           rows: [{ memory: {} }],
@@ -766,12 +766,12 @@ describe('ProjectTimelineService', () => {
       if (sql.includes('UPDATE workflows')) {
         return { rowCount: 1, rows: [] };
       }
-      if (sql.includes('UPDATE projects')) {
+      if (sql.includes('UPDATE workspaces')) {
         return { rowCount: 1, rows: [] };
       }
       return { rowCount: 0, rows: [] };
     });
-    const service = new ProjectTimelineService({ query } as never);
+    const service = new WorkspaceTimelineService({ query } as never);
 
     const result = await service.recordWorkflowTerminalState('tenant-1', 'workflow-secret');
 
@@ -811,14 +811,14 @@ describe('ProjectTimelineService', () => {
       'redacted://workflow-summary-secret',
     );
 
-    const projectUpdateCall = query.mock.calls.find((call) =>
-      String(call[0]).includes('UPDATE projects'),
+    const workspaceUpdateCall = query.mock.calls.find((call) =>
+      String(call[0]).includes('UPDATE workspaces'),
     ) as [string, unknown[]] | undefined;
-    const persistedProjectMemory = projectUpdateCall?.[1]?.[2] as Record<string, any>;
-    expect(persistedProjectMemory.last_run_summary.stage_metrics[0].summary).toBe(
+    const persistedWorkspaceMemory = workspaceUpdateCall?.[1]?.[2] as Record<string, any>;
+    expect(persistedWorkspaceMemory.last_run_summary.stage_metrics[0].summary).toBe(
       'redacted://workflow-summary-secret',
     );
-    expect(persistedProjectMemory.project_timeline[0].child_workflow_activity.transitions[0].outcome.authorization).toBe(
+    expect(persistedWorkspaceMemory.workspace_timeline[0].child_workflow_activity.transitions[0].outcome.authorization).toBe(
       'redacted://workflow-summary-secret',
     );
   });
@@ -835,7 +835,7 @@ describe('ProjectTimelineService', () => {
               state: 'completed',
               lifecycle: 'planned',
               playbook_id: 'playbook-2',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               metadata: {},
               created_at: '2026-03-10T00:00:00.000Z',
               started_at: '2026-03-10T00:10:00.000Z',
@@ -957,12 +957,12 @@ describe('ProjectTimelineService', () => {
           ],
         };
       }
-      if (sql.includes('SELECT memory FROM projects')) {
+      if (sql.includes('SELECT memory FROM workspaces')) {
         return { rowCount: 1, rows: [{ memory: {} }] };
       }
       return { rowCount: 0, rows: [] };
     });
-    const service = new ProjectTimelineService({ query } as never);
+    const service = new WorkspaceTimelineService({ query } as never);
 
     const summary = await service.recordWorkflowTerminalState('tenant-1', 'workflow-2');
 
@@ -1003,7 +1003,7 @@ describe('ProjectTimelineService', () => {
               state: 'active',
               lifecycle: 'ongoing',
               playbook_id: 'playbook-3',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               metadata: {},
               created_at: '2026-03-10T00:00:00.000Z',
               started_at: '2026-03-10T00:10:00.000Z',
@@ -1093,12 +1093,12 @@ describe('ProjectTimelineService', () => {
       if (sql.includes('FROM workflow_stage_gates')) {
         return { rowCount: 0, rows: [] };
       }
-      if (sql.includes('SELECT memory FROM projects')) {
+      if (sql.includes('SELECT memory FROM workspaces')) {
         return { rowCount: 1, rows: [{ memory: {} }] };
       }
       return { rowCount: 0, rows: [] };
     });
-    const service = new ProjectTimelineService({ query } as never);
+    const service = new WorkspaceTimelineService({ query } as never);
 
     const summary = await service.recordWorkflowTerminalState('tenant-1', 'workflow-3');
 

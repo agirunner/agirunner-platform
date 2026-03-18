@@ -1,7 +1,7 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
-export interface ProjectMemoryMutationContext {
+export interface WorkspaceMemoryMutationContext {
   workflow_id?: string | null;
   work_item_id?: string | null;
   task_id?: string | null;
@@ -25,8 +25,8 @@ export interface WorkItemMemoryHistoryEntry extends WorkItemMemoryEntry {
   event_type: 'updated' | 'deleted';
 }
 
-const PROJECT_MEMORY_EVENT_TYPES = ['project.memory_updated', 'project.memory_deleted'] as const;
-const PROJECT_MEMORY_SECRET_REDACTION = 'redacted://project-memory-secret';
+const WORKSPACE_MEMORY_EVENT_TYPES = ['workspace.memory_updated', 'workspace.memory_deleted'] as const;
+const WORKSPACE_MEMORY_SECRET_REDACTION = 'redacted://workspace-memory-secret';
 
 interface EventRow {
   id: number;
@@ -37,12 +37,12 @@ interface EventRow {
   created_at: string;
 }
 
-export class ProjectMemoryScopeService {
+export class WorkspaceMemoryScopeService {
   constructor(private readonly pool: DatabaseQueryable) {}
 
   async filterVisibleTaskMemory(input: {
     tenantId: string;
-    projectId: string;
+    workspaceId: string;
     workflowId: string;
     workItemId: string | null;
     currentMemory: Record<string, unknown>;
@@ -57,12 +57,12 @@ export class ProjectMemoryScopeService {
               id, type, actor_type, actor_id, data, created_at
          FROM events
         WHERE tenant_id = $1
-          AND entity_type = 'project'
+          AND entity_type = 'workspace'
           AND entity_id = $2
           AND type = ANY($3::text[])
           AND data->>'key' = ANY($4::text[])
         ORDER BY (data->>'key'), created_at DESC, id DESC`,
-      [input.tenantId, input.projectId, [...PROJECT_MEMORY_EVENT_TYPES], keys],
+      [input.tenantId, input.workspaceId, [...WORKSPACE_MEMORY_EVENT_TYPES], keys],
     );
 
     const visibleMemory = { ...input.currentMemory };
@@ -80,7 +80,7 @@ export class ProjectMemoryScopeService {
 
   async listWorkItemMemoryEntries(input: {
     tenantId: string;
-    projectId: string;
+    workspaceId: string;
     workflowId: string;
     workItemId: string;
     currentMemory: Record<string, unknown>;
@@ -95,12 +95,12 @@ export class ProjectMemoryScopeService {
               id, type, actor_type, actor_id, data, created_at
          FROM events
         WHERE tenant_id = $1
-          AND entity_type = 'project'
+          AND entity_type = 'workspace'
           AND entity_id = $2
           AND type = ANY($3::text[])
           AND data->>'key' = ANY($4::text[])
         ORDER BY (data->>'key'), created_at DESC, id DESC`,
-      [input.tenantId, input.projectId, [...PROJECT_MEMORY_EVENT_TYPES], keys],
+      [input.tenantId, input.workspaceId, [...WORKSPACE_MEMORY_EVENT_TYPES], keys],
     );
 
     const entries: WorkItemMemoryEntry[] = [];
@@ -130,7 +130,7 @@ export class ProjectMemoryScopeService {
 
   async listWorkItemMemoryHistory(input: {
     tenantId: string;
-    projectId: string;
+    workspaceId: string;
     workflowId: string;
     workItemId: string;
     limit: number;
@@ -139,7 +139,7 @@ export class ProjectMemoryScopeService {
       `SELECT id, type, actor_type, actor_id, data, created_at
          FROM events
         WHERE tenant_id = $1
-          AND entity_type = 'project'
+          AND entity_type = 'workspace'
           AND entity_id = $2
           AND type = ANY($3::text[])
           AND COALESCE(data->>'workflow_id', '') = $4
@@ -148,8 +148,8 @@ export class ProjectMemoryScopeService {
         LIMIT $6`,
       [
         input.tenantId,
-        input.projectId,
-        [...PROJECT_MEMORY_EVENT_TYPES],
+        input.workspaceId,
+        [...WORKSPACE_MEMORY_EVENT_TYPES],
         input.workflowId,
         input.workItemId,
         input.limit,
@@ -163,7 +163,7 @@ export class ProjectMemoryScopeService {
 
   async listVisibleTaskMemoryKeys(input: {
     tenantId: string;
-    projectId: string;
+    workspaceId: string;
     workflowId: string;
     workItemId: string | null;
     currentMemory: Record<string, unknown>;
@@ -179,12 +179,12 @@ export class ProjectMemoryScopeService {
               id, type, actor_type, actor_id, data, created_at
          FROM events
         WHERE tenant_id = $1
-          AND entity_type = 'project'
+          AND entity_type = 'workspace'
           AND entity_id = $2
           AND type = ANY($3::text[])
           AND data->>'key' = ANY($4::text[])
         ORDER BY (data->>'key'), created_at DESC, id DESC`,
-      [input.tenantId, input.projectId, [...PROJECT_MEMORY_EVENT_TYPES], keys],
+      [input.tenantId, input.workspaceId, [...WORKSPACE_MEMORY_EVENT_TYPES], keys],
     );
 
     const visibleEntries = result.rows
@@ -212,7 +212,7 @@ function toScopedMemoryEntry(
     return null;
   }
 
-  const eventType = row.type === 'project.memory_deleted' ? 'deleted' : 'updated';
+  const eventType = row.type === 'workspace.memory_deleted' ? 'deleted' : 'updated';
   const value =
     eventType === 'deleted'
       ? data.deleted_value
@@ -252,7 +252,7 @@ function readNullableString(value: unknown): string | null {
 function sanitizeMemoryValue(key: string, value: unknown): unknown {
   return sanitizeSecretLikeRecord(
     { [key]: value },
-    { redactionValue: PROJECT_MEMORY_SECRET_REDACTION, allowSecretReferences: false },
+    { redactionValue: WORKSPACE_MEMORY_SECRET_REDACTION, allowSecretReferences: false },
   )[key];
 }
 

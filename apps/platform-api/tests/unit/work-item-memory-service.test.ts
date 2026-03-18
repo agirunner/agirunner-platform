@@ -8,7 +8,7 @@ describe('WorkItemService work-item memory support', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ id: 'wi-1', workflow_id: 'wf-1', project_id: 'project-1' }],
+          rows: [{ id: 'wi-1', workflow_id: 'wf-1', workspace_id: 'workspace-1' }],
           rowCount: 1,
         })
         .mockResolvedValueOnce({
@@ -19,7 +19,7 @@ describe('WorkItemService work-item memory support', () => {
           rows: [
             {
               id: 11,
-              type: 'project.memory_updated',
+              type: 'workspace.memory_updated',
               actor_type: 'agent',
               actor_id: 'agent:key',
               created_at: '2026-03-11T10:00:00.000Z',
@@ -33,7 +33,7 @@ describe('WorkItemService work-item memory support', () => {
             },
             {
               id: 12,
-              type: 'project.memory_updated',
+              type: 'workspace.memory_updated',
               actor_type: 'agent',
               actor_id: 'agent:key',
               created_at: '2026-03-11T11:00:00.000Z',
@@ -72,19 +72,19 @@ describe('WorkItemService work-item memory support', () => {
     ]);
   });
 
-  it('returns scoped memory history from project memory events', async () => {
+  it('returns scoped memory history from workspace memory events', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ id: 'wi-1', workflow_id: 'wf-1', project_id: 'project-1' }],
+          rows: [{ id: 'wi-1', workflow_id: 'wf-1', workspace_id: 'workspace-1' }],
           rowCount: 1,
         })
         .mockResolvedValueOnce({
           rows: [
             {
               id: 21,
-              type: 'project.memory_deleted',
+              type: 'workspace.memory_deleted',
               actor_type: 'agent',
               actor_id: 'agent:key',
               created_at: '2026-03-11T12:00:00.000Z',
@@ -132,7 +132,7 @@ describe('WorkItemService work-item memory support', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ id: 'wi-1', workflow_id: 'wf-1', project_id: 'project-1' }],
+          rows: [{ id: 'wi-1', workflow_id: 'wf-1', workspace_id: 'workspace-1' }],
           rowCount: 1,
         })
         .mockResolvedValueOnce({
@@ -143,7 +143,7 @@ describe('WorkItemService work-item memory support', () => {
           rows: [
             {
               id: 11,
-              type: 'project.memory_updated',
+              type: 'workspace.memory_updated',
               actor_type: 'agent',
               actor_id: 'agent:key',
               created_at: '2026-03-11T10:00:00.000Z',
@@ -167,24 +167,24 @@ describe('WorkItemService work-item memory support', () => {
     const result = await service.getWorkItemMemory('tenant-1', 'wf-1', 'wi-1');
 
     expect(result.entries[0]?.value).toEqual({
-      token: 'redacted://project-memory-secret',
-      secret_ref: 'redacted://project-memory-secret',
+      token: 'redacted://workspace-memory-secret',
+      secret_ref: 'redacted://workspace-memory-secret',
     });
   });
 
-  it('redacts plaintext secret-bearing history values from legacy project memory events', async () => {
+  it('redacts plaintext secret-bearing history values from legacy workspace memory events', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ id: 'wi-1', workflow_id: 'wf-1', project_id: 'project-1' }],
+          rows: [{ id: 'wi-1', workflow_id: 'wf-1', workspace_id: 'workspace-1' }],
           rowCount: 1,
         })
         .mockResolvedValueOnce({
           rows: [
             {
               id: 21,
-              type: 'project.memory_deleted',
+              type: 'workspace.memory_deleted',
               actor_type: 'agent',
               actor_id: 'agent:key',
               created_at: '2026-03-11T12:00:00.000Z',
@@ -212,8 +212,8 @@ describe('WorkItemService work-item memory support', () => {
     const result = await service.getWorkItemMemoryHistory('tenant-1', 'wf-1', 'wi-1', 50);
 
     expect(result.history[0]?.value).toEqual({
-      password: 'redacted://project-memory-secret',
-      secret_ref: 'redacted://project-memory-secret',
+      password: 'redacted://workspace-memory-secret',
+      secret_ref: 'redacted://workspace-memory-secret',
     });
   });
 
@@ -222,14 +222,14 @@ describe('WorkItemService work-item memory support', () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ id: 'wi-1', workflow_id: 'wf-1', project_id: 'project-1' }],
+          rows: [{ id: 'wi-1', workflow_id: 'wf-1', workspace_id: 'workspace-1' }],
           rowCount: 1,
         })
         .mockResolvedValueOnce({
           rows: [
             {
               id: 21,
-              type: 'project.memory_updated',
+              type: 'workspace.memory_updated',
               actor_type: 'agent',
               actor_id: 'agent:key',
               created_at: '2026-03-11T12:00:00.000Z',
@@ -257,8 +257,8 @@ describe('WorkItemService work-item memory support', () => {
     const result = await service.getWorkItemMemoryHistory('tenant-1', 'wf-1', 'wi-1', 50);
 
     expect(result.history[0]?.value).toEqual({
-      note: 'redacted://project-memory-secret',
-      session: 'redacted://project-memory-secret',
+      note: 'redacted://workspace-memory-secret',
+      session: 'redacted://workspace-memory-secret',
     });
   });
 });

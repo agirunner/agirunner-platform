@@ -12,7 +12,7 @@ export interface RepositoryBranchContextInput {
   environment?: unknown;
   parameters?: unknown;
   workflowGitBranch?: unknown;
-  projectDefaultBranch?: string | null;
+  workspaceDefaultBranch?: string | null;
 }
 
 export interface RepositoryBranchContext {
@@ -26,7 +26,7 @@ export function resolveRepositoryBranchContext(
 ): RepositoryBranchContext {
   const environment = readRecord(input.environment);
   const parameters = readRecord(input.parameters);
-  const projectDefaultBranch = readString(input.projectDefaultBranch);
+  const workspaceDefaultBranch = readString(input.workspaceDefaultBranch);
   const workflowGitBranch = readString(input.workflowGitBranch);
 
   const explicitBaseBranch =
@@ -39,13 +39,13 @@ export function resolveRepositoryBranchContext(
     ?? readString(parameters.target_branch);
   const branchParameter = readString(parameters.branch);
   const inferredWorkflowFeatureBranch =
-    workflowGitBranch && projectDefaultBranch && workflowGitBranch !== projectDefaultBranch
+    workflowGitBranch && workspaceDefaultBranch && workflowGitBranch !== workspaceDefaultBranch
       ? workflowGitBranch
       : null;
 
   const baseBranch =
     explicitBaseBranch
-    ?? projectDefaultBranch
+    ?? workspaceDefaultBranch
     ?? workflowGitBranch
     ?? branchParameter
     ?? explicitFeatureBranch;

@@ -418,7 +418,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['triage'],
@@ -552,7 +552,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['triage'],
@@ -657,7 +657,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['triage'],
@@ -761,7 +761,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['triage'],
@@ -902,7 +902,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['implementation'],
@@ -1056,15 +1056,15 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['triage'],
               playbook_id: 'playbook-1',
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship tested code',
-              project_repository_url: null,
-              project_settings: null,
+              workspace_repository_url: null,
+              workspace_settings: null,
               workflow_git_branch: null,
               workflow_parameters: null,
             }],
@@ -1167,15 +1167,15 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['implementation'],
               playbook_id: 'playbook-1',
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship tested code',
-              project_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-              project_settings: { default_branch: 'main' },
+              workspace_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              workspace_settings: { default_branch: 'main' },
               workflow_git_branch: null,
               workflow_parameters: {
                 branch: 'main',
@@ -1337,7 +1337,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['implementation'],
@@ -1446,15 +1446,15 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow Repo',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'planned',
               current_stage: 'requirements',
               active_stages: [],
               playbook_id: 'playbook-1',
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship code',
-              project_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-              project_settings: {
+              workspace_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              workspace_settings: {
                 default_branch: 'main',
                 git_user_name: 'Smoke Bot',
                 git_user_email: 'smoke@example.test',
@@ -1554,7 +1554,7 @@ describe('WorkflowActivationDispatchService', () => {
     expect(taskId).toBe('task-repo');
   });
 
-  it('treats branch-only workflow input as a feature branch and preserves the project default as base branch', async () => {
+  it('treats branch-only workflow input as a feature branch and preserves the workspace default as base branch', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -1596,15 +1596,15 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow Repo',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'planned',
               current_stage: 'requirements',
               active_stages: [],
               playbook_id: 'playbook-1',
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship code',
-              project_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-              project_settings: {
+              workspace_repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
+              workspace_settings: {
                 default_branch: 'main',
                 git_user_name: 'Smoke Bot',
                 git_user_email: 'smoke@example.test',
@@ -1728,15 +1728,15 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'planned',
               current_stage: 'review',
               active_stages: ['review'],
               playbook_id: 'playbook-1',
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship tested code',
-              project_repository_url: null,
-              project_settings: null,
+              workspace_repository_url: null,
+              workspace_settings: null,
               workflow_git_branch: null,
               workflow_parameters: null,
             }],
@@ -1845,15 +1845,15 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'planned',
               current_stage: 'review',
               active_stages: ['review'],
               playbook_id: 'playbook-1',
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship tested code',
-              project_repository_url: null,
-              project_settings: null,
+              workspace_repository_url: null,
+              workspace_settings: null,
               workflow_git_branch: null,
               workflow_parameters: null,
             }],
@@ -2019,7 +2019,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['implementation'],
@@ -2139,7 +2139,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['implementation'],
@@ -2336,7 +2336,7 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'ongoing',
               current_stage: null,
               active_stages: ['implementation'],
@@ -3719,15 +3719,15 @@ describe('WorkflowActivationDispatchService', () => {
             rows: [{
               id: 'workflow-1',
               name: 'Workflow One',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               lifecycle: 'planned',
               current_stage: 'review',
               active_stages: ['review'],
               playbook_id: 'playbook-1',
               playbook_name: 'SDLC',
               playbook_outcome: 'Ship tested code',
-              project_repository_url: null,
-              project_settings: null,
+              workspace_repository_url: null,
+              workspace_settings: null,
               workflow_git_branch: null,
               workflow_parameters: null,
             }],

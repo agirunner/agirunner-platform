@@ -13,7 +13,7 @@ interface ArtifactRow {
   id: string;
   tenant_id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
   task_id: string;
   logical_path: string;
   storage_backend: string;
@@ -37,7 +37,7 @@ const ARTIFACT_METADATA_SECRET_REDACTION = 'redacted://artifact-metadata-secret'
 export interface ArtifactResponse {
   id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
   task_id: string;
   logical_path: string;
   content_type: string;
@@ -66,7 +66,7 @@ interface TaskScopeRow {
   id: string;
   tenant_id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
   workflow_metadata: Record<string, unknown> | null;
 }
 
@@ -107,7 +107,7 @@ export class ArtifactService {
 
     const result = await this.pool.query<ArtifactRow>(
       `INSERT INTO workflow_artifacts
-       (id, tenant_id, workflow_id, project_id, task_id, logical_path, storage_backend, storage_key, content_type,
+       (id, tenant_id, workflow_id, workspace_id, task_id, logical_path, storage_backend, storage_key, content_type,
         size_bytes, checksum_sha256, metadata, retention_policy, expires_at)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,$13::jsonb,$14)
        RETURNING *`,
@@ -115,7 +115,7 @@ export class ArtifactService {
         artifactId,
         identity.tenantId,
         task.workflow_id,
-        task.project_id,
+        task.workspace_id,
         task.id,
         logicalPath,
         stored.backend,
@@ -191,7 +191,7 @@ export class ArtifactService {
       `SELECT tasks.id,
               tasks.tenant_id,
               tasks.workflow_id,
-              tasks.project_id,
+              tasks.workspace_id,
               workflows.metadata AS workflow_metadata
          FROM tasks
          LEFT JOIN workflows
@@ -233,7 +233,7 @@ export class ArtifactService {
     return {
       id: row.id,
       workflow_id: row.workflow_id,
-      project_id: row.project_id,
+      workspace_id: row.workspace_id,
       task_id: row.task_id,
       logical_path: row.logical_path,
       content_type: row.content_type,

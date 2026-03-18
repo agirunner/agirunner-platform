@@ -1956,7 +1956,7 @@ export class TaskLifecycleService {
 
     const escalationInsert = await client.query(
       `INSERT INTO tasks (
-         tenant_id, workflow_id, work_item_id, project_id, title, role, stage_name, priority, state, depends_on,
+         tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
          requires_approval, input, context, capabilities_required, role_config, environment,
          resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
        ) VALUES (
@@ -1967,7 +1967,7 @@ export class TaskLifecycleService {
         identity.tenantId,
         sourceTask.workflow_id ?? null,
         sourceTask.work_item_id ?? null,
-        sourceTask.project_id ?? null,
+        sourceTask.workspace_id ?? null,
         title,
         targetRole,
         sourceTask.stage_name ?? null,
@@ -2041,7 +2041,7 @@ export class TaskLifecycleService {
     );
     const escalationInsert = await client.query(
       `INSERT INTO tasks (
-         tenant_id, workflow_id, work_item_id, project_id, title, role, stage_name, priority, state, depends_on,
+         tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
          requires_approval, input, context, capabilities_required, role_config, environment,
          resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
        ) VALUES (
@@ -2052,7 +2052,7 @@ export class TaskLifecycleService {
         identity.tenantId,
         escalationTaskInput.workflow_id ?? null,
         escalationTaskInput.work_item_id ?? null,
-        escalationTaskInput.project_id ?? null,
+        escalationTaskInput.workspace_id ?? null,
         escalationTaskInput.title,
         escalationTaskInput.role ?? null,
         escalationTaskInput.stage_name ?? null,
@@ -2247,7 +2247,7 @@ function buildEscalationTaskInput(
     priority: 'high',
     workflow_id: task.workflow_id as string | undefined,
     work_item_id: task.work_item_id as string | undefined,
-    project_id: task.project_id as string | undefined,
+    workspace_id: task.workspace_id as string | undefined,
     stage_name: task.stage_name as string | undefined,
     parent_id: task.id as string,
     input: {

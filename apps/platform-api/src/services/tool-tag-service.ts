@@ -38,9 +38,9 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'artifact_upload', name: 'Artifact Upload', description: 'Upload a file as a task artifact', category: 'artifacts' },
   { id: 'artifact_list', name: 'Artifact List', description: 'List workflow artifacts', category: 'artifacts' },
   { id: 'artifact_read', name: 'Artifact Read', description: 'Read an artifact from the store', category: 'artifacts' },
-  { id: 'memory_read', name: 'Memory Read', description: 'Read project memory', category: 'memory' },
-  { id: 'memory_write', name: 'Memory Write', description: 'Write project memory', category: 'memory' },
-  { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a project memory key', category: 'memory' },
+  { id: 'memory_read', name: 'Memory Read', description: 'Read workspace memory', category: 'memory' },
+  { id: 'memory_write', name: 'Memory Write', description: 'Write workspace memory', category: 'memory' },
+  { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a workspace memory key', category: 'memory' },
   { id: 'web_fetch', name: 'Web Fetch', description: 'Fetch and extract content from URLs', category: 'web' },
   { id: 'escalate', name: 'Escalate', description: 'Escalate to orchestrator or human when stuck', category: 'control' },
   { id: 'create_work_item', name: 'Create Work Item', description: 'Create a workflow work item', category: 'workflow' },
@@ -165,13 +165,13 @@ export class ToolTagService {
   }
 }
 
-export function validateProjectToolTags(spec: Record<string, unknown>): void {
-  const tools = readProjectToolTags(spec);
+export function validateWorkspaceToolTags(spec: Record<string, unknown>): void {
+  const tools = readWorkspaceToolTags(spec);
   ensureNoDuplicates(tools.available, 'tools.available');
   ensureNoDuplicates(tools.blocked, 'tools.blocked');
 }
 
-export function readProjectToolTags(spec: Record<string, unknown>): ToolSpec {
+export function readWorkspaceToolTags(spec: Record<string, unknown>): ToolSpec {
   const tools = asRecord(spec.tools);
   return {
     available: normalizeToolIds(tools.available),
@@ -179,36 +179,36 @@ export function readProjectToolTags(spec: Record<string, unknown>): ToolSpec {
   };
 }
 
-export async function resolveProjectToolTags(
+export async function resolveWorkspaceToolTags(
   db: DatabaseQueryable,
   tenantId: string,
-  projectId: string | null | undefined,
+  workspaceId: string | null | undefined,
 ): Promise<ToolSpec> {
-  if (!projectId) {
+  if (!workspaceId) {
     return { available: [], blocked: [] };
   }
 
-  const project = await db.query<{ current_spec_version: number }>(
-    'SELECT current_spec_version FROM projects WHERE tenant_id = $1 AND id = $2',
-    [tenantId, projectId],
+  const workspaceResult = await db.query<{ current_spec_version: number }>(
+    'SELECT current_spec_version FROM workspaces WHERE tenant_id = $1 AND id = $2',
+    [tenantId, workspaceId],
   );
-  if (!project.rowCount || project.rows[0].current_spec_version === 0) {
+  if (!workspaceResult.rowCount || workspaceResult.rows[0].current_spec_version === 0) {
     return { available: [], blocked: [] };
   }
 
   const specRow = await db.query<{ spec: Record<string, unknown> }>(
     `SELECT spec
-       FROM project_spec_versions
+       FROM workspace_spec_versions
       WHERE tenant_id = $1
-        AND project_id = $2
+        AND workspace_id = $2
         AND version = $3`,
-    [tenantId, projectId, project.rows[0].current_spec_version],
+    [tenantId, workspaceId, workspaceResult.rows[0].current_spec_version],
   );
   if (!specRow.rowCount) {
     return { available: [], blocked: [] };
   }
 
-  return readProjectToolTags(asRecord(specRow.rows[0].spec));
+  return readWorkspaceToolTags(asRecord(specRow.rows[0].spec));
 }
 
 export function readAgentToolRequirements(agent: Record<string, unknown>): AgentToolRequirements {
@@ -221,15 +221,15 @@ export function readAgentToolRequirements(agent: Record<string, unknown>): Agent
 }
 
 export function computeToolMatch(
-  projectTools: ToolSpec,
+  workspaceTools: ToolSpec,
   agentTools: AgentToolRequirements,
 ): { matches: boolean; matched: string[]; unavailable_optional: string[] } {
-  if (projectTools.available.length === 0 && projectTools.blocked.length === 0) {
+  if (workspaceTools.available.length === 0 && workspaceTools.blocked.length === 0) {
     return { matches: true, matched: [], unavailable_optional: [] };
   }
 
-  const available = new Set(projectTools.available);
-  const blocked = new Set(projectTools.blocked);
+  const available = new Set(workspaceTools.available);
+  const blocked = new Set(workspaceTools.blocked);
   const matches = agentTools.required.every(
     (tool) => !blocked.has(tool) && (available.size === 0 || available.has(tool)),
   );

@@ -6,84 +6,84 @@ import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 const MAX_SHORT_TEXT_LENGTH = 255;
 const MAX_EMAIL_LENGTH = 320;
 const MAX_SECRET_LENGTH = 20_000;
-const MAX_PROJECT_BRIEF_LENGTH = 20_000;
-const PROJECT_SETTINGS_SECRET_REDACTION = 'redacted://project-settings-secret';
-const PROJECT_SETTINGS_KNOWN_KEYS = new Set([
+const MAX_WORKSPACE_BRIEF_LENGTH = 20_000;
+const WORKSPACE_SETTINGS_SECRET_REDACTION = 'redacted://workspace-settings-secret';
+const WORKSPACE_SETTINGS_KNOWN_KEYS = new Set([
   'default_branch',
   'git_user_name',
   'git_user_email',
   'credentials',
   'model_overrides',
-  'project_brief',
+  'workspace_brief',
   'git_token_secret_ref',
   'model_override',
 ]);
 
 const emailSchema = z.string().email().max(MAX_EMAIL_LENGTH);
 
-export const projectRoleModelOverrideSchema = z.object({
+export const workspaceRoleModelOverrideSchema = z.object({
   provider: z.string().min(1).max(120),
   model: z.string().min(1).max(200),
   reasoning_config: z.record(z.unknown()).nullable().optional(),
 });
 
-export const projectModelOverridesSchema = z.record(
+export const workspaceModelOverridesSchema = z.record(
   z.string().min(1).max(120),
-  projectRoleModelOverrideSchema,
+  workspaceRoleModelOverrideSchema,
 );
 
-export interface StoredProjectSettingsCredentials {
+export interface StoredWorkspaceSettingsCredentials {
   git_token?: string;
 }
 
-export interface StoredProjectSettings extends Record<string, unknown> {
+export interface StoredWorkspaceSettings extends Record<string, unknown> {
   default_branch?: string;
   git_user_name?: string;
   git_user_email?: string;
-  credentials: StoredProjectSettingsCredentials;
-  model_overrides: Record<string, ProjectRoleModelOverride>;
-  project_brief?: string;
+  credentials: StoredWorkspaceSettingsCredentials;
+  model_overrides: Record<string, WorkspaceRoleModelOverride>;
+  workspace_brief?: string;
 }
 
-export interface ProjectRoleModelOverride {
+export interface WorkspaceRoleModelOverride {
   provider: string;
   model: string;
   reasoning_config?: Record<string, unknown> | null;
 }
 
-export interface ProjectRepositorySettings {
+export interface WorkspaceRepositorySettings {
   defaultBranch: string | null;
   gitUserName: string | null;
   gitUserEmail: string | null;
   gitTokenSecretRef: string | null;
 }
 
-interface ParseProjectSettingsOptions {
-  existing?: StoredProjectSettings;
+interface ParseWorkspaceSettingsOptions {
+  existing?: StoredWorkspaceSettings;
 }
 
-export function normalizeProjectSettings(value: unknown): StoredProjectSettings {
-  return parseProjectSettings(value, {});
+export function normalizeWorkspaceSettings(value: unknown): StoredWorkspaceSettings {
+  return parseWorkspaceSettings(value, {});
 }
 
-export function parseProjectSettingsInput(
+export function parseWorkspaceSettingsInput(
   value: unknown,
-  existing?: StoredProjectSettings,
-): StoredProjectSettings {
-  return parseProjectSettings(value, { existing });
+  existing?: StoredWorkspaceSettings,
+): StoredWorkspaceSettings {
+  return parseWorkspaceSettings(value, { existing });
 }
 
-export function readProjectModelOverrides(value: unknown): Record<string, ProjectRoleModelOverride> {
+export function readWorkspaceModelOverrides(value: unknown): Record<string, WorkspaceRoleModelOverride> {
   void value;
   return {};
 }
 
-export function readProjectSettingsExtras(value: unknown): Record<string, unknown> {
-  return stripKnownProjectSettingKeys(normalizeProjectSettings(value));
+export function readWorkspaceSettingsExtras(value: unknown): Record<string, unknown> {
+  return stripKnownWorkspaceSettingKeys(normalizeWorkspaceSettings(value));
 }
 
-export function readProjectRepositorySettings(value: unknown): ProjectRepositorySettings {
-  const settings = normalizeProjectSettings(value);
+export function readWorkspaceRepositorySettings(value: unknown): WorkspaceRepositorySettings {
+  const settings = normalizeWorkspaceSettings(value);
   return {
     defaultBranch: settings.default_branch ?? null,
     gitUserName: settings.git_user_name ?? null,
@@ -92,14 +92,14 @@ export function readProjectRepositorySettings(value: unknown): ProjectRepository
   };
 }
 
-export function validateProjectSettingsShape(value: unknown): void {
-  void parseProjectSettingsInput(value);
+export function validateWorkspaceSettingsShape(value: unknown): void {
+  void parseWorkspaceSettingsInput(value);
 }
 
-export function serializeProjectSettings(value: unknown): Record<string, unknown> {
-  const settings = normalizeProjectSettings(value);
-  const extras = sanitizeSecretLikeRecord(stripKnownProjectSettingKeys(settings), {
-    redactionValue: PROJECT_SETTINGS_SECRET_REDACTION,
+export function serializeWorkspaceSettings(value: unknown): Record<string, unknown> {
+  const settings = normalizeWorkspaceSettings(value);
+  const extras = sanitizeSecretLikeRecord(stripKnownWorkspaceSettingKeys(settings), {
+    redactionValue: WORKSPACE_SETTINGS_SECRET_REDACTION,
     allowSecretReferences: false,
   });
 
@@ -109,41 +109,41 @@ export function serializeProjectSettings(value: unknown): Record<string, unknown
     ...(settings.git_user_email ? { git_user_email: settings.git_user_email } : {}),
     credentials: serializeCredentialPosture(settings.credentials),
     model_overrides: {},
-    ...(settings.project_brief ? { project_brief: settings.project_brief } : {}),
+    ...(settings.workspace_brief ? { workspace_brief: settings.workspace_brief } : {}),
     ...extras,
   };
 }
 
-function parseProjectSettings(
+function parseWorkspaceSettings(
   value: unknown,
-  options: ParseProjectSettingsOptions,
-): StoredProjectSettings {
+  options: ParseWorkspaceSettingsOptions,
+): StoredWorkspaceSettings {
   const record = asRecord(value);
 
   if (record.model_override !== undefined) {
     throw new ValidationError('settings.model_override is no longer supported');
   }
 
-  const existing = options.existing ? normalizeProjectSettings(options.existing) : emptyProjectSettings();
+  const existing = options.existing ? normalizeWorkspaceSettings(options.existing) : emptyWorkspaceSettings();
 
   const defaultBranch = readOptionalString(record.default_branch, 'settings.default_branch');
   const gitUserName = readOptionalString(record.git_user_name, 'settings.git_user_name');
   const gitUserEmail = readOptionalEmail(record.git_user_email, 'settings.git_user_email');
-  const projectBrief = readOptionalLongText(record.project_brief, 'settings.project_brief');
+  const workspaceBrief = readOptionalLongText(record.workspace_brief, 'settings.workspace_brief');
   const credentials = readCredentials(record, existing.credentials);
 
   return {
-    ...stripKnownProjectSettingKeys(record),
+    ...stripKnownWorkspaceSettingKeys(record),
     ...(defaultBranch ? { default_branch: defaultBranch } : {}),
     ...(gitUserName ? { git_user_name: gitUserName } : {}),
     ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
     credentials,
     model_overrides: {},
-    ...(projectBrief ? { project_brief: projectBrief } : {}),
+    ...(workspaceBrief ? { workspace_brief: workspaceBrief } : {}),
   };
 }
 
-function emptyProjectSettings(): StoredProjectSettings {
+function emptyWorkspaceSettings(): StoredWorkspaceSettings {
   return {
     credentials: {},
     model_overrides: {},
@@ -152,10 +152,10 @@ function emptyProjectSettings(): StoredProjectSettings {
 
 function readCredentials(
   record: Record<string, unknown>,
-  existing: StoredProjectSettingsCredentials,
-): StoredProjectSettingsCredentials {
+  existing: StoredWorkspaceSettingsCredentials,
+): StoredWorkspaceSettingsCredentials {
   const credentialsRecord = asRecord(record.credentials);
-  const next: StoredProjectSettingsCredentials = {};
+  const next: StoredWorkspaceSettingsCredentials = {};
 
   assignCredential(next, 'git_token', {
     provided: credentialsRecord.git_token ?? record.git_token_secret_ref,
@@ -168,8 +168,8 @@ function readCredentials(
 }
 
 function assignCredential(
-  target: StoredProjectSettingsCredentials,
-  key: keyof StoredProjectSettingsCredentials,
+  target: StoredWorkspaceSettingsCredentials,
+  key: keyof StoredWorkspaceSettingsCredentials,
   input: {
     provided: unknown;
     configured: unknown;
@@ -205,7 +205,7 @@ function resolveCredentialValue(input: {
     throw new ValidationError(`${input.label} must be a string`);
   }
 
-  if (input.provided === PROJECT_SETTINGS_SECRET_REDACTION) {
+  if (input.provided === WORKSPACE_SETTINGS_SECRET_REDACTION) {
     return input.existing;
   }
 
@@ -220,7 +220,7 @@ function resolveCredentialValue(input: {
   return input.provided.length > 0 ? input.provided : undefined;
 }
 
-function readModelOverrides(value: unknown): Record<string, ProjectRoleModelOverride> {
+function readModelOverrides(value: unknown): Record<string, WorkspaceRoleModelOverride> {
   void value;
   return {};
 }
@@ -253,8 +253,8 @@ function readOptionalLongText(value: unknown, label: string): string | undefined
   if (normalized.length === 0) {
     return undefined;
   }
-  if (normalized.length > MAX_PROJECT_BRIEF_LENGTH) {
-    throw new ValidationError(`${label} must be at most ${MAX_PROJECT_BRIEF_LENGTH} characters`);
+  if (normalized.length > MAX_WORKSPACE_BRIEF_LENGTH) {
+    throw new ValidationError(`${label} must be at most ${MAX_WORKSPACE_BRIEF_LENGTH} characters`);
   }
   return normalized;
 }
@@ -281,16 +281,16 @@ function readOptionalBoolean(value: unknown, label: string): boolean | undefined
   return value;
 }
 
-function serializeCredentialPosture(credentials: StoredProjectSettingsCredentials) {
+function serializeCredentialPosture(credentials: StoredWorkspaceSettingsCredentials) {
   return {
-    git_token: credentials.git_token ? PROJECT_SETTINGS_SECRET_REDACTION : null,
+    git_token: credentials.git_token ? WORKSPACE_SETTINGS_SECRET_REDACTION : null,
     git_token_configured: Boolean(credentials.git_token),
   };
 }
 
-function stripKnownProjectSettingKeys(record: Record<string, unknown>) {
+function stripKnownWorkspaceSettingKeys(record: Record<string, unknown>) {
   return Object.fromEntries(
-    Object.entries(record).filter(([key]) => !PROJECT_SETTINGS_KNOWN_KEYS.has(key)),
+    Object.entries(record).filter(([key]) => !WORKSPACE_SETTINGS_KNOWN_KEYS.has(key)),
   );
 }
 

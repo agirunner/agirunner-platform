@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectArtifactExplorerService } from '../../src/services/project-artifact-explorer-service.js';
+import { WorkspaceArtifactExplorerService } from '../../src/services/workspace-artifact-explorer-service.js';
 
-describe('ProjectArtifactExplorerService', () => {
-  it('returns bounded project artifact rows with summary and filter options', async () => {
+describe('WorkspaceArtifactExplorerService', () => {
+  it('returns bounded workspace artifact rows with summary and filter options', async () => {
     const pool = {
       query: vi
         .fn()
@@ -59,9 +59,9 @@ describe('ProjectArtifactExplorerService', () => {
         }),
     };
 
-    const service = new ProjectArtifactExplorerService(pool as never, 1024 * 1024);
+    const service = new WorkspaceArtifactExplorerService(pool as never, 1024 * 1024);
 
-    const result = await service.listProjectArtifacts('tenant-1', 'project-1', {
+    const result = await service.listWorkspaceArtifacts('tenant-1', 'workspace-1', {
       q: 'release',
       preview_mode: 'inline',
       sort: 'newest',
@@ -153,10 +153,10 @@ describe('ProjectArtifactExplorerService', () => {
   });
 
   it('rejects inverted created date bounds', async () => {
-    const service = new ProjectArtifactExplorerService({ query: vi.fn() } as never, 1024);
+    const service = new WorkspaceArtifactExplorerService({ query: vi.fn() } as never, 1024);
 
     await expect(
-      service.listProjectArtifacts('tenant-1', 'project-1', {
+      service.listWorkspaceArtifacts('tenant-1', 'workspace-1', {
         created_from: '2026-03-12',
         created_to: '2026-03-11',
         page: 1,
@@ -193,9 +193,9 @@ describe('ProjectArtifactExplorerService', () => {
         }),
     };
 
-    const service = new ProjectArtifactExplorerService(pool as never, 1024 * 1024);
+    const service = new WorkspaceArtifactExplorerService(pool as never, 1024 * 1024);
 
-    await service.listProjectArtifacts('tenant-1', 'project-1', {
+    await service.listWorkspaceArtifacts('tenant-1', 'workspace-1', {
       sort: 'newest',
       page: 1,
       per_page: 50,
@@ -204,7 +204,7 @@ describe('ProjectArtifactExplorerService', () => {
     expect(pool.query).toHaveBeenNthCalledWith(
       2,
       expect.any(String),
-      ['tenant-1', 'project-1', 50, 0],
+      ['tenant-1', 'workspace-1', 50, 0],
     );
   });
 });

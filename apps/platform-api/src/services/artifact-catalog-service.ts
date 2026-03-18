@@ -13,7 +13,7 @@ const ARTIFACT_METADATA_SECRET_REDACTION = 'redacted://artifact-metadata-secret'
 interface ArtifactCatalogRow {
   id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
   task_id: string;
   work_item_id: string | null;
   logical_path: string;
@@ -31,7 +31,7 @@ interface ArtifactCatalogRow {
 interface TaskScopeRow {
   id: string;
   workflow_id: string | null;
-  project_id: string | null;
+  workspace_id: string | null;
 }
 
 export interface ArtifactCatalogPreviewResult {
@@ -91,7 +91,7 @@ export class ArtifactCatalogService {
     const result = await this.pool.query<ArtifactCatalogRow>(
       `SELECT fa.id,
               fa.workflow_id,
-              fa.project_id,
+              fa.workspace_id,
               fa.task_id,
               source_task.work_item_id,
               fa.logical_path,
@@ -121,7 +121,7 @@ export class ArtifactCatalogService {
     const result = await this.pool.query<ArtifactCatalogRow>(
       `SELECT fa.id,
               fa.workflow_id,
-              fa.project_id,
+              fa.workspace_id,
               fa.task_id,
               source_task.work_item_id,
               fa.logical_path,
@@ -178,7 +178,7 @@ export class ArtifactCatalogService {
 
   private async loadTaskScope(tenantId: string, taskId: string): Promise<TaskScopeRow> {
     const result = await this.pool.query<TaskScopeRow>(
-      'SELECT id, workflow_id, project_id FROM tasks WHERE tenant_id = $1 AND id = $2',
+      'SELECT id, workflow_id, workspace_id FROM tasks WHERE tenant_id = $1 AND id = $2',
       [tenantId, taskId],
     );
     if (!result.rowCount) {
@@ -195,7 +195,7 @@ export class ArtifactCatalogService {
     const result = await this.pool.query<ArtifactCatalogRow>(
       `SELECT fa.id,
               fa.workflow_id,
-              fa.project_id,
+              fa.workspace_id,
               fa.task_id,
               source_task.work_item_id,
               fa.logical_path,
@@ -238,7 +238,7 @@ export class ArtifactCatalogService {
     return {
       id: row.id,
       workflow_id: row.workflow_id,
-      project_id: row.project_id,
+      workspace_id: row.workspace_id,
       task_id: row.task_id,
       work_item_id: row.work_item_id,
       logical_path: row.logical_path,

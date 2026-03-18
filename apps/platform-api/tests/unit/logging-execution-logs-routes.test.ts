@@ -124,7 +124,7 @@ describe('execution-logs route helpers', () => {
         })
         .nullable()
         .optional(),
-      project_id: z.string().uuid().nullable().optional(),
+      workspace_id: z.string().uuid().nullable().optional(),
       workflow_id: z.string().uuid().nullable().optional(),
       task_id: z.string().uuid().nullable().optional(),
       work_item_id: z.string().uuid().nullable().optional(),
@@ -175,7 +175,7 @@ describe('execution-logs route helpers', () => {
             duration_ms: 1200,
             payload: { model: 'gpt-4.1-mini', provider: 'openai' },
             error: null,
-            project_id: '00000000-0000-0000-0000-000000000004',
+            workspace_id: '00000000-0000-0000-0000-000000000004',
             workflow_id: '00000000-0000-0000-0000-000000000005',
             task_id: '00000000-0000-0000-0000-000000000006',
             work_item_id: '00000000-0000-0000-0000-000000000008',
@@ -312,10 +312,10 @@ describe('execution-logs route helpers', () => {
         },
         predecessor_handoff_resolution_present: true,
         predecessor_handoff_source: 'local_work_item',
-        project_memory_index_present: true,
-        project_memory_index_count: 2,
-        project_artifact_index_present: true,
-        project_artifact_index_count: 1,
+        workspace_memory_index_present: true,
+        workspace_memory_index_count: 2,
+        workspace_artifact_index_present: true,
+        workspace_artifact_index_count: 1,
         max_output_tokens_omission_reason: 'not_supplied_in_task_contract',
       },
       error: {
@@ -323,10 +323,10 @@ describe('execution-logs route helpers', () => {
         message: 'Bearer sk-live-secret leaked',
         stack: 'Authorization: Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature',
       },
-      project_id: null,
+      workspace_id: null,
       workflow_id: 'workflow-1',
       workflow_name: 'Flow',
-      project_name: null,
+      workspace_name: null,
       task_id: 'task-1',
       work_item_id: 'work-item-1',
       stage_name: 'review',
@@ -431,8 +431,8 @@ describe('execution-logs route helpers', () => {
       expect(payload.data.payload.api_key).toBe('[REDACTED]');
       expect(payload.data.payload.predecessor_handoff_resolution_present).toBe(true);
       expect(payload.data.payload.predecessor_handoff_source).toBe('local_work_item');
-      expect(payload.data.payload.project_memory_index_present).toBe(true);
-      expect(payload.data.payload.project_artifact_index_present).toBe(true);
+      expect(payload.data.payload.workspace_memory_index_present).toBe(true);
+      expect(payload.data.payload.workspace_artifact_index_present).toBe(true);
       expect(payload.data.payload.max_output_tokens_omission_reason).toBe(
         'not_supplied_in_task_contract',
       );

@@ -154,7 +154,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-replay',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'triage',
               activation_id: 'activation-1',
@@ -187,9 +187,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', workflowService);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -227,9 +227,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -291,7 +291,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-create-default-column',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'requirements',
               activation_id: 'activation-1',
@@ -324,9 +324,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', workflowService);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -406,7 +406,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-create-successor',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'design',
               activation_id: 'activation-parent',
@@ -441,9 +441,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', workflowService);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -479,9 +479,9 @@ describe('orchestratorControlRoutes', () => {
     const workflowService = {
       getWorkflowWorkItem: vi.fn().mockResolvedValue({ id: workItemId }),
     };
-    const projectService = {
-      patchProjectMemory: vi.fn().mockResolvedValue({ key: 'memory-key', work_item_id: workItemId }),
-      removeProjectMemory: vi.fn(),
+    const workspaceService = {
+      patchWorkspaceMemory: vi.fn().mockResolvedValue({ key: 'memory-key', work_item_id: workItemId }),
+      removeWorkspaceMemory: vi.fn(),
     };
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -514,7 +514,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-memory',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'requirements',
               activation_id: 'activation-1',
@@ -536,7 +536,7 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', workflowService);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', projectService);
+    app.decorate('workspaceService', workspaceService);
 
     await app.register(orchestratorControlRoutes);
 
@@ -558,9 +558,9 @@ describe('orchestratorControlRoutes', () => {
       'workflow-1',
       workItemId,
     );
-    expect(projectService.patchProjectMemory).toHaveBeenCalledWith(
+    expect(workspaceService.patchWorkspaceMemory).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'project-1',
+      'workspace-1',
       expect.objectContaining({
         key: 'memory-key',
         work_item_id: workItemId,
@@ -575,16 +575,16 @@ describe('orchestratorControlRoutes', () => {
   });
 
   it('accepts design-shaped orchestrator memory updates objects through the replay-safe bridge', async () => {
-    const projectService = {
-      patchProjectMemory: vi.fn(),
-      patchProjectMemoryEntries: vi.fn().mockResolvedValue({
-        id: 'project-1',
+    const workspaceService = {
+      patchWorkspaceMemory: vi.fn(),
+      patchWorkspaceMemoryEntries: vi.fn().mockResolvedValue({
+        id: 'workspace-1',
         memory: {
           summary: 'Scoped note',
           decision: { outcome: 'ship' },
         },
       }),
-      removeProjectMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     };
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -603,7 +603,7 @@ describe('orchestratorControlRoutes', () => {
             rowCount: 1,
             rows: [{
               response: {
-                id: 'project-1',
+                id: 'workspace-1',
                 memory: {
                   summary: 'Scoped note',
                   decision: { outcome: 'ship' },
@@ -625,7 +625,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-memory',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'requirements',
               activation_id: 'activation-1',
@@ -647,7 +647,7 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { getWorkflowWorkItem: vi.fn(), createWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', projectService);
+    app.decorate('workspaceService', workspaceService);
 
     await app.register(orchestratorControlRoutes);
 
@@ -665,9 +665,9 @@ describe('orchestratorControlRoutes', () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(projectService.patchProjectMemoryEntries).toHaveBeenCalledWith(
+    expect(workspaceService.patchWorkspaceMemoryEntries).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
-      'project-1',
+      'workspace-1',
       [
         {
           key: 'summary',
@@ -699,10 +699,10 @@ describe('orchestratorControlRoutes', () => {
   });
 
   it('rejects orchestrator memory writes that try to persist workflow status', async () => {
-    const projectService = {
-      patchProjectMemory: vi.fn(),
-      patchProjectMemoryEntries: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    const workspaceService = {
+      patchWorkspaceMemory: vi.fn(),
+      patchWorkspaceMemoryEntries: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -713,7 +713,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-memory',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'requirements',
               activation_id: 'activation-1',
@@ -735,7 +735,7 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { getWorkflowWorkItem: vi.fn(), createWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', projectService);
+    app.decorate('workspaceService', workspaceService);
 
     await app.register(orchestratorControlRoutes);
 
@@ -757,7 +757,7 @@ describe('orchestratorControlRoutes', () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().error.code).toBe('VALIDATION_ERROR');
-    expect(projectService.patchProjectMemoryEntries).not.toHaveBeenCalled();
+    expect(workspaceService.patchWorkspaceMemoryEntries).not.toHaveBeenCalled();
   });
 
   it('rejects memory_delete without request_id', async () => {
@@ -768,9 +768,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -825,7 +825,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orchestrator',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -847,9 +847,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', taskService);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -917,7 +917,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orchestrator',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -939,9 +939,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', taskService);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -1029,7 +1029,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orchestrator',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'implementation-item',
               stage_name: 'implementation',
               activation_id: 'activation-review',
@@ -1065,9 +1065,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', taskService);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -1114,9 +1114,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -1177,7 +1177,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orchestrator',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -1199,9 +1199,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', taskService);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -1264,7 +1264,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orchestrator',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -1286,9 +1286,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
     app.decorate('taskService', taskService);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -1347,7 +1347,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orch-budget',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -1369,9 +1369,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('eventService', { emit: vi.fn(async () => undefined) });
     app.decorate('workflowService', workflowService);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -1539,7 +1539,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orch-message',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -1578,9 +1578,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
     app.decorate('workerConnectionHub', { sendToWorker });
     app.decorate('taskService', taskService);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -1756,7 +1756,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orch-message',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -1783,9 +1783,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
     app.decorate('workerConnectionHub', { sendToWorker });
     app.decorate('taskService', taskService);
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -1938,7 +1938,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orch-message',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -1967,9 +1967,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
     app.decorate('workerConnectionHub', { sendToWorker });
     app.decorate('taskService', { createTask: vi.fn(), getTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -2118,7 +2118,7 @@ describe('orchestratorControlRoutes', () => {
             rows: [{
               id: 'task-orch-message',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -2145,9 +2145,9 @@ describe('orchestratorControlRoutes', () => {
     app.decorate('workflowService', { getWorkflowBudget: vi.fn() });
     app.decorate('workerConnectionHub', { sendToWorker });
     app.decorate('taskService', { createTask: vi.fn(), getTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);

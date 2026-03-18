@@ -5,7 +5,7 @@ interface EventFilters {
   types?: string[];
   entityTypes?: string[];
   entityId?: string;
-  projectId?: string;
+  workspaceId?: string;
   workflowId?: string;
   workItemId?: string;
   stageName?: string;
@@ -119,9 +119,9 @@ export class EventStreamService {
       return false;
     }
 
-    if (filters.projectId) {
-      const projectId = (event.data?.project_id as string | undefined) ?? (event.entity_type === 'project' ? event.entity_id : undefined);
-      if (projectId !== filters.projectId) {
+    if (filters.workspaceId) {
+      const workspaceId = (event.data?.workspace_id as string | undefined) ?? (event.entity_type === 'workspace' ? event.entity_id : undefined);
+      if (workspaceId !== filters.workspaceId) {
         return false;
       }
     }

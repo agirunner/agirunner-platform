@@ -57,10 +57,10 @@ const ingestEntrySchema = z.object({
     })
     .nullable()
     .optional(),
-  project_id: z.string().uuid().nullable().optional(),
+  workspace_id: z.string().uuid().nullable().optional(),
   workflow_id: z.string().uuid().nullable().optional(),
   workflow_name: z.string().max(500).nullable().optional(),
-  project_name: z.string().max(500).nullable().optional(),
+  workspace_name: z.string().max(500).nullable().optional(),
   task_id: z.string().uuid().nullable().optional(),
   work_item_id: z.string().uuid().nullable().optional(),
   stage_name: z.string().max(200).nullable().optional(),
@@ -127,10 +127,10 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
           durationMs: entry.duration_ms ?? null,
           payload: entry.payload,
           error: entry.error ?? null,
-          projectId: entry.project_id ?? null,
+          workspaceId: entry.workspace_id ?? null,
           workflowId: entry.workflow_id ?? null,
           workflowName: entry.workflow_name ?? null,
-          projectName: entry.project_name ?? null,
+          workspaceName: entry.workspace_name ?? null,
           taskId: entry.task_id ?? null,
           workItemId: entry.work_item_id ?? null,
           stageName: entry.stage_name ?? null,
@@ -160,7 +160,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const query = request.query as Record<string, string | undefined>;
       const filters: LogFilters = {
-        projectId: query.project_id,
+        workspaceId: query.workspace_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
         workItemId: query.work_item_id,
@@ -218,7 +218,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         source: parseCsv(query.source),
         category: parseCsv(query.category),
         level: query.level,
-        projectId: query.project_id,
+        workspaceId: query.workspace_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
         workItemId: query.work_item_id,
@@ -267,7 +267,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
       const query = request.query as Record<string, string | undefined>;
       const format = query.format === 'csv' ? 'csv' : 'json';
       const filters: LogFilters = {
-        projectId: query.project_id,
+        workspaceId: query.workspace_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,
         workItemId: query.work_item_id,
@@ -332,7 +332,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const filters: LogStatsFilters = {
-        projectId: query.project_id,
+        workspaceId: query.workspace_id,
         traceId: query.trace_id,
         workflowId: query.workflow_id,
         taskId: query.task_id,

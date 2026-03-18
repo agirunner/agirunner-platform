@@ -46,7 +46,7 @@ describe('task platform handoff routes', () => {
             rows: [{
               id: 'task-1',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
               activation_id: null,
@@ -139,7 +139,7 @@ describe('task platform handoff routes', () => {
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
     } as never);
-    app.decorate('projectService', {} as never);
+    app.decorate('workspaceService', {} as never);
     app.decorate('eventService', eventService as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
@@ -196,7 +196,7 @@ describe('task platform handoff routes', () => {
             rows: [{
               id: 'task-1',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
               activation_id: null,
@@ -209,7 +209,7 @@ describe('task platform handoff routes', () => {
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
     } as never);
-    app.decorate('projectService', {} as never);
+    app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
       ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
@@ -243,7 +243,7 @@ describe('task platform handoff routes', () => {
             rows: [{
               id: 'task-1',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
               activation_id: null,
@@ -256,7 +256,7 @@ describe('task platform handoff routes', () => {
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
     } as never);
-    app.decorate('projectService', {} as never);
+    app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
       ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
@@ -290,7 +290,7 @@ describe('task platform handoff routes', () => {
             rows: [{
               id: 'task-2',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-1',
               stage_name: 'review',
               activation_id: null,
@@ -348,7 +348,7 @@ describe('task platform handoff routes', () => {
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
     } as never);
-    app.decorate('projectService', {} as never);
+    app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
       ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
@@ -384,7 +384,7 @@ describe('task platform handoff routes', () => {
             rows: [{
               id: 'task-release-1',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-release',
               stage_name: 'release',
               activation_id: null,
@@ -470,7 +470,7 @@ describe('task platform handoff routes', () => {
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
     } as never);
-    app.decorate('projectService', {} as never);
+    app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
       ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
@@ -507,7 +507,7 @@ describe('task platform handoff routes', () => {
             rows: [{
               id: 'task-release-2',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: 'work-item-release',
               stage_name: 'release',
               activation_id: null,
@@ -551,7 +551,7 @@ describe('task platform handoff routes', () => {
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
     } as never);
-    app.decorate('projectService', {} as never);
+    app.decorate('workspaceService', {} as never);
     app.decorate('config', {
       ARTIFACT_STORAGE_BACKEND: 'local',
       ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',

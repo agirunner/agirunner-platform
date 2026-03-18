@@ -45,7 +45,7 @@ const workflowBudgetSchema = z.object({
 
 const workflowCreateSchema = z.object({
   playbook_id: z.string().uuid(),
-  project_id: z.string().uuid().optional(),
+  workspace_id: z.string().uuid().optional(),
   name: z.string().min(1).max(255),
   parameters: z.record(z.unknown()).optional(),
   metadata: z.record(z.unknown()).optional(),
@@ -270,7 +270,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       }
 
       return workflowService.listWorkflows(request.auth!.tenantId, {
-        project_id: query.project_id,
+        workspace_id: query.workspace_id,
         state: query.state,
         playbook_id: query.playbook_id,
         page,
@@ -1088,20 +1088,20 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       const query = request.query as { roles?: string };
       const workflow = await workflowService.getWorkflow(request.auth!.tenantId, params.id);
       const workflowOverrides = readModelOverrides(asRecord(workflow.metadata).model_overrides);
-      const projectId = typeof workflow.project_id === 'string' ? workflow.project_id : null;
-      const projectOverrides = {};
+      const workspaceId = typeof workflow.workspace_id === 'string' ? workflow.workspace_id : null;
+      const workspaceOverrides = {};
       const roles = parseRoleQuery(query.roles, workflowOverrides);
       return {
         data: {
           workflow_id: params.id,
-          project_id: projectId,
-          project_model_overrides: projectOverrides,
+          workspace_id: workspaceId,
+          workspace_model_overrides: workspaceOverrides,
           workflow_model_overrides: workflowOverrides,
           effective_models: await resolveEffectiveModels(
             app.modelCatalogService,
             request.auth!.tenantId,
             roles,
-            projectOverrides,
+            workspaceOverrides,
             workflowOverrides,
           ),
         },
@@ -1372,7 +1372,7 @@ async function resolveEffectiveModels(
   },
   tenantId: string,
   roles: string[],
-  projectOverrides: Record<string, unknown>,
+  workspaceOverrides: Record<string, unknown>,
   workflowOverrides: Record<string, unknown>,
 ) {
   const providers = (await modelCatalogService.listProviders(tenantId)) as Array<
@@ -1397,14 +1397,14 @@ async function resolveEffectiveModels(
     > | null;
     const sanitizedBaseResolved = sanitizeResolvedRoleConfig(baseResolved);
     const workflowOverride = asRecord(workflowOverrides[role]);
-    const projectOverride = asRecord(projectOverrides[role]);
+    const workspaceOverride = asRecord(workspaceOverrides[role]);
     const activeOverride =
-      Object.keys(workflowOverride).length > 0 ? workflowOverride : projectOverride;
+      Object.keys(workflowOverride).length > 0 ? workflowOverride : workspaceOverride;
     const source =
       Object.keys(workflowOverride).length > 0
         ? 'workflow'
-        : Object.keys(projectOverride).length > 0
-          ? 'project'
+        : Object.keys(workspaceOverride).length > 0
+          ? 'workspace'
           : 'base';
 
     if (Object.keys(activeOverride).length === 0) {

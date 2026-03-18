@@ -8,7 +8,7 @@ type EventEntityType =
   | 'workflow'
   | 'agent'
   | 'worker'
-  | 'project'
+  | 'workspace'
   | 'system';
 
 interface EventInput {
@@ -115,8 +115,8 @@ function buildEntityIdFallbacks(
   if (entityType === 'gate' && readString(data, 'gate_id') === undefined) {
     fallback.gate_id = entityId;
   }
-  if (entityType === 'project' && readString(data, 'project_id') === undefined) {
-    fallback.project_id = entityId;
+  if (entityType === 'workspace' && readString(data, 'workspace_id') === undefined) {
+    fallback.workspace_id = entityId;
   }
   return fallback;
 }

@@ -238,7 +238,7 @@ async function buildApp(overrides?: { workflowService?: Record<string, unknown> 
   } as never);
   app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
   app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
-  app.decorate('projectService', { getProject: vi.fn(async () => ({ settings: {} })) } as never);
+  app.decorate('workspaceService', { getWorkspace: vi.fn(async () => ({ settings: {} })) } as never);
   app.decorate('modelCatalogService', {
     resolveRoleConfig: vi.fn(),
     listProviders: vi.fn(),

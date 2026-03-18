@@ -10,7 +10,7 @@ describe('WorkflowChainingService', () => {
           rowCount: 1,
           rows: [{
             id: 'workflow-1',
-            project_id: 'project-1',
+            workspace_id: 'workspace-1',
             name: 'Source workflow',
             state: 'active',
             metadata: {},
@@ -45,14 +45,14 @@ describe('WorkflowChainingService', () => {
 
     expect(result).toEqual({ id: 'workflow-child-1' });
     expect(String(query.mock.calls[0]?.[0] ?? '')).toBe(
-      'SELECT id, project_id, name, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
+      'SELECT id, workspace_id, name, state, metadata FROM workflows WHERE tenant_id = $1 AND id = $2',
     );
     expect(String(query.mock.calls[0]?.[0] ?? '')).not.toContain('*');
     expect(workflowService.createWorkflow).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.objectContaining({
         playbook_id: 'playbook-2',
-        project_id: 'project-1',
+        workspace_id: 'workspace-1',
         metadata: expect.objectContaining({
           parent_workflow_id: 'workflow-1',
           chain_origin: 'explicit',

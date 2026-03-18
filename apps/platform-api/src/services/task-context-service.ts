@@ -5,7 +5,7 @@ import { listTaskDocuments } from './document-reference-service.js';
 import { normalizeInstructionDocument } from './instruction-policy.js';
 import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
-import { ProjectMemoryScopeService } from './project-memory-scope-service.js';
+import { WorkspaceMemoryScopeService } from './workspace-memory-scope-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
@@ -37,8 +37,8 @@ export async function buildTaskContext(
     agent = assignedAgentRes.rows[0] ?? null;
   }
 
-  const [projectRes, workflowRes, depsRes, documents, handoffResolution] = await Promise.all([
-    task.project_id
+  const [workspaceRes, workflowRes, depsRes, documents, handoffResolution] = await Promise.all([
+    task.workspace_id
       ? db.query(
           `SELECT id,
                   name,
@@ -46,10 +46,10 @@ export async function buildTaskContext(
                   repository_url,
                   settings,
                   memory
-             FROM projects
+             FROM workspaces
             WHERE tenant_id = $1
               AND id = $2`,
-          [tenantId, task.project_id],
+          [tenantId, task.workspace_id],
         )
       : Promise.resolve({ rows: [] }),
     task.workflow_id
@@ -57,7 +57,7 @@ export async function buildTaskContext(
           `SELECT p.id, p.name, p.context, p.git_branch, p.parameters, p.resolved_config, p.instruction_config,
                   p.metadata,
                   p.playbook_id, p.lifecycle,
-                  p.project_spec_version,
+                  p.workspace_spec_version,
                   pb.name AS playbook_name, pb.outcome AS playbook_outcome, pb.definition AS playbook_definition
            FROM workflows p
            LEFT JOIN playbooks pb ON pb.tenant_id = p.tenant_id AND pb.id = p.playbook_id
@@ -88,10 +88,10 @@ export async function buildTaskContext(
   const continuousWorkflowRow =
     workflowRow && isContinuousWorkflowRow(workflowRow) ? workflowRow : null;
   const workItem = await loadWorkItemContext(db, tenantId, task);
-  const projectContext = await loadProjectContext(
+  const workspaceContext = await loadProjectContext(
     db,
     tenantId,
-    projectRes.rows[0] as Record<string, unknown> | undefined,
+    workspaceRes.rows[0] as Record<string, unknown> | undefined,
     task,
   );
   const stageProjection = workflowRow
@@ -107,7 +107,7 @@ export async function buildTaskContext(
   const parentWorkflowContext = workflowRelations?.parent?.workflow_id
     ? await loadParentWorkflowContext(db, tenantId, workflowRelations.parent.workflow_id)
     : null;
-  const projectInstructions = await loadProjectInstructions(db, tenantId, task, workflowRow);
+  const workspaceInstructions = await loadProjectInstructions(db, tenantId, task, workflowRow);
   const platformInstructions = await loadPlatformInstructions(db, tenantId);
   const orchestratorPrompt = task.is_orchestrator_task
     ? await loadOrchestratorPrompt(db, tenantId)
@@ -134,16 +134,16 @@ export async function buildTaskContext(
     platformInstructions,
     orchestratorPrompt,
     isOrchestratorTask: Boolean(task.is_orchestrator_task),
-    projectInstructions,
+    workspaceInstructions,
     roleConfig: asRecord(task.role_config),
     taskInput: asRecord(task.input),
     taskId: String(task.id ?? ''),
-    projectId: asOptionalString(task.project_id),
-    projectSpecVersion: asOptionalNumber(workflowRow?.project_spec_version),
+    workspaceId: asOptionalString(task.workspace_id),
+    workspaceSpecVersion: asOptionalNumber(workflowRow?.workspace_spec_version),
     role: asOptionalString(task.role),
     suppressLayers: readSuppressedLayers(workflowRow?.instruction_config),
     workflowContext,
-    project: projectContext ?? undefined,
+    workspace: workspaceContext ?? undefined,
     workItem,
     predecessorHandoff,
     orchestratorContext: orchestratorContext as Record<string, unknown> | undefined,
@@ -151,7 +151,7 @@ export async function buildTaskContext(
 
   return {
     agent: sanitizeTaskContextValue(agent),
-    project: sanitizeTaskContextValue(projectContext),
+    workspace: sanitizeTaskContextValue(workspaceContext),
     workflow: sanitizeTaskContextValue(workflowContext),
     orchestrator: sanitizeTaskContextValue(orchestratorContext),
     documents: sanitizeTaskContextValue(documents),
@@ -307,53 +307,53 @@ async function loadWorkItemContext(
 async function loadProjectContext(
   db: DatabaseQueryable,
   tenantId: string,
-  projectRow: Record<string, unknown> | undefined,
+  workspaceRow: Record<string, unknown> | undefined,
   task: Record<string, unknown>,
 ) {
-  if (!projectRow) {
+  if (!workspaceRow) {
     return null;
   }
 
-  const project = { ...projectRow };
-  const projectId = asOptionalString(project.id);
+  const workspace = { ...workspaceRow };
+  const workspaceId = asOptionalString(workspace.id);
   const workflowId = asOptionalString(task.workflow_id);
   const workItemId = asOptionalString(task.work_item_id) ?? null;
-  const currentMemory = asRecord(project.memory);
-  if (!projectId || !workflowId) {
-    project.memory = currentMemory;
-    return project;
+  const currentMemory = asRecord(workspace.memory);
+  if (!workspaceId || !workflowId) {
+    workspace.memory = currentMemory;
+    return workspace;
   }
 
-  const memoryScope = new ProjectMemoryScopeService(db as DatabaseQueryable & { query: DatabaseQueryable['query'] });
+  const memoryScope = new WorkspaceMemoryScopeService(db as DatabaseQueryable & { query: DatabaseQueryable['query'] });
   const [visibleMemory, memoryIndex, artifactIndex] = await Promise.all([
     memoryScope.filterVisibleTaskMemory({
       tenantId,
-      projectId,
+      workspaceId,
       workflowId,
       workItemId,
       currentMemory,
     }),
     memoryScope.listVisibleTaskMemoryKeys({
       tenantId,
-      projectId,
+      workspaceId,
       workflowId,
       workItemId,
       currentMemory,
       limit: TASK_CONTEXT_MEMORY_INDEX_LIMIT,
     }),
-    loadProjectArtifactIndex(db, tenantId, projectId),
+    loadProjectArtifactIndex(db, tenantId, workspaceId),
   ]);
 
-  project.memory = visibleMemory;
-  project.memory_index = memoryIndex;
-  project.artifact_index = artifactIndex;
-  return project;
+  workspace.memory = visibleMemory;
+  workspace.memory_index = memoryIndex;
+  workspace.artifact_index = artifactIndex;
+  return workspace;
 }
 
 async function loadProjectArtifactIndex(
   db: DatabaseQueryable,
   tenantId: string,
-  projectId: string,
+  workspaceId: string,
 ) {
   const result = await db.query<{
     logical_path: string;
@@ -367,10 +367,10 @@ async function loadProjectArtifactIndex(
             COUNT(*) OVER()::int AS total_count
        FROM workflow_artifacts
       WHERE tenant_id = $1
-        AND project_id = $2
+        AND workspace_id = $2
       ORDER BY created_at DESC, id DESC
       LIMIT $3`,
-    [tenantId, projectId, TASK_CONTEXT_ARTIFACT_INDEX_LIMIT + 1],
+    [tenantId, workspaceId, TASK_CONTEXT_ARTIFACT_INDEX_LIMIT + 1],
   );
   const rows = result.rows.slice(0, TASK_CONTEXT_ARTIFACT_INDEX_LIMIT);
   const total = result.rows[0]?.total_count ?? 0;
@@ -488,17 +488,17 @@ async function loadProjectInstructions(
   task: Record<string, unknown>,
   workflowRow?: Record<string, unknown>,
 ) {
-  const projectId = asOptionalString(task.project_id);
-  const projectSpecVersion = asOptionalNumber(workflowRow?.project_spec_version);
-  if (!projectId || !projectSpecVersion || projectSpecVersion <= 0) {
+  const workspaceId = asOptionalString(task.workspace_id);
+  const workspaceSpecVersion = asOptionalNumber(workflowRow?.workspace_spec_version);
+  if (!workspaceId || !workspaceSpecVersion || workspaceSpecVersion <= 0) {
     return undefined;
   }
 
   const result = await db.query<{ spec: Record<string, unknown> }>(
     `SELECT spec
-       FROM project_spec_versions
-      WHERE tenant_id = $1 AND project_id = $2 AND version = $3`,
-    [tenantId, projectId, projectSpecVersion],
+       FROM workspace_spec_versions
+      WHERE tenant_id = $1 AND workspace_id = $2 AND version = $3`,
+    [tenantId, workspaceId, workspaceSpecVersion],
   );
   return result.rows[0]?.spec as Record<string, unknown> | undefined;
 }
@@ -507,16 +507,16 @@ function buildInstructionLayers(params: {
   platformInstructions?: Record<string, unknown>;
   orchestratorPrompt?: string;
   isOrchestratorTask: boolean;
-  projectInstructions?: Record<string, unknown>;
+  workspaceInstructions?: Record<string, unknown>;
   roleConfig: Record<string, unknown>;
   taskInput: Record<string, unknown>;
   taskId: string;
-  projectId?: string;
-  projectSpecVersion?: number;
+  workspaceId?: string;
+  workspaceSpecVersion?: number;
   role?: string;
   suppressLayers: string[];
   workflowContext?: Record<string, unknown> | null;
-  project?: Record<string, unknown>;
+  workspace?: Record<string, unknown>;
   workItem?: Record<string, unknown> | null;
   predecessorHandoff?: Record<string, unknown> | null;
   orchestratorContext?: Record<string, unknown>;
@@ -558,17 +558,17 @@ function buildInstructionLayers(params: {
     }
   }
 
-  const projectDocument = normalizeInstructionDocument(
-    params.projectInstructions?.instructions,
-    'project instructions',
+  const workspaceDocument = normalizeInstructionDocument(
+    params.workspaceInstructions?.instructions,
+    'workspace instructions',
     20_000,
   );
-  if (projectDocument && !suppressed.has('project')) {
-    layers.project = {
-      ...projectDocument,
+  if (workspaceDocument && !suppressed.has('workspace')) {
+    layers.workspace = {
+      ...workspaceDocument,
       source: {
-        project_id: params.projectId ?? null,
-        version: params.projectSpecVersion ?? 0,
+        workspace_id: params.workspaceId ?? null,
+        version: params.workspaceSpecVersion ?? 0,
       },
     };
   }
@@ -594,7 +594,7 @@ function buildInstructionLayers(params: {
     isOrchestratorTask: params.isOrchestratorTask,
     role: params.role,
     workflow: params.workflowContext ?? null,
-    project: params.project ?? null,
+    workspace: params.workspace ?? null,
     taskInput: params.taskInput,
     workItem: params.workItem ?? null,
     predecessorHandoff: params.predecessorHandoff ?? null,
@@ -630,7 +630,7 @@ const LAYER_HEADERS: Record<string, string> = {
   platform: '=== Platform Instructions ===',
   orchestrator: '=== Orchestrator Prompt ===',
   workflow: '=== Workflow Context ===',
-  project: '=== Project Instructions ===',
+  workspace: '=== Workspace Instructions ===',
   role: '=== Role Instructions ===',
 };
 
@@ -642,8 +642,8 @@ export function flattenInstructionLayers(
   layers: Record<string, unknown>,
 ): string {
   const layerOrder = 'orchestrator' in layers
-    ? ['platform', 'orchestrator', 'workflow', 'project']
-    : ['platform', 'role', 'workflow', 'project'];
+    ? ['platform', 'orchestrator', 'workflow', 'workspace']
+    : ['platform', 'role', 'workflow', 'workspace'];
   const sections: string[] = [];
   for (const name of layerOrder) {
     const layer = layers[name] as
@@ -660,7 +660,7 @@ export function summarizeTaskContextAttachments(
 ): Record<string, unknown> {
   const agent = asRecord(context.agent);
   const task = asRecord(context.task);
-  const project = asRecord(context.project);
+  const workspace = asRecord(context.workspace);
   const instructionLayers = asRecord(context.instruction_layers);
   const agentProfile = asRecord(asRecord(agent.metadata).profile);
   const predecessorHandoff = asRecord(task.predecessor_handoff);
@@ -669,8 +669,8 @@ export function summarizeTaskContextAttachments(
     ? task.recent_handoffs as unknown[]
     : [];
   const workItem = asRecord(task.work_item);
-  const memoryIndex = asRecord(project.memory_index);
-  const artifactIndex = asRecord(project.artifact_index);
+  const memoryIndex = asRecord(workspace.memory_index);
+  const artifactIndex = asRecord(workspace.artifact_index);
   const memoryKeys = Array.isArray(memoryIndex.keys)
     ? memoryIndex.keys as unknown[]
     : [];
@@ -694,12 +694,12 @@ export function summarizeTaskContextAttachments(
     predecessor_handoff_source: asOptionalString(predecessorResolution.source) ?? null,
     recent_handoff_count: recentHandoffs.length,
     work_item_continuity_present: Object.keys(workItem).length > 0,
-    project_memory_index_present: Object.keys(memoryIndex).length > 0,
-    project_memory_index_count: memoryKeys.length,
-    project_memory_more_available: memoryIndex.more_available === true,
-    project_artifact_index_present: Object.keys(artifactIndex).length > 0,
-    project_artifact_index_count: artifactItems.length,
-    project_artifact_more_available: artifactIndex.more_available === true,
+    workspace_memory_index_present: Object.keys(memoryIndex).length > 0,
+    workspace_memory_index_count: memoryKeys.length,
+    workspace_memory_more_available: memoryIndex.more_available === true,
+    workspace_artifact_index_present: Object.keys(artifactIndex).length > 0,
+    workspace_artifact_index_count: artifactItems.length,
+    workspace_artifact_more_available: artifactIndex.more_available === true,
     document_count: documents.length,
     instruction_context_version: TASK_CONTEXT_LOG_VERSION,
     instruction_layers_hash: hashCanonicalJson(instructionLayers),
@@ -785,7 +785,7 @@ function asOptionalNumber(value: unknown): number | undefined {
 
 function buildInstructionLayerHashes(layers: Record<string, unknown>): Record<string, string> {
   const hashes: Record<string, string> = {};
-  for (const name of ['platform', 'orchestrator', 'workflow', 'project', 'role', 'task']) {
+  for (const name of ['platform', 'orchestrator', 'workflow', 'workspace', 'role', 'task']) {
     const layer = asRecord(layers[name]);
     if (Object.keys(layer).length === 0) {
       continue;
@@ -797,7 +797,7 @@ function buildInstructionLayerHashes(layers: Record<string, unknown>): Record<st
 
 function buildInstructionLayerVersions(layers: Record<string, unknown>): Record<string, unknown> {
   const versions: Record<string, unknown> = {};
-  for (const name of ['platform', 'orchestrator', 'workflow', 'project', 'role', 'task']) {
+  for (const name of ['platform', 'orchestrator', 'workflow', 'workspace', 'role', 'task']) {
     const layer = asRecord(layers[name]);
     if (Object.keys(layer).length === 0) {
       continue;
@@ -809,7 +809,7 @@ function buildInstructionLayerVersions(layers: Record<string, unknown>): Record<
 }
 
 function readLayerVersion(layerName: string, source: Record<string, unknown>): unknown {
-  if (layerName === 'platform' || layerName === 'project') {
+  if (layerName === 'platform' || layerName === 'workspace') {
     return asOptionalNumber(source.version) ?? null;
   }
   if (layerName === 'orchestrator') {

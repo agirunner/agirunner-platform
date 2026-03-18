@@ -1,31 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectService } from '../../src/services/project-service.js';
+import { WorkspaceService } from '../../src/services/workspace-service.js';
 
-describe('ProjectService memory scope events', () => {
+describe('WorkspaceService memory scope events', () => {
   it('applies batched memory updates atomically and emits one scoped event per entry', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('FROM projects') && sql.includes('FOR UPDATE')) {
-          expect(params).toEqual(['tenant-1', 'project-1']);
+        if (sql.includes('FROM workspaces') && sql.includes('FOR UPDATE')) {
+          expect(params).toEqual(['tenant-1', 'workspace-1']);
           return {
             rows: [{
-              id: 'project-1',
+              id: 'workspace-1',
               memory: {},
               memory_max_bytes: 1_048_576,
             }],
             rowCount: 1,
           };
         }
-        if (sql.startsWith('UPDATE projects')) {
+        if (sql.startsWith('UPDATE workspaces')) {
           const nextMemory = params?.[2] as Record<string, unknown>;
           if (!('decision' in nextMemory)) {
             return {
               rows: [{
-                id: 'project-1',
+                id: 'workspace-1',
                 memory: { summary: 'First scoped note' },
                 memory_max_bytes: 1_048_576,
               }],
@@ -34,7 +34,7 @@ describe('ProjectService memory scope events', () => {
           }
           return {
             rows: [{
-              id: 'project-1',
+              id: 'workspace-1',
               memory: {
                 summary: 'First scoped note',
                 decision: { outcome: 'ship', secret_ref: 'secret:DECISION_TOKEN' },
@@ -50,9 +50,9 @@ describe('ProjectService memory scope events', () => {
     };
     const pool = { connect: vi.fn().mockResolvedValue(client) };
     const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
-    const service = new ProjectService(pool as never, eventService as never);
+    const service = new WorkspaceService(pool as never, eventService as never);
 
-    const result = await service.patchProjectMemoryEntries(
+    const result = await service.patchWorkspaceMemoryEntries(
       {
         tenantId: 'tenant-1',
         scope: 'agent',
@@ -61,7 +61,7 @@ describe('ProjectService memory scope events', () => {
         keyPrefix: 'agent:key',
         id: 'key-1',
       },
-      'project-1',
+      'workspace-1',
       [
         {
           key: 'summary',
@@ -90,13 +90,13 @@ describe('ProjectService memory scope events', () => {
       summary: 'First scoped note',
       decision: {
         outcome: 'ship',
-        secret_ref: 'redacted://project-memory-secret',
+        secret_ref: 'redacted://workspace-memory-secret',
       },
     });
     expect(eventService.emit).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        type: 'project.memory_updated',
+        type: 'workspace.memory_updated',
         data: expect.objectContaining({
           key: 'summary',
           value: 'First scoped note',
@@ -108,12 +108,12 @@ describe('ProjectService memory scope events', () => {
     expect(eventService.emit).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        type: 'project.memory_updated',
+        type: 'workspace.memory_updated',
         data: expect.objectContaining({
           key: 'decision',
           value: {
             outcome: 'ship',
-            secret_ref: 'redacted://project-memory-secret',
+            secret_ref: 'redacted://workspace-memory-secret',
           },
           work_item_id: 'wi-1',
         }),
@@ -128,14 +128,14 @@ describe('ProjectService memory scope events', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('FROM projects') && sql.includes('FOR UPDATE')) {
+        if (sql.includes('FROM workspaces') && sql.includes('FOR UPDATE')) {
           return {
-            rows: [{ id: 'project-1', memory: {}, memory_max_bytes: 1_048_576 }],
+            rows: [{ id: 'workspace-1', memory: {}, memory_max_bytes: 1_048_576 }],
             rowCount: 1,
           };
         }
         return {
-          rows: [{ id: 'project-1', memory: { summary: 'Scoped note' }, memory_max_bytes: 1_048_576 }],
+          rows: [{ id: 'workspace-1', memory: { summary: 'Scoped note' }, memory_max_bytes: 1_048_576 }],
           rowCount: 1,
         };
       }),
@@ -145,9 +145,9 @@ describe('ProjectService memory scope events', () => {
       connect: vi.fn().mockResolvedValue(client),
     };
     const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
-    const service = new ProjectService(pool as never, eventService as never);
+    const service = new WorkspaceService(pool as never, eventService as never);
 
-    await service.patchProjectMemory(
+    await service.patchWorkspaceMemory(
       {
         tenantId: 'tenant-1',
         scope: 'agent',
@@ -156,7 +156,7 @@ describe('ProjectService memory scope events', () => {
         keyPrefix: 'agent:key',
         id: 'key-1',
       },
-      'project-1',
+      'workspace-1',
       {
         key: 'summary',
         value: 'Scoped note',
@@ -171,11 +171,11 @@ describe('ProjectService memory scope events', () => {
 
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'project.memory_updated',
+        type: 'workspace.memory_updated',
         data: expect.objectContaining({
           key: 'summary',
           value: 'Scoped note',
-          project_id: 'project-1',
+          workspace_id: 'workspace-1',
           workflow_id: 'wf-1',
           work_item_id: 'wi-1',
           task_id: 'task-1',
@@ -192,14 +192,14 @@ describe('ProjectService memory scope events', () => {
         if (sql === 'BEGIN' || sql === 'COMMIT') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('FROM projects') && sql.includes('FOR UPDATE')) {
+        if (sql.includes('FROM workspaces') && sql.includes('FOR UPDATE')) {
           return {
-            rows: [{ id: 'project-1', memory: {}, memory_max_bytes: 1_048_576 }],
+            rows: [{ id: 'workspace-1', memory: {}, memory_max_bytes: 1_048_576 }],
             rowCount: 1,
           };
         }
         return {
-          rows: [{ id: 'project-1', memory: { api_token: 'top-secret' }, memory_max_bytes: 1_048_576 }],
+          rows: [{ id: 'workspace-1', memory: { api_token: 'top-secret' }, memory_max_bytes: 1_048_576 }],
           rowCount: 1,
         };
       }),
@@ -209,9 +209,9 @@ describe('ProjectService memory scope events', () => {
       connect: vi.fn().mockResolvedValue(client),
     };
     const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
-    const service = new ProjectService(pool as never, eventService as never);
+    const service = new WorkspaceService(pool as never, eventService as never);
 
-    await service.patchProjectMemory(
+    await service.patchWorkspaceMemory(
       {
         tenantId: 'tenant-1',
         scope: 'agent',
@@ -220,7 +220,7 @@ describe('ProjectService memory scope events', () => {
         keyPrefix: 'agent:key',
         id: 'key-1',
       },
-      'project-1',
+      'workspace-1',
       {
         key: 'api_token',
         value: {
@@ -233,15 +233,15 @@ describe('ProjectService memory scope events', () => {
 
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'project.memory_updated',
+        type: 'workspace.memory_updated',
         data: expect.objectContaining({
           key: 'api_token',
           value: {
-            token: 'redacted://project-memory-secret',
-            secret_ref: 'redacted://project-memory-secret',
+            token: 'redacted://workspace-memory-secret',
+            secret_ref: 'redacted://workspace-memory-secret',
             nested: {
-              authorization: 'redacted://project-memory-secret',
-              note: 'redacted://project-memory-secret',
+              authorization: 'redacted://workspace-memory-secret',
+              note: 'redacted://workspace-memory-secret',
             },
           },
         }),
@@ -253,14 +253,14 @@ describe('ProjectService memory scope events', () => {
   it('redacts secret-bearing deleted values before emitting delete events', async () => {
     const pool = {
       query: vi.fn().mockResolvedValue({
-        rows: [{ id: 'project-1', memory: {}, memory_max_bytes: 1_048_576 }],
+        rows: [{ id: 'workspace-1', memory: {}, memory_max_bytes: 1_048_576 }],
         rowCount: 1,
       }),
     };
     const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
-    const service = new ProjectService(pool as never, eventService as never);
-    vi.spyOn(service, 'getProject').mockResolvedValue({
-      id: 'project-1',
+    const service = new WorkspaceService(pool as never, eventService as never);
+    vi.spyOn(service, 'getWorkspace').mockResolvedValue({
+      id: 'workspace-1',
       memory: {
         credentials: {
           password: 'super-secret',
@@ -270,7 +270,7 @@ describe('ProjectService memory scope events', () => {
       memory_max_bytes: 1_048_576,
     } as never);
 
-    await service.removeProjectMemory(
+    await service.removeWorkspaceMemory(
       {
         tenantId: 'tenant-1',
         scope: 'agent',
@@ -279,18 +279,18 @@ describe('ProjectService memory scope events', () => {
         keyPrefix: 'agent:key',
         id: 'key-1',
       },
-      'project-1',
+      'workspace-1',
       'credentials',
     );
 
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'project.memory_deleted',
+        type: 'workspace.memory_deleted',
         data: expect.objectContaining({
           key: 'credentials',
           deleted_value: {
-            password: 'redacted://project-memory-secret',
-            secret_ref: 'redacted://project-memory-secret',
+            password: 'redacted://workspace-memory-secret',
+            secret_ref: 'redacted://workspace-memory-secret',
           },
         }),
       }),

@@ -8,7 +8,7 @@ describe('flattenInstructionLayers', () => {
     const layers = {
       platform: { content: 'Be helpful', format: 'text' },
       workflow: { content: 'Workflow context', format: 'text' },
-      project: { content: 'Project rules', format: 'text' },
+      workspace: { content: 'Project rules', format: 'text' },
       role: { content: 'Role rules', format: 'text' },
       task: { content: 'Task instructions', format: 'text' },
     };
@@ -17,7 +17,7 @@ describe('flattenInstructionLayers', () => {
 
     expect(result).toContain('=== Platform Instructions ===\nBe helpful');
     expect(result).toContain('=== Workflow Context ===\nWorkflow context');
-    expect(result).toContain('=== Project Instructions ===\nProject rules');
+    expect(result).toContain('=== Workspace Instructions ===\nProject rules');
     expect(result).toContain('=== Role Instructions ===\nRole rules');
     expect(result).not.toContain('Task instructions');
   });
@@ -42,7 +42,7 @@ describe('flattenInstructionLayers', () => {
   it('skips layers with empty content', () => {
     const layers = {
       platform: { content: 'Platform only', format: 'text' },
-      project: { content: '', format: 'text' },
+      workspace: { content: '', format: 'text' },
     };
     const result = flattenInstructionLayers(layers);
     expect(result).not.toContain('Project');
@@ -57,16 +57,16 @@ describe('flattenInstructionLayers', () => {
       role: { content: 'R', format: 'text' },
       platform: { content: 'P', format: 'text' },
       workflow: { content: 'W', format: 'text' },
-      project: { content: 'J', format: 'text' },
+      workspace: { content: 'J', format: 'text' },
     };
     const result = flattenInstructionLayers(layers);
     const platformIdx = result.indexOf('Platform');
     const roleIdx = result.indexOf('Role');
     const workflowIdx = result.indexOf('Workflow');
-    const projectIdx = result.indexOf('Project');
+    const workspaceIdx = result.indexOf('Workspace');
     expect(platformIdx).toBeLessThan(roleIdx);
     expect(roleIdx).toBeLessThan(workflowIdx);
-    expect(workflowIdx).toBeLessThan(projectIdx);
+    expect(workflowIdx).toBeLessThan(workspaceIdx);
   });
 });
 
@@ -100,7 +100,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       tenant_id: 'tenant-1',
       state: 'ready',
       workflow_id: null,
-      project_id: null,
+      workspace_id: null,
       capabilities_required: [],
       depends_on: [],
       metadata: {},
@@ -156,7 +156,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
         return { rowCount: 1, rows: [] };
       }
       if (sql.includes('SELECT') && sql.includes('workflow_name')) {
-        return { rowCount: 1, rows: [{ workflow_name: null, project_name: null }] };
+        return { rowCount: 1, rows: [{ workflow_name: null, workspace_name: null }] };
       }
       if (sql.includes('SELECT escalation_target, allowed_tools')) {
         return { rowCount: 0, rows: [] };
@@ -201,7 +201,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const deps = buildMockDeps({
       instructionLayers: {
         platform: { content: 'Be safe', format: 'text' },
-        project: { content: 'Use TypeScript', format: 'text' },
+        workspace: { content: 'Use TypeScript', format: 'text' },
         role: { content: 'You are a coder', format: 'text' },
       },
     });
@@ -216,7 +216,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const roleConfig = (result as Record<string, unknown>).role_config as Record<string, unknown>;
     expect(roleConfig.system_prompt).toContain('=== Platform Instructions ===');
     expect(roleConfig.system_prompt).toContain('Be safe');
-    expect(roleConfig.system_prompt).toContain('=== Project Instructions ===');
+    expect(roleConfig.system_prompt).toContain('=== Workspace Instructions ===');
     expect(roleConfig.system_prompt).toContain('Use TypeScript');
     expect(roleConfig.system_prompt).toContain('=== Role Instructions ===');
     expect(roleConfig.system_prompt).toContain('You are a coder');

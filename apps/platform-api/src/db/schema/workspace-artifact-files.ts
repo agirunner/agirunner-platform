@@ -1,18 +1,18 @@
 import { bigint, index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
-import { projects } from './projects.js';
+import { workspaces } from './workspaces.js';
 import { tenants } from './tenants.js';
 
-export const projectArtifactFiles = pgTable(
-  'project_artifact_files',
+export const workspaceArtifactFiles = pgTable(
+  'workspace_artifact_files',
   {
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id),
-    projectId: uuid('project_id')
+    workspaceId: uuid('workspace_id')
       .notNull()
-      .references(() => projects.id, { onDelete: 'cascade' }),
+      .references(() => workspaces.id, { onDelete: 'cascade' }),
     key: text('key').notNull(),
     description: text('description'),
     fileName: text('file_name').notNull(),
@@ -24,7 +24,7 @@ export const projectArtifactFiles = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index('idx_project_artifact_files_tenant_project').on(table.tenantId, table.projectId),
-    index('idx_project_artifact_files_tenant_project_key').on(table.tenantId, table.projectId, table.key),
+    index('idx_workspace_artifact_files_tenant_workspace').on(table.tenantId, table.workspaceId),
+    index('idx_workspace_artifact_files_tenant_workspace_key').on(table.tenantId, table.workspaceId, table.key),
   ],
 );

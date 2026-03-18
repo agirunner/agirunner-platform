@@ -46,7 +46,7 @@ describe('orchestrator control handoff routes', () => {
             rows: [{
               id: 'task-orch-1',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -82,9 +82,9 @@ describe('orchestrator control handoff routes', () => {
       }),
     } as never);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -127,7 +127,7 @@ describe('orchestrator control handoff routes', () => {
             rows: [{
               id: 'task-orch-1',
               workflow_id: 'workflow-1',
-              project_id: 'project-1',
+              workspace_id: 'workspace-1',
               work_item_id: null,
               stage_name: 'implementation',
               activation_id: 'activation-1',
@@ -230,9 +230,9 @@ describe('orchestrator control handoff routes', () => {
       getWorkflowWorkItem: vi.fn().mockResolvedValue({ id: scopedWorkItemId }),
     } as never);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -278,9 +278,9 @@ describe('orchestrator control handoff routes', () => {
       getWorkflowWorkItem,
     } as never);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);
@@ -318,9 +318,9 @@ describe('orchestrator control handoff routes', () => {
       getWorkflowWorkItem,
     } as never);
     app.decorate('taskService', { createTask: vi.fn() });
-    app.decorate('projectService', {
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
     });
 
     await app.register(orchestratorControlRoutes);

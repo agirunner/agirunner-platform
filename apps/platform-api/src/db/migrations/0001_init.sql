@@ -43,7 +43,7 @@ DO $$ BEGIN
     'workflow',
     'agent',
     'worker',
-    'project',
+    'workspace',
     'system'
   );
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -234,7 +234,7 @@ BEGIN
     'category', NEW.category,
     'level', NEW.level,
     'operation', NEW.operation,
-    'project_id', NEW.project_id,
+    'workspace_id', NEW.workspace_id,
     'workflow_id', NEW.workflow_id,
     'task_id', NEW.task_id,
     'created_at', NEW.created_at
@@ -264,7 +264,7 @@ CREATE TABLE public.tenants (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-CREATE TABLE public.projects (
+CREATE TABLE public.workspaces (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
     name text NOT NULL,
@@ -281,7 +281,7 @@ CREATE TABLE public.projects (
     current_spec_version integer DEFAULT 0 NOT NULL,
     git_webhook_provider text,
     git_webhook_secret text,
-    CONSTRAINT projects_git_webhook_provider_check CHECK ((git_webhook_provider = ANY (ARRAY['github'::text, 'gitea'::text, 'gitlab'::text])))
+    CONSTRAINT workspaces_git_webhook_provider_check CHECK ((git_webhook_provider = ANY (ARRAY['github'::text, 'gitea'::text, 'gitlab'::text])))
 );
 
 CREATE TABLE public.workers (
@@ -324,7 +324,7 @@ CREATE TABLE public.agents (
 CREATE TABLE public.workflows (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
-    project_id uuid,
+    workspace_id uuid,
     name text NOT NULL,
     state public.workflow_state DEFAULT 'pending'::public.workflow_state NOT NULL,
     parameters jsonb DEFAULT '{}'::jsonb NOT NULL,
@@ -337,7 +337,7 @@ CREATE TABLE public.workflows (
     completed_at timestamp with time zone,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    project_spec_version integer,
+    workspace_spec_version integer,
     resolved_config jsonb DEFAULT '{}'::jsonb NOT NULL,
     config_layers jsonb DEFAULT '{}'::jsonb NOT NULL,
     instruction_config jsonb,
@@ -349,7 +349,7 @@ CREATE TABLE public.tasks (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
     workflow_id uuid,
-    project_id uuid,
+    workspace_id uuid,
     title text NOT NULL,
     role text,
     priority public.task_priority DEFAULT 'normal'::public.task_priority NOT NULL,
@@ -494,7 +494,7 @@ CREATE TABLE public.workflow_artifacts (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
     workflow_id uuid,
-    project_id uuid,
+    workspace_id uuid,
     task_id uuid NOT NULL,
     logical_path text NOT NULL,
     storage_backend text NOT NULL,
@@ -560,10 +560,10 @@ CREATE TABLE public.integration_resource_links (
     updated_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
-CREATE TABLE public.project_spec_versions (
+CREATE TABLE public.workspace_spec_versions (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
-    project_id uuid NOT NULL,
+    workspace_id uuid NOT NULL,
     version integer NOT NULL,
     spec jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_by_type text NOT NULL,
@@ -575,7 +575,7 @@ CREATE TABLE public.workflow_documents (
     id uuid DEFAULT public.uuid_generate_v4() NOT NULL,
     tenant_id uuid NOT NULL,
     workflow_id uuid NOT NULL,
-    project_id uuid,
+    workspace_id uuid,
     task_id uuid,
     logical_name text NOT NULL,
     source text NOT NULL,
@@ -593,7 +593,7 @@ CREATE TABLE public.webhook_work_item_triggers (
     tenant_id uuid NOT NULL,
     name text NOT NULL,
     source text NOT NULL,
-    project_id uuid,
+    workspace_id uuid,
     workflow_id uuid NOT NULL,
     event_header text,
     event_types text[] DEFAULT ARRAY[]::text[] NOT NULL,
@@ -913,7 +913,7 @@ CREATE TABLE public.execution_logs (
     duration_ms integer,
     payload jsonb DEFAULT '{}'::jsonb NOT NULL,
     error jsonb,
-    project_id uuid,
+    workspace_id uuid,
     workflow_id uuid,
     task_id uuid,
     actor_type text,
@@ -924,7 +924,7 @@ CREATE TABLE public.execution_logs (
     resource_name text,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     workflow_name text,
-    project_name text,
+    workspace_name text,
     role text,
     task_title text
 )
@@ -944,8 +944,8 @@ ALTER TABLE public.execution_logs ALTER COLUMN id ADD GENERATED ALWAYS AS IDENTI
 ALTER TABLE ONLY public.tenants
     ADD CONSTRAINT tenants_pkey PRIMARY KEY (id);
 
-ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT projects_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.workspaces
+    ADD CONSTRAINT workspaces_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.workers
     ADD CONSTRAINT workers_pkey PRIMARY KEY (id);
@@ -995,8 +995,8 @@ ALTER TABLE ONLY public.integration_actions
 ALTER TABLE ONLY public.integration_resource_links
     ADD CONSTRAINT integration_resource_links_pkey PRIMARY KEY (id);
 
-ALTER TABLE ONLY public.project_spec_versions
-    ADD CONSTRAINT project_spec_versions_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.workspace_spec_versions
+    ADD CONSTRAINT workspace_spec_versions_pkey PRIMARY KEY (id);
 
 ALTER TABLE ONLY public.workflow_documents
     ADD CONSTRAINT workflow_documents_pkey PRIMARY KEY (id);
@@ -1105,8 +1105,8 @@ ALTER TABLE ONLY public.runtime_defaults
 ALTER TABLE ONLY public.worker_desired_state
     ADD CONSTRAINT worker_desired_state_tenant_id_worker_name_key UNIQUE (tenant_id, worker_name);
 
-ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT uq_project_tenant_slug UNIQUE (tenant_id, slug);
+ALTER TABLE ONLY public.workspaces
+    ADD CONSTRAINT uq_workspace_tenant_slug UNIQUE (tenant_id, slug);
 
 ALTER TABLE ONLY public.user_identities
     ADD CONSTRAINT user_identities_provider_provider_user_id_key UNIQUE (provider, provider_user_id);
@@ -1121,7 +1121,7 @@ CREATE INDEX idx_exlogs_llm_provider ON ONLY public.execution_logs USING btree (
 CREATE INDEX idx_exlogs_tool_name ON ONLY public.execution_logs USING btree (((payload ->> 'tool_name'::text)), created_at DESC) WHERE (category = 'tool'::public.execution_log_category);
 CREATE INDEX idx_exlogs_config_type ON ONLY public.execution_logs USING btree (((payload ->> 'config_type'::text)), created_at DESC) WHERE (category = 'config'::public.execution_log_category);
 CREATE INDEX idx_exlogs_span ON ONLY public.execution_logs USING btree (parent_span_id, created_at) INCLUDE (span_id, source, category, operation, status, duration_ms) WHERE (parent_span_id IS NOT NULL);
-CREATE INDEX idx_exlogs_project ON ONLY public.execution_logs USING btree (project_id, created_at DESC) INCLUDE (source, category, level, operation, status, workflow_id, task_id) WHERE (project_id IS NOT NULL);
+CREATE INDEX idx_exlogs_workspace ON ONLY public.execution_logs USING btree (workspace_id, created_at DESC) INCLUDE (source, category, level, operation, status, workflow_id, task_id) WHERE (workspace_id IS NOT NULL);
 CREATE INDEX idx_exlogs_task_category ON ONLY public.execution_logs USING btree (task_id, category, created_at) INCLUDE (source, level, operation, status, duration_ms) WHERE (task_id IS NOT NULL);
 CREATE INDEX idx_exlogs_task ON ONLY public.execution_logs USING btree (task_id, created_at) INCLUDE (source, category, level, operation, status, duration_ms, actor_name) WHERE (task_id IS NOT NULL);
 CREATE INDEX idx_exlogs_task_level ON ONLY public.execution_logs USING btree (task_id, level, created_at) INCLUDE (source, category, operation, status, duration_ms) WHERE (task_id IS NOT NULL);
@@ -1134,8 +1134,8 @@ CREATE INDEX idx_exlogs_errors ON ONLY public.execution_logs USING btree (tenant
 CREATE INDEX idx_exlogs_tenant_time ON ONLY public.execution_logs USING btree (tenant_id, created_at DESC) INCLUDE (source, category, level, operation, status, duration_ms, workflow_id, task_id, actor_name, resource_name);
 CREATE INDEX idx_exlogs_level ON ONLY public.execution_logs USING btree (tenant_id, level, created_at DESC) INCLUDE (source, category, operation, status, duration_ms, workflow_id, task_id);
 CREATE INDEX idx_exlogs_ops_distinct ON ONLY public.execution_logs USING btree (tenant_id, operation, created_at DESC);
-CREATE INDEX idx_exlogs_project_name_time ON ONLY public.execution_logs USING btree (tenant_id, project_name, created_at DESC) WHERE (project_name IS NOT NULL);
-CREATE INDEX idx_execution_logs_project_name ON ONLY public.execution_logs USING btree (tenant_id, project_name) WHERE (project_name IS NOT NULL);
+CREATE INDEX idx_exlogs_workspace_name_time ON ONLY public.execution_logs USING btree (tenant_id, workspace_name, created_at DESC) WHERE (workspace_name IS NOT NULL);
+CREATE INDEX idx_execution_logs_workspace_name ON ONLY public.execution_logs USING btree (tenant_id, workspace_name) WHERE (workspace_name IS NOT NULL);
 CREATE INDEX idx_exlogs_resource ON ONLY public.execution_logs USING btree (tenant_id, resource_type, resource_id, created_at DESC) INCLUDE (category, operation, status, actor_name) WHERE (resource_id IS NOT NULL);
 CREATE INDEX idx_execution_logs_role ON ONLY public.execution_logs USING btree (tenant_id, role) WHERE (role IS NOT NULL);
 CREATE INDEX idx_exlogs_source ON ONLY public.execution_logs USING btree (tenant_id, source, created_at DESC) INCLUDE (category, level, operation, status, duration_ms, workflow_id, task_id);
@@ -1192,8 +1192,8 @@ CREATE INDEX idx_oauth_states_state ON public.oauth_states USING btree (state);
 CREATE UNIQUE INDEX idx_orchestrator_grants_agent_workflow ON public.orchestrator_grants USING btree (agent_id, workflow_id) WHERE (revoked_at IS NULL);
 CREATE INDEX idx_orchestrator_grants_tenant ON public.orchestrator_grants USING btree (tenant_id);
 CREATE INDEX idx_platform_instruction_versions_tenant ON public.platform_instruction_versions USING btree (tenant_id, version DESC);
-CREATE INDEX idx_project_spec_versions_tenant_project ON public.project_spec_versions USING btree (tenant_id, project_id, version DESC);
-CREATE INDEX idx_projects_tenant ON public.projects USING btree (tenant_id);
+CREATE INDEX idx_workspace_spec_versions_tenant_workspace ON public.workspace_spec_versions USING btree (tenant_id, workspace_id, version DESC);
+CREATE INDEX idx_workspaces_tenant ON public.workspaces USING btree (tenant_id);
 CREATE INDEX idx_refresh_token_sessions_tenant_api_key ON public.refresh_token_sessions USING btree (tenant_id, api_key_id);
 CREATE INDEX idx_refresh_token_sessions_tenant_token ON public.refresh_token_sessions USING btree (tenant_id, token_id);
 CREATE INDEX idx_role_definitions_active ON public.role_definitions USING btree (tenant_id, is_active);
@@ -1206,7 +1206,7 @@ CREATE INDEX idx_runtime_heartbeats_tenant ON public.runtime_heartbeats USING bt
 CREATE INDEX idx_tasks_agent ON public.tasks USING btree (assigned_agent_id) WHERE (assigned_agent_id IS NOT NULL);
 CREATE INDEX idx_tasks_claimable ON public.tasks USING btree (tenant_id, priority DESC, created_at) WHERE (state = 'ready'::public.task_state);
 CREATE INDEX idx_tasks_depends_on ON public.tasks USING gin (depends_on);
-CREATE INDEX idx_tasks_project ON public.tasks USING btree (project_id);
+CREATE INDEX idx_tasks_workspace ON public.tasks USING btree (workspace_id);
 CREATE INDEX idx_tasks_running_timeout ON public.tasks USING btree (started_at) WHERE (state = 'in_progress'::public.task_state);
 CREATE INDEX idx_tasks_state ON public.tasks USING btree (tenant_id, state);
 CREATE INDEX idx_tasks_tenant ON public.tasks USING btree (tenant_id);
@@ -1231,11 +1231,11 @@ CREATE INDEX idx_workflow_artifacts_tenant_task ON public.workflow_artifacts USI
 CREATE INDEX idx_workflow_artifacts_tenant_workflow ON public.workflow_artifacts USING btree (tenant_id, workflow_id);
 CREATE INDEX idx_workflow_documents_tenant_task ON public.workflow_documents USING btree (tenant_id, task_id);
 CREATE INDEX idx_workflow_documents_tenant_workflow ON public.workflow_documents USING btree (tenant_id, workflow_id, created_at);
-CREATE INDEX idx_workflows_project ON public.workflows USING btree (project_id);
+CREATE INDEX idx_workflows_workspace ON public.workflows USING btree (workspace_id);
 CREATE INDEX idx_workflows_state ON public.workflows USING btree (tenant_id, state);
 CREATE INDEX idx_workflows_tenant ON public.workflows USING btree (tenant_id);
 CREATE UNIQUE INDEX uq_platform_instruction_versions_tenant_version ON public.platform_instruction_versions USING btree (tenant_id, version);
-CREATE UNIQUE INDEX uq_project_spec_versions_project_version ON public.project_spec_versions USING btree (project_id, version);
+CREATE UNIQUE INDEX uq_workspace_spec_versions_workspace_version ON public.workspace_spec_versions USING btree (workspace_id, version);
 CREATE UNIQUE INDEX uq_webhook_work_item_trigger_invocations_dedupe ON public.webhook_work_item_trigger_invocations USING btree (trigger_id, dedupe_key) WHERE (dedupe_key IS NOT NULL);
 CREATE UNIQUE INDEX uq_workflow_documents_workflow_logical_name ON public.workflow_documents USING btree (tenant_id, workflow_id, logical_name);
 
@@ -1247,7 +1247,7 @@ CREATE TRIGGER trg_execution_logs_notify AFTER INSERT ON public.execution_logs F
 CREATE TRIGGER trg_integration_actions_updated_at BEFORE UPDATE ON public.integration_actions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_integration_adapter_deliveries_updated_at BEFORE UPDATE ON public.integration_adapter_deliveries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_integration_adapters_updated_at BEFORE UPDATE ON public.integration_adapters FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
-CREATE TRIGGER trg_projects_updated_at BEFORE UPDATE ON public.projects FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
+CREATE TRIGGER trg_workspaces_updated_at BEFORE UPDATE ON public.workspaces FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_tasks_updated_at BEFORE UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_tenants_updated_at BEFORE UPDATE ON public.tenants FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
 CREATE TRIGGER trg_webhook_deliveries_updated_at BEFORE UPDATE ON public.webhook_deliveries FOR EACH ROW EXECUTE FUNCTION public.update_updated_at();
@@ -1349,14 +1349,14 @@ ALTER TABLE ONLY public.platform_instruction_versions
 ALTER TABLE ONLY public.platform_instructions
     ADD CONSTRAINT platform_instructions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id) ON DELETE CASCADE;
 
-ALTER TABLE ONLY public.project_spec_versions
-    ADD CONSTRAINT project_spec_versions_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
+ALTER TABLE ONLY public.workspace_spec_versions
+    ADD CONSTRAINT workspace_spec_versions_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 
-ALTER TABLE ONLY public.project_spec_versions
-    ADD CONSTRAINT project_spec_versions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+ALTER TABLE ONLY public.workspace_spec_versions
+    ADD CONSTRAINT workspace_spec_versions_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
-ALTER TABLE ONLY public.projects
-    ADD CONSTRAINT projects_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
+ALTER TABLE ONLY public.workspaces
+    ADD CONSTRAINT workspaces_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 ALTER TABLE ONLY public.refresh_token_sessions
     ADD CONSTRAINT refresh_token_sessions_api_key_id_fkey FOREIGN KEY (api_key_id) REFERENCES public.api_keys(id) ON DELETE CASCADE;
@@ -1386,7 +1386,7 @@ ALTER TABLE ONLY public.tasks
     ADD CONSTRAINT tasks_assigned_worker_id_fkey FOREIGN KEY (assigned_worker_id) REFERENCES public.workers(id);
 
 ALTER TABLE ONLY public.tasks
-    ADD CONSTRAINT tasks_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
+    ADD CONSTRAINT tasks_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 
 ALTER TABLE ONLY public.tasks
     ADD CONSTRAINT tasks_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
@@ -1419,7 +1419,7 @@ ALTER TABLE ONLY public.webhook_work_item_trigger_invocations
     ADD CONSTRAINT webhook_work_item_trigger_invocations_trigger_id_fkey FOREIGN KEY (trigger_id) REFERENCES public.webhook_work_item_triggers(id);
 
 ALTER TABLE ONLY public.webhook_work_item_triggers
-    ADD CONSTRAINT webhook_work_item_triggers_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
+    ADD CONSTRAINT webhook_work_item_triggers_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 
 ALTER TABLE ONLY public.webhook_work_item_triggers
     ADD CONSTRAINT webhook_work_item_triggers_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
@@ -1452,7 +1452,7 @@ ALTER TABLE ONLY public.workers
     ADD CONSTRAINT workers_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);
 
 ALTER TABLE ONLY public.workflow_artifacts
-    ADD CONSTRAINT workflow_artifacts_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
+    ADD CONSTRAINT workflow_artifacts_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 
 ALTER TABLE ONLY public.workflow_artifacts
     ADD CONSTRAINT workflow_artifacts_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id) ON DELETE CASCADE;
@@ -1467,7 +1467,7 @@ ALTER TABLE ONLY public.workflow_documents
     ADD CONSTRAINT workflow_documents_artifact_id_fkey FOREIGN KEY (artifact_id) REFERENCES public.workflow_artifacts(id);
 
 ALTER TABLE ONLY public.workflow_documents
-    ADD CONSTRAINT workflow_documents_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
+    ADD CONSTRAINT workflow_documents_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 
 ALTER TABLE ONLY public.workflow_documents
     ADD CONSTRAINT workflow_documents_task_id_fkey FOREIGN KEY (task_id) REFERENCES public.tasks(id);
@@ -1479,7 +1479,7 @@ ALTER TABLE ONLY public.workflow_documents
     ADD CONSTRAINT workflow_documents_workflow_id_fkey FOREIGN KEY (workflow_id) REFERENCES public.workflows(id);
 
 ALTER TABLE ONLY public.workflows
-    ADD CONSTRAINT workflows_project_id_fkey FOREIGN KEY (project_id) REFERENCES public.projects(id);
+    ADD CONSTRAINT workflows_workspace_id_fkey FOREIGN KEY (workspace_id) REFERENCES public.workspaces(id);
 
 ALTER TABLE ONLY public.workflows
     ADD CONSTRAINT workflows_tenant_id_fkey FOREIGN KEY (tenant_id) REFERENCES public.tenants(id);

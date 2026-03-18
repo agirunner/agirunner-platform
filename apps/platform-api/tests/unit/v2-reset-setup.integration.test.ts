@@ -111,7 +111,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
       ['00000000-0000-0000-0000-000000000001', JSON.stringify({ reasoning_effort: 'low' })],
     );
     await pool.query(
-      `INSERT INTO projects (tenant_id, id, name, slug)
+      `INSERT INTO workspaces (tenant_id, id, name, slug)
        VALUES ($1, '40000000-0000-0000-0000-000000000001', 'Reset Me', 'reset-me')`,
       ['00000000-0000-0000-0000-000000000001'],
     );
@@ -125,7 +125,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
       modelCount,
       assignmentCount,
       defaultRows,
-      projectCount,
+      workspaceCount,
       playbookCount,
       promptCount,
       apiKeyCount,
@@ -140,7 +140,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
             WHERE config_key IN ('agent.max_iterations', 'default_model_id', 'default_reasoning_config')
             ORDER BY config_key ASC`,
       ),
-      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM projects'),
+      pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM workspaces'),
       pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM playbooks'),
       pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM platform_instructions'),
       pool.query<{ count: string }>('SELECT COUNT(*)::text AS count FROM api_keys'),
@@ -164,7 +164,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         config_value: JSON.stringify({ reasoning_effort: 'low' }),
       },
     ]);
-    expect(Number(projectCount.rows[0]?.count ?? '0')).toBe(0);
+    expect(Number(workspaceCount.rows[0]?.count ?? '0')).toBe(0);
     expect(Number(playbookCount.rows[0]?.count ?? '0')).toBe(BUILT_IN_PLAYBOOKS.length);
     expect(Number(promptCount.rows[0]?.count ?? '0')).toBe(1);
     expect(Number(apiKeyCount.rows[0]?.count ?? '0')).toBeGreaterThan(0);

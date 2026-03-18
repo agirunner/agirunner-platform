@@ -1,10 +1,10 @@
 const WORKFLOW_READ_COLUMNS = [
   'id',
   'tenant_id',
-  'project_id',
+  'workspace_id',
   'playbook_id',
   'playbook_version',
-  'project_spec_version',
+  'workspace_spec_version',
   'name',
   'state',
   'lifecycle',

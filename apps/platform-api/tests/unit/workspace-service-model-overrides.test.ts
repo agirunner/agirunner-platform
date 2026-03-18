@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectService } from '../../src/services/project-service.js';
+import { WorkspaceService } from '../../src/services/workspace-service.js';
 
-describe('ProjectService model overrides', () => {
-  it('drops retired project model overrides during project updates', async () => {
+describe('WorkspaceService model overrides', () => {
+  it('drops retired workspace model overrides during workspace updates', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
           rows: [{
-            id: 'project-1',
+            id: 'workspace-1',
             tenant_id: 'tenant-1',
             name: 'Project',
             slug: 'project',
@@ -20,7 +20,7 @@ describe('ProjectService model overrides', () => {
         .mockResolvedValueOnce({
           rowCount: 1,
           rows: [{
-            id: 'project-1',
+            id: 'workspace-1',
             tenant_id: 'tenant-1',
             name: 'Project',
             slug: 'project',
@@ -31,12 +31,12 @@ describe('ProjectService model overrides', () => {
         }),
     };
 
-    const service = new ProjectService(
+    const service = new WorkspaceService(
       pool as never,
       { emit: vi.fn(async () => undefined) } as never,
     );
 
-    const project = await service.updateProject(
+    const workspace = await service.updateWorkspace(
       {
         tenantId: 'tenant-1',
         scope: 'admin',
@@ -45,7 +45,7 @@ describe('ProjectService model overrides', () => {
         keyPrefix: 'admin-key',
         id: 'key-1',
       } as never,
-      'project-1',
+      'workspace-1',
       {
         settings: {
           model_overrides: {
@@ -58,6 +58,6 @@ describe('ProjectService model overrides', () => {
       },
     );
 
-    expect((project.settings as Record<string, unknown>).model_overrides).toEqual({});
+    expect((workspace.settings as Record<string, unknown>).model_overrides).toEqual({});
   });
 });

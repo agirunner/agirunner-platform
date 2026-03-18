@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS webhook_work_item_triggers (
     tenant_id uuid NOT NULL REFERENCES tenants(id),
     name text NOT NULL,
     source text NOT NULL,
-    project_id uuid REFERENCES projects(id),
+    workspace_id uuid REFERENCES workspaces(id),
     workflow_id uuid NOT NULL REFERENCES workflows(id),
     event_header text,
     event_types text[] NOT NULL DEFAULT '{}',

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 
-const listProjectArtifacts = vi.fn();
+const listWorkspaceArtifacts = vi.fn();
 
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
@@ -20,13 +20,13 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   withAllowedScopes: () => async () => {},
 }));
 
-vi.mock('../../src/services/project-artifact-explorer-service.js', () => ({
-  ProjectArtifactExplorerService: vi.fn().mockImplementation(() => ({
-    listProjectArtifacts,
+vi.mock('../../src/services/workspace-artifact-explorer-service.js', () => ({
+  WorkspaceArtifactExplorerService: vi.fn().mockImplementation(() => ({
+    listWorkspaceArtifacts,
   })),
 }));
 
-describe('project artifact explorer routes', () => {
+describe('workspace artifact explorer routes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
@@ -40,10 +40,10 @@ describe('project artifact explorer routes', () => {
     }
   });
 
-  it('serves project-scoped artifact queries through the bounded explorer route', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('serves workspace-scoped artifact queries through the bounded explorer route', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
-    listProjectArtifacts.mockResolvedValue({
+    listWorkspaceArtifacts.mockResolvedValue({
       data: [],
       meta: {
         page: 1,
@@ -75,38 +75,38 @@ describe('project artifact explorer routes', () => {
     registerErrorHandler(app);
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn().mockResolvedValue({ id: 'project-1' }),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn().mockResolvedValue({ id: 'workspace-1' }),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
     app.decorate('config', {
       ARTIFACT_PREVIEW_MAX_BYTES: 1024 * 1024,
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/projects/project-1/artifacts?q=release&preview_mode=inline&page=2&per_page=50',
+      url: '/api/v1/workspaces/workspace-1/artifacts?q=release&preview_mode=inline&page=2&per_page=50',
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
-    expect(listProjectArtifacts).toHaveBeenCalledWith('tenant-1', 'project-1', {
+    expect(listWorkspaceArtifacts).toHaveBeenCalledWith('tenant-1', 'workspace-1', {
       q: 'release',
       preview_mode: 'inline',
       page: 2,
@@ -114,40 +114,40 @@ describe('project artifact explorer routes', () => {
     });
   });
 
-  it('rejects invalid project artifact explorer query values', async () => {
-    const { projectRoutes } = await import('../../src/api/routes/projects.routes.js');
+  it('rejects invalid workspace artifact explorer query values', async () => {
+    const { workspaceRoutes } = await import('../../src/api/routes/workspaces.routes.js');
 
     app = fastify();
     registerErrorHandler(app);
     app.decorate('pgPool', {});
     app.decorate('eventService', {});
-    app.decorate('workflowService', { getProjectTimeline: vi.fn() });
-    app.decorate('projectService', {
-      createProject: vi.fn(),
-      getProject: vi.fn(),
-      updateProject: vi.fn(),
-      patchProjectMemory: vi.fn(),
-      removeProjectMemory: vi.fn(),
+    app.decorate('workflowService', { getWorkspaceTimeline: vi.fn() });
+    app.decorate('workspaceService', {
+      createWorkspace: vi.fn(),
+      getWorkspace: vi.fn(),
+      updateWorkspace: vi.fn(),
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
       setGitWebhookConfig: vi.fn(),
-      deleteProject: vi.fn(),
-      listProjects: vi.fn(),
+      deleteWorkspace: vi.fn(),
+      listWorkspaces: vi.fn(),
     });
-    app.decorate('projectArtifactFileService', {
-      listProjectArtifactFiles: vi.fn(),
-      uploadProjectArtifactFile: vi.fn(),
-      uploadProjectArtifactFiles: vi.fn(),
-      deleteProjectArtifactFile: vi.fn(),
-      downloadProjectArtifactFile: vi.fn(),
+    app.decorate('workspaceArtifactFileService', {
+      listWorkspaceArtifactFiles: vi.fn(),
+      uploadWorkspaceArtifactFile: vi.fn(),
+      uploadWorkspaceArtifactFiles: vi.fn(),
+      deleteWorkspaceArtifactFile: vi.fn(),
+      downloadWorkspaceArtifactFile: vi.fn(),
     });
     app.decorate('config', {
       ARTIFACT_PREVIEW_MAX_BYTES: 1024 * 1024,
     });
 
-    await app.register(projectRoutes);
+    await app.register(workspaceRoutes);
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/projects/project-1/artifacts?preview_mode=bad&page=0',
+      url: '/api/v1/workspaces/workspace-1/artifacts?preview_mode=bad&page=0',
       headers: { authorization: 'Bearer test' },
     });
 

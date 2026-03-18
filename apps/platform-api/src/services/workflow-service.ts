@@ -39,7 +39,7 @@ import {
   type WorkflowStageResponse,
 } from './workflow-stage-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
-import { ProjectTimelineService } from './project-timeline-service.js';
+import { WorkspaceTimelineService } from './workspace-timeline-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
 import { buildWorkflowReadColumns } from './workflow-read-columns.js';
 import { readTaskCancelSignalGracePeriodMs } from './platform-timing-defaults.js';
@@ -56,7 +56,7 @@ export class WorkflowService {
   private readonly creationService: WorkflowCreationService;
   private readonly cancellationService: WorkflowCancellationService;
   private readonly controlService: WorkflowControlService;
-  private readonly projectTimelineService: ProjectTimelineService;
+  private readonly workspaceTimelineService: WorkspaceTimelineService;
   private readonly activationService: WorkflowActivationService;
   private readonly activationDispatchService: WorkflowActivationDispatchService;
   private readonly budgetService: WorkflowBudgetService;
@@ -72,7 +72,7 @@ export class WorkflowService {
     connectionHub?: WorkerConnectionHub,
     logService?: LogService,
   ) {
-    this.projectTimelineService = new ProjectTimelineService(pool);
+    this.workspaceTimelineService = new WorkspaceTimelineService(pool);
     this.modelCatalogService = new ModelCatalogService(pool);
     const artifactRetentionService = new ArtifactRetentionService(
       pool,
@@ -82,7 +82,7 @@ export class WorkflowService {
       pool,
       eventService,
       artifactRetentionService,
-      this.projectTimelineService,
+      this.workspaceTimelineService,
       logService,
     );
     this.activationService = new WorkflowActivationService(pool, eventService);
@@ -159,7 +159,7 @@ export class WorkflowService {
     const values: unknown[] = [tenantId];
 
     const exactFilters: Array<[string | undefined, string]> = [
-      [query.project_id, 'w.project_id'],
+      [query.workspace_id, 'w.workspace_id'],
       [query.playbook_id, 'w.playbook_id'],
     ];
     for (const [filter, column] of exactFilters) {
@@ -189,7 +189,7 @@ export class WorkflowService {
         .then((result) => Number(result.rows[0]?.total ?? '0')),
       this.pool.query<Record<string, unknown> & { tenant_id: string }>(
         `SELECT ${buildWorkflowReadColumns('w', { includeCurrentStage: false })},
-                p.name AS project_name,
+                p.name AS workspace_name,
                 pb.name AS playbook_name,
                 pb.definition AS playbook_definition,
                 COALESCE(task_counts.task_counts, '{}'::jsonb) AS task_counts,
@@ -218,9 +218,9 @@ export class WorkflowService {
                   )
                 END AS work_item_summary
            FROM workflows w
-           LEFT JOIN projects p
+           LEFT JOIN workspaces p
              ON p.tenant_id = w.tenant_id
-            AND p.id = w.project_id
+            AND p.id = w.workspace_id
            LEFT JOIN playbooks pb
              ON pb.tenant_id = w.tenant_id
             AND pb.id = w.playbook_id
@@ -470,7 +470,7 @@ export class WorkflowService {
     const rawLayers = ((workflow.config_layers ?? {}) as Record<string, unknown>) ?? {};
     const layers = {
       playbook: sanitizeWorkflowConfigView((rawLayers.playbook ?? {}) as Record<string, unknown>),
-      project: sanitizeWorkflowConfigView((rawLayers.project ?? {}) as Record<string, unknown>),
+      workspace: sanitizeWorkflowConfigView((rawLayers.workspace ?? {}) as Record<string, unknown>),
       run: sanitizeWorkflowConfigView((rawLayers.run ?? {}) as Record<string, unknown>),
     };
 
@@ -711,8 +711,8 @@ export class WorkflowService {
     };
   }
 
-  getProjectTimeline(tenantId: string, projectId: string) {
-    return this.projectTimelineService.getProjectTimeline(tenantId, projectId);
+  getWorkspaceTimeline(tenantId: string, workspaceId: string) {
+    return this.workspaceTimelineService.getWorkspaceTimeline(tenantId, workspaceId);
   }
 
   private async loadPlaybookDefinition(tenantId: string, playbookId: string): Promise<Record<string, unknown>> {

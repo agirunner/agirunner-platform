@@ -1,22 +1,22 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { ProjectSpecService } from '../../src/services/project-spec-service.js';
+import { WorkspaceSpecService } from '../../src/services/workspace-spec-service.js';
 
 const TENANT_ID = 'tenant-1';
-const PROJECT_ID = 'project-1';
+const WORKSPACE_ID = 'workspace-1';
 
 function createEventService() {
   return { emit: vi.fn(async () => undefined) };
 }
 
-describe('ProjectSpecService secret handling', () => {
-  it('redacts legacy secret-bearing values from project spec reads', async () => {
+describe('WorkspaceSpecService secret handling', () => {
+  it('redacts legacy secret-bearing values from workspace spec reads', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: PROJECT_ID, current_spec_version: 2 }],
+          rows: [{ id: WORKSPACE_ID, current_spec_version: 2 }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -48,15 +48,15 @@ describe('ProjectSpecService secret handling', () => {
         }),
     };
 
-    const service = new ProjectSpecService(pool as never, createEventService() as never);
+    const service = new WorkspaceSpecService(pool as never, createEventService() as never);
 
-    const result = await service.getProjectSpec(TENANT_ID, PROJECT_ID);
+    const result = await service.getWorkspaceSpec(TENANT_ID, WORKSPACE_ID);
 
     expect(result.spec).toEqual({
       config: {
         deployment: {
-          api_token: 'redacted://project-spec-secret',
-          ref: 'redacted://project-spec-secret',
+          api_token: 'redacted://workspace-spec-secret',
+          ref: 'redacted://workspace-spec-secret',
         },
       },
       documents: {
@@ -64,24 +64,24 @@ describe('ProjectSpecService secret handling', () => {
           source: 'repository',
           path: 'docs/runbook.md',
           metadata: {
-            authorization: 'redacted://project-spec-secret',
-            preserved_ref: 'redacted://project-spec-secret',
+            authorization: 'redacted://workspace-spec-secret',
+            preserved_ref: 'redacted://workspace-spec-secret',
           },
         },
       },
     });
   });
 
-  it('rejects plaintext secret-bearing values when writing project specs', async () => {
+  it('rejects plaintext secret-bearing values when writing workspace specs', async () => {
     const pool = {
       connect: vi.fn(),
       query: vi.fn(),
     };
 
-    const service = new ProjectSpecService(pool as never, createEventService() as never);
+    const service = new WorkspaceSpecService(pool as never, createEventService() as never);
 
     await expect(
-      service.putProjectSpec(
+      service.putWorkspaceSpec(
         {
           id: 'key-1',
           tenantId: TENANT_ID,
@@ -90,7 +90,7 @@ describe('ProjectSpecService secret handling', () => {
           ownerId: TENANT_ID,
           keyPrefix: 'admin-key',
         } as never,
-        PROJECT_ID,
+        WORKSPACE_ID,
         {
           config: {
             deployment: {
@@ -99,17 +99,17 @@ describe('ProjectSpecService secret handling', () => {
           },
         },
       ),
-    ).rejects.toThrow('Project spec contains plaintext secret-bearing values');
+    ).rejects.toThrow('Workspace spec contains plaintext secret-bearing values');
 
     expect(pool.connect).not.toHaveBeenCalled();
   });
 
-  it('allows secret references when writing project specs', async () => {
+  it('allows secret references when writing workspace specs', async () => {
     const client = {
       query: vi
         .fn()
         .mockResolvedValueOnce({ rowCount: 0, rows: [] })
-        .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: PROJECT_ID, current_spec_version: 1 }] })
+        .mockResolvedValueOnce({ rowCount: 1, rows: [{ id: WORKSPACE_ID, current_spec_version: 1 }] })
         .mockResolvedValueOnce({
           rowCount: 1,
           rows: [{
@@ -145,7 +145,7 @@ describe('ProjectSpecService secret handling', () => {
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: PROJECT_ID, current_spec_version: 2 }],
+          rows: [{ id: WORKSPACE_ID, current_spec_version: 2 }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -166,9 +166,9 @@ describe('ProjectSpecService secret handling', () => {
         }),
     };
 
-    const service = new ProjectSpecService(pool as never, createEventService() as never);
+    const service = new WorkspaceSpecService(pool as never, createEventService() as never);
 
-    const result = await service.putProjectSpec(
+    const result = await service.putWorkspaceSpec(
       {
         id: 'key-1',
         tenantId: TENANT_ID,
@@ -177,7 +177,7 @@ describe('ProjectSpecService secret handling', () => {
         ownerId: TENANT_ID,
         keyPrefix: 'admin-key',
       } as never,
-      PROJECT_ID,
+      WORKSPACE_ID,
       {
         config: {
           deployment: {
@@ -190,16 +190,16 @@ describe('ProjectSpecService secret handling', () => {
     expect(result.spec).toEqual({
       config: {
         deployment: {
-          ref: 'redacted://project-spec-secret',
+          ref: 'redacted://workspace-spec-secret',
         },
       },
     });
     expect(client.query).toHaveBeenNthCalledWith(
       3,
-      expect.stringContaining('INSERT INTO project_spec_versions'),
+      expect.stringContaining('INSERT INTO workspace_spec_versions'),
       expect.arrayContaining([
         TENANT_ID,
-        PROJECT_ID,
+        WORKSPACE_ID,
         2,
         {
           config: {
@@ -212,13 +212,13 @@ describe('ProjectSpecService secret handling', () => {
     );
   });
 
-  it('redacts legacy secret-bearing project resource fields on resource reads', async () => {
+  it('redacts legacy secret-bearing workspace resource fields on resource reads', async () => {
     const pool = {
       query: vi
         .fn()
         .mockResolvedValueOnce({
           rowCount: 1,
-          rows: [{ id: PROJECT_ID, current_spec_version: 4 }],
+          rows: [{ id: WORKSPACE_ID, current_spec_version: 4 }],
         })
         .mockResolvedValueOnce({
           rowCount: 1,
@@ -244,9 +244,9 @@ describe('ProjectSpecService secret handling', () => {
         }),
     };
 
-    const service = new ProjectSpecService(pool as never, createEventService() as never);
+    const service = new WorkspaceSpecService(pool as never, createEventService() as never);
 
-    const result = await service.listProjectResources(
+    const result = await service.listWorkspaceResources(
       {
         id: 'key-1',
         tenantId: TENANT_ID,
@@ -255,7 +255,7 @@ describe('ProjectSpecService secret handling', () => {
         ownerId: TENANT_ID,
         keyPrefix: 'admin-key',
       } as never,
-      PROJECT_ID,
+      WORKSPACE_ID,
       {},
     );
 
@@ -266,9 +266,9 @@ describe('ProjectSpecService secret handling', () => {
           type: 'repository',
           binding: {
             url: 'https://github.com/agisnap/demo',
-            authorization: 'redacted://project-spec-secret',
+            authorization: 'redacted://workspace-spec-secret',
           },
-          notes: 'redacted://project-spec-secret',
+          notes: 'redacted://workspace-spec-secret',
         },
       ],
     });
