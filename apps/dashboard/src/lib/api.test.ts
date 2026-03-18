@@ -112,6 +112,17 @@ describe('dashboard api auth/session behavior', () => {
     expect(source).not.toContain('actOnStageGate(');
   });
 
+  it('keeps workflow work-item actions on the workflow-scoped contract', () => {
+    const source = readApiSource();
+    const apiBlock = readExportBlock(source, 'DashboardApi');
+    expect(apiBlock).toContain(
+      'skipWorkflowWorkItemTask(',
+    );
+    expect(source).toContain(
+      "requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'skip', payload)",
+    );
+  });
+
   it('exposes typed project settings posture in the dashboard api contract', () => {
     const source = readApiSource();
     const projectSettingsBlock = readExportBlock(source, 'DashboardProjectSettingsRecord');

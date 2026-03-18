@@ -1824,6 +1824,12 @@ export interface DashboardApi {
     taskId: string,
     payload?: { override_input?: Record<string, unknown>; force?: boolean },
   ): Promise<unknown>;
+  skipWorkflowWorkItemTask(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+    payload: { reason: string },
+  ): Promise<unknown>;
   resolveWorkflowWorkItemTaskEscalation(
     workflowId: string,
     workItemId: string,
@@ -2750,6 +2756,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     retryWorkflowWorkItemTask: (workflowId, workItemId, taskId, payload = {}) =>
       withRefresh(() =>
         requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'retry', payload),
+      ),
+    skipWorkflowWorkItemTask: (workflowId, workItemId, taskId, payload) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'skip', payload),
       ),
     resolveWorkflowWorkItemTaskEscalation: (workflowId, workItemId, taskId, payload) =>
       withRefresh(() =>

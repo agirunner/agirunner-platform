@@ -168,6 +168,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('dashboardApi.rejectWorkflowWorkItemTask');
     expect(source).toContain('dashboardApi.requestWorkflowWorkItemTaskChanges');
     expect(source).toContain('dashboardApi.retryWorkflowWorkItemTask');
+    expect(source).toContain('dashboardApi.skipWorkflowWorkItemTask');
     expect(source).toContain('dashboardApi.resolveWorkflowWorkItemTaskEscalation');
     expect(source).toContain('dashboardApi.cancelWorkflowWorkItemTask');
     expect(source).not.toContain('dashboardApi.approveTask(');
@@ -175,10 +176,14 @@ describe('workflow work item detail panel source', () => {
     expect(source).not.toContain('dashboardApi.rejectTask(');
     expect(source).not.toContain('dashboardApi.requestTaskChanges(');
     expect(source).not.toContain('dashboardApi.retryTask(');
+    expect(source).not.toContain('dashboardApi.skipTask(');
     expect(source).not.toContain('dashboardApi.resolveEscalation(');
     expect(source).not.toContain('dashboardApi.cancelTask(');
     expect(source).toContain('Provide Operator Guidance');
     expect(source).toContain('Describe the operator guidance needed to resume this step...');
+    expect(source).toContain('Skip Step');
+    expect(source).toContain('Describe why this step should be skipped...');
+    expect(source).toContain('dashboardApi.skipWorkflowWorkItemTask(props.workflowId, scopedWorkItemId, props.task.id');
   });
 
   it('uses a responsive card-plus-table execution layout instead of a table-only task presentation', () => {

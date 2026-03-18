@@ -27,6 +27,13 @@ import {
   CardHeader,
   CardTitle,
 } from '../components/ui/card.js';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '../components/ui/dialog.js';
 import { Input } from '../components/ui/input.js';
 import { Textarea } from '../components/ui/textarea.js';
 import {
@@ -1904,8 +1911,10 @@ function WorkItemTaskActionCell(props: {
 }): JSX.Element {
   const [isChangesDialogOpen, setIsChangesDialogOpen] = useState(false);
   const [isEscalationDialogOpen, setIsEscalationDialogOpen] = useState(false);
+  const [isSkipDialogOpen, setIsSkipDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [instructions, setInstructions] = useState('');
+  const [skipReason, setSkipReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const state = props.task.state;
   const scopedWorkItemId = props.task.work_item_id ?? props.workItemId;
@@ -1986,6 +1995,21 @@ function WorkItemTaskActionCell(props: {
       setError(mutationError instanceof Error ? mutationError.message : 'Failed to retry step.');
     },
   });
+  const skipMutation = useMutation({
+    mutationFn: () =>
+      dashboardApi.skipWorkflowWorkItemTask(props.workflowId, scopedWorkItemId, props.task.id, {
+        reason: skipReason.trim(),
+      }),
+    onSuccess: async () => {
+      setError(null);
+      setSkipReason('');
+      setIsSkipDialogOpen(false);
+      await props.onWorkItemChanged();
+    },
+    onError: (mutationError) => {
+      setError(mutationError instanceof Error ? mutationError.message : 'Failed to skip step.');
+    },
+  });
   const resolveEscalationMutation = useMutation({
     mutationFn: () =>
       dashboardApi.resolveWorkflowWorkItemTaskEscalation(
@@ -2028,11 +2052,13 @@ function WorkItemTaskActionCell(props: {
   const canRetry = state === 'failed';
   const canResolveEscalation = state === 'escalated';
   const canCancel = state === 'failed' || state === 'escalated' || state === 'in_progress';
+  const canSkip = canCancel;
   const isAnyMutationPending =
     approveMutation.isPending ||
     rejectMutation.isPending ||
     requestChangesMutation.isPending ||
     retryMutation.isPending ||
+    skipMutation.isPending ||
     resolveEscalationMutation.isPending ||
     cancelMutation.isPending;
 
@@ -2076,6 +2102,16 @@ function WorkItemTaskActionCell(props: {
             Retry Step
           </Button>
         ) : null}
+        {canSkip ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setIsSkipDialogOpen(true)}
+            disabled={isAnyMutationPending}
+          >
+            Skip Step
+          </Button>
+        ) : null}
         {canResolveEscalation ? (
           <Button
             size="sm"
@@ -2098,6 +2134,40 @@ function WorkItemTaskActionCell(props: {
         ) : null}
       </div>
       {error ? <p className={errorTextClass}>{error}</p> : null}
+      <Dialog open={isSkipDialogOpen} onOpenChange={setIsSkipDialogOpen}>
+        <DialogContent className="max-h-[75vh] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Skip Step</DialogTitle>
+            <DialogDescription>
+              Keep the bypass reason attached to the selected work item without turning the action
+              row into another inline form.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <Textarea
+              value={skipReason}
+              onChange={(event) => setSkipReason(event.target.value)}
+              placeholder="Describe why this step should be skipped..."
+              rows={4}
+            />
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setIsSkipDialogOpen(false)}
+                disabled={skipMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => skipMutation.mutate()}
+                disabled={!skipReason.trim() || skipMutation.isPending}
+              >
+                Skip Step
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       <StepChangesDialog
         isOpen={isChangesDialogOpen}
         state={state}

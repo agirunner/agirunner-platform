@@ -13,12 +13,17 @@ describe('project detail workspace shell source', () => {
     const deliverySource = readSource('./project-delivery-history.tsx');
     expect(supportSource).toContain("value: 'delivery'");
     expect(source).toContain('<ProjectDeliveryHistory projectId={project.id} />');
-    expect(deliverySource).toContain('In Development');
-    expect(deliverySource).toContain('Project delivery is being rebuilt');
-    expect(deliverySource).not.toContain('Delivery Overview');
-    expect(deliverySource).not.toContain('Inspect next');
-    expect(deliverySource).not.toContain('Open board');
-    expect(deliverySource).not.toContain('Open inspector');
+    expect(deliverySource).toContain('dashboardApi.getProjectTimeline(projectId)');
+    expect(deliverySource).toContain('buildProjectDeliveryAttentionOverview');
+    expect(deliverySource).toContain('buildProjectDeliveryPacket');
+    expect(deliverySource).toContain('Delivery Overview');
+    expect(deliverySource).toContain('Project delivery timeline');
+    expect(deliverySource).toContain('Recent Signals');
+    expect(deliverySource).toContain('Run Cards');
+    expect(deliverySource).toContain('Open board');
+    expect(deliverySource).toContain('Open inspector');
+    expect(deliverySource).not.toContain('In Development');
+    expect(deliverySource).not.toContain('Project delivery is being rebuilt');
   });
 
   it('keeps an automation tab for scheduled work-item triggers', () => {

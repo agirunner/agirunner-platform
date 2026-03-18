@@ -89,6 +89,10 @@ const workflowWorkItemTaskRetrySchema = workflowWorkItemTaskMutationSchema.exten
   force: z.boolean().optional(),
 });
 
+const workflowWorkItemTaskSkipSchema = workflowWorkItemTaskMutationSchema.extend({
+  reason: z.string().min(1).max(4000),
+});
+
 const workflowWorkItemTaskResolveEscalationSchema = workflowWorkItemTaskMutationSchema.extend({
   instructions: z.string().min(1).max(4000),
   context: z.record(z.unknown()).optional(),
@@ -562,6 +566,34 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           'public_task_retry',
           requestId,
           (client) => app.taskService.retryTask(request.auth!, params.taskId, payload, client),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/skip',
+    { preHandler: workflowWorkItemTaskMutationPreHandler },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(workflowWorkItemTaskSkipSchema.safeParse(request.body ?? {}));
+      const { request_id: requestId, ...payload } = body;
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_skip',
+          requestId,
+          () => app.taskService.skipTask(request.auth!, params.taskId, payload),
         ),
       };
     },
