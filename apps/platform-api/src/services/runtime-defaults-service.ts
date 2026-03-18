@@ -48,6 +48,8 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['container_manager.log_flush_interval_ms', { min: 1 }],
   ['container_manager.docker_event_reconnect_backoff_ms', { min: 1 }],
   ['container_manager.crash_log_capture_timeout_seconds', { min: 1 }],
+  ['container_manager.starvation_threshold_seconds', { min: 1 }],
+  ['container_manager.runtime_orphan_grace_cycles', { min: 1 }],
   ['container_manager.hung_runtime_stale_after_seconds', { min: 1 }],
   ['container_manager.hung_runtime_stop_grace_period_seconds', { min: 1 }],
   ['docker.checker_timeout_ms', { min: 1 }],

@@ -19,6 +19,7 @@ func newDCMTestManager(docker *mockDockerClient, platform *mockPlatformClient) *
 		StopTimeout:              10 * time.Second,
 		ShutdownTaskStopTimeout:  2 * time.Second,
 		DockerActionBuffer:       1 * time.Second,
+		StarvationThreshold:      60 * time.Second,
 		HungRuntimeStaleAfter:    90 * time.Second,
 		HungRuntimeStopGrace:     30 * time.Second,
 		GlobalMaxRuntimes:        10,

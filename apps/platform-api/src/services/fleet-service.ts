@@ -1290,6 +1290,8 @@ const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
   logFlushIntervalMs: 'container_manager.log_flush_interval_ms',
   dockerEventReconnectBackoffMs: 'container_manager.docker_event_reconnect_backoff_ms',
   crashLogCaptureTimeoutSeconds: 'container_manager.crash_log_capture_timeout_seconds',
+  starvationThresholdSeconds: 'container_manager.starvation_threshold_seconds',
+  runtimeOrphanGraceCycles: 'container_manager.runtime_orphan_grace_cycles',
   hungRuntimeStaleAfterSeconds: 'container_manager.hung_runtime_stale_after_seconds',
   hungRuntimeStopGracePeriodSeconds: 'container_manager.hung_runtime_stop_grace_period_seconds',
   globalMaxRuntimes: 'global_max_runtimes',
@@ -1332,6 +1334,14 @@ function buildContainerManagerConfig(defaults: Map<string, string>): ContainerMa
     crash_log_capture_timeout_seconds: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.crashLogCaptureTimeoutSeconds,
+    ),
+    starvation_threshold_seconds: readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.starvationThresholdSeconds,
+    ),
+    runtime_orphan_grace_cycles: readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.runtimeOrphanGraceCycles,
     ),
     hung_runtime_stale_after_seconds: readRequiredIntegerDefault(
       defaults,
@@ -1429,6 +1439,8 @@ export interface ContainerManagerConfig {
   log_flush_interval_ms: number;
   docker_event_reconnect_backoff_ms: number;
   crash_log_capture_timeout_seconds: number;
+  starvation_threshold_seconds: number;
+  runtime_orphan_grace_cycles: number;
   hung_runtime_stale_after_seconds: number;
   hung_runtime_stop_grace_period_seconds: number;
   global_max_runtimes: number;

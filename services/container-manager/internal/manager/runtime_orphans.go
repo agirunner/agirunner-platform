@@ -6,9 +6,8 @@ import (
 )
 
 const (
-	defaultRuntimeOrphanGraceCycles = 3
-	orphanReasonMissingTarget       = "missing_target"
-	orphanReasonInvalidLabels       = "invalid_labels"
+	orphanReasonMissingTarget = "missing_target"
+	orphanReasonInvalidLabels = "invalid_labels"
 )
 
 type runtimeOrphanState struct {
@@ -48,10 +47,7 @@ func managedRuntimeTrackerKey(container ContainerInfo) string {
 }
 
 func (m *Manager) runtimeOrphanGraceCycles() int {
-	if m.config.RuntimeOrphanGraceCycles > 0 {
-		return m.config.RuntimeOrphanGraceCycles
-	}
-	return defaultRuntimeOrphanGraceCycles
+	return m.config.RuntimeOrphanGraceCycles
 }
 
 func (m *Manager) reconcileManagedRuntimeOrphans(

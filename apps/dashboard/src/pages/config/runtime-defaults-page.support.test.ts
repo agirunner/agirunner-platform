@@ -77,6 +77,12 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
       'container_manager.crash_log_capture_timeout_seconds',
     );
+    expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
+      'container_manager.starvation_threshold_seconds',
+    );
+    expect(fieldsForSection('container_manager').map((field) => field.key)).toContain(
+      'container_manager.runtime_orphan_grace_cycles',
+    );
     expect(fieldsForSection('worker_supervision').map((field) => field.key)).toContain(
       'platform.worker_dispatch_ack_timeout_ms',
     );
@@ -225,7 +231,7 @@ describe('runtime defaults page support', () => {
           key: 'container_manager',
           title: 'Container manager',
           configuredCount: 0,
-          fieldCount: 9,
+          fieldCount: 11,
           errorCount: 0,
         },
         {

@@ -62,6 +62,8 @@ describe('runtime defaults page source', () => {
         'container_manager.log_flush_interval_ms',
         'container_manager.docker_event_reconnect_backoff_ms',
         'container_manager.crash_log_capture_timeout_seconds',
+        'container_manager.starvation_threshold_seconds',
+        'container_manager.runtime_orphan_grace_cycles',
         'platform.worker_dispatch_ack_timeout_ms',
         'platform.worker_key_expiry_ms',
         'platform.agent_heartbeat_threshold_multiplier',

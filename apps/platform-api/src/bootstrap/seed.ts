@@ -501,6 +501,20 @@ async function seedRuntimeDefaults(
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.starvation_threshold_seconds',
+    configValue: '60',
+    configType: 'number',
+    description: 'How long a playbook may remain pending without a runtime before the container manager boosts it for starvation recovery',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.runtime_orphan_grace_cycles',
+    configValue: '3',
+    configType: 'number',
+    description: 'How many reconcile cycles a managed runtime may remain orphaned before the container manager force-removes it',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'container_manager.hung_runtime_stale_after_seconds',
     configValue: '90',
     configType: 'number',

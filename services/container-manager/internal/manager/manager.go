@@ -53,25 +53,26 @@ type ContainerSpec struct {
 
 // Config holds container manager configuration.
 type Config struct {
-	PlatformAPIURL           string
-	PlatformAPIKey           string
-	PlatformAdminAPIKey      string
-	PlatformAPIRequestTimeout time.Duration
-	PlatformLogIngestTimeout  time.Duration
-	DockerHost               string
-	ReconcileInterval        time.Duration
-	StopTimeout              time.Duration
-	ShutdownTaskStopTimeout  time.Duration
-	DockerActionBuffer       time.Duration
-	LogFlushInterval         time.Duration
+	PlatformAPIURL              string
+	PlatformAPIKey              string
+	PlatformAdminAPIKey         string
+	PlatformAPIRequestTimeout   time.Duration
+	PlatformLogIngestTimeout    time.Duration
+	DockerHost                  string
+	ReconcileInterval           time.Duration
+	StopTimeout                 time.Duration
+	ShutdownTaskStopTimeout     time.Duration
+	DockerActionBuffer          time.Duration
+	LogFlushInterval            time.Duration
 	DockerEventReconnectBackoff time.Duration
-	CrashLogCaptureTimeout   time.Duration
-	HungRuntimeStaleAfter    time.Duration
-	HungRuntimeStopGrace     time.Duration
-	GlobalMaxRuntimes        int
-	RuntimeOrphanGraceCycles int
-	RuntimeNetwork           string
-	RuntimeInternalNetwork   string
+	CrashLogCaptureTimeout      time.Duration
+	StarvationThreshold         time.Duration
+	HungRuntimeStaleAfter       time.Duration
+	HungRuntimeStopGrace        time.Duration
+	GlobalMaxRuntimes           int
+	RuntimeOrphanGraceCycles    int
+	RuntimeNetwork              string
+	RuntimeInternalNetwork      string
 }
 
 // PlatformAPI abstracts communication with the platform API.

@@ -2,10 +2,6 @@ package manager
 
 import "time"
 
-// starvationThreshold is the maximum time a playbook with pending tasks may
-// wait without receiving any runtime before it is flagged as starved.
-const starvationThreshold = 60 * time.Second
-
 // updateStarvationTracking records when playbooks first had pending tasks with
 // no running containers, and clears entries once a runtime is assigned.
 func (m *Manager) updateStarvationTracking(
@@ -53,7 +49,7 @@ func (m *Manager) isStarved(target RuntimeTarget) bool {
 	if !ok {
 		return false
 	}
-	return m.nowFunc().Sub(firstPending) >= starvationThreshold
+	return m.nowFunc().Sub(firstPending) >= m.config.StarvationThreshold
 }
 
 // boostStarvedTargets adjusts the priority of starved targets so they are

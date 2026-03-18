@@ -200,7 +200,7 @@ func TestStarvationClearedOnNextCycleWhenRuntimeAssigned(t *testing.T) {
 func TestStarvationBoostRaisesPriority(t *testing.T) {
 	mgr := newDCMTestManager(newMockDockerClient(), &mockPlatformClient{})
 
-	pastThreshold := time.Now().Add(-starvationThreshold - time.Second)
+	pastThreshold := time.Now().Add(-mgr.config.StarvationThreshold - time.Second)
 	mgr.starvationTrack[makeRuntimeTarget("tmpl-starved", "img:v1", 3, 2, 1).TargetKey()] = pastThreshold
 
 	targets := []RuntimeTarget{
@@ -279,7 +279,7 @@ func TestStarvedTemplatePreemptsHigherOriginalPriority(t *testing.T) {
 	mgr := newDCMTestManager(docker, platform)
 
 	// Mark tmpl-starved as starved past threshold.
-	pastThreshold := time.Now().Add(-starvationThreshold - time.Second)
+	pastThreshold := time.Now().Add(-mgr.config.StarvationThreshold - time.Second)
 	mgr.starvationTrack[makeRuntimeTarget("tmpl-starved", "img:v1", 3, 2, 1).TargetKey()] = pastThreshold
 
 	err := mgr.reconcileDCM(context.Background())

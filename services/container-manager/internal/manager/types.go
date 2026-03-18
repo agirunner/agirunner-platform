@@ -119,16 +119,18 @@ type RuntimeHeartbeat struct {
 type ContainerManagerConfig struct {
 	PlatformAPIRequestTimeoutSeconds int `json:"platform_api_request_timeout_seconds"`
 	PlatformLogIngestTimeoutSeconds  int `json:"platform_log_ingest_timeout_seconds"`
-	ReconcileIntervalSeconds       int `json:"reconcile_interval_seconds"`
-	StopTimeoutSeconds             int `json:"stop_timeout_seconds"`
-	ShutdownTaskStopTimeoutSeconds int `json:"shutdown_task_stop_timeout_seconds"`
-	DockerActionBufferSeconds      int `json:"docker_action_buffer_seconds"`
-	LogFlushIntervalMs             int `json:"log_flush_interval_ms"`
-	DockerEventReconnectBackoffMs  int `json:"docker_event_reconnect_backoff_ms"`
-	CrashLogCaptureTimeoutSeconds  int `json:"crash_log_capture_timeout_seconds"`
-	HungRuntimeStaleAfterSeconds   int `json:"hung_runtime_stale_after_seconds"`
-	HungRuntimeStopGracePeriodSec  int `json:"hung_runtime_stop_grace_period_seconds"`
-	GlobalMaxRuntimes              int `json:"global_max_runtimes"`
+	ReconcileIntervalSeconds         int `json:"reconcile_interval_seconds"`
+	StopTimeoutSeconds               int `json:"stop_timeout_seconds"`
+	ShutdownTaskStopTimeoutSeconds   int `json:"shutdown_task_stop_timeout_seconds"`
+	DockerActionBufferSeconds        int `json:"docker_action_buffer_seconds"`
+	LogFlushIntervalMs               int `json:"log_flush_interval_ms"`
+	DockerEventReconnectBackoffMs    int `json:"docker_event_reconnect_backoff_ms"`
+	CrashLogCaptureTimeoutSeconds    int `json:"crash_log_capture_timeout_seconds"`
+	StarvationThresholdSeconds       int `json:"starvation_threshold_seconds"`
+	RuntimeOrphanGraceCycles         int `json:"runtime_orphan_grace_cycles"`
+	HungRuntimeStaleAfterSeconds     int `json:"hung_runtime_stale_after_seconds"`
+	HungRuntimeStopGracePeriodSec    int `json:"hung_runtime_stop_grace_period_seconds"`
+	GlobalMaxRuntimes                int `json:"global_max_runtimes"`
 }
 
 // ReconcileSnapshot bundles the worker desired state and DCM inputs needed for

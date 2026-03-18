@@ -286,6 +286,22 @@ describe('RuntimeDefaultsService', () => {
           configType: 'number',
         }),
       ).rejects.toThrow('container_manager.crash_log_capture_timeout_seconds must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'container_manager.starvation_threshold_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('container_manager.starvation_threshold_seconds must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'container_manager.runtime_orphan_grace_cycles',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('container_manager.runtime_orphan_grace_cycles must be at least 1');
     });
 
     it('rejects invalid worker supervision defaults', async () => {

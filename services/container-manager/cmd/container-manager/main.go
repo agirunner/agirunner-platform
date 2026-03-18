@@ -23,13 +23,12 @@ func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: defaultProcessLogLevel()}))
 
 	cfg := manager.Config{
-		PlatformAPIURL:           envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
-		PlatformAPIKey:           envOrFileOrDefault("PLATFORM_API_KEY", "PLATFORM_API_KEY_FILE", ""),
-		PlatformAdminAPIKey:      envOrFileOrDefault("PLATFORM_ADMIN_API_KEY", "PLATFORM_ADMIN_API_KEY_FILE", ""),
-		DockerHost:               envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
-		RuntimeOrphanGraceCycles: parseInt("RUNTIME_ORPHAN_GRACE_CYCLES", 3),
-		RuntimeNetwork:           envOrDefault("RUNTIME_NETWORK", ""),
-		RuntimeInternalNetwork:   envOrDefault("RUNTIME_INTERNAL_NETWORK", ""),
+		PlatformAPIURL:         envOrDefault("PLATFORM_API_URL", "http://platform-api:8080"),
+		PlatformAPIKey:         envOrFileOrDefault("PLATFORM_API_KEY", "PLATFORM_API_KEY_FILE", ""),
+		PlatformAdminAPIKey:    envOrFileOrDefault("PLATFORM_ADMIN_API_KEY", "PLATFORM_ADMIN_API_KEY_FILE", ""),
+		DockerHost:             envOrDefault("DOCKER_HOST", "tcp://socket-proxy:2375"),
+		RuntimeNetwork:         envOrDefault("RUNTIME_NETWORK", ""),
+		RuntimeInternalNetwork: envOrDefault("RUNTIME_INTERNAL_NETWORK", ""),
 	}
 
 	if cfg.PlatformAPIKey == "" {
@@ -99,9 +98,6 @@ func parseInt(envKey string, defaultValue int) int {
 	return n
 }
 
-// envWithAlias returns the value of the primary env var if set, otherwise
-// the fallback env var, otherwise the default. This supports the design's
-// canonical AGIRUNNER_ prefixed names alongside legacy short names.
 func envWithAlias(primary, fallback, defaultValue string) string {
 	if v := os.Getenv(primary); v != "" {
 		return v
@@ -109,8 +105,6 @@ func envWithAlias(primary, fallback, defaultValue string) string {
 	return envOrDefault(fallback, defaultValue)
 }
 
-// parseIntWithAlias reads an integer from the primary env var, falling back
-// to the alias env var, then the default value.
 func parseIntWithAlias(primary, fallback string, defaultValue int) int {
 	if v := os.Getenv(primary); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
@@ -123,7 +117,6 @@ func parseIntWithAlias(primary, fallback string, defaultValue int) int {
 func defaultProcessLogLevel() slog.Level {
 	return slog.LevelInfo
 }
-
 
 // noopDockerClient is a placeholder until the real Docker client is wired.
 type noopDockerClient struct {
