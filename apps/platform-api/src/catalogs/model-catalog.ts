@@ -117,6 +117,8 @@ export const MODEL_CATALOG: Record<string, ModelCatalogEntry> = {
   /* OpenAI: GPT-5.4 */
   'gpt-5.4-pro':        m(1050000, 128000, 'responses', true, true, 30,    180,   OAI_GPT54_PRO_REASONING),
   'gpt-5.4':            m(1050000, 128000, 'responses', true, true, 2.5,   15,    OAI_GPT54_REASONING),
+  'gpt-5.4-mini':       m(400000,  128000, 'responses', true, true, 0.75,  4.5,   OAI_GPT54_REASONING),
+  'gpt-5.4-nano':       m(400000,  128000, 'responses', true, true, 0.20,  1.60,  OAI_GPT54_REASONING),
   /* OpenAI: GPT-5.3 */
   'gpt-5.3-codex':      m(400000,  128000, 'responses', true, true, 1.75,  14,    OAI_XHIGH),
   'gpt-5.3-codex-spark':m(272000,  128000, 'responses', true, false, null, null,  null),
@@ -220,7 +222,7 @@ export const PROVIDER_ENDPOINT_DEFAULTS: Record<string, string> = {
 /* ── Default-enabled patterns ──────────────────────────────────────────── */
 
 const DEFAULT_ENABLED_PATTERNS = [
-  /^gpt-5\.4(-\d|$)/,
+  /^gpt-5\.4($|-)/,
   /^gpt-5\.3-codex/,
   /^gemini-3\.1-pro/,
   /^claude-sonnet-4-6/,

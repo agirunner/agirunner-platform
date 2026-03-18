@@ -162,6 +162,104 @@ def sync_playbook(client: ApiClient, playbook_fixture_path: str) -> dict[str, An
     )
 
 
+def reasoning_config(default_effort: str) -> dict[str, Any]:
+    return {
+        "type": "effort",
+        "options": ["none", "low", "medium", "high", "xhigh"],
+        "default": default_effort,
+    }
+
+
+def reasoning_assignment(effort: str) -> dict[str, str]:
+    return {"effort": effort, "reasoning_effort": effort}
+
+
+def find_model(
+    models: list[dict[str, Any]],
+    *,
+    provider_id: str,
+    model_id: str,
+    endpoint_type: str,
+) -> dict[str, Any] | None:
+    for model in models:
+        if (
+            model.get("provider_id") == provider_id
+            and model.get("model_id") == model_id
+            and model.get("endpoint_type") == endpoint_type
+        ):
+            return model
+    return None
+
+
+def create_model(
+    client: ApiClient,
+    *,
+    provider_id: str,
+    model_id: str,
+    endpoint_type: str,
+    default_reasoning_effort: str,
+    label: str,
+) -> dict[str, Any]:
+    return extract_data(
+        client.request(
+            "POST",
+            "/api/v1/config/llm/models",
+            payload={
+                "providerId": provider_id,
+                "modelId": model_id,
+                "supportsToolUse": True,
+                "supportsVision": False,
+                "isEnabled": True,
+                "endpointType": endpoint_type,
+                "reasoningConfig": reasoning_config(default_reasoning_effort),
+            },
+            expected=(201,),
+            label=label,
+        )
+    )
+
+
+def ensure_specialist_assignments(
+    client: ApiClient,
+    *,
+    provider_id: str,
+    existing_models: list[dict[str, Any]],
+    roles: list[dict[str, Any]],
+    specialist_model_id: str,
+    specialist_endpoint_type: str,
+    specialist_reasoning_effort: str,
+) -> dict[str, Any]:
+    specialist_model = find_model(
+        existing_models,
+        provider_id=provider_id,
+        model_id=specialist_model_id,
+        endpoint_type=specialist_endpoint_type,
+    )
+    if specialist_model is None:
+        specialist_model = create_model(
+            client,
+            provider_id=provider_id,
+            model_id=specialist_model_id,
+            endpoint_type=specialist_endpoint_type,
+            default_reasoning_effort=specialist_reasoning_effort,
+            label="llm.models.create.specialist",
+        )
+
+    for role in roles:
+        client.request(
+            "PUT",
+            f"/api/v1/config/llm/assignments/{role['name']}",
+            payload={
+                "primaryModelId": specialist_model["id"],
+                "reasoningConfig": reasoning_assignment(specialist_reasoning_effort),
+            },
+            expected=(200,),
+            label=f"llm.assignments.update:{role['name']}",
+        )
+
+    return specialist_model
+
+
 def restart_orchestrator(client: ApiClient, worker_name: str, runtime_image: str) -> dict[str, Any]:
     workers = extract_data(client.request("GET", "/api/v1/fleet/workers", label="fleet.workers.list"))
     orchestrator = find_worker(workers, worker_name)
@@ -199,9 +297,12 @@ def main() -> None:
     provider_type = env("LIVE_TEST_PROVIDER_TYPE", "openai")
     provider_base_url = env("LIVE_TEST_PROVIDER_BASE_URL", "https://api.openai.com/v1")
     provider_api_key = env("LIVE_TEST_PROVIDER_API_KEY", required=True)
-    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4")
+    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4-mini")
     model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", "responses")
     system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "low")
+    specialist_model_id = env("LIVE_TEST_SPECIALIST_MODEL_ID", model_id)
+    specialist_endpoint_type = env("LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE", model_endpoint_type)
+    specialist_reasoning_effort = env("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium")
     workspace_name = env("LIVE_TEST_WORKSPACE_NAME", "SDLC Proof Workspace")
     workspace_slug = env("LIVE_TEST_WORKSPACE_SLUG", "sdlc-proof-workspace")
     repository_url = env("LIVE_TEST_REPOSITORY_URL", "https://github.com/agirunner/agirunner-test-fixtures.git")
@@ -248,26 +349,13 @@ def main() -> None:
         )
     )
 
-    model = extract_data(
-        client.request(
-            "POST",
-            "/api/v1/config/llm/models",
-            payload={
-                "providerId": provider["id"],
-                "modelId": model_id,
-                "supportsToolUse": True,
-                "supportsVision": False,
-                "isEnabled": True,
-                "endpointType": model_endpoint_type,
-                "reasoningConfig": {
-                    "type": "effort",
-                    "options": ["none", "low", "medium", "high", "xhigh"],
-                    "default": system_reasoning_effort,
-                },
-            },
-            expected=(201,),
-            label="llm.models.create",
-        )
+    model = create_model(
+        client,
+        provider_id=provider["id"],
+        model_id=model_id,
+        endpoint_type=model_endpoint_type,
+        default_reasoning_effort=system_reasoning_effort,
+        label="llm.models.create.system",
     )
 
     client.request(
@@ -275,10 +363,20 @@ def main() -> None:
         "/api/v1/config/llm/system-default",
         payload={
             "modelId": model["id"],
-            "reasoningConfig": {"effort": system_reasoning_effort, "reasoning_effort": system_reasoning_effort},
+            "reasoningConfig": reasoning_assignment(system_reasoning_effort),
         },
         expected=(200,),
         label="llm.system-default.update",
+    )
+
+    specialist_model = ensure_specialist_assignments(
+        client,
+        provider_id=provider["id"],
+        existing_models=[model],
+        roles=roles,
+        specialist_model_id=specialist_model_id,
+        specialist_endpoint_type=specialist_endpoint_type,
+        specialist_reasoning_effort=specialist_reasoning_effort,
     )
 
     workspace = extract_data(
@@ -316,6 +414,9 @@ def main() -> None:
                 "model_id": model["id"],
                 "model_name": model_id,
                 "system_reasoning": system_reasoning_effort,
+                "specialist_model_id": specialist_model["id"],
+                "specialist_model_name": specialist_model["model_id"],
+                "specialist_reasoning": specialist_reasoning_effort,
                 "role_names": [role["name"] for role in roles],
                 "playbook_id": playbook["id"],
                 "playbook_slug": playbook["slug"],

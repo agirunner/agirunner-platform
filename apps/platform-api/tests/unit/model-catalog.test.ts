@@ -85,6 +85,7 @@ describe('findCatalogEntry', () => {
 describe('isDefaultEnabledModel', () => {
   it('enables production models', () => {
     expect(isDefaultEnabledModel('gpt-5.4')).toBe(true);
+    expect(isDefaultEnabledModel('gpt-5.4-mini')).toBe(true);
     expect(isDefaultEnabledModel('gpt-5.3-codex')).toBe(true);
     expect(isDefaultEnabledModel('claude-sonnet-4-6')).toBe(true);
     expect(isDefaultEnabledModel('claude-opus-4-6')).toBe(true);
@@ -107,6 +108,17 @@ describe('catalog data spot checks', () => {
     expect(entry.endpointType).toBe('responses');
     expect(entry.inputCostPerMillionUsd).toBe(2.5);
     expect(entry.outputCostPerMillionUsd).toBe(15);
+    expect(entry.reasoningConfig).not.toBeNull();
+    expect(entry.reasoningConfig!.type).toBe('reasoning_effort');
+  });
+
+  it('gpt-5.4-mini has correct specs', () => {
+    const entry = MODEL_CATALOG['gpt-5.4-mini'];
+    expect(entry.contextWindow).toBe(400000);
+    expect(entry.maxOutputTokens).toBe(128000);
+    expect(entry.endpointType).toBe('responses');
+    expect(entry.inputCostPerMillionUsd).toBe(0.75);
+    expect(entry.outputCostPerMillionUsd).toBe(4.5);
     expect(entry.reasoningConfig).not.toBeNull();
     expect(entry.reasoningConfig!.type).toBe('reasoning_effort');
   });

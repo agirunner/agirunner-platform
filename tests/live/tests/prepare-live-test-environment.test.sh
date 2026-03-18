@@ -58,7 +58,7 @@ EOF
   make_stub "${stubdir}/docker" 'printf "docker %s\n" "$*" >>"'"${logfile}"'"'
   make_stub "${stubdir}/git" 'printf "git %s\n" "$*" >>"'"${logfile}"'"'
   make_stub "${stubdir}/curl" 'printf "curl %s\n" "$*" >>"'"${logfile}"'"'
-  make_stub "${stubdir}/python3" 'printf "python3 %s\n" "$*" >>"'"${logfile}"'"; printf "python3 DEFAULT_ADMIN_API_KEY=%s LIVE_TEST_PROVIDER_API_KEY=%s LIVE_TEST_GITHUB_TOKEN=%s PLATFORM_API_BASE_URL=%s LIVE_TEST_TRACE_DIR=%s ORCHESTRATOR_WORKER_NAME=%s LIVE_TEST_PROVIDER_TYPE=%s LIVE_TEST_MODEL_ID=%s\n" "${DEFAULT_ADMIN_API_KEY:-}" "${LIVE_TEST_PROVIDER_API_KEY:-}" "${LIVE_TEST_GITHUB_TOKEN:-}" "${PLATFORM_API_BASE_URL:-}" "${LIVE_TEST_TRACE_DIR:-}" "${ORCHESTRATOR_WORKER_NAME:-}" "${LIVE_TEST_PROVIDER_TYPE:-}" "${LIVE_TEST_MODEL_ID:-}" >>"'"${logfile}"'"; printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"sdlc-proof-workspace\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\"}"'
+  make_stub "${stubdir}/python3" 'printf "python3 %s\n" "$*" >>"'"${logfile}"'"; printf "python3 DEFAULT_ADMIN_API_KEY=%s LIVE_TEST_PROVIDER_API_KEY=%s LIVE_TEST_GITHUB_TOKEN=%s PLATFORM_API_BASE_URL=%s LIVE_TEST_TRACE_DIR=%s ORCHESTRATOR_WORKER_NAME=%s LIVE_TEST_PROVIDER_TYPE=%s LIVE_TEST_MODEL_ID=%s LIVE_TEST_SPECIALIST_MODEL_ID=%s LIVE_TEST_SPECIALIST_REASONING_EFFORT=%s\n" "${DEFAULT_ADMIN_API_KEY:-}" "${LIVE_TEST_PROVIDER_API_KEY:-}" "${LIVE_TEST_GITHUB_TOKEN:-}" "${PLATFORM_API_BASE_URL:-}" "${LIVE_TEST_TRACE_DIR:-}" "${ORCHESTRATOR_WORKER_NAME:-}" "${LIVE_TEST_PROVIDER_TYPE:-}" "${LIVE_TEST_MODEL_ID:-}" "${LIVE_TEST_SPECIALIST_MODEL_ID:-}" "${LIVE_TEST_SPECIALIST_REASONING_EFFORT:-}" >>"'"${logfile}"'"; printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"sdlc-proof-workspace\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\"}"'
 
   PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
@@ -85,7 +85,7 @@ EOF
   assert_contains "git -C ${fixtures_root} push --force origin HEAD:main" "${logfile}"
   assert_contains "git -C ${fixtures_root} checkout -B main" "${logfile}"
   assert_contains "python3 ${fake_platform_root}/tests/live/lib/seed_live_test_environment.py" "${logfile}"
-  assert_contains "python3 DEFAULT_ADMIN_API_KEY=test-admin-key LIVE_TEST_PROVIDER_API_KEY=test-provider-key LIVE_TEST_GITHUB_TOKEN=test-github-token PLATFORM_API_BASE_URL=http://127.0.0.1:8080 LIVE_TEST_TRACE_DIR=${trace_dir} ORCHESTRATOR_WORKER_NAME=orchestrator-primary LIVE_TEST_PROVIDER_TYPE=openai LIVE_TEST_MODEL_ID=gpt-5.4" "${logfile}"
+  assert_contains "python3 DEFAULT_ADMIN_API_KEY=test-admin-key LIVE_TEST_PROVIDER_API_KEY=test-provider-key LIVE_TEST_GITHUB_TOKEN=test-github-token PLATFORM_API_BASE_URL=http://127.0.0.1:8080 LIVE_TEST_TRACE_DIR=${trace_dir} ORCHESTRATOR_WORKER_NAME=orchestrator-primary LIVE_TEST_PROVIDER_TYPE=openai LIVE_TEST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_REASONING_EFFORT=medium" "${logfile}"
   assert_contains "[tests/live] building runtime image agirunner-runtime:local" "${stdout_log}"
   assert_contains "\"workspace_id\":\"workspace-1\"" "${bootstrap_context_file}"
 }
