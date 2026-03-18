@@ -1,5 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import type { LogService } from '../logging/log-service.js';
+import { logWorkItemContinuityTransition } from '../logging/work-item-continuity-log.js';
 import {
   evaluatePlaybookRules,
   type PlaybookRuleEvaluationResult,
@@ -10,6 +12,7 @@ interface WorkItemContinuityContextRow {
   work_item_id: string;
   stage_name: string | null;
   current_checkpoint: string | null;
+  rework_count: number | null;
   owner_role: string | null;
   next_expected_actor: string | null;
   next_expected_action: string | null;
@@ -21,7 +24,10 @@ export interface WorkItemCompletionOutcome extends PlaybookRuleEvaluationResult 
 }
 
 export class WorkItemContinuityService {
-  constructor(private readonly pool: DatabasePool) {}
+  constructor(
+    private readonly pool: DatabasePool,
+    private readonly logService?: LogService,
+  ) {}
 
   async recordTaskCompleted(
     tenantId: string,
@@ -61,6 +67,21 @@ export class WorkItemContinuityService {
           AND id = $3`,
       [tenantId, context.workflow_id, context.work_item_id, checkpointName],
     );
+
+    await logWorkItemContinuityTransition(this.logService, {
+      tenantId,
+      event: 'review_expectation_cleared',
+      task,
+      checkpointName,
+      stageName: context.stage_name,
+      ownerRole: context.owner_role,
+      previousNextExpectedActor: context.next_expected_actor,
+      previousNextExpectedAction: context.next_expected_action,
+      nextExpectedActor: null,
+      nextExpectedAction: null,
+      previousReworkCount: context.rework_count,
+      nextReworkCount: context.rework_count,
+    });
 
     return {
       nextExpectedActor: null,
@@ -126,6 +147,28 @@ export class WorkItemContinuityService {
       ],
     );
 
+    await logWorkItemContinuityTransition(this.logService, {
+      tenantId,
+      event,
+      task,
+      checkpointName,
+      stageName: context.stage_name,
+      ownerRole: context.owner_role,
+      previousNextExpectedActor: context.next_expected_actor,
+      previousNextExpectedAction: context.next_expected_action,
+      nextExpectedActor: normalizedEvaluation.nextExpectedActor,
+      nextExpectedAction: normalizedEvaluation.nextExpectedAction,
+      previousReworkCount: context.rework_count,
+      nextReworkCount:
+        typeof context.rework_count === 'number'
+          ? context.rework_count + normalizedEvaluation.reworkDelta
+          : normalizedEvaluation.reworkDelta,
+      matchedRuleType: normalizedEvaluation.matchedRuleType,
+      requiresHumanApproval: normalizedEvaluation.requiresHumanApproval,
+      satisfiedReviewExpectation,
+      reworkDelta: normalizedEvaluation.reworkDelta,
+    });
+
     return {
       ...normalizedEvaluation,
       satisfiedReviewExpectation,
@@ -179,6 +222,7 @@ export class WorkItemContinuityService {
               wi.id AS work_item_id,
               wi.stage_name,
               wi.current_checkpoint,
+              wi.rework_count,
               wi.owner_role,
               wi.next_expected_actor,
               wi.next_expected_action,

@@ -281,4 +281,183 @@ describe('WorkItemContinuityService', () => {
       satisfiedReviewExpectation: true,
     });
   });
+
+  it('emits a continuity transition log when task completion updates the next expected step', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            current_checkpoint: 'implementation',
+            owner_role: 'developer',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            definition: {
+              process_instructions: 'Developer implements and QA validates next.',
+              roles: ['developer', 'qa'],
+              board: { columns: [{ id: 'implementation', label: 'Implementation' }] },
+              checkpoints: [{ name: 'implementation', goal: 'Implement work', human_gate: false }],
+              handoff_rules: [{ from_role: 'developer', to_role: 'qa', required: true }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+    };
+
+    const service = new WorkItemContinuityService(pool as never, logService as never);
+
+    await service.recordTaskCompleted('tenant-1', {
+      id: 'task-1',
+      title: 'Implement work',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'developer',
+      stage_name: 'implementation',
+    });
+
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tenantId: 'tenant-1',
+        source: 'platform',
+        category: 'task_lifecycle',
+        operation: 'work_item.continuity.task_completed',
+        status: 'completed',
+        workflowId: 'workflow-1',
+        workItemId: 'work-item-1',
+        taskId: 'task-1',
+        role: 'developer',
+        resourceType: 'work_item',
+        resourceId: 'work-item-1',
+        payload: expect.objectContaining({
+          event: 'task_completed',
+          checkpoint_name: 'implementation',
+          previous_next_expected_actor: 'reviewer',
+          previous_next_expected_action: 'review',
+          next_expected_actor: 'qa',
+          next_expected_action: 'handoff',
+          matched_rule_type: 'handoff',
+          satisfied_review_expectation: false,
+          rework_delta: 0,
+        }),
+      }),
+    );
+  });
+
+  it('emits a continuity transition log when review rejection routes work back for rework', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            current_checkpoint: 'review',
+            owner_role: 'reviewer',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            definition: {
+              process_instructions: 'Developer implements, reviewer rejects to developer on issues.',
+              roles: ['developer', 'reviewer'],
+              board: { columns: [{ id: 'review', label: 'Review' }] },
+              checkpoints: [{ name: 'review', goal: 'Review the change', human_gate: false }],
+              review_rules: [{
+                from_role: 'developer',
+                reviewed_by: 'reviewer',
+                required: true,
+                on_reject: { action: 'return_to_role', role: 'developer' },
+              }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+    };
+
+    const service = new WorkItemContinuityService(pool as never, logService as never);
+
+    await service.recordReviewRejected('tenant-1', {
+      id: 'task-2',
+      title: 'Review implementation',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'developer',
+      stage_name: 'review',
+    });
+
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'work_item.continuity.review_rejected',
+        payload: expect.objectContaining({
+          event: 'review_rejected',
+          checkpoint_name: 'review',
+          previous_next_expected_actor: 'reviewer',
+          previous_next_expected_action: 'review',
+          next_expected_actor: 'developer',
+          next_expected_action: 'rework',
+          matched_rule_type: 'review',
+          rework_delta: 1,
+        }),
+      }),
+    );
+  });
+
+  it('emits a continuity transition log when review expectation is cleared after approval', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            current_checkpoint: 'implementation',
+            owner_role: 'developer',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            definition: { process_instructions: 'Developer implements.' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+    const logService = {
+      insert: vi.fn(async () => undefined),
+    };
+
+    const service = new WorkItemContinuityService(pool as never, logService as never);
+
+    await service.clearReviewExpectation('tenant-1', {
+      id: 'task-3',
+      title: 'Approve implementation',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      stage_name: 'implementation',
+      role: 'reviewer',
+    });
+
+    expect(logService.insert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        operation: 'work_item.continuity.review_expectation_cleared',
+        payload: expect.objectContaining({
+          event: 'review_expectation_cleared',
+          checkpoint_name: 'implementation',
+          previous_next_expected_actor: 'reviewer',
+          previous_next_expected_action: 'review',
+          next_expected_actor: null,
+          next_expected_action: null,
+        }),
+      }),
+    );
+  });
 });

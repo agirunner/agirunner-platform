@@ -157,7 +157,7 @@ export class TaskService {
       eventService,
       config,
     });
-    const workItemContinuityService = new WorkItemContinuityService(pool);
+    const workItemContinuityService = new WorkItemContinuityService(pool, logService);
     const handoffService = new HandoffService(pool, logService);
     this.lifecycleService = new TaskLifecycleService({
       pool,

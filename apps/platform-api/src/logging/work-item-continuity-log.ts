@@ -1,0 +1,104 @@
+import { randomUUID } from 'node:crypto';
+
+import type { LogService } from './log-service.js';
+import { actorFromAuth } from './actor-context.js';
+import { getRequestContext } from '../observability/request-context.js';
+
+interface WorkItemContinuityTransitionInput {
+  tenantId: string;
+  event: 'task_completed' | 'review_rejected' | 'review_expectation_cleared';
+  task: Record<string, unknown>;
+  checkpointName: string | null;
+  stageName: string | null;
+  ownerRole: string | null;
+  previousNextExpectedActor: string | null;
+  previousNextExpectedAction: string | null;
+  nextExpectedActor: string | null;
+  nextExpectedAction: string | null;
+  previousReworkCount: number | null;
+  nextReworkCount: number | null;
+  matchedRuleType?: string | null;
+  requiresHumanApproval?: boolean | null;
+  satisfiedReviewExpectation?: boolean | null;
+  reworkDelta?: number | null;
+}
+
+const CONTINUITY_OPERATION_BY_EVENT: Record<
+  WorkItemContinuityTransitionInput['event'],
+  string
+> = {
+  task_completed: 'work_item.continuity.task_completed',
+  review_rejected: 'work_item.continuity.review_rejected',
+  review_expectation_cleared: 'work_item.continuity.review_expectation_cleared',
+};
+
+export async function logWorkItemContinuityTransition(
+  logService: LogService | undefined,
+  input: WorkItemContinuityTransitionInput,
+): Promise<void> {
+  if (!logService) {
+    return;
+  }
+
+  const requestContext = getRequestContext();
+  const actor = actorFromAuth(requestContext?.auth);
+
+  try {
+    await logService.insert({
+      tenantId: input.tenantId,
+      traceId: requestContext?.requestId ?? randomUUID(),
+      spanId: randomUUID(),
+      source: 'platform',
+      category: 'task_lifecycle',
+      level: 'info',
+      operation: CONTINUITY_OPERATION_BY_EVENT[input.event],
+      status: 'completed',
+      payload: {
+        event: input.event,
+        checkpoint_name: input.checkpointName,
+        stage_name: input.stageName,
+        owner_role: input.ownerRole,
+        task_role: readOptionalString(input.task.role),
+        previous_next_expected_actor: input.previousNextExpectedActor,
+        previous_next_expected_action: input.previousNextExpectedAction,
+        next_expected_actor: input.nextExpectedActor,
+        next_expected_action: input.nextExpectedAction,
+        previous_rework_count: input.previousReworkCount,
+        next_rework_count: input.nextReworkCount,
+        matched_rule_type: input.matchedRuleType ?? null,
+        requires_human_approval:
+          typeof input.requiresHumanApproval === 'boolean'
+            ? input.requiresHumanApproval
+            : null,
+        satisfied_review_expectation:
+          typeof input.satisfiedReviewExpectation === 'boolean'
+            ? input.satisfiedReviewExpectation
+            : null,
+        rework_delta: typeof input.reworkDelta === 'number' ? input.reworkDelta : null,
+      },
+      workflowId: readOptionalString(input.task.workflow_id),
+      taskId: readOptionalString(input.task.id),
+      workItemId: readOptionalString(input.task.work_item_id),
+      stageName: input.stageName,
+      isOrchestratorTask: readOptionalBoolean(input.task.is_orchestrator_task),
+      taskTitle: readOptionalString(input.task.title),
+      role: readOptionalString(input.task.role),
+      actorType: actor.type,
+      actorId: actor.id,
+      actorName: actor.name,
+      resourceType: 'work_item',
+      resourceId: readOptionalString(input.task.work_item_id),
+      resourceName: readOptionalString(input.task.title),
+    });
+  } catch {
+    return;
+  }
+}
+
+function readOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readOptionalBoolean(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
