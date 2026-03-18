@@ -142,6 +142,15 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
   );
 
   app.post(
+    '/api/v1/fleet/workers/:id/restart/ack',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string };
+      return { data: await service.acknowledgeWorkerRestart(request.auth!.tenantId, params.id) };
+    },
+  );
+
+  app.post(
     '/api/v1/fleet/workers/:id/drain',
     { preHandler: [authenticateApiKey, withScope('admin')] },
     async (request) => {

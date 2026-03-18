@@ -86,6 +86,7 @@ type PlatformAPI interface {
 	FetchHeartbeats() ([]RuntimeHeartbeat, error)
 	RecordFleetEvent(event FleetEvent) error
 	DrainRuntime(runtimeID string) error
+	AcknowledgeWorkerRestart(desiredStateID string) error
 	FailTask(taskID, reason string) error
 }
 
@@ -481,6 +482,7 @@ func (m *Manager) handleRestart(ctx context.Context, ds DesiredState, existing [
 	}
 
 	// Recreate
+	created := 0
 	for i := 0; i < ds.Replicas; i++ {
 		spec := m.buildContainerSpec(ds, i)
 		containerID, err := m.docker.CreateContainer(ctx, spec)
@@ -488,12 +490,37 @@ func (m *Manager) handleRestart(ctx context.Context, ds DesiredState, existing [
 			m.logger.Error("failed to recreate container after restart", "worker", ds.WorkerName, "error", err)
 			continue
 		}
+		created++
 		m.logger.Info("recreated container after restart", "worker", ds.WorkerName, "container", containerID)
+	}
+	if created == ds.Replicas {
+		if err := m.platform.AcknowledgeWorkerRestart(ds.ID); err != nil {
+			m.logger.Error("failed to acknowledge worker restart", "worker", ds.WorkerName, "desired_state_id", ds.ID, "error", err)
+			m.emitLog("container", "container.wds_restart_ack", "error", "failed", map[string]any{
+				"action":           "restart_ack",
+				"worker":           ds.WorkerName,
+				"desired_state_id": ds.ID,
+				"replicas":         ds.Replicas,
+				"created":          created,
+				"role":             ds.Role,
+				"error":            err.Error(),
+			})
+		} else {
+			m.emitLog("container", "container.wds_restart_ack", "info", "completed", map[string]any{
+				"action":           "restart_ack",
+				"worker":           ds.WorkerName,
+				"desired_state_id": ds.ID,
+				"replicas":         ds.Replicas,
+				"created":          created,
+				"role":             ds.Role,
+			})
+		}
 	}
 	m.emitLog("container", "container.wds_restart", "info", "completed", map[string]any{
 		"action":           "restart",
 		"worker":           ds.WorkerName,
 		"stopped":          len(existing),
+		"created":          created,
 		"replicas":         ds.Replicas,
 		"desired_state_id": ds.ID,
 		"version":          ds.Version,

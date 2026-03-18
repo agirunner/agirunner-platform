@@ -292,6 +292,26 @@ func TestFetchReconcileSnapshotUsesSharedFleetEndpoint(t *testing.T) {
 	}
 }
 
+func TestAcknowledgeWorkerRestartPostsToAPI(t *testing.T) {
+	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/v1/fleet/workers/worker-1/restart/ack" {
+			t.Errorf("expected path /api/v1/fleet/workers/worker-1/restart/ack, got %s", req.URL.Path)
+		}
+		if req.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", req.Method)
+		}
+		return jsonResponse(http.StatusOK, `{"ok":true}`), nil
+	})
+
+	err := client.AcknowledgeWorkerRestart("worker-1")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if capture.authorization != "Bearer test-key" {
+		t.Fatalf("expected Authorization Bearer test-key, got %s", capture.authorization)
+	}
+}
+
 type capturedRequest struct {
 	authorization string
 }

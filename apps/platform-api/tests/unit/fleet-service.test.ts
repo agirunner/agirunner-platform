@@ -426,6 +426,28 @@ describe('FleetService', () => {
     });
   });
 
+  describe('acknowledgeWorkerRestart', () => {
+    it('clears restart_requested flag', async () => {
+      const cleared = { ...sampleDesiredStateWithSecrets, restart_requested: false };
+      pool.query.mockResolvedValueOnce({ rows: [cleared], rowCount: 1 });
+
+      const result = await service.acknowledgeWorkerRestart(TENANT_ID, WORKER_ID);
+
+      expect(result.restart_requested).toBe(false);
+      expect(result).not.toHaveProperty('llm_api_key_secret_ref');
+      const sql = pool.query.mock.calls[0][0] as string;
+      expect(sql).toContain('restart_requested = false');
+    });
+
+    it('throws NotFoundError when worker does not exist', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await expect(service.acknowledgeWorkerRestart(TENANT_ID, 'missing')).rejects.toThrow(
+        'Fleet worker not found',
+      );
+    });
+  });
+
   describe('drainWorker', () => {
     it('sets draining flag', async () => {
       const drained = { ...sampleDesiredStateWithSecrets, draining: true };

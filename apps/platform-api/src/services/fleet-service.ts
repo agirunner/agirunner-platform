@@ -490,6 +490,16 @@ export class FleetService {
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
+  async acknowledgeWorkerRestart(tenantId: string, id: string): Promise<PublicDesiredStateRow> {
+    const result = await this.pool.query<DesiredStateRow>(
+      `UPDATE worker_desired_state SET restart_requested = false, updated_at = NOW()
+       WHERE tenant_id = $1 AND id = $2 RETURNING *`,
+      [tenantId, id],
+    );
+    if (!result.rowCount) throw new NotFoundError('Fleet worker not found');
+    return toPublicDesiredStateRow(result.rows[0]);
+  }
+
   async drainWorker(tenantId: string, id: string): Promise<PublicDesiredStateRow> {
     const result = await this.pool.query<DesiredStateRow>(
       `UPDATE worker_desired_state SET draining = true, updated_at = NOW()

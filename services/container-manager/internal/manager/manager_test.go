@@ -173,9 +173,11 @@ type mockPlatformClient struct {
 	reportedEvents  []FleetEvent
 	failedTasks     []failedTaskRecord
 	drainedRuntimes []string
+	ackedRestarts   []string
 	reportStateErr  error
 	reportImageErr  error
 	failTaskErr     error
+	ackRestartErr   error
 }
 
 // failedTaskRecord captures a FailTask call for test assertions.
@@ -249,6 +251,14 @@ func (m *mockPlatformClient) RecordFleetEvent(event FleetEvent) error {
 
 func (m *mockPlatformClient) DrainRuntime(runtimeID string) error {
 	m.drainedRuntimes = append(m.drainedRuntimes, runtimeID)
+	return nil
+}
+
+func (m *mockPlatformClient) AcknowledgeWorkerRestart(desiredStateID string) error {
+	if m.ackRestartErr != nil {
+		return m.ackRestartErr
+	}
+	m.ackedRestarts = append(m.ackedRestarts, desiredStateID)
 	return nil
 }
 
@@ -746,6 +756,32 @@ func TestReconcileOnceRestartRequestedRestartsContainers(t *testing.T) {
 	}
 	if len(docker.createdSpecs) != 1 {
 		t.Fatalf("expected 1 container recreated after restart, got %d", len(docker.createdSpecs))
+	}
+	if len(platform.ackedRestarts) != 1 || platform.ackedRestarts[0] != "ds-1" {
+		t.Fatalf("expected restart acknowledgement for ds-1, got %v", platform.ackedRestarts)
+	}
+}
+
+func TestReconcileOnceRestartRequestedDoesNotAcknowledgeWhenRecreateFails(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeContainerInfo("c-1", "worker-a", "myimage:v1", "ds-1", 1),
+	}
+	docker.createErr = fmt.Errorf("boom")
+	ds := makeDesiredState("ds-1", "worker-a", "myimage:v1", 1, 1)
+	ds.RestartRequested = true
+	platform := &mockPlatformClient{
+		desiredStates: []DesiredState{ds},
+	}
+	r := newTestManager(docker, platform)
+
+	err := r.reconcileOnce(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(platform.ackedRestarts) != 0 {
+		t.Fatalf("expected no restart acknowledgement after recreate failure, got %v", platform.ackedRestarts)
 	}
 }
 
