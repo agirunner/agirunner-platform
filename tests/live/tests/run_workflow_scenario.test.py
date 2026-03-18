@@ -89,6 +89,51 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             client.calls,
         )
 
+    def test_process_workflow_approvals_rejects_pending_gates_in_none_mode(self) -> None:
+        client = FakeClient()
+        approvals = {
+            "task_approvals": [
+                {"gate_id": "task-gate-1", "workflow_id": "wf-1", "status": "awaiting_approval"},
+            ],
+            "stage_gates": [],
+        }
+
+        with self.assertRaisesRegex(RuntimeError, "approval_mode=none"):
+            run_workflow_scenario.process_workflow_approvals(
+                client,
+                approvals,
+                workflow_id="wf-1",
+                scenario_name="sdlc-baseline",
+                approved_gate_ids=set(),
+                approval_mode="none",
+            )
+
+        self.assertEqual([], client.calls)
+
+    def test_process_workflow_approvals_allows_explicit_auto_approval(self) -> None:
+        client = FakeClient()
+        approvals = {
+            "task_approvals": [
+                {"gate_id": "task-gate-1", "workflow_id": "wf-1", "status": "awaiting_approval", "task_id": "task-1"},
+            ],
+            "stage_gates": [],
+        }
+
+        actions = run_workflow_scenario.process_workflow_approvals(
+            client,
+            approvals,
+            workflow_id="wf-1",
+            scenario_name="approval-positive",
+            approved_gate_ids=set(),
+            approval_mode="approve_all",
+        )
+
+        self.assertEqual(
+            [{"gate_id": "task-gate-1", "action": "approve", "task_id": "task-1", "stage_name": None}],
+            actions,
+        )
+        self.assertEqual(1, len(client.calls))
+
 
 if __name__ == "__main__":
     unittest.main()

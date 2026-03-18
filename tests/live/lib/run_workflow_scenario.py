@@ -84,6 +84,38 @@ def auto_approve_workflow_approvals(
     return actions
 
 
+def process_workflow_approvals(
+    client: ApiClient,
+    approvals: dict[str, Any],
+    *,
+    workflow_id: str,
+    scenario_name: str,
+    approved_gate_ids: set[str],
+    approval_mode: str,
+) -> list[dict[str, Any]]:
+    pending = pending_workflow_approvals(approvals, workflow_id)
+    if approval_mode == "none":
+        if pending:
+            gate_ids = ", ".join(
+                str(item.get("gate_id") or item.get("id") or "<unknown>")
+                for item in pending
+            )
+            raise RuntimeError(
+                f"workflow {workflow_id} requested approval(s) in scenario {scenario_name} "
+                f"with approval_mode=none: {gate_ids}"
+            )
+        return []
+    if approval_mode == "approve_all":
+        return auto_approve_workflow_approvals(
+            client,
+            approvals,
+            workflow_id=workflow_id,
+            scenario_name=scenario_name,
+            approved_gate_ids=approved_gate_ids,
+        )
+    raise RuntimeError(f"unsupported LIVE_TEST_APPROVAL_MODE: {approval_mode}")
+
+
 def login(client: ApiClient, admin_api_key: str) -> str:
     response = client.request(
         "POST",
@@ -106,6 +138,7 @@ def main() -> None:
     bootstrap_context_file = env("LIVE_TEST_BOOTSTRAP_CONTEXT_FILE", required=True)
     workflow_name = env("LIVE_TEST_WORKFLOW_NAME", required=True)
     scenario_name = env("LIVE_TEST_SCENARIO_NAME", required=True)
+    approval_mode = env("LIVE_TEST_APPROVAL_MODE", "none")
     timeout_seconds = env_int("LIVE_TEST_WORKFLOW_TIMEOUT_SECONDS", 1800)
     poll_interval_seconds = env_int("LIVE_TEST_POLL_INTERVAL_SECONDS", 10)
 
@@ -162,12 +195,13 @@ def main() -> None:
                 label="approvals.list",
             )
         )
-        actions = auto_approve_workflow_approvals(
+        actions = process_workflow_approvals(
             client,
             latest_approvals,
             workflow_id=workflow_id,
             scenario_name=scenario_name,
             approved_gate_ids=approved_gate_ids,
+            approval_mode=approval_mode,
         )
         if actions:
             approval_actions.extend(actions)
@@ -209,6 +243,7 @@ def main() -> None:
                 "timed_out": final_state not in TERMINAL_STATES,
                 "poll_iterations": poll_iterations,
                 "scenario_name": scenario_name,
+                "approval_mode": approval_mode,
                 "workflow": latest_workflow,
                 "board": board_snapshot,
                 "work_items": work_items_snapshot,

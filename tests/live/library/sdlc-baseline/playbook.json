@@ -5,7 +5,7 @@
   "outcome": "Production-ready software with tests and documentation.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "The live-test product manager clarifies the goal and acceptance criteria. The live-test architect produces the technical design before implementation. The live-test developer implements the change. The live-test reviewer reviews every developer-delivered change and sends rework back when needed. The live-test QA role validates evidence after review approval. Human approval is required before final completion. When a checkpoint deliverable is accepted and the next checkpoint begins, complete the finished checkpoint work item instead of leaving it open.",
+    "process_instructions": "The live-test product manager clarifies the goal and acceptance criteria. The live-test architect produces the technical design before implementation. The live-test developer implements the change. The live-test reviewer reviews every developer-delivered change and sends rework back when needed. The live-test QA role validates evidence after review approval. This baseline flow has no human approval gates. When a checkpoint deliverable is accepted and the next checkpoint begins, complete the finished checkpoint work item instead of leaving it open.",
     "parameters": [
       {
         "name": "goal",
@@ -48,20 +48,20 @@
       ]
     },
     "stages": [
-      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria", "involves": ["live-test-product-manager", "live-test-architect", "live-test-qa"], "human_gate": true },
+      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria", "involves": ["live-test-product-manager", "live-test-architect", "live-test-qa"], "human_gate": false },
       { "name": "design", "goal": "Approved system design with key decisions captured", "involves": ["live-test-architect", "live-test-product-manager", "live-test-reviewer"] },
       { "name": "implementation", "goal": "Working code with tests on a feature branch", "involves": ["live-test-developer", "live-test-reviewer"] },
       { "name": "review", "goal": "Reviewer verdict with concrete findings or approval", "involves": ["live-test-reviewer", "live-test-developer"] },
       { "name": "verification", "goal": "QA signoff with test evidence", "involves": ["live-test-qa", "live-test-developer"] },
-      { "name": "release", "goal": "Operator-ready release package and final human approval", "involves": ["live-test-product-manager"], "human_gate": true }
+      { "name": "release", "goal": "Operator-ready release package and final release summary", "involves": ["live-test-product-manager"], "human_gate": false }
     ],
     "checkpoints": [
-      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria.", "human_gate": true, "entry_criteria": "The workflow goal and initial context are available." },
+      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria.", "human_gate": false, "entry_criteria": "The workflow goal and initial context are available." },
       { "name": "design", "goal": "A design exists for the implementation approach when needed.", "human_gate": false, "entry_criteria": "Requirements are clear enough to shape implementation." },
       { "name": "implementation", "goal": "Working code exists and is ready for formal review.", "human_gate": false, "entry_criteria": "Requirements and any required design are available." },
       { "name": "review", "goal": "A reviewer verdict exists for every developer-delivered change.", "human_gate": false, "entry_criteria": "Implementation output and developer handoff are available." },
       { "name": "verification", "goal": "QA validation and evidence are complete.", "human_gate": false, "entry_criteria": "Required review is complete and approved." },
-      { "name": "release", "goal": "Release notes, residual risk, and human approval are complete.", "human_gate": true, "entry_criteria": "Verification evidence and operator summary are ready." }
+      { "name": "release", "goal": "Release notes, residual risk, and operator summary are complete.", "human_gate": false, "entry_criteria": "Verification evidence and operator summary are ready." }
     ],
     "review_rules": [
       {
@@ -72,9 +72,7 @@
         "on_reject": { "action": "return_to_role", "role": "live-test-developer" }
       }
     ],
-    "approval_rules": [
-      { "on": "completion", "approved_by": "human", "required": true }
-    ],
+    "approval_rules": [],
     "handoff_rules": [
       { "from_role": "live-test-product-manager", "to_role": "live-test-architect", "required": true },
       { "from_role": "live-test-architect", "to_role": "live-test-developer", "required": true },
