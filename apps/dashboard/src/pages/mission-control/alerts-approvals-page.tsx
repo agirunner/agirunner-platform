@@ -108,6 +108,10 @@ function usesWorkItemOperatorFlow(task: TaskRecord): boolean {
   return Boolean(task.workflow_id && task.work_item_id);
 }
 
+function usesWorkflowOperatorFlow(task: TaskRecord): boolean {
+  return Boolean(task.workflow_id);
+}
+
 function QueueSummaryCard({
   label,
   value,
@@ -164,6 +168,46 @@ function WorkItemFlowActionBlock({
       <p className="text-xs text-muted">
         Use the grouped work-item flow first. Open the step record later from the work-item view
         only if you need runtime diagnostics.
+      </p>
+    </div>
+  );
+}
+
+function WorkflowOperatorActionBlock({
+  task,
+  message,
+}: {
+  task: TaskRecord;
+  message: string;
+}): JSX.Element | null {
+  const contextPacket = buildTaskContextPacket(task);
+  const primaryLink = contextPacket.links.find((link) => link.priority === 'primary');
+  if (!primaryLink) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-3 rounded-md border border-border/70 bg-border/10 p-3">
+      <div className="space-y-1">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted">
+          Workflow operator flow
+        </p>
+        <p className="text-xs text-muted">{message}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {contextPacket.links.map((link) => (
+          <Button
+            key={`${task.id}:${link.label}`}
+            size="sm"
+            variant={link.priority === 'primary' ? 'default' : 'outline'}
+            asChild
+          >
+            <Link to={link.to}>{link.label}</Link>
+          </Button>
+        ))}
+      </div>
+      <p className="text-xs text-muted">
+        Use the workflow operator flow first. Open the step record later only if you need lower-level diagnostics.
       </p>
     </div>
   );
@@ -729,6 +773,7 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
   const description = task.description;
   const hasOutput = task.output != null;
   const workItemFlow = usesWorkItemOperatorFlow(task);
+  const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
 
   return (
     <Card className="border-l-4 border-l-amber-400">
@@ -789,6 +834,11 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
             task={task}
             message="This workflow-owned specialist step must be approved, reworked, bypassed, or rejected from the grouped work-item flow so board context, linked steps, and gate state stay aligned."
           />
+        ) : workflowOperatorFlow ? (
+          <WorkflowOperatorActionBlock
+            task={task}
+            message="This workflow-linked specialist step must be handled from the workflow operator flow so board context and stage posture stay aligned before mutating the raw step."
+          />
         ) : (
           <div className="flex flex-wrap gap-2 pt-1">
             <Button size="sm" onClick={onApprove} disabled={isLoading}>
@@ -848,6 +898,7 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
   const outputText = formatOutput(task.output);
   const outputTruncated = outputText.length > 800;
   const workItemFlow = usesWorkItemOperatorFlow(task);
+  const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
 
   return (
     <Card className="border-l-4 border-l-blue-500">
@@ -927,6 +978,11 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
             task={task}
             message="This workflow-owned output gate must be handled from the grouped work-item flow so the quality decision, follow-on rework, and board-stage context stay attached to the work item."
           />
+        ) : workflowOperatorFlow ? (
+          <WorkflowOperatorActionBlock
+            task={task}
+            message="This workflow-linked output gate must be handled from the workflow operator flow so the quality decision and board-stage context stay coordinated."
+          />
         ) : (
           <div className="flex flex-wrap gap-2 pt-1">
             <Button size="sm" onClick={onApproveOutput} disabled={isLoading}>
@@ -980,6 +1036,7 @@ interface FailedCardProps {
 
 function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, isLoading }: FailedCardProps): JSX.Element {
   const workItemFlow = usesWorkItemOperatorFlow(task);
+  const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
   return (
     <Card className="border-l-4 border-l-red-500">
       <CardHeader className="pb-3">
@@ -1006,6 +1063,11 @@ function FailedCard({ task, onRetry, onRetryDifferentWorker, onSkip, onCancel, i
           <WorkItemFlowActionBlock
             task={task}
             message="This failed workflow-owned specialist step must be retried, bypassed, or cancelled from the grouped work-item flow so linked work, board posture, and downstream stage decisions remain coordinated."
+          />
+        ) : workflowOperatorFlow ? (
+          <WorkflowOperatorActionBlock
+            task={task}
+            message="This failed workflow-linked specialist step must be handled from the workflow operator flow so board posture and downstream stage decisions remain coordinated."
           />
         ) : (
           <div className="flex flex-wrap gap-2">
@@ -1060,6 +1122,7 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
   const maxDepth = (task.metadata?.max_escalation_depth as number | undefined) ?? 5;
   const instructions = extractInstructions(task.input);
   const workItemFlow = usesWorkItemOperatorFlow(task);
+  const workflowOperatorFlow = usesWorkflowOperatorFlow(task);
 
   return (
     <Card className="border-l-4 border-l-purple-500">
@@ -1119,6 +1182,11 @@ function EscalationCard({ task, onResolve, onSkip, onCancel, isLoading }: Escala
           <WorkItemFlowActionBlock
             task={task}
             message="This escalated workflow-owned specialist step must be resumed, bypassed, or cancelled from the grouped work-item flow so operator guidance, linked work, and board-stage context stay attached to the work item."
+          />
+        ) : workflowOperatorFlow ? (
+          <WorkflowOperatorActionBlock
+            task={task}
+            message="This escalated workflow-linked specialist step must be handled from the workflow operator flow so operator guidance and board-stage context remain attached to the workflow."
           />
         ) : (
           <div className="flex flex-wrap gap-2 pt-1">

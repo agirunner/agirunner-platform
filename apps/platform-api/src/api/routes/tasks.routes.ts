@@ -192,6 +192,19 @@ function parseTaskId(id: string) {
   throw new ValidationError('task id must be a valid uuid');
 }
 
+async function assertRawTaskOperatorActionAllowed(
+  loadTask: (tenantId: string, taskId: string) => Promise<unknown>,
+  tenantId: string,
+  taskId: string,
+) {
+  const task = (await loadTask(tenantId, taskId)) as { workflow_id?: string | null } | null;
+  if (task?.workflow_id) {
+    throw new ValidationError(
+      'Workflow-linked task operator actions must run from the workflow or work-item operator flow.',
+    );
+  }
+}
+
 export const taskRoutes: FastifyPluginAsync = async (app) => {
   const taskService = app.taskService;
   const toolResultService = new WorkflowToolResultService(app.pgPool);
@@ -212,6 +225,16 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       requestId,
       run,
     );
+  const runStandaloneTaskOperatorAction = async <T extends Record<string, unknown>>(
+    tenantId: string,
+    taskId: string,
+    toolName: string,
+    requestId: string | undefined,
+    run: (client: import('../../db/database.js').DatabaseClient | undefined) => Promise<T>,
+  ) => {
+    await assertRawTaskOperatorActionAllowed(taskService.getTask.bind(taskService), tenantId, taskId);
+    return runPublicTaskOperatorAction(tenantId, taskId, toolName, requestId, run);
+  };
   const runTaskRouteAction = <T extends Record<string, unknown>>(
     tenantId: string,
     taskId: string,
@@ -432,7 +455,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_approve',
@@ -449,7 +472,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_approve_output',
@@ -467,7 +490,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(retrySchema.safeParse(request.body ?? {}));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_retry',
@@ -484,7 +507,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskOperatorMutationSchema.safeParse(request.body ?? {}));
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_cancel',
@@ -502,7 +525,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(rejectSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_reject',
@@ -520,7 +543,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(requestChangesSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_request_changes',
@@ -538,7 +561,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(requestChangesSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_request_changes',
@@ -556,7 +579,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(skipSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_skip',
@@ -574,7 +597,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(reassignSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_reassign',
@@ -592,7 +615,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(escalateSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_escalate',
@@ -610,7 +633,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(escalationResponseSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_escalation_response',
@@ -628,7 +651,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(overrideOutputSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_output_override',
@@ -650,7 +673,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(agentEscalateSchema.safeParse(request.body));
       const { request_id: requestId, ...payload } = body;
-      const task = await runPublicTaskOperatorAction(
+      const task = await runStandaloneTaskOperatorAction(
         request.auth!.tenantId,
         params.id,
         'public_task_agent_escalate',

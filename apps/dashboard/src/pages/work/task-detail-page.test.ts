@@ -24,6 +24,7 @@ describe('task detail page source', () => {
     expect(source).toContain('Open Work Item Flow');
     expect(source).toContain('buildWorkflowOperatorPermalink');
     expect(source).toContain('usesWorkflowOperatorFlow');
+    expect(source).toContain('workflowOperatorPermalink');
     expect(source).toContain('TaskDetailContextSection');
     expect(source).toContain('Operator Output Packet');
     expect(source).not.toContain("status === 'running' || status === 'claimed'");
@@ -38,6 +39,8 @@ describe('task detail page source', () => {
     expect(source).toContain('TaskDetailContextSection');
     expect(source).toContain('grid h-auto w-full grid-cols-2 gap-1 sm:grid-cols-4');
     expect(source).toContain('This specialist step belongs to a workflow work item.');
-    expect(source).toContain('This specialist step is attached to a workflow stage, but no work item is linked yet.');
+    expect(source).toContain('This specialist step is attached to a workflow stage without a linked work item yet.');
+    expect(source).toContain('Open Workflow Operator Flow');
+    expect(source).toContain('Use the workflow operator flow so board context stays aligned before mutating the step directly.');
   });
 });

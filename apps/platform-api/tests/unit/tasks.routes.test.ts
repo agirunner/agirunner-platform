@@ -420,7 +420,7 @@ describe('tasks routes', () => {
     expect(second.json()).toEqual(first.json());
   });
 
-  it('deduplicates repeated approve requests by request_id for workflow-backed tasks', async () => {
+  it('rejects raw approve requests for workflow-backed tasks even when request_id is repeated', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const approveTask = vi.fn(async () => ({
       id: 'task-1',
@@ -451,13 +451,127 @@ describe('tasks routes', () => {
       payload: { request_id: 'approve-1' },
     });
 
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
-    expect(approveTask).toHaveBeenCalledTimes(1);
-    expect(second.json()).toEqual(first.json());
+    expect(first.statusCode).toBe(400);
+    expect(second.statusCode).toBe(400);
+    expect(approveTask).not.toHaveBeenCalled();
   });
 
-  it('deduplicates repeated approve-output requests by request_id for workflow-backed tasks', async () => {
+  it('rejects raw approve mutations for work-item-linked workflow tasks', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const approveTask = vi.fn(async () => ({
+      id: 'task-work-item-approve-1',
+      workflow_id: 'workflow-approve-guard-1',
+      work_item_id: 'work-item-approve-guard-1',
+      state: 'ready',
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({
+          id: 'task-work-item-approve-1',
+          workflow_id: 'workflow-approve-guard-1',
+          work_item_id: 'work-item-approve-guard-1',
+        })),
+        approveTask,
+      },
+      createWorkflowReplayPool('workflow-approve-guard-1', 'public_task_approve'),
+    );
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-work-item-approve-1/approve',
+      headers: { authorization: 'Bearer test' },
+      payload: { request_id: 'approve-guard-1' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message:
+            'Workflow-linked task operator actions must run from the workflow or work-item operator flow.',
+        }),
+      }),
+    );
+    expect(approveTask).not.toHaveBeenCalled();
+  });
+
+  it('rejects raw cancel mutations for stage-linked workflow tasks without work items', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const cancelTask = vi.fn(async () => ({
+      id: 'task-stage-cancel-1',
+      workflow_id: 'workflow-cancel-guard-1',
+      stage_name: 'qa-review',
+      state: 'cancelled',
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({
+          id: 'task-stage-cancel-1',
+          workflow_id: 'workflow-cancel-guard-1',
+          stage_name: 'qa-review',
+        })),
+        cancelTask,
+      },
+      createWorkflowReplayPool('workflow-cancel-guard-1', 'public_task_cancel'),
+    );
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-stage-cancel-1/cancel',
+      headers: { authorization: 'Bearer test' },
+      payload: { request_id: 'cancel-guard-1' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message:
+            'Workflow-linked task operator actions must run from the workflow or work-item operator flow.',
+        }),
+      }),
+    );
+    expect(cancelTask).not.toHaveBeenCalled();
+  });
+
+  it('still allows raw approve mutations for standalone tasks', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const approveTask = vi.fn(async () => ({
+      id: 'task-standalone-approve-1',
+      workflow_id: null,
+      state: 'ready',
+    }));
+
+    app = buildTaskRouteApp(
+      {
+        getTask: vi.fn(async () => ({
+          id: 'task-standalone-approve-1',
+          workflow_id: null,
+        })),
+        approveTask,
+      },
+      createTaskReplayPool('task-standalone-approve-1', 'public_task_approve'),
+    );
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks/task-standalone-approve-1/approve',
+      headers: { authorization: 'Bearer test' },
+      payload: { request_id: 'approve-standalone-1' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(approveTask).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects raw approve-output requests for workflow-backed tasks even when request_id is repeated', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const approveTaskOutput = vi.fn(async () => ({
       id: 'task-2',
@@ -488,13 +602,12 @@ describe('tasks routes', () => {
       payload: { request_id: 'approve-output-1' },
     });
 
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
-    expect(approveTaskOutput).toHaveBeenCalledTimes(1);
-    expect(second.json()).toEqual(first.json());
+    expect(first.statusCode).toBe(400);
+    expect(second.statusCode).toBe(400);
+    expect(approveTaskOutput).not.toHaveBeenCalled();
   });
 
-  it('deduplicates repeated cancel requests by request_id for workflow-backed tasks', async () => {
+  it('rejects raw cancel requests for workflow-backed tasks even when request_id is repeated', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const cancelTask = vi.fn(async () => ({
       id: 'task-3',
@@ -524,10 +637,9 @@ describe('tasks routes', () => {
       payload: { request_id: 'cancel-1' },
     });
 
-    expect(first.statusCode).toBe(200);
-    expect(second.statusCode).toBe(200);
-    expect(cancelTask).toHaveBeenCalledTimes(1);
-    expect(second.json()).toEqual(first.json());
+    expect(first.statusCode).toBe(400);
+    expect(second.statusCode).toBe(400);
+    expect(cancelTask).not.toHaveBeenCalled();
   });
 
   it('deduplicates repeated complete requests by request_id for workflow-backed tasks', async () => {

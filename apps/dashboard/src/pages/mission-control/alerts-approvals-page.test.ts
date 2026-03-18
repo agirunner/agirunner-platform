@@ -35,14 +35,19 @@ describe('alerts approvals page source', () => {
     const source = readSource();
     expect(source).toContain('buildTaskContextPacket');
     expect(source).toContain('usesWorkItemOperatorFlow');
+    expect(source).toContain('usesWorkflowOperatorFlow');
     expect(source).toContain('WorkItemFlowActionBlock');
+    expect(source).toContain('WorkflowOperatorActionBlock');
     expect(source).toContain("contextPacket.links.find((link) => link.label === 'Open work item flow')");
+    expect(source).toContain("contextPacket.links.find((link) => link.priority === 'primary')");
     expect(source).toContain('contextPacket.links.map((link) =>');
     expect(source).toContain('Use the grouped work-item flow first. Open the step record later from the work-item view');
+    expect(source).toContain('Use the workflow operator flow first. Open the step record later only if you need lower-level diagnostics.');
     expect(source).toContain('workflow-owned specialist step must be approved, reworked, bypassed, or rejected from the grouped work-item flow');
     expect(source).toContain('workflow-owned output gate must be handled from the grouped work-item flow');
     expect(source).toContain('failed workflow-owned specialist step must be retried, bypassed, or cancelled from the grouped work-item flow');
     expect(source).toContain('escalated workflow-owned specialist step must be resumed, bypassed, or cancelled from the grouped work-item flow');
+    expect(source).toContain('workflow-linked specialist step must be handled from the workflow operator flow');
   });
 
   it('uses board and specialist-step language instead of generic workflow status copy', () => {
