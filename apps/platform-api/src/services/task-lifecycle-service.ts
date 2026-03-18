@@ -31,6 +31,10 @@ import {
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
 } from './runtime-default-values.js';
 import {
+  sanitizeSecretLikeValue,
+  sanitizeSecretLikeRecord,
+} from './secret-redaction.js';
+import {
   enqueueAndDispatchImmediatePlaybookActivation,
   type ImmediateWorkflowActivationDispatcher,
 } from './workflow-immediate-activation.js';
@@ -703,9 +707,11 @@ export class TaskLifecycleService {
     const assignment = this.requireLifecycleIdentity(identity, payload);
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, existingClient));
 
+    const sanitizedOutput = sanitizeSecretLikeValue(payload.output);
+
     if (
       (task.state === 'completed' || task.state === 'output_pending_review') &&
-      isJsonEquivalent(task.output, payload.output)
+      isJsonEquivalent(task.output, sanitizedOutput)
     ) {
       return this.deps.toTaskResponse(task);
     }
@@ -738,6 +744,17 @@ export class TaskLifecycleService {
           cleanupArtifactIds: [],
         };
 
+    const safeOutput = sanitizeSecretLikeValue(persisted.output);
+    const safeMetrics = payload.metrics
+      ? sanitizeSecretLikeRecord(payload.metrics)
+      : undefined;
+    const safeGitInfo = persisted.gitInfo
+      ? sanitizeSecretLikeRecord(persisted.gitInfo)
+      : undefined;
+    const safeVerification = payload.verification
+      ? sanitizeSecretLikeRecord(payload.verification)
+      : undefined;
+
     const shouldMoveToOutputReview =
       (Boolean(task.requires_output_review) && !approvedReviewerHandoff)
       || !outputValidation.valid
@@ -748,10 +765,10 @@ export class TaskLifecycleService {
         ? await this.applyStateTransition(identity, taskId, 'output_pending_review', {
             expectedStates: ['in_progress'],
             requireAssignment: assignment,
-            output: persisted.output,
-            metrics: payload.metrics,
-            gitInfo: persisted.gitInfo,
-            verification: payload.verification,
+            output: safeOutput,
+            metrics: safeMetrics,
+            gitInfo: safeGitInfo,
+            verification: safeVerification,
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
             clearEscalationMetadata: true,
@@ -764,10 +781,10 @@ export class TaskLifecycleService {
         : await this.applyStateTransition(identity, taskId, 'completed', {
             expectedStates: ['in_progress'],
             requireAssignment: assignment,
-            output: persisted.output,
-            metrics: payload.metrics,
-            gitInfo: persisted.gitInfo,
-            verification: payload.verification,
+            output: safeOutput,
+            metrics: safeMetrics,
+            gitInfo: safeGitInfo,
+            verification: safeVerification,
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
             clearEscalationMetadata: true,
@@ -848,7 +865,9 @@ export class TaskLifecycleService {
       : undefined;
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, existingClient));
 
-    if (isFailTaskReplay(task, payload.error)) {
+    const safeError = sanitizeSecretLikeRecord(payload.error);
+
+    if (isFailTaskReplay(task, safeError)) {
       return this.deps.toTaskResponse(task);
     }
 
@@ -874,7 +893,7 @@ export class TaskLifecycleService {
             : { retry_available_at: null }),
           retry_backoff_seconds: retryPlan.backoffSeconds,
           last_failure: failure,
-          retry_last_error: payload.error,
+          retry_last_error: safeError,
         },
         afterUpdate: async (updatedTask, client) => {
           await this.deps.eventService.emit(
@@ -898,12 +917,19 @@ export class TaskLifecycleService {
       }, existingClient);
     }
 
+    const safeMetrics = payload.metrics
+      ? sanitizeSecretLikeRecord(payload.metrics)
+      : undefined;
+    const safeGitInfo = payload.git_info
+      ? sanitizeSecretLikeRecord(payload.git_info)
+      : undefined;
+
     return this.applyStateTransition(identity, taskId, 'failed', {
       expectedStates: ['in_progress', 'claimed'],
       requireAssignment: assignment,
-      error: payload.error,
-      metrics: payload.metrics,
-      gitInfo: payload.git_info,
+      error: safeError,
+      metrics: safeMetrics,
+      gitInfo: safeGitInfo,
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
       metadataPatch: {
