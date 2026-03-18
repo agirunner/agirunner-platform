@@ -39,7 +39,8 @@ describe('ToolTagService', () => {
       const result = await service.listToolTags('tenant-1');
       const ids = new Set(result.data.map((entry: Record<string, unknown>) => String(entry.id)));
 
-      expect(ids.has('advance_checkpoint')).toBe(true);
+      expect(ids.has('advance_stage')).toBe(true);
+      expect(ids.has('advance_checkpoint')).toBe(false);
       expect(ids.has('submit_handoff')).toBe(true);
       expect(ids.has('read_predecessor_handoff')).toBe(true);
       expect(ids.has('read_work_item_continuity')).toBe(true);

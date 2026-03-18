@@ -23,10 +23,10 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
   });
 
-  it('keeps orchestrator prompt aligned with continuity, budget, and checkpoint guidance', () => {
+  it('keeps orchestrator prompt aligned with continuity, budget, and stage guidance', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Operational continuity lives in work items, rule posture, and structured handoffs.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Check workflow budget posture when cost, time, or token pressure matters');
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_checkpoint when planned workflows are ready to move forward.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_stage when planned workflows are ready to move forward.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'complete the predecessor work item if its deliverable is accepted',
     );
@@ -37,19 +37,19 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as an array of objects');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'If a playbook has no explicit checkpoints, use board posture and process instructions as the progression model.',
+      'If a playbook has no explicit stage sequence, use board posture and process instructions as the progression model.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'Create successor work items and tasks in the successor checkpoint, not the checkpoint that just finished.',
+      'Create successor work items and tasks in the successor stage, not the stage that just finished.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'every create_work_item and create_task call MUST set stage_name to the checkpoint the new work belongs to.',
+      'every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'Do not keep successor review, QA, or release work anchored to the predecessor checkpoint.',
+      'Do not keep successor review, QA, or release work anchored to the predecessor stage.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Do not end a planned-workflow activation with only a recommendation to advance later.',

@@ -1667,7 +1667,7 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'create_task',
       'create_workflow',
       'request_gate_approval',
-      'advance_checkpoint',
+      'advance_stage',
       'complete_workflow',
       'cancel_task',
       'memory_delete',
