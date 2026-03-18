@@ -288,6 +288,26 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('platform.agent_key_expiry_ms must be at least 1');
     });
 
+    it('rejects non-positive platform transport and webhook timing defaults', async () => {
+      pool.query.mockResolvedValue({ rows: [], rowCount: 0 });
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'platform.event_stream_keepalive_interval_ms',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.event_stream_keepalive_interval_ms must be at least 1');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'platform.webhook_max_attempts',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('platform.webhook_max_attempts must be at least 1');
+    });
+
     it('rejects invalid agent supervision threshold defaults', async () => {
       await expect(
         service.createDefault(TENANT_ID, {

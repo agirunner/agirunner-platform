@@ -1,6 +1,7 @@
-import type { AppEnv } from '../config/schema.js';
 import { ValidationError } from '../errors/domain-errors.js';
+import type { AppEnv } from '../config/schema.js';
 import type { DeliveryAttempt } from './integration-adapter-webhook.js';
+import type { PlatformTransportTimingDefaults } from './platform-timing-defaults.js';
 import { decryptWebhookSecret, encryptWebhookSecret } from './webhook-secret-crypto.js';
 
 export interface PublicSlackConfig {
@@ -32,6 +33,8 @@ export interface SlackDeliveryTarget {
   username?: string;
   iconEmoji?: string;
 }
+
+type SlackDeliveryConfig = AppEnv & PlatformTransportTimingDefaults;
 
 export function normalizeStoredSlackConfig(
   currentConfig: Record<string, unknown>,
@@ -93,7 +96,7 @@ export function toSlackDeliveryTarget(
 
 export async function deliverSlackEvent(
   fetchFn: typeof globalThis.fetch,
-  config: AppEnv,
+  config: SlackDeliveryConfig,
   target: SlackDeliveryTarget,
   payloadData: Record<string, unknown>,
 ): Promise<DeliveryAttempt> {

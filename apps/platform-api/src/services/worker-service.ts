@@ -7,6 +7,7 @@ import {
   readAgentSupervisionTimingDefaults,
   readWorkerSupervisionTimingDefaults,
 } from './platform-timing-defaults.js';
+import type { PlatformTransportTimingDefaults } from './platform-timing-defaults.js';
 import { WorkerConnectionHub } from './worker-connection-hub.js';
 import {
   acknowledgeTask,
@@ -53,13 +54,13 @@ export interface WorkerSignalInput {
 type WorkerRuntimeConfig = AppEnv & {
   WORKER_API_KEY_TTL_MS?: number;
   AGENT_API_KEY_TTL_MS?: number;
-};
+} & PlatformTransportTimingDefaults;
 
 interface WorkerServiceBaseContext {
   pool: DatabasePool;
   eventService: EventService;
   connectionHub: WorkerConnectionHub;
-  config: AppEnv;
+  config: AppEnv & PlatformTransportTimingDefaults;
 }
 
 export interface WorkerServiceContext extends Omit<WorkerServiceBaseContext, 'config'> {
@@ -69,7 +70,12 @@ export interface WorkerServiceContext extends Omit<WorkerServiceBaseContext, 'co
 export class WorkerService {
   private readonly context: WorkerServiceBaseContext;
 
-  constructor(pool: DatabasePool, eventService: EventService, connectionHub: WorkerConnectionHub, config: AppEnv) {
+  constructor(
+    pool: DatabasePool,
+    eventService: EventService,
+    connectionHub: WorkerConnectionHub,
+    config: AppEnv & PlatformTransportTimingDefaults,
+  ) {
     this.context = { pool, eventService, connectionHub, config };
   }
 

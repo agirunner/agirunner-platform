@@ -248,6 +248,48 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.event_stream_keepalive_interval_ms',
+    configValue: '15000',
+    configType: 'number',
+    description: 'How often the platform emits keepalive pings on open event streams',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_reconnect_min_ms',
+    configValue: '1000',
+    configType: 'number',
+    description: 'Minimum reconnect backoff in milliseconds offered to workers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_reconnect_max_ms',
+    configValue: '60000',
+    configType: 'number',
+    description: 'Maximum reconnect backoff in milliseconds offered to workers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.worker_websocket_ping_interval_ms',
+    configValue: '20000',
+    configType: 'number',
+    description: 'How often the platform pings worker websockets when connections are idle',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.webhook_max_attempts',
+    configValue: '4',
+    configType: 'number',
+    description: 'Maximum number of attempts before a webhook delivery is marked failed',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'platform.webhook_retry_base_delay_ms',
+    configValue: '200',
+    configType: 'number',
+    description: 'Base delay in milliseconds used for webhook retry backoff',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'workspace.clone_max_retries',
     configValue: '3',
     configType: 'number',

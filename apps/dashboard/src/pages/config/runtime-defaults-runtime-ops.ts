@@ -54,6 +54,12 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
       'Tune claim polling and drain behavior when runtimes are attached to the platform fleet.',
   },
   {
+    key: 'realtime_transport',
+    title: 'Realtime transport',
+    description:
+      'Tune event-stream keepalives and worker websocket reconnect cadence for realtime platform connections.',
+  },
+  {
     key: 'workflow_activation',
     title: 'Workflow activation',
     description:
@@ -81,6 +87,12 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     title: 'Agent supervision',
     description:
       'Tune standalone agent heartbeat defaults, stale-task grace periods, and issued agent key lifetimes.',
+  },
+  {
+    key: 'webhook_delivery',
+    title: 'Webhook delivery',
+    description:
+      'Tune webhook delivery retry budgets and backoff cadence for platform-controlled outbound events.',
   },
   {
     key: 'platform_loops',
@@ -187,11 +199,13 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   ...buildConnectedPlatformFields(),
+  ...buildRealtimeTransportFields(),
   ...buildPoolManagementFields(),
   ...buildWorkflowActivationFields(),
   ...buildContainerManagerFields(),
   ...buildWorkerSupervisionFields(),
   ...buildAgentSupervisionFields(),
+  ...buildWebhookDeliveryFields(),
   ...buildPlatformLoopFields(),
   ...buildWorkspaceTimeoutFields(),
   ...buildWorkspaceOperationFields(),
@@ -505,6 +519,59 @@ function buildPoolManagementFields(): FieldDefinition[] {
       inputMode: 'numeric',
       min: 1,
       step: 1,
+    },
+  ];
+}
+
+function buildRealtimeTransportFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'platform.event_stream_keepalive_interval_ms',
+      label: 'Event stream keepalive (ms)',
+      description:
+        'How often the platform emits keepalive pings on open event streams and task event feeds.',
+      configType: 'number',
+      placeholder: '15000',
+      section: 'realtime_transport',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.worker_reconnect_min_ms',
+      label: 'Worker reconnect minimum (ms)',
+      description:
+        'Lower bound for exponential reconnect backoff offered to worker websocket clients.',
+      configType: 'number',
+      placeholder: '1000',
+      section: 'realtime_transport',
+      inputMode: 'numeric',
+      min: 1,
+      step: 100,
+    },
+    {
+      key: 'platform.worker_reconnect_max_ms',
+      label: 'Worker reconnect maximum (ms)',
+      description:
+        'Upper bound for exponential reconnect backoff offered to worker websocket clients.',
+      configType: 'number',
+      placeholder: '60000',
+      section: 'realtime_transport',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
+    },
+    {
+      key: 'platform.worker_websocket_ping_interval_ms',
+      label: 'Worker websocket ping interval (ms)',
+      description:
+        'How often the platform pings idle worker websocket connections to keep them healthy.',
+      configType: 'number',
+      placeholder: '20000',
+      section: 'realtime_transport',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1000,
     },
   ];
 }
@@ -880,6 +947,35 @@ function buildAgentSupervisionFields(): FieldDefinition[] {
       inputMode: 'numeric',
       min: 1,
       step: 1000,
+    },
+  ];
+}
+
+function buildWebhookDeliveryFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'platform.webhook_max_attempts',
+      label: 'Webhook max attempts',
+      description:
+        'Maximum number of attempts the platform makes before a webhook delivery is marked failed.',
+      configType: 'number',
+      placeholder: '4',
+      section: 'webhook_delivery',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'platform.webhook_retry_base_delay_ms',
+      label: 'Webhook retry base delay (ms)',
+      description:
+        'Base delay used for exponential backoff between webhook delivery retry attempts.',
+      configType: 'number',
+      placeholder: '200',
+      section: 'webhook_delivery',
+      inputMode: 'numeric',
+      min: 1,
+      step: 100,
     },
   ];
 }

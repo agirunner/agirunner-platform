@@ -1,11 +1,12 @@
-import type { AppEnv } from '../config/schema.js';
 import { ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
+import type { AppEnv } from '../config/schema.js';
 import {
   decryptIntegrationHeaders,
   normalizeIntegrationHeaders,
   sanitizeIntegrationHeaders,
 } from './integration-adapter-headers.js';
+import type { PlatformTransportTimingDefaults } from './platform-timing-defaults.js';
 import { createWebhookSignature } from './webhook-delivery.js';
 import { decryptWebhookSecret, encryptWebhookSecret } from './webhook-secret-crypto.js';
 
@@ -33,6 +34,8 @@ export interface WebhookDeliveryTarget {
   secret?: string;
   headers: Record<string, string>;
 }
+
+type WebhookDeliveryConfig = AppEnv & PlatformTransportTimingDefaults;
 
 export function matchesSubscription(eventType: string, subscriptions: string[]): boolean {
   if (subscriptions.length === 0) {
@@ -98,7 +101,7 @@ export function toWebhookDeliveryTarget(
 
 export async function deliverWebhookEvent(
   fetchFn: typeof globalThis.fetch,
-  config: AppEnv,
+  config: WebhookDeliveryConfig,
   target: WebhookDeliveryTarget,
   eventType: string,
   payloadData: Record<string, unknown>,

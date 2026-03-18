@@ -37,6 +37,7 @@ import { ProjectArtifactFileService } from '../services/project-artifact-file-se
 import { ProjectService } from '../services/project-service.js';
 import { PlaybookService } from '../services/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
+import { readPlatformTransportTimingDefaults } from '../services/platform-timing-defaults.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
 import { ScheduledWorkItemTriggerService } from '../services/scheduled-work-item-trigger-service.js';
 import { TaskService } from '../services/task-service.js';
@@ -106,6 +107,11 @@ export async function buildApp() {
   await runMigrations(pool, migrationsDir);
   await seedDefaultTenant(pool, process.env);
   await seedConfigTables(pool, config);
+  const platformTransportTimingDefaults = await readPlatformTransportTimingDefaults(pool);
+  const appConfig = {
+    ...config,
+    ...platformTransportTimingDefaults,
+  };
   const governanceService = new GovernanceService(pool, config);
   const startupLogLevel = await readDefaultTenantLoggingLevel(governanceService);
   configureApiKeyLogging(startupLogLevel);
@@ -126,35 +132,35 @@ export async function buildApp() {
   await logStreamService.start();
 
   const workerConnectionHub = new WorkerConnectionHub();
-  const workerService = new WorkerService(pool, eventService, workerConnectionHub, config);
-  const webhookService = new WebhookService(pool, config);
+  const workerService = new WorkerService(pool, eventService, workerConnectionHub, appConfig);
+  const webhookService = new WebhookService(pool, appConfig);
   const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
-  const taskService = new TaskService(pool, eventService, config, workerConnectionHub, logService);
+  const taskService = new TaskService(pool, eventService, appConfig, workerConnectionHub, logService);
   await applyDefaultTenantLoggingLevel({
     governanceService,
     logger: app.log,
   });
-  const integrationActionService = new IntegrationActionService(pool, taskService, config);
+  const integrationActionService = new IntegrationActionService(pool, taskService, appConfig);
   const integrationAdapterService = new IntegrationAdapterService(
     pool,
-    config,
+    appConfig,
     undefined,
     integrationActionService,
   );
-  const projectService = new ProjectService(pool, eventService, config);
+  const projectService = new ProjectService(pool, eventService, appConfig);
   const projectArtifactFileService = new ProjectArtifactFileService(
     pool,
-    createArtifactStorage(buildArtifactStorageConfig(config)),
-    config.PROJECT_ARTIFACT_MAX_UPLOAD_FILES,
-    config.PROJECT_ARTIFACT_MAX_UPLOAD_BYTES,
+    createArtifactStorage(buildArtifactStorageConfig(appConfig)),
+    appConfig.PROJECT_ARTIFACT_MAX_UPLOAD_FILES,
+    appConfig.PROJECT_ARTIFACT_MAX_UPLOAD_BYTES,
   );
   const playbookService = new PlaybookService(pool);
-  const workflowService = new WorkflowService(pool, eventService, config, workerConnectionHub, logService);
+  const workflowService = new WorkflowService(pool, eventService, appConfig, workerConnectionHub, logService);
   const workflowActivationService = new WorkflowActivationService(pool, eventService);
   const workflowActivationDispatchService = new WorkflowActivationDispatchService({
     pool,
     eventService,
-    config,
+    config: appConfig,
   });
   const userService = new UserService(pool);
   const apiKeyService = new ApiKeyService(pool);
@@ -172,7 +178,7 @@ export async function buildApp() {
     pool,
     eventService,
     workflowService,
-    config.WEBHOOK_ENCRYPTION_KEY,
+    appConfig.WEBHOOK_ENCRYPTION_KEY,
   );
   const scheduledWorkItemTriggerService = new ScheduledWorkItemTriggerService(
     pool,
@@ -180,7 +186,7 @@ export async function buildApp() {
     workflowService,
   );
 
-  app.decorate('config', config);
+  app.decorate('config', appConfig);
   app.decorate('pgPool', pool);
   app.decorate('logService', logService);
   app.decorate('logLevelCache', logLevelCache);

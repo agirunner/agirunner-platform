@@ -9,6 +9,7 @@ import { TaskService } from '../../src/services/task-service.js';
 import { WorkerConnectionHub } from '../../src/services/worker-connection-hub.js';
 import { WorkerService } from '../../src/services/worker-service.js';
 import { RoleDefinitionService } from '../../src/services/role-definition-service.js';
+import type { PlatformTransportTimingDefaults } from '../../src/services/platform-timing-defaults.js';
 import { WorkflowActivationDispatchService } from '../../src/services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../src/services/workflow-activation-service.js';
 import { WorkflowService } from '../../src/services/workflow-service.js';
@@ -34,20 +35,27 @@ export const TEST_APP_CONFIG = {
   WORKER_WEBSOCKET_PATH: '/api/v1/events',
   WORKER_DISPATCH_ACK_TIMEOUT_MS: 15_000,
   WORKER_DISPATCH_BATCH_LIMIT: 20,
+  EVENT_STREAM_KEEPALIVE_INTERVAL_MS: 15_000,
   WORKER_RECONNECT_MIN_MS: 1_000,
   WORKER_RECONNECT_MAX_MS: 60_000,
+  WORKER_WEBSOCKET_PING_INTERVAL_MS: 20_000,
+  WEBHOOK_MAX_ATTEMPTS: 4,
+  WEBHOOK_RETRY_BASE_DELAY_MS: 200,
   LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS: 60_000,
   LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS: 60_000,
   LIFECYCLE_TASK_TIMEOUT_CHECK_INTERVAL_MS: 60_000,
   LIFECYCLE_DISPATCH_LOOP_INTERVAL_MS: 1_000,
   GOVERNANCE_RETENTION_JOB_INTERVAL_MS: 60_000,
-} as const satisfies Partial<AppEnv>;
+} as const satisfies Partial<AppEnv & PlatformTransportTimingDefaults>;
 
-export function createV2Harness(db: TestDatabase, configOverride: Partial<AppEnv> = {}) {
+export function createV2Harness(
+  db: TestDatabase,
+  configOverride: Partial<AppEnv & PlatformTransportTimingDefaults> = {},
+) {
   const config = {
     ...TEST_APP_CONFIG,
     ...configOverride,
-  } as const satisfies Partial<AppEnv>;
+  } as const satisfies Partial<AppEnv & PlatformTransportTimingDefaults>;
   const logger = {
     info: () => undefined,
     error: () => undefined,

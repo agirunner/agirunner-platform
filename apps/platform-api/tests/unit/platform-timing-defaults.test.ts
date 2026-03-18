@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   readAgentSupervisionTimingDefaults,
+  readPlatformTransportTimingDefaults,
   readWorkerDispatchAckTimeoutMs,
   readLifecycleMonitorTimingDefaults,
   readTaskCancelSignalGracePeriodMs,
@@ -159,6 +160,75 @@ describe('platform timing defaults', () => {
       heartbeatPruneIntervalMs: 45_000,
       governanceRetentionIntervalMs: 5_400_000,
     });
+  });
+
+  it('reads platform transport timings from runtime defaults storage', async () => {
+    const pool = {
+      query: vi.fn(async (_sql: string, params?: unknown[]) => {
+        const key = params?.[1];
+        if (key === 'platform.event_stream_keepalive_interval_ms') {
+          return { rowCount: 1, rows: [{ config_value: '30000' }] };
+        }
+        if (key === 'platform.worker_reconnect_min_ms') {
+          return { rowCount: 1, rows: [{ config_value: '1000' }] };
+        }
+        if (key === 'platform.worker_reconnect_max_ms') {
+          return { rowCount: 1, rows: [{ config_value: '60000' }] };
+        }
+        if (key === 'platform.worker_websocket_ping_interval_ms') {
+          return { rowCount: 1, rows: [{ config_value: '20000' }] };
+        }
+        if (key === 'platform.webhook_max_attempts') {
+          return { rowCount: 1, rows: [{ config_value: '4' }] };
+        }
+        if (key === 'platform.webhook_retry_base_delay_ms') {
+          return { rowCount: 1, rows: [{ config_value: '200' }] };
+        }
+        throw new Error(`Unexpected runtime-default key: ${String(key)}`);
+      }),
+    };
+
+    const defaults = await readPlatformTransportTimingDefaults(pool as never, 'tenant-1');
+
+    expect(defaults).toEqual({
+      EVENT_STREAM_KEEPALIVE_INTERVAL_MS: 30_000,
+      WORKER_RECONNECT_MIN_MS: 1_000,
+      WORKER_RECONNECT_MAX_MS: 60_000,
+      WORKER_WEBSOCKET_PING_INTERVAL_MS: 20_000,
+      WEBHOOK_MAX_ATTEMPTS: 4,
+      WEBHOOK_RETRY_BASE_DELAY_MS: 200,
+    });
+  });
+
+  it('rejects worker reconnect ranges where the minimum exceeds the maximum', async () => {
+    const pool = {
+      query: vi.fn(async (_sql: string, params?: unknown[]) => {
+        const key = params?.[1];
+        if (key === 'platform.event_stream_keepalive_interval_ms') {
+          return { rowCount: 1, rows: [{ config_value: '30000' }] };
+        }
+        if (key === 'platform.worker_reconnect_min_ms') {
+          return { rowCount: 1, rows: [{ config_value: '60000' }] };
+        }
+        if (key === 'platform.worker_reconnect_max_ms') {
+          return { rowCount: 1, rows: [{ config_value: '1000' }] };
+        }
+        if (key === 'platform.worker_websocket_ping_interval_ms') {
+          return { rowCount: 1, rows: [{ config_value: '20000' }] };
+        }
+        if (key === 'platform.webhook_max_attempts') {
+          return { rowCount: 1, rows: [{ config_value: '4' }] };
+        }
+        if (key === 'platform.webhook_retry_base_delay_ms') {
+          return { rowCount: 1, rows: [{ config_value: '200' }] };
+        }
+        throw new Error(`Unexpected runtime-default key: ${String(key)}`);
+      }),
+    };
+
+    await expect(
+      readPlatformTransportTimingDefaults(pool as never, 'tenant-1'),
+    ).rejects.toThrow('platform.worker_reconnect_min_ms must be less than or equal to platform.worker_reconnect_max_ms');
   });
 
   it('fails when runtime defaults contain invalid values', async () => {

@@ -53,6 +53,29 @@ describe('config validation', () => {
     expect('AGENT_API_KEY_TTL_MS' in env).toBe(false);
   });
 
+  it('does not surface platform timing env keys once runtime defaults own transport and webhook timing', () => {
+    const env = loadEnv({
+      NODE_ENV: 'test',
+      PORT: '9999',
+      DATABASE_URL: 'postgres://user:pass@localhost:5432/db',
+      JWT_SECRET: 'a'.repeat(32),
+      WEBHOOK_ENCRYPTION_KEY: 'b'.repeat(32),
+      EVENT_STREAM_KEEPALIVE_INTERVAL_MS: '30000',
+      WORKER_RECONNECT_MIN_MS: '1000',
+      WORKER_RECONNECT_MAX_MS: '60000',
+      WORKER_WEBSOCKET_PING_INTERVAL_MS: '20000',
+      WEBHOOK_MAX_ATTEMPTS: '4',
+      WEBHOOK_RETRY_BASE_DELAY_MS: '200',
+    });
+
+    expect('EVENT_STREAM_KEEPALIVE_INTERVAL_MS' in env).toBe(false);
+    expect('WORKER_RECONNECT_MIN_MS' in env).toBe(false);
+    expect('WORKER_RECONNECT_MAX_MS' in env).toBe(false);
+    expect('WORKER_WEBSOCKET_PING_INTERVAL_MS' in env).toBe(false);
+    expect('WEBHOOK_MAX_ATTEMPTS' in env).toBe(false);
+    expect('WEBHOOK_RETRY_BASE_DELAY_MS' in env).toBe(false);
+  });
+
   it('rejects invalid configuration', () => {
     expect(() =>
       loadEnv({

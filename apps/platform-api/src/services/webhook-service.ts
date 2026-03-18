@@ -4,6 +4,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
+import type { PlatformTransportTimingDefaults } from './platform-timing-defaults.js';
 import { decryptWebhookSecret, encryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 import { createWebhookSignature, generateWebhookSecret } from './webhook-delivery.js';
 
@@ -34,6 +35,8 @@ interface WebhookApiRow {
   created_at: string;
 }
 
+type WebhookRuntimeConfig = AppEnv & PlatformTransportTimingDefaults;
+
 function validateWebhookUrl(url: string): void {
   if (!/^https?:\/\//.test(url)) {
     throw new ValidationError('Webhook url must be http(s)');
@@ -58,7 +61,7 @@ export class WebhookService {
 
   constructor(
     private readonly pool: DatabasePool,
-    private readonly config: AppEnv,
+    private readonly config: WebhookRuntimeConfig,
     fetchFn?: WebhookFetchFn,
   ) {
     this.fetchFn = fetchFn ?? globalThis.fetch;

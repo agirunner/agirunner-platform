@@ -21,11 +21,13 @@ describe('runtime defaults page support', () => {
       'lifecycle_timeouts',
       'task_timeouts',
       'connected_platform',
+      'realtime_transport',
       'workflow_activation',
       'container_manager',
       'pool_management',
       'worker_supervision',
       'agent_supervision',
+      'webhook_delivery',
       'platform_loops',
       'workspace_timeouts',
       'workspace_operations',
@@ -78,6 +80,18 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('connected_platform').map((field) => field.key)).toContain(
       'platform.log_flush_interval_ms',
     );
+    expect(fieldsForSection('realtime_transport').map((field) => field.key)).toContain(
+      'platform.event_stream_keepalive_interval_ms',
+    );
+    expect(fieldsForSection('realtime_transport').map((field) => field.key)).toContain(
+      'platform.worker_reconnect_min_ms',
+    );
+    expect(fieldsForSection('realtime_transport').map((field) => field.key)).toContain(
+      'platform.worker_reconnect_max_ms',
+    );
+    expect(fieldsForSection('realtime_transport').map((field) => field.key)).toContain(
+      'platform.worker_websocket_ping_interval_ms',
+    );
     expect(fieldsForSection('workflow_activation').map((field) => field.key)).toContain(
       'platform.workflow_activation_delay_ms',
     );
@@ -117,6 +131,12 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('agent_supervision').map((field) => field.key)).toContain(
       'platform.agent_heartbeat_threshold_multiplier',
     );
+    expect(fieldsForSection('webhook_delivery').map((field) => field.key)).toContain(
+      'platform.webhook_max_attempts',
+    );
+    expect(fieldsForSection('webhook_delivery').map((field) => field.key)).toContain(
+      'platform.webhook_retry_base_delay_ms',
+    );
     expect(fieldsForSection('platform_loops').map((field) => field.key)).toContain(
       'platform.lifecycle_dispatch_loop_interval_ms',
     );
@@ -149,6 +169,15 @@ describe('runtime defaults page support', () => {
       'overall history budget',
     );
     expect(errors['agent.loop_detection_repeat']).toContain('at least 1');
+  });
+
+  it('rejects worker reconnect ranges where the minimum exceeds the maximum', () => {
+    const errors = buildValidationErrors({
+      'platform.worker_reconnect_min_ms': '60000',
+      'platform.worker_reconnect_max_ms': '1000',
+    });
+
+    expect(errors['platform.worker_reconnect_max_ms']).toContain('at least the minimum');
   });
 
   it('validates risky container-default overrides with recovery guidance before save', () => {

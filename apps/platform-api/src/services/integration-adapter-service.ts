@@ -5,6 +5,7 @@ import type { AppEnv } from '../config/schema.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { StreamEvent } from './event-stream-service.js';
 import type { IntegrationActionService } from './integration-action-service.js';
+import type { PlatformTransportTimingDefaults } from './platform-timing-defaults.js';
 import {
   deliverOtlpEvent,
   normalizeStoredOtlpConfig,
@@ -69,7 +70,7 @@ export class IntegrationAdapterService {
 
   constructor(
     private readonly pool: DatabasePool,
-    private readonly config: AppEnv,
+    private readonly config: AppEnv & PlatformTransportTimingDefaults,
     fetchFn?: typeof globalThis.fetch,
     private readonly integrationActionService?: Pick<
       IntegrationActionService,

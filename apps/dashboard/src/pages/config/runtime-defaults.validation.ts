@@ -36,6 +36,7 @@ export function buildValidationErrors(values: FormValues): Record<string, string
 
   validateContainerDefaults(values, errors);
   validateHistoryRelationships(values, errors);
+  validateRealtimeTransportRanges(values, errors);
   validateWebSearchFields(values, errors);
   return errors;
 }
@@ -108,6 +109,19 @@ function validateContainerDefaults(
       errors['default_memory'] =
         'Default memory allocation must be greater than 0. Use a value such as 512m or 2Gi, or clear the field to use the platform default memory limit.';
     }
+  }
+}
+
+function validateRealtimeTransportRanges(
+  values: FormValues,
+  errors: Record<string, string>,
+): void {
+  const minReconnect = readNumber(values['platform.worker_reconnect_min_ms']);
+  const maxReconnect = readNumber(values['platform.worker_reconnect_max_ms']);
+
+  if (minReconnect !== null && maxReconnect !== null && minReconnect > maxReconnect) {
+    errors['platform.worker_reconnect_max_ms'] =
+      'Worker reconnect maximum must be at least the minimum reconnect value.';
   }
 }
 

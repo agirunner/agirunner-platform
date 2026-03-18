@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
-import type { AppEnv } from '../config/schema.js';
 import { ValidationError } from '../errors/domain-errors.js';
+import type { AppEnv } from '../config/schema.js';
 import type { StreamEvent } from './event-stream-service.js';
 import {
   decryptIntegrationHeaders,
@@ -9,6 +9,7 @@ import {
   sanitizeIntegrationHeaders,
 } from './integration-adapter-headers.js';
 import type { DeliveryAttempt } from './integration-adapter-webhook.js';
+import type { PlatformTransportTimingDefaults } from './platform-timing-defaults.js';
 
 export interface PublicOtlpConfig {
   endpoint: string;
@@ -23,6 +24,8 @@ export interface OtlpDeliveryTarget {
   headers: Record<string, string>;
   serviceName: string;
 }
+
+type OtlpDeliveryConfig = AppEnv & PlatformTransportTimingDefaults;
 
 export function normalizeStoredOtlpConfig(
   currentConfig: Record<string, unknown>,
@@ -72,7 +75,7 @@ export function toOtlpDeliveryTarget(
 
 export async function deliverOtlpEvent(
   fetchFn: typeof globalThis.fetch,
-  config: AppEnv,
+  config: OtlpDeliveryConfig,
   target: OtlpDeliveryTarget,
   event: StreamEvent,
 ): Promise<DeliveryAttempt> {

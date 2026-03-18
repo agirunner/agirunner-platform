@@ -26,6 +26,14 @@ export const WORKER_OFFLINE_THRESHOLD_MULTIPLIER_RUNTIME_KEY =
   'platform.worker_offline_threshold_multiplier';
 export const WORKER_DEGRADED_THRESHOLD_MULTIPLIER_RUNTIME_KEY =
   'platform.worker_degraded_threshold_multiplier';
+export const EVENT_STREAM_KEEPALIVE_INTERVAL_MS_RUNTIME_KEY =
+  'platform.event_stream_keepalive_interval_ms';
+export const WORKER_RECONNECT_MIN_MS_RUNTIME_KEY = 'platform.worker_reconnect_min_ms';
+export const WORKER_RECONNECT_MAX_MS_RUNTIME_KEY = 'platform.worker_reconnect_max_ms';
+export const WORKER_WEBSOCKET_PING_INTERVAL_MS_RUNTIME_KEY =
+  'platform.worker_websocket_ping_interval_ms';
+export const WEBHOOK_MAX_ATTEMPTS_RUNTIME_KEY = 'platform.webhook_max_attempts';
+export const WEBHOOK_RETRY_BASE_DELAY_MS_RUNTIME_KEY = 'platform.webhook_retry_base_delay_ms';
 export const LIFECYCLE_AGENT_HEARTBEAT_CHECK_INTERVAL_MS_RUNTIME_KEY =
   'platform.lifecycle_agent_heartbeat_check_interval_ms';
 export const LIFECYCLE_WORKER_HEARTBEAT_CHECK_INTERVAL_MS_RUNTIME_KEY =
@@ -67,6 +75,15 @@ export interface LifecycleMonitorTimingDefaults {
   dispatchLoopIntervalMs: number;
   heartbeatPruneIntervalMs: number;
   governanceRetentionIntervalMs: number;
+}
+
+export interface PlatformTransportTimingDefaults {
+  EVENT_STREAM_KEEPALIVE_INTERVAL_MS: number;
+  WORKER_RECONNECT_MIN_MS: number;
+  WORKER_RECONNECT_MAX_MS: number;
+  WORKER_WEBSOCKET_PING_INTERVAL_MS: number;
+  WEBHOOK_MAX_ATTEMPTS: number;
+  WEBHOOK_RETRY_BASE_DELAY_MS: number;
 }
 
 export async function readWorkflowActivationTimingDefaults(
@@ -166,6 +183,42 @@ export async function readAgentSupervisionTimingDefaults(
     heartbeatGracePeriodMs,
     heartbeatThresholdMultiplier,
     keyExpiryMs,
+  };
+}
+
+export async function readPlatformTransportTimingDefaults(
+  db: DatabaseClient | DatabasePool,
+  tenantId = DEFAULT_TENANT_ID,
+): Promise<PlatformTransportTimingDefaults> {
+  const [
+    eventStreamKeepaliveIntervalMs,
+    workerReconnectMinMs,
+    workerReconnectMaxMs,
+    workerWebsocketPingIntervalMs,
+    webhookMaxAttempts,
+    webhookRetryBaseDelayMs,
+  ] = await Promise.all([
+    readPositiveNumberDefault(db, tenantId, EVENT_STREAM_KEEPALIVE_INTERVAL_MS_RUNTIME_KEY, 1),
+    readPositiveNumberDefault(db, tenantId, WORKER_RECONNECT_MIN_MS_RUNTIME_KEY, 1),
+    readPositiveNumberDefault(db, tenantId, WORKER_RECONNECT_MAX_MS_RUNTIME_KEY, 1),
+    readPositiveNumberDefault(db, tenantId, WORKER_WEBSOCKET_PING_INTERVAL_MS_RUNTIME_KEY, 1),
+    readPositiveNumberDefault(db, tenantId, WEBHOOK_MAX_ATTEMPTS_RUNTIME_KEY, 1),
+    readPositiveNumberDefault(db, tenantId, WEBHOOK_RETRY_BASE_DELAY_MS_RUNTIME_KEY, 1),
+  ]);
+
+  if (workerReconnectMinMs > workerReconnectMaxMs) {
+    throw new ValidationError(
+      'platform.worker_reconnect_min_ms must be less than or equal to platform.worker_reconnect_max_ms',
+    );
+  }
+
+  return {
+    EVENT_STREAM_KEEPALIVE_INTERVAL_MS: eventStreamKeepaliveIntervalMs,
+    WORKER_RECONNECT_MIN_MS: workerReconnectMinMs,
+    WORKER_RECONNECT_MAX_MS: workerReconnectMaxMs,
+    WORKER_WEBSOCKET_PING_INTERVAL_MS: workerWebsocketPingIntervalMs,
+    WEBHOOK_MAX_ATTEMPTS: webhookMaxAttempts,
+    WEBHOOK_RETRY_BASE_DELAY_MS: webhookRetryBaseDelayMs,
   };
 }
 

@@ -33,10 +33,11 @@ import type { ToolTagService } from './services/tool-tag-service.js';
 import type { WebhookWorkItemTriggerService } from './services/webhook-work-item-trigger-service.js';
 import type { WorkflowService } from './services/workflow-service.js';
 import type { WorkflowActivationService } from './services/workflow-activation-service.js';
+import type { PlatformTransportTimingDefaults } from './services/platform-timing-defaults.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
-    config: AppEnv;
+    config: AppEnv & PlatformTransportTimingDefaults;
     pgPool: pg.Pool;
     logService: LogService;
     logLevelCache: LogLevelCache;
