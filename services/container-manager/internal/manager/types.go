@@ -117,6 +117,8 @@ type RuntimeHeartbeat struct {
 }
 
 type ContainerManagerConfig struct {
+	PlatformAPIRequestTimeoutSeconds int `json:"platform_api_request_timeout_seconds"`
+	PlatformLogIngestTimeoutSeconds  int `json:"platform_log_ingest_timeout_seconds"`
 	ReconcileIntervalSeconds       int `json:"reconcile_interval_seconds"`
 	StopTimeoutSeconds             int `json:"stop_timeout_seconds"`
 	ShutdownTaskStopTimeoutSeconds int `json:"shutdown_task_stop_timeout_seconds"`

@@ -31,6 +31,8 @@ func TestRunFailsFastWhenInitialSnapshotConfigIsInvalid(t *testing.T) {
 			},
 			Heartbeats: []RuntimeHeartbeat{},
 			ContainerManagerConfig: ContainerManagerConfig{
+				PlatformAPIRequestTimeoutSeconds: 19,
+				PlatformLogIngestTimeoutSeconds:  17,
 				ReconcileIntervalSeconds:       0,
 				StopTimeoutSeconds:             45,
 				ShutdownTaskStopTimeoutSeconds: 3,
@@ -95,6 +97,8 @@ func TestRunReconcileCycleSkipsInvalidSnapshotConfig(t *testing.T) {
 			},
 			Heartbeats: []RuntimeHeartbeat{},
 			ContainerManagerConfig: ContainerManagerConfig{
+				PlatformAPIRequestTimeoutSeconds: 19,
+				PlatformLogIngestTimeoutSeconds:  17,
 				ReconcileIntervalSeconds:       7,
 				StopTimeoutSeconds:             0,
 				ShutdownTaskStopTimeoutSeconds: 3,

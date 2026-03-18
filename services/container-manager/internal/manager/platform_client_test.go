@@ -244,7 +244,7 @@ func TestFetchReconcileSnapshotUsesSharedFleetEndpoint(t *testing.T) {
 		if req.Method != http.MethodGet {
 			t.Errorf("expected GET, got %s", req.Method)
 		}
-		return jsonResponse(http.StatusOK, `{"data":{"desired_states":[{"id":"worker-1","enabled":true}],"runtime_targets":[{"playbook_id":"pb-1","playbook_name":"Build","pool_kind":"orchestrator","pool_mode":"warm","max_runtimes":1,"priority":0,"idle_timeout_seconds":300,"grace_period_seconds":180,"image":"runtime:v1","pull_policy":"if-not-present","cpu":"1","memory":"512m","pending_tasks":1,"tasks_with_capabilities":0,"distinct_capability_sets":0,"max_required_capabilities":0,"capability_demand_units":0,"active_workflows":1}],"heartbeats":[{"runtime_id":"rt-1","playbook_id":"pb-1","pool_kind":"orchestrator","state":"idle","last_heartbeat_at":"2026-03-12T00:00:00Z","active_task_id":"task-1"}],"container_manager_config":{"reconcile_interval_seconds":7,"stop_timeout_seconds":45,"shutdown_task_stop_timeout_seconds":3,"docker_action_buffer_seconds":20,"hung_runtime_stale_after_seconds":90,"hung_runtime_stop_grace_period_seconds":30,"global_max_runtimes":12}}}`), nil
+		return jsonResponse(http.StatusOK, `{"data":{"desired_states":[{"id":"worker-1","enabled":true}],"runtime_targets":[{"playbook_id":"pb-1","playbook_name":"Build","pool_kind":"orchestrator","pool_mode":"warm","max_runtimes":1,"priority":0,"idle_timeout_seconds":300,"grace_period_seconds":180,"image":"runtime:v1","pull_policy":"if-not-present","cpu":"1","memory":"512m","pending_tasks":1,"tasks_with_capabilities":0,"distinct_capability_sets":0,"max_required_capabilities":0,"capability_demand_units":0,"active_workflows":1}],"heartbeats":[{"runtime_id":"rt-1","playbook_id":"pb-1","pool_kind":"orchestrator","state":"idle","last_heartbeat_at":"2026-03-12T00:00:00Z","active_task_id":"task-1"}],"container_manager_config":{"platform_api_request_timeout_seconds":19,"platform_log_ingest_timeout_seconds":17,"reconcile_interval_seconds":7,"stop_timeout_seconds":45,"shutdown_task_stop_timeout_seconds":3,"docker_action_buffer_seconds":20,"hung_runtime_stale_after_seconds":90,"hung_runtime_stop_grace_period_seconds":30,"global_max_runtimes":12}}}`), nil
 	})
 
 	result, err := client.FetchReconcileSnapshot()
@@ -262,6 +262,12 @@ func TestFetchReconcileSnapshotUsesSharedFleetEndpoint(t *testing.T) {
 	}
 	if result.ContainerManagerConfig.ReconcileIntervalSeconds != 7 {
 		t.Fatalf("expected reconcile_interval_seconds 7, got %d", result.ContainerManagerConfig.ReconcileIntervalSeconds)
+	}
+	if result.ContainerManagerConfig.PlatformAPIRequestTimeoutSeconds != 19 {
+		t.Fatalf("expected platform_api_request_timeout_seconds 19, got %d", result.ContainerManagerConfig.PlatformAPIRequestTimeoutSeconds)
+	}
+	if result.ContainerManagerConfig.PlatformLogIngestTimeoutSeconds != 17 {
+		t.Fatalf("expected platform_log_ingest_timeout_seconds 17, got %d", result.ContainerManagerConfig.PlatformLogIngestTimeoutSeconds)
 	}
 	if result.ContainerManagerConfig.HungRuntimeStaleAfterSeconds != 90 {
 		t.Fatalf("expected hung_runtime_stale_after_seconds 90, got %d", result.ContainerManagerConfig.HungRuntimeStaleAfterSeconds)

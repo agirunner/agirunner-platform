@@ -56,6 +56,8 @@ type Config struct {
 	PlatformAPIURL           string
 	PlatformAPIKey           string
 	PlatformAdminAPIKey      string
+	PlatformAPIRequestTimeout time.Duration
+	PlatformLogIngestTimeout  time.Duration
 	DockerHost               string
 	ReconcileInterval        time.Duration
 	StopTimeout              time.Duration
@@ -106,12 +108,12 @@ type Manager struct {
 func New(cfg Config, docker DockerClient, logger *slog.Logger) *Manager {
 	ingestEndpoint := cfg.PlatformAPIURL + "/api/v1/logs/ingest"
 	return &Manager{
-		platform:             NewPlatformClient(cfg.PlatformAPIURL, cfg.PlatformAPIKey),
+		platform:             NewPlatformClient(cfg.PlatformAPIURL, cfg.PlatformAPIKey, cfg.PlatformAPIRequestTimeout),
 		docker:               docker,
 		config:               cfg,
 		logger:               logger,
 		metrics:              NewFleetMetrics(),
-		logEmitter:           NewLogEmitter(ingestEndpoint, cfg.PlatformAPIKey, logger),
+		logEmitter:           NewLogEmitter(ingestEndpoint, cfg.PlatformAPIKey, cfg.PlatformLogIngestTimeout, logger),
 		starvationTrack:      make(map[string]time.Time),
 		failedHeartbeatSince: make(map[string]time.Time),
 		pullFailCache:        make(map[string]time.Time),

@@ -306,10 +306,7 @@ func (m *Manager) forceRemoveContainer(ctx context.Context, containerID string) 
 }
 
 func (m *Manager) dockerActionBuffer() time.Duration {
-	if m.config.DockerActionBuffer > 0 {
-		return m.config.DockerActionBuffer
-	}
-	return 15 * time.Second
+	return m.config.DockerActionBuffer
 }
 
 // cleanupOrphanTaskContainers removes task containers whose parent runtimes are gone.

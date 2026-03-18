@@ -18,23 +18,31 @@ type PlatformClient struct {
 }
 
 // NewPlatformClient creates a client for the platform API.
-func NewPlatformClient(baseURL, apiKey string) *PlatformClient {
+func NewPlatformClient(baseURL, apiKey string, timeout time.Duration) *PlatformClient {
 	return NewPlatformClientWithHTTPClient(baseURL, apiKey, &http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: timeout,
 	})
 }
 
 func NewPlatformClientWithHTTPClient(baseURL, apiKey string, httpClient *http.Client) *PlatformClient {
 	if httpClient == nil {
-		httpClient = &http.Client{
-			Timeout: 10 * time.Second,
-		}
+		httpClient = &http.Client{}
 	}
 	return &PlatformClient{
 		baseURL:    baseURL,
 		apiKey:     apiKey,
 		httpClient: httpClient,
 	}
+}
+
+func (c *PlatformClient) SetTimeout(timeout time.Duration) {
+	if c == nil {
+		return
+	}
+	if c.httpClient == nil {
+		c.httpClient = &http.Client{}
+	}
+	c.httpClient.Timeout = timeout
 }
 
 type fleetResponse struct {

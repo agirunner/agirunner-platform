@@ -277,6 +277,8 @@ func newTestManager(docker *mockDockerClient, platform *mockPlatformClient) *Man
 
 func defaultTestContainerManagerConfig() ContainerManagerConfig {
 	return ContainerManagerConfig{
+		PlatformAPIRequestTimeoutSeconds: 19,
+		PlatformLogIngestTimeoutSeconds:  17,
 		ReconcileIntervalSeconds:       5,
 		StopTimeoutSeconds:             10,
 		ShutdownTaskStopTimeoutSeconds: 2,
@@ -341,6 +343,8 @@ func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
 			RuntimeTargets: []RuntimeTarget{},
 			Heartbeats:     []RuntimeHeartbeat{},
 			ContainerManagerConfig: ContainerManagerConfig{
+				PlatformAPIRequestTimeoutSeconds: 19,
+				PlatformLogIngestTimeoutSeconds:  17,
 				ReconcileIntervalSeconds:       7,
 				StopTimeoutSeconds:             45,
 				ShutdownTaskStopTimeoutSeconds: 3,
@@ -366,6 +370,12 @@ func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
 	}
 	if manager.config.GlobalMaxRuntimes != 12 {
 		t.Fatalf("expected global max runtimes from snapshot, got %d", manager.config.GlobalMaxRuntimes)
+	}
+	if manager.config.PlatformAPIRequestTimeout != 19*time.Second {
+		t.Fatalf("expected platform API timeout from snapshot, got %s", manager.config.PlatformAPIRequestTimeout)
+	}
+	if manager.config.PlatformLogIngestTimeout != 17*time.Second {
+		t.Fatalf("expected platform log ingest timeout from snapshot, got %s", manager.config.PlatformLogIngestTimeout)
 	}
 }
 

@@ -1281,6 +1281,8 @@ interface RoleCapabilityRow {
 }
 
 const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
+  platformApiRequestTimeoutSeconds: 'platform.api_request_timeout_seconds',
+  platformLogIngestTimeoutSeconds: 'platform.log_ingest_timeout_seconds',
   reconcileIntervalSeconds: 'container_manager.reconcile_interval_seconds',
   stopTimeoutSeconds: 'container_manager.stop_timeout_seconds',
   shutdownTaskStopTimeoutSeconds: 'container_manager.shutdown_task_stop_timeout_seconds',
@@ -1292,6 +1294,14 @@ const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
 
 function buildContainerManagerConfig(defaults: Map<string, string>): ContainerManagerConfig {
   return {
+    platform_api_request_timeout_seconds: readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.platformApiRequestTimeoutSeconds,
+    ),
+    platform_log_ingest_timeout_seconds: readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.platformLogIngestTimeoutSeconds,
+    ),
     reconcile_interval_seconds: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.reconcileIntervalSeconds,
@@ -1395,6 +1405,8 @@ export interface WorkerPoolSummary {
 }
 
 export interface ContainerManagerConfig {
+  platform_api_request_timeout_seconds: number;
+  platform_log_ingest_timeout_seconds: number;
   reconcile_interval_seconds: number;
   stop_timeout_seconds: number;
   shutdown_task_stop_timeout_seconds: number;

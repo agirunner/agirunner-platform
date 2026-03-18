@@ -14,7 +14,6 @@ import (
 const (
 	defaultFlushSize     = 50
 	defaultFlushInterval = 500 * time.Millisecond
-	logEmitterTimeout    = 5 * time.Second
 	logSource            = "container_manager"
 	logActorType         = "system"
 	logActorID           = "container-manager"
@@ -80,10 +79,10 @@ type LogEmitter struct {
 // NewLogEmitter creates a LogEmitter that posts batched entries to the
 // given endpoint using the provided API key. A background goroutine
 // flushes buffered entries on a timer.
-func NewLogEmitter(endpoint, apiKey string, logger *slog.Logger) *LogEmitter {
+func NewLogEmitter(endpoint, apiKey string, timeout time.Duration, logger *slog.Logger) *LogEmitter {
 	e := &LogEmitter{
 		httpClient: &http.Client{
-			Timeout: logEmitterTimeout,
+			Timeout: timeout,
 		},
 		endpoint:      endpoint,
 		apiKey:        apiKey,
@@ -96,6 +95,16 @@ func NewLogEmitter(endpoint, apiKey string, logger *slog.Logger) *LogEmitter {
 	e.wg.Add(1)
 	go e.flushLoop()
 	return e
+}
+
+func (e *LogEmitter) SetTimeout(timeout time.Duration) {
+	if e == nil {
+		return
+	}
+	if e.httpClient == nil {
+		e.httpClient = &http.Client{}
+	}
+	e.httpClient.Timeout = timeout
 }
 
 // Emit adds a log entry to the buffer. When the buffer reaches the

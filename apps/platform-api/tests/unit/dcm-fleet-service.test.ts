@@ -436,6 +436,8 @@ describe('FleetService DCM', () => {
         if (query.includes('SELECT config_key, config_value FROM runtime_defaults')) {
           return {
             rows: [
+              { config_key: 'platform.api_request_timeout_seconds', config_value: '19' },
+              { config_key: 'platform.log_ingest_timeout_seconds', config_value: '17' },
               { config_key: 'container_manager.reconcile_interval_seconds', config_value: '7' },
               { config_key: 'container_manager.stop_timeout_seconds', config_value: '45' },
               { config_key: 'container_manager.shutdown_task_stop_timeout_seconds', config_value: '3' },
@@ -444,7 +446,7 @@ describe('FleetService DCM', () => {
               { config_key: 'container_manager.hung_runtime_stop_grace_period_seconds', config_value: '30' },
               { config_key: 'global_max_runtimes', config_value: '12' },
             ],
-            rowCount: 7,
+            rowCount: 9,
           };
         }
         if (query.includes('FROM playbooks p')) {
@@ -459,6 +461,8 @@ describe('FleetService DCM', () => {
       const result = await service.getReconcileSnapshot(TENANT_ID);
 
       expect(result.container_manager_config).toEqual({
+        platform_api_request_timeout_seconds: 19,
+        platform_log_ingest_timeout_seconds: 17,
         reconcile_interval_seconds: 7,
         stop_timeout_seconds: 45,
         shutdown_task_stop_timeout_seconds: 3,
@@ -487,7 +491,7 @@ describe('FleetService DCM', () => {
       });
 
       await expect(service.getReconcileSnapshot(TENANT_ID)).rejects.toThrow(
-        /Missing runtime default "container_manager\.reconcile_interval_seconds"/,
+        /Missing runtime default "platform\.api_request_timeout_seconds"/,
       );
     });
   });
