@@ -550,6 +550,9 @@ func TestReconcileOnceOrchestratorContractMismatchReplacesContainer(t *testing.T
 	if spec.Environment[envPlatformAdminAPIKey] != "test-admin-key" {
 		t.Fatalf("expected admin api key injected, got %q", spec.Environment[envPlatformAdminAPIKey])
 	}
+	if spec.Environment[envRuntimeWorkerName] != "orchestrator-primary" {
+		t.Fatalf("expected worker name injected, got %q", spec.Environment[envRuntimeWorkerName])
+	}
 	if spec.Environment[envPlatformAgentExecMode] != orchestratorExecutionMode {
 		t.Fatalf("expected execution mode %q, got %q", orchestratorExecutionMode, spec.Environment[envPlatformAgentExecMode])
 	}

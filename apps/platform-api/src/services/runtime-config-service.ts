@@ -45,9 +45,19 @@ interface DefaultRow {
 }
 
 interface WorkerRow {
-  id: string;
   name: string;
   capabilities: string[];
+}
+
+interface DesiredStateWorkerRow {
+  worker_name: string;
+  role: string | null;
+}
+
+interface WorkerConfigTarget {
+  name: string;
+  capabilities: string[];
+  roleNames: string[];
 }
 
 export class RuntimeConfigService {
@@ -55,11 +65,10 @@ export class RuntimeConfigService {
 
   async getConfigForWorker(tenantId: string, workerName: string): Promise<RuntimeConfig> {
     const worker = await this.findWorker(tenantId, workerName);
-
-    const roleCaps = this.extractRoleCapabilities(worker.capabilities);
+    const roleNames = this.resolveRoleNames(worker);
 
     const [roles, defaults] = await Promise.all([
-      this.fetchRoles(tenantId, roleCaps),
+      this.fetchRoles(tenantId, roleNames),
       this.fetchDefaults(tenantId),
     ]);
 
@@ -73,13 +82,67 @@ export class RuntimeConfigService {
     };
   }
 
-  private async findWorker(tenantId: string, workerName: string): Promise<WorkerRow> {
-    const result = await this.pool.query<WorkerRow>(
-      'SELECT id, name, capabilities FROM workers WHERE tenant_id = $1 AND name = $2 LIMIT 1',
+  private async findWorker(tenantId: string, workerName: string): Promise<WorkerConfigTarget> {
+    const desiredStateWorker = await this.findDesiredStateWorker(tenantId, workerName);
+    if (desiredStateWorker) {
+      return desiredStateWorker;
+    }
+
+    const registeredWorker = await this.findRegisteredWorker(tenantId, workerName);
+    if (registeredWorker) {
+      return registeredWorker;
+    }
+
+    throw new NotFoundError(`Worker "${workerName}" not found`);
+  }
+
+  private async findDesiredStateWorker(
+    tenantId: string,
+    workerName: string,
+  ): Promise<WorkerConfigTarget | null> {
+    const result = await this.pool.query<DesiredStateWorkerRow>(
+      `SELECT worker_name, role
+       FROM worker_desired_state
+       WHERE tenant_id = $1 AND worker_name = $2 AND enabled = true
+       LIMIT 1`,
       [tenantId, workerName],
     );
-    if (!result.rowCount) throw new NotFoundError(`Worker "${workerName}" not found`);
-    return result.rows[0];
+    if (!result.rowCount) {
+      return null;
+    }
+    const row = result.rows[0];
+    return {
+      name: row.worker_name,
+      capabilities: [],
+      roleNames: row.role ? [row.role] : [],
+    };
+  }
+
+  private findRegisteredWorker(
+    tenantId: string,
+    workerName: string,
+  ): Promise<WorkerConfigTarget | null> {
+    return this.pool
+      .query<WorkerRow>(
+        'SELECT name, capabilities FROM workers WHERE tenant_id = $1 AND name = $2 LIMIT 1',
+        [tenantId, workerName],
+      )
+      .then((result) =>
+        result.rowCount
+          ? {
+              name: result.rows[0].name,
+              capabilities: result.rows[0].capabilities,
+              roleNames: [],
+            }
+          : null,
+      );
+  }
+
+  private resolveRoleNames(worker: WorkerConfigTarget): string[] {
+    if (worker.roleNames.length > 0) {
+      return worker.roleNames;
+    }
+    return this.extractRoleCapabilities(worker.capabilities);
   }
 
   private extractRoleCapabilities(capabilities: string[]): string[] {

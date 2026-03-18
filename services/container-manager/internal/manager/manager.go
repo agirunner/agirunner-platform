@@ -539,6 +539,7 @@ func (m *Manager) buildContainerSpec(ds DesiredState, replicaIndex int) Containe
 	for k, v := range ds.Environment {
 		env[k] = fmt.Sprintf("%v", v)
 	}
+	env[envRuntimeWorkerName] = ds.WorkerName
 	if ds.LLMProvider != nil {
 		env["LLM_PROVIDER"] = *ds.LLMProvider
 	}

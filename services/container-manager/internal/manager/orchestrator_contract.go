@@ -11,6 +11,7 @@ const (
 	labelRuntimeInternalNetwork = "agirunner.runtime_internal_network"
 	orchestratorExecutionMode   = "orchestrator"
 	orchestratorContractLabel   = "connected-platform-v1"
+	envRuntimeWorkerName        = "AGIRUNNER_WORKER_NAME"
 	envPlatformAPIURL           = "AGIRUNNER_RUNTIME_PLATFORM_API_URL"
 	envPlatformAdminAPIKey      = "AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"
 	envPlatformAgentExecMode    = "AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE"

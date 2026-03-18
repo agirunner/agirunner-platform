@@ -38,6 +38,12 @@ const sampleSecretDefault = {
   updated_at: new Date(),
 };
 
+const sampleDesiredState = {
+  id: 'desired-1',
+  worker_name: 'orchestrator-primary',
+  role: 'orchestrator',
+};
+
 describe('RuntimeConfigService', () => {
   let pool: ReturnType<typeof createMockPool>;
   let service: RuntimeConfigService;
@@ -49,6 +55,7 @@ describe('RuntimeConfigService', () => {
 
   it('returns merged config for a worker', async () => {
     pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // findDesiredStateWorker
       .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 }) // findWorker
       .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 }) // fetchRoles
       .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 }); // fetchDefaults
@@ -66,6 +73,7 @@ describe('RuntimeConfigService', () => {
 
   it('redacts secret-bearing runtime defaults in worker config responses', async () => {
     pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [sampleSecretDefault], rowCount: 1 });
@@ -82,7 +90,9 @@ describe('RuntimeConfigService', () => {
   });
 
   it('throws NotFoundError for missing worker', async () => {
-    pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+    pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
     await expect(
       service.getConfigForWorker(TENANT_ID, 'nonexistent'),
@@ -93,6 +103,7 @@ describe('RuntimeConfigService', () => {
     const workerWithRole = { ...sampleWorker, capabilities: ['role:developer', 'coding'] };
 
     pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [workerWithRole], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 });
@@ -107,11 +118,45 @@ describe('RuntimeConfigService', () => {
     const workerNoRoles = { ...sampleWorker, capabilities: ['coding'] };
 
     pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({ rows: [workerNoRoles], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [], rowCount: 0 });
 
     const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
     expect(result.roles).toHaveLength(1);
+  });
+
+  it('returns runtime config for a desired-state worker before registration', async () => {
+    pool.query.mockImplementation(async (sql: string) => {
+      if (sql.includes('FROM worker_desired_state')) {
+        return { rows: [sampleDesiredState], rowCount: 1 };
+      }
+      if (sql.includes('FROM role_definitions')) {
+        return { rows: [{ ...sampleRole, name: 'orchestrator' }], rowCount: 1 };
+      }
+      if (sql.includes('FROM runtime_defaults')) {
+        return { rows: [sampleDefault], rowCount: 1 };
+      }
+      if (sql.includes('FROM workers')) {
+        return { rows: [], rowCount: 0 };
+      }
+      throw new Error(`unexpected query: ${sql}`);
+    });
+
+    const result = await service.getConfigForWorker(TENANT_ID, 'orchestrator-primary');
+
+    expect(result.workerName).toBe('orchestrator-primary');
+    expect(result.roles).toEqual([
+      {
+        name: 'orchestrator',
+        description: 'Implements features',
+        systemPrompt: 'You are a developer.',
+        allowedTools: ['file_read', 'file_write'],
+        capabilities: ['coding', 'testing'],
+        verificationStrategy: 'peer_review',
+      },
+    ]);
+    expect(result.defaults).toHaveLength(1);
   });
 });

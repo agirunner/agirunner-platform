@@ -38,8 +38,11 @@ describe('runtime config routes', () => {
 
     pool.query
       .mockResolvedValueOnce({
+        rows: [],
+        rowCount: 0,
+      })
+      .mockResolvedValueOnce({
         rows: [{
-          id: 'worker-1',
           name: 'worker-alpha',
           capabilities: ['coding', 'testing'],
         }],
@@ -66,10 +69,6 @@ describe('runtime config routes', () => {
         }],
         rowCount: 1,
       })
-      .mockResolvedValueOnce({
-        rows: [],
-        rowCount: 0,
-      });
 
     app = fastify();
     registerErrorHandler(app);
