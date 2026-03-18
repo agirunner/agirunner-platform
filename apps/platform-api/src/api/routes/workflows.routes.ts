@@ -107,6 +107,11 @@ const workflowWorkItemTaskResolveEscalationSchema = workflowWorkItemTaskMutation
   context: z.record(z.unknown()).optional(),
 });
 
+const workflowWorkItemTaskOutputOverrideSchema = workflowWorkItemTaskMutationSchema.extend({
+  output: z.unknown(),
+  reason: z.string().min(1).max(4000),
+});
+
 const workItemCreateSchema = z.object({
   request_id: requestIdSchema,
   parent_work_item_id: z.string().uuid().optional(),
@@ -783,6 +788,40 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           'public_task_resolve_escalation',
           requestId,
           () => app.taskService.resolveEscalation(request.auth!, params.taskId, payload),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/tasks/:taskId/output-override',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string; taskId: string };
+      const body = parseOrThrow(
+        workflowWorkItemTaskOutputOverrideSchema.safeParse(request.body),
+      );
+      const { request_id: requestId, ...payload } = body;
+      await assertTaskBelongsToWorkflowWorkItem(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.workItemId,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_output_override',
+          requestId,
+          () =>
+            app.taskService.overrideTaskOutput(request.auth!, params.taskId, {
+              output: payload.output,
+              reason: payload.reason,
+            }),
         ),
       };
     },

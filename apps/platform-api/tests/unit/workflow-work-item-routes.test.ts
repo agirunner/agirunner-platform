@@ -939,4 +939,581 @@ describe('workflow work-item routes', () => {
     );
     expect(second.json()).toEqual(first.json());
   });
+
+  it('deduplicates workflow work-item task approve requests by request_id', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_approve');
+    const approveTask = vi.fn(async () => ({
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'wi-1',
+      state: 'completed',
+    }));
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-1',
+      })),
+      approveTask,
+    };
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = { request_id: 'request-1' };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/approve',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/approve',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(approveTask).toHaveBeenCalledTimes(1);
+    expect(approveTask).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-1',
+      expect.any(Object),
+    );
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(second.json()).toEqual(first.json());
+  });
+
+  it('deduplicates workflow work-item task approve-output requests by request_id', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_approve_output');
+    const approveTaskOutput = vi.fn(async () => ({
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'wi-1',
+      state: 'completed',
+      output: { result: 'approved' },
+    }));
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-1',
+      })),
+      approveTaskOutput,
+    };
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = { request_id: 'request-1' };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/approve-output',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/approve-output',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(approveTaskOutput).toHaveBeenCalledTimes(1);
+    expect(approveTaskOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-1',
+      expect.any(Object),
+    );
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(second.json()).toEqual(first.json());
+  });
+
+  it('deduplicates workflow work-item task reject requests by request_id', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_reject');
+    const rejectTask = vi.fn(async () => ({
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'wi-1',
+      state: 'ready',
+      metadata: { review_action: 'rejected' },
+    }));
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-1',
+      })),
+      rejectTask,
+    };
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = { request_id: 'request-1', feedback: 'Output quality insufficient.' };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/reject',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/reject',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(rejectTask).toHaveBeenCalledTimes(1);
+    expect(rejectTask).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-1',
+      { feedback: 'Output quality insufficient.' },
+    );
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(second.json()).toEqual(first.json());
+  });
+
+  it('deduplicates workflow work-item task request-changes requests by request_id', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_request_changes');
+    const requestTaskChanges = vi.fn(async () => ({
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'wi-1',
+      state: 'ready',
+      metadata: { review_action: 'request_changes' },
+    }));
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-1',
+      })),
+      requestTaskChanges,
+    };
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = {
+      request_id: 'request-1',
+      feedback: 'Needs better error handling.',
+      override_input: { hints: 'Add try-catch' },
+    };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/request-changes',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/request-changes',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(requestTaskChanges).toHaveBeenCalledTimes(1);
+    expect(requestTaskChanges).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-1',
+      { feedback: 'Needs better error handling.', override_input: { hints: 'Add try-catch' } },
+      expect.any(Object),
+    );
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(second.json()).toEqual(first.json());
+  });
+
+  it('deduplicates workflow work-item task cancel requests by request_id', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_cancel');
+    const cancelTask = vi.fn(async () => ({
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'wi-1',
+      state: 'cancelled',
+    }));
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-1',
+      })),
+      cancelTask,
+    };
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = { request_id: 'request-1' };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/cancel',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/cancel',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(cancelTask).toHaveBeenCalledTimes(1);
+    expect(cancelTask).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-1',
+      expect.any(Object),
+    );
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(second.json()).toEqual(first.json());
+  });
+
+  it('deduplicates workflow work-item task output-override requests by request_id', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const { pool } = createWorkflowReplayPool('workflow-1', 'public_task_output_override');
+    const overrideTaskOutput = vi.fn(async () => ({
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'wi-1',
+      state: 'completed',
+      output: { overridden: true },
+    }));
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-1',
+      })),
+      overrideTaskOutput,
+    };
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', pool as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const payload = {
+      request_id: 'request-1',
+      output: { corrected: true, summary: 'Manual override applied.' },
+      reason: 'Agent produced incorrect output.',
+    };
+    const first = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/output-override',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+    const second = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/output-override',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(first.statusCode).toBe(200);
+    expect(second.statusCode).toBe(200);
+    expect(overrideTaskOutput).toHaveBeenCalledTimes(1);
+    expect(overrideTaskOutput).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-1',
+      { output: { corrected: true, summary: 'Manual override applied.' }, reason: 'Agent produced incorrect output.' },
+    );
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(second.json()).toEqual(first.json());
+  });
+
+  it('rejects output-override when the task does not belong to the selected work item', async () => {
+    const { workflowRoutes } = await import('../../src/api/routes/workflows.routes.js');
+    const taskService = {
+      getTask: vi.fn(async () => ({
+        id: 'task-1',
+        workflow_id: 'workflow-1',
+        work_item_id: 'wi-other',
+      })),
+      overrideTaskOutput: vi.fn(),
+    };
+    const workflowService = {
+      createWorkflow: vi.fn(),
+      listWorkflows: vi.fn(),
+      getWorkflow: vi.fn(),
+      getWorkflowBoard: vi.fn(),
+      listWorkflowStages: vi.fn(),
+      listWorkflowWorkItems: vi.fn(),
+      createWorkflowWorkItem: vi.fn(),
+      getWorkflowWorkItem: vi.fn(),
+      listWorkflowWorkItemTasks: vi.fn(),
+      listWorkflowWorkItemEvents: vi.fn(),
+      getWorkflowWorkItemMemory: vi.fn(),
+      getWorkflowWorkItemMemoryHistory: vi.fn(),
+      updateWorkflowWorkItem: vi.fn(),
+      actOnStageGate: vi.fn(),
+      getResolvedConfig: vi.fn(),
+      cancelWorkflow: vi.fn(),
+      pauseWorkflow: vi.fn(),
+      resumeWorkflow: vi.fn(),
+      deleteWorkflow: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('workflowService', workflowService as never);
+    app.decorate('taskService', taskService as never);
+    app.decorate('pgPool', { query: vi.fn() } as never);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 } as never);
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) } as never);
+    app.decorate('projectService', { getProject: vi.fn() } as never);
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: vi.fn(),
+      listProviders: vi.fn(),
+      listModels: vi.fn(),
+      getProviderForOperations: vi.fn(),
+    } as never);
+
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/workflows/workflow-1/work-items/wi-1/tasks/task-1/output-override',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        output: { corrected: true },
+        reason: 'Agent produced incorrect output.',
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toEqual(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          code: 'VALIDATION_ERROR',
+          message: 'Task must belong to the selected workflow work item',
+        }),
+      }),
+    );
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', 'task-1');
+    expect(taskService.overrideTaskOutput).not.toHaveBeenCalled();
+  });
 });

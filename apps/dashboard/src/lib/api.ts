@@ -1862,6 +1862,12 @@ export interface DashboardApi {
     workItemId: string,
     taskId: string,
   ): Promise<unknown>;
+  overrideWorkflowWorkItemTaskOutput(
+    workflowId: string,
+    workItemId: string,
+    taskId: string,
+    payload: { output: unknown; reason: string },
+  ): Promise<unknown>;
   cancelWorkflow(workflowId: string): Promise<unknown>;
   chainWorkflow(
     workflowId: string,
@@ -2820,6 +2826,16 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     cancelWorkflowWorkItemTask: (workflowId, workItemId, taskId) =>
       withRefresh(() =>
         requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'cancel', {}),
+      ),
+    overrideWorkflowWorkItemTaskOutput: (workflowId, workItemId, taskId, payload) =>
+      withRefresh(() =>
+        requestWorkflowWorkItemTaskAction(
+          workflowId,
+          workItemId,
+          taskId,
+          'output-override',
+          payload as Record<string, unknown>,
+        ),
       ),
     cancelWorkflow: (workflowId) =>
       withRefresh(() => requestWorkflowControlAction(`/api/v1/workflows/${workflowId}/cancel`)),
