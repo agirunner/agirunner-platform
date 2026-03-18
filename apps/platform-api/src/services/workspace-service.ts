@@ -198,7 +198,7 @@ export class WorkspaceService {
     ]);
 
     const migratedRows = await Promise.all(rows.map((row) => this.ensureGitWebhookSecretEncrypted(tenantId, row)));
-    const workflowSummaryByProjectId = await this.loadWorkspaceWorkflowSummaries(
+    const workflowSummaryByWorkspaceId = await this.loadWorkspaceWorkflowSummaries(
       tenantId,
       migratedRows.map((row) => String(row.id)),
     );
@@ -206,7 +206,7 @@ export class WorkspaceService {
     return {
       data: migratedRows.map((row) => ({
         ...redactWorkspaceSecrets(row),
-        summary: workflowSummaryByProjectId.get(String(row.id)) ?? emptyWorkspaceListSummary(),
+        summary: workflowSummaryByWorkspaceId.get(String(row.id)) ?? emptyWorkspaceListSummary(),
       })),
       meta: {
         total,
@@ -418,7 +418,7 @@ export class WorkspaceService {
       [identity.tenantId, workspaceId, nextMemory, memorySizeBytes],
     );
 
-    const updatedProject = result.rows[0] as WorkspaceRow;
+    const updatedWorkspace = result.rows[0] as WorkspaceRow;
     await this.eventService.emit(
       {
         tenantId: identity.tenantId,
@@ -441,7 +441,7 @@ export class WorkspaceService {
       client,
     );
 
-    return redactWorkspaceSecrets(updatedProject);
+    return redactWorkspaceSecrets(updatedWorkspace);
   }
 
   async deleteWorkspace(identity: ApiKeyIdentity, workspaceId: string) {

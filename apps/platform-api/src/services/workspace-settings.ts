@@ -129,7 +129,7 @@ function parseWorkspaceSettings(
   const defaultBranch = readOptionalString(record.default_branch, 'settings.default_branch');
   const gitUserName = readOptionalString(record.git_user_name, 'settings.git_user_name');
   const gitUserEmail = readOptionalEmail(record.git_user_email, 'settings.git_user_email');
-  const projectBrief = readOptionalLongText(record.workspace_brief, 'settings.workspace_brief');
+  const workspaceBrief = readOptionalLongText(record.workspace_brief, 'settings.workspace_brief');
   const credentials = readCredentials(record, existing.credentials);
 
   return {
@@ -139,7 +139,7 @@ function parseWorkspaceSettings(
     ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
     credentials,
     model_overrides: {},
-    ...(projectBrief ? { workspace_brief: projectBrief } : {}),
+    ...(workspaceBrief ? { workspace_brief: workspaceBrief } : {}),
   };
 }
 

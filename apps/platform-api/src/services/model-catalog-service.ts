@@ -136,7 +136,7 @@ interface AssignmentRow {
   updated_at: Date;
 }
 
-interface ProjectSettingsRow {
+interface WorkspaceSettingsRow {
   settings: Record<string, unknown> | null;
 }
 
@@ -668,7 +668,7 @@ export class ModelCatalogService {
   }
 
   private async getWorkspaceModelOverride(tenantId: string, workspaceId: string) {
-    const result = await this.pool.query<ProjectSettingsRow>(
+    const result = await this.pool.query<WorkspaceSettingsRow>(
       'SELECT settings FROM workspaces WHERE tenant_id = $1 AND id = $2',
       [tenantId, workspaceId],
     );

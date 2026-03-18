@@ -4,7 +4,7 @@ import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 type DocumentSource = 'repository' | 'artifact' | 'external';
 
-interface ProjectSpecEnvelope {
+interface WorkspaceSpecEnvelope {
   workspace_id: string;
   version: number;
   spec: Record<string, unknown>;
@@ -36,7 +36,7 @@ interface WorkflowScopeRow {
   workspace_spec_version: number | null;
 }
 
-interface ProjectSpecRow {
+interface WorkspaceSpecRow {
   spec: Record<string, unknown>;
 }
 
@@ -119,7 +119,7 @@ export async function listWorkflowDocuments(
   const documents = new Map<string, ResolvedDocumentReference>();
 
   if (workflow.workspace_id) {
-    const workspaceDocuments = await loadProjectDocuments(
+    const workspaceDocuments = await loadWorkspaceDocuments(
       db,
       tenantId,
       workflow.workspace_id,
@@ -166,7 +166,7 @@ export async function listTaskDocuments(
     return [];
   }
 
-  return loadProjectDocuments(db, tenantId, workspaceId, null);
+  return loadWorkspaceDocuments(db, tenantId, workspaceId, null);
 }
 
 export async function registerTaskOutputDocuments(
@@ -346,35 +346,35 @@ async function loadWorkflowScope(
   return result.rows[0];
 }
 
-async function loadProjectDocuments(
+async function loadWorkspaceDocuments(
   db: DatabaseQueryable,
   tenantId: string,
   workspaceId: string,
   version: number | null,
 ): Promise<ResolvedDocumentReference[]> {
-  const specEnvelope = await loadProjectSpec(db, tenantId, workspaceId, version);
+  const specEnvelope = await loadWorkspaceSpec(db, tenantId, workspaceId, version);
   const documents = readDocumentMap(specEnvelope.spec);
 
   return Object.entries(documents)
     .map(([logicalName, value]) => {
       const normalized = normalizeDocumentDefinition(logicalName, value, 'workspace_spec');
-      return buildProjectDocumentReference(logicalName, normalized);
+      return buildWorkspaceDocumentReference(logicalName, normalized);
     })
     .sort((left, right) => left.logical_name.localeCompare(right.logical_name));
 }
 
-async function loadProjectSpec(
+async function loadWorkspaceSpec(
   db: DatabaseQueryable,
   tenantId: string,
   workspaceId: string,
   version: number | null,
-): Promise<ProjectSpecEnvelope> {
+): Promise<WorkspaceSpecEnvelope> {
   const targetVersion = await resolveSpecVersion(db, tenantId, workspaceId, version);
   if (targetVersion === 0) {
     return { workspace_id: workspaceId, version: 0, spec: {} };
   }
 
-  const result = await db.query<ProjectSpecRow>(
+  const result = await db.query<WorkspaceSpecRow>(
     `SELECT spec
        FROM workspace_spec_versions
       WHERE tenant_id = $1
@@ -416,7 +416,7 @@ async function resolveSpecVersion(
   return workspaceResult.rows[0].current_spec_version;
 }
 
-function buildProjectDocumentReference(
+function buildWorkspaceDocumentReference(
   logicalName: string,
   normalized: NormalizedDocumentDefinition,
 ): ResolvedDocumentReference {
