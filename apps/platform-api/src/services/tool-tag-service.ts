@@ -2,7 +2,19 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { ValidationError } from '../errors/domain-errors.js';
 
-type ToolCategory = 'files' | 'search' | 'execution' | 'git' | 'artifacts' | 'memory' | 'web' | 'workflow' | 'control';
+export const toolCategoryValues = [
+  'files',
+  'search',
+  'execution',
+  'git',
+  'artifacts',
+  'memory',
+  'web',
+  'workflow',
+  'control',
+] as const;
+
+type ToolCategory = (typeof toolCategoryValues)[number];
 
 interface ToolTagRow {
   id: string;
@@ -60,7 +72,7 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'read_handoff_chain', name: 'Read Handoff Chain', description: 'Read the structured handoff chain for a workflow work item', category: 'workflow' },
 ];
 
-const allowedCategories = new Set<ToolCategory>(['files', 'search', 'execution', 'git', 'artifacts', 'memory', 'web', 'workflow', 'control']);
+const allowedCategories = new Set<ToolCategory>(toolCategoryValues);
 
 const builtInToolIds = new Set(builtInToolTags.map((tag) => tag.id));
 
@@ -92,6 +104,7 @@ export class ToolTagService {
 
   async createToolTag(identity: ApiKeyIdentity, input: { id: string; name: string; description?: string; category?: string }) {
     const normalized = normalizeToolTag(input);
+    guardNotBuiltIn(normalized.id);
     const result = await this.pool.query<ToolTagRow>(
       `INSERT INTO tool_tags (tenant_id, id, name, description, category)
        VALUES ($1,$2,$3,$4,$5)

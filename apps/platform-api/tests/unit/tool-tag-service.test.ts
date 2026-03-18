@@ -62,6 +62,21 @@ describe('ToolTagService', () => {
     });
   });
 
+  describe('createToolTag', () => {
+    it('rejects creation that shadows a built-in tool id', async () => {
+      const pool = { query: vi.fn() };
+      const service = new ToolTagService(pool as never);
+
+      await expect(
+        service.createToolTag(mockIdentity(), {
+          id: 'shell_exec',
+          name: 'Shadow Shell Exec',
+          category: 'execution',
+        }),
+      ).rejects.toThrow('Built-in tools cannot be modified');
+    });
+  });
+
   describe('updateToolTag', () => {
     it('rejects updates to built-in tools', async () => {
       const pool = { query: vi.fn() };
