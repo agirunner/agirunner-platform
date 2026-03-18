@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { AppEnv } from '../config/schema.js';
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
@@ -591,7 +593,8 @@ export class WorkspaceService {
 
     const normalizedSettings = normalizeWorkspaceSettings(record.settings);
     const normalizedGitToken = normalizedSettings.credentials.git_token ?? null;
-    if (!normalizedGitToken || normalizedGitToken === storedGitToken) {
+    const shouldRewriteSettings = !isDeepStrictEqual(record.settings, normalizedSettings);
+    if ((!normalizedGitToken || normalizedGitToken === storedGitToken) && !shouldRewriteSettings) {
       return workspace;
     }
 

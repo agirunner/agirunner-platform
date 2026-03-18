@@ -43,6 +43,23 @@ const claimRoleConfigSecretKeys = new Set([
 const CLAIM_CREDENTIAL_HANDLE_VERSION = 'v1';
 const CLAIM_CREDENTIAL_HANDLE_ENCRYPTION_ALGORITHM = 'aes-256-gcm';
 const CLAIM_CREDENTIAL_HANDLE_IV_LENGTH_BYTES = 12;
+const gitTokenCredentialKeys = ['token', 'git_token', 'access_token', 'token_ref', 'git_token_ref', 'access_token_ref', 'secret_ref'];
+const gitSSHPrivateKeyCredentialKeys = [
+  'git_ssh_private_key',
+  'ssh_private_key',
+  'private_key',
+  'git_ssh_private_key_ref',
+  'ssh_private_key_ref',
+  'private_key_ref',
+];
+const gitSSHKnownHostsCredentialKeys = [
+  'git_ssh_known_hosts',
+  'ssh_known_hosts',
+  'known_hosts',
+  'git_ssh_known_hosts_ref',
+  'ssh_known_hosts_ref',
+  'known_hosts_ref',
+];
 type ClaimCredentialKind = 'llm_api_key' | 'llm_extra_headers';
 interface ClaimCredentialPayload {
   task_id?: string;
@@ -953,28 +970,28 @@ function hydrateClaimGitCredentials(task: Record<string, unknown>): Record<strin
     const nextBinding: Record<string, unknown> = { ...binding };
     const nextCredentials: Record<string, unknown> = { ...credentials };
 
-    gitToken ??= readGitBindingCredential(binding, credentials, ['token', 'git_token', 'access_token']);
+    gitToken ??= readGitBindingCredential(binding, credentials, gitTokenCredentialKeys);
     gitSSHPrivateKey ??= readGitBindingCredential(
       binding,
       credentials,
-      ['git_ssh_private_key', 'ssh_private_key', 'private_key'],
+      gitSSHPrivateKeyCredentialKeys,
     );
     gitSSHKnownHosts ??= readGitBindingCredential(
       binding,
       credentials,
-      ['git_ssh_known_hosts', 'ssh_known_hosts', 'known_hosts'],
+      gitSSHKnownHostsCredentialKeys,
     );
 
-    stripGitBindingCredential(nextBinding, nextCredentials, ['token', 'git_token', 'access_token']);
+    stripGitBindingCredential(nextBinding, nextCredentials, gitTokenCredentialKeys);
     stripGitBindingCredential(
       nextBinding,
       nextCredentials,
-      ['git_ssh_private_key', 'ssh_private_key', 'private_key'],
+      gitSSHPrivateKeyCredentialKeys,
     );
     stripGitBindingCredential(
       nextBinding,
       nextCredentials,
-      ['git_ssh_known_hosts', 'ssh_known_hosts', 'known_hosts'],
+      gitSSHKnownHostsCredentialKeys,
     );
 
     if (isRecord(binding.credentials)) {

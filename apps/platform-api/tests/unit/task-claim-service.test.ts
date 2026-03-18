@@ -1577,6 +1577,204 @@ describe('TaskClaimService', () => {
     }]);
   });
 
+  it('hydrates legacy git token_ref aliases while stripping them from claimed bindings', async () => {
+    const rawBinding = {
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {
+        token_ref: 'secret:GITHUB_PAT',
+      },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-token-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-token-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.credentials).toEqual(
+      expect.objectContaining({
+        git_token: 'secret:GITHUB_PAT',
+      }),
+    );
+    expect(task?.resource_bindings).toEqual([{
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {},
+    }]);
+  });
+
+  it('hydrates legacy git secret_ref aliases while stripping them from claimed bindings', async () => {
+    const rawBinding = {
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {
+        secret_ref: 'secret:GITHUB_PAT',
+      },
+    };
+    const client = {
+      query: vi.fn(async (sql: string, _params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-secret-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-git-secret-ref-claim',
+              workflow_id: 'wf-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              resource_bindings: [rawBinding],
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, _params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.credentials).toEqual(
+      expect.objectContaining({
+        git_token: 'secret:GITHUB_PAT',
+      }),
+    );
+    expect(task?.resource_bindings).toEqual([{
+      type: 'git_repository',
+      repository_url: 'https://github.com/example/repo.git',
+      credentials: {},
+    }]);
+  });
+
   it('returns task-bound oauth claim handles instead of decrypted at-rest values', async () => {
     process.env.WEBHOOK_ENCRYPTION_KEY = 'test-encryption-key';
     const encryptedAccessToken = storeOAuthToken('oauth-access-token');

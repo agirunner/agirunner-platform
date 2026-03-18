@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   configureProviderSecretEncryptionKey,
   readProviderSecret,
+  storeProviderSecret,
 } from '../../src/lib/oauth-crypto.js';
 import { WorkspaceService } from '../../src/services/workspace-service.js';
 
@@ -290,6 +291,68 @@ describe('WorkspaceService typed settings contract', () => {
           },
           model_overrides: {},
         }),
+      ],
+    );
+    expect(result.settings).toEqual({
+      credentials: {
+        git_token: 'redacted://workspace-settings-secret',
+        git_token_configured: true,
+      },
+      model_overrides: {},
+    });
+  });
+
+  it('scrubs legacy git_token_secret_ref when canonical credentials are already stored', async () => {
+    const encryptedCanonicalToken = storeProviderSecret('ghp_canonical_workspace_token');
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            id: 'workspace-mixed-token',
+            tenant_id: 'tenant-1',
+            name: 'Demo',
+            slug: 'demo',
+            description: null,
+            repository_url: 'https://github.com/example/demo',
+            settings: {
+              credentials: {
+                git_token: encryptedCanonicalToken,
+              },
+              git_token_secret_ref: 'ghp_legacy_plaintext_token',
+            },
+            memory: {},
+            git_webhook_secret: null,
+            is_active: true,
+          }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [],
+        }),
+    };
+
+    const service = new WorkspaceService(
+      pool as never,
+      createEventService() as never,
+      { WEBHOOK_ENCRYPTION_KEY: 'test-encryption-key' },
+    );
+
+    const result = await service.getWorkspace('tenant-1', 'workspace-mixed-token');
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining('UPDATE workspaces'),
+      [
+        'tenant-1',
+        'workspace-mixed-token',
+        {
+          credentials: {
+            git_token: encryptedCanonicalToken,
+          },
+          model_overrides: {},
+        },
       ],
     );
     expect(result.settings).toEqual({
