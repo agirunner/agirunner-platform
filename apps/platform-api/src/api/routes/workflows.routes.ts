@@ -210,6 +210,23 @@ async function assertTaskBelongsToWorkflowWorkItem(
   }
 }
 
+async function assertTaskBelongsToWorkflowTask(
+  app: FastifyInstance,
+  tenantId: string,
+  workflowId: string,
+  taskId: string,
+) {
+  const task = (await app.taskService.getTask(tenantId, taskId)) as Record<string, unknown>;
+  if (task.workflow_id !== workflowId) {
+    throw new ValidationError('Task must belong to the selected workflow');
+  }
+  if (typeof task.work_item_id === 'string' && task.work_item_id.trim().length > 0) {
+    throw new ValidationError(
+      'Tasks attached to workflow work items must use the grouped work-item operator flow.',
+    );
+  }
+}
+
 function selectWorkflowWorkItemRecoveryTask(tasks: Record<string, unknown>[]) {
   return (
     tasks.find((task) => readTaskState(task.state) === 'failed') ??
@@ -794,6 +811,35 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           'public_task_resolve_escalation',
           requestId,
           () => app.taskService.resolveEscalation(request.auth!, params.taskId, payload),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/tasks/:taskId/agent-escalate',
+    { preHandler: [authenticateApiKey, withAllowedScopes(['admin', 'worker', 'agent'])] },
+    async (request) => {
+      const params = request.params as { id: string; taskId: string };
+      const body = parseOrThrow(
+        workflowWorkItemTaskAgentEscalateSchema.safeParse(request.body),
+      );
+      const { request_id: requestId, ...payload } = body;
+      await assertTaskBelongsToWorkflowTask(
+        app,
+        request.auth!.tenantId,
+        params.id,
+        params.taskId,
+      );
+      return {
+        data: await runIdempotentWorkflowBackedTaskAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'public_task_agent_escalate',
+          requestId,
+          () => app.taskService.agentEscalate(request.auth!, params.taskId, payload),
         ),
       };
     },
