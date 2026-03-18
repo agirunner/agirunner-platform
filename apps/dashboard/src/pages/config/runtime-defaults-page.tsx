@@ -22,7 +22,11 @@ import { buildDefaultsByKey, buildFormValues } from './runtime-defaults.form.js'
 import { FIELD_DEFINITIONS, fieldsForSection, SECTION_DEFINITIONS } from './runtime-defaults.schema.js';
 import type { FormValues } from './runtime-defaults.types.js';
 import { buildValidationErrors } from './runtime-defaults.validation.js';
-import { ActiveRuntimeImageCard, BuildHistoryCard } from './runtimes-build-history.js';
+import {
+  ActiveRuntimeImageCard,
+  BuildHistoryCard,
+  RuntimeManagementCard,
+} from './runtimes-build-history.js';
 import {
   summarizeRuntimeDefaults,
   summarizeRuntimeDefaultSections,
@@ -289,6 +293,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
               </div>
             </CardContent>
           </Card>
+          <RuntimeManagementCard />
           <ActiveRuntimeImageCard />
           <BuildHistoryCard />
         </div>

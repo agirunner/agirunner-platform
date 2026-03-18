@@ -4,9 +4,15 @@ import {
   buildRuntimeHistorySummaryCards,
   buildRuntimeRecoveryBrief,
   buildHistoryFromStatus,
+  describeBuildOutcome,
   describeBuildRecoveryPath,
+  describeBuildState,
+  describeExportOutcome,
+  describeGatesSummary,
+  describeLinkOutcome,
   describeRuntimeNextAction,
   describeRuntimePosture,
+  describeValidationOutcome,
   deriveStatusFromState,
   formatDigestAsImage,
   formatDigestLabel,
@@ -97,5 +103,123 @@ describe('runtimes build history support', () => {
         detail: 'Inspect the manifest and rebuild or relink the runtime image before rollout.',
       },
     ]);
+  });
+
+  it('describes build states for operator scanning', () => {
+    expect(describeBuildState('success')).toContain('completed');
+    expect(describeBuildState('building')).toContain('progress');
+    expect(describeBuildState('failed')).toContain('failed');
+    expect(describeBuildState('queued')).toContain('queued');
+    expect(describeBuildState('unknown-state')).toContain('unknown-state');
+  });
+
+  it('summarizes gate results for operator scanning', () => {
+    expect(describeGatesSummary(undefined)).toBe('No gates recorded.');
+    expect(describeGatesSummary([])).toBe('No gates recorded.');
+    expect(
+      describeGatesSummary([
+        { name: 'vuln-scan', status: 'passed' },
+        { name: 'sbom', status: 'passed' },
+        { name: 'signature', status: 'failed', message: 'invalid' },
+      ]),
+    ).toBe('2 passed \u2022 1 failed');
+  });
+
+  it('describes build outcomes including link readiness and blocked builds', () => {
+    const linkReady = describeBuildOutcome({
+      state: 'success',
+      link_ready: true,
+      digest: 'sha256:aabbccdd',
+      manifest: { template: 'python', base_image: 'python:3.12' },
+    } as never);
+    expect(linkReady.linkReady).toBe(true);
+    expect(linkReady.tone).toBe('valid');
+    expect(linkReady.headline).toContain('ready to link');
+
+    const failed = describeBuildOutcome({
+      state: 'failed',
+      link_ready: false,
+      error: 'Image build timed out.',
+      manifest: { template: 'node', base_image: 'node:22' },
+    } as never);
+    expect(failed.linkReady).toBe(false);
+    expect(failed.tone).toBe('failed');
+    expect(failed.detail).toBe('Image build timed out.');
+
+    const blocked = describeBuildOutcome({
+      state: 'success',
+      link_ready: false,
+      link_blocked_reason: 'Gate failure prevents linkage.',
+      manifest: { template: 'node', base_image: 'node:22' },
+    } as never);
+    expect(blocked.linkReady).toBe(false);
+    expect(blocked.tone).toBe('failed');
+    expect(blocked.headline).toContain('blocked');
+  });
+
+  it('describes validation outcomes with field-level error details', () => {
+    const valid = describeValidationOutcome({
+      valid: true,
+      manifest: { template: 'python', base_image: 'python:3.12' },
+    });
+    expect(valid.valid).toBe(true);
+    expect(valid.errors).toHaveLength(0);
+
+    const invalid = describeValidationOutcome({
+      valid: false,
+      manifest: { template: 'python', base_image: '' },
+      errors: [
+        {
+          field_path: 'base_image',
+          rule_id: 'required',
+          message: 'Base image is required.',
+          remediation: 'Set a base image.',
+        },
+      ],
+    });
+    expect(invalid.valid).toBe(false);
+    expect(invalid.errors).toHaveLength(1);
+    expect(invalid.errors[0]).toEqual({
+      field: 'base_image',
+      message: 'Base image is required.',
+      remediation: 'Set a base image.',
+    });
+  });
+
+  it('describes link outcomes for successful and blocked linkage', () => {
+    const linked = describeLinkOutcome({
+      state: 'linked',
+      linked: true,
+      active_digest: 'sha256:aabbccdd',
+    } as never);
+    expect(linked.tone).toBe('linked');
+    expect(linked.headline).toContain('linked successfully');
+
+    const blocked = describeLinkOutcome({
+      state: 'blocked',
+      linked: false,
+      link_blocked_reason: 'Gate failure.',
+    } as never);
+    expect(blocked.tone).toBe('failed');
+    expect(blocked.detail).toBe('Gate failure.');
+  });
+
+  it('describes export outcomes including redaction and error states', () => {
+    const success = describeExportOutcome({
+      artifact_type: 'manifest',
+      format: 'json',
+      redaction_applied: true,
+      scan_passed: true,
+    });
+    expect(success.headline).toContain('manifest');
+    expect(success.detail).toContain('redacted');
+
+    const failed = describeExportOutcome({
+      redaction_applied: false,
+      scan_passed: false,
+      error: 'Export service unavailable.',
+    });
+    expect(failed.headline).toContain('failed');
+    expect(failed.hasContent).toBe(false);
   });
 });

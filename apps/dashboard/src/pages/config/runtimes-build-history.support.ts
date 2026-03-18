@@ -1,4 +1,11 @@
-import type { DashboardCustomizationStatusResponse } from '../../lib/api.js';
+import type {
+  DashboardCustomizationBuildResponse,
+  DashboardCustomizationExportResponse,
+  DashboardCustomizationGate,
+  DashboardCustomizationLinkResponse,
+  DashboardCustomizationStatusResponse,
+  DashboardCustomizationValidateResponse,
+} from '../../lib/api.js';
 
 export interface BuildHistoryEntry {
   buildId: string;
@@ -186,4 +193,150 @@ export function buildRuntimeHistorySummaryCards(
         : 'Reconnect runtime status before trusting rollout or rollback posture.',
     },
   ];
+}
+
+export interface BuildOutcome {
+  headline: string;
+  detail: string;
+  linkReady: boolean;
+  tone: 'linked' | 'valid' | 'failed';
+}
+
+export interface ValidationOutcome {
+  headline: string;
+  valid: boolean;
+  errors: Array<{ field: string; message: string; remediation: string }>;
+}
+
+export interface LinkOutcome {
+  headline: string;
+  detail: string;
+  tone: 'linked' | 'valid' | 'failed';
+}
+
+export interface ExportOutcome {
+  headline: string;
+  detail: string;
+  hasContent: boolean;
+}
+
+export function describeBuildState(state: string): string {
+  if (state === 'success') return 'Build completed successfully and is ready for linkage.';
+  if (state === 'building') return 'Build is in progress.';
+  if (state === 'failed') return 'Build failed. Inspect errors before retrying.';
+  if (state === 'queued') return 'Build is queued and waiting to start.';
+  return `Build is in state: ${state}.`;
+}
+
+export function describeGatesSummary(gates?: DashboardCustomizationGate[]): string {
+  if (!gates || gates.length === 0) return 'No gates recorded.';
+  const passed = gates.filter((g) => g.status === 'passed').length;
+  const failed = gates.filter((g) => g.status === 'failed').length;
+  const pending = gates.length - passed - failed;
+  const parts: string[] = [];
+  if (passed > 0) parts.push(`${passed} passed`);
+  if (failed > 0) parts.push(`${failed} failed`);
+  if (pending > 0) parts.push(`${pending} pending`);
+  return parts.join(' \u2022 ');
+}
+
+export function describeBuildOutcome(
+  build: DashboardCustomizationBuildResponse,
+): BuildOutcome {
+  if (build.error) {
+    return {
+      headline: 'Build failed.',
+      detail: build.error,
+      linkReady: false,
+      tone: 'failed',
+    };
+  }
+  if (build.link_ready) {
+    return {
+      headline: 'Build completed and ready to link.',
+      detail: `Digest ${formatDigestLabel(build.digest)} is ready for linkage.`,
+      linkReady: true,
+      tone: 'valid',
+    };
+  }
+  if (build.link_blocked_reason) {
+    return {
+      headline: 'Build completed but linkage is blocked.',
+      detail: build.link_blocked_reason,
+      linkReady: false,
+      tone: 'failed',
+    };
+  }
+  return {
+    headline: describeBuildState(build.state),
+    detail: `Digest: ${formatDigestLabel(build.digest)}.`,
+    linkReady: false,
+    tone: 'valid',
+  };
+}
+
+export function describeValidationOutcome(
+  result: DashboardCustomizationValidateResponse,
+): ValidationOutcome {
+  if (result.valid) {
+    return {
+      headline: 'Manifest is valid. Ready to build.',
+      valid: true,
+      errors: [],
+    };
+  }
+  return {
+    headline: `Manifest has ${result.errors?.length ?? 0} validation error(s).`,
+    valid: false,
+    errors: (result.errors ?? []).map((e) => ({
+      field: e.field_path,
+      message: e.message,
+      remediation: e.remediation,
+    })),
+  };
+}
+
+export function describeLinkOutcome(
+  result: DashboardCustomizationLinkResponse,
+): LinkOutcome {
+  if (result.linked) {
+    return {
+      headline: 'Build linked successfully.',
+      detail: `Active digest is now ${formatDigestLabel(result.active_digest)}.`,
+      tone: 'linked',
+    };
+  }
+  if (result.link_blocked_reason) {
+    return {
+      headline: 'Linkage blocked.',
+      detail: result.link_blocked_reason,
+      tone: 'failed',
+    };
+  }
+  return {
+    headline: `Link state: ${result.state}.`,
+    detail: result.error ?? 'Linkage did not complete.',
+    tone: 'failed',
+  };
+}
+
+export function describeExportOutcome(
+  result: DashboardCustomizationExportResponse,
+): ExportOutcome {
+  if (result.error) {
+    return {
+      headline: 'Export failed.',
+      detail: result.error,
+      hasContent: false,
+    };
+  }
+  const format = result.format ?? 'json';
+  const type = result.artifact_type ?? 'manifest';
+  return {
+    headline: `Exported ${type} as ${format}.`,
+    detail: result.redaction_applied
+      ? 'Sensitive values were redacted in the export output.'
+      : 'Export completed without redactions.',
+    hasContent: !!result.content,
+  };
 }
