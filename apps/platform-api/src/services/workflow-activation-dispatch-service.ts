@@ -1512,6 +1512,10 @@ function buildActivationTaskInput(
           stage_name: asNullableString(event.payload.stage_name),
           timestamp: event.queued_at.toISOString(),
         }));
+  const primaryEventDetails = formatActivationEventDetails(primaryEvent);
+  const queuedEventDetails = queuedEvents
+    .map((event) => formatActivationEventDetailsFromFields(event.type, event.payload))
+    .filter((value): value is string => value !== null);
   return {
     activation_id: activation.id,
     activation_reason: activationReason,
@@ -1529,6 +1533,10 @@ function buildActivationTaskInput(
         ? 'No queued events were present. Proactively inspect stale tasks, blocked work, and overall workflow health.'
         : `Queued events in this batch: ${queuedEvents.length}.`,
       `Primary trigger event: ${primaryEvent.event_type}.`,
+      primaryEventDetails ? `Primary trigger details: ${primaryEventDetails}.` : null,
+      queuedEventDetails.length > 0
+        ? `Queued event details: ${queuedEventDetails.join('; ')}.`
+        : null,
       workflow.active_stages.length > 0
         ? `Active stages in open work: ${workflow.active_stages.join(', ')}.`
         : null,
@@ -1595,6 +1603,28 @@ function derivePrimaryActivationEvent(
   activationBatch: QueuedActivationRow[],
 ): QueuedActivationRow {
   return activationBatch.find((event) => event.event_type !== 'heartbeat') ?? activation;
+}
+
+function formatActivationEventDetails(event: QueuedActivationRow): string | null {
+  return formatActivationEventDetailsFromFields(event.event_type, event.payload);
+}
+
+function formatActivationEventDetailsFromFields(
+  eventType: string,
+  payload: Record<string, unknown>,
+): string | null {
+  const details = [
+    asNullableString(payload.task_id) ? `task_id=${asNullableString(payload.task_id)}` : null,
+    asNullableString(payload.task_role) ? `task_role=${asNullableString(payload.task_role)}` : null,
+    asNullableString(payload.stage_name) ? `stage_name=${asNullableString(payload.stage_name)}` : null,
+    asNullableString(payload.work_item_id) ? `work_item_id=${asNullableString(payload.work_item_id)}` : null,
+  ].filter((value): value is string => Boolean(value));
+
+  if (details.length === 0) {
+    return null;
+  }
+
+  return `${eventType} (${details.join(', ')})`;
 }
 
 function buildActivationTaskRequestId(activation: QueuedActivationRow): string {

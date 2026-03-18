@@ -1706,7 +1706,12 @@ describe('WorkflowActivationDispatchService', () => {
               request_id: 'req-9',
               reason: 'task.approved',
               event_type: 'task.approved',
-              payload: { task_id: 'task-9', work_item_id: 'work-item-9' },
+              payload: {
+                task_id: 'task-9',
+                task_role: 'reviewer',
+                stage_name: 'review',
+                work_item_id: 'work-item-9',
+              },
               state: 'queued',
               dispatch_attempt: 0,
               dispatch_token: null,
@@ -1753,7 +1758,12 @@ describe('WorkflowActivationDispatchService', () => {
               request_id: 'req-9',
               reason: 'task.approved',
               event_type: 'task.approved',
-              payload: { task_id: 'task-9', work_item_id: 'work-item-9' },
+              payload: {
+                task_id: 'task-9',
+                task_role: 'reviewer',
+                stage_name: 'review',
+                work_item_id: 'work-item-9',
+              },
               state: 'processing',
               dispatch_attempt: 1,
               dispatch_token: 'dispatch-token-9',
@@ -1767,10 +1777,11 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[6]).toEqual(
+          const input = params?.[6] as Record<string, unknown>;
+          expect(input).toEqual(
             expect.objectContaining({
               activation_reason: 'queued_events',
-              description: expect.stringContaining('Primary trigger event: task.approved.'),
+              description: expect.any(String),
               events: [
                 expect.objectContaining({
                   type: 'task.approved',
@@ -1779,6 +1790,10 @@ describe('WorkflowActivationDispatchService', () => {
                 }),
               ],
             }),
+          );
+          expect(String(input.description)).toContain('Primary trigger event: task.approved.');
+          expect(String(input.description)).toContain(
+            'Primary trigger details: task.approved (task_id=task-9, task_role=reviewer, stage_name=review, work_item_id=work-item-9).',
           );
           return { rowCount: 1, rows: [{ id: 'task-approved-dispatch' }] };
         }
