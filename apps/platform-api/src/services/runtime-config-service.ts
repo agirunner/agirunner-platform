@@ -14,17 +14,6 @@ interface RuntimeConfigRole {
   verificationStrategy: string | null;
 }
 
-interface RuntimeConfigModel {
-  modelId: string;
-  providerId: string;
-  providerName: string;
-  providerBaseUrl: string;
-  contextWindow: number | null;
-  maxOutputTokens: number | null;
-  supportsToolUse: boolean;
-  supportsVision: boolean;
-}
-
 interface RuntimeConfigDefault {
   key: string;
   value: string;
@@ -34,7 +23,6 @@ interface RuntimeConfigDefault {
 export interface RuntimeConfig {
   workerName: string;
   roles: RuntimeConfigRole[];
-  primaryModel: RuntimeConfigModel | null;
   defaults: RuntimeConfigDefault[];
   version: string;
 }
@@ -47,17 +35,6 @@ interface RoleRow {
   capabilities: string[];
   verification_strategy: string | null;
   updated_at: Date;
-}
-
-interface ModelJoinRow {
-  model_id: string;
-  provider_id: string;
-  provider_name: string;
-  provider_base_url: string;
-  context_window: number | null;
-  max_output_tokens: number | null;
-  supports_tool_use: boolean;
-  supports_vision: boolean;
 }
 
 interface DefaultRow {
@@ -86,21 +63,11 @@ export class RuntimeConfigService {
       this.fetchDefaults(tenantId),
     ]);
 
-    let primaryModel: RuntimeConfigModel | null = null;
-
-    if (roleCaps.length > 0) {
-      const assignment = await this.fetchModelAssignment(tenantId, roleCaps[0]);
-      if (assignment) {
-        primaryModel = assignment.primary;
-      }
-    }
-
     const maxUpdatedAt = this.computeVersion(roles, defaults);
 
     return {
       workerName: worker.name,
       roles,
-      primaryModel,
       defaults,
       version: maxUpdatedAt.toISOString(),
     };
@@ -162,48 +129,6 @@ export class RuntimeConfigService {
         : row.config_value,
       type: row.config_type,
     }));
-  }
-
-  private async fetchModelAssignment(
-    tenantId: string,
-    roleName: string,
-  ): Promise<{ primary: RuntimeConfigModel | null } | null> {
-    const result = await this.pool.query<{
-      primary_model_id: string | null;
-    }>(
-      'SELECT primary_model_id FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
-      [tenantId, roleName],
-    );
-    if (!result.rowCount) return null;
-
-    const row = result.rows[0];
-    const primary = row.primary_model_id ? await this.fetchModelWithProvider(row.primary_model_id) : null;
-
-    return { primary };
-  }
-
-  private async fetchModelWithProvider(modelId: string): Promise<RuntimeConfigModel | null> {
-    const result = await this.pool.query<ModelJoinRow>(
-      `SELECT m.model_id, m.provider_id, p.name AS provider_name, p.base_url AS provider_base_url,
-              m.context_window, m.max_output_tokens, m.supports_tool_use, m.supports_vision
-       FROM llm_models m
-       JOIN llm_providers p ON p.id = m.provider_id
-       WHERE m.id = $1 AND m.is_enabled = true AND p.is_enabled = true`,
-      [modelId],
-    );
-    if (!result.rowCount) return null;
-
-    const row = result.rows[0];
-    return {
-      modelId: row.model_id,
-      providerId: row.provider_id,
-      providerName: row.provider_name,
-      providerBaseUrl: row.provider_base_url,
-      contextWindow: row.context_window,
-      maxOutputTokens: row.max_output_tokens,
-      supportsToolUse: row.supports_tool_use,
-      supportsVision: row.supports_vision,
-    };
   }
 
   private computeVersion(

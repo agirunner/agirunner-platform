@@ -51,8 +51,7 @@ describe('RuntimeConfigService', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 }) // findWorker
       .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 }) // fetchRoles
-      .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 }) // fetchDefaults
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 }); // fetchModelAssignment (none)
+      .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 }); // fetchDefaults
 
     const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
 
@@ -61,7 +60,7 @@ describe('RuntimeConfigService', () => {
     expect(result.roles[0].name).toBe('developer');
     expect(result.defaults).toHaveLength(1);
     expect(result.defaults[0].key).toBe('max_rework_attempts');
-    expect(result.primaryModel).toBeNull();
+    expect(result).not.toHaveProperty('primaryModel');
     expect(result.version).toBeDefined();
   });
 
@@ -69,8 +68,7 @@ describe('RuntimeConfigService', () => {
     pool.query
       .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 })
       .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [sampleSecretDefault], rowCount: 1 })
-      .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      .mockResolvedValueOnce({ rows: [sampleSecretDefault], rowCount: 1 });
 
     const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
 
@@ -91,34 +89,17 @@ describe('RuntimeConfigService', () => {
     ).rejects.toThrow('not found');
   });
 
-  it('includes model assignment when available', async () => {
+  it('does not expose role model assignments through worker runtime config', async () => {
     const workerWithRole = { ...sampleWorker, capabilities: ['role:developer', 'coding'] };
-    const modelRow = {
-      model_id: 'claude-sonnet-4-6',
-      provider_id: 'p1',
-      provider_name: 'anthropic',
-      provider_base_url: 'https://api.anthropic.com',
-      context_window: 200000,
-      max_output_tokens: 8192,
-      supports_tool_use: true,
-      supports_vision: true,
-    };
 
     pool.query
-      .mockResolvedValueOnce({ rows: [workerWithRole], rowCount: 1 }) // findWorker
-      .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 }) // fetchRoles
-      .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 }) // fetchDefaults
-      .mockResolvedValueOnce({ // fetchModelAssignment
-        rows: [{ primary_model_id: 'model-1' }],
-        rowCount: 1,
-      })
-      .mockResolvedValueOnce({ rows: [modelRow], rowCount: 1 }); // fetchModelWithProvider
+      .mockResolvedValueOnce({ rows: [workerWithRole], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 });
 
     const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
 
-    expect(result.primaryModel).not.toBeNull();
-    expect(result.primaryModel!.modelId).toBe('claude-sonnet-4-6');
-    expect(result.primaryModel!.providerName).toBe('anthropic');
+    expect(result).not.toHaveProperty('primaryModel');
     expect(result).not.toHaveProperty('fallbackModel');
   });
 
