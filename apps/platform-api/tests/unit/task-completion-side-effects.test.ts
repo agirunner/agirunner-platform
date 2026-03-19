@@ -221,6 +221,92 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
+  it('treats late task completion activation enqueue as a no-op once the workflow is already completed', async () => {
+    const activationDispatchService = {
+      dispatchActivation: vi.fn(async () => 'orchestrator-task-1'),
+    };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rows: [{
+              id: 'activation-complete-noop',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-completed:task-dev:updated',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: { task_id: 'task-dev' },
+              state: 'completed',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date('2026-03-17T12:00:00Z'),
+              started_at: null,
+              consumed_at: new Date('2026-03-17T12:00:00Z'),
+              completed_at: new Date('2026-03-17T12:00:00Z'),
+              summary: 'Ignored activation because workflow is already completed.',
+              error: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'reviewer',
+        nextExpectedAction: 'review',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedReviewExpectation: false,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-dev',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        role: 'developer',
+        stage_name: 'implementation',
+        is_orchestrator_task: false,
+        output: { summary: 'done' },
+        updated_at: 'updated',
+      },
+      client as never,
+      activationDispatchService as never,
+    );
+
+    expect(activationDispatchService.dispatchActivation).not.toHaveBeenCalled();
+    expect(eventService.emit).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'workflow.activation_queued' }),
+      client,
+    );
+  });
+
   it('auto-completes the reviewed task across separate review work items using developer_task_id', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

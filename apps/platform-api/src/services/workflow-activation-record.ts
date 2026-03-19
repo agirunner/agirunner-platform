@@ -58,8 +58,45 @@ export async function enqueueWorkflowActivationRecord(
     allowSecretReferences: false,
   });
   const result = await db.query<WorkflowActivationEventRow>(
-    `INSERT INTO workflow_activations (tenant_id, workflow_id, request_id, reason, event_type, payload)
-     VALUES ($1,$2,$3,$4,$5,$6)
+    `INSERT INTO workflow_activations (
+       tenant_id,
+       workflow_id,
+       request_id,
+       reason,
+       event_type,
+       payload,
+       state,
+       consumed_at,
+       completed_at,
+       summary
+     )
+     SELECT
+       $1,
+       $2,
+       $3,
+       $4,
+       $5,
+       $6,
+       CASE
+         WHEN w.state IN ('completed', 'failed', 'cancelled') THEN 'completed'
+         ELSE 'queued'
+       END,
+       CASE
+         WHEN w.state IN ('completed', 'failed', 'cancelled') THEN now()
+         ELSE NULL
+       END,
+       CASE
+         WHEN w.state IN ('completed', 'failed', 'cancelled') THEN now()
+         ELSE NULL
+       END,
+       CASE
+         WHEN w.state IN ('completed', 'failed', 'cancelled')
+           THEN 'Ignored activation because workflow is already ' || w.state || '.'
+         ELSE NULL
+       END
+     FROM workflows w
+     WHERE w.tenant_id = $1
+       AND w.id = $2
      ON CONFLICT (tenant_id, workflow_id, request_id)
      WHERE request_id IS NOT NULL
      DO NOTHING
@@ -92,22 +129,24 @@ export async function enqueueWorkflowActivationRecord(
     throw new Error('Failed to load existing workflow activation event after conflict');
   }
 
-  await eventService.emit(
-    {
-      tenantId: params.tenantId,
-      type: 'workflow.activation_queued',
-      entityType: 'workflow',
-      entityId: params.workflowId,
-      actorType: params.actorType ?? 'system',
-      actorId: params.actorId ?? 'workflow_activation_service',
-      data: {
-        activation_id: result.rows[0].id,
-        event_type: params.eventType,
-        reason: params.reason,
+  if (result.rows[0].state === 'queued') {
+    await eventService.emit(
+      {
+        tenantId: params.tenantId,
+        type: 'workflow.activation_queued',
+        entityType: 'workflow',
+        entityId: params.workflowId,
+        actorType: params.actorType ?? 'system',
+        actorId: params.actorId ?? 'workflow_activation_service',
+        data: {
+          activation_id: result.rows[0].id,
+          event_type: params.eventType,
+          reason: params.reason,
+        },
       },
-    },
-    'release' in db ? db : undefined,
-  );
+      'release' in db ? db : undefined,
+    );
+  }
 
   return result.rows[0];
 }

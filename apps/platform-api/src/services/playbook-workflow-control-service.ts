@@ -709,6 +709,20 @@ export class PlaybookWorkflowControlService {
     if (state !== 'completed') {
       throw new ConflictError('Workflow could not be completed');
     }
+    await db.query(
+      `UPDATE workflow_activations
+          SET state = 'completed',
+              consumed_at = COALESCE(consumed_at, now()),
+              completed_at = COALESCE(completed_at, now()),
+              dispatch_token = NULL,
+              summary = COALESCE(summary, 'Ignored activation because workflow is already completed.')
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND state = 'queued'
+          AND activation_id IS NULL
+          AND consumed_at IS NULL`,
+      [identity.tenantId, workflowId],
+    );
     await this.deps.eventService.emit(
       {
         tenantId: identity.tenantId,

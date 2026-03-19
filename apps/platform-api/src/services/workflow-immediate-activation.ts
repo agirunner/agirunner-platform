@@ -51,10 +51,12 @@ export async function enqueueAndDispatchImmediateWorkflowActivation(
   params: ImmediateWorkflowActivationParams,
 ): Promise<WorkflowActivationEventRow> {
   const activation = await enqueueWorkflowActivationRecord(db, eventService, params);
-  await dispatchService?.dispatchActivation(
-    params.tenantId,
-    activation.id,
-    'release' in db ? db : undefined,
-  );
+  if (activation.state === 'queued') {
+    await dispatchService?.dispatchActivation(
+      params.tenantId,
+      activation.id,
+      'release' in db ? db : undefined,
+    );
+  }
   return activation;
 }

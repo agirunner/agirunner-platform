@@ -2412,6 +2412,7 @@ describe('PlaybookWorkflowControlService', () => {
   it('completes the active stage implicitly and records final artifacts when finishing a workflow', async () => {
     const emit = vi.fn(async () => undefined);
     const recomputeWorkflowState = vi.fn(async () => 'completed');
+    let consumedQueuedActivations = false;
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
@@ -2511,6 +2512,11 @@ describe('PlaybookWorkflowControlService', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('UPDATE workflow_activations')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          consumedQueuedActivations = true;
+          return { rowCount: 2, rows: [{ id: 'activation-1' }, { id: 'activation-2' }] };
+        }
         if (sql.includes('UPDATE workflows')) {
           expect(params).toEqual([
             'tenant-1',
@@ -2572,6 +2578,7 @@ describe('PlaybookWorkflowControlService', () => {
       }),
       pool,
     );
+    expect(consumedQueuedActivations).toBe(true);
   });
 
   it('reconciles completed planned stages before checking workflow completion', async () => {
@@ -2689,6 +2696,10 @@ describe('PlaybookWorkflowControlService', () => {
           throw new Error('planned workflow completion should not persist workflow.current_stage');
         }
         if (sql.includes('SELECT name') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE workflow_activations')) {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
           return { rowCount: 0, rows: [] };
         }
