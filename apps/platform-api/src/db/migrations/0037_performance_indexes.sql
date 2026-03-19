@@ -147,3 +147,16 @@ CREATE INDEX IF NOT EXISTS idx_workers_heartbeat_timeout
 CREATE INDEX IF NOT EXISTS idx_tasks_completed_archive
   ON tasks (tenant_id, completed_at)
   WHERE completed_at IS NOT NULL AND archived_at IS NULL;
+
+-- Compound indexes for hot-path query patterns
+
+-- workers.routes.ts: agent lookup by worker during task claiming
+-- Existing idx_agents_worker is (worker_id) only — no tenant or sort support
+CREATE INDEX IF NOT EXISTS idx_agents_tenant_worker
+  ON agents (tenant_id, worker_id, created_at);
+
+-- acp-session-service.ts: findReusableSession sorts by updated_at DESC
+-- but idx_acp_sessions_tenant_agent uses created_at DESC
+CREATE INDEX IF NOT EXISTS idx_acp_sessions_reusable
+  ON acp_sessions (tenant_id, agent_id, updated_at DESC)
+  WHERE status IN ('initializing', 'active', 'idle');

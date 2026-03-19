@@ -31,5 +31,6 @@ export const agents = pgTable(
     index('idx_agents_status').on(table.tenantId, table.status),
     index('idx_agents_capabilities').using('gin', table.capabilities),
     index('idx_agents_current_task').on(table.currentTaskId).where(sql`${table.currentTaskId} IS NOT NULL`),
+    index('idx_agents_tenant_worker').on(table.tenantId, table.workerId, table.createdAt),
   ],
 );
