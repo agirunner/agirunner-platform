@@ -1,0 +1,76 @@
+{
+  "name": "product-requirements-request-changes-then-approve",
+  "profile": "product-requirements",
+  "workflow": {
+    "name": "Product Requirements Rework Approval",
+    "goal": "Produce an approved PRD for workflow budget alerts with a technical review artifact and durable summary memory.",
+    "parameters": {
+      "feature_request": "Track token usage per workflow and alert operators when spend exceeds a configurable threshold.",
+      "user_context": "Workspace operators managing multiple teams need early warning before costs exceed budget.",
+      "constraints": "Use existing budget tracking surfaces. No new external billing systems."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "existing_context": "Enterprise admins manage budgets and need concise operator guidance."
+    },
+    "spec": {
+      "documents": {
+        "budget-guidelines": {
+          "source": "external",
+          "url": "https://example.test/budget-guidelines"
+        }
+      }
+    }
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval"
+      },
+      "action": "request_changes",
+      "feedback": "Clarify the alert thresholds and make the operator workflow explicit."
+    },
+    {
+      "match": {
+        "stage_name": "approval"
+      },
+      "action": "approve"
+    }
+  ],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "approval_actions": [
+      {
+        "action": "request_changes",
+        "stage_name": "approval"
+      },
+      {
+        "action": "approve",
+        "stage_name": "approval"
+      }
+    ],
+    "memory": [
+      {
+        "key": "prd_summary"
+      }
+    ],
+    "artifacts": [
+      {
+        "logical_path_pattern": "requirements/prd\\.md",
+        "min_count": 1
+      },
+      {
+        "logical_path_pattern": "requirements/technical-review\\.md",
+        "min_count": 1
+      }
+    ]
+  }
+}

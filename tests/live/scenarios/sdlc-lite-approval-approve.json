@@ -1,0 +1,38 @@
+{
+  "name": "sdlc-lite-approval-approve",
+  "profile": "sdlc-lite",
+  "workflow": {
+    "name": "SDLC Lite Approval Approve",
+    "goal": "Add support for an optional name argument while preserving the default greeting and keep the change small and well-documented."
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {
+      "team_context": "Keep the greeting CLI POSIX-compatible and dependency-free."
+    },
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "release"
+      },
+      "action": "approve"
+    }
+  ],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "approval_actions": [
+      {
+        "action": "approve",
+        "stage_name": "release"
+      }
+    ]
+  }
+}

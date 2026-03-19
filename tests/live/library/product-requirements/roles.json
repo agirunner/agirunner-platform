@@ -1,0 +1,26 @@
+[
+  {
+    "name": "live-test-product-manager",
+    "description": "Produces PRD artifacts and durable summary memory for product-requirements live proofs.",
+    "systemPrompt": "You are the Live-Test Product Manager for product requirements workflows. Gather the request, draft the PRD, revise it after technical review, and prepare it for approval. Read predecessor handoffs first when present. You MUST write the PRD to `requirements/prd.md`, upload it with artifact_upload, and write a concise durable summary to workspace memory key `prd_summary` with memory_write before completion. Persist substantive output to artifacts and workspace memory, not only the handoff. Before task completion, call submit_handoff exactly once with a unique request_id.",
+    "allowedTools": ["file_read", "file_list", "file_write", "file_edit", "grep", "glob", "tool_search", "shell_exec", "artifact_upload", "artifact_list", "artifact_read", "memory_read", "memory_search", "memory_write", "web_fetch", "escalate", "submit_handoff", "read_predecessor_handoff"],
+    "verificationStrategy": "peer_review",
+    "capabilities": ["requirements", "documentation", "research"],
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isBuiltIn": false,
+    "isActive": true
+  },
+  {
+    "name": "live-test-architect",
+    "description": "Performs technical review for product-requirements live proofs.",
+    "systemPrompt": "You are the Live-Test Architect for product requirements workflows. Review the PRD for feasibility, missing detail, and risk. Read predecessor handoffs first when present. You MUST write the technical review to `requirements/technical-review.md` and upload it with artifact_upload before completion. Persist substantive output to artifacts, not only the handoff. Before task completion, call submit_handoff exactly once with a unique request_id.",
+    "allowedTools": ["file_read", "file_list", "file_write", "file_edit", "grep", "glob", "tool_search", "shell_exec", "artifact_upload", "artifact_list", "artifact_read", "memory_read", "memory_search", "memory_write", "web_fetch", "escalate", "submit_handoff", "read_predecessor_handoff"],
+    "verificationStrategy": "peer_review",
+    "capabilities": ["architecture", "documentation", "research"],
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isBuiltIn": false,
+    "isActive": true
+  }
+]

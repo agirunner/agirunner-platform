@@ -1,0 +1,88 @@
+{
+  "name": "Product Requirements Live Test Cycle",
+  "slug": "live-test-product-requirements-v1",
+  "description": "Test-owned product requirements playbook for artifact and memory live proofs.",
+  "outcome": "Approved PRD artifact with technical review and durable summary memory.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The live-test product manager gathers context and drafts a PRD. The live-test architect performs the technical review. The live-test product manager finalizes the PRD and waits for approval. The product manager MUST upload the PRD as `requirements/prd.md` using artifact_upload and MUST write a concise summary to workspace memory key `prd_summary` using memory_write before completion. The architect MUST upload the technical review as `requirements/technical-review.md`. Persist substantive output to artifacts and workspace memory, not only handoffs.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this product requirements workflow should accomplish"
+      },
+      {
+        "name": "feature_request",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Feature request to turn into a PRD"
+      },
+      {
+        "name": "user_context",
+        "type": "string",
+        "category": "input",
+        "description": "Who needs the feature and why"
+      },
+      {
+        "name": "constraints",
+        "type": "string",
+        "category": "input",
+        "description": "Constraints and boundaries"
+      }
+    ],
+    "roles": [
+      "live-test-product-manager",
+      "live-test-architect"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
+        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
+        { "id": "review", "label": "In Review", "description": "Primary work is complete and under review." },
+        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
+        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+      ]
+    },
+    "stages": [
+      { "name": "requirements", "goal": "The PRD draft exists with testable acceptance criteria", "involves": ["live-test-product-manager", "live-test-architect"] },
+      { "name": "technical-review", "goal": "Technical review feedback exists for the PRD", "involves": ["live-test-architect", "live-test-product-manager"] },
+      { "name": "approval", "goal": "The PRD is finalized and approved", "involves": ["live-test-product-manager"], "human_gate": true }
+    ],
+    "checkpoints": [
+      { "name": "requirements", "goal": "A PRD draft exists as an artifact with a durable summary in workspace memory.", "human_gate": false, "entry_criteria": "The feature request and context are available." },
+      { "name": "technical-review", "goal": "Technical review feedback exists as an artifact.", "human_gate": false, "entry_criteria": "The PRD draft artifact exists." },
+      { "name": "approval", "goal": "The final PRD is approved.", "human_gate": true, "entry_criteria": "The technical review is complete and the PRD is revised." }
+    ],
+    "review_rules": [
+      {
+        "from_role": "live-test-product-manager",
+        "reviewed_by": "live-test-architect",
+        "checkpoint": "requirements",
+        "required": true,
+        "on_reject": { "action": "return_to_role", "role": "live-test-product-manager" }
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      { "from_role": "live-test-product-manager", "to_role": "live-test-architect", "required": true },
+      { "from_role": "live-test-architect", "to_role": "live-test-product-manager", "required": true }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "runtime": {
+      "pool_mode": "warm",
+      "max_runtimes": 1,
+      "priority": 1
+    }
+  }
+}

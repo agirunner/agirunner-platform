@@ -1,0 +1,28 @@
+{
+  "name": "bug-fix-positive",
+  "profile": "bug-fix",
+  "workflow": {
+    "name": "Bug Fix Positive",
+    "goal": "Fix the named-greeting punctuation bug with a regression test and minimal code changes.",
+    "parameters": {
+      "bug_report": "Greeting a named user omits the comma after Hello, producing 'Hello Mark!' instead of 'Hello, Mark!'.",
+      "reproduction_steps": "1. Run `sh greet.sh Mark`. 2. Observe that the output is `Hello Mark!`. 3. The expected output is `Hello, Mark!`.",
+      "severity": "P2"
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    }
+  }
+}

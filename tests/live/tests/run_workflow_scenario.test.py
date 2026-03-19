@@ -37,6 +37,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             workflow_name="SDLC Baseline Proof",
             scenario_name="sdlc-baseline",
             workflow_goal="Add support for named greetings and uppercase output while preserving the default greeting.",
+            workflow_parameters={"feature_request": "Add named greetings"},
         )
 
         self.assertEqual("playbook-1", payload["playbook_id"])
@@ -46,6 +47,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             {
                 "goal": "Add support for named greetings and uppercase output while preserving the default greeting.",
                 "scenario_name": "sdlc-baseline",
+                "feature_request": "Add named greetings",
             },
             payload["parameters"],
         )
@@ -258,6 +260,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "state": "completed",
                 "work_items": {"all_terminal": True},
                 "board": {"blocked_count": 0},
+                "approval_actions": [{"action": "request_changes", "stage_name": "requirements"}],
                 "memory": [{"key": "prd_summary", "value": "approved"}],
                 "artifacts": [{"logical_path_pattern": "reports/.*\\.md", "min_count": 2}],
             },
@@ -273,7 +276,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             },
             workspace={"memory": {"prd_summary": "approved"}},
             artifacts={"data": {"items": [{"logical_path": "reports/findings.md"}, {"logical_path": "reports/summary.md"}]}},
-            approval_actions=[],
+            approval_actions=[{"action": "request_changes", "stage_name": "requirements"}],
         )
 
         self.assertTrue(verification["passed"])
@@ -285,6 +288,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "state": "completed",
                 "work_items": {"all_terminal": True},
                 "board": {"blocked_count": 0},
+                "approval_actions": [{"action": "request_changes", "stage_name": "requirements"}],
                 "memory": [{"key": "prd_summary", "value": "approved"}],
                 "artifacts": [{"logical_path_pattern": "reports/.*\\.md", "min_count": 1}],
             },
@@ -298,6 +302,30 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertFalse(verification["passed"])
         self.assertGreaterEqual(len(verification["failures"]), 4)
+
+    def test_evaluate_expectations_requires_declared_approval_actions(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "approval_actions": [
+                    {"action": "request_changes", "stage_name": "requirements"},
+                    {"action": "approve", "stage_name": "requirements"},
+                ]
+            },
+            workflow={"state": "completed"},
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[{"action": "approve", "stage_name": "requirements"}],
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertEqual(
+            [
+                "expected approval action {'action': 'request_changes', 'stage_name': 'requirements'} was not observed"
+            ],
+            verification["failures"],
+        )
 
 
 if __name__ == "__main__":

@@ -343,6 +343,20 @@ def evaluate_expectations(
                     f"expected at least {minimum} artifacts matching {pattern!r}, found {len(matches)}"
                 )
 
+    approval_action_expectations = expectations.get("approval_actions", [])
+    if isinstance(approval_action_expectations, list):
+        for entry in approval_action_expectations:
+            if not isinstance(entry, dict):
+                continue
+            matched = any(
+                all(actual.get(key) == expected for key, expected in entry.items())
+                for actual in approval_actions
+                if isinstance(actual, dict)
+            )
+            checks.append({"name": f"approval_actions:{entry}", "passed": matched})
+            if not matched:
+                failures.append(f"expected approval action {entry!r} was not observed")
+
     return {
         "passed": len(failures) == 0,
         "failures": failures,
@@ -373,15 +387,19 @@ def build_workflow_create_payload(
     workflow_name: str,
     scenario_name: str,
     workflow_goal: str,
+    workflow_parameters: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    parameters = {
+        "goal": workflow_goal,
+        "scenario_name": scenario_name,
+    }
+    if workflow_parameters:
+        parameters.update(workflow_parameters)
     return {
         "playbook_id": playbook_id,
         "workspace_id": workspace_id,
         "name": workflow_name,
-        "parameters": {
-            "goal": workflow_goal,
-            "scenario_name": scenario_name,
-        },
+        "parameters": parameters,
         "metadata": {"live_test": {"scenario_name": scenario_name}},
     }
 
@@ -419,6 +437,7 @@ def main() -> None:
                 workflow_name=workflow_name,
                 scenario_name=scenario_name,
                 workflow_goal=workflow_goal,
+                workflow_parameters={} if scenario is None else scenario["workflow"]["parameters"],
             ),
             expected=(201,),
             label="workflows.create",
