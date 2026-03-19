@@ -48,6 +48,9 @@ interface LinkedWorkItemRow {
   workflow_lifecycle: string | null;
   stage_status: string | null;
   stage_gate_status: string | null;
+  owner_role: string | null;
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
 }
 
 interface WorkflowPlaybookDefinitionRow {
@@ -338,6 +341,20 @@ export class TaskWriteService {
           `in stage '${input.stage_name}' before creating tasks for that stage.`,
       );
     }
+    if (
+      input.role
+      && linkedWorkItem.next_expected_actor
+      && linkedWorkItem.next_expected_actor !== input.role
+    ) {
+      throw new ConflictError(
+        `Cannot create task for role '${input.role}' on work item '${input.work_item_id}' ` +
+          `because the next expected actor is '${linkedWorkItem.next_expected_actor}'` +
+          (linkedWorkItem.next_expected_action
+            ? ` for action '${linkedWorkItem.next_expected_action}'`
+            : '') +
+          '. Resolve the current workflow expectation before dispatching a different role.',
+      );
+    }
     if (isClosedPlannedStage(linkedWorkItem)) {
       throw new ConflictError(
         `Cannot create new tasks for planned workflow stage '${linkedWorkItem.stage_name}' after it has been approved or completed`,
@@ -369,6 +386,9 @@ export class TaskWriteService {
     const result = await db.query<LinkedWorkItemRow>(
       `SELECT wi.workflow_id,
               wi.stage_name,
+              wi.owner_role,
+              wi.next_expected_actor,
+              wi.next_expected_action,
               w.lifecycle AS workflow_lifecycle,
               ws.status AS stage_status,
               ws.gate_status AS stage_gate_status

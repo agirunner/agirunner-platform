@@ -1182,13 +1182,14 @@ function shouldDefaultCrossStageParentWorkItemId(
   if (!readString(payload.work_item_id)) {
     return false;
   }
-  if (!taskScope.stage_name) {
+  const activationStageName = readString(payload.stage_name) ?? taskScope.stage_name;
+  if (!activationStageName) {
     return false;
   }
   if (!body.stage_name) {
     return false;
   }
-  return taskScope.stage_name !== body.stage_name;
+  return activationStageName !== body.stage_name;
 }
 
 function isReviewTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) {

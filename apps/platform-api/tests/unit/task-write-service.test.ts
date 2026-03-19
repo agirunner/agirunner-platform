@@ -307,6 +307,63 @@ describe('TaskWriteService', () => {
     expect(insertedRequiresOutputReview).toBe(false);
   });
 
+  it('rejects out-of-sequence task creation when work item continuity expects a different actor', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_id: 'workflow-1',
+              stage_name: 'test',
+              workflow_lifecycle: 'planned',
+              stage_status: 'active',
+              stage_gate_status: 'not_requested',
+              owner_role: 'live-test-qa',
+              next_expected_actor: 'live-test-reviewer',
+              next_expected_action: 'handoff',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'agent',
+          keyPrefix: 'agent-key',
+        } as never,
+        {
+          title: 'QA verify named greeting punctuation fix',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          request_id: 'request-out-of-sequence-role',
+          role: 'live-test-qa',
+          stage_name: 'test',
+          type: 'test',
+        },
+      ),
+    ).rejects.toThrow(ConflictError);
+  });
+
   it('applies playbook task loop defaults when workflow tasks do not override them', async () => {
     let insertedMaxIterations: number | null = null;
     let insertedLLMMaxRetries: number | null = null;
