@@ -577,7 +577,7 @@ def main() -> None:
     )
     events_snapshot = client.best_effort_request(
         "GET",
-        f"/api/v1/workflows/{workflow_id}/events?per_page=500",
+        f"/api/v1/workflows/{workflow_id}/events?limit=500",
         expected=(200,),
         label="workflows.events",
     )

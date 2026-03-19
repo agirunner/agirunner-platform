@@ -314,6 +314,99 @@ describe('workflow routes', () => {
     });
   });
 
+  it('accepts per_page as an alias for limit on workflow-scoped event browsing', async () => {
+    const query = vi.fn().mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents: async () => ([]),
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', { query });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/events?per_page=25',
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [, selectParams] = query.mock.calls[0];
+    expect(selectParams.at(-1)).toBe(26);
+  });
+
+  it('accepts per_page as an alias for limit on workflow work-item event browsing', async () => {
+    const listWorkflowWorkItemEvents = vi.fn(async () => []);
+
+    app = fastify();
+    app.decorate('workflowService', {
+      createWorkflow: async () => ({}),
+      listWorkflows: async () => ({ data: [], meta: {} }),
+      getWorkflow: async () => ({}),
+      getWorkflowBoard: async () => ({}),
+      listWorkflowStages: async () => ([]),
+      listWorkflowWorkItems: async () => ([]),
+      createWorkflowWorkItem: async () => ({}),
+      getWorkflowWorkItem: async () => ({}),
+      listWorkflowWorkItemTasks: async () => ([]),
+      listWorkflowWorkItemEvents,
+      getWorkflowWorkItemMemory: async () => ({ entries: [] }),
+      getWorkflowWorkItemMemoryHistory: async () => ({ history: [] }),
+      updateWorkflowWorkItem: async () => ({}),
+      actOnStageGate: async () => ({}),
+      getResolvedConfig: async () => ({}),
+      cancelWorkflow: async () => ({}),
+      pauseWorkflow: async () => ({}),
+      resumeWorkflow: async () => ({}),
+      deleteWorkflow: async () => ({}),
+    });
+    app.decorate('pgPool', { query: vi.fn() });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: async () => undefined });
+    app.decorate('workspaceService', { getWorkspace: async () => ({ settings: {} }) });
+    app.decorate('modelCatalogService', {
+      resolveRoleConfig: async () => null,
+      listProviders: async () => [],
+      listModels: async () => [],
+      getProviderForOperations: async () => null,
+    });
+    await app.register(workflowRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/workflows/workflow-1/work-items/work-item-1/events?per_page=25',
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(listWorkflowWorkItemEvents).toHaveBeenCalledWith('tenant-1', 'workflow-1', 'work-item-1', 25);
+  });
+
   it('accepts workflow work-item creation when request_id is provided', async () => {
     const { pool } = createTransactionalWorkflowReplayPool(
       'workflow-1',

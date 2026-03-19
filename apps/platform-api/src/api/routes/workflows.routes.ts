@@ -357,6 +357,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
         gate_id?: string;
         after?: string;
         limit?: string;
+        per_page?: string;
       };
       return eventQueryService.listEvents({
         tenantId: request.auth!.tenantId,
@@ -369,7 +370,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
         gateId: query.gate_id,
         eventTypes: parseCsv(query.types ?? query.event_type),
         after: parseCursorAfter(query.after),
-        limit: parseCursorLimit(query.limit),
+        limit: parseCursorLimit(query.limit ?? query.per_page),
       });
     },
   );
@@ -914,8 +915,9 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const params = request.params as { id: string; workItemId: string };
-      const query = request.query as { limit?: string };
-      const limit = query.limit === undefined ? 100 : Number(query.limit);
+      const query = request.query as { limit?: string; per_page?: string };
+      const limitRaw = query.limit ?? query.per_page;
+      const limit = limitRaw === undefined ? 100 : Number(limitRaw);
       if (!Number.isFinite(limit) || limit <= 0 || limit > 500) {
         throw new ValidationError('limit must be a positive integer <= 500');
       }

@@ -179,4 +179,26 @@ describe('events routes', () => {
       },
     });
   });
+
+  it('accepts per_page as an alias for limit on event queries', async () => {
+    const { eventRoutes } = await import('../../src/api/routes/events.routes.js');
+    const query = vi.fn().mockResolvedValue({ rows: [], rowCount: 0 });
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', { query });
+    app.decorate('eventStreamService', { subscribe: vi.fn(), subscribeAll: vi.fn() });
+    app.decorate('config', { EVENT_STREAM_KEEPALIVE_INTERVAL_MS: 30_000, EVENT_STREAM_PATH: '/api/v1/events/stream' });
+    await app.register(eventRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/events?workflow_id=wf-1&per_page=25',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const [, selectParams] = query.mock.calls[0];
+    expect(selectParams.at(-1)).toBe(26);
+  });
 });

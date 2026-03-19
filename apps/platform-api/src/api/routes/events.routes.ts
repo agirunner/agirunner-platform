@@ -83,6 +83,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       gate_id?: string;
       after?: string;
       limit?: string;
+      per_page?: string;
     };
 
     return eventQueryService.listEvents({
@@ -97,7 +98,7 @@ export const eventRoutes: FastifyPluginAsync = async (app) => {
       gateId: query.gate_id,
       eventTypes: parseCsv(query.types ?? query.event_type),
       after: parseCursorAfter(query.after),
-      limit: parseCursorLimit(query.limit),
+      limit: parseCursorLimit(query.limit ?? query.per_page),
     });
   });
   app.get(app.config.EVENT_STREAM_PATH, auth, (request, reply) => streamEvents(app, request, reply));
