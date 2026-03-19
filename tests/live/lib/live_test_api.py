@@ -69,6 +69,7 @@ class TraceRecorder:
     def record(self, payload: dict[str, Any]) -> None:
         payload = {"timestamp": _timestamp(), **payload}
         with self._write_lock:
+            self.root_dir.mkdir(parents=True, exist_ok=True)
             with self.trace_file.open("a", encoding="utf-8") as handle:
                 handle.write(json.dumps(payload, sort_keys=True) + "\n")
 
