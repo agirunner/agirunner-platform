@@ -22,6 +22,15 @@ export interface WorkItemCompletionOutcome extends PlaybookRuleEvaluationResult 
   satisfiedReviewExpectation: boolean;
 }
 
+export interface OrchestratorFinishStateUpdate {
+  next_expected_actor?: string | null;
+  next_expected_action?: string | null;
+  status_summary?: string;
+  next_expected_event?: string;
+  blocked_on?: string[];
+  active_subordinate_tasks?: string[];
+}
+
 export class WorkItemContinuityService {
   constructor(
     private readonly pool: DatabasePool,
@@ -84,6 +93,81 @@ export class WorkItemContinuityService {
       nextExpectedActor: null,
       nextExpectedAction: null,
       checkpointName,
+    };
+  }
+
+  async persistOrchestratorFinishState(
+    tenantId: string,
+    task: Record<string, unknown>,
+    update: OrchestratorFinishStateUpdate,
+    db: DatabaseClient | DatabasePool = this.pool,
+  ) {
+    const workflowId = readOptionalString(task.workflow_id);
+    const workItemId = readOptionalString(task.work_item_id);
+    if (!workflowId || !workItemId) {
+      return null;
+    }
+
+    const continuityMetadata = compactRecord({
+      status_summary: readOptionalString(update.status_summary),
+      next_expected_event: readOptionalString(update.next_expected_event),
+      blocked_on: normalizeStringList(update.blocked_on),
+      active_subordinate_tasks: normalizeStringList(update.active_subordinate_tasks),
+    });
+    const metadataPatch = {
+      orchestrator_finish_state: continuityMetadata,
+    };
+
+    const result = await db.query<{
+      next_expected_actor: string | null;
+      next_expected_action: string | null;
+      metadata: Record<string, unknown> | null;
+    }>(
+      `UPDATE workflow_work_items
+          SET next_expected_actor = $4,
+              next_expected_action = $5,
+              metadata = COALESCE(metadata, '{}'::jsonb) || $6::jsonb,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+      RETURNING next_expected_actor, next_expected_action, metadata`,
+      [
+        tenantId,
+        workflowId,
+        workItemId,
+        readOptionalString(update.next_expected_actor),
+        readOptionalString(update.next_expected_action),
+        metadataPatch,
+      ],
+    );
+    if (!result.rowCount) {
+      return null;
+    }
+
+    const stored = result.rows[0];
+    await logWorkItemContinuityTransition(this.logService, {
+      tenantId,
+      event: 'finish_state_persisted',
+      task,
+      stageName: readOptionalString(task.stage_name),
+      ownerRole: readOptionalString(task.role),
+      previousNextExpectedActor: null,
+      previousNextExpectedAction: null,
+      nextExpectedActor: stored.next_expected_actor,
+      nextExpectedAction: stored.next_expected_action,
+      previousReworkCount: null,
+      nextReworkCount: null,
+      statusSummary: readOptionalString(update.status_summary),
+      nextExpectedEvent: readOptionalString(update.next_expected_event),
+      blockedOn: normalizeStringList(update.blocked_on) ?? null,
+      activeSubordinateTasks: normalizeStringList(update.active_subordinate_tasks) ?? null,
+    });
+
+    return {
+      nextExpectedActor: stored.next_expected_actor,
+      nextExpectedAction: stored.next_expected_action,
+      continuity: continuityMetadata,
     };
   }
 
@@ -269,6 +353,22 @@ function readCheckpointName(
 
 function readOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function normalizeStringList(values: string[] | undefined): string[] | undefined {
+  if (!Array.isArray(values)) {
+    return undefined;
+  }
+  const filtered = values
+    .map((value) => (typeof value === 'string' ? value.trim() : ''))
+    .filter((value) => value.length > 0);
+  return filtered.length > 0 ? filtered : undefined;
+}
+
+function compactRecord<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as T;
 }
 
 function gateApprovalTakesPrecedence(

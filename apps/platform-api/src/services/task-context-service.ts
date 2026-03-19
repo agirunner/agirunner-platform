@@ -322,7 +322,12 @@ function isContinuousWorkflowRow(
   return workflowRow.lifecycle === 'ongoing';
 }
 
-function normalizeWorkItemStage(row: Record<string, unknown>) {
+function normalizeWorkItemStage(
+  row: Record<string, unknown>,
+): Record<string, unknown> & {
+  stage_name: string | null;
+  continuity?: Record<string, unknown>;
+} {
   return {
     ...row,
     stage_name: asOptionalString(row.stage_name) ?? null,
@@ -350,6 +355,7 @@ async function loadWorkItemContext(
             next_expected_actor,
             next_expected_action,
             rework_count,
+            metadata,
             latest_handoff.latest_handoff_completion,
             latest_handoff.unresolved_findings,
             latest_handoff.review_focus,
@@ -383,7 +389,15 @@ async function loadWorkItemContext(
     [tenantId, workItemId],
   );
   const workItem = (result.rows[0] as Record<string, unknown> | undefined) ?? null;
-  return workItem ? normalizeWorkItemStage(workItem) : null;
+  if (!workItem) {
+    return null;
+  }
+  const normalized = normalizeWorkItemStage(workItem);
+  const continuity = asRecord(asRecord(normalized.metadata).orchestrator_finish_state);
+  if (Object.keys(continuity).length > 0) {
+    normalized.continuity = continuity;
+  }
+  return normalized;
 }
 
 async function loadWorkspaceContext(
@@ -763,6 +777,8 @@ export function summarizeTaskContextAttachments(
   const documents = Array.isArray(context.documents)
     ? context.documents as unknown[]
     : [];
+  const orchestrator = asRecord(context.orchestrator);
+  const lastActivationCheckpoint = asRecord(orchestrator.last_activation_checkpoint);
   const flattenedSystemPrompt = flattenInstructionLayers(instructionLayers);
   const agentProfileInstructions = readAgentProfileInstructions(agent.metadata);
 
@@ -782,6 +798,7 @@ export function summarizeTaskContextAttachments(
     context_anchor_triggering_task_id: asOptionalString(contextAnchor.triggering_task_id) ?? null,
     recent_handoff_count: recentHandoffs.length,
     work_item_continuity_present: Object.keys(workItem).length > 0,
+    orchestrator_checkpoint_present: Object.keys(lastActivationCheckpoint).length > 0,
     workspace_memory_index_present: Object.keys(memoryIndex).length > 0,
     workspace_memory_index_count: memoryKeys.length,
     workspace_memory_more_available: memoryIndex.more_available === true,

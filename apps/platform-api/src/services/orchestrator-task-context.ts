@@ -44,6 +44,7 @@ export async function buildOrchestratorTaskContext(
   }
 
   const workflowId = String(task.workflow_id);
+  const taskMetadata = asRecord(task.metadata);
   const activationId =
     typeof task.activation_id === 'string' && task.activation_id.trim().length > 0
       ? task.activation_id
@@ -91,7 +92,8 @@ export async function buildOrchestratorTaskContext(
                 rework_count,
                 priority,
                 completed_at,
-                notes
+                notes,
+                metadata
            FROM workflow_work_items
           WHERE tenant_id = $1
             AND workflow_id = $2
@@ -164,6 +166,10 @@ export async function buildOrchestratorTaskContext(
 
   return {
     activation: activationRes.rows[0] ? serializeActivationBatch(activationId ?? activationRes.rows[0].id, activationRes.rows) : null,
+    last_activation_checkpoint:
+      Object.keys(asRecord(taskMetadata.last_activation_checkpoint)).length > 0
+        ? asRecord(taskMetadata.last_activation_checkpoint)
+        : null,
     workflow: workflowContext,
     board: {
       work_items: workItemsRes.rows.map(serializeWorkItem),
@@ -209,9 +215,11 @@ function serializeDates(row: Record<string, unknown>) {
 
 function serializeWorkItem(row: Record<string, unknown>) {
   const serialized = serializeDates(row);
+  const continuity = asRecord(asRecord(serialized.metadata).orchestrator_finish_state);
   return {
     ...serialized,
     stage_name: typeof serialized.stage_name === 'string' ? serialized.stage_name : null,
+    continuity: Object.keys(continuity).length > 0 ? continuity : null,
   };
 }
 
@@ -223,4 +231,10 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
         .map((row) => String(row.stage_name)),
     ),
   );
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
 }

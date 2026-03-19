@@ -6,7 +6,7 @@ import { getRequestContext } from '../observability/request-context.js';
 
 interface WorkItemContinuityTransitionInput {
   tenantId: string;
-  event: 'task_completed' | 'review_rejected' | 'review_expectation_cleared';
+  event: 'task_completed' | 'review_rejected' | 'review_expectation_cleared' | 'finish_state_persisted';
   task: Record<string, unknown>;
   stageName: string | null;
   ownerRole: string | null;
@@ -20,6 +20,10 @@ interface WorkItemContinuityTransitionInput {
   requiresHumanApproval?: boolean | null;
   satisfiedReviewExpectation?: boolean | null;
   reworkDelta?: number | null;
+  statusSummary?: string | null;
+  nextExpectedEvent?: string | null;
+  blockedOn?: string[] | null;
+  activeSubordinateTasks?: string[] | null;
 }
 
 const CONTINUITY_OPERATION_BY_EVENT: Record<
@@ -29,6 +33,7 @@ const CONTINUITY_OPERATION_BY_EVENT: Record<
   task_completed: 'work_item.continuity.task_completed',
   review_rejected: 'work_item.continuity.review_rejected',
   review_expectation_cleared: 'work_item.continuity.review_expectation_cleared',
+  finish_state_persisted: 'work_item.continuity.finish_state_persisted',
 };
 
 export async function logWorkItemContinuityTransition(
@@ -73,6 +78,11 @@ export async function logWorkItemContinuityTransition(
             ? input.satisfiedReviewExpectation
             : null,
         rework_delta: typeof input.reworkDelta === 'number' ? input.reworkDelta : null,
+        status_summary: input.statusSummary ?? null,
+        next_expected_event: input.nextExpectedEvent ?? null,
+        blocked_on: Array.isArray(input.blockedOn) ? input.blockedOn : null,
+        active_subordinate_tasks:
+          Array.isArray(input.activeSubordinateTasks) ? input.activeSubordinateTasks : null,
       },
       workflowId: readOptionalString(input.task.workflow_id),
       taskId: readOptionalString(input.task.id),

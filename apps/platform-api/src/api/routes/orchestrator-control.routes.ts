@@ -8,6 +8,8 @@ import { WorkflowActivationService } from '../../services/workflow-activation-se
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
 import { PlaybookWorkflowControlService } from '../../services/playbook-workflow-control-service.js';
 import { OrchestratorTaskMessageService } from '../../services/orchestrator-task-message-service.js';
+import { OrchestratorActivationCheckpointService } from '../../services/orchestrator-activation-checkpoint-service.js';
+import { WorkItemContinuityService } from '../../services/work-item-continuity-service.js';
 import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../services/workspace-memory-write-guard.js';
 import {
   TaskAgentScopeService,
@@ -173,6 +175,31 @@ const childWorkflowCreateSchema = z.object({
   instruction_config: z.record(z.unknown()).optional(),
 });
 
+const orchestratorActivationCheckpointSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  activation_checkpoint: z.object({
+    activation_id: z.string().min(1).max(255).optional(),
+    trigger: z.string().min(1).max(255).optional(),
+    what_changed: z.array(z.string().min(1).max(4000)).max(100).optional(),
+    current_working_state: z.string().min(1).max(4000).optional(),
+    next_expected_event: z.string().min(1).max(255).optional(),
+    important_ids: z.array(z.string().min(1).max(255)).max(100).optional(),
+    important_artifacts: z.array(z.string().min(1).max(2000)).max(100).optional(),
+    recent_memory_keys: z.array(z.string().min(1).max(256)).max(100).optional(),
+  }).strict(),
+}).strict();
+
+const orchestratorContinuityWriteSchema = z.object({
+  request_id: z.string().min(1).max(255),
+  work_item_id: z.string().uuid().optional(),
+  next_expected_actor: z.string().min(1).max(120).nullable().optional(),
+  next_expected_action: z.string().min(1).max(4000).nullable().optional(),
+  status_summary: z.string().min(1).max(4000).optional(),
+  next_expected_event: z.string().min(1).max(255).optional(),
+  blocked_on: z.array(z.string().min(1).max(4000)).max(50).optional(),
+  active_subordinate_tasks: z.array(z.string().min(1).max(255)).max(100).optional(),
+}).strict();
+
 const workItemIdParamSchema = z.string().uuid();
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
@@ -197,6 +224,8 @@ const workspaceMemoryDeleteQuerySchema = z.object({
 export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
   const toolResultService = new WorkflowToolResultService(app.pgPool);
   const taskScopeService = new TaskAgentScopeService(app.pgPool);
+  const activationCheckpointService = new OrchestratorActivationCheckpointService(app.pgPool);
+  const workItemContinuityService = new WorkItemContinuityService(app.pgPool, app.logService);
   const taskMessageService = new OrchestratorTaskMessageService(
     app.pgPool,
     app.eventService,
@@ -847,6 +876,77 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
                 },
                 client,
               ),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/activation-checkpoint',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string };
+      const body = parseOrThrow(orchestratorActivationCheckpointSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'activation_checkpoint_write',
+        body.request_id,
+        (client) =>
+          activationCheckpointService.persistCheckpoint(
+            request.auth!.tenantId,
+            taskScope.id,
+            {
+              ...body.activation_checkpoint,
+              activation_id: body.activation_checkpoint.activation_id ?? taskScope.activation_id,
+            },
+            client,
+          ).then((checkpoint) => ({
+            last_activation_checkpoint: checkpoint,
+          })),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/continuity',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string };
+      const body = parseOrThrow(orchestratorContinuityWriteSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const workItemId = body.work_item_id ?? taskScope.work_item_id;
+      if (!workItemId) {
+        throw new ValidationError('This task is not linked to a work item');
+      }
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'continuity_write',
+        body.request_id,
+        (client) =>
+          workItemContinuityService.persistOrchestratorFinishState(
+            request.auth!.tenantId,
+            {
+              ...taskScope,
+              work_item_id: workItemId,
+              role: 'orchestrator',
+            },
+            body,
+            client,
+          ) as Promise<Record<string, unknown>>,
       );
       return { data: stored };
     },

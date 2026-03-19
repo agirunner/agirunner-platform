@@ -1165,7 +1165,7 @@ export class WorkflowActivationDispatchService {
               role_config = $6::jsonb,
               environment = $7::jsonb,
               resource_bindings = $8::jsonb,
-              metadata = $9::jsonb,
+              metadata = COALESCE(metadata, '{}'::jsonb) || $9::jsonb,
               max_iterations = $10,
               llm_max_retries = $11,
               activation_id = $12::uuid,

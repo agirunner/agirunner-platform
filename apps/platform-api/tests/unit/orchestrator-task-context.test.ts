@@ -189,4 +189,49 @@ describe('buildOrchestratorTaskContext', () => {
     );
     expect(context?.board.work_items[0]).not.toHaveProperty('current_checkpoint');
   });
+
+  it('surfaces the latest activation checkpoint from task metadata', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w')) {
+          return {
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              lifecycle: 'planned',
+              metadata: {},
+              playbook_name: 'Linear Flow',
+              playbook_outcome: 'Ship work',
+              playbook_definition: {
+                checkpoints: [{ name: 'implementation', goal: 'Build the work', human_gate: false }],
+              },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return { rows: [] };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildOrchestratorTaskContext(db as never, 'tenant-1', {
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: true,
+      metadata: {
+        last_activation_checkpoint: {
+          activation_id: 'activation-7',
+          current_working_state: 'waiting on review',
+          recent_memory_keys: ['decision_log'],
+        },
+      },
+    });
+
+    expect(context?.last_activation_checkpoint).toEqual({
+      activation_id: 'activation-7',
+      current_working_state: 'waiting on review',
+      recent_memory_keys: ['decision_log'],
+    });
+  });
 });

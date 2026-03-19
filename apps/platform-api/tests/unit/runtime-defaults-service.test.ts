@@ -198,6 +198,36 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('agent.context_compaction_threshold must be between 0 and 1');
     });
 
+    it('validates continuity strategy enums and booleans for agent context defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'agent.specialist_context_strategy',
+          configValue: 'mystery',
+          configType: 'string',
+        }),
+      ).rejects.toThrow(
+        'agent.specialist_context_strategy must be one of: auto, semantic_local, deterministic, provider_native, off',
+      );
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'agent.orchestrator_context_strategy',
+          configValue: 'semantic_local',
+          configType: 'string',
+        }),
+      ).rejects.toThrow(
+        'agent.orchestrator_context_strategy must be one of: activation_checkpoint, emergency_only, off',
+      );
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'agent.specialist_prepare_for_compaction_enabled',
+          configValue: 'true',
+          configType: 'string',
+        }),
+      ).rejects.toThrow('agent.specialist_prepare_for_compaction_enabled must use boolean config type');
+    });
+
     it('rejects non-positive runtime and workspace defaults', async () => {
       await expect(
         service.createDefault(TENANT_ID, {

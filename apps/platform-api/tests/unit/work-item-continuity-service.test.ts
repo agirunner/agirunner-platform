@@ -457,4 +457,68 @@ describe('WorkItemContinuityService', () => {
     const payload = (logService.insert as ReturnType<typeof vi.fn>).mock.calls[0][0].payload as Record<string, unknown>;
     expect(payload).not.toHaveProperty('checkpoint_name');
   });
+
+  it('persists allow-listed orchestrator finish-state continuity fields on the work item', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [{
+          next_expected_actor: 'human',
+          next_expected_action: 'approve',
+          metadata: {
+            keep_me: true,
+            orchestrator_finish_state: {
+              status_summary: 'Waiting on release approval',
+              next_expected_event: 'approval.received',
+            },
+          },
+        }],
+      }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.persistOrchestratorFinishState('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'orchestrator',
+      stage_name: 'release',
+    }, {
+      next_expected_actor: 'human',
+      next_expected_action: 'approve',
+      status_summary: 'Waiting on release approval',
+      next_expected_event: 'approval.received',
+      blocked_on: ['release manager sign-off'],
+      active_subordinate_tasks: ['task-review-1'],
+    });
+
+    expect(result).toEqual({
+      nextExpectedActor: 'human',
+      nextExpectedAction: 'approve',
+      continuity: {
+        status_summary: 'Waiting on release approval',
+        next_expected_event: 'approval.received',
+        blocked_on: ['release manager sign-off'],
+        active_subordinate_tasks: ['task-review-1'],
+      },
+    });
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      [
+        'tenant-1',
+        'workflow-1',
+        'work-item-1',
+        'human',
+        'approve',
+        {
+          orchestrator_finish_state: {
+            status_summary: 'Waiting on release approval',
+            next_expected_event: 'approval.received',
+            blocked_on: ['release manager sign-off'],
+            active_subordinate_tasks: ['task-review-1'],
+          },
+        },
+      ],
+    );
+  });
 });

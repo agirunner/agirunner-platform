@@ -106,7 +106,7 @@ describe('orchestratorControlRoutes', () => {
     };
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql === 'BEGIN' || sql === 'COMMIT') {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('pg_advisory_xact_lock')) {
@@ -249,6 +249,179 @@ describe('orchestratorControlRoutes', () => {
 
     expect(response.statusCode).toBe(422);
     expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
+  });
+
+  it('rejects orchestrator continuity writes with non-allowlisted fields', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-replay']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-replay',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'release',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-replay/continuity',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'cont-1',
+        status_summary: 'waiting',
+        unexpected_field: 'reject me',
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
+  });
+
+  it('accepts orchestrator continuity writes with long next_expected_action text', async () => {
+    const longAction =
+      'Draft the PRD, upload it as requirements/prd.md, write workspace memory key prd_summary, and leave the required handoff to the architect.';
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'continuity_write', 'cont-long-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-replay']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-replay',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'requirements',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'work-item-1',
+            'live-test-product-manager',
+            longAction,
+            {
+              orchestrator_finish_state: {
+                status_summary: 'Waiting on PRD drafting.',
+                next_expected_event: 'task.handoff_submitted',
+                active_subordinate_tasks: ['task-specialist-1'],
+              },
+            },
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              next_expected_actor: 'live-test-product-manager',
+              next_expected_action: longAction,
+              metadata: {
+                orchestrator_finish_state: {
+                  status_summary: 'Waiting on PRD drafting.',
+                  next_expected_event: 'task.handoff_submitted',
+                  blocked_on: [],
+                  active_subordinate_tasks: ['task-specialist-1'],
+                },
+              },
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                nextExpectedActor: 'live-test-product-manager',
+                nextExpectedAction: longAction,
+                continuity: {
+                  status_summary: 'Waiting on PRD drafting.',
+                  next_expected_event: 'task.handoff_submitted',
+                  active_subordinate_tasks: ['task-specialist-1'],
+                },
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => ({
+        query: pool.query,
+        release: vi.fn(),
+      })),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-replay/continuity',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'cont-long-1',
+        next_expected_actor: 'live-test-product-manager',
+        next_expected_action: longAction,
+        status_summary: 'Waiting on PRD drafting.',
+        next_expected_event: 'task.handoff_submitted',
+        active_subordinate_tasks: ['task-specialist-1'],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.nextExpectedAction).toBe(longAction);
   });
 
   it('accepts create_work_item without column_id so the playbook intake lane can apply', async () => {
