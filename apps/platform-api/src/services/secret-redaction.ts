@@ -1,10 +1,9 @@
 const DEFAULT_SECRET_REDACTION = 'redacted://secret';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts|webhook_url)/i;
 const explicitSecretReferencePattern = /secret:[A-Za-z0-9_:-]+/i;
-const exactSecretLikeValuePattern =
-  /^(?:enc:v\d+:.*|Bearer\s+\S+|sk-[A-Za-z0-9_-]+|[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i;
-const embeddedSecretLikeValuePattern =
-  /(?:\bBearer\s+\S+|\bsk-[A-Za-z0-9_-]+\b|\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b)/i;
+const exactSecretLikeValuePattern = /^(?:enc:v\d+:.*|Bearer\s+\S+|sk-[A-Za-z0-9_-]+)$/i;
+const embeddedSecretLikeValuePattern = /(?:\bBearer\s+\S+|\bsk-[A-Za-z0-9_-]+\b)/i;
+const dottedTokenPattern = /\b[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g;
 
 export interface SecretRedactionOptions {
   redactionValue?: string;
@@ -78,7 +77,9 @@ function shouldRedactString(value: string, inheritedSecret: boolean, allowSecret
   if (!allowSecretReferences && explicitSecretReferencePattern.test(trimmed)) {
     return true;
   }
-  return exactSecretLikeValuePattern.test(trimmed) || embeddedSecretLikeValuePattern.test(trimmed);
+  return exactSecretLikeValuePattern.test(trimmed) ||
+    embeddedSecretLikeValuePattern.test(trimmed) ||
+    containsJWTLikeToken(trimmed);
 }
 
 function isSecretLikeKey(key: string) {
@@ -88,4 +89,23 @@ function isSecretLikeKey(key: string) {
 function isAllowedSecretReference(value: string) {
   const normalized = value.trim().toLowerCase();
   return normalized.startsWith('secret:') || normalized.startsWith('redacted://');
+}
+
+function containsJWTLikeToken(value: string) {
+  const exactMatch = value.match(dottedTokenPattern);
+  if (!exactMatch) {
+    return false;
+  }
+  return exactMatch.some((candidate) => looksLikeJWTLikeToken(candidate));
+}
+
+function looksLikeJWTLikeToken(value: string) {
+  const parts = value.split('.');
+  if (parts.length !== 3) {
+    return false;
+  }
+  if (parts.some((part) => part.length < 6)) {
+    return false;
+  }
+  return parts.some((part) => /[A-Z0-9]/.test(part));
 }

@@ -32,4 +32,26 @@ describe('sanitizeSecretLikeValue', () => {
       note: 'redacted://secret',
     });
   });
+
+  it('does not redact dotted workflow event names that are not secret material', () => {
+    expect(
+      sanitizeSecretLikeValue({
+        event_type: 'stage.gate.request_changes',
+        task_title: 'Orchestrate SDLC Lite Approval Rework: stage.gate.approve',
+      }),
+    ).toEqual({
+      event_type: 'stage.gate.request_changes',
+      task_title: 'Orchestrate SDLC Lite Approval Rework: stage.gate.approve',
+    });
+  });
+
+  it('still redacts JWT-like dotted tokens', () => {
+    expect(
+      sanitizeSecretLikeValue({
+        token: 'eyJhbGciOiJIUzI1NiJ9.payload.signature',
+      }),
+    ).toEqual({
+      token: 'redacted://secret',
+    });
+  });
 });

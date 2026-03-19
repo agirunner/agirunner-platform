@@ -281,6 +281,24 @@ describe('task query service git activity (FR-055)', () => {
     expect(response.resource_bindings[0].credentials.secret_ref).toBe('redacted://task-secret');
   });
 
+  it('preserves dotted workflow event titles in task API responses', () => {
+    const service = new TaskQueryService(createPool({
+      id: taskId,
+      tenant_id: tenantId,
+      title: 'Orchestrate SDLC Lite Approval Rework: stage.gate.request_changes',
+      metadata: {},
+    }) as never);
+
+    const response = service.toTaskResponse({
+      id: taskId,
+      tenant_id: tenantId,
+      title: 'Orchestrate SDLC Lite Approval Rework: stage.gate.request_changes',
+      metadata: {},
+    }) as Record<string, unknown>;
+
+    expect(response.title).toBe('Orchestrate SDLC Lite Approval Rework: stage.gate.request_changes');
+  });
+
   it('returns normalized git activity payload from task.git_info', async () => {
     const service = new TaskQueryService(
       createPool({
