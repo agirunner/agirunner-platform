@@ -1,5 +1,53 @@
 @import "tailwindcss";
 
+:root {
+  --color-bg-primary: #1a1a2e;
+  --color-bg-secondary: #252540;
+  --color-bg-deep: #0d0d1a;
+  --color-bg-overlay: rgba(0,0,0,0.7);
+  --color-accent-primary: #8b5cf6;
+  --color-accent-primary-muted: #8b5cf640;
+  --color-status-success: #22c55e;
+  --color-status-warning: #f59e0b;
+  --color-status-error: #ef4444;
+  --color-link: #3b82f6;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #cccccc;
+  --color-text-tertiary: #888888;
+  --color-text-muted: #666666;
+  --color-text-faint: #555555;
+  --color-border-default: #333333;
+  --color-border-focus: #8b5cf6;
+  --color-border-subtle: #444444;
+  --role-developer: #8b5cf6;
+  --role-reviewer: #f59e0b;
+  --role-architect: #22c55e;
+  --role-qa: #3b82f6;
+  --role-product-manager: #ec4899;
+  --role-orchestrator: #06b6d4;
+  --shadow-none: none;
+  --shadow-panel: 0 4px 24px rgba(0,0,0,0.4);
+  --shadow-overlay: 0 8px 32px rgba(139,92,246,0.3);
+  --shadow-dropdown: 0 4px 12px rgba(0,0,0,0.5);
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 250ms ease-out;
+  --transition-slow: 400ms ease-out;
+  --z-base: 0;
+  --z-sticky: 10;
+  --z-panel: 20;
+  --z-resource: 25;
+  --z-drawer: 30;
+  --z-overlay-backdrop: 40;
+  --z-overlay: 50;
+  --z-palette: 60;
+  --z-connection: 70;
+  --font-family: ui-monospace, 'SF Mono', 'Cascadia Code', 'Fira Code', Menlo, Monaco, Consolas, monospace;
+
+  font-family: var(--font-family);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+}
+
 @theme {
   --color-background: #f5f7fa;
   --color-surface: #ffffff;
