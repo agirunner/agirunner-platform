@@ -68,6 +68,52 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
   assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
 }
 
+test_runner_failure_does_not_publish_partial_workflow_result() {
+  local tmpdir stubdir output_root context_file run_file tmp_run_file bootstrap_stub envfile
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  envfile="${tmpdir}/env/local.env"
+  output_root="${tmpdir}/artifacts"
+  context_file="${output_root}/bootstrap/context.json"
+  run_file="${output_root}/bug-fix-positive/workflow-run.json"
+  tmp_run_file="${run_file}.tmp"
+  bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
+  mkdir -p "${stubdir}" "$(dirname "${context_file}")" "$(dirname "${envfile}")"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5432
+PLATFORM_API_PORT=8080
+EOF
+
+  make_stub "${bootstrap_stub}" \
+'mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
+
+  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix"; else printf "%s" "{\"workflow_id\":\"workflow-1\"}"; exit 1; fi'
+
+  if PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
+    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
+    fail "expected scenario runner failure to propagate"
+  fi
+
+  if [[ -e "${run_file}" ]]; then
+    fail "expected failing scenario runner to avoid publishing ${run_file}"
+  fi
+
+  if [[ ! -s "${tmp_run_file}" ]]; then
+    fail "expected failing scenario runner to preserve non-empty temp output for debugging"
+  fi
+}
+
 test_scenario_profile_is_exported_to_bootstrap
+test_runner_failure_does_not_publish_partial_workflow_result
 
 echo "[tests/live/run-live-scenario.test] PASS"
