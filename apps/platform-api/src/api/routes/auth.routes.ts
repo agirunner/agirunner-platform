@@ -8,7 +8,10 @@ import { issueAccessToken, issueRefreshToken, verifyJwt } from '../../auth/jwt.j
 import { UnauthorizedError } from '../../errors/domain-errors.js';
 import { logAuthEvent } from '../../logging/auth-log.js';
 
-const tokenExchangeSchema = z.object({ api_key: z.string().min(1) });
+const tokenExchangeSchema = z.object({
+  api_key: z.string().min(1),
+  persistent_session: z.boolean().optional().default(true),
+});
 const ACCESS_COOKIE_NAME = 'agirunner_access_token';
 const REFRESH_COOKIE_NAME = 'agirunner_refresh_token';
 const CSRF_COOKIE_NAME = 'agirunner_csrf_token';
@@ -21,6 +24,7 @@ interface RefreshTokenClaims {
   ownerType: string;
   ownerId: string | null;
   keyPrefix: string;
+  persistentSession?: boolean;
   tokenType?: string;
   tokenId?: string;
   exp?: number;
@@ -44,30 +48,41 @@ function decodeTokenExpiry(token: string): string {
   return new Date(parsed.exp * 1000).toISOString();
 }
 
-function accessCookieOptions(useSecureCookie: boolean) {
+function resolveCookieExpiry(expiresAtIso?: string): { expires?: Date } {
+  if (!expiresAtIso) {
+    return {};
+  }
+
+  return { expires: new Date(expiresAtIso) };
+}
+
+function accessCookieOptions(useSecureCookie: boolean, expiresAtIso?: string) {
   return {
     httpOnly: true,
     secure: useSecureCookie,
     sameSite: 'strict' as const,
     path: '/',
+    ...resolveCookieExpiry(expiresAtIso),
   };
 }
 
-function refreshCookieOptions(useSecureCookie: boolean) {
+function refreshCookieOptions(useSecureCookie: boolean, expiresAtIso?: string) {
   return {
     httpOnly: true,
     secure: useSecureCookie,
     sameSite: 'strict' as const,
     path: '/api/v1/auth/refresh',
+    ...resolveCookieExpiry(expiresAtIso),
   };
 }
 
-function csrfCookieOptions(useSecureCookie: boolean) {
+function csrfCookieOptions(useSecureCookie: boolean, expiresAtIso?: string) {
   return {
     httpOnly: false,
     secure: useSecureCookie,
     sameSite: 'strict' as const,
     path: '/',
+    ...resolveCookieExpiry(expiresAtIso),
   };
 }
 
@@ -171,6 +186,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       ownerId: identity.ownerId,
       keyPrefix: identity.keyPrefix,
       tokenId: refreshTokenId,
+      persistentSession: body.persistent_session,
     });
 
     const csrfToken = randomBytes(24).toString('base64url');
@@ -186,9 +202,15 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
     });
 
     const useSecureCookie = shouldUseSecureCookie(request);
-    reply.setCookie(ACCESS_COOKIE_NAME, token, accessCookieOptions(useSecureCookie));
-    reply.setCookie(REFRESH_COOKIE_NAME, refreshToken, refreshCookieOptions(useSecureCookie));
-    reply.setCookie(CSRF_COOKIE_NAME, csrfToken, csrfCookieOptions(useSecureCookie));
+    const accessCookieExpiry = body.persistent_session ? expiresAt : undefined;
+    const refreshCookieExpiry = body.persistent_session ? refreshExpiresAt : undefined;
+    reply.setCookie(ACCESS_COOKIE_NAME, token, accessCookieOptions(useSecureCookie, accessCookieExpiry));
+    reply.setCookie(
+      REFRESH_COOKIE_NAME,
+      refreshToken,
+      refreshCookieOptions(useSecureCookie, refreshCookieExpiry),
+    );
+    reply.setCookie(CSRF_COOKIE_NAME, csrfToken, csrfCookieOptions(useSecureCookie, refreshCookieExpiry));
 
     void logAuthEvent(app.logService, {
       tenantId: identity.tenantId,
@@ -270,6 +292,8 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       throw new UnauthorizedError('Refresh token required');
     }
 
+    const persistentSession = claims.persistentSession !== false;
+
     const csrfToken = cookieToken ? assertCsrfCookieFlow(request) : undefined;
 
     const keyIdentity = await verifyJwtApiKeyIdentity(app.pgPool, {
@@ -337,6 +361,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
         ownerId: keyIdentity.ownerId,
         keyPrefix: keyIdentity.keyPrefix,
         tokenId: nextRefreshTokenId,
+        persistentSession,
       });
 
       const nextCsrfToken = randomBytes(24).toString('base64url');
@@ -365,9 +390,19 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
       await client.query('COMMIT');
 
       const useSecureCookie = shouldUseSecureCookie(request);
-      reply.setCookie(ACCESS_COOKIE_NAME, nextToken, accessCookieOptions(useSecureCookie));
-      reply.setCookie(REFRESH_COOKIE_NAME, nextRefreshToken, refreshCookieOptions(useSecureCookie));
-      reply.setCookie(CSRF_COOKIE_NAME, nextCsrfToken, csrfCookieOptions(useSecureCookie));
+      const accessCookieExpiry = persistentSession ? nextExpiresAt : undefined;
+      const refreshCookieExpiry = persistentSession ? nextRefreshExpiresAt : undefined;
+      reply.setCookie(ACCESS_COOKIE_NAME, nextToken, accessCookieOptions(useSecureCookie, accessCookieExpiry));
+      reply.setCookie(
+        REFRESH_COOKIE_NAME,
+        nextRefreshToken,
+        refreshCookieOptions(useSecureCookie, refreshCookieExpiry),
+      );
+      reply.setCookie(
+        CSRF_COOKIE_NAME,
+        nextCsrfToken,
+        csrfCookieOptions(useSecureCookie, refreshCookieExpiry),
+      );
 
       void logAuthEvent(app.logService, {
         tenantId: keyIdentity.tenantId,

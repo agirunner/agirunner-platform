@@ -26,7 +26,7 @@ export async function issueAccessToken(app: FastifyInstance, claims: JwtClaims):
 
 export async function issueRefreshToken(
   app: FastifyInstance,
-  claims: JwtClaims & { tokenId: string },
+  claims: JwtClaims & { tokenId: string; persistentSession?: boolean },
 ): Promise<string> {
   return app.jwt.sign(
     { ...claims, tokenType: 'refresh' },
