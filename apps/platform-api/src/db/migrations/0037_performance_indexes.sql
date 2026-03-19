@@ -103,3 +103,16 @@ CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_workspace
 
 CREATE INDEX IF NOT EXISTS idx_workflow_documents_workspace
   ON workflow_documents (tenant_id, workspace_id);
+
+-- JSONB expression indexes for query patterns that filter on extracted JSON fields
+CREATE INDEX IF NOT EXISTS idx_tasks_metadata_escalation_task_id
+  ON tasks (tenant_id, (metadata ->> 'escalation_task_id'))
+  WHERE metadata ->> 'escalation_task_id' IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_tasks_metadata_parent_id
+  ON tasks (tenant_id, (metadata ->> 'parent_id'))
+  WHERE metadata ->> 'parent_id' IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_retention_mode
+  ON workflow_artifacts (tenant_id, workflow_id, (retention_policy ->> 'mode'))
+  WHERE retention_policy ->> 'mode' IS NOT NULL;
