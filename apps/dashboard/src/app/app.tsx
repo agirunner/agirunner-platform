@@ -10,6 +10,7 @@ import {
   resolveAuthCallbackRedirect,
 } from '../lib/auth-session.js';
 import { clearSession, readSession } from '../lib/session.js';
+
 import { applyTheme, readTheme } from './theme.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
@@ -21,8 +22,7 @@ const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:
  * When Vite rebuilds, old chunk hashes become stale. This catches the
  * resulting import error and reloads the page once to pick up the new manifest.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function lazyWithRetry<T extends ComponentType<any>>(
+function lazyWithRetry<T extends ComponentType<unknown>>(
   factory: () => Promise<{ default: T }>,
 ): React.LazyExoticComponent<T> {
   return lazy(() =>
@@ -54,9 +54,17 @@ function isChunkLoadError(message: string): boolean {
 
 const LoginPage = lazyWithRetry(() => import('../pages/login-page.js').then((m) => ({ default: m.LoginPage })));
 
-const ExecutionCanvas = lazyWithRetry(() => import('../pages/execution/execution-canvas.js'));
+const LiveBoardPage = lazyWithRetry(() => import('../pages/mission-control/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
+const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/mission-control/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
+const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
 
+const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
+const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
+const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/work/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
+const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
+const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
 const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
+const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
 const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspaces/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));
 const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspaces/workspace-detail-page.js').then((m) => ({ default: m.WorkspaceDetailPage })));
@@ -87,16 +95,6 @@ const RetentionPolicyPage = lazyWithRetry(() => import('../pages/governance/rete
 const OrchestratorGrantsPage = lazyWithRetry(() => import('../pages/governance/orchestrator-grants-page.js').then((m) => ({ default: m.OrchestratorGrantsPage })));
 const SettingsPage = lazyWithRetry(() => import('../pages/governance/settings-page.js').then((m) => ({ default: m.SettingsPage })));
 const LogsPage = lazyWithRetry(() => import('../pages/mission-control/logs-page.js').then((m) => ({ default: m.LogsPage })));
-
-const LiveBoardPage = lazyWithRetry(() => import('../pages/mission-control/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
-const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/mission-control/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
-const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
-
-const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
-const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/work/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
-const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
-const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
-const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
 function PageFallback(): JSX.Element {
   return (
@@ -174,6 +172,11 @@ export function App(): JSX.Element {
     applyTheme(readTheme());
   }, []);
 
+  const toggleTheme = (): void => {
+    const next = readTheme() === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+  };
+
   return (
     <AppErrorBoundary>
     <Suspense fallback={<PageFallback />}>
@@ -181,29 +184,24 @@ export function App(): JSX.Element {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<SSOCallbackPage />} />
         <Route element={<RequireAuth />}>
-          <Route element={<DashboardLayout />}>
-            <Route path="/" element={<Navigate to="/execution" replace />} />
+          <Route element={<DashboardLayout onToggleTheme={toggleTheme} />}>
+            <Route path="/" element={<Navigate to="/mission-control" replace />} />
 
-            {/* Execution Canvas */}
-            <Route path="/execution" element={<Suspense fallback={<PageFallback />}><ExecutionCanvas /></Suspense>} />
-            <Route path="/execution/launch" element={<Suspense fallback={<PageFallback />}><ExecutionCanvas initialAction="launch" /></Suspense>} />
-
-            {/* Legacy pages — accessible via Deprecated nav section */}
-            <Route path="/mission-control" element={<Suspense fallback={<PageFallback />}><LiveBoardPage /></Suspense>} />
-            <Route path="/mission-control/alerts" element={<Suspense fallback={<PageFallback />}><AlertsApprovalsPage /></Suspense>} />
-            <Route path="/mission-control/costs" element={<Suspense fallback={<PageFallback />}><CostDashboardPage /></Suspense>} />
-            <Route path="/work/boards" element={<Suspense fallback={<PageFallback />}><WorkflowListPage /></Suspense>} />
-            <Route path="/work/boards/:id/inspector" element={<Suspense fallback={<PageFallback />}><WorkflowInspectorPage /></Suspense>} />
-            <Route path="/work/tasks" element={<Suspense fallback={<PageFallback />}><TaskListPage /></Suspense>} />
-            <Route path="/work/tasks/:id" element={<Suspense fallback={<PageFallback />}><TaskDetailPage /></Suspense>} />
-            <Route path="/work/approvals" element={<Suspense fallback={<PageFallback />}><ApprovalQueuePage /></Suspense>} />
-            <Route path="/work/workflows/*" element={<Navigate to="/execution" replace />} />
-
-            {/* Logs */}
+            {/* Mission Control */}
+            <Route path="/mission-control" element={<LiveBoardPage />} />
+            <Route path="/mission-control/alerts" element={<AlertsApprovalsPage />} />
+            <Route path="/mission-control/costs" element={<CostDashboardPage />} />
             <Route path="/logs" element={<LogsPage />} />
 
-            {/* Artifacts */}
+            {/* Work */}
+            <Route path="/work/boards" element={<WorkflowListPage />} />
+            <Route path="/work/boards/:id" element={<WorkflowDetailPage />} />
+            <Route path="/work/boards/:id/inspector" element={<WorkflowInspectorPage />} />
+            <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
+            <Route path="/work/tasks" element={<TaskListPage />} />
+            <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
             <Route path="/artifacts/tasks/:taskId/:artifactId" element={<ArtifactPreviewPage />} />
+            <Route path="/work/approvals" element={<ApprovalQueuePage />} />
 
             {/* Workspaces */}
             <Route path="/workspaces" element={<WorkspaceListPage />} />
@@ -247,7 +245,7 @@ export function App(): JSX.Element {
             <Route path="/governance/grants" element={<OrchestratorGrantsPage />} />
           </Route>
         </Route>
-        <Route path="*" element={<Navigate to="/execution" replace />} />
+        <Route path="*" element={<Navigate to="/mission-control" replace />} />
       </Routes>
     </Suspense>
     </AppErrorBoundary>
@@ -270,6 +268,16 @@ function RequireAuth(): JSX.Element {
   }
 
   return <Outlet />;
+}
+
+function LegacyWorkflowBoardRedirect(): JSX.Element {
+  const location = useLocation();
+  return (
+    <Navigate
+      to={`${location.pathname.replace('/work/workflows', '/work/boards')}${location.search}${location.hash}`}
+      replace
+    />
+  );
 }
 
 function LegacyWorkspaceKnowledgeRedirect(): JSX.Element {

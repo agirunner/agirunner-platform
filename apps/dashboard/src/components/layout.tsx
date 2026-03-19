@@ -3,23 +3,23 @@ import type { ElementType, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Archive,
   Bell,
   Bot,
   ChevronRight,
   Clipboard,
   Cog,
   Container,
+  Database,
   DollarSign,
   FileText,
   FolderOpen,
+  Gauge,
   HardDrive,
   Key,
   LayoutDashboard,
   Link2,
   LogOut,
   Menu,
-  Monitor,
   Moon,
   ScrollText,
   Search,
@@ -39,8 +39,8 @@ import {
 
 import { dashboardApi, type DashboardSearchResult } from '../lib/api.js';
 import { readSession, clearSession } from '../lib/session.js';
-import { readTheme, applyTheme, type ThemeMode } from '../app/theme.js';
 import { cn } from '../lib/utils.js';
+import { readTheme } from '../app/theme.js';
 import { BreadcrumbBar } from './breadcrumb-bar.js';
 import {
   Dialog,
@@ -64,6 +64,10 @@ import {
   type CommandPaletteStatus,
 } from './layout-search.js';
 
+interface LayoutProps {
+  onToggleTheme: () => void;
+}
+
 interface NavItem {
   label: string;
   href: string;
@@ -79,16 +83,27 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Execution',
-    icon: Monitor,
+    label: 'Mission Control',
+    icon: Gauge,
+    items: [
+      { label: 'Live Board', href: '/mission-control', icon: LayoutDashboard },
+      { label: 'Action Queue', href: '/mission-control/alerts', icon: Bell },
+      { label: 'Cost Dashboard', href: '/mission-control/costs', icon: DollarSign },
+      { label: 'Logs', href: '/logs', icon: ScrollText },
+    ],
+  },
+  {
+    label: 'Work',
+    icon: Workflow,
     items: [
       {
-        label: 'Execution Canvas',
-        href: '/execution',
-        icon: Monitor,
-        keywords: ['execution', 'canvas', 'workflows', 'launch', 'run', 'board', 'live'],
+        label: 'Workflow Boards',
+        href: '/work/boards',
+        icon: Workflow,
+        keywords: ['workflow', 'workflows', 'board', 'boards', 'delivery board', 'board run'],
       },
-      { label: 'Logs', href: '/logs', icon: ScrollText },
+      { label: 'Tasks', href: '/work/tasks', icon: Clipboard },
+      { label: 'Approval Queue', href: '/work/approvals', icon: Bell },
     ],
   },
   {
@@ -135,18 +150,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Orchestrator Grants', href: '/governance/grants', icon: Link2 },
     ],
   },
-  {
-    label: 'Legacy Views',
-    icon: Archive,
-    items: [
-      { label: 'Mission Control', href: '/mission-control', icon: LayoutDashboard },
-      { label: 'Alerts & Approvals', href: '/mission-control/alerts', icon: Bell },
-      { label: 'Cost Dashboard', href: '/mission-control/costs', icon: DollarSign },
-      { label: 'Boards', href: '/work/boards', icon: Clipboard },
-      { label: 'Tasks', href: '/work/tasks', icon: FileText },
-      { label: 'Approval Queue', href: '/work/approvals', icon: Clipboard },
-    ],
-  },
 ];
 
 const COMMAND_PALETTE_QUICK_LINKS: CommandPaletteItem[] = NAV_SECTIONS.flatMap((section) =>
@@ -180,7 +183,7 @@ function restoreFocusToElement(element: HTMLElement | null): boolean {
   return document.activeElement === element;
 }
 
-export function DashboardLayout(): JSX.Element {
+export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -195,7 +198,6 @@ export function DashboardLayout(): JSX.Element {
   const [recentPaletteItems, setRecentPaletteItems] = useState<CommandPaletteItem[]>(
     () => readRecentCommandPaletteItems(),
   );
-  const [theme, setTheme] = useState<ThemeMode>(() => readTheme());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const desktopSearchButtonRef = useRef<HTMLButtonElement | null>(null);
   const mobileMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -207,14 +209,7 @@ export function DashboardLayout(): JSX.Element {
   const mobileMenuRestoreFocusRef = useRef<HTMLElement | null>(null);
   const skipMobileMenuRestoreRef = useRef(false);
   const searchRequestRef = useRef(0);
-
-  useEffect(() => {
-    applyTheme(theme);
-  }, [theme]);
-
-  function toggleTheme(): void {
-    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
-  }
+  const isDark = readTheme() === 'dark';
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -237,6 +232,14 @@ export function DashboardLayout(): JSX.Element {
   );
   const actionItems = useMemo<Array<CommandPaletteItem>>(
     () => [
+      {
+        id: 'action:toggle-theme',
+        label: isDark ? 'Switch to light theme' : 'Switch to dark theme',
+        meta: 'Appearance',
+        kind: 'action',
+        actionId: 'toggle-theme',
+        keywords: ['theme', 'appearance', isDark ? 'light' : 'dark'],
+      },
       {
         id: 'action:refresh-view',
         label: 'Refresh current view',
@@ -262,7 +265,7 @@ export function DashboardLayout(): JSX.Element {
         keywords: ['recent', 'clear', 'history'],
       },
     ],
-    [],
+    [isDark],
   );
   const visiblePaletteSections = useMemo(
     () =>
@@ -341,6 +344,11 @@ export function DashboardLayout(): JSX.Element {
   }, [searchOpen]);
 
   function executeCommandPaletteAction(actionId: CommandPaletteActionId): void {
+    if (actionId === 'toggle-theme') {
+      onToggleTheme();
+      closeSearchPalette();
+      return;
+    }
     if (actionId === 'refresh-view') {
       void queryClient.invalidateQueries();
       closeSearchPalette();
@@ -499,12 +507,11 @@ export function DashboardLayout(): JSX.Element {
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={toggleTheme}
+              onClick={onToggleTheme}
               className={ICON_BUTTON_CLASSES}
-              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+              aria-label="Toggle theme"
             >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              {isDark ? <Sun size={16} /> : <Moon size={16} />}
             </button>
             {isMobile ? (
               <button
