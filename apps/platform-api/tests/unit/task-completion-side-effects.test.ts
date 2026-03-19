@@ -435,6 +435,254 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
+  it('auto-closes a planned predecessor work item after review resolution completes its last open task', async () => {
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes("AND state = 'output_pending_review'") && sql.includes('AND id = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', 'task-review']);
+          return {
+            rows: [{
+              id: 'task-dev',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'implementation-item',
+              role: 'developer',
+              state: 'output_pending_review',
+              output: { summary: 'done' },
+              metadata: {},
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          return {
+            rows: [{
+              lifecycle: 'planned',
+              definition: {
+                roles: ['developer', 'reviewer'],
+                lifecycle: 'planned',
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'implementation', goal: 'Ship the change' },
+                  { name: 'review', goal: 'Review the change' },
+                ],
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('JOIN workflow_stages ws')) {
+          if (params?.[2] === 'review-item') {
+            return {
+              rows: [{
+                stage_name: 'review',
+                column_id: 'planned',
+                completed_at: null,
+                human_gate: false,
+                gate_status: 'not_requested',
+              }],
+              rowCount: 1,
+            };
+          }
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          return {
+            rows: [{
+              stage_name: 'implementation',
+              column_id: 'planned',
+              completed_at: null,
+              human_gate: false,
+              gate_status: 'not_requested',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('SELECT id') && sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id = $3')) {
+          if (params?.[2] === 'review-item') {
+            return {
+              rows: [],
+              rowCount: 0,
+            };
+          }
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item', 'review']);
+          return {
+            rows: [{ id: 'review-item' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('SELECT COUNT(*)::int AS count') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          return {
+            rows: [{ count: 0 }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('UPDATE tasks')) {
+          return {
+            rows: [{
+              id: 'task-dev',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'implementation-item',
+              workspace_id: 'workspace-1',
+              role: 'developer',
+              state: 'completed',
+              output: { summary: 'done' },
+              metadata: {
+                review_action: 'approve_output',
+                review_resolved_by_task_id: 'task-review',
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('UPDATE workflow_work_items')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'implementation-item',
+            'done',
+            expect.any(Date),
+          ]);
+          return {
+            rows: [{ id: 'implementation-item' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT ws.id') && sql.includes('FROM workflow_stages ws')) {
+          return {
+            rows: [
+              {
+                id: 'stage-1',
+                lifecycle: 'planned',
+                name: 'implementation',
+                position: 0,
+                goal: 'Ship the change',
+                guidance: null,
+                human_gate: false,
+                status: 'active',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: new Date('2026-03-19T18:00:00Z'),
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-19T18:00:00Z'),
+                last_completed_work_item_at: new Date('2026-03-19T18:10:00Z'),
+              },
+              {
+                id: 'stage-2',
+                lifecycle: 'planned',
+                name: 'review',
+                position: 1,
+                goal: 'Review the change',
+                guidance: null,
+                human_gate: false,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 1,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-19T18:11:00Z'),
+                last_completed_work_item_at: null,
+              },
+            ],
+            rowCount: 2,
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-completed:task-review:updated',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'review',
+        nextExpectedActor: 'qa',
+        nextExpectedAction: 'handoff',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedReviewExpectation: true,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-review',
+        workflow_id: 'workflow-1',
+        work_item_id: 'review-item',
+        role: 'reviewer',
+        stage_name: 'review',
+        is_orchestrator_task: false,
+        input: { developer_task_id: 'task-dev' },
+        output: { verdict: 'approved' },
+      },
+      client as never,
+    );
+
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'work_item.completed',
+        entityId: 'implementation-item',
+        actorId: 'task_completion_side_effects',
+      }),
+      client,
+    );
+  });
+
   it('auto-completes the reviewed task across linked review work items using the parent work item fallback', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

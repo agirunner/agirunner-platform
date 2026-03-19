@@ -628,12 +628,18 @@ export class PlaybookWorkflowControlService {
       };
     }
 
-    await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
-    workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
-
     const finalArtifacts = normalizeStringArray(input.final_artifacts);
-    if (workflow.active_stage_name) {
+    const completedStageNames = new Set<string>();
+    for (let remainingStages = Math.max(definition.stages.length, 1); remainingStages > 0; remainingStages -= 1) {
+      await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
+      workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
+      if (!workflow.active_stage_name) {
+        break;
+      }
       const stage = await this.loadStage(identity.tenantId, workflowId, workflow.active_stage_name, db);
+      if (completedStageNames.has(stage.name)) {
+        break;
+      }
       if (stage.human_gate && stage.gate_status !== 'approved') {
         throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`);
       }
@@ -669,7 +675,10 @@ export class PlaybookWorkflowControlService {
           db,
         );
       }
+      completedStageNames.add(stage.name);
     }
+
+    await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
 
     const incompleteStages = await db.query<{ name: string }>(
       `SELECT name

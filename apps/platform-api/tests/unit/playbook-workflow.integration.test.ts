@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { runWorkflowActivationDispatchTick } from '../../src/jobs/lifecycle-monitor.js';
 import { seedConfigTables } from '../../src/bootstrap/seed.js';
 import { ApprovalQueueService } from '../../src/services/approval-queue-service.js';
+import { HandoffService } from '../../src/services/handoff-service.js';
 import { RoleDefinitionService } from '../../src/services/role-definition-service.js';
 import { ScheduledWorkItemTriggerService } from '../../src/services/scheduled-work-item-trigger-service.js';
 import { WebhookWorkItemTriggerService } from '../../src/services/webhook-work-item-trigger-service.js';
@@ -777,7 +778,7 @@ describe('playbook workflow integration', () => {
     expect(rawStagesBeforeCompletion.rows).toEqual([
       expect.objectContaining({ name: 'requirements', status: 'completed' }),
       expect.objectContaining({ name: 'implementation', status: 'completed' }),
-      expect.objectContaining({ name: 'release', status: 'completed' }),
+      expect.objectContaining({ name: 'release', status: 'active' }),
     ]);
 
     const completedWorkflow = await harness.workflowService.completePlaybookWorkflow(
@@ -845,6 +846,7 @@ describe('playbook workflow integration', () => {
       playbook_id: String(playbook.id),
       name: 'Successor Closure Run',
     });
+    const handoffService = new HandoffService(db.pool);
 
     const requirementsItem = await harness.workflowService.createWorkflowWorkItem(
       identity,
@@ -855,6 +857,30 @@ describe('playbook workflow integration', () => {
         stage_name: 'requirements',
         column_id: 'planned',
       },
+    );
+    const requirementsTask = await harness.taskService.createTask(identity, {
+      request_id: 'closure-req-task',
+      title: 'Confirm requirements',
+      work_item_id: String(requirementsItem.id),
+      stage_name: 'requirements',
+      role: 'product-manager',
+      input: { description: 'Confirm hello world requirements.' },
+    });
+    await handoffService.submitTaskHandoff(identity.tenantId, String(requirementsTask.id), {
+      request_id: 'closure-req-handoff',
+      summary: 'Requirements are confirmed.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await db.pool.query(
+      `UPDATE tasks
+          SET state = 'completed',
+              completed_at = now(),
+              state_changed_at = now(),
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [identity.tenantId, String(requirementsTask.id)],
     );
 
     const implementationItem = await harness.workflowService.createWorkflowWorkItem(
@@ -867,6 +893,30 @@ describe('playbook workflow integration', () => {
         stage_name: 'implementation',
         column_id: 'planned',
       },
+    );
+    const implementationTask = await harness.taskService.createTask(identity, {
+      request_id: 'closure-impl-task',
+      title: 'Implement hello world',
+      work_item_id: String(implementationItem.id),
+      stage_name: 'implementation',
+      role: 'developer',
+      input: { description: 'Implement hello world.' },
+    });
+    await handoffService.submitTaskHandoff(identity.tenantId, String(implementationTask.id), {
+      request_id: 'closure-impl-handoff',
+      summary: 'Implementation is complete.',
+      completion: 'full',
+      remaining_items: [],
+    });
+    await db.pool.query(
+      `UPDATE tasks
+          SET state = 'completed',
+              completed_at = now(),
+              state_changed_at = now(),
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND id = $2`,
+      [identity.tenantId, String(implementationTask.id)],
     );
 
     const requirementsAfterSuccessor = await harness.workflowService.getWorkflowWorkItem(

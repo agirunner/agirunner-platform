@@ -6,6 +6,7 @@ import type { TaskState } from '../orchestration/task-state-machine.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from './planned-work-item-auto-close.js';
 import type {
   WorkItemCompletionOutcome,
   WorkItemContinuityService,
@@ -167,6 +168,13 @@ export async function applyTaskCompletionSideEffects(
       continuityResult ?? null,
       client,
       logService,
+    );
+    await maybeAutoCloseCompletedPlannedPredecessorWorkItem(
+      eventService,
+      identity,
+      String(task.workflow_id),
+      asOptionalString(task.work_item_id),
+      client,
     );
     await enqueueAndDispatchImmediateWorkflowActivation(
       client,
@@ -379,6 +387,13 @@ async function maybeResolveReviewedOutput(
       actorId: 'review_resolver',
       data: appliedPayload,
     },
+    client,
+  );
+  await maybeAutoCloseCompletedPlannedPredecessorWorkItem(
+    eventService,
+    identity,
+    workflowId,
+    reviewedWorkItemId,
     client,
   );
   await eventService.emit(
