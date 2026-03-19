@@ -9,6 +9,8 @@
 - Bootstrap MUST seed runtime-facing state through platform APIs.
 - Live scenarios MUST use operator-facing flows: workspace API, workflow API, fleet/DCM restart surfaces.
 - Verification automation can be added incrementally, but every run MUST already write trace artifacts for debugging.
+- Provider bootstrap MUST support both API-key and OAuth-backed models through platform APIs.
+- OAuth live tests MAY import a pre-authorized session snapshot through admin APIs when the scenario is validating execution paths rather than the OAuth browser flow itself.
 
 ## Layout
 
@@ -20,7 +22,7 @@
   - creates test-owned roles and playbooks from fixture files through API
   - restarts orchestrator through fleet API and waits for healthy DCM state
 - `env/local.env.example`
-  - local-only secret template for admin key, provider key, Git token, and ports
+  - local-only secret template for admin key, provider auth mode, optional OAuth session snapshot, Git token, and ports
 - `library/`
   - test-owned role and playbook fixtures
 - `lib/`

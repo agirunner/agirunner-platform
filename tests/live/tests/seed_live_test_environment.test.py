@@ -16,6 +16,22 @@ class FakeClient:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict[str, object], tuple[int, ...], str | None]] = []
         self.models: list[dict[str, object]] = []
+        self.oauth_models = [
+            {
+                "id": "model-gpt-5.4",
+                "provider_id": "provider-oauth",
+                "model_id": "gpt-5.4",
+                "endpoint_type": "responses",
+                "reasoning_config": {"type": "effort", "default": "low", "options": ["low", "medium"]},
+            },
+            {
+                "id": "model-gpt-5-codex-mini",
+                "provider_id": "provider-oauth",
+                "model_id": "gpt-5-codex-mini",
+                "endpoint_type": "responses",
+                "reasoning_config": {"type": "effort", "default": "medium", "options": ["low", "medium", "high"]},
+            },
+        ]
 
     def request(
         self,
@@ -39,6 +55,15 @@ class FakeClient:
             }
             self.models.append(created)
             return {"data": created}
+
+        if method == "POST" and path == "/api/v1/config/oauth/import-session":
+            return {"data": {"providerId": "provider-oauth", "email": "operator@example.com"}}
+
+        if method == "POST" and path == "/api/v1/config/llm/providers/provider-oauth/discover":
+            return {"data": {"discovered": [], "created": self.oauth_models}}
+
+        if method == "PUT" and path == "/api/v1/config/llm/system-default":
+            return {"data": payload}
 
         if method == "PUT" and path.startswith("/api/v1/config/llm/assignments/"):
             role_name = path.rsplit("/", 1)[-1]
@@ -180,6 +205,52 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
         )
         self.assertEqual(
             {"documents": {"strategy": {"source": "external", "url": "https://example.test/roadmap"}}},
+            client.calls[2][2],
+        )
+
+    def test_seed_provider_catalog_imports_oauth_session_and_reuses_discovered_models(self) -> None:
+        client = FakeClient()
+        roles = [{"name": "live-test-developer"}, {"name": "live-test-reviewer"}]
+
+        provider, model, specialist_model = seed_live_test_environment.seed_provider_catalog(
+            client,
+            auth_mode="oauth",
+            provider_name="OpenAI (Subscription)",
+            provider_type="openai",
+            provider_base_url="https://chatgpt.com/backend-api",
+            provider_api_key=None,
+            oauth_profile_id="openai-codex",
+            oauth_session={
+                "credentials": {
+                    "accessToken": "enc:v1:access",
+                    "refreshToken": "enc:v1:refresh",
+                    "authorizedAt": "2026-03-19T00:00:00.000Z",
+                }
+            },
+            model_id="gpt-5.4",
+            model_endpoint_type="responses",
+            system_reasoning_effort="low",
+            specialist_model_id="gpt-5.4",
+            specialist_endpoint_type="responses",
+            specialist_reasoning_effort="low",
+            roles=roles,
+        )
+
+        self.assertEqual("provider-oauth", provider["id"])
+        self.assertEqual("model-gpt-5.4", model["id"])
+        self.assertEqual("model-gpt-5.4", specialist_model["id"])
+        self.assertEqual(
+            [
+                ("POST", "/api/v1/config/oauth/import-session"),
+                ("POST", "/api/v1/config/llm/providers/provider-oauth/discover"),
+                ("PUT", "/api/v1/config/llm/system-default"),
+                ("PUT", "/api/v1/config/llm/assignments/live-test-developer"),
+                ("PUT", "/api/v1/config/llm/assignments/live-test-reviewer"),
+            ],
+            [(method, path) for method, path, _, _, _ in client.calls],
+        )
+        self.assertEqual(
+            {"modelId": "model-gpt-5.4", "reasoningConfig": {"effort": "low", "reasoning_effort": "low"}},
             client.calls[2][2],
         )
 

@@ -1,6 +1,12 @@
 import type { DatabasePool } from '../db/database.js';
+import { z } from 'zod';
 import { getOAuthProfile, type OAuthProviderProfile } from '../catalogs/oauth-profiles.js';
-import { storeOAuthToken, storeProviderSecret, readOAuthToken } from '../lib/oauth-crypto.js';
+import {
+  normalizeStoredProviderSecret,
+  storeOAuthToken,
+  storeProviderSecret,
+  readOAuthToken,
+} from '../lib/oauth-crypto.js';
 import { generateCodeVerifier, generateCodeChallenge, generateState } from '../lib/pkce.js';
 import { extractChatGptAccountId, extractEmailFromJwt } from '../lib/jwt-decode.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
@@ -31,6 +37,23 @@ interface OAuthCredentials {
   authorized_by_user_id: string;
   needs_reauth: boolean;
 }
+
+const importOAuthSessionSchema = z.object({
+  profileId: z.string().min(1),
+  providerName: z.string().min(1).max(100).optional(),
+  credentials: z.object({
+    accessToken: z.string().min(1),
+    refreshToken: z.string().min(1).nullable().optional(),
+    expiresAt: z.union([z.number().int(), z.string().datetime()]).nullable().optional(),
+    accountId: z.string().min(1).nullable().optional(),
+    email: z.string().email().nullable().optional(),
+    authorizedAt: z.string().datetime().optional(),
+    authorizedByUserId: z.string().min(1).optional(),
+    needsReauth: z.boolean().optional(),
+  }),
+});
+
+export type ImportOAuthSessionInput = z.infer<typeof importOAuthSessionSchema>;
 
 export interface ResolvedOAuthToken {
   accessTokenSecret: string;
@@ -69,6 +92,32 @@ interface StateRow {
 
 export class OAuthService {
   constructor(private readonly pool: DatabasePool) {}
+
+  async importAuthorizedSession(
+    tenantId: string,
+    userId: string,
+    input: ImportOAuthSessionInput,
+  ): Promise<{ providerId: string; email: string | null }> {
+    const validated = importOAuthSessionSchema.parse(input);
+    const profile = getOAuthProfile(validated.profileId);
+    const providerId = await this.findOrCreateProvider(
+      tenantId,
+      profile,
+      validated.providerName?.trim() || undefined,
+    );
+    const credentials = buildImportedCredentials(validated.credentials, userId);
+
+    await this.pool.query(
+      `UPDATE llm_providers
+       SET oauth_credentials = $1, updated_at = NOW()
+       WHERE id = $2`,
+      [JSON.stringify(credentials), providerId],
+    );
+
+    await this.seedStaticModels(tenantId, providerId, profile);
+
+    return { providerId, email: credentials.email };
+  }
 
   /**
    * Initiate an OAuth flow. Provider is NOT created until the callback
@@ -432,6 +481,7 @@ export class OAuthService {
   private async findOrCreateProvider(
     tenantId: string,
     profile: OAuthProviderProfile,
+    providerName?: string,
   ): Promise<string> {
     const existing = await this.pool.query<ProviderRow>(
       `SELECT id FROM llm_providers
@@ -464,7 +514,7 @@ export class OAuthService {
        RETURNING id`,
       [
         tenantId,
-        profile.displayName,
+        providerName ?? profile.displayName,
         profile.baseUrl,
         JSON.stringify(config),
         JSON.stringify({ providerType: profile.providerType }),
@@ -510,6 +560,51 @@ export class OAuthService {
   private getRedirectUri(): string {
     return 'http://localhost:1455/auth/callback';
   }
+}
+
+function buildImportedCredentials(
+  input: ImportOAuthSessionInput['credentials'],
+  defaultUserId: string,
+): OAuthCredentials {
+  return {
+    access_token: normalizeStoredProviderSecret(input.accessToken.trim()),
+    refresh_token: normalizeNullableSecret(input.refreshToken),
+    expires_at: normalizeImportedExpiry(input.expiresAt),
+    account_id: normalizeNullableString(input.accountId),
+    email: normalizeNullableString(input.email),
+    authorized_at: input.authorizedAt ?? new Date().toISOString(),
+    authorized_by_user_id: input.authorizedByUserId?.trim() || defaultUserId,
+    needs_reauth: input.needsReauth ?? false,
+  };
+}
+
+function normalizeNullableSecret(value: string | null | undefined): string | null {
+  if (!value || value.trim() === '') {
+    return null;
+  }
+  return normalizeStoredProviderSecret(value.trim());
+}
+
+function normalizeNullableString(value: string | null | undefined): string | null {
+  if (!value || value.trim() === '') {
+    return null;
+  }
+  return value.trim();
+}
+
+function normalizeImportedExpiry(value: number | string | null | undefined): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) {
+    throw new ValidationError('OAuth import expiresAt must be a unix timestamp or ISO date string');
+  }
+  return parsed;
 }
 
 function buildOAuthTokenExchangeErrorMessage(status: number, rawDetail: string): string {

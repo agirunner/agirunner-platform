@@ -173,4 +173,49 @@ describe('oauth routes', () => {
       }),
     );
   });
+
+  it('imports an oauth session through the admin api', async () => {
+    const { oauthRoutes } = await import('../../src/api/routes/oauth.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('config', { DASHBOARD_URL: 'http://localhost:3000' } as never);
+    app.decorate('oauthService', {
+      handleCallback: vi.fn(),
+      initiateFlow: vi.fn(),
+      getStatus: vi.fn(),
+      disconnect: vi.fn(),
+      importAuthorizedSession: vi.fn().mockResolvedValue({
+        providerId: 'provider-1',
+        email: 'operator@example.com',
+      }),
+    });
+
+    await app.register(oauthRoutes);
+
+    const payload = {
+      profileId: 'openai-codex',
+      providerName: 'OpenAI (Subscription)',
+      credentials: {
+        accessToken: 'enc:v1:access',
+        refreshToken: 'enc:v1:refresh',
+        authorizedAt: '2026-03-19T00:00:00.000Z',
+      },
+    };
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/config/oauth/import-session',
+      headers: { authorization: 'Bearer test' },
+      payload,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      data: {
+        providerId: 'provider-1',
+        email: 'operator@example.com',
+      },
+    });
+    expect(app.oauthService.importAuthorizedSession).toHaveBeenCalledWith('tenant-1', 'user-1', payload);
+  });
 });

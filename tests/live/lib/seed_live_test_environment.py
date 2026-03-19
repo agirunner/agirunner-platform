@@ -220,6 +220,122 @@ def create_model(
     )
 
 
+def seed_provider_catalog(
+    client: ApiClient,
+    *,
+    auth_mode: str,
+    provider_name: str,
+    provider_type: str,
+    provider_base_url: str,
+    provider_api_key: str | None,
+    oauth_profile_id: str | None,
+    oauth_session: dict[str, Any] | None,
+    model_id: str,
+    model_endpoint_type: str,
+    system_reasoning_effort: str,
+    specialist_model_id: str,
+    specialist_endpoint_type: str,
+    specialist_reasoning_effort: str,
+    roles: list[dict[str, Any]],
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+    normalized_auth_mode = auth_mode.strip().lower()
+    if normalized_auth_mode == "oauth":
+        if not oauth_profile_id:
+            raise RuntimeError("LIVE_TEST_OAUTH_PROFILE_ID is required when auth mode is oauth")
+        if oauth_session is None:
+            raise RuntimeError("LIVE_TEST_OAUTH_SESSION_JSON is required when auth mode is oauth")
+
+        imported = extract_data(
+            client.request(
+                "POST",
+                "/api/v1/config/oauth/import-session",
+                payload={
+                    "profileId": oauth_profile_id,
+                    "providerName": provider_name,
+                    **oauth_session,
+                },
+                expected=(200,),
+                label="oauth.import-session",
+            )
+        )
+        provider = {
+            "id": imported["providerId"],
+            "name": provider_name,
+            "base_url": provider_base_url,
+            "auth_mode": "oauth",
+        }
+        discover_result = extract_data(
+            client.request(
+                "POST",
+                f"/api/v1/config/llm/providers/{provider['id']}/discover",
+                payload={},
+                expected=(200,),
+                label="llm.providers.discover",
+            )
+        )
+        available_models = discover_result.get("created", [])
+        model = find_model(
+            available_models,
+            provider_id=provider["id"],
+            model_id=model_id,
+            endpoint_type=model_endpoint_type,
+        )
+        if model is None:
+            raise RuntimeError(f"oauth provider did not expose required model {model_id}")
+    elif normalized_auth_mode == "api_key":
+        if not provider_api_key:
+            raise RuntimeError("LIVE_TEST_PROVIDER_API_KEY is required when auth mode is api_key")
+
+        provider = extract_data(
+            client.request(
+                "POST",
+                "/api/v1/config/llm/providers",
+                payload={
+                    "name": provider_name,
+                    "baseUrl": provider_base_url,
+                    "apiKeySecretRef": provider_api_key,
+                    "isEnabled": True,
+                    "metadata": {"providerType": provider_type},
+                },
+                expected=(201,),
+                label="llm.providers.create",
+            )
+        )
+        model = create_model(
+            client,
+            provider_id=provider["id"],
+            model_id=model_id,
+            endpoint_type=model_endpoint_type,
+            default_reasoning_effort=system_reasoning_effort,
+            label="llm.models.create.system",
+        )
+        available_models = [model]
+    else:
+        raise RuntimeError(f"unsupported LIVE_TEST_PROVIDER_AUTH_MODE: {auth_mode}")
+
+    client.request(
+        "PUT",
+        "/api/v1/config/llm/system-default",
+        payload={
+            "modelId": model["id"],
+            "reasoningConfig": reasoning_assignment(system_reasoning_effort),
+        },
+        expected=(200,),
+        label="llm.system-default.update",
+    )
+
+    specialist_model = ensure_specialist_assignments(
+        client,
+        provider_id=provider["id"],
+        existing_models=available_models,
+        roles=roles,
+        specialist_model_id=specialist_model_id,
+        specialist_endpoint_type=specialist_endpoint_type,
+        specialist_reasoning_effort=specialist_reasoning_effort,
+    )
+    return provider, model, specialist_model
+
+
 def build_workspace_create_payload(
     *,
     workspace_name: str,
@@ -347,10 +463,14 @@ def main() -> None:
     admin_api_key = env("DEFAULT_ADMIN_API_KEY", required=True)
     scenario_file = env("LIVE_TEST_SCENARIO_FILE")
     scenario = load_scenario(scenario_file) if scenario_file else None
+    provider_auth_mode = env("LIVE_TEST_PROVIDER_AUTH_MODE", "api_key")
     provider_name = env("LIVE_TEST_PROVIDER_NAME", "OpenAI")
     provider_type = env("LIVE_TEST_PROVIDER_TYPE", "openai")
     provider_base_url = env("LIVE_TEST_PROVIDER_BASE_URL", "https://api.openai.com/v1")
-    provider_api_key = env("LIVE_TEST_PROVIDER_API_KEY", required=True)
+    provider_api_key = env("LIVE_TEST_PROVIDER_API_KEY") or None
+    oauth_profile_id = env("LIVE_TEST_OAUTH_PROFILE_ID") or None
+    oauth_session_json = env("LIVE_TEST_OAUTH_SESSION_JSON")
+    oauth_session = json.loads(oauth_session_json) if oauth_session_json else None
     model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4")
     model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", "responses")
     system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "low")
@@ -389,46 +509,18 @@ def main() -> None:
     delete_workspaces(client)
     roles = sync_roles(client, roles_fixture_path)
 
-    provider = extract_data(
-        client.request(
-            "POST",
-            "/api/v1/config/llm/providers",
-            payload={
-                "name": provider_name,
-                "baseUrl": provider_base_url,
-                "apiKeySecretRef": provider_api_key,
-                "isEnabled": True,
-                "metadata": {"providerType": provider_type},
-            },
-            expected=(201,),
-            label="llm.providers.create",
-        )
-    )
-
-    model = create_model(
+    provider, model, specialist_model = seed_provider_catalog(
         client,
-        provider_id=provider["id"],
+        auth_mode=provider_auth_mode,
+        provider_name=provider_name,
+        provider_type=provider_type,
+        provider_base_url=provider_base_url,
+        provider_api_key=provider_api_key,
+        oauth_profile_id=oauth_profile_id,
+        oauth_session=oauth_session,
         model_id=model_id,
-        endpoint_type=model_endpoint_type,
-        default_reasoning_effort=system_reasoning_effort,
-        label="llm.models.create.system",
-    )
-
-    client.request(
-        "PUT",
-        "/api/v1/config/llm/system-default",
-        payload={
-            "modelId": model["id"],
-            "reasoningConfig": reasoning_assignment(system_reasoning_effort),
-        },
-        expected=(200,),
-        label="llm.system-default.update",
-    )
-
-    specialist_model = ensure_specialist_assignments(
-        client,
-        provider_id=provider["id"],
-        existing_models=[model],
+        model_endpoint_type=model_endpoint_type,
+        system_reasoning_effort=system_reasoning_effort,
         roles=roles,
         specialist_model_id=specialist_model_id,
         specialist_endpoint_type=specialist_endpoint_type,
@@ -468,6 +560,7 @@ def main() -> None:
                 "provider_id": provider["id"],
                 "provider_name": provider_name,
                 "provider_type": provider_type,
+                "provider_auth_mode": provider_auth_mode,
                 "model_id": model["id"],
                 "model_name": model_id,
                 "system_reasoning": system_reasoning_effort,

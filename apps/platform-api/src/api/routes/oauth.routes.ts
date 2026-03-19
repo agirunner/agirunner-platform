@@ -5,6 +5,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
 import { listOAuthProfiles } from '../../catalogs/oauth-profiles.js';
 import { ValidationError } from '../../errors/domain-errors.js';
+import type { ImportOAuthSessionInput } from '../../services/oauth-service.js';
 
 const OAUTH_CALLBACK_PORT = 1455;
 const GENERIC_OAUTH_ERROR = 'OAuth callback failed. Retry the connection or reconnect the provider.';
@@ -50,6 +51,21 @@ export const oauthRoutes: FastifyPluginAsync = async (app) => {
       );
 
       return { data: result };
+    },
+  );
+
+  app.post(
+    '/api/v1/config/oauth/import-session',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const userId = request.auth!.userId ?? request.auth!.ownerId ?? request.auth!.id;
+      return {
+        data: await service.importAuthorizedSession(
+          request.auth!.tenantId,
+          userId,
+          request.body as ImportOAuthSessionInput,
+        ),
+      };
     },
   );
 
