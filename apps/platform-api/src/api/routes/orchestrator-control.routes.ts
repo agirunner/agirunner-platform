@@ -1108,7 +1108,10 @@ async function normalizeOrchestratorWorkItemCreateInput(
   if (context.lifecycle !== 'planned') {
     return body;
   }
-  if (!shouldDefaultParentWorkItemId(context.event_type, context.payload)) {
+  if (
+    !shouldDefaultParentWorkItemId(context.event_type, context.payload)
+    && !shouldDefaultCrossStageParentWorkItemId(taskScope, body, context.payload)
+  ) {
     return body;
   }
   return {
@@ -1123,8 +1126,24 @@ async function normalizeOrchestratorTaskCreateInput(
   taskScope: ActiveOrchestratorTaskScope,
   body: z.infer<typeof orchestratorTaskCreateSchema>,
 ): Promise<z.infer<typeof orchestratorTaskCreateSchema>> {
-  if (body.role !== 'reviewer' || hasExplicitReviewedTaskReference(body.input)) {
+  if (!isReviewTaskCreate(body) || hasExplicitReviewedTaskReference(body.input)) {
     return body;
+  }
+
+  const existingInput = body.input ?? {};
+  const explicitTaskID = readString(existingInput.task_id);
+  if (explicitTaskID) {
+    return {
+      ...body,
+      input: {
+        ...existingInput,
+        developer_task_id: explicitTaskID,
+      },
+      metadata: {
+        ...(body.metadata ?? {}),
+        reviewed_task_id_source: 'input_task_id_default',
+      },
+    };
   }
 
   const context = await loadOrchestratorCreateWorkItemContext(
@@ -1133,7 +1152,7 @@ async function normalizeOrchestratorTaskCreateInput(
     taskScope.workflow_id,
     taskScope.activation_id,
   );
-  if (context.event_type !== 'task.output_pending_review') {
+  if (!isReviewLinkActivation(context.event_type)) {
     return body;
   }
 
@@ -1153,6 +1172,31 @@ async function normalizeOrchestratorTaskCreateInput(
       reviewed_task_id_source: 'activation_default',
     },
   };
+}
+
+function shouldDefaultCrossStageParentWorkItemId(
+  taskScope: ActiveOrchestratorTaskScope,
+  body: z.infer<typeof workItemCreateSchema>,
+  payload: Record<string, unknown>,
+) {
+  if (!readString(payload.work_item_id)) {
+    return false;
+  }
+  if (!taskScope.stage_name) {
+    return false;
+  }
+  if (!body.stage_name) {
+    return false;
+  }
+  return taskScope.stage_name !== body.stage_name;
+}
+
+function isReviewTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) {
+  return body.role === 'reviewer' || body.type === 'review';
+}
+
+function isReviewLinkActivation(eventType: string | null) {
+  return eventType === 'task.output_pending_review' || eventType === 'task.handoff_submitted';
 }
 
 async function loadOrchestratorCreateWorkItemContext(

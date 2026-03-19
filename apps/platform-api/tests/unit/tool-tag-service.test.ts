@@ -48,7 +48,7 @@ describe('ToolTagService', () => {
       expect(ids.has('read_handoff_chain')).toBe(true);
     });
 
-    it('does not expose legacy task review controls in the built-in catalog', async () => {
+    it('exposes current task review controls while excluding legacy aliases', async () => {
       const pool = {
         query: vi.fn(async () => ({ rowCount: 0, rows: [] })),
       };
@@ -57,8 +57,9 @@ describe('ToolTagService', () => {
       const result = await service.listToolTags('tenant-1');
       const ids = new Set(result.data.map((entry: Record<string, unknown>) => String(entry.id)));
 
-      expect(ids.has('approve_task')).toBe(false);
-      expect(ids.has('approve_task_output')).toBe(false);
+      expect(ids.has('approve_task')).toBe(true);
+      expect(ids.has('approve_task_output')).toBe(true);
+      expect(ids.has('request_rework')).toBe(true);
       expect(ids.has('request_task_changes')).toBe(false);
     });
   });

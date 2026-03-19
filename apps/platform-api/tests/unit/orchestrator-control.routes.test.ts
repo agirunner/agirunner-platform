@@ -474,6 +474,124 @@ describe('orchestratorControlRoutes', () => {
     );
   });
 
+  it('defaults parent_work_item_id for cross-stage successor work created from a task.handoff_submitted activation', async () => {
+    const parentWorkItemId = '33333333-3333-4333-8333-333333333333';
+    const workflowService = {
+      createWorkflowWorkItem: vi.fn(async () => ({
+        id: 'work-item-review',
+        workflow_id: 'workflow-1',
+        stage_name: 'review',
+        parent_work_item_id: parentWorkItemId,
+      })),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'create_work_item', 'create-wi-handoff']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                id: 'work-item-review',
+                workflow_id: 'workflow-1',
+                stage_name: 'review',
+                parent_work_item_id: parentWorkItemId,
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-create-handoff-successor']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-create-handoff-successor',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: null,
+              stage_name: 'implementation',
+              activation_id: 'activation-handoff',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workflow_activations wa')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-handoff']);
+          return {
+            rowCount: 1,
+            rows: [{
+              lifecycle: 'planned',
+              event_type: 'task.handoff_submitted',
+              payload: {
+                task_id: 'task-developer',
+                work_item_id: parentWorkItemId,
+                stage_name: 'implementation',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', workflowService);
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-create-handoff-successor/work-items',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-wi-handoff',
+        title: 'Review implementation',
+        goal: 'Review implementation output',
+        acceptance_criteria: 'Review exists',
+        stage_name: 'review',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(workflowService.createWorkflowWorkItem).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'workflow-1',
+      expect.objectContaining({
+        request_id: 'create-wi-handoff',
+        stage_name: 'review',
+        parent_work_item_id: parentWorkItemId,
+      }),
+      client,
+    );
+  });
+
   it('writes orchestrator memory into an explicitly targeted work-item scope', async () => {
     const workItemId = '11111111-1111-4111-8111-111111111111';
     const workflowService = {
@@ -1099,6 +1217,127 @@ describe('orchestratorControlRoutes', () => {
           reviewed_task_id_source: 'activation_default',
           created_by_orchestrator_task_id: 'task-orchestrator',
           orchestrator_activation_id: 'activation-review',
+        }),
+      }),
+      client,
+    );
+    expect(response.json().data).toEqual(createdTask);
+  });
+
+  it('defaults custom review-role linkage from a task.handoff_submitted activation when task type is review', async () => {
+    const reviewWorkItemId = '44444444-4444-4444-8444-444444444444';
+    const createdTask = {
+      id: 'task-custom-reviewer',
+      workflow_id: 'workflow-1',
+      work_item_id: reviewWorkItemId,
+      stage_name: 'review',
+      role: 'live-test-reviewer',
+      state: 'pending',
+      metadata: {},
+    };
+    const taskService = {
+      createTask: vi.fn().mockResolvedValue(createdTask),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-custom-review-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: createdTask }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: 'implementation-item',
+              stage_name: 'implementation',
+              activation_id: 'activation-handoff-review',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workflow_activations wa')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-handoff-review']);
+          return {
+            rowCount: 1,
+            rows: [{
+              lifecycle: 'planned',
+              event_type: 'task.handoff_submitted',
+              payload: {
+                task_id: 'task-developer',
+                work_item_id: 'implementation-item',
+                stage_name: 'implementation',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-custom-review-1',
+        title: 'Review hello world output',
+        description: 'Review the developer-delivered work.',
+        work_item_id: reviewWorkItemId,
+        stage_name: 'review',
+        role: 'live-test-reviewer',
+        type: 'review',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(taskService.createTask).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      expect.objectContaining({
+        role: 'live-test-reviewer',
+        type: 'review',
+        input: expect.objectContaining({
+          developer_task_id: 'task-developer',
+        }),
+        metadata: expect.objectContaining({
+          reviewed_task_id_source: 'activation_default',
+          created_by_orchestrator_task_id: 'task-orchestrator',
+          orchestrator_activation_id: 'activation-handoff-review',
         }),
       }),
       client,
