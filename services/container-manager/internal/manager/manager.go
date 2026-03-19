@@ -295,19 +295,34 @@ func (m *Manager) reconcileOnceWithDesired(ctx context.Context, desired []Desire
 		return fmt.Errorf("list containers: %w", err)
 	}
 
+	desiredByID := make(map[string]DesiredState, len(desired))
+	for _, ds := range desired {
+		desiredByID[ds.ID] = ds
+	}
+
 	byDesiredID := make(map[string][]ContainerInfo)
+	orphanedContainers := make([]ContainerInfo, 0)
 	for _, c := range actual {
 		dsID, ok := c.Labels[labelDesiredStateID]
 		if !ok {
 			continue
 		}
+		if _, exists := desiredByID[dsID]; !exists {
+			orphanedContainers = append(orphanedContainers, c)
+			continue
+		}
 		byDesiredID[dsID] = append(byDesiredID[dsID], c)
+	}
+
+	cleanedOrphans := make(map[string]struct{}, len(orphanedContainers))
+	for _, c := range orphanedContainers {
+		cleanedOrphans[c.ID] = struct{}{}
+		m.removeWDSOrphanContainer(ctx, c)
 	}
 
 	// For each desired state, ensure the right containers exist
 	for _, ds := range desired {
 		existingContainers := byDesiredID[ds.ID]
-		delete(byDesiredID, ds.ID)
 
 		if ds.Draining {
 			m.handleDraining(ctx, ds, existingContainers)
@@ -322,32 +337,43 @@ func (m *Manager) reconcileOnceWithDesired(ctx context.Context, desired []Desire
 		m.reconcileDesired(ctx, ds, existingContainers)
 	}
 
-	// Remove orphaned containers (actual with no matching desired)
-	for _, containers := range byDesiredID {
-		for _, c := range containers {
-			m.logger.Info("removing orphaned container", "container", c.ID, "name", c.Name)
-			if err := m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout); err != nil {
-				m.logger.Error("failed to stop orphaned container", "container", c.ID, "error", err)
-			}
-			if err := m.docker.RemoveContainer(ctx, c.ID); err != nil {
-				m.logger.Error("failed to remove orphaned container", "container", c.ID, "error", err)
-			}
-			m.emitLog("container", "container.wds_orphan_cleanup", "warn", "completed", map[string]any{
-				"action":       "orphan_clean",
-				"container_id": c.ID,
-				"name":         c.Name,
-				"reason":       "no_matching_desired_state",
-			})
-		}
-	}
-
 	// Report actual state for all managed containers
-	m.reportActualState(ctx, actual)
+	m.reportActualState(ctx, filterContainersByID(actual, cleanedOrphans))
 
 	// Report images
 	m.reportImages(ctx)
 
 	return nil
+}
+
+func filterContainersByID(containers []ContainerInfo, excluded map[string]struct{}) []ContainerInfo {
+	if len(excluded) == 0 {
+		return containers
+	}
+	filtered := make([]ContainerInfo, 0, len(containers))
+	for _, container := range containers {
+		if _, skip := excluded[container.ID]; skip {
+			continue
+		}
+		filtered = append(filtered, container)
+	}
+	return filtered
+}
+
+func (m *Manager) removeWDSOrphanContainer(ctx context.Context, c ContainerInfo) {
+	m.logger.Info("removing orphaned container", "container", c.ID, "name", c.Name)
+	if err := m.docker.StopContainer(ctx, c.ID, m.config.StopTimeout); err != nil {
+		m.logger.Error("failed to stop orphaned container", "container", c.ID, "error", err)
+	}
+	if err := m.docker.RemoveContainer(ctx, c.ID); err != nil {
+		m.logger.Error("failed to remove orphaned container", "container", c.ID, "error", err)
+	}
+	m.emitLog("container", "container.wds_orphan_cleanup", "warn", "completed", map[string]any{
+		"action":       "orphan_clean",
+		"container_id": c.ID,
+		"name":         c.Name,
+		"reason":       "no_matching_desired_state",
+	})
 }
 
 func (m *Manager) reconcileDesired(ctx context.Context, ds DesiredState, existing []ContainerInfo) {

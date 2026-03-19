@@ -51,6 +51,7 @@ type mockDockerClient struct {
 	listErr         error
 	stopErr         error
 	removeErr       error
+	failOnExistingName bool
 	stopWaitForCtx  bool
 	sawStopDeadline bool
 	listImagesErr   error
@@ -75,6 +76,13 @@ func (m *mockDockerClient) ListContainers(_ context.Context) ([]ContainerInfo, e
 func (m *mockDockerClient) CreateContainer(_ context.Context, spec ContainerSpec) (string, error) {
 	if m.createErr != nil {
 		return "", m.createErr
+	}
+	if m.failOnExistingName {
+		for _, existing := range m.containers {
+			if existing.Name == spec.Name {
+				return "", fmt.Errorf("Conflict. The container name %q is already in use", spec.Name)
+			}
+		}
 	}
 	m.createdSpecs = append(m.createdSpecs, spec)
 	m.nextContainerID++
@@ -102,6 +110,14 @@ func (m *mockDockerClient) RemoveContainer(_ context.Context, containerID string
 		return m.removeErr
 	}
 	m.removedIDs = append(m.removedIDs, containerID)
+	filtered := m.containers[:0]
+	for _, existing := range m.containers {
+		if existing.ID == containerID {
+			continue
+		}
+		filtered = append(filtered, existing)
+	}
+	m.containers = filtered
 	return nil
 }
 
@@ -786,6 +802,37 @@ func TestReconcileOnceRestartRequestedDoesNotAcknowledgeWhenRecreateFails(t *tes
 	}
 	if len(platform.ackedRestarts) != 0 {
 		t.Fatalf("expected no restart acknowledgement after recreate failure, got %v", platform.ackedRestarts)
+	}
+}
+
+func TestReconcileOnceRestartRequestedRemovesSameNameWDSOrphanBeforeRecreate(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.failOnExistingName = true
+	docker.containers = []ContainerInfo{
+		makeContainerInfo("c-orphan", "orchestrator-primary", "agirunner-runtime:local", "ds-old", 1),
+	}
+	ds := makeDesiredState("ds-1", "orchestrator-primary", "agirunner-runtime:local", 1, 1)
+	ds.RestartRequested = true
+	ds.Role = "orchestrator"
+	ds.PoolKind = "orchestrator"
+	platform := &mockPlatformClient{
+		desiredStates: []DesiredState{ds},
+	}
+	r := newTestManager(docker, platform)
+
+	err := r.reconcileOnce(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "c-orphan" {
+		t.Fatalf("expected stale same-name orphan removed before recreate, got %v", docker.removedIDs)
+	}
+	if len(docker.createdSpecs) != 1 {
+		t.Fatalf("expected one replacement container created after orphan cleanup, got %d", len(docker.createdSpecs))
+	}
+	if len(platform.ackedRestarts) != 1 || platform.ackedRestarts[0] != "ds-1" {
+		t.Fatalf("expected restart acknowledgement for ds-1, got %v", platform.ackedRestarts)
 	}
 }
 
