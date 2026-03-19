@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowStageService } from '../../src/services/workflow-stage-service.js';
 
 describe('WorkflowStageService', () => {
-  it('keeps future planned stages pending until advance_stage explicitly activates them', async () => {
+  it('treats the earliest open successor stage as active for planned workflows', async () => {
     const pool = {
       query: vi
         .fn()
@@ -78,15 +78,16 @@ describe('WorkflowStageService', () => {
     expect(stages).toEqual([
       expect.objectContaining({
         name: 'implementation',
-        status: 'active',
-        is_active: true,
+        status: 'completed',
+        is_active: false,
         started_at: '2026-03-11T00:00:00.000Z',
+        completed_at: '2026-03-11T00:30:00.000Z',
       }),
       expect.objectContaining({
         name: 'review',
-        status: 'pending',
-        is_active: false,
-        started_at: null,
+        status: 'active',
+        is_active: true,
+        started_at: '2026-03-11T01:00:00.000Z',
       }),
       expect.objectContaining({
         name: 'release',

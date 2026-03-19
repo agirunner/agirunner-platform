@@ -138,6 +138,41 @@ export function normalizeWorkflowStageView(
   };
 }
 
+export function normalizeWorkflowStageViews(
+  rows: WorkflowStageViewInput[],
+): WorkflowStageResponse[] {
+  const orderedRows = rows
+    .slice()
+    .sort((left, right) => left.position - right.position);
+  if (orderedRows.length === 0) {
+    return [];
+  }
+  if (orderedRows[0]?.lifecycle !== 'planned') {
+    return orderedRows.map(normalizeWorkflowStageView);
+  }
+  const firstOpenStageIndex = orderedRows.findIndex((row) => row.open_work_item_count > 0);
+  return orderedRows.map((row, index) =>
+    normalizeWorkflowStageView(
+      index === firstOpenStageIndex
+        ? {
+            ...row,
+            status: derivePlannedStageStatus(row, {
+              isCurrentOpenStage: true,
+              hasEarlierOpenStage: false,
+            }),
+          }
+        : {
+            ...row,
+            status: derivePlannedStageStatus(row, {
+              isCurrentOpenStage: false,
+              hasEarlierOpenStage: firstOpenStageIndex >= 0 && index > firstOpenStageIndex,
+              hasLaterOpenStage: firstOpenStageIndex >= 0 && index < firstOpenStageIndex,
+            }),
+          },
+    ),
+  );
+}
+
 export function currentStageNameFromStages(
   stages: Array<Pick<WorkflowStageResponse, 'name' | 'status' | 'position'>>,
 ) {
@@ -151,11 +186,11 @@ export function currentStageNameFromStages(
 function deriveStageView(row: WorkflowStageViewInput) {
   const status = row.lifecycle === 'ongoing'
     ? deriveContinuousStageStatus(row)
-    : derivePlannedStageStatus(row);
+    : normalizePlannedStatus(row.status);
   const startedAt =
     row.lifecycle === 'ongoing'
       ? row.started_at ?? row.first_work_item_at
-      : row.started_at;
+      : row.started_at ?? (status === 'active' || status === 'completed' ? row.first_work_item_at : null);
   const completedAt =
     status === 'completed' ? row.completed_at ?? row.last_completed_work_item_at : null;
   return {
@@ -166,12 +201,47 @@ function deriveStageView(row: WorkflowStageViewInput) {
   };
 }
 
-function derivePlannedStageStatus(row: WorkflowStageViewInput) {
+function normalizePlannedStatus(status: string) {
+  if (status === 'awaiting_gate') {
+    return 'awaiting_gate';
+  }
+  if (status === 'blocked') {
+    return 'blocked';
+  }
+  if (status === 'completed') {
+    return 'completed';
+  }
+  if (isActiveStageStatus(status)) {
+    return status;
+  }
+  return 'pending';
+}
+
+function derivePlannedStageStatus(
+  row: WorkflowStageViewInput,
+  input: {
+    isCurrentOpenStage?: boolean;
+    hasEarlierOpenStage?: boolean;
+    hasLaterOpenStage?: boolean;
+  } = {},
+) {
   if (row.gate_status === 'awaiting_approval') {
     return 'awaiting_gate';
   }
   if (row.gate_status === 'rejected') {
     return 'blocked';
+  }
+  if (row.gate_status === 'changes_requested') {
+    return 'active';
+  }
+  if (input.isCurrentOpenStage) {
+    return 'active';
+  }
+  if (input.hasLaterOpenStage) {
+    return row.total_work_item_count > 0 || row.status === 'completed' ? 'completed' : 'pending';
+  }
+  if (input.hasEarlierOpenStage) {
+    return row.status === 'completed' ? 'completed' : 'pending';
   }
   if (row.status === 'completed') {
     return 'completed';
@@ -245,5 +315,5 @@ export async function queryWorkflowStageViews(
       ORDER BY ws.position ASC`,
     [tenantId, workflowId],
   );
-  return result.rows.map(normalizeWorkflowStageView);
+  return normalizeWorkflowStageViews(result.rows);
 }

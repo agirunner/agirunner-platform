@@ -1,7 +1,7 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import {
   currentStageNameFromStages,
-  normalizeWorkflowStageView,
+  normalizeWorkflowStageViews,
   type WorkflowStageResponse,
   type WorkflowStageViewInput,
 } from './workflow-stage-service.js';
@@ -52,7 +52,7 @@ export async function reconcilePlannedWorkflowStages(
   workflowId: string,
 ): Promise<{ currentStage: string | null; stages: WorkflowStageResponse[] }> {
   const stageResult = await db.query<ReconciledStageRow>(STAGE_VIEW_QUERY, [tenantId, workflowId]);
-  const stages = stageResult.rows.map(normalizeWorkflowStageView);
+  const stages = normalizeWorkflowStageViews(stageResult.rows);
 
   for (const [index, row] of stageResult.rows.entries()) {
     const stage = stages[index];

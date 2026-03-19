@@ -28,7 +28,12 @@ describe('prompt catalogs', () => {
   it('keeps orchestrator prompt aligned with continuity, budget, and stage guidance', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Operational continuity lives in work items, rule posture, and structured handoffs.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Check workflow budget posture when cost, time, or token pressure matters');
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use advance_stage when planned workflows are ready to move forward.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Routing accepted work into the next stage and closing the predecessor work item is the progression mutation; do not also call advance_stage for the same move.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Use advance_stage only if the predecessor still shows as current and successor-stage routing has not already moved the workflow on.',
+    );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'complete the predecessor work item if its deliverable is accepted',
     );

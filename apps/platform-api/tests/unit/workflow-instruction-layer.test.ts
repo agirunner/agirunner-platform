@@ -71,7 +71,10 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Stage Routing');
     expect(layer!.content).toContain('Successor stage after acceptance: verification');
     expect(layer!.content).toContain(
-      `Creating successor work items or specialist tasks does not change the planned workflow's current stage; call advance_stage explicitly from "review" to "verification" before you finish the activation.`,
+      `Creating successor work in "verification" and closing the accepted predecessor work item is itself the forward-routing mutation for this planned workflow.`,
+    );
+    expect(layer!.content).toContain(
+      `If the platform already reports "verification" as current after you route successor work, treat any repeated advance_stage request for "review" -> "verification" as unnecessary and do not issue it again.`,
     );
     expect(layer!.content).toContain(
       'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_review is the only allowed carryover, and only for a required review checkpoint.',

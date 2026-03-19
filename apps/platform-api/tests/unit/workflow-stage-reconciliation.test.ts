@@ -77,9 +77,10 @@ describe('reconcilePlannedWorkflowStages', () => {
     });
   });
 
-  it('keeps a planned active stage current until advance_stage explicitly completes it', async () => {
+  it('reconciles planned stages from the earliest open successor work item', async () => {
+    const updates: Array<{ id: string; status: string }> = [];
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('SELECT ws.id')) {
           return {
             rowCount: 3,
@@ -144,6 +145,13 @@ describe('reconcilePlannedWorkflowStages', () => {
             ],
           };
         }
+        if (sql.includes('UPDATE workflow_stages')) {
+          updates.push({
+            id: String((params ?? [])[2]),
+            status: String((params ?? [])[3]),
+          });
+          return { rowCount: 1, rows: [] };
+        }
         if (sql.includes('UPDATE workflows')) {
           throw new Error('planned workflow reconciliation should not persist workflow.current_stage');
         }
@@ -154,17 +162,17 @@ describe('reconcilePlannedWorkflowStages', () => {
     const result = await reconcilePlannedWorkflowStages(pool as never, 'tenant-1', 'workflow-1');
 
     expect(result).toEqual({
-      currentStage: 'implementation',
+      currentStage: 'review',
       stages: [
         expect.objectContaining({
           name: 'implementation',
-          status: 'active',
-          is_active: true,
+          status: 'completed',
+          is_active: false,
         }),
         expect.objectContaining({
           name: 'review',
-          status: 'pending',
-          is_active: false,
+          status: 'active',
+          is_active: true,
         }),
         expect.objectContaining({
           name: 'release',
@@ -173,5 +181,9 @@ describe('reconcilePlannedWorkflowStages', () => {
         }),
       ],
     });
+    expect(updates).toEqual([
+      { id: 'stage-1', status: 'completed' },
+      { id: 'stage-2', status: 'active' },
+    ]);
   });
 });

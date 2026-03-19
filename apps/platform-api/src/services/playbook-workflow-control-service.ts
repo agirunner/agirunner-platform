@@ -1340,7 +1340,7 @@ function isIdempotentStageAdvance(
   sourceStage: WorkflowStageRow,
   nextStageName: string,
 ) {
-  return sourceStage.status === 'completed' && currentStageName === nextStageName;
+  return Boolean(currentStageName) && currentStageName === nextStageName;
 }
 
 function terminalColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition>) {

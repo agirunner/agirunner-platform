@@ -2270,6 +2270,55 @@ describe('PlaybookWorkflowControlService', () => {
     expect(loadStage).toHaveBeenCalled();
   });
 
+  it('treats a repeated stage advance as idempotent even before the source stage row reconciles', async () => {
+    const service = new PlaybookWorkflowControlService({
+      pool: {} as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+    vi.spyOn(service as never, 'loadWorkflow').mockResolvedValue({
+      id: 'workflow-1',
+      workspace_id: 'workspace-1',
+      playbook_id: 'playbook-1',
+      lifecycle: 'planned',
+      active_stage_name: 'implementation',
+      state: 'active',
+      orchestration_state: {},
+      definition,
+    });
+    vi.spyOn(service as never, 'loadStage').mockResolvedValue({
+      id: 'stage-1',
+      name: 'requirements',
+      position: 0,
+      goal: 'Define scope',
+      guidance: null,
+      human_gate: true,
+      status: 'active',
+      gate_status: 'approved',
+      iteration_count: 0,
+      summary: 'Requirements approved',
+      metadata: {},
+      started_at: new Date('2026-03-11T00:00:00Z'),
+      completed_at: null,
+      updated_at: new Date('2026-03-11T00:30:00Z'),
+    });
+
+    const result = await service.advanceStage(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'requirements',
+      { summary: 'Requirements approved' },
+      {} as never,
+    );
+
+    expect(result).toEqual({
+      completed_stage: 'requirements',
+      next_stage: 'implementation',
+    });
+  });
+
   it('rejects explicit stage advances that skip the immediate next planned stage', async () => {
     const service = new PlaybookWorkflowControlService({
       pool: {} as never,
