@@ -2,6 +2,7 @@ import fastify from 'fastify';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { ValidationError } from '../../src/errors/domain-errors.js';
 import {
   normalizeOrchestratorChildWorkflowLinkage,
   orchestratorControlRoutes,
@@ -249,6 +250,113 @@ describe('orchestratorControlRoutes', () => {
 
     expect(response.statusCode).toBe(422);
     expect(response.json().error.code).toBe('SCHEMA_VALIDATION_FAILED');
+  });
+
+  it('returns a structured no-op when successor work is not ready yet', async () => {
+    const workflowService = {
+      createWorkflowWorkItem: vi.fn(async () => {
+        throw new ValidationError(
+          "Cannot create successor work item in stage 'technical-review' while predecessor 'Draft PRD for workflow budget alerts' (requirements) still has non-terminal tasks. Wait for the current checkpoint task to finish before routing to the next stage.",
+        );
+      }),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'create_work_item',
+            'create-wi-not-ready',
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                noop: true,
+                ready: false,
+                reason_code: 'predecessor_not_ready',
+                stage_name: 'technical-review',
+                work_item_id: null,
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-not-ready']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-not-ready',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: null,
+              stage_name: 'requirements',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', workflowService);
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-not-ready/work-items',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-wi-not-ready',
+        parent_work_item_id: '11111111-1111-4111-8111-111111111111',
+        title: 'Technical review for workflow budget alerts PRD',
+        goal: 'Produce a technical review artifact for the PRD',
+        acceptance_criteria: 'Review artifact exists',
+        stage_name: 'technical-review',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        noop: true,
+        ready: false,
+        reason_code: 'predecessor_not_ready',
+        stage_name: 'technical-review',
+        work_item_id: null,
+      }),
+    );
   });
 
   it('rejects orchestrator continuity writes with non-allowlisted fields', async () => {

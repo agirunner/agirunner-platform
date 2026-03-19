@@ -333,14 +333,15 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         'create_work_item',
         body.request_id,
         (client) =>
-          app.workflowService.createWorkflowWorkItem(
+          createWorkflowWorkItemOrNoop(
+            app,
             request.auth!,
             taskScope.workflow_id,
             normalizedBody,
             client,
           ),
       );
-      return reply.status(201).send({ data: workItem });
+      return reply.status(workItem.noop === true ? 200 : 201).send({ data: workItem });
     },
   );
 
@@ -1182,6 +1183,68 @@ async function runIdempotentMutation<T extends Record<string, unknown>>(
   } finally {
     client.release();
   }
+}
+
+async function createWorkflowWorkItemOrNoop(
+  app: FastifyInstance,
+  identity: ApiKeyIdentity,
+  workflowId: string,
+  input: z.infer<typeof workItemCreateSchema>,
+  client: import('../../db/database.js').DatabaseClient,
+): Promise<Record<string, unknown>> {
+  try {
+    return await app.workflowService.createWorkflowWorkItem(
+      identity,
+      workflowId,
+      input,
+      client,
+    );
+  } catch (error) {
+    const noop = buildRecoverableCreateWorkItemNoop(input, error);
+    if (noop) {
+      return noop;
+    }
+    throw error;
+  }
+}
+
+function buildRecoverableCreateWorkItemNoop(
+  input: z.infer<typeof workItemCreateSchema>,
+  error: unknown,
+): Record<string, unknown> | null {
+  if (!(error instanceof ValidationError)) {
+    return null;
+  }
+
+  const message = error.message;
+  const reasonCode = classifyRecoverableCreateWorkItemReason(message);
+  if (!reasonCode) {
+    return null;
+  }
+
+  return {
+    noop: true,
+    ready: false,
+    reason_code: reasonCode,
+    message,
+    blocked_on: [message],
+    stage_name: input.stage_name,
+    parent_work_item_id: input.parent_work_item_id ?? null,
+    work_item_id: null,
+  };
+}
+
+function classifyRecoverableCreateWorkItemReason(message: string): string | null {
+  if (message.includes('still has non-terminal tasks')) {
+    return 'predecessor_not_ready';
+  }
+  if (message.includes('still awaits gate approval')) {
+    return 'predecessor_waiting_for_gate';
+  }
+  if (message.includes('has a full handoff')) {
+    return 'predecessor_waiting_for_handoff';
+  }
+  return null;
 }
 
 async function loadExistingChildWorkflow(
