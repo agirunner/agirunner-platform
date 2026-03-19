@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { workflowArtifacts } from './workflow-artifacts.js';
@@ -31,5 +32,8 @@ export const workflowDocuments = pgTable(
   (table) => [
     index('idx_workflow_documents_tenant_workflow').on(table.tenantId, table.workflowId, table.createdAt),
     index('idx_workflow_documents_tenant_task').on(table.tenantId, table.taskId),
+    index('idx_workflow_documents_artifact')
+      .on(table.artifactId)
+      .where(sql`${table.artifactId} IS NOT NULL`),
   ],
 );

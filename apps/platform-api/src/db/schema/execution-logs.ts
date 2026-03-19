@@ -111,5 +111,7 @@ export const executionLogs = pgTable(
     ),
     index('idx_exlogs_span').on(table.parentSpanId, table.createdAt),
     index('idx_exlogs_ops_distinct').on(table.tenantId, table.operation, table.createdAt),
+    index('idx_exlogs_level').on(table.tenantId, table.level, table.createdAt),
+    index('idx_exlogs_status').on(table.tenantId, table.status, table.createdAt),
   ],
 );

@@ -51,5 +51,12 @@ export const orchestratorTaskMessages = pgTable(
     index('idx_orchestrator_task_messages_pending')
       .on(table.tenantId, table.workflowId, table.deliveryState)
       .where(sql`${table.deliveryState} IN ('pending_delivery', 'delivery_in_progress')`),
+    index('idx_orchestrator_task_messages_orchestrator_task').on(
+      table.tenantId,
+      table.orchestratorTaskId,
+    ),
+    index('idx_orchestrator_task_messages_worker')
+      .on(table.tenantId, table.workerId)
+      .where(sql`${table.workerId} IS NOT NULL`),
   ],
 );

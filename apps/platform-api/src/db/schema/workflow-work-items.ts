@@ -51,5 +51,8 @@ export const workflowWorkItems = pgTable(
     uniqueIndex('idx_workflow_work_items_request_id')
       .on(table.tenantId, table.workflowId, table.requestId)
       .where(sql`${table.requestId} IS NOT NULL`),
+    index('idx_workflow_work_items_parent')
+      .on(table.tenantId, table.parentWorkItemId)
+      .where(sql`${table.parentWorkItemId} IS NOT NULL`),
   ],
 );

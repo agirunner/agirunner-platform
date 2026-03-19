@@ -98,5 +98,9 @@ export const tasks = pgTable(
     uniqueIndex('idx_tasks_request_id_no_workflow')
       .on(table.tenantId, table.requestId)
       .where(sql`${table.requestId} IS NOT NULL AND ${table.workflowId} IS NULL`),
+    index('idx_tasks_assigned_worker')
+      .on(table.assignedWorkerId)
+      .where(sql`${table.assignedWorkerId} IS NOT NULL`),
+    index('idx_tasks_workflow_state').on(table.tenantId, table.workflowId, table.state),
   ],
 );

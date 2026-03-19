@@ -15,5 +15,8 @@ export const roleModelAssignments = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_role_model_assignments_tenant').on(table.tenantId)],
+  (table) => [
+    index('idx_role_model_assignments_tenant').on(table.tenantId),
+    index('idx_role_model_assignments_role').on(table.tenantId, table.roleName),
+  ],
 );

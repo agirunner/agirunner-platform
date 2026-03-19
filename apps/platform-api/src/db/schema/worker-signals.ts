@@ -21,5 +21,10 @@ export const workerSignals = pgTable(
     delivered: boolean('delivered').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_worker_signals_pending').on(table.workerId, table.delivered).where(sql`${table.delivered} = false`)],
+  (table) => [
+    index('idx_worker_signals_pending').on(table.workerId, table.delivered).where(sql`${table.delivered} = false`),
+    index('idx_worker_signals_task')
+      .on(table.taskId)
+      .where(sql`${table.taskId} IS NOT NULL`),
+  ],
 );

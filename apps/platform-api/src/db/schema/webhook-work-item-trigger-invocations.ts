@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
@@ -27,5 +28,8 @@ export const webhookWorkItemTriggerInvocations = pgTable(
       table.triggerId,
       table.createdAt,
     ),
+    index('idx_webhook_work_item_trigger_invocations_work_item')
+      .on(table.workItemId)
+      .where(sql`${table.workItemId} IS NOT NULL`),
   ],
 );

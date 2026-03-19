@@ -27,5 +27,7 @@ export const integrationAdapterDeliveries = pgTable(
   },
   (table) => [
     index('idx_integration_adapter_deliveries_pending').on(table.tenantId, table.status, table.createdAt),
+    index('idx_integration_adapter_deliveries_adapter').on(table.adapterId),
+    index('idx_integration_adapter_deliveries_event').on(table.eventId),
   ],
 );

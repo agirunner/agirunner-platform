@@ -26,5 +26,6 @@ export const llmModels = pgTable(
   (table) => [
     index('idx_llm_models_tenant').on(table.tenantId),
     index('idx_llm_models_provider').on(table.providerId),
+    index('idx_llm_models_model_id').on(table.tenantId, table.modelId),
   ],
 );

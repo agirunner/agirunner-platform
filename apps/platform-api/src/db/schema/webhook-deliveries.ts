@@ -26,5 +26,8 @@ export const webhookDeliveries = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_webhook_deliveries_pending').on(table.tenantId, table.status, table.createdAt)],
+  (table) => [
+    index('idx_webhook_deliveries_pending').on(table.tenantId, table.status, table.createdAt),
+    index('idx_webhook_deliveries_webhook').on(table.webhookId),
+  ],
 );

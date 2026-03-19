@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { index, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
@@ -24,5 +25,11 @@ export const fleetEvents = pgTable(
     index('idx_fleet_events_playbook').on(table.playbookId, table.createdAt),
     index('idx_fleet_events_runtime').on(table.runtimeId, table.createdAt),
     index('idx_fleet_events_type').on(table.eventType),
+    index('idx_fleet_events_workflow')
+      .on(table.workflowId, table.createdAt)
+      .where(sql`${table.workflowId} IS NOT NULL`),
+    index('idx_fleet_events_task')
+      .on(table.taskId, table.createdAt)
+      .where(sql`${table.taskId} IS NOT NULL`),
   ],
 );

@@ -32,5 +32,6 @@ export const integrationActions = pgTable(
       table.actionType,
       table.createdAt,
     ),
+    index('idx_integration_actions_adapter').on(table.tenantId, table.adapterId),
   ],
 );
