@@ -307,6 +307,131 @@ describe('TaskWriteService', () => {
     expect(insertedRequiresOutputReview).toBe(false);
   });
 
+  it('only requires output review on the checkpoint named by the playbook review rule', async () => {
+    const insertedRequiresOutputReview: boolean[] = [];
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          const workItemId = values?.[1];
+          if (workItemId === 'reproduce-item') {
+            return {
+              rowCount: 1,
+              rows: [{ workflow_id: 'workflow-1', stage_name: 'reproduce' }],
+            };
+          }
+          if (workItemId === 'test-item') {
+            return {
+              rowCount: 1,
+              rows: [{ workflow_id: 'workflow-1', stage_name: 'test' }],
+            };
+          }
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                roles: ['live-test-developer', 'live-test-qa', 'live-test-reviewer'],
+                review_rules: [
+                  {
+                    from_role: 'live-test-developer',
+                    reviewed_by: 'live-test-qa',
+                    checkpoint: 'test',
+                    required: true,
+                  },
+                ],
+                approval_rules: [],
+                handoff_rules: [],
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                lifecycle: 'planned',
+              },
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedRequiresOutputReview.push(Boolean(values?.[11]));
+          return {
+            rowCount: 1,
+            rows: [{
+              id: `task-${insertedRequiresOutputReview.length}`,
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: values?.[2],
+              requires_output_review: Boolean(values?.[11]),
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Reproduce punctuation bug',
+        workflow_id: 'workflow-1',
+        work_item_id: 'reproduce-item',
+        request_id: 'request-reproduce-stage',
+        role: 'live-test-developer',
+      },
+    );
+
+    await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'QA verify punctuation fix',
+        workflow_id: 'workflow-1',
+        work_item_id: 'test-item',
+        request_id: 'request-test-stage',
+        role: 'live-test-developer',
+      },
+    );
+
+    expect(insertedRequiresOutputReview).toEqual([false, true]);
+  });
+
   it('rejects out-of-sequence task creation when work item continuity expects a different actor', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {

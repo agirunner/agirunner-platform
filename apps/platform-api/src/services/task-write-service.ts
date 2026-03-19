@@ -523,8 +523,12 @@ export class TaskWriteService {
     if (!definition) {
       return input;
     }
+    const taskStageName = input.stage_name?.trim() || null;
     const requiresOutputReview = definition.review_rules.some(
-      (rule) => rule.required !== false && rule.from_role === roleName,
+      (rule) =>
+        rule.required !== false
+        && rule.from_role === roleName
+        && (!rule.checkpoint || rule.checkpoint === taskStageName),
     );
     return {
       ...input,
