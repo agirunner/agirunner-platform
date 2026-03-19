@@ -85,7 +85,7 @@ EOF
   assert_contains "git -C ${fixtures_root} push --force origin HEAD:main" "${logfile}"
   assert_contains "git -C ${fixtures_root} checkout -B main" "${logfile}"
   assert_contains "python3 ${fake_platform_root}/tests/live/lib/seed_live_test_environment.py" "${logfile}"
-  assert_contains "python3 DEFAULT_ADMIN_API_KEY=test-admin-key LIVE_TEST_PROVIDER_API_KEY=test-provider-key LIVE_TEST_GITHUB_TOKEN=test-github-token PLATFORM_API_BASE_URL=http://127.0.0.1:8080 LIVE_TEST_TRACE_DIR=${trace_dir} ORCHESTRATOR_WORKER_NAME=orchestrator-primary LIVE_TEST_PROVIDER_TYPE=openai LIVE_TEST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_REASONING_EFFORT=medium" "${logfile}"
+  assert_contains "python3 DEFAULT_ADMIN_API_KEY=test-admin-key LIVE_TEST_PROVIDER_API_KEY=test-provider-key LIVE_TEST_GITHUB_TOKEN=test-github-token PLATFORM_API_BASE_URL=http://127.0.0.1:8080 LIVE_TEST_TRACE_DIR=${trace_dir} ORCHESTRATOR_WORKER_NAME=orchestrator-primary LIVE_TEST_PROVIDER_TYPE=openai LIVE_TEST_MODEL_ID=gpt-5.4 LIVE_TEST_SPECIALIST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_REASONING_EFFORT=medium" "${logfile}"
   assert_contains "[tests/live] building runtime image agirunner-runtime:local" "${stdout_log}"
   assert_contains "\"workspace_id\":\"workspace-1\"" "${bootstrap_context_file}"
 }

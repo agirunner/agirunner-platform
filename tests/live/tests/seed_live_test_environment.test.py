@@ -75,12 +75,12 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
                 }
             ],
             roles=roles,
-            specialist_model_id="gpt-5-mini",
+            specialist_model_id="gpt-5.4-mini",
             specialist_endpoint_type="responses",
             specialist_reasoning_effort="medium",
         )
 
-        self.assertEqual("model-gpt-5-mini", specialist_model["id"])
+        self.assertEqual("model-gpt-5.4-mini", specialist_model["id"])
         self.assertEqual(
             [
                 ("POST", "/api/v1/config/llm/models"),
@@ -91,7 +91,7 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
             [(method, path) for method, path, _, _, _ in client.calls],
         )
         for _, path, payload, _, _ in client.calls[1:]:
-            self.assertEqual("model-gpt-5-mini", payload["primaryModelId"])
+            self.assertEqual("model-gpt-5.4-mini", payload["primaryModelId"])
             self.assertEqual({"effort": "medium", "reasoning_effort": "medium"}, payload["reasoningConfig"])
             self.assertIn(path.rsplit("/", 1)[-1], {role["name"] for role in roles})
 
@@ -102,20 +102,20 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
             provider_id="provider-1",
             existing_models=[
                 {
-                    "id": "model-gpt-5-mini",
+                    "id": "model-gpt-5.4-mini",
                     "provider_id": "provider-1",
-                    "model_id": "gpt-5-mini",
+                    "model_id": "gpt-5.4-mini",
                     "endpoint_type": "responses",
                     "reasoning_config": {"type": "effort", "default": "medium", "options": ["low", "medium"]},
                 }
             ],
             roles=[{"name": "live-test-qa"}],
-            specialist_model_id="gpt-5-mini",
+            specialist_model_id="gpt-5.4-mini",
             specialist_endpoint_type="responses",
             specialist_reasoning_effort="medium",
         )
 
-        self.assertEqual("model-gpt-5-mini", specialist_model["id"])
+        self.assertEqual("model-gpt-5.4-mini", specialist_model["id"])
         self.assertEqual(
             [("PUT", "/api/v1/config/llm/assignments/live-test-qa")],
             [(method, path) for method, path, _, _, _ in client.calls],
