@@ -170,14 +170,17 @@ function derivePlannedStageStatus(row: WorkflowStageViewInput) {
   if (row.gate_status === 'rejected') {
     return 'blocked';
   }
-  if (row.open_work_item_count > 0 || row.gate_status === 'changes_requested') {
-    return 'active';
-  }
-  if (row.total_work_item_count > 0 || row.status === 'completed') {
+  if (row.status === 'completed') {
     return 'completed';
   }
   if (isActiveStageStatus(row.status)) {
     return row.status;
+  }
+  if (row.open_work_item_count > 0 || row.gate_status === 'changes_requested') {
+    return 'active';
+  }
+  if (row.total_work_item_count > 0) {
+    return 'completed';
   }
   return 'pending';
 }
