@@ -452,13 +452,17 @@ async function loadWorkspaceArtifactIndex(
   workspaceId: string,
 ) {
   const result = await db.query<{
+    id: string;
     logical_path: string;
     task_id: string | null;
+    content_type: string | null;
     created_at: string | null;
     total_count: number;
   }>(
-    `SELECT logical_path,
+    `SELECT id,
+            logical_path,
             task_id,
+            content_type,
             created_at,
             COUNT(*) OVER()::int AS total_count
        FROM workflow_artifacts
@@ -472,8 +476,10 @@ async function loadWorkspaceArtifactIndex(
   const total = result.rows[0]?.total_count ?? 0;
   return {
     items: rows.map((row) => ({
+      artifact_id: row.id,
       logical_path: row.logical_path,
       task_id: row.task_id,
+      content_type: row.content_type,
       created_at: row.created_at,
     })),
     total,

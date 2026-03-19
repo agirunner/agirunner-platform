@@ -101,12 +101,12 @@ export async function resolveRelevantHandoffs(
       };
     }
     return {
-      handoffs: await loadWorkItemHandoffs(
+      handoffs: await loadAncestorLineageHandoffs(
         db,
         tenantId,
         workflowId,
-        parentWorkItemId,
         taskId,
+        parentWorkItemId,
         limit,
       ),
       source: 'parent_work_item',
@@ -139,6 +139,58 @@ async function loadWorkItemHandoffs(
     [tenantId, workflowId, workItemId, taskId, limit],
   );
   return result.rows as Record<string, unknown>[];
+}
+
+async function loadAncestorLineageHandoffs(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  taskId: string,
+  startWorkItemId: string,
+  limit: number,
+) {
+  const handoffs: Record<string, unknown>[] = [];
+  let currentWorkItemId: string | null = startWorkItemId;
+
+  while (currentWorkItemId && handoffs.length < limit) {
+    const remaining = limit - handoffs.length;
+    const currentHandoffs = await loadWorkItemHandoffs(
+      db,
+      tenantId,
+      workflowId,
+      currentWorkItemId,
+      taskId,
+      remaining,
+    );
+    handoffs.push(...currentHandoffs);
+    if (handoffs.length >= limit) {
+      break;
+    }
+
+    const nextParentWorkItemId = await loadParentWorkItemId(
+      db,
+      tenantId,
+      workflowId,
+      currentWorkItemId,
+    );
+    if (!nextParentWorkItemId) {
+      break;
+    }
+
+    const nextSiblingCount = await countSiblingWorkItems(
+      db,
+      tenantId,
+      workflowId,
+      nextParentWorkItemId,
+    );
+    if (nextSiblingCount > 1) {
+      break;
+    }
+
+    currentWorkItemId = nextParentWorkItemId;
+  }
+
+  return handoffs;
 }
 
 async function loadParentWorkItemId(
