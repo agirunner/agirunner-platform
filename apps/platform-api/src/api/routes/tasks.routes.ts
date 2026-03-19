@@ -315,7 +315,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.patch(
     '/api/v1/tasks/:id',
-    { preHandler: [authenticateApiKey, withScope('worker')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['worker', 'admin'])] },
     async (request) => {
       const params = request.params as { id: string };
       const body = parseOrThrow(taskPatchSchema.safeParse(request.body));

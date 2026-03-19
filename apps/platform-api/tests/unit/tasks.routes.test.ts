@@ -3,10 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 
-const mockWithAllowedScopes = vi.fn((scopes: string[]) => async () => {});
+const mockWithAllowedScopes = vi.fn((_scopes: string[]) => async () => {});
+const mockWithScope = vi.fn((_scope: string) => async () => {});
 
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
-  authenticateApiKey: vi.fn(async (request: { auth?: unknown }) => {
+  authenticateApiKey: async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
       tenantId: 'tenant-1',
@@ -15,8 +16,8 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
       ownerId: 'agent-1',
       keyPrefix: 'agent-1',
     };
-  }),
-  withScope: () => async () => {},
+  },
+  withScope: (scope: string) => mockWithScope(scope),
   withAllowedScopes: (scopes: string[]) => mockWithAllowedScopes(scopes),
 }));
 
@@ -26,6 +27,7 @@ describe('tasks routes', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockWithAllowedScopes.mockImplementation(() => async () => {});
+    mockWithScope.mockImplementation(() => async () => {});
   });
 
   afterEach(async () => {
@@ -849,7 +851,7 @@ describe('tasks routes', () => {
     expect(second.json()).toEqual(first.json());
   });
 
-  it('registers PATCH /api/v1/tasks/:id with admin scope allowed', async () => {
+  it('registers PATCH /api/v1/tasks/:id using withAllowedScopes with worker and admin', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
 
     app = fastify();
@@ -858,10 +860,12 @@ describe('tasks routes', () => {
 
     await app.register(taskRoutes);
 
-    const patchScopeCall = mockWithAllowedScopes.mock.calls.find(
-      ([scopes]) => Array.isArray(scopes) && scopes.includes('worker') && scopes.includes('admin'),
+    // The PATCH route must use withAllowedScopes (not withScope) so that admin-scoped
+    // dashboard API keys can update task metadata alongside worker-scoped runtime keys.
+    expect(mockWithScope).not.toHaveBeenCalledWith('worker');
+    expect(mockWithAllowedScopes).toHaveBeenCalledWith(
+      expect.arrayContaining(['worker', 'admin']),
     );
-    expect(patchScopeCall).toBeDefined();
   });
 });
 
