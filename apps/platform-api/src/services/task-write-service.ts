@@ -568,13 +568,19 @@ export class TaskWriteService {
     input: CreateTaskInput,
   ): Promise<CreateTaskInput> {
     const provided = normalizeCapabilities(input.capabilities_required);
+    const roleName = input.role?.trim();
     if (provided.length > 0) {
+      if (shouldEnforceWorkflowRoleCapabilityContract(input, roleName)) {
+        const resolved = normalizeCapabilities(
+          (await this.deps.resolveRoleCapabilities?.(tenantId, roleName)) ?? [],
+        );
+        assertSupportedWorkflowRoleCapabilities(roleName, provided, resolved);
+      }
       return {
         ...input,
         capabilities_required: provided,
       };
     }
-    const roleName = input.role?.trim();
     if (!roleName) {
       return input;
     }
@@ -802,6 +808,39 @@ function normalizeCapabilities(values: string[] | undefined | null): string[] {
         .map((value) => value.trim())
         .filter((value) => value.length > 0),
     ),
+  );
+}
+
+function shouldEnforceWorkflowRoleCapabilityContract(
+  input: CreateTaskInput,
+  roleName: string | undefined,
+): roleName is string {
+  return Boolean(
+    roleName
+    && !input.is_orchestrator_task
+    && (input.workflow_id || input.work_item_id),
+  );
+}
+
+function assertSupportedWorkflowRoleCapabilities(
+  roleName: string,
+  provided: string[],
+  resolvedRoleCapabilities: string[],
+): void {
+  const allowed = normalizeCapabilities([
+    roleName,
+    `role:${roleName}`,
+    ...resolvedRoleCapabilities,
+  ]);
+  const allowedSet = new Set(allowed);
+  const invalid = provided.filter((capability) => !allowedSet.has(capability));
+  if (invalid.length === 0) {
+    return;
+  }
+  throw new ValidationError(
+    `capabilities_required contains unsupported entries for role "${roleName}": ` +
+      `${invalid.join(', ')}. Allowed values: ${allowed.join(', ')}. ` +
+      'Omit capabilities_required to use the role default.',
   );
 }
 

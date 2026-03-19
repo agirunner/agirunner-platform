@@ -856,6 +856,77 @@ describe('TaskWriteService', () => {
     expect(result.capabilities_required).toEqual(['coding', 'testing', 'documentation']);
   });
 
+  it('rejects workflow task capability tags that are outside the assigned role contract', async () => {
+    let insertAttempted = false;
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'requirements' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertAttempted = true;
+          throw new Error('task insert should not run when capability validation fails');
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+      resolveRoleCapabilities: vi.fn(async () => ['requirements', 'documentation', 'research', 'git']),
+    });
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        {
+          title: 'Draft requirements',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          request_id: 'request-invalid-capabilities',
+          role: 'live-test-product-manager',
+          capabilities_required: ['requirements-analysis', 'repository-review'],
+        },
+      ),
+    ).rejects.toThrow(
+      /capabilities_required contains unsupported entries for role "live-test-product-manager"/i,
+    );
+
+    expect(insertAttempted).toBe(false);
+  });
+
   it('rejects workflow specialist tasks that are not linked to a work item', async () => {
     const service = new TaskWriteService({
       pool: {
