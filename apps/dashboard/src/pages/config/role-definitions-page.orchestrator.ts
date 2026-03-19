@@ -137,6 +137,7 @@ export function useRolePageOrchestratorState() {
     roleDialogCatalog: {
       providers: providersQuery.data ?? [],
       models,
+      systemDefault: systemDefaultQuery.data,
       assignments: assignmentsQuery.data ?? [],
       isModelCatalogLoading: providersQuery.isLoading || modelsQuery.isLoading,
       modelCatalogError,

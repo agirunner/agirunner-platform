@@ -39,7 +39,6 @@ describe('runtime defaults page source', () => {
       'orchestrator_context',
       'agent_safeguards',
       'fleet',
-      'search',
     ]);
     expect(FIELD_DEFINITIONS.map((field) => field.key)).toEqual(
       expect.arrayContaining([
@@ -100,7 +99,13 @@ describe('runtime defaults page source', () => {
         'agent.orchestrator_context_compaction_threshold',
         'agent.max_iterations',
         'agent.llm_max_retries',
+      ]),
+    );
+    expect(FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
+      expect.arrayContaining([
         'tools.web_search_provider',
+        'tools.web_search_base_url',
+        'tools.web_search_api_key_secret_ref',
       ]),
     );
   });
@@ -127,19 +132,10 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('useUnsavedChanges(isDirty)');
   });
 
-  it('renders web search provider controls through a dedicated first-class section instead of generic rows', () => {
+  it('renders runtime defaults sections exclusively through shared config field primitives', () => {
     const source = readSource('./runtime-defaults-fields.tsx');
-    expect(source).toContain('RuntimeDefaultsSearchSection');
-    expect(source).toContain("fields[0]?.section === 'search'");
     expect(source).toContain('ConfigField');
-  });
-
-  it('routes web search fields through the shared config control primitives with field-level support text', () => {
-    const source = readSource('./runtime-defaults-search.tsx');
-    expect(source).toContain('ConfigSelectField');
-    expect(source).toContain('ConfigInputField');
-    expect(source).toContain('buildWebSearchFieldSupport');
-    expect(source).not.toContain('function SearchFieldBlock');
+    expect(source).not.toContain('RuntimeDefaultsSearchSection');
   });
 
   it('uses the shared dashboard API client for runtime-defaults CRUD', () => {

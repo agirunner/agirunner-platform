@@ -1,16 +1,17 @@
 import { z } from 'zod';
 
 import {
+  type NativeSearchCapability,
   type ReasoningConfig,
-  type ModelCatalogEntry,
   MODEL_CATALOG,
   findCatalogEntry,
   PROVIDER_ENDPOINT_DEFAULTS,
   isDefaultEnabledModel,
+  readNativeSearchCapability,
 } from '../catalogs/model-catalog.js';
 
-export type { ReasoningConfig };
-export { MODEL_CATALOG, findCatalogEntry, isDefaultEnabledModel };
+export type { NativeSearchCapability, ReasoningConfig };
+export { MODEL_CATALOG, findCatalogEntry, isDefaultEnabledModel, readNativeSearchCapability };
 
 export interface DiscoveredModel {
   modelId: string;
@@ -23,6 +24,7 @@ export interface DiscoveredModel {
   inputCostPerMillionUsd: number | null;
   outputCostPerMillionUsd: number | null;
   reasoningConfig: ReasoningConfig | null;
+  nativeSearch?: NativeSearchCapability | null;
 }
 
 const providerTypeSchema = z.enum(['openai', 'anthropic', 'google', 'openai-compatible']);
@@ -128,6 +130,7 @@ export class LlmDiscoveryService {
           inputCostPerMillionUsd: known?.inputCostPerMillionUsd ?? null,
           outputCostPerMillionUsd: known?.outputCostPerMillionUsd ?? null,
           reasoningConfig: known?.reasoningConfig ?? null,
+          nativeSearch: known?.nativeSearch ?? null,
         };
       });
   }
@@ -169,5 +172,6 @@ function enrichModel(modelId: string, displayName: string, providerType: string)
     inputCostPerMillionUsd: known?.inputCostPerMillionUsd ?? null,
     outputCostPerMillionUsd: known?.outputCostPerMillionUsd ?? null,
     reasoningConfig: known?.reasoningConfig ?? null,
+    nativeSearch: readNativeSearchCapability(modelId),
   };
 }

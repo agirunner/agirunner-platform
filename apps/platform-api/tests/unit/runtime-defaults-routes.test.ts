@@ -21,10 +21,10 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
 const sampleSecretDefault = {
   id: 'runtime-default-1',
   tenant_id: 'tenant-1',
-  config_key: 'tools.web_search_api_key_secret_ref',
+  config_key: 'custom.api_key_secret_ref',
   config_value: 'redacted://runtime-default-secret',
   config_type: 'string',
-  description: 'Web search secret ref',
+  description: 'Custom secret ref',
   created_at: new Date('2026-03-12T00:00:00Z'),
   updated_at: new Date('2026-03-12T00:00:00Z'),
 };
@@ -63,7 +63,7 @@ describe('runtime defaults routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toEqual([expect.objectContaining({
-      config_key: 'tools.web_search_api_key_secret_ref',
+      config_key: 'custom.api_key_secret_ref',
       config_value: 'redacted://runtime-default-secret',
     })]);
   });
@@ -86,7 +86,7 @@ describe('runtime defaults routes', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json().data).toEqual(expect.objectContaining({
-      config_key: 'tools.web_search_api_key_secret_ref',
+      config_key: 'custom.api_key_secret_ref',
       config_value: 'redacted://runtime-default-secret',
     }));
   });

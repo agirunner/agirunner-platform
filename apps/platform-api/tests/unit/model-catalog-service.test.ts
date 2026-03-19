@@ -40,6 +40,11 @@ const sampleModel = {
   created_at: new Date(),
 };
 
+const sampleNativeSearch = {
+  mode: 'anthropic_web_search_20250305',
+  defaultEnabled: true,
+};
+
 describe('ModelCatalogService', () => {
   let pool: ReturnType<typeof createMockPool>;
   let service: ModelCatalogService;
@@ -264,13 +269,13 @@ describe('ModelCatalogService', () => {
     it('lists all models for tenant', async () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleModel], rowCount: 1 });
       const result = await service.listModels(TENANT_ID);
-      expect(result).toEqual([sampleModel]);
+      expect(result).toEqual([{ ...sampleModel, native_search: sampleNativeSearch }]);
     });
 
     it('lists models filtered by provider', async () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleModel], rowCount: 1 });
       const result = await service.listModels(TENANT_ID, PROVIDER_ID);
-      expect(result).toEqual([sampleModel]);
+      expect(result).toEqual([{ ...sampleModel, native_search: sampleNativeSearch }]);
       const sql = pool.query.mock.calls[0][0] as string;
       expect(sql).toContain('provider_id');
     });
@@ -590,6 +595,7 @@ describe('ModelCatalogService', () => {
           outputCostPerMillionUsd: 75,
           endpointType: 'chat',
           reasoningConfig: { type: 'effort', default: 'medium' },
+          nativeSearch: sampleNativeSearch,
         },
       });
     });

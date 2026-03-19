@@ -17,7 +17,6 @@ import { ConfigField } from './config-form-controls.js';
 import {
   PLATFORM_DEFAULT_SELECT_VALUE,
 } from './runtime-defaults.schema.js';
-import { RuntimeDefaultsSearchSection } from './runtime-defaults-search.js';
 import type { FieldDefinition, FormValues } from './runtime-defaults.types.js';
 
 export function RuntimeDefaultsSection({
@@ -41,25 +40,16 @@ export function RuntimeDefaultsSection({
         <CardTitle className="text-lg">{title}</CardTitle>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
-      <CardContent className={fields[0]?.section === 'search' ? 'space-y-5' : 'grid gap-5 md:grid-cols-2'}>
-        {fields[0]?.section === 'search' ? (
-          <RuntimeDefaultsSearchSection
-            fields={fields}
-            values={values}
-            errors={errors}
-            onChange={onChange}
+      <CardContent className="grid gap-5 md:grid-cols-2">
+        {fields.map((field) => (
+          <RuntimeField
+            key={field.key}
+            field={field}
+            value={values[field.key] ?? ''}
+            error={errors[field.key]}
+            onChange={(nextValue) => onChange(field.key, nextValue)}
           />
-        ) : (
-          fields.map((field) => (
-            <RuntimeField
-              key={field.key}
-              field={field}
-              value={values[field.key] ?? ''}
-              error={errors[field.key]}
-              onChange={(nextValue) => onChange(field.key, nextValue)}
-            />
-          ))
-        )}
+        ))}
       </CardContent>
     </Card>
   );

@@ -17,7 +17,12 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['agent.history_max_messages', { min: 1 }],
   ['agent.history_preserve_recent', { min: 1 }],
   ['agent.context_compaction_chars_per_token', { min: 1 }],
+  ['agent.specialist_context_tail_messages', { min: 1 }],
+  ['agent.specialist_context_preserve_memory_ops', { min: 0 }],
+  ['agent.specialist_context_preserve_artifact_ops', { min: 0 }],
   ['agent.orchestrator_history_preserve_recent', { min: 0 }],
+  ['agent.orchestrator_preserve_memory_ops', { min: 0 }],
+  ['agent.orchestrator_preserve_artifact_ops', { min: 0 }],
   ['agent.loop_detection_repeat', { min: 1 }],
   ['agent.response_repeat_threshold', { min: 1 }],
   ['agent.no_file_change_threshold', { min: 1 }],
@@ -76,7 +81,6 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['tools.shell_exec_timeout_max_seconds', { min: 1 }],
   ['tools.helpers_exec_timeout_seconds', { min: 1 }],
   ['tools.web_fetch_timeout_seconds', { min: 1 }],
-  ['tools.web_search_timeout_seconds', { min: 1 }],
   ['tools.mcp_timeout_seconds', { min: 1 }],
   ['lifecycle.healthcheck_timeout_seconds', { min: 1 }],
   ['lifecycle.healthcheck_retry_delay_seconds', { min: 1 }],
@@ -112,7 +116,10 @@ const INTEGER_DEFAULT_RULES = new Map([
 ]);
 const DECIMAL_DEFAULT_RULES = new Map([
   ['agent.context_compaction_threshold', { min: 0, max: 1 }],
+  ['agent.specialist_context_warning_threshold', { min: 0, max: 1 }],
+  ['agent.specialist_context_compaction_threshold', { min: 0, max: 1 }],
   ['agent.orchestrator_context_compaction_threshold', { min: 0, max: 1 }],
+  ['agent.orchestrator_emergency_compaction_threshold', { min: 0, max: 1 }],
   ['platform.worker_offline_threshold_multiplier', { min: 1 }],
   ['platform.worker_degraded_threshold_multiplier', { min: 1 }],
   ['platform.agent_heartbeat_threshold_multiplier', { min: 1 }],
@@ -120,7 +127,19 @@ const DECIMAL_DEFAULT_RULES = new Map([
 const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
   ['default_pull_policy', ['always', 'if-not-present', 'never']],
   ['log.level', ['debug', 'info', 'warn', 'error']],
-  ['tools.web_search_provider', ['duckduckgo', 'serper', 'tavily']],
+  ['agent.specialist_context_strategy', ['auto', 'semantic_local', 'deterministic', 'provider_native', 'off']],
+  ['agent.orchestrator_context_strategy', ['activation_checkpoint', 'emergency_only', 'off']],
+]);
+const BOOLEAN_DEFAULT_KEYS = new Set([
+  'agent.specialist_prepare_for_compaction_enabled',
+  'agent.orchestrator_finish_checkpoint_enabled',
+  'agent.orchestrator_finish_refresh_context_bundle',
+]);
+const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
+  'tools.web_search_provider',
+  'tools.web_search_base_url',
+  'tools.web_search_api_key_secret_ref',
+  'tools.web_search_timeout_seconds',
 ]);
 
 const createDefaultSchema = z.object({
@@ -153,7 +172,9 @@ export class RuntimeDefaultsService {
   async listDefaults(tenantId: string): Promise<RuntimeDefaultRow[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
     const rows = await repo.findAll<RuntimeDefaultRow>('runtime_defaults', '*');
-    return rows.map(toPublicRuntimeDefaultRow);
+    return rows
+      .filter((row) => !REMOVED_RUNTIME_DEFAULT_KEYS.has(row.config_key))
+      .map(toPublicRuntimeDefaultRow);
   }
 
   async getDefault(tenantId: string, id: string): Promise<RuntimeDefaultRow> {
@@ -293,11 +314,26 @@ function shouldRedactRuntimeDefault(configKey: string, configValue: string): boo
 }
 
 function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {
+  if (REMOVED_RUNTIME_DEFAULT_KEYS.has(input.configKey)) {
+    throw new Error(`${input.configKey} has been removed`);
+  }
+  validateBooleanRuntimeDefault(input);
   validateEnumRuntimeDefault(input);
   validateNumericRuntimeDefault(input);
 
-  // No tool-specific validation needed after web_search removal.
   void input;
+}
+
+function validateBooleanRuntimeDefault(input: CreateRuntimeDefaultInput): void {
+  if (!BOOLEAN_DEFAULT_KEYS.has(input.configKey)) {
+    return;
+  }
+  if (input.configType !== 'boolean') {
+    throw new Error(`${input.configKey} must use boolean config type`);
+  }
+  if (input.configValue !== 'true' && input.configValue !== 'false') {
+    throw new Error(`${input.configKey} must be true or false`);
+  }
 }
 
 function validateEnumRuntimeDefault(input: CreateRuntimeDefaultInput): void {

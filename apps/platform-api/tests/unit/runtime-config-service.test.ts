@@ -32,7 +32,7 @@ const sampleDefault = {
 };
 
 const sampleSecretDefault = {
-  config_key: 'tools.web_search_api_key_secret_ref',
+  config_key: 'custom.api_key_secret_ref',
   config_value: 'secret:SERPER_API_KEY',
   config_type: 'string',
   updated_at: new Date(),
@@ -82,7 +82,7 @@ describe('RuntimeConfigService', () => {
 
     expect(result.defaults).toEqual([
       {
-        key: 'tools.web_search_api_key_secret_ref',
+        key: 'custom.api_key_secret_ref',
         value: 'redacted://runtime-config-secret',
         type: 'string',
       },

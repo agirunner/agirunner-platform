@@ -81,10 +81,6 @@ describe('ai config assistant support', () => {
       href: '/config/tools',
       label: 'Open tools',
     });
-    expect(resolveSuggestionDestination('tools.web_search')).toEqual({
-      href: '/config/runtimes',
-      label: 'Open runtime defaults',
-    });
     expect(resolveSuggestionDestination('instruction.system_prompt')).toEqual({
       href: '/config/instructions',
       label: 'Open platform instructions',

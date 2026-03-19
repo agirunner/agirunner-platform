@@ -2,7 +2,6 @@ import {
   FIELD_DEFINITIONS,
   SECTION_DEFINITIONS,
 } from './runtime-defaults.schema.js';
-import { summarizeWebSearchPosture } from './runtime-defaults-search.support.js';
 import type { FormValues } from './runtime-defaults.types.js';
 
 export interface RuntimeDefaultsSummaryCard {
@@ -27,7 +26,6 @@ export function summarizeRuntimeDefaults(
     Boolean(values[field.key]?.trim()),
   ).length;
   const errorCount = Object.keys(errors).length;
-  const searchPosture = summarizeWebSearchPosture(values);
 
   return [
     {
@@ -46,11 +44,6 @@ export function summarizeRuntimeDefaults(
         errorCount === 0
           ? 'No validation blockers detected.'
           : 'Resolve the highlighted validation issues before saving runtime defaults.',
-    },
-    {
-      label: 'Search posture',
-      value: searchPosture.providerLabel,
-      detail: `${searchPosture.endpointStatus} ${searchPosture.apiKeyStatus}`,
     },
   ];
 }

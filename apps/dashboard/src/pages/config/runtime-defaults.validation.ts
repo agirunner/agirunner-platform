@@ -1,4 +1,3 @@
-import { getWebSearchProviderDetails, resolveWebSearchProvider } from './runtime-defaults-search.support.js';
 import { FIELD_DEFINITIONS } from './runtime-defaults.schema.js';
 import type { FormValues } from './runtime-defaults.types.js';
 
@@ -9,11 +8,15 @@ export function buildValidationErrors(values: FormValues): Record<string, string
   const errors: Record<string, string> = {};
 
   for (const field of FIELD_DEFINITIONS) {
-    if (field.configType !== 'number') {
-      continue;
-    }
     const value = values[field.key]?.trim();
     if (!value) {
+      continue;
+    }
+    if (field.options && field.options.length > 0 && !field.options.includes(value)) {
+      errors[field.key] = `${field.label} must be one of: ${field.options.join(', ')}.`;
+      continue;
+    }
+    if (field.configType !== 'number') {
       continue;
     }
     const parsed = Number(value);
@@ -37,7 +40,6 @@ export function buildValidationErrors(values: FormValues): Record<string, string
   validateContainerDefaults(values, errors);
   validateHistoryRelationships(values, errors);
   validateRealtimeTransportRanges(values, errors);
-  validateWebSearchFields(values, errors);
   return errors;
 }
 
@@ -47,6 +49,7 @@ function validateHistoryRelationships(
 ): void {
   const historyBudget = readNumber(values['agent.history_max_messages']);
   const preserveSpecialist = readNumber(values['agent.history_preserve_recent']);
+  const specialistTail = readNumber(values['agent.specialist_context_tail_messages']);
   const preserveOrchestrator = readNumber(values['agent.orchestrator_history_preserve_recent']);
 
   if (
@@ -56,6 +59,10 @@ function validateHistoryRelationships(
   ) {
     errors['agent.history_preserve_recent'] =
       'Preserved specialist history must stay within the overall history budget.';
+  }
+  if (historyBudget !== null && specialistTail !== null && specialistTail > historyBudget) {
+    errors['agent.specialist_context_tail_messages'] =
+      'Specialist preserved tail must stay within the overall history budget.';
   }
   if (
     historyBudget !== null &&
@@ -122,38 +129,5 @@ function validateRealtimeTransportRanges(
   if (minReconnect !== null && maxReconnect !== null && minReconnect > maxReconnect) {
     errors['platform.worker_reconnect_max_ms'] =
       'Worker reconnect maximum must be at least the minimum reconnect value.';
-  }
-}
-
-function validateWebSearchFields(
-  values: FormValues,
-  errors: Record<string, string>,
-): void {
-  const provider = resolveWebSearchProvider(values);
-  const providerDetails = getWebSearchProviderDetails(provider);
-  const baseUrl = values['tools.web_search_base_url']?.trim();
-  const apiKeyRef = values['tools.web_search_api_key_secret_ref']?.trim();
-
-  if (baseUrl) {
-    try {
-      const parsed = new URL(baseUrl);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-        errors['tools.web_search_base_url'] =
-          'Provider base URL must be a valid http or https URL. Clear the field to use the provider default endpoint.';
-      }
-    } catch {
-      errors['tools.web_search_base_url'] =
-        'Provider base URL must be a valid http or https URL. Clear the field to use the provider default endpoint.';
-    }
-  }
-
-  if (apiKeyRef && !apiKeyRef.startsWith('secret:')) {
-    errors['tools.web_search_api_key_secret_ref'] =
-      'Provider API key secret ref must use a secret:NAME reference.';
-  }
-
-  if (providerDetails.requiresApiKey && !apiKeyRef) {
-    errors['tools.web_search_api_key_secret_ref'] =
-      `${providerDetails.label} requires a secret reference. Add one or switch the provider back to DuckDuckGo.`;
   }
 }

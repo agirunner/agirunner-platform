@@ -9,6 +9,12 @@ import {
 const RUNTIME_CONFIG_SECRET_REDACTION = 'redacted://runtime-config-secret';
 const runtimeConfigSecretKeyPattern =
   /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|webhook_url|known_hosts)/i;
+const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
+  'tools.web_search_provider',
+  'tools.web_search_base_url',
+  'tools.web_search_api_key_secret_ref',
+  'tools.web_search_timeout_seconds',
+]);
 
 interface RuntimeConfigRole {
   name: string;
@@ -264,13 +270,15 @@ export class RuntimeConfigService {
       'SELECT config_key, config_value, config_type, updated_at FROM runtime_defaults WHERE tenant_id = $1',
       [tenantId],
     );
-    return result.rows.map((row) => ({
-      key: row.config_key,
-      value: shouldRedactRuntimeConfigDefault(row.config_key, row.config_value)
-        ? RUNTIME_CONFIG_SECRET_REDACTION
-        : row.config_value,
-      type: row.config_type,
-    }));
+    return result.rows
+      .filter((row) => !REMOVED_RUNTIME_DEFAULT_KEYS.has(row.config_key))
+      .map((row) => ({
+        key: row.config_key,
+        value: shouldRedactRuntimeConfigDefault(row.config_key, row.config_value)
+          ? RUNTIME_CONFIG_SECRET_REDACTION
+          : row.config_value,
+        type: row.config_type,
+      }));
   }
 
   private computeVersion(

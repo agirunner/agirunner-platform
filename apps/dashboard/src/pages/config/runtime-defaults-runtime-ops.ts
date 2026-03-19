@@ -272,7 +272,6 @@ function buildToolTimeoutFields(): FieldDefinition[] {
     toolTimeoutField('tools.shell_exec_timeout_max_seconds', 'Shell exec maximum timeout', '300'),
     toolTimeoutField('tools.helpers_exec_timeout_seconds', 'Helper exec timeout', '10'),
     toolTimeoutField('tools.web_fetch_timeout_seconds', 'Web fetch timeout', '30'),
-    toolTimeoutField('tools.web_search_timeout_seconds', 'Web search timeout', '30'),
     toolTimeoutField('tools.mcp_timeout_seconds', 'MCP timeout', '30'),
   ];
 }

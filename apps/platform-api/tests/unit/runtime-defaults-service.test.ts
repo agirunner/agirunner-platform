@@ -22,10 +22,10 @@ const sampleDefault = {
 
 const sampleSecretDefault = {
   ...sampleDefault,
-  config_key: 'tools.web_search_api_key_secret_ref',
+  config_key: 'custom.api_key_secret_ref',
   config_value: 'legacy-plaintext-secret',
   config_type: 'string',
-  description: 'Web search API key secret ref',
+  description: 'Custom API key secret ref',
 };
 
 describe('RuntimeDefaultsService', () => {
@@ -152,7 +152,7 @@ describe('RuntimeDefaultsService', () => {
       });
 
       const result = await service.createDefault(TENANT_ID, {
-        configKey: 'tools.web_search_api_key_secret_ref',
+        configKey: 'custom.api_key_secret_ref',
         configValue: 'secret:SERPER_API_KEY',
         configType: 'string',
       });
@@ -168,6 +168,24 @@ describe('RuntimeDefaultsService', () => {
           configType: 'number',
         }),
       ).rejects.toThrow('agent.history_max_messages must be at least 1');
+    });
+
+    it('rejects removed legacy web search runtime defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'tools.web_search_provider',
+          configValue: 'duckduckgo',
+          configType: 'string',
+        }),
+      ).rejects.toThrow('tools.web_search_provider has been removed');
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'tools.web_search_timeout_seconds',
+          configValue: '30',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('tools.web_search_timeout_seconds has been removed');
     });
 
     it('rejects out-of-range runtime compaction defaults', async () => {

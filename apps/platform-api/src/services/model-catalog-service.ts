@@ -9,7 +9,12 @@ import {
   readModelOverride,
   type EffectiveModelOverride,
 } from './config-hierarchy-service.js';
-import { type DiscoveredModel, isDefaultEnabledModel } from './llm-discovery-service.js';
+import {
+  type DiscoveredModel,
+  isDefaultEnabledModel,
+  readNativeSearchCapability,
+  type NativeSearchCapability,
+} from './llm-discovery-service.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 
 const createProviderSchema = z.object({
@@ -71,6 +76,7 @@ export interface EffectiveModelResolution {
     reasoningConfig: Record<string, unknown> | null;
     inputCostPerMillionUsd?: number | null;
     outputCostPerMillionUsd?: number | null;
+    nativeSearch?: NativeSearchCapability | null;
   } | null;
 }
 
@@ -120,6 +126,7 @@ interface ModelRow {
   is_enabled: boolean;
   endpoint_type: string | null;
   reasoning_config: Record<string, unknown> | null;
+  native_search?: NativeSearchCapability | null;
   created_at: Date;
   provider_name: string | null;
   auth_mode: string | null;
@@ -256,11 +263,11 @@ export class ModelCatalogService {
         `${baseQuery} AND m.provider_id = $2`,
         [tenantId, providerId],
       );
-      return result.rows;
+      return result.rows.map(attachNativeSearchCapability);
     }
 
     const result = await this.pool.query<ModelRow>(baseQuery, [tenantId]);
-    return result.rows;
+    return result.rows.map(attachNativeSearchCapability);
   }
 
   async getModel(tenantId: string, id: string): Promise<ModelRow> {
@@ -664,6 +671,7 @@ export class ModelCatalogService {
         outputCostPerMillionUsd: parseNullableCost(model.output_cost_per_million_usd),
       },
       reasoningConfig,
+      nativeSearch: readNativeSearchCapability(model.model_id),
     };
   }
 
@@ -750,6 +758,7 @@ export class ModelCatalogService {
       reasoningConfig: row.reasoning_config,
       inputCostPerMillionUsd: parseNullableCost(row.input_cost_per_million_usd),
       outputCostPerMillionUsd: parseNullableCost(row.output_cost_per_million_usd),
+      nativeSearch: readNativeSearchCapability(row.model_id),
     };
   }
 }
@@ -773,6 +782,14 @@ export interface ResolvedRoleConfig {
     outputCostPerMillionUsd?: number | null;
   };
   reasoningConfig: Record<string, unknown> | null;
+  nativeSearch?: NativeSearchCapability | null;
+}
+
+function attachNativeSearchCapability(model: ModelRow): ModelRow {
+  return {
+    ...model,
+    native_search: readNativeSearchCapability(model.model_id),
+  };
 }
 
 function parseNullableCost(value: string | number | null | undefined): number | null {

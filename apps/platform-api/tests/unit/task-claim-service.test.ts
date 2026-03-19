@@ -2,6 +2,7 @@ import { createHmac } from 'node:crypto';
 
 import { describe, expect, it, vi } from 'vitest';
 
+import type { NativeSearchMode } from '../../src/catalogs/model-catalog.js';
 import {
   configureProviderSecretEncryptionKey,
   storeOAuthToken,
@@ -251,6 +252,111 @@ describe('TaskClaimService', () => {
     expect(task?.max_iterations).toBe(100);
     expect(task?.llm_max_retries).toBe(5);
     expect(task?.loop_mode).toBe('reactive');
+  });
+
+  it('attaches provider-native search mode when the role grants native_search on a supported model', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-native-search',
+              workflow_id: null,
+              work_item_id: null,
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-native-search',
+              workflow_id: null,
+              work_item_id: null,
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return {
+            rowCount: 1,
+            rows: [{ escalation_target: null, allowed_tools: ['file_read', 'native_search'] }],
+          };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => ({
+        ...defaultResolvedRoleConfig,
+        nativeSearch: {
+          mode: 'openai_web_search' as NativeSearchMode,
+          defaultEnabled: true,
+        },
+      })),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.credentials).toEqual(
+      expect.objectContaining({
+        llm_native_search_mode: 'openai_web_search',
+      }),
+    );
   });
 
   it('fails task claim when the effective loop contract is missing', async () => {

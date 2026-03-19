@@ -5,8 +5,20 @@ import {
 } from './runtime-defaults-runtime-ops.js';
 
 export const PULL_POLICY_OPTIONS = ['always', 'if-not-present', 'never'] as const;
-export const WEB_SEARCH_PROVIDER_OPTIONS = ['duckduckgo', 'serper', 'tavily'] as const;
 export const PLATFORM_DEFAULT_SELECT_VALUE = '__default__';
+export const SPECIALIST_CONTEXT_STRATEGY_OPTIONS = [
+  'auto',
+  'semantic_local',
+  'deterministic',
+  'provider_native',
+  'off',
+] as const;
+export const ORCHESTRATOR_CONTEXT_STRATEGY_OPTIONS = [
+  'activation_checkpoint',
+  'emergency_only',
+  'off',
+] as const;
+export const BOOLEAN_OPTIONS = ['true', 'false'] as const;
 
 const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
@@ -36,12 +48,6 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'fleet',
     title: 'Fleet limits',
     description: 'Global concurrency and capacity settings that affect all playbooks.',
-  },
-  {
-    key: 'search',
-    title: 'Web research',
-    description:
-      'Select the runtime web_search provider and any provider-specific endpoint or secret-ref settings.',
   },
 ];
 
@@ -114,8 +120,9 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'agent.history_preserve_recent',
-    label: 'Preserve recent specialist messages',
-    description: 'Keep this many of the newest specialist messages untouched during compaction.',
+    label: 'Base preserved recent messages',
+    description:
+      'Shared fallback tail preserved during compaction when a specialist or orchestrator-specific override is not set.',
     configType: 'number',
     placeholder: '20',
     section: 'agent_context',
@@ -125,9 +132,9 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'agent.context_compaction_threshold',
-    label: 'Specialist compaction threshold',
+    label: 'Base compaction threshold',
     description:
-      'Compact specialist context once estimated usage reaches this fraction of the available context window.',
+      'Shared fallback threshold used when a role-specific compaction threshold is not set.',
     configType: 'number',
     placeholder: '0.8',
     section: 'agent_context',
@@ -148,9 +155,92 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   {
+    key: 'agent.specialist_context_strategy',
+    label: 'Specialist context strategy',
+    description:
+      'Default specialist continuity strategy. Auto prefers semantic handling and can adopt provider-native compaction when the runtime explicitly supports it.',
+    configType: 'string',
+    placeholder: 'auto',
+    section: 'agent_context',
+    options: SPECIALIST_CONTEXT_STRATEGY_OPTIONS,
+  },
+  {
+    key: 'agent.specialist_context_warning_threshold',
+    label: 'Specialist warning threshold',
+    description:
+      'Warn specialists about rising context pressure before compaction starts.',
+    configType: 'number',
+    placeholder: '0.7',
+    section: 'agent_context',
+    inputMode: 'decimal',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    key: 'agent.specialist_context_compaction_threshold',
+    label: 'Specialist compaction threshold override',
+    description:
+      'Role-specific compaction threshold for specialists. Clear it to fall back to the base compaction threshold.',
+    configType: 'number',
+    placeholder: '0.8',
+    section: 'agent_context',
+    inputMode: 'decimal',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    key: 'agent.specialist_context_tail_messages',
+    label: 'Specialist preserved tail',
+    description:
+      'Role-specific preserved recent message count for specialists. Clear it to use the base preserved tail.',
+    configType: 'number',
+    placeholder: '20',
+    section: 'agent_context',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
+    key: 'agent.specialist_context_preserve_memory_ops',
+    label: 'Preserve recent memory ops',
+    description:
+      'How many recent specialist memory breadcrumbs must survive compaction.',
+    configType: 'number',
+    placeholder: '2',
+    section: 'agent_context',
+    inputMode: 'numeric',
+    min: 0,
+    step: 1,
+  },
+  {
+    key: 'agent.specialist_context_preserve_artifact_ops',
+    label: 'Preserve recent artifact ops',
+    description:
+      'How many recent specialist artifact breadcrumbs must survive compaction.',
+    configType: 'number',
+    placeholder: '2',
+    section: 'agent_context',
+    inputMode: 'numeric',
+    min: 0,
+    step: 1,
+  },
+  {
+    key: 'agent.specialist_prepare_for_compaction_enabled',
+    label: 'Run specialist pre-compaction prepare',
+    description:
+      'Ask specialists to checkpoint durable memory and transient continuity before compaction.',
+    configType: 'boolean',
+    placeholder: 'true',
+    section: 'agent_context',
+    options: BOOLEAN_OPTIONS,
+  },
+  {
     key: 'agent.orchestrator_history_preserve_recent',
-    label: 'Preserve recent orchestrator messages',
-    description: 'Keep this many of the newest orchestrator messages untouched during compaction.',
+    label: 'Orchestrator preserved recent messages',
+    description:
+      'Emergency-only preserved tail for unusually long orchestrator activations.',
     configType: 'number',
     placeholder: '30',
     section: 'orchestrator_context',
@@ -160,9 +250,9 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'agent.orchestrator_context_compaction_threshold',
-    label: 'Orchestrator compaction threshold',
+    label: 'Legacy orchestrator compaction threshold',
     description:
-      'Compact orchestrator context once estimated usage reaches this fraction of the available context window.',
+      'Compatibility threshold for emergency orchestrator compaction. Prefer the explicit orchestrator strategy and emergency threshold below.',
     configType: 'number',
     placeholder: '0.9',
     section: 'orchestrator_context',
@@ -170,6 +260,73 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     min: 0,
     max: 1,
     step: 0.01,
+  },
+  {
+    key: 'agent.orchestrator_context_strategy',
+    label: 'Orchestrator context strategy',
+    description:
+      'Default orchestrator continuity strategy. Activation checkpoint is recommended because orchestrators run short activations and resume from persisted state.',
+    configType: 'string',
+    placeholder: 'activation_checkpoint',
+    section: 'orchestrator_context',
+    options: ORCHESTRATOR_CONTEXT_STRATEGY_OPTIONS,
+  },
+  {
+    key: 'agent.orchestrator_finish_checkpoint_enabled',
+    label: 'Persist activation finish checkpoint',
+    description:
+      'Persist an orchestrator activation checkpoint before the activation exits.',
+    configType: 'boolean',
+    placeholder: 'true',
+    section: 'orchestrator_context',
+    options: BOOLEAN_OPTIONS,
+  },
+  {
+    key: 'agent.orchestrator_finish_refresh_context_bundle',
+    label: 'Refresh context bundle on finish',
+    description:
+      'Refresh attached context files after orchestrator finish persistence so the current activation can inspect the stored checkpoint and memory index.',
+    configType: 'boolean',
+    placeholder: 'true',
+    section: 'orchestrator_context',
+    options: BOOLEAN_OPTIONS,
+  },
+  {
+    key: 'agent.orchestrator_emergency_compaction_threshold',
+    label: 'Orchestrator emergency compaction threshold',
+    description:
+      'Only used when an orchestrator activation runs abnormally long and needs emergency compaction.',
+    configType: 'number',
+    placeholder: '0.95',
+    section: 'orchestrator_context',
+    inputMode: 'decimal',
+    min: 0,
+    max: 1,
+    step: 0.01,
+  },
+  {
+    key: 'agent.orchestrator_preserve_memory_ops',
+    label: 'Orchestrator preserved memory ops',
+    description:
+      'How many recent orchestrator memory breadcrumbs should survive emergency compaction.',
+    configType: 'number',
+    placeholder: '2',
+    section: 'orchestrator_context',
+    inputMode: 'numeric',
+    min: 0,
+    step: 1,
+  },
+  {
+    key: 'agent.orchestrator_preserve_artifact_ops',
+    label: 'Orchestrator preserved artifact ops',
+    description:
+      'How many recent orchestrator artifact breadcrumbs should survive emergency compaction.',
+    configType: 'number',
+    placeholder: '2',
+    section: 'orchestrator_context',
+    inputMode: 'numeric',
+    min: 0,
+    step: 1,
   },
   {
     key: 'agent.loop_detection_repeat',
@@ -249,33 +406,6 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     inputMode: 'numeric',
     min: 1,
     step: 1,
-  },
-  {
-    key: 'tools.web_search_provider',
-    label: 'Web search provider',
-    description:
-      'Primary provider used by the runtime for web_search. The runtime uses exactly the provider configured here.',
-    configType: 'string',
-    placeholder: 'duckduckgo',
-    section: 'search',
-  },
-  {
-    key: 'tools.web_search_base_url',
-    label: 'Provider base URL',
-    description:
-      'Optional override for the selected provider endpoint. Leave blank to use the provider default URL.',
-    configType: 'string',
-    placeholder: 'https://google.serper.dev/search',
-    section: 'search',
-  },
-  {
-    key: 'tools.web_search_api_key_secret_ref',
-    label: 'Provider API key secret ref',
-    description:
-      'Secret reference used when the provider requires an API key, for example secret:SERPER_API_KEY.',
-    configType: 'string',
-    placeholder: 'secret:SERPER_API_KEY',
-    section: 'search',
   },
 ];
 

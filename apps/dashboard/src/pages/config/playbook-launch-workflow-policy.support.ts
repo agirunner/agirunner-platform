@@ -387,7 +387,7 @@ function validateWorkflowConfigEntryDraft(
 
   const fieldError: StructuredEntryFieldError = {};
   if (!normalizedPath) {
-    fieldError.key = 'Use a dotted config path such as tools.web_search_provider.';
+    fieldError.key = 'Use a dotted config path such as tools.web_fetch_timeout_seconds.';
   } else if (!isValidConfigOverridePath(normalizedPath)) {
     fieldError.key = 'Use dot-separated path segments with letters, numbers, or underscores.';
   } else if (duplicateKeys.has(normalizedPath.toLowerCase())) {

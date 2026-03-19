@@ -69,7 +69,7 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Workflow Config Overrides');
     expect(source).toContain('Additional Config Override Paths');
     expect(source).toContain('Clear override');
-    expect(source).toContain('tools.web_search_provider');
+    expect(source).toContain('tools.web_fetch_timeout_seconds');
     expect(source).toContain('Instruction Layer Policy');
     expect(source).toContain('Platform instructions');
     expect(source).toContain('Workspace instructions');

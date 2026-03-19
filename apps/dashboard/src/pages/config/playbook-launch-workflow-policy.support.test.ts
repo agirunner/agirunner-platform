@@ -21,10 +21,10 @@ describe('playbook launch workflow policy support', () => {
       outcome: 'Ship software',
       lifecycle: 'planned',
       version: 2,
-      definition: {
-        config: {
-          tools: {
-            web_search_provider: 'duckduckgo',
+        definition: {
+          config: {
+            tools: {
+            web_fetch_timeout_seconds: 45,
           },
           runtime: {
             timeout_seconds: 45,
@@ -32,8 +32,9 @@ describe('playbook launch workflow policy support', () => {
         },
         config_policy: {
           constraints: {
-            'tools.web_search_provider': {
-              enum: ['duckduckgo', 'serper', 'tavily'],
+            'tools.web_fetch_timeout_seconds': {
+              min: 5,
+              max: 120,
             },
             'runtime.timeout_seconds': {
               min: 10,
@@ -60,13 +61,15 @@ describe('playbook launch workflow policy support', () => {
         max: 300,
       },
       {
-        path: 'tools.web_search_provider',
-        label: 'Web Search Provider',
+        path: 'tools.web_fetch_timeout_seconds',
+        label: 'Web Fetch Timeout Seconds',
         description:
-          'Override tools.web_search_provider for this workflow without changing the playbook revision. Playbook default: duckduckgo. Allowed values: duckduckgo, serper, tavily.',
-        valueType: 'string',
-        options: ['duckduckgo', 'serper', 'tavily'],
-        defaultValue: 'duckduckgo',
+          'Override tools.web_fetch_timeout_seconds for this workflow without changing the playbook revision. Playbook default: 45. Constraint: minimum 5, maximum 120.',
+        valueType: 'number',
+        options: [],
+        defaultValue: 45,
+        min: 5,
+        max: 120,
       },
     ]);
     expect(definition.defaultSuppressedLayers).toEqual(['workspace', 'task']);
@@ -76,15 +79,15 @@ describe('playbook launch workflow policy support', () => {
     const overrides = buildWorkflowConfigOverrides({
       specs: [
         {
-          path: 'tools.web_search_provider',
-          label: 'Web Search Provider',
+          path: 'tools.web_fetch_timeout_seconds',
+          label: 'Web Fetch Timeout Seconds',
           description: '',
-          valueType: 'string',
-          options: ['duckduckgo', 'serper'],
+          valueType: 'number',
+          options: [],
         },
       ],
       draftValues: {
-        'tools.web_search_provider': 'serper',
+        'tools.web_fetch_timeout_seconds': '60',
       },
       extraDrafts: [
         {
@@ -104,7 +107,7 @@ describe('playbook launch workflow policy support', () => {
 
     expect(overrides).toEqual({
       tools: {
-        web_search_provider: 'serper',
+        web_fetch_timeout_seconds: 60,
       },
       runtime: {
         timeout_seconds: 120,
@@ -121,11 +124,13 @@ describe('playbook launch workflow policy support', () => {
     const validation = validateWorkflowConfigOverrideDrafts(
       [
         {
-          path: 'tools.web_search_provider',
-          label: 'Web Search Provider',
+          path: 'tools.web_fetch_timeout_seconds',
+          label: 'Web Fetch Timeout Seconds',
           description: '',
-          valueType: 'string',
-          options: ['duckduckgo', 'serper'],
+          valueType: 'number',
+          options: [],
+          min: 5,
+          max: 120,
         },
         {
           path: 'runtime.timeout_seconds',
@@ -138,13 +143,13 @@ describe('playbook launch workflow policy support', () => {
         },
       ],
       {
-        'tools.web_search_provider': 'bing',
+        'tools.web_fetch_timeout_seconds': '3',
         'runtime.timeout_seconds': '5',
       },
     );
 
     expect(validation.fieldErrors).toEqual({
-      'tools.web_search_provider': 'Choose one of the allowed values for Web Search Provider.',
+      'tools.web_fetch_timeout_seconds': 'Web Fetch Timeout Seconds must be at least 5.',
       'runtime.timeout_seconds': 'Timeout Seconds must be at least 10.',
     });
     expect(validation.isValid).toBe(false);
@@ -155,9 +160,9 @@ describe('playbook launch workflow policy support', () => {
       [
         {
           id: 'entry-1',
-          key: 'tools.web_search_provider',
-          valueType: 'string',
-          value: 'serper',
+          key: 'tools.web_fetch_timeout_seconds',
+          valueType: 'number',
+          value: '60',
         },
         {
           id: 'entry-2',
@@ -168,11 +173,11 @@ describe('playbook launch workflow policy support', () => {
       ],
       [
         {
-          path: 'tools.web_search_provider',
-          label: 'Web Search Provider',
+          path: 'tools.web_fetch_timeout_seconds',
+          label: 'Web Fetch Timeout Seconds',
           description: '',
-          valueType: 'string',
-          options: ['duckduckgo', 'serper'],
+          valueType: 'number',
+          options: [],
         },
       ],
     );
@@ -231,9 +236,9 @@ describe('playbook launch workflow policy support', () => {
         extraDrafts: [
           {
             id: 'entry-1',
-            key: 'tools.web_search_provider',
-            valueType: 'string',
-            value: 'serper',
+            key: 'tools.web_fetch_timeout_seconds',
+            valueType: 'number',
+            value: '60',
           },
           {
             id: 'entry-2',

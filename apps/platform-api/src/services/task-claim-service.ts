@@ -19,6 +19,7 @@ import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
 import type { LogService } from '../logging/log-service.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
+import { readNativeSearchCapability } from './llm-discovery-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
 import { OAuthService } from './oauth-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
@@ -142,10 +143,40 @@ function buildExecutionContractLogPayload(input: {
     llm_max_output_tokens: input.llmResolution.resolved.model.maxOutputTokens,
     llm_endpoint_type: input.llmResolution.resolved.model.endpointType,
     llm_reasoning_config: input.llmResolution.resolved.reasoningConfig,
+    llm_native_search_mode: resolveNativeSearchMode(
+      (input.task.role_config ?? {}) as Record<string, unknown>,
+      input.llmResolution.resolved,
+    ),
     llm_input_cost_per_million_usd: input.llmResolution.resolved.model.inputCostPerMillionUsd,
     llm_output_cost_per_million_usd: input.llmResolution.resolved.model.outputCostPerMillionUsd,
     ...gitContract,
   };
+}
+
+function buildClaimLLMFields(
+  roleConfig: Record<string, unknown>,
+  resolved: ResolvedRoleConfig,
+): Record<string, unknown> {
+  const fields: Record<string, unknown> = {
+    llm_provider: resolved.provider.providerType,
+    llm_model: resolved.model.modelId,
+    llm_context_window: resolved.model.contextWindow,
+    llm_max_output_tokens: resolved.model.maxOutputTokens,
+    llm_reasoning_config: resolved.reasoningConfig,
+  };
+
+  const nativeSearchMode = resolveNativeSearchMode(roleConfig, resolved);
+  if (nativeSearchMode) {
+    fields.llm_native_search_mode = nativeSearchMode;
+  }
+  if (resolved.model.inputCostPerMillionUsd != null) {
+    fields.llm_input_cost_per_million_usd = resolved.model.inputCostPerMillionUsd;
+  }
+  if (resolved.model.outputCostPerMillionUsd != null) {
+    fields.llm_output_cost_per_million_usd = resolved.model.outputCostPerMillionUsd;
+  }
+
+  return fields;
 }
 
 function describeGitContract(task: Record<string, unknown>): Record<string, unknown> {
@@ -567,12 +598,14 @@ export class TaskClaimService {
     if (resolved.provider.authMode === 'oauth' && resolved.provider.providerId) {
       credentials = await this.enrichWithOAuthCredentials(
         String(sanitizedTask.id ?? ''),
+        taskWithRoleDefinition,
         resolved,
       );
     } else {
       credentials = await this.resolveApiKeyCredentials(
         tenantId,
         String(sanitizedTask.id ?? ''),
+        taskWithRoleDefinition,
         resolved,
       );
     }
@@ -642,6 +675,7 @@ export class TaskClaimService {
         outputCostPerMillionUsd: readNullableFloat(row.model_output_cost_per_million_usd),
       },
       reasoningConfig: row.model_reasoning_config,
+      nativeSearch: readNativeSearchCapability(row.model_id),
     };
   }
 
@@ -726,23 +760,19 @@ export class TaskClaimService {
 
   private async enrichWithOAuthCredentials(
     taskId: string,
+    task: Record<string, unknown>,
     resolved: ResolvedRoleConfig,
   ): Promise<Record<string, unknown>> {
     const oauthService = new OAuthService(this.deps.pool);
     const oauthToken = await oauthService.resolveValidToken(resolved.provider.providerId!);
 
-    const llmFields: Record<string, unknown> = {
-      llm_provider: resolved.provider.providerType,
-      llm_model: resolved.model.modelId,
-      llm_context_window: resolved.model.contextWindow,
-      llm_max_output_tokens: resolved.model.maxOutputTokens,
-      llm_reasoning_config: resolved.reasoningConfig,
-      llm_input_cost_per_million_usd: resolved.model.inputCostPerMillionUsd,
-      llm_output_cost_per_million_usd: resolved.model.outputCostPerMillionUsd,
-      llm_base_url: oauthToken.baseUrl,
-      llm_endpoint_type: oauthToken.endpointType,
-      llm_auth_mode: 'oauth',
-    };
+    const llmFields: Record<string, unknown> = buildClaimLLMFields(
+      (task.role_config ?? {}) as Record<string, unknown>,
+      resolved,
+    );
+    llmFields.llm_base_url = oauthToken.baseUrl;
+    llmFields.llm_endpoint_type = oauthToken.endpointType;
+    llmFields.llm_auth_mode = 'oauth';
 
     return {
       ...llmFields,
@@ -768,17 +798,13 @@ export class TaskClaimService {
   private async resolveApiKeyCredentials(
     tenantId: string,
     taskId: string,
+    task: Record<string, unknown>,
     resolved: ResolvedRoleConfig,
   ): Promise<Record<string, unknown>> {
-    const llmFields: Record<string, unknown> = {
-      llm_provider: resolved.provider.providerType,
-      llm_model: resolved.model.modelId,
-      llm_context_window: resolved.model.contextWindow,
-      llm_max_output_tokens: resolved.model.maxOutputTokens,
-      llm_reasoning_config: resolved.reasoningConfig,
-      llm_input_cost_per_million_usd: resolved.model.inputCostPerMillionUsd,
-      llm_output_cost_per_million_usd: resolved.model.outputCostPerMillionUsd,
-    };
+    const llmFields: Record<string, unknown> = buildClaimLLMFields(
+      (task.role_config ?? {}) as Record<string, unknown>,
+      resolved,
+    );
     if (resolved.provider.baseUrl) {
       llmFields.llm_base_url = resolved.provider.baseUrl;
     }
@@ -972,6 +998,22 @@ function readProviderTypeForExecution(
       provider_name: providerName,
     },
   );
+}
+
+function resolveNativeSearchMode(
+  roleConfig: Record<string, unknown>,
+  resolved: ResolvedRoleConfig,
+): string | null {
+  if (!Array.isArray(roleConfig.tools)) {
+    return null;
+  }
+  const hasNativeSearch = roleConfig.tools.some(
+    (tool) => typeof tool === 'string' && tool.trim() === 'native_search',
+  );
+  if (!hasNativeSearch) {
+    return null;
+  }
+  return resolved.nativeSearch?.mode ?? null;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -35,12 +35,18 @@ export interface ReasoningConfigSchema {
   default: string | number;
 }
 
+export interface NativeSearchCapability {
+  mode: 'openai_web_search' | 'anthropic_web_search_20250305' | 'google_search';
+  defaultEnabled: boolean;
+}
+
 export interface LlmModelRecord {
   id: string;
   model_id: string;
   provider_id?: string | null;
   provider_name?: string | null;
   reasoning_config?: ReasoningConfigSchema | null;
+  native_search?: NativeSearchCapability | null;
   is_enabled?: boolean;
 }
 
@@ -121,6 +127,8 @@ const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
   },
 ];
 
+export const NATIVE_SEARCH_TOOL = 'native_search';
+
 export const KNOWN_TOOLS = ['file_read', 'file_write', 'file_edit', 'file_list', 'grep', 'glob', 'tool_search', 'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_search', 'memory_write', 'web_fetch', 'escalate'];
 
 export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
@@ -151,10 +159,47 @@ export function buildRolePayload(form: RoleFormState) {
   };
 }
 
-export function listAvailableTools(role?: RoleDefinition | null): string[] {
-  return normalizeStringList([...(role?.allowed_tools ?? []), ...KNOWN_TOOLS]).sort((left, right) =>
+export function listAvailableTools(
+  role?: RoleDefinition | null,
+  model?: LlmModelRecord | null,
+): string[] {
+  const storedTools = (role?.allowed_tools ?? []).filter(
+    (tool) => tool !== NATIVE_SEARCH_TOOL || supportsNativeSearch(model),
+  );
+  const nativeSearchTools = supportsNativeSearch(model) ? [NATIVE_SEARCH_TOOL] : [];
+  return normalizeStringList([...storedTools, ...KNOWN_TOOLS, ...nativeSearchTools]).sort((left, right) =>
     left.localeCompare(right),
   );
+}
+
+export function resolveEffectiveRoleModel(
+  models: LlmModelRecord[],
+  selectedModelId: string | null | undefined,
+  systemDefaultModelId: string | null | undefined,
+): LlmModelRecord | null {
+  const modelId = selectedModelId?.trim() || systemDefaultModelId?.trim() || '';
+  if (!modelId) {
+    return null;
+  }
+  return models.find((model) => model.id === modelId) ?? null;
+}
+
+export function syncNativeSearchGrant(
+  form: RoleFormState,
+  model: LlmModelRecord | null,
+  options: { enableByDefault: boolean },
+): RoleFormState {
+  const supportsSearch = supportsNativeSearch(model);
+  const nextAllowedTools = form.allowedTools.filter((tool) => tool !== NATIVE_SEARCH_TOOL);
+
+  if (supportsSearch && (options.enableByDefault || form.allowedTools.includes(NATIVE_SEARCH_TOOL))) {
+    nextAllowedTools.push(NATIVE_SEARCH_TOOL);
+  }
+
+  return {
+    ...form,
+    allowedTools: normalizeStringList(nextAllowedTools),
+  };
 }
 
 export function listAvailableCapabilities(role?: RoleDefinition | null): CapabilityOption[] {
@@ -232,4 +277,8 @@ export function describeRoleModelPolicy(role: RoleDefinition) {
 
 function normalizeStringList(values: string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
+}
+
+function supportsNativeSearch(model?: LlmModelRecord | null): boolean {
+  return Boolean(model?.native_search);
 }

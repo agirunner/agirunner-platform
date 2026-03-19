@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../../components/ui/dialog.js';
@@ -20,12 +20,17 @@ import {
 import {
   createRoleForm,
   listAvailableTools,
+  resolveEffectiveRoleModel,
+  syncNativeSearchGrant,
   type LlmModelRecord,
   type LlmProviderRecord,
   type RoleDefinition,
   type RoleFormState,
 } from './role-definitions-page.support.js';
-import type { RoleAssignmentRecord } from './role-definitions-orchestrator.support.js';
+import type {
+  RoleAssignmentRecord,
+  SystemDefaultRecord,
+} from './role-definitions-orchestrator.support.js';
 import { updateAssignment } from './role-definitions-page.api.js';
 
 export function RoleDialog(props: {
@@ -34,6 +39,7 @@ export function RoleDialog(props: {
   roles: RoleDefinition[];
   providers: LlmProviderRecord[];
   models: LlmModelRecord[];
+  systemDefault?: SystemDefaultRecord;
   assignments: RoleAssignmentRecord[];
   isModelCatalogLoading: boolean;
   modelCatalogError?: string | null;
@@ -46,19 +52,31 @@ export function RoleDialog(props: {
   const currentAssignment = props.assignments.find(
     (a) => a.role_name.trim().toLowerCase() === roleName.trim().toLowerCase(),
   );
+  const initialSelectedModelId = currentAssignment?.primary_model_id?.trim() ?? '';
+  const initialEffectiveModel = resolveEffectiveRoleModel(
+    props.models,
+    initialSelectedModelId,
+    props.systemDefault?.modelId,
+  );
 
   const [form, setForm] = useState<RoleFormState>(() => {
     if (props.role) return createRoleForm(props.role);
     if (props.duplicateFrom) {
-      const duplicated = createRoleForm(props.duplicateFrom);
+      const duplicated = syncNativeSearchGrant(
+        createRoleForm(props.duplicateFrom),
+        initialEffectiveModel,
+        { enableByDefault: true },
+      );
       duplicated.name = '';
       return duplicated;
     }
-    return createRoleForm(null);
+    return syncNativeSearchGrant(createRoleForm(null), initialEffectiveModel, {
+      enableByDefault: true,
+    });
   });
 
   const [selectedModelId, setSelectedModelId] = useState<string>(
-    currentAssignment?.primary_model_id?.trim() ?? '',
+    initialSelectedModelId,
   );
   const [reasoningConfig, setReasoningConfig] = useState<Record<string, unknown> | null>(
     currentAssignment?.reasoning_config ?? null,
@@ -87,9 +105,22 @@ export function RoleDialog(props: {
     },
   });
 
-  const tools = listAvailableTools(sourceRole);
+  const effectiveModel = resolveEffectiveRoleModel(
+    props.models,
+    selectedModelId,
+    props.systemDefault?.modelId,
+  );
+  const tools = listAvailableTools(sourceRole, effectiveModel);
   const validation = validateRoleDialog(form, props.roles, props.role);
   const summary = summarizeRoleSetup(form);
+
+  useEffect(() => {
+    setForm((current) =>
+      syncNativeSearchGrant(current, effectiveModel, {
+        enableByDefault: !props.role,
+      }),
+    );
+  }, [effectiveModel?.id, props.role]);
 
   function toggleTool(value: string) {
     setForm((current) => ({
@@ -137,7 +168,19 @@ export function RoleDialog(props: {
                 selectedModel={selectedModel}
                 isLoading={props.isModelCatalogLoading}
                 error={props.modelCatalogError}
-                onModelChange={setSelectedModelId}
+                onModelChange={(nextModelId) => {
+                  setSelectedModelId(nextModelId);
+                  const nextModel = resolveEffectiveRoleModel(
+                    props.models,
+                    nextModelId,
+                    props.systemDefault?.modelId,
+                  );
+                  setForm((current) =>
+                    syncNativeSearchGrant(current, nextModel, {
+                      enableByDefault: true,
+                    }),
+                  );
+                }}
                 onReasoningChange={setReasoningConfig}
               />
               <RoleToolGrantsSection

@@ -333,6 +333,25 @@ describe('ModelCatalogService — LLM config enhancements', () => {
   });
 
   describe('resolveRoleConfig', () => {
+    it('exposes provider-native search capability for supported models', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [{ ...sampleModel, provider_name: sampleProvider.name, auth_mode: sampleProvider.auth_mode }],
+        rowCount: 1,
+      });
+
+      const models = await service.listModels(TENANT_ID);
+
+      expect(models).toEqual([
+        expect.objectContaining({
+          model_id: 'claude-sonnet-4-6',
+          native_search: {
+            mode: 'anthropic_web_search_20250305',
+            defaultEnabled: true,
+          },
+        }),
+      ]);
+    });
+
     it('fails closed when neither a role assignment nor a system default is configured', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
@@ -359,6 +378,22 @@ describe('ModelCatalogService — LLM config enhancements', () => {
 
       expect(resolved?.provider.apiKeySecretRef).toBe(encryptedProvider.api_key_secret_ref);
       expect(resolved?.provider.apiKeySecretRef).not.toBe('sk-runtime-secret');
+    });
+
+    it('includes native search capability in resolved role config for supported models', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ primary_model_id: MODEL_ID }], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [sampleModel], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [sampleProvider], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      const resolved = await service.resolveRoleConfig(TENANT_ID, 'developer');
+
+      expect(resolved?.nativeSearch).toEqual({
+        mode: 'anthropic_web_search_20250305',
+        defaultEnabled: true,
+      });
     });
   });
 });

@@ -38,7 +38,6 @@ describe('runtime defaults page support', () => {
       'orchestrator_context',
       'agent_safeguards',
       'fleet',
-      'search',
     ]);
     expect(fieldsForSection('tool_timeouts').map((field) => field.key)).toContain(
       'tools.git_push_timeout_seconds',
@@ -193,32 +192,12 @@ describe('runtime defaults page support', () => {
     expect(errors['default_memory']).toContain('512m, 2g, or 2Gi');
   });
 
-  it('validates provider-specific web search requirements before save', () => {
-    const errors = buildValidationErrors({
-      'tools.web_search_provider': 'serper',
-      'tools.web_search_base_url': 'ftp://bad.example.test',
-      'tools.web_search_api_key_secret_ref': 'SERPER_API_KEY',
-    });
-
-    expect(errors['tools.web_search_base_url']).toContain('valid http or https URL');
-    expect(errors['tools.web_search_api_key_secret_ref']).toContain('secret:NAME');
-
-    const missingKeyErrors = buildValidationErrors({
-      'tools.web_search_provider': 'tavily',
-    });
-
-    expect(missingKeyErrors['tools.web_search_api_key_secret_ref']).toContain(
-      'requires a secret reference',
-    );
-  });
-
-  it('summarizes configured overrides, blockers, and search posture', () => {
+  it('summarizes configured overrides and blockers', () => {
     expect(
       summarizeRuntimeDefaults(
         {
           default_runtime_image: 'agirunner-runtime:local',
-          'tools.web_search_provider': 'serper',
-          'tools.web_search_api_key_secret_ref': 'secret:SERPER_API_KEY',
+          'tools.web_fetch_timeout_seconds': '45',
         },
         {
           global_max_runtimes: 'Global runtime cap must be at least 1.',
@@ -227,18 +206,13 @@ describe('runtime defaults page support', () => {
     ).toEqual([
       {
         label: 'Configured overrides',
-        value: '3 overrides',
-        detail: '3 runtime settings currently override the baked-in platform defaults.',
+        value: '2 overrides',
+        detail: '2 runtime settings currently override the baked-in platform defaults.',
       },
       {
         label: 'Save blockers',
         value: '1 issue',
         detail: 'Resolve the highlighted validation issues before saving runtime defaults.',
-      },
-      {
-        label: 'Search posture',
-        value: 'Serper',
-        detail: 'Using provider default endpoint. Secret reference configured.',
       },
     ]);
   });
@@ -251,7 +225,6 @@ describe('runtime defaults page support', () => {
           'tools.git_push_timeout_seconds': '90',
           'agent.history_max_messages': '100',
           'agent.history_preserve_recent': '25',
-          'tools.web_search_provider': 'serper',
         },
         {
           'tools.git_push_timeout_seconds': 'Git push timeout must be at least 1.',
@@ -286,7 +259,7 @@ describe('runtime defaults page support', () => {
           key: 'tool_timeouts',
           title: 'Tool timeouts',
           configuredCount: 1,
-          fieldCount: 16,
+          fieldCount: 15,
           errorCount: 1,
         },
         {
@@ -335,13 +308,6 @@ describe('runtime defaults page support', () => {
           key: 'workspace_operations',
           title: 'Workspace operations',
           configuredCount: 0,
-          fieldCount: 3,
-          errorCount: 0,
-        },
-        {
-          key: 'search',
-          title: 'Web research',
-          configuredCount: 1,
           fieldCount: 3,
           errorCount: 0,
         },

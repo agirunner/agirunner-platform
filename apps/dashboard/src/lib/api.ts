@@ -222,6 +222,10 @@ export interface DashboardLlmModelRecord {
   model_id: string;
   provider_id?: string | null;
   provider_name?: string | null;
+  native_search?: {
+    mode: 'openai_web_search' | 'anthropic_web_search_20250305' | 'google_search';
+    defaultEnabled: boolean;
+  } | null;
   is_enabled?: boolean;
 }
 

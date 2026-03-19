@@ -54,6 +54,7 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'memory_search', name: 'Memory Search', description: 'Search workspace memory by key or value', category: 'memory' },
   { id: 'memory_write', name: 'Memory Write', description: 'Write workspace memory', category: 'memory' },
   { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a workspace memory key', category: 'memory' },
+  { id: 'native_search', name: 'Native Search', description: 'Use the model provider native web search when the resolved model supports it', category: 'web' },
   { id: 'web_fetch', name: 'Web Fetch', description: 'Fetch and extract content from URLs', category: 'web' },
   { id: 'escalate', name: 'Escalate', description: 'Escalate to orchestrator or human when stuck', category: 'control' },
   { id: 'create_work_item', name: 'Create Work Item', description: 'Create a workflow work item', category: 'workflow' },

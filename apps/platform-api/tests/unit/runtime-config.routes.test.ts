@@ -62,7 +62,7 @@ describe('runtime config routes', () => {
       })
       .mockResolvedValueOnce({
         rows: [{
-          config_key: 'tools.web_search_api_key_secret_ref',
+          config_key: 'custom.api_key_secret_ref',
           config_value: 'legacy-plaintext-secret',
           config_type: 'string',
           updated_at: new Date('2026-03-12T00:00:00Z'),
@@ -85,7 +85,7 @@ describe('runtime config routes', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json().data.defaults).toEqual([
       {
-        key: 'tools.web_search_api_key_secret_ref',
+        key: 'custom.api_key_secret_ref',
         value: 'redacted://runtime-config-secret',
         type: 'string',
       },

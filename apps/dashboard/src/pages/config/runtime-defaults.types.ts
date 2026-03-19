@@ -10,7 +10,7 @@ export interface FieldDefinition {
   key: string;
   label: string;
   description: string;
-  configType: 'string' | 'number';
+  configType: 'string' | 'number' | 'boolean';
   placeholder: string;
   section:
     | 'containers'
@@ -40,8 +40,7 @@ export interface FieldDefinition {
     | 'agent_context'
     | 'orchestrator_context'
     | 'agent_safeguards'
-    | 'fleet'
-    | 'search';
+    | 'fleet';
   options?: readonly string[];
   inputMode?: 'numeric' | 'decimal';
   min?: number;

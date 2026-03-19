@@ -5,6 +5,7 @@ import {
   buildRolePayload,
   createDuplicateRoleForm,
   listAvailableCapabilities,
+  listAvailableTools,
 } from './role-definitions-page.support.js';
 
 describe('role definitions support helpers', () => {
@@ -107,5 +108,29 @@ describe('role definitions support helpers', () => {
         source: 'existing',
       }),
     );
+  });
+
+  it('shows native_search only when the effective model supports provider-native search', () => {
+    expect(
+      listAvailableTools(
+        { id: 'role-1', name: 'researcher', allowed_tools: ['file_read'] },
+        {
+          id: 'model-1',
+          model_id: 'gpt-5.4',
+          native_search: { mode: 'openai_web_search', defaultEnabled: true },
+        },
+      ),
+    ).toContain('native_search');
+
+    expect(
+      listAvailableTools(
+        { id: 'role-1', name: 'researcher', allowed_tools: ['file_read', 'native_search'] },
+        {
+          id: 'model-2',
+          model_id: 'gpt-4o',
+          native_search: null,
+        },
+      ),
+    ).not.toContain('native_search');
   });
 });

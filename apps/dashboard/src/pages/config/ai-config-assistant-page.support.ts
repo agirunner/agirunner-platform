@@ -219,8 +219,7 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
   if (
     normalized.startsWith('runtime.') ||
     normalized.startsWith('agent.') ||
-    normalized.startsWith('global_') ||
-    normalized.startsWith('tools.web_search')
+    normalized.startsWith('global_')
   ) {
     return { href: '/config/runtimes', label: 'Open runtime defaults' };
   }

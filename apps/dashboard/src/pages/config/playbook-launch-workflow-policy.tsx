@@ -184,7 +184,7 @@ function WorkflowConfigOverrideEditor(props: {
 
       <StructuredEntryEditor
         title="Additional Config Override Paths"
-        description="Add backend-supported dotted paths such as tools.web_search_provider or model_override.reasoning_config without authoring a raw JSON object."
+        description="Add backend-supported dotted paths such as tools.web_fetch_timeout_seconds or model_override.reasoning_config without authoring a raw JSON object."
         drafts={props.extraDrafts}
         validation={props.extraValidation}
         onChange={props.onExtraDraftsChange}
