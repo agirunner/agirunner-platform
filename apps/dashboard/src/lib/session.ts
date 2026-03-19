@@ -1,74 +1,87 @@
 const TENANT_KEY = 'agirunner.tenantId';
 const ACCESS_TOKEN_KEY = 'agirunner.accessToken';
 
-let accessToken: string | null = null;
-
 export interface SessionTokens {
   accessToken: string | null;
   tenantId: string;
+  persistentSession?: boolean;
 }
 
-function readLegacyTenantId(): string | null {
-  if (typeof localStorage === 'undefined') {
+interface SessionBootstrap {
+  tenantId: string;
+  persistentSession: boolean;
+}
+
+function readTenantFromStorage(storage: Storage | undefined, persistentSession: boolean): SessionBootstrap | null {
+  if (!storage) {
     return null;
   }
 
-  const tenantId = localStorage.getItem(TENANT_KEY);
-  if (!tenantId) {
+  const tenantId = storage.getItem(TENANT_KEY);
+  if (!tenantId || tenantId.trim().length === 0) {
     return null;
   }
 
-  if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.setItem(TENANT_KEY, tenantId);
-  }
-  localStorage.removeItem(TENANT_KEY);
-  return tenantId;
+  return {
+    tenantId,
+    persistentSession,
+  };
 }
 
-function readTenantId(): string | null {
+function readBootstrap(): SessionBootstrap | null {
   if (typeof sessionStorage !== 'undefined') {
-    const tenantId = sessionStorage.getItem(TENANT_KEY);
-    if (tenantId) {
-      return tenantId;
+    const sessionBootstrap = readTenantFromStorage(sessionStorage, false);
+    if (sessionBootstrap) {
+      return sessionBootstrap;
     }
   }
 
-  return readLegacyTenantId();
+  if (typeof localStorage !== 'undefined') {
+    return readTenantFromStorage(localStorage, true);
+  }
+
+  return null;
 }
 
 export function readSession(): SessionTokens | null {
-  if (typeof sessionStorage === 'undefined') {
+  const bootstrap = readBootstrap();
+  if (!bootstrap) {
     return null;
   }
 
-  const tenantId = readTenantId();
-  if (!tenantId) {
-    return null;
-  }
+  const persistedAccessToken =
+    typeof sessionStorage === 'undefined' ? null : sessionStorage.getItem(ACCESS_TOKEN_KEY);
 
-  const persistedAccessToken = sessionStorage.getItem(ACCESS_TOKEN_KEY);
-  accessToken = persistedAccessToken;
-
-  return { accessToken: persistedAccessToken, tenantId };
+  return {
+    accessToken: persistedAccessToken,
+    tenantId: bootstrap.tenantId,
+    persistentSession: bootstrap.persistentSession,
+  };
 }
 
 export function writeSession(nextSession: SessionTokens): void {
-  accessToken = nextSession.accessToken;
+  const bootstrapStorage =
+    nextSession.persistentSession && typeof localStorage !== 'undefined'
+      ? localStorage
+      : typeof sessionStorage !== 'undefined'
+        ? sessionStorage
+        : undefined;
+  const alternateBootstrapStorage =
+    bootstrapStorage === localStorage ? sessionStorage : localStorage;
+
+  bootstrapStorage?.setItem(TENANT_KEY, nextSession.tenantId);
+  alternateBootstrapStorage?.removeItem(TENANT_KEY);
+
   if (typeof sessionStorage !== 'undefined') {
-    sessionStorage.setItem(TENANT_KEY, nextSession.tenantId);
     if (nextSession.accessToken) {
       sessionStorage.setItem(ACCESS_TOKEN_KEY, nextSession.accessToken);
     } else {
       sessionStorage.removeItem(ACCESS_TOKEN_KEY);
     }
   }
-  if (typeof localStorage !== 'undefined') {
-    localStorage.removeItem(TENANT_KEY);
-  }
 }
 
 export function clearSession(): void {
-  accessToken = null;
   if (typeof sessionStorage !== 'undefined') {
     sessionStorage.removeItem(TENANT_KEY);
     sessionStorage.removeItem(ACCESS_TOKEN_KEY);
