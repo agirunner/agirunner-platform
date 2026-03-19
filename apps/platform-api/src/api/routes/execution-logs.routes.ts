@@ -38,7 +38,7 @@ const validGroupBy = [
   'source',
 ] as const;
 
-const ingestEntrySchema = z.object({
+export const ingestEntrySchema = z.object({
   trace_id: z.string().uuid(),
   span_id: z.string().uuid(),
   parent_span_id: z.string().uuid().nullable().optional(),
@@ -77,7 +77,7 @@ const ingestEntrySchema = z.object({
   created_at: z.string().datetime().optional(),
 });
 
-const ingestSchema = z.object({
+export const ingestSchema = z.object({
   entries: z.array(ingestEntrySchema).min(1).max(100),
 });
 
