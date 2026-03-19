@@ -13,6 +13,8 @@ from live_test_api import ApiClient, TraceRecorder, read_json
 from scenario_config import load_scenario
 
 TERMINAL_STATES = {"completed", "failed", "cancelled"}
+DEFAULT_FINAL_SETTLE_ATTEMPTS = 5
+DEFAULT_FINAL_SETTLE_DELAY_SECONDS = 1
 
 
 def env(name: str, default: str | None = None, *, required: bool = False) -> str:
@@ -248,6 +250,42 @@ def _workflow_events(snapshot: Any) -> list[dict[str, Any]]:
 def _workflow_tasks(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     tasks = workflow.get("tasks", [])
     return tasks if isinstance(tasks, list) else []
+
+
+def workflow_is_fully_terminal(workflow: dict[str, Any]) -> bool:
+    if workflow.get("state") not in TERMINAL_STATES:
+        return False
+    return all(
+        isinstance(task, dict) and task.get("state") in TERMINAL_STATES
+        for task in _workflow_tasks(workflow)
+    )
+
+
+def refresh_terminal_workflow_snapshot(
+    client: ApiClient,
+    *,
+    workflow_id: str,
+    workflow: dict[str, Any],
+    max_attempts: int,
+    delay_seconds: int,
+) -> dict[str, Any]:
+    latest = workflow
+    if latest.get("state") not in TERMINAL_STATES:
+        return latest
+    for attempt in range(max_attempts):
+        if workflow_is_fully_terminal(latest):
+            return latest
+        if attempt > 0 or delay_seconds > 0:
+            time.sleep(delay_seconds)
+        latest = extract_data(
+            client.request(
+                "GET",
+                f"/api/v1/workflows/{workflow_id}",
+                expected=(200,),
+                label="workflows.get.final",
+            )
+        )
+    return latest
 
 
 def _playbook_pool_status(fleet: Any, *, playbook_id: str) -> dict[str, Any] | None:
@@ -818,6 +856,53 @@ def collect_workflow_events(client: ApiClient, *, workflow_id: str, per_page: in
         after = next_after
 
 
+def build_run_result_payload(
+    *,
+    workflow_id: str,
+    final_state: str,
+    poll_iterations: int,
+    scenario_name: str,
+    approval_mode: str,
+    provider_auth_mode: str,
+    workflow: dict[str, Any],
+    board: Any,
+    work_items: Any,
+    events: Any,
+    approvals: Any,
+    approval_actions: list[dict[str, Any]],
+    workflow_actions: list[dict[str, Any]],
+    workspace: dict[str, Any],
+    artifacts: Any,
+    fleet: Any,
+    fleet_peaks: dict[str, int],
+    verification: dict[str, Any],
+) -> dict[str, Any]:
+    return {
+        "workflow_id": workflow_id,
+        "state": final_state,
+        "workflow_state": final_state,
+        "terminal": final_state in TERMINAL_STATES,
+        "timed_out": final_state not in TERMINAL_STATES,
+        "poll_iterations": poll_iterations,
+        "scenario": scenario_name,
+        "scenario_name": scenario_name,
+        "approval_mode": approval_mode,
+        "provider_auth_mode": provider_auth_mode,
+        "workflow": workflow,
+        "board": board,
+        "work_items": work_items,
+        "events": events,
+        "approvals": approvals,
+        "approval_actions": approval_actions,
+        "workflow_actions": workflow_actions,
+        "workspace": workspace,
+        "artifacts": artifacts,
+        "fleet": fleet,
+        "fleet_peaks": fleet_peaks,
+        "verification": verification,
+    }
+
+
 def main() -> None:
     base_url = env("PLATFORM_API_BASE_URL", required=True)
     trace_dir = env("LIVE_TEST_SCENARIO_TRACE_DIR", required=True)
@@ -835,6 +920,16 @@ def main() -> None:
     bootstrap_context = read_json(bootstrap_context_file)
     workspace_id = env("LIVE_TEST_WORKSPACE_ID", bootstrap_context["workspace_id"], required=True)
     playbook_id = env("LIVE_TEST_PLAYBOOK_ID", bootstrap_context["playbook_id"], required=True)
+    provider_auth_mode = env(
+        "LIVE_TEST_PROVIDER_AUTH_MODE",
+        str(bootstrap_context.get("provider_auth_mode") or "").strip(),
+        required=True,
+    )
+    final_settle_attempts = env_int("LIVE_TEST_FINAL_SETTLE_ATTEMPTS", DEFAULT_FINAL_SETTLE_ATTEMPTS)
+    final_settle_delay_seconds = env_int(
+        "LIVE_TEST_FINAL_SETTLE_DELAY_SECONDS",
+        DEFAULT_FINAL_SETTLE_DELAY_SECONDS,
+    )
 
     trace = TraceRecorder(trace_dir)
     public_client = ApiClient(base_url, trace)
@@ -923,6 +1018,14 @@ def main() -> None:
             continue
         time.sleep(poll_interval_seconds)
 
+    latest_workflow = refresh_terminal_workflow_snapshot(
+        client,
+        workflow_id=workflow_id,
+        workflow=latest_workflow,
+        max_attempts=final_settle_attempts,
+        delay_seconds=final_settle_delay_seconds,
+    )
+
     board_snapshot = client.best_effort_request(
         "GET",
         f"/api/v1/workflows/{workflow_id}/board",
@@ -981,27 +1084,26 @@ def main() -> None:
     )
     print(
         json.dumps(
-            {
-                "workflow_id": workflow_id,
-                "state": final_state,
-                "terminal": final_state in TERMINAL_STATES,
-                "timed_out": final_state not in TERMINAL_STATES,
-                "poll_iterations": poll_iterations,
-                "scenario_name": scenario_name,
-                "approval_mode": approval_mode,
-                "workflow": latest_workflow,
-                "board": board_snapshot,
-                "work_items": work_items_snapshot,
-                "events": events_snapshot,
-                "approvals": approvals_snapshot,
-                "approval_actions": approval_actions,
-                "workflow_actions": workflow_actions,
-                "workspace": workspace_snapshot,
-                "artifacts": artifacts_snapshot,
-                "fleet": latest_fleet,
-                "fleet_peaks": fleet_peaks,
-                "verification": verification,
-            }
+            build_run_result_payload(
+                workflow_id=workflow_id,
+                final_state=final_state,
+                poll_iterations=poll_iterations,
+                scenario_name=scenario_name,
+                approval_mode=approval_mode,
+                provider_auth_mode=provider_auth_mode,
+                workflow=latest_workflow,
+                board=board_snapshot,
+                work_items=work_items_snapshot,
+                events=events_snapshot,
+                approvals=approvals_snapshot,
+                approval_actions=approval_actions,
+                workflow_actions=workflow_actions,
+                workspace=workspace_snapshot,
+                artifacts=artifacts_snapshot,
+                fleet=latest_fleet,
+                fleet_peaks=fleet_peaks,
+                verification=verification,
+            )
         )
     )
     if not verification["passed"]:

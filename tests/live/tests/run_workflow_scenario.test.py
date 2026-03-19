@@ -49,7 +49,115 @@ class FakePagedClient:
         return self.responses.pop(0)
 
 
+class FakeWorkflowClient:
+    def __init__(self, responses: list[dict[str, object]]) -> None:
+        self.responses = responses
+        self.calls: list[tuple[str, str, dict[str, object] | None, tuple[int, ...], str | None]] = []
+
+    def request(
+        self,
+        method: str,
+        path: str,
+        *,
+        payload: dict[str, object] | None = None,
+        expected: tuple[int, ...] = (200,),
+        label: str | None = None,
+    ) -> dict[str, object]:
+        self.calls.append((method, path, payload, expected, label))
+        if not self.responses:
+            raise AssertionError(f"unexpected request: {method} {path}")
+        return self.responses.pop(0)
+
+
 class RunWorkflowScenarioTests(unittest.TestCase):
+    def test_workflow_is_fully_terminal_requires_terminal_task_states(self) -> None:
+        self.assertFalse(
+            run_workflow_scenario.workflow_is_fully_terminal(
+                {
+                    "state": "completed",
+                    "tasks": [
+                        {"id": "task-1", "state": "completed"},
+                        {"id": "task-2", "state": "in_progress"},
+                    ],
+                }
+            )
+        )
+        self.assertTrue(
+            run_workflow_scenario.workflow_is_fully_terminal(
+                {
+                    "state": "completed",
+                    "tasks": [
+                        {"id": "task-1", "state": "completed"},
+                        {"id": "task-2", "state": "failed"},
+                    ],
+                }
+            )
+        )
+
+    def test_refresh_terminal_workflow_snapshot_refetches_until_tasks_are_terminal(self) -> None:
+        client = FakeWorkflowClient(
+            [
+                {
+                    "data": {
+                        "id": "wf-1",
+                        "state": "completed",
+                        "tasks": [
+                            {"id": "task-1", "state": "completed"},
+                            {"id": "task-2", "state": "completed"},
+                        ],
+                    }
+                }
+            ]
+        )
+
+        refreshed = run_workflow_scenario.refresh_terminal_workflow_snapshot(
+            client,
+            workflow_id="wf-1",
+            workflow={
+                "id": "wf-1",
+                "state": "completed",
+                "tasks": [
+                    {"id": "task-1", "state": "completed"},
+                    {"id": "task-2", "state": "in_progress"},
+                ],
+            },
+            max_attempts=2,
+            delay_seconds=0,
+        )
+
+        self.assertEqual("completed", refreshed["tasks"][1]["state"])
+        self.assertEqual(
+            [("GET", "/api/v1/workflows/wf-1", None, (200,), "workflows.get.final")],
+            client.calls,
+        )
+
+    def test_build_run_result_payload_includes_explicit_scenario_and_provider_mode(self) -> None:
+        payload = run_workflow_scenario.build_run_result_payload(
+            workflow_id="wf-1",
+            final_state="completed",
+            poll_iterations=7,
+            scenario_name="sdlc-lite-approval-request-changes-then-approve",
+            approval_mode="scripted",
+            provider_auth_mode="oauth",
+            workflow={"id": "wf-1", "state": "completed", "tasks": []},
+            board={"ok": True},
+            work_items={"ok": True},
+            events={"ok": True},
+            approvals={"ok": True},
+            approval_actions=[],
+            workflow_actions=[],
+            workspace={"id": "workspace-1"},
+            artifacts={"ok": True},
+            fleet={"ok": True},
+            fleet_peaks={"peak_running": 1},
+            verification={"passed": True, "failures": [], "checks": []},
+        )
+
+        self.assertEqual("sdlc-lite-approval-request-changes-then-approve", payload["scenario"])
+        self.assertEqual("sdlc-lite-approval-request-changes-then-approve", payload["scenario_name"])
+        self.assertEqual("oauth", payload["provider_auth_mode"])
+        self.assertEqual("completed", payload["workflow_state"])
+
     def test_evaluate_expectations_checks_fleet_pool_bounds(self) -> None:
         result = run_workflow_scenario.evaluate_expectations(
             {
