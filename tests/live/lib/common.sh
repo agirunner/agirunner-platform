@@ -76,6 +76,27 @@ wait_for_live_test_http() {
   exit 1
 }
 
+wait_for_live_test_compose_project_down() {
+  local project_name="$1"
+  local max_attempts="${2:-30}"
+  local sleep_seconds="${3:-1}"
+  local attempt=1
+
+  while (( attempt <= max_attempts )); do
+    local remaining
+    remaining="$(docker ps -a --filter "label=com.docker.compose.project=${project_name}" --format '{{.Names}}')"
+    if [[ -z "${remaining}" ]]; then
+      return 0
+    fi
+    sleep "${sleep_seconds}"
+    attempt=$((attempt + 1))
+  done
+
+  echo "[tests/live] timed out waiting for compose project containers to disappear: ${project_name}" >&2
+  docker ps -a --filter "label=com.docker.compose.project=${project_name}" --format '{{.ID}} {{.Names}} {{.Status}}' >&2 || true
+  exit 1
+}
+
 copy_live_test_seed_tree() {
   local seed_dir="$1"
   local destination_dir="$2"

@@ -106,6 +106,7 @@ log_live_test "rebuilding standard docker compose stack"
   cd "${LIVE_TEST_PLATFORM_ROOT}"
   export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
   docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" down -v --remove-orphans
+  wait_for_live_test_compose_project_down "${LIVE_TEST_COMPOSE_PROJECT_NAME}"
   docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" up -d --build
 )
 

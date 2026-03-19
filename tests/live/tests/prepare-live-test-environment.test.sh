@@ -72,6 +72,7 @@ EOF
   assert_contains "docker build -t agirunner-runtime:local ${runtime_root}" "${logfile}"
   assert_contains "docker build -f ${runtime_root}/Dockerfile.execution -t agirunner-runtime-execution:local ${runtime_root}" "${logfile}"
   assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml down -v --remove-orphans" "${logfile}"
+  assert_contains "docker ps -a --filter label=com.docker.compose.project=agirunner-platform --format {{.Names}}" "${logfile}"
   assert_contains "docker compose -p agirunner-platform -f ${fake_platform_root}/docker-compose.yml up -d --build" "${logfile}"
   assert_contains "curl --fail --silent --show-error http://127.0.0.1:8080/health" "${logfile}"
   assert_contains "git -C ${fixtures_root} update-ref -d refs/remotes/origin/main" "${logfile}"
