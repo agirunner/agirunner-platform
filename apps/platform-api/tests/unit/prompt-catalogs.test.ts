@@ -21,6 +21,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects completion without a structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or progress marker');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Never reference task-local paths such as output/, repo/, or /tmp/workspace in a structured handoff.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');

@@ -14,6 +14,11 @@ import {
 } from './workflow-immediate-activation.js';
 
 const HANDOFF_SECRET_REDACTION = 'redacted://handoff-secret';
+const TASK_LOCAL_HANDOFF_PATH_PATTERNS = [
+  /(?:^|[\s"'`(])(output\/[^\s"'`),\]]+)/i,
+  /(?:^|[\s"'`(])(repo\/[^\s"'`),\]]+)/i,
+  /(\/tmp\/workspace\/[^\s"'`),\]]+)/i,
+];
 
 export interface SubmitTaskHandoffInput {
   request_id?: string;
@@ -490,7 +495,7 @@ export class HandoffService {
 
 function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHandoffInput) {
   const summary = sanitizeHandoffValue(input.summary.trim());
-  return {
+  const payload = {
     task_rework_count: readInteger(task.rework_count) ?? 0,
     request_id: input.request_id?.trim() || null,
     role: task.role?.trim() || 'specialist',
@@ -508,6 +513,8 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     role_data: sanitizeHandoffRecord(input.role_data),
     artifact_ids: normalizeStringArray(input.artifact_ids),
   };
+  assertNoTaskLocalHandoffPaths(payload);
+  return payload;
 }
 
 function assertMatchingHandoffReplay(
@@ -575,6 +582,51 @@ function normalizeRecord(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function assertNoTaskLocalHandoffPaths(value: unknown) {
+  const offendingPath = findTaskLocalHandoffPath(value);
+  if (!offendingPath) {
+    return;
+  }
+  throw new ValidationError(
+    `Structured handoffs must not reference task-local path "${offendingPath}". Persist output to artifacts/repo/memory and reference artifact ids/logical paths, repo-relative paths, memory keys, and workflow/task ids instead`,
+  );
+}
+
+function findTaskLocalHandoffPath(value: unknown): string | null {
+  if (typeof value === 'string') {
+    return extractTaskLocalHandoffPath(value);
+  }
+  if (Array.isArray(value)) {
+    for (const entry of value) {
+      const offendingPath = findTaskLocalHandoffPath(entry);
+      if (offendingPath) {
+        return offendingPath;
+      }
+    }
+    return null;
+  }
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+  for (const entry of Object.values(value as Record<string, unknown>)) {
+    const offendingPath = findTaskLocalHandoffPath(entry);
+    if (offendingPath) {
+      return offendingPath;
+    }
+  }
+  return null;
+}
+
+function extractTaskLocalHandoffPath(text: string): string | null {
+  for (const pattern of TASK_LOCAL_HANDOFF_PATH_PATTERNS) {
+    const match = text.match(pattern);
+    if (match?.[1]) {
+      return match[1];
+    }
+  }
+  return null;
 }
 
 function serializeJsonb(value: unknown) {

@@ -4,6 +4,43 @@ import { ConflictError, ValidationError } from '../../src/errors/domain-errors.j
 import { HandoffService } from '../../src/services/handoff-service.js';
 
 describe('HandoffService', () => {
+  it('rejects handoffs that reference ephemeral task-local paths', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            stage_name: 'requirements',
+            state: 'in_progress',
+            rework_count: 0,
+            metadata: { team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-1',
+      summary: 'Drafted the PRD in output/requirements/prd.md and it is ready for review.',
+      completion: 'full',
+      changes: ['Created PRD markdown at output/requirements/prd.md.'],
+      successor_context: 'Read output/requirements/prd.md before reviewing it.',
+    })).rejects.toThrowError(
+      new ValidationError(
+        'Structured handoffs must not reference task-local path "output/requirements/prd.md". Persist output to artifacts/repo/memory and reference artifact ids/logical paths, repo-relative paths, memory keys, and workflow/task ids instead',
+      ),
+    );
+
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
   it('submits a structured task handoff with sequenced persistence', async () => {
     const pool = {
       query: vi
