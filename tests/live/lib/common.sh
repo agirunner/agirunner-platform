@@ -86,6 +86,16 @@ copy_live_test_seed_tree() {
   tar -cf - -C "${seed_dir}" . | tar -xf - -C "${destination_dir}"
 }
 
+refresh_live_test_remote_branch() {
+  local fixtures_root="$1"
+  local default_branch="$2"
+  local remote_ref="refs/remotes/origin/${default_branch}"
+  local branch_ref="refs/heads/${default_branch}:${remote_ref}"
+
+  git -C "${fixtures_root}" update-ref -d "${remote_ref}" >/dev/null 2>&1 || true
+  git -C "${fixtures_root}" fetch --prune origin "+${branch_ref}"
+}
+
 reset_live_test_fixture_repo() {
   local fixtures_root="$1"
   local default_branch="$2"
@@ -95,7 +105,7 @@ reset_live_test_fixture_repo() {
   local reset_remote="${6:-true}"
   local seed_branch="live-test-seed-reset"
 
-  git -C "${fixtures_root}" fetch origin
+  refresh_live_test_remote_branch "${fixtures_root}" "${default_branch}"
   git -C "${fixtures_root}" checkout "${default_branch}"
   git -C "${fixtures_root}" reset --hard "origin/${default_branch}"
   git -C "${fixtures_root}" clean -fdx
@@ -119,7 +129,7 @@ reset_live_test_fixture_repo() {
 
   git -C "${fixtures_root}" push --force origin HEAD:"${default_branch}"
   git -C "${fixtures_root}" checkout -B "${default_branch}"
-  git -C "${fixtures_root}" fetch origin
+  refresh_live_test_remote_branch "${fixtures_root}" "${default_branch}"
   git -C "${fixtures_root}" reset --hard "origin/${default_branch}"
   git -C "${fixtures_root}" clean -fdx
   git -C "${fixtures_root}" branch -D "${seed_branch}" >/dev/null 2>&1 || true
