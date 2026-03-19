@@ -10,6 +10,65 @@ from typing import Any
 from live_test_api import ApiClient, TraceRecorder, read_json
 from scenario_config import load_scenario
 
+NATIVE_SEARCH_TOOL = "native_search"
+NATIVE_SEARCH_MODEL_PREFIXES: dict[str, tuple[str, ...]] = {
+    "openai": (
+        "gpt-5.4-pro",
+        "gpt-5.4",
+        "gpt-5.4-mini",
+        "gpt-5.4-nano",
+        "gpt-5.3-codex",
+        "gpt-5.3-codex-spark",
+        "gpt-5.2",
+        "gpt-5.2-pro",
+        "gpt-5.2-codex",
+        "gpt-5.1-codex-max",
+        "gpt-5.1-codex",
+        "gpt-5.1",
+        "gpt-5-pro",
+        "gpt-5",
+        "gpt-5-codex",
+        "gpt-5-mini",
+        "gpt-5-nano",
+        "gpt-5-codex-mini",
+        "o4-mini",
+        "o3",
+        "o3-pro",
+        "o3-mini",
+        "o1",
+        "o1-pro",
+    ),
+    "anthropic": (
+        "claude-opus-4-6",
+        "claude-sonnet-4-6",
+        "claude-opus-4-5",
+        "claude-sonnet-4-5",
+        "claude-opus-4-1",
+        "claude-sonnet-4",
+        "claude-opus-4",
+        "claude-haiku-4-5",
+        "claude-3-5-haiku",
+    ),
+    "google": (
+        "gemini-3.1-pro-preview",
+        "gemini-3-pro-preview",
+        "gemini-3-flash-preview",
+        "gemini-3.1-flash-lite-preview",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+    ),
+    "gemini": (
+        "gemini-3.1-pro-preview",
+        "gemini-3-pro-preview",
+        "gemini-3-flash-preview",
+        "gemini-3.1-flash-lite-preview",
+        "gemini-2.5-pro",
+        "gemini-2.5-flash",
+        "gemini-2.0-flash",
+    ),
+}
+
 
 def env(name: str, default: str | None = None, *, required: bool = False) -> str:
     value = os.environ.get(name, default)
@@ -97,7 +156,45 @@ def load_fixture(path: str) -> Any:
     return read_json(fixture_path)
 
 
-def sync_roles(client: ApiClient, roles_fixture_path: str) -> list[dict[str, Any]]:
+def model_supports_native_search(provider_type: str | None, model_id: str | None) -> bool:
+    normalized_provider = (provider_type or "").strip().lower()
+    normalized_model = (model_id or "").strip()
+    if not normalized_provider or not normalized_model:
+        return False
+
+    for prefix in NATIVE_SEARCH_MODEL_PREFIXES.get(normalized_provider, ()):
+        if normalized_model == prefix or normalized_model.startswith(f"{prefix}-"):
+            return True
+    return False
+
+
+def apply_native_search_default(
+    payload: dict[str, Any],
+    *,
+    provider_type: str | None,
+    resolved_model_id: str | None,
+) -> dict[str, Any]:
+    next_payload = dict(payload)
+    allowed_tools = next_payload.get("allowedTools")
+    if not isinstance(allowed_tools, list):
+        return next_payload
+    if not model_supports_native_search(provider_type, resolved_model_id):
+        return next_payload
+
+    normalized_tools = [tool for tool in allowed_tools if isinstance(tool, str) and tool.strip()]
+    if NATIVE_SEARCH_TOOL not in normalized_tools:
+        normalized_tools.append(NATIVE_SEARCH_TOOL)
+    next_payload["allowedTools"] = normalized_tools
+    return next_payload
+
+
+def sync_roles(
+    client: ApiClient,
+    roles_fixture_path: str,
+    *,
+    provider_type: str | None = None,
+    resolved_model_id: str | None = None,
+) -> list[dict[str, Any]]:
     existing_roles = extract_data(
         client.request("GET", "/api/v1/config/roles", expected=(200,), label="roles.list")
     )
@@ -105,15 +202,20 @@ def sync_roles(client: ApiClient, roles_fixture_path: str) -> list[dict[str, Any
     synced_roles: list[dict[str, Any]] = []
 
     for payload in load_fixture(roles_fixture_path):
-        existing = existing_by_name.get(payload["name"])
+        synced_payload = apply_native_search_default(
+            payload,
+            provider_type=provider_type,
+            resolved_model_id=resolved_model_id,
+        )
+        existing = existing_by_name.get(synced_payload["name"])
         if existing is None:
             role = extract_data(
                 client.request(
                     "POST",
                     "/api/v1/config/roles",
-                    payload=payload,
+                    payload=synced_payload,
                     expected=(201,),
-                    label=f"roles.create:{payload['name']}",
+                    label=f"roles.create:{synced_payload['name']}",
                 )
             )
         else:
@@ -121,9 +223,9 @@ def sync_roles(client: ApiClient, roles_fixture_path: str) -> list[dict[str, Any
                 client.request(
                     "PUT",
                     f"/api/v1/config/roles/{existing['id']}",
-                    payload=payload,
+                    payload=synced_payload,
                     expected=(200,),
-                    label=f"roles.update:{payload['name']}",
+                    label=f"roles.update:{synced_payload['name']}",
                 )
             )
         synced_roles.append(role)
@@ -507,7 +609,12 @@ def main() -> None:
     delete_models_and_providers(client)
     clear_assignments(client)
     delete_workspaces(client)
-    roles = sync_roles(client, roles_fixture_path)
+    roles = sync_roles(
+        client,
+        roles_fixture_path,
+        provider_type=provider_type,
+        resolved_model_id=specialist_model_id,
+    )
 
     provider, model, specialist_model = seed_provider_catalog(
         client,

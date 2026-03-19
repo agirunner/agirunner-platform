@@ -4,6 +4,7 @@ from __future__ import annotations
 import sys
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 LIVE_LIB = Path(__file__).resolve().parents[1] / "lib"
@@ -16,6 +17,7 @@ class FakeClient:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, dict[str, object], tuple[int, ...], str | None]] = []
         self.models: list[dict[str, object]] = []
+        self.roles: list[dict[str, object]] = []
         self.oauth_models = [
             {
                 "id": "model-gpt-5.4",
@@ -56,6 +58,29 @@ class FakeClient:
             self.models.append(created)
             return {"data": created}
 
+        if method == "GET" and path == "/api/v1/config/roles":
+            return {"data": self.roles}
+
+        if method == "POST" and path == "/api/v1/config/roles":
+            created = {
+                "id": f"role-{len(self.roles) + 1}",
+                "name": payload["name"],
+                "allowed_tools": payload.get("allowedTools", []),
+            }
+            self.roles.append(created)
+            return {"data": created}
+
+        if method == "PUT" and path.startswith("/api/v1/config/roles/"):
+            role_id = path.rsplit("/", 1)[-1]
+            updated = {
+                "id": role_id,
+                "name": payload["name"],
+                "allowed_tools": payload.get("allowedTools", []),
+            }
+            self.roles = [role for role in self.roles if role.get("id") != role_id]
+            self.roles.append(updated)
+            return {"data": updated}
+
         if method == "POST" and path == "/api/v1/config/oauth/import-session":
             return {"data": {"providerId": "provider-oauth", "email": "operator@example.com"}}
 
@@ -85,6 +110,48 @@ class FakeClient:
 
 
 class SeedLiveTestEnvironmentTests(unittest.TestCase):
+    def test_sync_roles_enables_native_search_for_supported_models(self) -> None:
+        client = FakeClient()
+
+        with patch.object(
+            seed_live_test_environment,
+            "load_fixture",
+            return_value=[{"name": "live-test-researcher", "allowedTools": ["file_read", "web_fetch"]}],
+        ):
+            seed_live_test_environment.sync_roles(
+                client,
+                "ignored.json",
+                provider_type="openai",
+                resolved_model_id="gpt-5.4-mini",
+            )
+
+        create_call = next(call for call in client.calls if call[0] == "POST" and call[1] == "/api/v1/config/roles")
+        self.assertEqual(
+            ["file_read", "web_fetch", "native_search"],
+            create_call[2]["allowedTools"],
+        )
+
+    def test_sync_roles_leaves_native_search_disabled_for_unsupported_models(self) -> None:
+        client = FakeClient()
+
+        with patch.object(
+            seed_live_test_environment,
+            "load_fixture",
+            return_value=[{"name": "live-test-researcher", "allowedTools": ["file_read", "web_fetch"]}],
+        ):
+            seed_live_test_environment.sync_roles(
+                client,
+                "ignored.json",
+                provider_type="openai",
+                resolved_model_id="gpt-4o",
+            )
+
+        create_call = next(call for call in client.calls if call[0] == "POST" and call[1] == "/api/v1/config/roles")
+        self.assertEqual(
+            ["file_read", "web_fetch"],
+            create_call[2]["allowedTools"],
+        )
+
     def test_ensure_specialist_assignments_creates_missing_model_and_assigns_all_roles(self) -> None:
         client = FakeClient()
         roles = [
