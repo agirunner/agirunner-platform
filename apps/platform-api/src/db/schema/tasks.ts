@@ -102,5 +102,11 @@ export const tasks = pgTable(
       .on(table.assignedWorkerId)
       .where(sql`${table.assignedWorkerId} IS NOT NULL`),
     index('idx_tasks_workflow_state').on(table.tenantId, table.workflowId, table.state),
+    index('idx_tasks_active_timeout')
+      .on(table.state, table.startedAt, table.claimedAt)
+      .where(sql`${table.state} IN ('claimed', 'in_progress')`),
+    index('idx_tasks_completed_archive')
+      .on(table.tenantId, table.completedAt)
+      .where(sql`${table.completedAt} IS NOT NULL AND ${table.archivedAt} IS NULL`),
   ],
 );

@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
@@ -28,5 +29,8 @@ export const workers = pgTable(
     index('idx_workers_tenant').on(table.tenantId),
     index('idx_workers_status').on(table.tenantId, table.status),
     index('idx_workers_capabilities').using('gin', table.capabilities),
+    index('idx_workers_heartbeat_timeout')
+      .on(table.status, table.lastHeartbeatAt)
+      .where(sql`${table.lastHeartbeatAt} IS NOT NULL`),
   ],
 );

@@ -117,8 +117,33 @@ CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_retention_mode
   ON workflow_artifacts (tenant_id, workflow_id, (retention_policy ->> 'mode'))
   WHERE retention_policy ->> 'mode' IS NOT NULL;
 
--- execution_logs.role is added via raw SQL migration, not in Drizzle schema,
--- but actively filtered by the log viewer dashboard
+-- execution_logs.role — already exists in 0001_init as idx_execution_logs_role,
+-- this adds the created_at column for time-range filtered role queries
 CREATE INDEX IF NOT EXISTS idx_exlogs_role
   ON execution_logs (tenant_id, role, created_at)
   WHERE role IS NOT NULL;
+
+-- Compound indexes for background job queries (cross-tenant scans)
+
+-- task-timeout-service: scans active tasks (claimed/in_progress) by started_at/claimed_at
+-- The existing idx_tasks_running_timeout only covers state='in_progress',
+-- but timeout service also checks 'claimed' state
+CREATE INDEX IF NOT EXISTS idx_tasks_active_timeout
+  ON tasks (state, started_at, claimed_at)
+  WHERE state IN ('claimed', 'in_progress');
+
+-- task-timeout-service: finds tasks with workflow_cancel_force_at metadata key
+CREATE INDEX IF NOT EXISTS idx_tasks_cancel_pending
+  ON tasks (state, ((metadata ->> 'workflow_cancel_force_at')))
+  WHERE state IN ('claimed', 'in_progress')
+    AND metadata ->> 'workflow_cancel_force_at' IS NOT NULL;
+
+-- worker-heartbeat-service: scans workers by status + last_heartbeat_at (cross-tenant)
+CREATE INDEX IF NOT EXISTS idx_workers_heartbeat_timeout
+  ON workers (status, last_heartbeat_at)
+  WHERE last_heartbeat_at IS NOT NULL;
+
+-- governance-service: archives/deletes completed tasks by completed_at date
+CREATE INDEX IF NOT EXISTS idx_tasks_completed_archive
+  ON tasks (tenant_id, completed_at)
+  WHERE completed_at IS NOT NULL AND archived_at IS NULL;
