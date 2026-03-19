@@ -15,9 +15,9 @@ describe('sortWorkflowsByAttention', () => {
       { id: '3', name: 'Completed', state: 'completed' },
     ];
     const sorted = sortWorkflowsByAttention(workflows);
-    expect(sorted[0].state).toBe('failed');
-    expect(sorted[1].state).toBe('active');
-    expect(sorted[2].state).toBe('completed');
+    expect(sorted[0]?.state).toBe('failed');
+    expect(sorted[1]?.state).toBe('active');
+    expect(sorted[2]?.state).toBe('completed');
   });
 
   it('puts gate-waiting before active', () => {
@@ -26,10 +26,32 @@ describe('sortWorkflowsByAttention', () => {
       { id: '2', name: 'Gate', state: 'active', gateWaiting: true },
     ];
     const sorted = sortWorkflowsByAttention(workflows);
-    expect(sorted[0].id).toBe('2');
+    expect(sorted[0]?.id).toBe('2');
   });
 
   it('returns empty array for empty input', () => {
     expect(sortWorkflowsByAttention([])).toEqual([]);
+  });
+
+  it('sorts workflows with rich data correctly', () => {
+    const workflows = [
+      {
+        id: '1',
+        name: 'Normal',
+        state: 'active',
+        playbookName: 'Test Playbook',
+        taskCounts: { completed: 5, in_progress: 2 },
+      },
+      {
+        id: '2',
+        name: 'Attention',
+        state: 'active',
+        needsAttention: true,
+        workItemSummary: { total_work_items: 10, open_work_item_count: 5 },
+      },
+    ];
+    const sorted = sortWorkflowsByAttention(workflows);
+    expect(sorted[0]?.id).toBe('2');
+    expect(sorted[1]?.id).toBe('1');
   });
 });

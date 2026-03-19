@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 
-import { dashboardApi, type DashboardPlaybookRecord, type DashboardWorkspaceRecord, type DashboardEventRecord } from '../../lib/api.js';
+import {
+  dashboardApi,
+  type DashboardPlaybookRecord,
+  type DashboardWorkspaceRecord,
+  type DashboardEventPage,
+  type DashboardApprovalQueueResponse,
+  type DashboardWorkflowBoardResponse,
+  type DashboardWorkflowBudgetRecord,
+  type LogQueryResponse,
+} from '../../lib/api.js';
 import { subscribeToEvents } from '../../lib/sse.js';
 import { useUserPreferences } from '../../lib/use-user-preferences.js';
 import {
@@ -20,18 +29,49 @@ import { DashboardGridView } from './overview/dashboard-grid-view.js';
 import { TimelineLanesView, type WorkflowLane } from './overview/timeline-lanes-view.js';
 import { DepthDial } from './detail/depth-dial.js';
 import { WorkflowDetailPanel } from './detail/workflow-detail-panel.js';
-import { TaskKanban } from './detail/task-kanban.js';
+import { TaskKanban, type TaskCard } from './detail/task-kanban.js';
 import { AgentTimeline } from './detail/agent-timeline.js';
+import type { AgentTurnData } from './detail/agent-timeline-entry.js';
 import { RawStreamView } from './detail/raw-stream-view.js';
 import { LaunchWizard } from './launch/launch-wizard.js';
 import { CommandPalette } from './controls/command-palette.js';
 import { buildActionRegistry } from './controls/command-palette-support.js';
 import { ResourcePanel } from './resources/resource-panel.js';
+import { TimeRangeFilter, type TimeRange, filterByTimeRange } from './time-range-filter.js';
 
 const REFETCH_INTERVAL = 5000;
 
 interface ExecutionCanvasProps {
   initialAction?: 'launch';
+}
+
+interface WorkerRecord {
+  id?: string;
+  status: string;
+  capabilities?: string[];
+}
+
+function mapBoardToKanbanTasks(board: DashboardWorkflowBoardResponse): TaskCard[] {
+  return board.work_items.map((wi) => ({
+    id: wi.id,
+    title: wi.title,
+    role: wi.owner_role ?? undefined,
+    state: wi.column_id,
+    columnId: wi.column_id,
+  }));
+}
+
+function mapLogsToTimeline(logs: LogQueryResponse): AgentTurnData[] {
+  return logs.data.map((entry, index) => ({
+    id: String(entry.id),
+    role: entry.role ?? entry.actor_type ?? 'system',
+    turn: index + 1,
+    summary: entry.operation,
+    timestamp: new Date(entry.created_at).toLocaleTimeString(),
+    expandedContent: entry.payload
+      ? JSON.stringify(entry.payload, null, 2)
+      : undefined,
+  }));
 }
 
 export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.Element {
@@ -57,6 +97,8 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
       queryClient.invalidateQueries({ queryKey: ['workflows'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
       queryClient.invalidateQueries({ queryKey: ['workers'] });
+      queryClient.invalidateQueries({ queryKey: ['events-recent'] });
+      queryClient.invalidateQueries({ queryKey: ['approvals'] });
     });
     return unsubscribe;
   }, [queryClient]);
@@ -79,6 +121,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
   const [isConnected, setIsConnected] = useState(true);
   const [roleFilter, setRoleFilter] = useState<string | null>(null);
   const [isAutoScrolling, setIsAutoScrolling] = useState(true);
+  const [timeRange, setTimeRange] = useState<TimeRange>('24h');
 
   // Command palette
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -138,26 +181,103 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
 
   const eventsQuery = useQuery({
     queryKey: ['events-recent'],
-    queryFn: () => dashboardApi.listEvents?.() ?? Promise.resolve({ data: [] }),
+    queryFn: () => dashboardApi.listEvents(),
+    refetchInterval: REFETCH_INTERVAL,
+  });
+
+  const approvalsQuery = useQuery({
+    queryKey: ['approvals'],
+    queryFn: () => dashboardApi.getApprovalQueue(),
+    refetchInterval: REFETCH_INTERVAL,
+  });
+
+  // Detail panel queries (conditional on focused workflow)
+  const focusedWorkflowId = canvasState.panel.workflowId;
+
+  const boardQuery = useQuery({
+    queryKey: ['workflow-board', focusedWorkflowId],
+    queryFn: () => dashboardApi.getWorkflowBoard(focusedWorkflowId!),
+    enabled: !!focusedWorkflowId,
+    refetchInterval: REFETCH_INTERVAL,
+  });
+
+  const budgetQuery = useQuery({
+    queryKey: ['workflow-budget', focusedWorkflowId],
+    queryFn: () => dashboardApi.getWorkflowBudget(focusedWorkflowId!),
+    enabled: !!focusedWorkflowId,
+    refetchInterval: REFETCH_INTERVAL,
+  });
+
+  const logsQuery = useQuery({
+    queryKey: ['workflow-logs', focusedWorkflowId],
+    queryFn: () => dashboardApi.queryLogs({
+      workflow_id: focusedWorkflowId!,
+      per_page: '100',
+    }),
+    enabled: !!focusedWorkflowId && canvasState.depthLevel >= 2,
     refetchInterval: REFETCH_INTERVAL,
   });
 
   // Map API data to component shapes
   const workflows = useMemo(() => {
     const raw = workflowsQuery.data?.data ?? [];
-    return raw.map((w) => ({
-      id: w.id,
-      name: w.name,
-      state: w.state,
-      currentStage: w.current_stage ?? w.active_stages?.[0],
-      agentRoles: [] as string[],
-      needsAttention: w.state === 'failed',
-      gateWaiting: false,
-    }));
-  }, [workflowsQuery.data]);
+
+    // Build task lookup by workflow
+    const tasksByWorkflow = new Map<string, Array<{ role: string | null; state: string }>>();
+    const taskData = (tasksQuery.data as { data?: Array<{ workflow_id: string | null; role: string | null; state: string }> })?.data ?? [];
+    for (const t of taskData) {
+      if (t.workflow_id === null) continue;
+      const list = tasksByWorkflow.get(t.workflow_id) ?? [];
+      list.push(t);
+      tasksByWorkflow.set(t.workflow_id, list);
+    }
+
+    // Build approval lookup by workflow
+    const approvals = approvalsQuery.data as DashboardApprovalQueueResponse | undefined;
+    const gateWorkflowIds = new Set<string>();
+    if (approvals) {
+      for (const gate of approvals.stage_gates) {
+        if (gate.gate_status === 'pending' || gate.gate_status === 'awaiting_human') {
+          gateWorkflowIds.add(gate.workflow_id);
+        }
+      }
+      for (const task of approvals.task_approvals) {
+        if (task.workflow_id && (task.state === 'output_pending_review' || task.state === 'escalated')) {
+          gateWorkflowIds.add(task.workflow_id);
+        }
+      }
+    }
+
+    return raw.map((w) => {
+      const wTasks = tasksByWorkflow.get(w.id) ?? [];
+      const activeRoles = [...new Set(
+        wTasks
+          .filter((t) => t.state === 'in_progress' || t.state === 'claimed')
+          .map((t) => t.role)
+          .filter((r): r is string => r !== null),
+      )];
+
+      const hasFailedTask = wTasks.some((t) => t.state === 'failed');
+
+      return {
+        id: w.id,
+        name: w.name,
+        state: w.state,
+        createdAt: w.created_at,
+        currentStage: w.current_stage ?? w.active_stages?.[0] ?? undefined,
+        playbookName: w.playbook_name ?? undefined,
+        workspaceName: w.workspace_name ?? undefined,
+        taskCounts: w.task_counts as Record<string, number> | undefined,
+        workItemSummary: w.work_item_summary ?? undefined,
+        agentRoles: activeRoles,
+        needsAttention: w.state === 'failed' || hasFailedTask,
+        gateWaiting: gateWorkflowIds.has(w.id),
+      };
+    });
+  }, [workflowsQuery.data, tasksQuery.data, approvalsQuery.data]);
 
   const filteredWorkflows = useMemo(() => {
-    let result = workflows;
+    let result = filterByTimeRange(workflows, timeRange, (w) => w.createdAt);
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       result = result.filter((w) => w.name.toLowerCase().includes(q));
@@ -165,17 +285,22 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
     if (statusFilter === 'active') result = result.filter((w) => w.state === 'active');
     else if (statusFilter === 'completed') result = result.filter((w) => w.state === 'completed');
     else if (statusFilter === 'failed') result = result.filter((w) => w.state === 'failed');
-    else if (statusFilter === 'attention') result = result.filter((w) => w.needsAttention || w.gateWaiting);
+    else if (statusFilter === 'attention' || statusFilter === 'needs-attention') {
+      result = result.filter((w) => w.needsAttention || w.gateWaiting);
+    }
     return result;
-  }, [workflows, searchQuery, statusFilter]);
+  }, [workflows, searchQuery, statusFilter, timeRange]);
 
+  // Workers: SDK listWorkers() already unwraps .data, returns Worker[]
   const workers = useMemo(() => {
-    const raw = workersQuery.data as Array<{ status: string }> | undefined;
-    return (raw ?? []).map((w) => ({ status: w.status ?? 'offline' }));
+    const raw = (workersQuery.data ?? []) as WorkerRecord[];
+    return raw.map((w) => ({ status: w.status ?? 'offline' }));
   }, [workersQuery.data]);
 
+  // Events: listEvents returns DashboardEventPage { data, meta }
   const events = useMemo(() => {
-    const raw = (eventsQuery.data as unknown as { data?: DashboardEventRecord[] })?.data ?? [];
+    const page = eventsQuery.data as DashboardEventPage | undefined;
+    const raw = page?.data ?? [];
     return raw.map((e) => ({
       id: e.id,
       type: e.type,
@@ -186,15 +311,55 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
     }));
   }, [eventsQuery.data]);
 
-  // Timeline lanes data
+  // Cost data from focused workflow budget or aggregate from workflow task counts
+  const costData = useMemo(() => {
+    const budget = budgetQuery.data as DashboardWorkflowBudgetRecord | undefined;
+    if (budget) {
+      return { spendUsd: budget.cost_usd, tokenCount: budget.tokens_used };
+    }
+    // Aggregate: sum completed task counts as proxy for tokens
+    let totalTasks = 0;
+    for (const w of workflows) {
+      if (w.taskCounts) {
+        totalTasks += Object.values(w.taskCounts).reduce((sum, v) => sum + (v ?? 0), 0);
+      }
+    }
+    return { spendUsd: -1, tokenCount: totalTasks };
+  }, [budgetQuery.data, workflows]);
+
+  // Timeline lanes data — use real stage info from workflow data
   const lanes: WorkflowLane[] = useMemo(() => {
-    return filteredWorkflows.map((w) => ({
-      id: w.id,
-      name: w.name,
-      stages: [
-        { name: w.currentStage ?? w.state, status: w.state === 'active' ? 'active' as const : w.state === 'completed' ? 'completed' as const : w.state === 'failed' ? 'failed' as const : 'pending' as const },
-      ],
-    }));
+    return filteredWorkflows.map((w) => {
+      const summary = w.workItemSummary;
+      if (summary && summary.active_stage_names && summary.active_stage_names.length > 0) {
+        return {
+          id: w.id,
+          name: w.name,
+          stages: summary.active_stage_names.map((stageName: string) => ({
+            name: stageName,
+            status: 'active' as const,
+            agentRoles: w.agentRoles,
+          })),
+        };
+      }
+
+      const stageName = w.currentStage ?? w.state;
+      const status = w.state === 'active'
+        ? 'active' as const
+        : w.state === 'completed'
+          ? 'completed' as const
+          : w.state === 'failed'
+            ? 'failed' as const
+            : w.gateWaiting
+              ? 'waiting' as const
+              : 'pending' as const;
+
+      return {
+        id: w.id,
+        name: w.name,
+        stages: [{ name: stageName, status, agentRoles: w.agentRoles }],
+      };
+    });
   }, [filteredWorkflows]);
 
   // Focused workflow data
@@ -202,6 +367,27 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
     if (!canvasState.panel.workflowId) return null;
     return workflows.find((w) => w.id === canvasState.panel.workflowId) ?? null;
   }, [workflows, canvasState.panel.workflowId]);
+
+  // Board data for TaskKanban
+  const kanbanData = useMemo(() => {
+    const board = boardQuery.data as DashboardWorkflowBoardResponse | undefined;
+    if (!board) return { columns: [], tasks: [] };
+    return {
+      columns: board.columns.map((c) => ({
+        id: c.id,
+        name: c.label,
+        isTerminal: c.is_terminal,
+      })),
+      tasks: mapBoardToKanbanTasks(board),
+    };
+  }, [boardQuery.data]);
+
+  // Timeline entries from logs
+  const timelineEntries = useMemo(() => {
+    const logData = logsQuery.data as LogQueryResponse | undefined;
+    if (!logData) return [];
+    return mapLogsToTimeline(logData);
+  }, [logsQuery.data]);
 
   // Command palette actions
   const paletteActions = useMemo(() => {
@@ -225,20 +411,22 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
       case 1:
         return (
           <TaskKanban
-            columns={[
-              { id: 'planned', name: 'Planned' },
-              { id: 'active', name: 'Active' },
-              { id: 'review', name: 'Review' },
-              { id: 'done', name: 'Done', isTerminal: true },
-            ]}
-            tasks={[]}
+            columns={kanbanData.columns.length > 0
+              ? kanbanData.columns
+              : [
+                  { id: 'planned', name: 'Planned' },
+                  { id: 'active', name: 'Active' },
+                  { id: 'review', name: 'Review' },
+                  { id: 'done', name: 'Done', isTerminal: true },
+                ]}
+            tasks={kanbanData.tasks}
             onSelectTask={onSelectTask}
           />
         );
       case 2:
         return (
           <AgentTimeline
-            entries={[]}
+            entries={timelineEntries}
             roleFilter={roleFilter}
             onRoleFilterChange={setRoleFilter}
             isAutoScrolling={isAutoScrolling}
@@ -262,6 +450,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
 
   // Render overview mode
   function renderOverview() {
+    const spendDisplay = costData.spendUsd >= 0 ? costData.spendUsd : 0;
     switch (canvasState.viewMode) {
       case 'war-room':
         return (
@@ -269,8 +458,8 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
             workflows={filteredWorkflows}
             workers={workers}
             events={events}
-            spendUsd={0}
-            tokenCount={0}
+            spendUsd={spendDisplay}
+            tokenCount={costData.tokenCount}
             onSelectWorkflow={(id) => {
               const w = workflows.find((wf) => wf.id === id);
               onSelectWorkflow(id, w?.name ?? 'Workflow');
@@ -282,7 +471,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
           <DashboardGridView
             workflows={filteredWorkflows}
             events={events}
-            spendUsd={0}
+            spendUsd={spendDisplay}
             onSelectWorkflow={(id) => {
               const w = workflows.find((wf) => wf.id === id);
               onSelectWorkflow(id, w?.name ?? 'Workflow');
@@ -350,6 +539,8 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
             onWorkspaceFilterChange={() => {}}
           />
         </div>
+
+        <TimeRangeFilter value={timeRange} onChange={setTimeRange} />
 
         <button
           data-testid="new-workflow-btn"

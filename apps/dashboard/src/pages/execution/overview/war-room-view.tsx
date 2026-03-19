@@ -1,18 +1,8 @@
-import { WorkflowStatusRow } from './workflow-status-row.js';
+import { WorkflowStatusRow, type WorkflowStatusRowWorkflow } from './workflow-status-row.js';
 import { FleetStatusCard } from './fleet-status-card.js';
 import { LiveFeedCard } from './live-feed-card.js';
 import { CostTicker } from './cost-ticker.js';
 import { EmptyState } from '../../../components/ui/empty-state.js';
-
-interface Workflow {
-  id: string;
-  name: string;
-  state: string;
-  currentStage?: string;
-  agentRoles?: string[];
-  needsAttention?: boolean;
-  gateWaiting?: boolean;
-}
 
 interface Worker {
   status: string;
@@ -28,7 +18,7 @@ interface FeedEvent {
 }
 
 export interface WarRoomViewProps {
-  workflows: Workflow[];
+  workflows: WorkflowStatusRowWorkflow[];
   workers: Worker[];
   events: FeedEvent[];
   spendUsd: number;
@@ -36,14 +26,14 @@ export interface WarRoomViewProps {
   onSelectWorkflow: (workflowId: string) => void;
 }
 
-function attentionRank(workflow: Workflow): number {
+function attentionRank(workflow: WorkflowStatusRowWorkflow): number {
   if (workflow.state === 'failed') return 0;
   if (workflow.gateWaiting || workflow.needsAttention) return 1;
   if (workflow.state === 'active') return 2;
   return 3;
 }
 
-export function sortWorkflowsByAttention(workflows: Workflow[]): Workflow[] {
+export function sortWorkflowsByAttention(workflows: WorkflowStatusRowWorkflow[]): WorkflowStatusRowWorkflow[] {
   return [...workflows].sort((a, b) => attentionRank(a) - attentionRank(b));
 }
 

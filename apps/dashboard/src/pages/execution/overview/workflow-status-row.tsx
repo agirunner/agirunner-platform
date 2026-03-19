@@ -1,10 +1,30 @@
 import { cn } from '../../../lib/utils.js';
 
-interface WorkflowStatusRowWorkflow {
+interface TaskCounts {
+  completed?: number;
+  in_progress?: number;
+  failed?: number;
+  [key: string]: number | undefined;
+}
+
+interface WorkItemSummary {
+  total_work_items?: number;
+  open_work_item_count?: number;
+  completed_work_item_count?: number;
+  active_stage_count?: number;
+  awaiting_gate_count?: number;
+  active_stage_names?: string[];
+}
+
+export interface WorkflowStatusRowWorkflow {
   id: string;
   name: string;
   state: string;
   currentStage?: string;
+  playbookName?: string;
+  workspaceName?: string;
+  taskCounts?: TaskCounts;
+  workItemSummary?: WorkItemSummary;
   agentRoles?: string[];
   needsAttention?: boolean;
   gateWaiting?: boolean;
@@ -25,12 +45,24 @@ export function getStatusColor(workflow: Pick<WorkflowStatusRowWorkflow, 'state'
   return 'var(--color-status-success)';
 }
 
-// TODO: Add long-press handler on mobile to show quick actions (pause, cancel, view logs).
-// Requires a useRef timer approach: onTouchStart starts a ~500ms timer, onTouchEnd/onTouchMove clears it.
-// Quick actions overlay needs design input before implementation.
-// Tracked in: /home/mark/codex/TODO.md
+function formatTaskProgress(counts?: TaskCounts): string | null {
+  if (!counts) return null;
+  const total = Object.values(counts).reduce<number>((sum, v) => sum + (v ?? 0), 0);
+  if (total === 0) return null;
+  const completed = counts.completed ?? 0;
+  return `${completed}/${total} tasks`;
+}
+
+function formatWorkItemProgress(summary?: WorkItemSummary): string | null {
+  if (!summary || !summary.total_work_items) return null;
+  const open = summary.open_work_item_count ?? 0;
+  return `${open}/${summary.total_work_items} open`;
+}
+
 export function WorkflowStatusRow({ workflow, onClick }: WorkflowStatusRowProps): JSX.Element {
   const borderColor = getStatusColor(workflow);
+  const taskProgress = formatTaskProgress(workflow.taskCounts);
+  const workItemProgress = formatWorkItemProgress(workflow.workItemSummary);
 
   return (
     <div
@@ -49,14 +81,33 @@ export function WorkflowStatusRow({ workflow, onClick }: WorkflowStatusRowProps)
       style={{ borderLeftWidth: '3px', borderLeftColor: borderColor }}
     >
       <div className="flex-1 min-w-0">
-        <div className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">
-          {workflow.name}
+        <div className="flex items-center gap-2">
+          <span className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">
+            {workflow.name}
+          </span>
+          {workflow.playbookName && (
+            <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] font-medium">
+              {workflow.playbookName}
+            </span>
+          )}
         </div>
-        {workflow.currentStage && (
-          <div className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
-            {workflow.currentStage}
-          </div>
-        )}
+        <div className="flex items-center gap-3 mt-0.5">
+          {workflow.currentStage && (
+            <span className="text-[11px] text-[var(--color-text-tertiary)]">
+              {workflow.currentStage}
+            </span>
+          )}
+          {taskProgress && (
+            <span className="text-[11px] text-[var(--color-text-secondary)] tabular-nums">
+              {taskProgress}
+            </span>
+          )}
+          {workItemProgress && (
+            <span className="text-[11px] text-[var(--color-text-secondary)] tabular-nums">
+              {workItemProgress}
+            </span>
+          )}
+        </div>
       </div>
 
       {workflow.agentRoles && workflow.agentRoles.length > 0 && (
