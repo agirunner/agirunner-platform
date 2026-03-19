@@ -1488,7 +1488,7 @@ export interface FleetImageRecord {
 }
 
 export interface DashboardApi {
-  login(apiKey: string): Promise<void>;
+  login(apiKey: string, persistentSession?: boolean): Promise<void>;
   logout(): Promise<void>;
   listWorkflows(
     filters?: Record<string, string>,
@@ -2102,6 +2102,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
         writeSession({
           accessToken: refreshed.token,
           tenantId: activeSession.tenantId,
+          persistentSession: activeSession.persistentSession,
         });
         client.setAccessToken(refreshed.token);
         return await handler();
@@ -2300,11 +2301,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
   }
 
   return {
-    async login(apiKey: string): Promise<void> {
-      const auth = await client.exchangeApiKey(apiKey);
+    async login(apiKey: string, persistentSession = true): Promise<void> {
+      const auth = await client.exchangeApiKey(apiKey, persistentSession);
       writeSession({
         accessToken: auth.token,
         tenantId: auth.tenant_id,
+        persistentSession,
       });
       client.setAccessToken(auth.token);
     },

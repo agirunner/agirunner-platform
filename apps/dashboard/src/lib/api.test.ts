@@ -194,7 +194,11 @@ describe('dashboard api auth/session behavior', () => {
     expect(client.refreshSession).toHaveBeenCalledTimes(1);
     expect(client.setAccessToken).toHaveBeenCalledWith('fresh-token');
     expect(listWorkflows).toHaveBeenCalledTimes(2);
-    expect(readSession()).toEqual({ accessToken: 'fresh-token', tenantId: 'tenant-1' });
+    expect(readSession()).toEqual({
+      accessToken: 'fresh-token',
+      tenantId: 'tenant-1',
+      persistentSession: false,
+    });
   });
 
   it('clears session and redirects to login when refresh token is expired', async () => {
@@ -226,7 +230,7 @@ describe('dashboard api auth/session behavior', () => {
     expect(locationAssign).toHaveBeenCalledWith('/login');
   });
 
-  it('persists tenant id and session-scoped access token after login', async () => {
+  it('persists tenant bootstrap in localStorage and keeps the access token session-scoped by default', async () => {
     const client = {
       refreshSession: vi.fn(),
       setAccessToken: vi.fn(),
@@ -245,7 +249,41 @@ describe('dashboard api auth/session behavior', () => {
     const api = createDashboardApi({ client: client as never });
     await api.login('ar_admin_test_key');
 
-    expect(readSession()).toEqual({ accessToken: 'ephemeral-token', tenantId: 'tenant-1' });
+    expect(readSession()).toEqual({
+      accessToken: 'ephemeral-token',
+      tenantId: 'tenant-1',
+      persistentSession: true,
+    });
+    expect(sessionStorage.getItem('agirunner.tenantId')).toBeNull();
+    expect(localStorage.getItem('agirunner.tenantId')).toBe('tenant-1');
+    expect(localStorage.getItem('agirunner.accessToken')).toBeNull();
+    expect(sessionStorage.getItem('agirunner.accessToken')).toBe('ephemeral-token');
+  });
+
+  it('keeps tenant bootstrap in sessionStorage when persistent login is disabled', async () => {
+    const client = {
+      refreshSession: vi.fn(),
+      setAccessToken: vi.fn(),
+      listWorkflows: vi.fn(),
+      exchangeApiKey: vi
+        .fn()
+        .mockResolvedValue({ token: 'ephemeral-token', tenant_id: 'tenant-1' }),
+      getWorkflow: vi.fn(),
+      createWorkflow: vi.fn(),
+      listTasks: vi.fn(),
+      getTask: vi.fn(),
+      listWorkers: vi.fn(),
+      listAgents: vi.fn(),
+    };
+
+    const api = createDashboardApi({ client: client as never });
+    await api.login('ar_admin_test_key', false);
+
+    expect(readSession()).toEqual({
+      accessToken: 'ephemeral-token',
+      tenantId: 'tenant-1',
+      persistentSession: false,
+    });
     expect(sessionStorage.getItem('agirunner.tenantId')).toBe('tenant-1');
     expect(localStorage.getItem('agirunner.tenantId')).toBeNull();
     expect(localStorage.getItem('agirunner.accessToken')).toBeNull();

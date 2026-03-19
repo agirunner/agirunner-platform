@@ -32,7 +32,11 @@ describe('auth session helpers', () => {
     const searchParams = new URLSearchParams({ tenant_id: 'tenant-42' });
 
     expect(completeSsoBrowserSession(searchParams)).toBe(true);
-    expect(readSession()).toEqual({ accessToken: null, tenantId: 'tenant-42' });
+    expect(readSession()).toEqual({
+      accessToken: null,
+      tenantId: 'tenant-42',
+      persistentSession: false,
+    });
     expect(sessionStorage.getItem('agirunner.tenantId')).toBe('tenant-42');
     expect(localStorage.getItem('agirunner.tenantId')).toBeNull();
     expect(sessionStorage.getItem('agirunner.accessToken')).toBeNull();
@@ -58,7 +62,11 @@ describe('auth session helpers', () => {
     expect(resolveAuthCallbackRedirect(searchParams)).toBe(
       '/config/llm?oauth_success=true&provider_id=provider-1',
     );
-    expect(readSession()).toEqual({ accessToken: null, tenantId: 'tenant-42' });
+    expect(readSession()).toEqual({
+      accessToken: null,
+      tenantId: 'tenant-42',
+      persistentSession: false,
+    });
   });
 
   it('preserves the existing access token when the callback returns to the same tenant', () => {
@@ -68,7 +76,11 @@ describe('auth session helpers', () => {
       completeSsoBrowserSession(new URLSearchParams({ tenant_id: 'tenant-42' })),
     ).toBe(true);
 
-    expect(readSession()).toEqual({ accessToken: 'existing-token', tenantId: 'tenant-42' });
+    expect(readSession()).toEqual({
+      accessToken: 'existing-token',
+      tenantId: 'tenant-42',
+      persistentSession: false,
+    });
   });
 
   it('drops the previous access token when the callback resolves to a different tenant', () => {
@@ -78,7 +90,24 @@ describe('auth session helpers', () => {
       completeSsoBrowserSession(new URLSearchParams({ tenant_id: 'tenant-42' })),
     ).toBe(true);
 
-    expect(readSession()).toEqual({ accessToken: null, tenantId: 'tenant-42' });
+    expect(readSession()).toEqual({
+      accessToken: null,
+      tenantId: 'tenant-42',
+      persistentSession: false,
+    });
+  });
+
+  it('reads persistent bootstrap state from localStorage when the transient access token is gone', () => {
+    writeSession({ accessToken: 'existing-token', tenantId: 'tenant-42', persistentSession: true });
+    sessionStorage.removeItem('agirunner.accessToken');
+
+    expect(readSession()).toEqual({
+      accessToken: null,
+      tenantId: 'tenant-42',
+      persistentSession: true,
+    });
+    expect(sessionStorage.getItem('agirunner.tenantId')).toBeNull();
+    expect(localStorage.getItem('agirunner.tenantId')).toBe('tenant-42');
   });
 
   it('falls back to the root route for unsafe callback redirects', () => {

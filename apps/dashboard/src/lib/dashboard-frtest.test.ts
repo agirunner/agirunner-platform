@@ -306,10 +306,11 @@ describe('FR-420 / FR-424 / FR-426: playbook browser, workflow launch, API key m
 
     await api.login('ar_admin_test_key');
 
-    expect(client.exchangeApiKey).toHaveBeenCalledWith('ar_admin_test_key');
+    expect(client.exchangeApiKey).toHaveBeenCalledWith('ar_admin_test_key', true);
     expect(client.setAccessToken).toHaveBeenCalledWith('access-tok');
     const session = readSession();
     expect(session?.tenantId).toBe('tenant-1');
+    expect(session?.persistentSession).toBe(true);
   });
 
   it('app and layout expose playbook-only configuration routes', () => {

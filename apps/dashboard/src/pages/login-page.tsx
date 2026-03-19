@@ -6,6 +6,7 @@ import { dashboardApi } from '../lib/api.js';
 export function LoginPage(): JSX.Element {
   const navigate = useNavigate();
   const [apiKey, setApiKey] = useState('');
+  const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setSubmitting] = useState(false);
 
@@ -15,7 +16,7 @@ export function LoginPage(): JSX.Element {
     setSubmitting(true);
 
     try {
-      await dashboardApi.login(apiKey);
+      await dashboardApi.login(apiKey, keepSignedIn);
       navigate('/mission-control');
     } catch {
       setError('Invalid API key or server unavailable');
@@ -48,6 +49,14 @@ export function LoginPage(): JSX.Element {
               placeholder="ar_admin_..."
             />
           </div>
+          <label className="flex items-center gap-2 text-sm text-muted">
+            <input
+              type="checkbox"
+              checked={keepSignedIn}
+              onChange={(e) => setKeepSignedIn(e.target.checked)}
+            />
+            <span>Keep me signed in</span>
+          </label>
           {error && <p className="text-sm text-destructive">{error}</p>}
           <button
             type="submit"

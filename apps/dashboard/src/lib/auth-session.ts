@@ -6,6 +6,7 @@ const DEFAULT_REDIRECT_PATH = '/';
 
 interface CompleteSsoBrowserSessionOptions {
   accessToken?: string | null;
+  persistentSession?: boolean;
 }
 
 function readTenantId(searchParams: URLSearchParams): string | null {
@@ -38,6 +39,22 @@ function resolveAccessToken(
   return session.accessToken;
 }
 
+function resolvePersistentSession(
+  tenantId: string,
+  options: CompleteSsoBrowserSessionOptions,
+): boolean {
+  if ('persistentSession' in options && typeof options.persistentSession === 'boolean') {
+    return options.persistentSession;
+  }
+
+  const session = readSession();
+  if (!session || session.tenantId !== tenantId) {
+    return false;
+  }
+
+  return session.persistentSession;
+}
+
 export function completeSsoBrowserSession(
   searchParams: URLSearchParams,
   options: CompleteSsoBrowserSessionOptions = {},
@@ -51,6 +68,7 @@ export function completeSsoBrowserSession(
   writeSession({
     accessToken: resolveAccessToken(tenantId, options),
     tenantId,
+    persistentSession: resolvePersistentSession(tenantId, options),
   });
   return true;
 }
