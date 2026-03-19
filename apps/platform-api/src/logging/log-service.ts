@@ -946,14 +946,31 @@ function formatBatchInsertError(error: unknown): string {
     typeof (error as { message?: unknown }).message === 'string'
       ? normalizeErrorMessage((error as { message: string }).message)
       : 'insert failed';
+  const hint = indexTupleOverflowHint(code, message);
 
+  if (code && constraint && hint) {
+    return `${message} (code=${code}, constraint=${constraint}, hint=${hint})`;
+  }
   if (code && constraint) {
     return `${message} (code=${code}, constraint=${constraint})`;
+  }
+  if (code && hint) {
+    return `${message} (code=${code}, hint=${hint})`;
   }
   if (code) {
     return `${message} (code=${code})`;
   }
   return message;
+}
+
+function indexTupleOverflowHint(code: string | null, message: string): string | null {
+  if (code !== '54000') {
+    return null;
+  }
+  if (!message.includes('index row requires')) {
+    return null;
+  }
+  return 'oversized index tuple; audit INCLUDE columns for wide text/json fields';
 }
 
 function normalizeErrorMessage(message: string): string {

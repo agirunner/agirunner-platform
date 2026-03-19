@@ -1115,39 +1115,40 @@ ALTER TABLE ONLY public.users
     ADD CONSTRAINT users_tenant_id_email_key UNIQUE (tenant_id, email);
 
 -- Indexes: execution_logs parent-level (partition indexes are auto-created)
+-- Keep wide text/json fields in heap rows only; do not INCLUDE them in covering indexes.
 
 CREATE INDEX idx_exlogs_llm_model ON ONLY public.execution_logs USING btree (((payload ->> 'model'::text)), created_at DESC) WHERE (category = 'llm'::public.execution_log_category);
 CREATE INDEX idx_exlogs_llm_provider ON ONLY public.execution_logs USING btree (((payload ->> 'provider'::text)), created_at DESC) WHERE (category = 'llm'::public.execution_log_category);
 CREATE INDEX idx_exlogs_tool_name ON ONLY public.execution_logs USING btree (((payload ->> 'tool_name'::text)), created_at DESC) WHERE (category = 'tool'::public.execution_log_category);
 CREATE INDEX idx_exlogs_config_type ON ONLY public.execution_logs USING btree (((payload ->> 'config_type'::text)), created_at DESC) WHERE (category = 'config'::public.execution_log_category);
-CREATE INDEX idx_exlogs_span ON ONLY public.execution_logs USING btree (parent_span_id, created_at) INCLUDE (span_id, source, category, operation, status, duration_ms) WHERE (parent_span_id IS NOT NULL);
-CREATE INDEX idx_exlogs_workspace ON ONLY public.execution_logs USING btree (workspace_id, created_at DESC) INCLUDE (source, category, level, operation, status, workflow_id, task_id) WHERE (workspace_id IS NOT NULL);
-CREATE INDEX idx_exlogs_task_category ON ONLY public.execution_logs USING btree (task_id, category, created_at) INCLUDE (source, level, operation, status, duration_ms) WHERE (task_id IS NOT NULL);
-CREATE INDEX idx_exlogs_task ON ONLY public.execution_logs USING btree (task_id, created_at) INCLUDE (source, category, level, operation, status, duration_ms, actor_name) WHERE (task_id IS NOT NULL);
-CREATE INDEX idx_exlogs_task_level ON ONLY public.execution_logs USING btree (task_id, level, created_at) INCLUDE (source, category, operation, status, duration_ms) WHERE (task_id IS NOT NULL);
-CREATE INDEX idx_exlogs_actor ON ONLY public.execution_logs USING btree (tenant_id, actor_id, created_at DESC) INCLUDE (source, category, operation, status, workflow_id, task_id, actor_name) WHERE (actor_id IS NOT NULL);
+CREATE INDEX idx_exlogs_span ON ONLY public.execution_logs USING btree (parent_span_id, created_at) INCLUDE (span_id, source, category, status, duration_ms) WHERE (parent_span_id IS NOT NULL);
+CREATE INDEX idx_exlogs_workspace ON ONLY public.execution_logs USING btree (workspace_id, created_at DESC) INCLUDE (source, category, level, status, workflow_id, task_id) WHERE (workspace_id IS NOT NULL);
+CREATE INDEX idx_exlogs_task_category ON ONLY public.execution_logs USING btree (task_id, category, created_at) INCLUDE (source, level, status, duration_ms) WHERE (task_id IS NOT NULL);
+CREATE INDEX idx_exlogs_task ON ONLY public.execution_logs USING btree (task_id, created_at) INCLUDE (source, category, level, status, duration_ms) WHERE (task_id IS NOT NULL);
+CREATE INDEX idx_exlogs_task_level ON ONLY public.execution_logs USING btree (task_id, level, created_at) INCLUDE (source, category, status, duration_ms) WHERE (task_id IS NOT NULL);
+CREATE INDEX idx_exlogs_actor ON ONLY public.execution_logs USING btree (tenant_id, actor_id, created_at DESC) INCLUDE (source, category, status, workflow_id, task_id) WHERE (actor_id IS NOT NULL);
 CREATE INDEX idx_exlogs_actors_distinct ON ONLY public.execution_logs USING btree (tenant_id, actor_type, actor_id, actor_name, created_at DESC) WHERE (actor_id IS NOT NULL);
-CREATE INDEX idx_exlogs_stats ON ONLY public.execution_logs USING btree (tenant_id, category, created_at DESC) INCLUDE (duration_ms, payload) WHERE (status = ANY (ARRAY['completed'::public.execution_log_status, 'failed'::public.execution_log_status]));
-CREATE INDEX idx_exlogs_category ON ONLY public.execution_logs USING btree (tenant_id, category, created_at DESC) INCLUDE (source, level, operation, status, duration_ms, workflow_id, task_id);
+CREATE INDEX idx_exlogs_stats ON ONLY public.execution_logs USING btree (tenant_id, category, created_at DESC) INCLUDE (duration_ms) WHERE (status = ANY (ARRAY['completed'::public.execution_log_status, 'failed'::public.execution_log_status]));
+CREATE INDEX idx_exlogs_category ON ONLY public.execution_logs USING btree (tenant_id, category, created_at DESC) INCLUDE (source, level, status, duration_ms, workflow_id, task_id);
 CREATE INDEX idx_exlogs_category_op ON ONLY public.execution_logs USING btree (tenant_id, category, operation, created_at DESC) INCLUDE (source, level, status, duration_ms, workflow_id, task_id);
-CREATE INDEX idx_exlogs_errors ON ONLY public.execution_logs USING btree (tenant_id, created_at DESC) INCLUDE (source, category, operation, workflow_id, task_id, actor_name, error) WHERE ((level = 'error'::public.execution_log_level) OR (status = 'failed'::public.execution_log_status));
-CREATE INDEX idx_exlogs_tenant_time ON ONLY public.execution_logs USING btree (tenant_id, created_at DESC) INCLUDE (source, category, level, operation, status, duration_ms, workflow_id, task_id, actor_name, resource_name);
-CREATE INDEX idx_exlogs_level ON ONLY public.execution_logs USING btree (tenant_id, level, created_at DESC) INCLUDE (source, category, operation, status, duration_ms, workflow_id, task_id);
+CREATE INDEX idx_exlogs_errors ON ONLY public.execution_logs USING btree (tenant_id, created_at DESC) INCLUDE (source, category, workflow_id, task_id) WHERE ((level = 'error'::public.execution_log_level) OR (status = 'failed'::public.execution_log_status));
+CREATE INDEX idx_exlogs_tenant_time ON ONLY public.execution_logs USING btree (tenant_id, created_at DESC) INCLUDE (source, category, level, status, duration_ms, workflow_id, task_id);
+CREATE INDEX idx_exlogs_level ON ONLY public.execution_logs USING btree (tenant_id, level, created_at DESC) INCLUDE (source, category, status, duration_ms, workflow_id, task_id);
 CREATE INDEX idx_exlogs_ops_distinct ON ONLY public.execution_logs USING btree (tenant_id, operation, created_at DESC);
 CREATE INDEX idx_exlogs_workspace_name_time ON ONLY public.execution_logs USING btree (tenant_id, workspace_name, created_at DESC) WHERE (workspace_name IS NOT NULL);
 CREATE INDEX idx_execution_logs_workspace_name ON ONLY public.execution_logs USING btree (tenant_id, workspace_name) WHERE (workspace_name IS NOT NULL);
-CREATE INDEX idx_exlogs_resource ON ONLY public.execution_logs USING btree (tenant_id, resource_type, resource_id, created_at DESC) INCLUDE (category, operation, status, actor_name) WHERE (resource_id IS NOT NULL);
+CREATE INDEX idx_exlogs_resource ON ONLY public.execution_logs USING btree (tenant_id, resource_type, resource_id, created_at DESC) INCLUDE (category, status) WHERE (resource_id IS NOT NULL);
 CREATE INDEX idx_execution_logs_role ON ONLY public.execution_logs USING btree (tenant_id, role) WHERE (role IS NOT NULL);
-CREATE INDEX idx_exlogs_source ON ONLY public.execution_logs USING btree (tenant_id, source, created_at DESC) INCLUDE (category, level, operation, status, duration_ms, workflow_id, task_id);
-CREATE INDEX idx_exlogs_status_full ON ONLY public.execution_logs USING btree (tenant_id, status, created_at DESC) INCLUDE (source, category, level, operation, workflow_id, task_id);
-CREATE INDEX idx_exlogs_status ON ONLY public.execution_logs USING btree (tenant_id, status, created_at DESC) INCLUDE (source, category, operation, level, workflow_id, task_id) WHERE (status = ANY (ARRAY['failed'::public.execution_log_status, 'started'::public.execution_log_status]));
+CREATE INDEX idx_exlogs_source ON ONLY public.execution_logs USING btree (tenant_id, source, created_at DESC) INCLUDE (category, level, status, duration_ms, workflow_id, task_id);
+CREATE INDEX idx_exlogs_status_full ON ONLY public.execution_logs USING btree (tenant_id, status, created_at DESC) INCLUDE (source, category, level, workflow_id, task_id);
+CREATE INDEX idx_exlogs_status ON ONLY public.execution_logs USING btree (tenant_id, status, created_at DESC) INCLUDE (source, category, level, workflow_id, task_id) WHERE (status = ANY (ARRAY['failed'::public.execution_log_status, 'started'::public.execution_log_status]));
 CREATE INDEX idx_exlogs_workflow_name_time ON ONLY public.execution_logs USING btree (tenant_id, workflow_name, created_at DESC) WHERE (workflow_name IS NOT NULL);
 CREATE INDEX idx_execution_logs_workflow_name ON ONLY public.execution_logs USING btree (tenant_id, workflow_name) WHERE (workflow_name IS NOT NULL);
 CREATE INDEX idx_exlogs_search ON ONLY public.execution_logs USING gin (to_tsvector('english'::regconfig, ((operation || ' '::text) || COALESCE((payload)::text, ''::text))));
-CREATE INDEX idx_exlogs_trace ON ONLY public.execution_logs USING btree (trace_id, created_at) INCLUDE (span_id, parent_span_id, source, category, operation, status, duration_ms);
-CREATE INDEX idx_exlogs_wf_category ON ONLY public.execution_logs USING btree (workflow_id, category, created_at) INCLUDE (source, level, operation, status, duration_ms, task_id) WHERE (workflow_id IS NOT NULL);
-CREATE INDEX idx_exlogs_workflow ON ONLY public.execution_logs USING btree (workflow_id, created_at) INCLUDE (source, category, level, operation, status, duration_ms, task_id, actor_name) WHERE (workflow_id IS NOT NULL);
-CREATE INDEX idx_exlogs_wf_level ON ONLY public.execution_logs USING btree (workflow_id, level, created_at) INCLUDE (source, category, operation, status, duration_ms, task_id) WHERE (workflow_id IS NOT NULL);
+CREATE INDEX idx_exlogs_trace ON ONLY public.execution_logs USING btree (trace_id, created_at) INCLUDE (span_id, parent_span_id, source, category, status, duration_ms);
+CREATE INDEX idx_exlogs_wf_category ON ONLY public.execution_logs USING btree (workflow_id, category, created_at) INCLUDE (source, level, status, duration_ms, task_id) WHERE (workflow_id IS NOT NULL);
+CREATE INDEX idx_exlogs_workflow ON ONLY public.execution_logs USING btree (workflow_id, created_at) INCLUDE (source, category, level, status, duration_ms, task_id) WHERE (workflow_id IS NOT NULL);
+CREATE INDEX idx_exlogs_wf_level ON ONLY public.execution_logs USING btree (workflow_id, level, created_at) INCLUDE (source, category, status, duration_ms, task_id) WHERE (workflow_id IS NOT NULL);
 
 -- Indexes: other tables
 

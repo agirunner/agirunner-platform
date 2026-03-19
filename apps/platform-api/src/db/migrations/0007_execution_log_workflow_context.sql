@@ -6,22 +6,22 @@ ALTER TABLE public.execution_logs
 
 CREATE INDEX idx_exlogs_work_item
   ON ONLY public.execution_logs USING btree (tenant_id, work_item_id, created_at DESC)
-  INCLUDE (source, category, level, operation, status, duration_ms, workflow_id, task_id)
+  INCLUDE (source, category, level, status, duration_ms, workflow_id, task_id)
   WHERE (work_item_id IS NOT NULL);
 
 CREATE INDEX idx_exlogs_activation
   ON ONLY public.execution_logs USING btree (tenant_id, activation_id, created_at DESC)
-  INCLUDE (source, category, level, operation, status, duration_ms, workflow_id, task_id)
+  INCLUDE (source, category, level, status, duration_ms, workflow_id, task_id)
   WHERE (activation_id IS NOT NULL);
 
 CREATE INDEX idx_exlogs_stage_name
   ON ONLY public.execution_logs USING btree (tenant_id, stage_name, created_at DESC)
-  INCLUDE (source, category, level, operation, status, workflow_id, task_id, work_item_id)
+  INCLUDE (source, category, level, status, workflow_id, task_id, work_item_id)
   WHERE (stage_name IS NOT NULL);
 
 CREATE INDEX idx_exlogs_orchestrator_task
   ON ONLY public.execution_logs USING btree (tenant_id, is_orchestrator_task, created_at DESC)
-  INCLUDE (source, category, level, operation, status, workflow_id, task_id, work_item_id);
+  INCLUDE (source, category, level, status, workflow_id, task_id, work_item_id);
 
 DROP TRIGGER IF EXISTS trg_execution_logs_notify ON public.execution_logs;
 DROP FUNCTION IF EXISTS public.notify_execution_log();
