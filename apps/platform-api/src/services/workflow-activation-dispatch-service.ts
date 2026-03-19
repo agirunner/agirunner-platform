@@ -11,7 +11,10 @@ import { resolveRepositoryBranchContext } from './repository-branch-context.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
+  readPositiveInteger,
+  TASK_LLM_MAX_RETRIES_RUNTIME_KEY,
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
+  TASK_MAX_ITERATIONS_RUNTIME_KEY,
 } from './runtime-default-values.js';
 
 const ACTIVE_ORCHESTRATOR_TASK_STATES = [
@@ -76,6 +79,7 @@ interface WorkflowDispatchRowBase {
   playbook_id: string;
   playbook_name: string;
   playbook_outcome: string | null;
+  playbook_definition: Record<string, unknown> | null;
   workspace_repository_url: string | null;
   workspace_settings: Record<string, unknown> | null;
   workflow_git_branch: string | null;
@@ -130,6 +134,11 @@ interface ActivationTaskDefinition {
   environment: Record<string, unknown>;
   resourceBindings: Record<string, unknown>[];
   metadata: Record<string, unknown>;
+}
+
+interface ActivationTaskLoopContract {
+  maxIterations: number;
+  llmMaxRetries: number;
 }
 
 interface ExistingActivationTaskResolution {
@@ -573,6 +582,11 @@ export class WorkflowActivationDispatchService {
         activationAnchor.tenant_id,
         client,
       );
+      const loopContract = await this.resolveActivationTaskLoopContract(
+        activationAnchor.tenant_id,
+        workflow,
+        client,
+      );
       const taskResult = await client.query<ActivationTaskRow>(
         `INSERT INTO tasks (
            tenant_id,
@@ -600,10 +614,12 @@ export class WorkflowActivationDispatchService {
            cost_cap_usd,
            auto_retry,
            max_retries,
+           max_iterations,
+           llm_max_retries,
            metadata
          ) VALUES (
            $1, $2, $3, $4, $5, $6, 'high', 'ready', '{}'::uuid[], false, false,
-           $7, '{}'::jsonb, $8::text[], $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, true, $14, NULL, NULL, false, 0, $15::jsonb
+           $7, '{}'::jsonb, $8::text[], $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, true, $14, NULL, NULL, false, 0, $15, $16, $17::jsonb
          )
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL
@@ -625,6 +641,8 @@ export class WorkflowActivationDispatchService {
           activationAnchor.id,
           taskRequestId,
           timeoutMinutes,
+          loopContract.maxIterations,
+          loopContract.llmMaxRetries,
           taskDefinition.metadata,
         ],
       );
@@ -637,6 +655,7 @@ export class WorkflowActivationDispatchService {
           activationAnchor.id,
           taskRequestId,
           taskDefinition,
+          loopContract,
           client,
         );
       const taskId = createdTask?.id ?? existingTask?.taskId ?? null;
@@ -1082,6 +1101,7 @@ export class WorkflowActivationDispatchService {
     activationId: string,
     requestId: string,
     taskDefinition: ActivationTaskDefinition,
+    loopContract: ActivationTaskLoopContract,
     client: DatabaseClient,
   ): Promise<ExistingActivationTaskResolution | null> {
     const result = await client.query<ExistingActivationTaskRow>(
@@ -1121,6 +1141,7 @@ export class WorkflowActivationDispatchService {
       existingTask.id,
       activationId,
       taskDefinition,
+      loopContract,
       client,
     );
       return { kind: 'reactivated', taskId: existingTask.id, previousState: existingTask.state };
@@ -1131,6 +1152,7 @@ export class WorkflowActivationDispatchService {
     taskId: string,
     activationId: string,
     taskDefinition: ActivationTaskDefinition,
+    loopContract: ActivationTaskLoopContract,
     client: DatabaseClient,
   ): Promise<void> {
     const result = await client.query(
@@ -1144,7 +1166,9 @@ export class WorkflowActivationDispatchService {
               environment = $7::jsonb,
               resource_bindings = $8::jsonb,
               metadata = $9::jsonb,
-              activation_id = $10::uuid,
+              max_iterations = $10,
+              llm_max_retries = $11,
+              activation_id = $12::uuid,
               assigned_agent_id = NULL,
               assigned_worker_id = NULL,
               claimed_at = NULL,
@@ -1168,6 +1192,8 @@ export class WorkflowActivationDispatchService {
         taskDefinition.environment,
         JSON.stringify(taskDefinition.resourceBindings),
         taskDefinition.metadata,
+        loopContract.maxIterations,
+        loopContract.llmMaxRetries,
         activationId,
       ],
     );
@@ -1454,6 +1480,31 @@ export class WorkflowActivationDispatchService {
       tenantId,
       TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
     );
+  }
+
+  private async resolveActivationTaskLoopContract(
+    tenantId: string,
+    workflow: WorkflowDispatchRow,
+    client: DatabaseClient,
+  ): Promise<ActivationTaskLoopContract> {
+    const orchestrator = asRecord(asRecord(workflow.playbook_definition).orchestrator);
+    const maxIterations = readPositiveInteger(orchestrator.max_iterations)
+      ?? await readRequiredPositiveIntegerRuntimeDefault(
+        client,
+        tenantId,
+        TASK_MAX_ITERATIONS_RUNTIME_KEY,
+      );
+    const llmMaxRetries = readPositiveInteger(orchestrator.llm_max_retries)
+      ?? await readRequiredPositiveIntegerRuntimeDefault(
+        client,
+        tenantId,
+        TASK_LLM_MAX_RETRIES_RUNTIME_KEY,
+      );
+
+    return {
+      maxIterations,
+      llmMaxRetries,
+    };
   }
 }
 
