@@ -3,6 +3,7 @@ import { FleetStatusCard } from './fleet-status-card.js';
 import { LiveFeedCard } from './live-feed-card.js';
 import { CostTicker } from './cost-ticker.js';
 import { EmptyState } from '../../../components/ui/empty-state.js';
+import type { ControlMode } from '../execution-canvas-support.js';
 
 interface Worker {
   status: string;
@@ -24,6 +25,8 @@ export interface WarRoomViewProps {
   spendUsd: number;
   tokenCount: number;
   onSelectWorkflow: (workflowId: string) => void;
+  controlMode?: ControlMode;
+  onWorkflowAction?: (workflowId: string, action: string) => void;
 }
 
 function attentionRank(workflow: WorkflowStatusRowWorkflow): number {
@@ -44,6 +47,8 @@ export function WarRoomView({
   spendUsd,
   tokenCount,
   onSelectWorkflow,
+  controlMode,
+  onWorkflowAction,
 }: WarRoomViewProps) {
   if (workflows.length === 0) {
     return (
@@ -60,7 +65,13 @@ export function WarRoomView({
     <div className="flex flex-col gap-4 lg:flex-row">
       <div className="flex flex-col gap-1.5 lg:flex-[0_0_65%]">
         {sorted.map(w => (
-          <WorkflowStatusRow key={w.id} workflow={w} onClick={onSelectWorkflow} />
+          <WorkflowStatusRow
+            key={w.id}
+            workflow={w}
+            onClick={onSelectWorkflow}
+            controlMode={controlMode}
+            onAction={onWorkflowAction}
+          />
         ))}
       </div>
 

@@ -46,13 +46,13 @@ describe('formatEventSummary', () => {
   it('handles unknown event type', () => {
     const event = { type: 'custom.event', entityType: 'workflow' };
     const result = formatEventSummary(event);
-    expect(result).toContain('custom.event');
+    expect(result).toBe('Custom event');
   });
 
   it('handles unknown event type without entityType', () => {
     const event = { type: 'some.event' };
     const result = formatEventSummary(event);
-    expect(result).toBe('some.event');
+    expect(result).toBe('Some event');
   });
 
   it('handles missing data field', () => {

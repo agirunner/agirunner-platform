@@ -1,4 +1,6 @@
 import { cn } from '../../../lib/utils.js';
+import type { ControlMode } from '../execution-canvas-support.js';
+import { InlineActionButtons } from '../controls/inline-action-buttons.js';
 
 interface TaskCounts {
   completed?: number;
@@ -33,6 +35,8 @@ export interface WorkflowStatusRowWorkflow {
 interface WorkflowStatusRowProps {
   workflow: WorkflowStatusRowWorkflow;
   onClick: (workflowId: string) => void;
+  controlMode?: ControlMode;
+  onAction?: (workflowId: string, action: string) => void;
 }
 
 export function getStatusColor(workflow: Pick<WorkflowStatusRowWorkflow, 'state' | 'needsAttention' | 'gateWaiting'>): string {
@@ -59,7 +63,9 @@ function formatWorkItemProgress(summary?: WorkItemSummary): string | null {
   return `${open}/${summary.total_work_items} open`;
 }
 
-export function WorkflowStatusRow({ workflow, onClick }: WorkflowStatusRowProps): JSX.Element {
+const ACTIONABLE_STATES = new Set(['active', 'paused']);
+
+export function WorkflowStatusRow({ workflow, onClick, controlMode, onAction }: WorkflowStatusRowProps): JSX.Element {
   const borderColor = getStatusColor(workflow);
   const taskProgress = formatTaskProgress(workflow.taskCounts);
   const workItemProgress = formatWorkItemProgress(workflow.workItemSummary);
@@ -120,6 +126,20 @@ export function WorkflowStatusRow({ workflow, onClick }: WorkflowStatusRowProps)
               style={{ backgroundColor: `var(--role-${role}, var(--color-text-tertiary))` }}
             />
           ))}
+        </div>
+      )}
+
+      {controlMode === 'inline' && ACTIONABLE_STATES.has(workflow.state) && (
+        <div
+          className="shrink-0"
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          <InlineActionButtons
+            entityType="workflow"
+            entityState={workflow.state}
+            onAction={(action) => onAction?.(workflow.id, action)}
+          />
         </div>
       )}
 

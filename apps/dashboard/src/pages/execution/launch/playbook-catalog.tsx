@@ -125,7 +125,7 @@ export function PlaybookCatalog({
       {starred.length > 0 && (
         <section>
           <h3 className="mb-3 text-sm font-medium text-muted uppercase tracking-wide">
-            Starred
+            Starred Playbooks
           </h3>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {starred.map((playbook) => (

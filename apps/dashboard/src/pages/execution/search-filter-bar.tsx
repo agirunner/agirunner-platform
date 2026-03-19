@@ -30,10 +30,10 @@ export interface SearchFilterBarProps {
   onSearchChange: (query: string) => void;
   statusFilter: string | null;
   onStatusFilterChange: (status: string | null) => void;
-  playbookFilter: string | null;
-  onPlaybookFilterChange: (playbookId: string | null) => void;
-  workspaceFilter: string | null;
-  onWorkspaceFilterChange: (workspaceId: string | null) => void;
+  playbookFilter?: string | null;
+  onPlaybookFilterChange?: (playbookId: string | null) => void;
+  workspaceFilter?: string | null;
+  onWorkspaceFilterChange?: (workspaceId: string | null) => void;
   playbooks?: PlaybookOption[];
   workspaces?: WorkspaceOption[];
 }
@@ -60,17 +60,10 @@ export function SearchFilterBar({
     onStatusFilterChange(option?.value ?? null);
   }
 
-  function handlePlaybookChange(value: string) {
-    onPlaybookFilterChange(value === '__all__' ? null : value);
-  }
-
-  function handleWorkspaceChange(value: string) {
-    onWorkspaceFilterChange(value === '__all__' ? null : value);
-  }
-
   const statusValue = statusFilter ?? '__all__';
-  const playbookValue = playbookFilter ?? '__all__';
-  const workspaceValue = workspaceFilter ?? '__all__';
+
+  const showPlaybookFilter = onPlaybookFilterChange !== undefined;
+  const showWorkspaceFilter = onWorkspaceFilterChange !== undefined;
 
   return (
     <div className="flex items-center gap-2 bg-secondary/30 border border-border rounded-lg px-3 py-2">
@@ -86,7 +79,10 @@ export function SearchFilterBar({
       </div>
 
       <Select value={statusValue} onValueChange={handleStatusChange}>
-        <SelectTrigger className="w-[140px] h-8 text-sm bg-transparent border-border-subtle">
+        <SelectTrigger
+          data-testid="status-filter"
+          className="w-[140px] h-8 text-sm bg-transparent border-border-subtle"
+        >
           <SelectValue placeholder="Status" />
         </SelectTrigger>
         <SelectContent>
@@ -98,33 +94,43 @@ export function SearchFilterBar({
         </SelectContent>
       </Select>
 
-      <Select value={playbookValue} onValueChange={handlePlaybookChange}>
-        <SelectTrigger className="w-[140px] h-8 text-sm bg-transparent border-border-subtle">
-          <SelectValue placeholder="Playbook" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">All</SelectItem>
-          {playbooks.map((p) => (
-            <SelectItem key={p.id} value={p.id}>
-              {p.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {showPlaybookFilter && (
+        <Select
+          value={playbookFilter ?? '__all__'}
+          onValueChange={(v) => onPlaybookFilterChange!(v === '__all__' ? null : v)}
+        >
+          <SelectTrigger className="w-[140px] h-8 text-sm bg-transparent border-border-subtle">
+            <SelectValue placeholder="Playbook" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All</SelectItem>
+            {playbooks.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
 
-      <Select value={workspaceValue} onValueChange={handleWorkspaceChange}>
-        <SelectTrigger className="w-[140px] h-8 text-sm bg-transparent border-border-subtle">
-          <SelectValue placeholder="Workspace" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="__all__">All</SelectItem>
-          {workspaces.map((w) => (
-            <SelectItem key={w.id} value={w.id}>
-              {w.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {showWorkspaceFilter && (
+        <Select
+          value={workspaceFilter ?? '__all__'}
+          onValueChange={(v) => onWorkspaceFilterChange!(v === '__all__' ? null : v)}
+        >
+          <SelectTrigger className="w-[140px] h-8 text-sm bg-transparent border-border-subtle">
+            <SelectValue placeholder="Workspace" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__all__">All</SelectItem>
+            {workspaces.map((w) => (
+              <SelectItem key={w.id} value={w.id}>
+                {w.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
     </div>
   );
 }

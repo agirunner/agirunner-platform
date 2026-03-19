@@ -22,10 +22,10 @@ describe('SearchFilterBar source', () => {
     expect(source).toContain('onSearchChange:');
     expect(source).toContain('statusFilter:');
     expect(source).toContain('onStatusFilterChange:');
-    expect(source).toContain('playbookFilter:');
-    expect(source).toContain('onPlaybookFilterChange:');
-    expect(source).toContain('workspaceFilter:');
-    expect(source).toContain('onWorkspaceFilterChange:');
+    expect(source).toContain('playbookFilter');
+    expect(source).toContain('onPlaybookFilterChange');
+    expect(source).toContain('workspaceFilter');
+    expect(source).toContain('onWorkspaceFilterChange');
   });
 
   it('includes search input with correct placeholder', () => {

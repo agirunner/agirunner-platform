@@ -21,7 +21,7 @@ export function formatTokenCount(count: number): string {
 }
 
 export function CostTicker({ spendUsd, tokenCount }: CostTickerProps): JSX.Element {
-  const hasData = spendUsd !== 0 || tokenCount !== 0;
+  const hasData = spendUsd > 0;
 
   return (
     <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 flex flex-col gap-1">

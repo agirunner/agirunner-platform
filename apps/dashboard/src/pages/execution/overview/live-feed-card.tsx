@@ -27,30 +27,39 @@ export function formatEventSummary(event: { type: string; entityType?: string; d
       if (to === 'claimed') return title ? `Task claimed: ${title}` : 'Task claimed';
       if (to === 'failed') return title ? `Task failed: ${title}` : 'Task failed';
       if (to === 'ready') return title ? `Task ready: ${title}` : 'Task ready';
-      return `Task → ${to ?? 'unknown'}`;
+      if (to === 'escalated') return 'Task escalated';
+      return `Task ${to ?? 'unknown'}`;
     }
     case 'task.created': return title ? `Task created: ${title}` : 'New task created';
     case 'task.completed': return `Task completed: ${title || 'unknown task'}`;
     case 'task.started': return `Task started: ${title || 'unknown task'}`;
     case 'task.failed': return `Task failed: ${title || 'unknown task'}`;
+    case 'task.agent_escalated': return 'Agent escalated task';
+    case 'task.escalated': return 'Task escalated';
     case 'task.review_resolution_skipped': return 'Review resolution skipped';
     case 'workflow.state_changed': return `Workflow ${(d.to_state as string) ?? 'updated'}`;
     case 'workflow.activation_queued': return 'Orchestrator activation queued';
     case 'workflow.activation_started': return 'Orchestrator activated';
     case 'workflow.activation_completed': return 'Orchestrator completed activation';
     case 'workflow.activation_failed': return 'Orchestrator activation failed';
+    case 'workflow.activation_requeued': return 'Activation re-queued';
     case 'workflow.started': return `Workflow started: ${(d.workflow_name as string) ?? 'unknown workflow'}`;
     case 'workflow.completed': return `Workflow completed: ${(d.workflow_name as string) ?? 'unknown workflow'}`;
     case 'workflow.failed': return `Workflow failed: ${(d.workflow_name as string) ?? 'unknown workflow'}`;
     case 'work_item.created': return 'Work item created';
     case 'work_item.updated': return 'Work item updated';
+    case 'work_item.moved': return 'Work item moved';
+    case 'work_item.completed': return 'Work item completed';
     case 'worker.registered': return 'Worker registered';
     case 'worker.offline': return 'Worker went offline';
     case 'worker.disconnected': return 'Worker disconnected';
     case 'agent.registered': return 'Agent registered';
     case 'gate.opened': return `Gate opened: ${(d.gate_name as string) ?? 'stage gate'}`;
     case 'gate.approved': return `Gate approved: ${(d.gate_name as string) ?? 'stage gate'}`;
-    default: return event.type.replace(/\./g, ' ').replace(/_/g, ' ');
+    default: {
+      const raw = event.type.replace(/\./g, ' ').replace(/_/g, ' ');
+      return raw.charAt(0).toUpperCase() + raw.slice(1);
+    }
   }
 }
 

@@ -30,6 +30,7 @@ interface WorkflowDetailPanelProps {
   breadcrumb: BreadcrumbEntry[];
   onBreadcrumbNavigate: (index: number) => void;
   onClose: () => void;
+  onOpenResources?: () => void;
   children: ReactNode;
 }
 
@@ -99,6 +100,7 @@ export function WorkflowDetailPanel({
   breadcrumb,
   onBreadcrumbNavigate,
   onClose,
+  onOpenResources,
   children,
 }: WorkflowDetailPanelProps) {
   const isLive = isWorkflowLive(workflow.state);
@@ -180,13 +182,29 @@ export function WorkflowDetailPanel({
               </div>
               <StatusBar workflow={workflow} />
             </div>
-            <button
-              onClick={onClose}
-              aria-label="Close panel"
-              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md bg-transparent border-none cursor-pointer text-[var(--color-text-tertiary)] text-lg leading-none transition-all duration-150 hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
-            >
-              ×
-            </button>
+            <div className="flex items-center gap-1 shrink-0">
+              {onOpenResources && (
+                <button
+                  onClick={onOpenResources}
+                  data-testid="open-resources-btn"
+                  aria-label="Open resources"
+                  className="w-7 h-7 flex items-center justify-center rounded-md bg-transparent border-none cursor-pointer text-[var(--color-text-tertiary)] text-xs leading-none transition-all duration-150 hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+                  title="Resources"
+                >
+                  {/* folder icon via SVG for zero-dependency */}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={onClose}
+                aria-label="Close panel"
+                className="w-7 h-7 flex items-center justify-center rounded-md bg-transparent border-none cursor-pointer text-[var(--color-text-tertiary)] text-lg leading-none transition-all duration-150 hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
+              >
+                ×
+              </button>
+            </div>
           </div>
 
           <div className="mt-2">

@@ -22,6 +22,7 @@ import {
   type CanvasState,
 } from './execution-canvas-support.js';
 import { ViewModeSwitcher } from './view-mode-switcher.js';
+import { ControlModeSwitcher } from './control-mode-switcher.js';
 import { ConnectionIndicator } from './connection-indicator.js';
 import { SearchFilterBar } from './search-filter-bar.js';
 import { WarRoomView } from './overview/war-room-view.js';
@@ -464,6 +465,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
               const w = workflows.find((wf) => wf.id === id);
               onSelectWorkflow(id, w?.name ?? 'Workflow');
             }}
+            controlMode={canvasState.controlMode}
           />
         );
       case 'dashboard-grid':
@@ -517,6 +519,14 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
           }}
         />
 
+        <ControlModeSwitcher
+          value={canvasState.controlMode}
+          onChange={(mode) => {
+            setControlMode(mode);
+            setCanvasState((prev) => ({ ...prev, controlMode: mode }));
+          }}
+        />
+
         {isWorkflowFocused && (
           <DepthDial
             value={canvasState.depthLevel}
@@ -533,10 +543,6 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
             onSearchChange={setSearchQuery}
             statusFilter={statusFilter}
             onStatusFilterChange={setStatusFilter}
-            playbookFilter={null}
-            onPlaybookFilterChange={() => {}}
-            workspaceFilter={null}
-            onWorkspaceFilterChange={() => {}}
           />
         </div>
 
@@ -576,6 +582,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
           breadcrumb={canvasState.panel.breadcrumb}
           onBreadcrumbNavigate={onBreadcrumbNavigate}
           onClose={onClearSelection}
+          onOpenResources={() => setCanvasState((prev) => ({ ...prev, resourcePanelOpen: true }))}
         >
           {renderDepthContent()}
         </WorkflowDetailPanel>
