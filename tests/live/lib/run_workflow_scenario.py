@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 import json
 import os
 import re
@@ -296,6 +297,21 @@ def evaluate_expectations(
         checks.append({"name": "work_items.all_terminal", "passed": passed, "non_terminal_ids": non_terminal})
         if not passed:
             failures.append(f"expected all work items to be terminal, found non-terminal items: {non_terminal}")
+    if isinstance(work_item_expectations, dict) and "min_count" in work_item_expectations:
+        items = _work_items(work_items)
+        minimum = int(work_item_expectations["min_count"])
+        actual = len(items)
+        passed = actual >= minimum
+        checks.append(
+            {
+                "name": "work_items.min_count",
+                "passed": passed,
+                "expected_min_count": minimum,
+                "actual_count": actual,
+            }
+        )
+        if not passed:
+            failures.append(f"expected at least {minimum} work items, found {actual}")
 
     board_expectations = expectations.get("board", {})
     if isinstance(board_expectations, dict) and "blocked_count" in board_expectations:
@@ -371,6 +387,27 @@ def evaluate_expectations(
                 failures.append(
                     f"expected at least {minimum} artifacts matching {pattern!r}, found {len(matches)}"
                 )
+
+    workflow_task_expectations = expectations.get("workflow_tasks", {})
+    if isinstance(workflow_task_expectations, dict):
+        workflow_tasks = [task for task in _workflow_tasks(workflow) if isinstance(task, dict)]
+        non_orchestrator_tasks = [
+            task for task in workflow_tasks if not bool(task.get("is_orchestrator_task"))
+        ]
+        if "min_non_orchestrator_count" in workflow_task_expectations:
+            minimum = int(workflow_task_expectations["min_non_orchestrator_count"])
+            actual = len(non_orchestrator_tasks)
+            passed = actual >= minimum
+            checks.append(
+                {
+                    "name": "workflow_tasks.min_non_orchestrator_count",
+                    "passed": passed,
+                    "expected_min_count": minimum,
+                    "actual_count": actual,
+                }
+            )
+            if not passed:
+                failures.append(f"expected at least {minimum} non-orchestrator tasks, found {actual}")
 
     approval_action_expectations = expectations.get("approval_actions", [])
     if isinstance(approval_action_expectations, list):
@@ -509,6 +546,7 @@ def build_workflow_create_payload(
     scenario_name: str,
     workflow_goal: str,
     workflow_parameters: dict[str, Any] | None = None,
+    workflow_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     parameters = {
         "goal": workflow_goal,
@@ -521,8 +559,135 @@ def build_workflow_create_payload(
         "workspace_id": workspace_id,
         "name": workflow_name,
         "parameters": parameters,
-        "metadata": {"live_test": {"scenario_name": scenario_name}},
+        "metadata": {
+            **({} if workflow_metadata is None else workflow_metadata),
+            "live_test": {"scenario_name": scenario_name},
+        },
     }
+
+
+def _render_template_value(value: Any, *, index: int, scenario_name: str, workflow_id: str) -> Any:
+    if isinstance(value, str):
+        return value.format(index=index, scenario_name=scenario_name, workflow_id=workflow_id)
+    if isinstance(value, list):
+        return [
+            _render_template_value(item, index=index, scenario_name=scenario_name, workflow_id=workflow_id)
+            for item in value
+        ]
+    if isinstance(value, dict):
+        return {
+            key: _render_template_value(item, index=index, scenario_name=scenario_name, workflow_id=workflow_id)
+            for key, item in value.items()
+        }
+    return value
+
+
+def build_create_work_item_payloads(
+    action: dict[str, Any],
+    *,
+    workflow_id: str,
+    scenario_name: str,
+) -> list[dict[str, Any]]:
+    count = int(action.get("count", 1))
+    index_start = int(action.get("index_start", 1))
+    if count <= 0:
+        raise RuntimeError("create_work_items action count must be positive")
+
+    title_template = action.get("title_template")
+    if not isinstance(title_template, str) or title_template.strip() == "":
+        raise RuntimeError("create_work_items action title_template is required")
+
+    payloads: list[dict[str, Any]] = []
+    for index in range(index_start, index_start + count):
+        payload: dict[str, Any] = {
+            "request_id": _render_template_value(
+                action.get("request_id_template", f"live-test-{scenario_name}-work-item-{index}"),
+                index=index,
+                scenario_name=scenario_name,
+                workflow_id=workflow_id,
+            ),
+            "title": _render_template_value(
+                title_template,
+                index=index,
+                scenario_name=scenario_name,
+                workflow_id=workflow_id,
+            ),
+        }
+        for source_key, target_key in (
+            ("parent_work_item_id", "parent_work_item_id"),
+            ("stage_name", "stage_name"),
+            ("goal_template", "goal"),
+            ("acceptance_criteria_template", "acceptance_criteria"),
+            ("column_id", "column_id"),
+            ("owner_role", "owner_role"),
+            ("priority", "priority"),
+            ("notes_template", "notes"),
+            ("metadata", "metadata"),
+        ):
+            value = action.get(source_key)
+            if value is None:
+                continue
+            payload[target_key] = _render_template_value(
+                value,
+                index=index,
+                scenario_name=scenario_name,
+                workflow_id=workflow_id,
+            )
+        payloads.append(payload)
+    return payloads
+
+
+def dispatch_workflow_actions(
+    client: ApiClient,
+    *,
+    workflow_id: str,
+    scenario_name: str,
+    actions: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    executed: list[dict[str, Any]] = []
+    for action in actions:
+        action_type = str(action.get("type") or "").strip()
+        if action_type == "":
+            raise RuntimeError("scenario action type is required")
+        if action_type != "create_work_items":
+            raise RuntimeError(f"unsupported scenario action type: {action_type}")
+
+        payloads = build_create_work_item_payloads(
+            action,
+            workflow_id=workflow_id,
+            scenario_name=scenario_name,
+        )
+        dispatch_mode = str(action.get("dispatch", "serial")).strip()
+        if dispatch_mode not in {"serial", "parallel"}:
+            raise RuntimeError(f"unsupported create_work_items dispatch mode: {dispatch_mode}")
+
+        def create_work_item(payload: dict[str, Any]) -> dict[str, Any]:
+            return extract_data(
+                client.request(
+                    "POST",
+                    f"/api/v1/workflows/{workflow_id}/work-items",
+                    payload=payload,
+                    expected=(201,),
+                    label=f"workflows.work-items.create:{payload['request_id']}",
+                )
+            )
+
+        if dispatch_mode == "parallel" and len(payloads) > 1:
+            max_workers = int(action.get("max_workers", len(payloads)))
+            with ThreadPoolExecutor(max_workers=max_workers) as executor:
+                responses = list(executor.map(create_work_item, payloads))
+        else:
+            responses = [create_work_item(payload) for payload in payloads]
+
+        executed.append(
+            {
+                "type": action_type,
+                "dispatch": dispatch_mode,
+                "count": len(payloads),
+                "responses": responses,
+            }
+        )
+    return executed
 
 
 def collect_workflow_events(client: ApiClient, *, workflow_id: str, per_page: int = 100) -> dict[str, Any]:
@@ -599,6 +764,7 @@ def main() -> None:
                 scenario_name=scenario_name,
                 workflow_goal=workflow_goal,
                 workflow_parameters={} if scenario is None else scenario["workflow"]["parameters"],
+                workflow_metadata={} if scenario is None else scenario["workflow"]["metadata"],
             ),
             expected=(201,),
             label="workflows.create",
@@ -606,6 +772,12 @@ def main() -> None:
     )
 
     workflow_id = created["id"]
+    workflow_actions = dispatch_workflow_actions(
+        client,
+        workflow_id=workflow_id,
+        scenario_name=scenario_name,
+        actions=[] if scenario is None else scenario["actions"],
+    )
     deadline = time.time() + timeout_seconds
     latest_workflow = created
     latest_approvals: dict[str, Any] | None = None
@@ -710,6 +882,7 @@ def main() -> None:
                 "events": events_snapshot,
                 "approvals": approvals_snapshot,
                 "approval_actions": approval_actions,
+                "workflow_actions": workflow_actions,
                 "workspace": workspace_snapshot,
                 "artifacts": artifacts_snapshot,
                 "verification": verification,

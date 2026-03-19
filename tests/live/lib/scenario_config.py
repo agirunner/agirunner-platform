@@ -67,6 +67,7 @@ def load_scenario(path: str | Path) -> dict[str, Any]:
             "spec": _read_mapping(workspace.get("spec"), "workspace.spec"),
         },
         "approvals": _read_list(payload.get("approvals"), "approvals"),
+        "actions": _read_list(payload.get("actions"), "actions"),
         "expect": _read_mapping(payload.get("expect"), "expect"),
         "timeout_seconds": int(payload.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS)),
         "poll_interval_seconds": int(payload.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS)),

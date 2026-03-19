@@ -22,6 +22,7 @@ EXPECTED_SCENARIOS = {
     "bug-fix-positive",
     "product-requirements-approve",
     "product-requirements-request-changes-then-approve",
+    "parallel-burst-ten-work-items",
 }
 
 

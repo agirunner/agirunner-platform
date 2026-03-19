@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -63,11 +64,13 @@ class TraceRecorder:
         self.root_dir = Path(root_dir)
         self.root_dir.mkdir(parents=True, exist_ok=True)
         self.trace_file = self.root_dir / "api.ndjson"
+        self._write_lock = threading.Lock()
 
     def record(self, payload: dict[str, Any]) -> None:
         payload = {"timestamp": _timestamp(), **payload}
-        with self.trace_file.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(payload, sort_keys=True) + "\n")
+        with self._write_lock:
+            with self.trace_file.open("a", encoding="utf-8") as handle:
+                handle.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
 class ApiClient:

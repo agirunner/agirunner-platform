@@ -58,6 +58,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             scenario_name="sdlc-baseline",
             workflow_goal="Add support for named greetings and uppercase output while preserving the default greeting.",
             workflow_parameters={"feature_request": "Add named greetings"},
+            workflow_metadata={"lane": "repo"},
         )
 
         self.assertEqual("playbook-1", payload["playbook_id"])
@@ -72,8 +73,106 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             payload["parameters"],
         )
         self.assertEqual(
-            {"live_test": {"scenario_name": "sdlc-baseline"}},
+            {"lane": "repo", "live_test": {"scenario_name": "sdlc-baseline"}},
             payload["metadata"],
+        )
+
+    def test_build_create_work_item_payloads_renders_templates(self) -> None:
+        payloads = run_workflow_scenario.build_create_work_item_payloads(
+            {
+                "count": 3,
+                "stage_name": "analysis",
+                "owner_role": "live-test-burst-specialist",
+                "request_id_template": "burst-{index:02d}",
+                "title_template": "parallel-burst-{index:02d}",
+                "goal_template": "Handle item {index:02d} in workflow {workflow_id}.",
+                "acceptance_criteria_template": "Artifact for {scenario_name} item {index:02d} exists.",
+                "metadata": {"burst_index": "{index:02d}"},
+            },
+            workflow_id="wf-1",
+            scenario_name="parallel-burst-ten-work-items",
+        )
+
+        self.assertEqual(
+            [
+                {
+                    "request_id": "burst-01",
+                    "title": "parallel-burst-01",
+                    "stage_name": "analysis",
+                    "owner_role": "live-test-burst-specialist",
+                    "goal": "Handle item 01 in workflow wf-1.",
+                    "acceptance_criteria": "Artifact for parallel-burst-ten-work-items item 01 exists.",
+                    "metadata": {"burst_index": "01"},
+                },
+                {
+                    "request_id": "burst-02",
+                    "title": "parallel-burst-02",
+                    "stage_name": "analysis",
+                    "owner_role": "live-test-burst-specialist",
+                    "goal": "Handle item 02 in workflow wf-1.",
+                    "acceptance_criteria": "Artifact for parallel-burst-ten-work-items item 02 exists.",
+                    "metadata": {"burst_index": "02"},
+                },
+                {
+                    "request_id": "burst-03",
+                    "title": "parallel-burst-03",
+                    "stage_name": "analysis",
+                    "owner_role": "live-test-burst-specialist",
+                    "goal": "Handle item 03 in workflow wf-1.",
+                    "acceptance_criteria": "Artifact for parallel-burst-ten-work-items item 03 exists.",
+                    "metadata": {"burst_index": "03"},
+                },
+            ],
+            payloads,
+        )
+
+    def test_dispatch_workflow_actions_creates_work_items(self) -> None:
+        client = FakeClient()
+        actions = run_workflow_scenario.dispatch_workflow_actions(
+            client,
+            workflow_id="wf-1",
+            scenario_name="parallel-burst-ten-work-items",
+            actions=[
+                {
+                    "type": "create_work_items",
+                    "count": 2,
+                    "dispatch": "serial",
+                    "stage_name": "analysis",
+                    "request_id_template": "burst-{index:02d}",
+                    "title_template": "parallel-burst-{index:02d}",
+                }
+            ],
+        )
+
+        self.assertEqual(1, len(actions))
+        self.assertEqual("create_work_items", actions[0]["type"])
+        self.assertEqual(2, actions[0]["count"])
+        self.assertEqual(
+            [
+                (
+                    "POST",
+                    "/api/v1/workflows/wf-1/work-items",
+                    {
+                        "request_id": "burst-01",
+                        "title": "parallel-burst-01",
+                        "stage_name": "analysis",
+                    },
+                    (201,),
+                    "workflows.work-items.create:burst-01",
+                ),
+                (
+                    "POST",
+                    "/api/v1/workflows/wf-1/work-items",
+                    {
+                        "request_id": "burst-02",
+                        "title": "parallel-burst-02",
+                        "stage_name": "analysis",
+                    },
+                    (201,),
+                    "workflows.work-items.create:burst-02",
+                ),
+            ],
+            client.calls,
         )
 
     def test_auto_approve_workflow_approvals_posts_once_per_pending_gate(self) -> None:
@@ -278,13 +377,20 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         verification = run_workflow_scenario.evaluate_expectations(
             {
                 "state": "completed",
-                "work_items": {"all_terminal": True},
+                "work_items": {"all_terminal": True, "min_count": 2},
                 "board": {"blocked_count": 0},
                 "approval_actions": [{"action": "request_changes", "stage_name": "requirements"}],
                 "memory": [{"key": "prd_summary", "value": "approved"}],
                 "artifacts": [{"logical_path_pattern": "reports/.*\\.md", "min_count": 2}],
+                "workflow_tasks": {"min_non_orchestrator_count": 2},
             },
-            workflow={"state": "completed"},
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {"id": "task-1", "is_orchestrator_task": False},
+                    {"id": "task-2", "is_orchestrator_task": False},
+                ],
+            },
             board={"data": {"data": {"columns": [{"id": "blocked", "work_items": []}]}}},
             work_items={
                 "data": {
@@ -307,13 +413,14 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         verification = run_workflow_scenario.evaluate_expectations(
             {
                 "state": "completed",
-                "work_items": {"all_terminal": True},
+                "work_items": {"all_terminal": True, "min_count": 2},
                 "board": {"blocked_count": 0},
                 "approval_actions": [{"action": "request_changes", "stage_name": "requirements"}],
                 "memory": [{"key": "prd_summary", "value": "approved"}],
                 "artifacts": [{"logical_path_pattern": "reports/.*\\.md", "min_count": 1}],
+                "workflow_tasks": {"min_non_orchestrator_count": 2},
             },
-            workflow={"state": "failed"},
+            workflow={"state": "failed", "tasks": [{"id": "task-1", "is_orchestrator_task": False}]},
             board={"data": {"data": {"columns": [{"id": "blocked", "work_items": [{"id": "wi-1"}]}]}}},
             work_items={"data": {"data": [{"column_id": "active"}]}},
             workspace={"memory": {}},

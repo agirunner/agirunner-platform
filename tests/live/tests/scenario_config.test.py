@@ -45,6 +45,7 @@ class ScenarioConfigTests(unittest.TestCase):
         )
         self.assertEqual({"repo": True, "memory": {}, "spec": {}}, scenario["workspace"])
         self.assertEqual([], scenario["approvals"])
+        self.assertEqual([], scenario["actions"])
         self.assertEqual({}, scenario["expect"])
         self.assertEqual(1800, scenario["timeout_seconds"])
         self.assertEqual(10, scenario["poll_interval_seconds"])
@@ -83,6 +84,15 @@ class ScenarioConfigTests(unittest.TestCase):
                         "action": "approve",
                     },
                 ],
+                "actions": [
+                    {
+                        "type": "create_work_items",
+                        "dispatch": "parallel",
+                        "count": 3,
+                        "title_template": "parallel-burst-{index:02d}",
+                        "request_id_template": "burst-{index:02d}",
+                    }
+                ],
                 "expect": {
                     "state": "completed",
                     "memory": [{"key": "prd_summary", "value": "Done"}],
@@ -114,6 +124,7 @@ class ScenarioConfigTests(unittest.TestCase):
             scenario["workspace"]["spec"],
         )
         self.assertEqual(2, len(scenario["approvals"]))
+        self.assertEqual(1, len(scenario["actions"]))
         self.assertEqual("completed", scenario["expect"]["state"])
         self.assertEqual(900, scenario["timeout_seconds"])
         self.assertEqual(3, scenario["poll_interval_seconds"])

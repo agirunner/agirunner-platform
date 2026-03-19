@@ -1,0 +1,52 @@
+{
+  "name": "Parallel Burst Live Test Cycle",
+  "slug": "live-test-parallel-burst-v1",
+  "description": "Test-owned parallel work-item burst playbook used to prove multi-item dispatch and completion.",
+  "outcome": "Independent burst work items are processed cleanly without cross-contamination.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Each work item title is a safe slug such as `parallel-burst-01`. Treat every work item as independent. For each work item, create exactly one concise artifact at logical path `parallel-burst/<work-item-title>.md` summarizing the result for that item. Persist the substantive result to artifacts, not only the handoff. Do not modify any repository. Before task completion, call submit_handoff exactly once with a unique request_id.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this burst-processing workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "live-test-burst-specialist"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
+        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
+        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
+        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+      ]
+    },
+    "stages": [
+      { "name": "analysis", "goal": "Each independent burst request has an artifact-backed result", "involves": ["live-test-burst-specialist"] }
+    ],
+    "checkpoints": [
+      { "name": "analysis", "goal": "Each burst work item is completed with a durable artifact result.", "human_gate": false, "entry_criteria": "The work item has been created." }
+    ],
+    "review_rules": [],
+    "approval_rules": [],
+    "handoff_rules": [],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 10,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": true
+    },
+    "runtime": {
+      "pool_mode": "warm",
+      "max_runtimes": 10,
+      "priority": 1
+    }
+  }
+}
