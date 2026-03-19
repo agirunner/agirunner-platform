@@ -400,6 +400,7 @@ function formatStageRouting(
     `Current stage: ${currentStageName}`,
     `Successor stage after acceptance: ${successorStageName}`,
     `When you create successor work in a planned workflow, set stage_name to "${successorStageName}" and close the predecessor work item instead of leaving successor work anchored to "${currentStageName}".`,
+    'Only create successor checkpoint work after the predecessor checkpoint has no non-terminal tasks and has a full handoff or approved gate.',
     'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',
     'Planned-workflow tasks must stay attached to a work item in the same stage as the task itself.',
   ].join('\n');

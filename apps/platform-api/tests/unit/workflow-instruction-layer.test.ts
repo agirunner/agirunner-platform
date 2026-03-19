@@ -71,6 +71,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Stage Routing');
     expect(layer!.content).toContain('Successor stage after acceptance: verification');
     expect(layer!.content).toContain(
+      'Only create successor checkpoint work after the predecessor checkpoint has no non-terminal tasks and has a full handoff or approved gate.',
+    );
+    expect(layer!.content).toContain(
       'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',
     );
     expect(layer!.content).toContain(

@@ -293,6 +293,17 @@ export class WorkItemService {
         throw new ValidationError(`Unknown board column '${columnId}' for this playbook`);
       }
 
+      if (workflow.lifecycle === 'planned') {
+        await this.assertSuccessorCheckpointReady(
+          identity.tenantId,
+          workflowId,
+          definition,
+          stageName,
+          input.parent_work_item_id ?? null,
+          client,
+        );
+      }
+
       const result = await client.query(
         `INSERT INTO workflow_work_items (
            tenant_id, workflow_id, parent_work_item_id, request_id, stage_name, title, goal,
@@ -427,6 +438,57 @@ export class WorkItemService {
     }
   }
 
+  private async assertSuccessorCheckpointReady(
+    tenantId: string,
+    workflowId: string,
+    definition: ReturnType<typeof parsePlaybookDefinition>,
+    successorStageName: string,
+    parentWorkItemId: string | null,
+    client: DatabaseClient,
+  ) {
+    if (!parentWorkItemId) {
+      return;
+    }
+
+    const predecessor = await this.loadCheckpointPredecessor(tenantId, workflowId, parentWorkItemId, client);
+    if (!predecessor || predecessor.completed_at) {
+      return;
+    }
+
+    if (!shouldAutoClosePredecessorCheckpoint(definition, predecessor.stage_name, successorStageName)) {
+      return;
+    }
+
+    const nonTerminalTaskCount = await this.countNonTerminalWorkItemTasks(
+      tenantId,
+      workflowId,
+      parentWorkItemId,
+      client,
+    );
+    if (nonTerminalTaskCount > 0) {
+      throw new ValidationError(
+        `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}) still has non-terminal tasks. ` +
+          `Wait for the current checkpoint task to finish before routing to the next stage.`,
+      );
+    }
+
+    if (predecessor.human_gate && predecessor.gate_status !== 'approved') {
+      throw new ValidationError(
+        `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}) still awaits gate approval.`,
+      );
+    }
+
+    if (predecessor.latest_handoff_completion !== 'full') {
+      throw new ValidationError(
+        `Cannot create successor work item in stage '${successorStageName}' before predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}) has a full handoff. ` +
+          `Wait for the checkpoint specialist to complete and submit the handoff first.`,
+      );
+    }
+  }
+
   private async closeSupersededPredecessorWorkItem(
     identity: ApiKeyIdentity,
     workflowId: string,
@@ -440,33 +502,12 @@ export class WorkItemService {
       return;
     }
 
-    const predecessorResult = await client.query<{
-      id: string;
-      stage_name: string | null;
-      column_id: string;
-      completed_at: Date | null;
-      human_gate: boolean;
-      gate_status: string;
-    }>(
-      `SELECT wi.id,
-              wi.stage_name,
-              wi.column_id,
-              wi.completed_at,
-              COALESCE(ws.human_gate, false) AS human_gate,
-              COALESCE(ws.gate_status, 'not_requested') AS gate_status
-         FROM workflow_work_items wi
-         LEFT JOIN workflow_stages ws
-           ON ws.tenant_id = wi.tenant_id
-          AND ws.workflow_id = wi.workflow_id
-          AND ws.name = wi.stage_name
-        WHERE wi.tenant_id = $1
-          AND wi.workflow_id = $2
-          AND wi.id = $3
-        LIMIT 1
-        FOR UPDATE OF wi`,
-      [identity.tenantId, workflowId, parentWorkItemId],
+    const predecessor = await this.loadCheckpointPredecessor(
+      identity.tenantId,
+      workflowId,
+      parentWorkItemId,
+      client,
     );
-    const predecessor = predecessorResult.rows[0];
     if (!predecessor || predecessor.completed_at) {
       return;
     }
@@ -479,16 +520,14 @@ export class WorkItemService {
       return;
     }
 
-    const activeTaskResult = await client.query<{ count: number }>(
-      `SELECT COUNT(*)::int AS count
-         FROM tasks
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND work_item_id = $3
-          AND state IN ('ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review')`,
-      [identity.tenantId, workflowId, parentWorkItemId],
-    );
-    if ((activeTaskResult.rows[0]?.count ?? 0) > 0) {
+    if (
+      (await this.countNonTerminalWorkItemTasks(
+        identity.tenantId,
+        workflowId,
+        parentWorkItemId,
+        client,
+      )) > 0
+    ) {
       return;
     }
 
@@ -560,6 +599,72 @@ export class WorkItemService {
       },
       client,
     );
+  }
+
+  private async loadCheckpointPredecessor(
+    tenantId: string,
+    workflowId: string,
+    parentWorkItemId: string,
+    client: DatabaseClient,
+  ) {
+    const predecessorResult = await client.query<{
+      id: string;
+      title: string;
+      stage_name: string | null;
+      column_id: string;
+      completed_at: Date | null;
+      human_gate: boolean;
+      gate_status: string;
+      latest_handoff_completion: string | null;
+    }>(
+      `SELECT wi.id,
+              wi.title,
+              wi.stage_name,
+              wi.column_id,
+              wi.completed_at,
+              COALESCE(ws.human_gate, false) AS human_gate,
+              COALESCE(ws.gate_status, 'not_requested') AS gate_status,
+              latest_handoff.latest_handoff_completion
+         FROM workflow_work_items wi
+         LEFT JOIN workflow_stages ws
+           ON ws.tenant_id = wi.tenant_id
+          AND ws.workflow_id = wi.workflow_id
+          AND ws.name = wi.stage_name
+         LEFT JOIN LATERAL (
+           SELECT th.completion AS latest_handoff_completion
+             FROM task_handoffs th
+            WHERE th.tenant_id = wi.tenant_id
+              AND th.workflow_id = wi.workflow_id
+              AND th.work_item_id = wi.id
+            ORDER BY th.sequence DESC, th.created_at DESC
+            LIMIT 1
+         ) latest_handoff ON true
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = $2
+          AND wi.id = $3
+        LIMIT 1
+        FOR UPDATE OF wi`,
+      [tenantId, workflowId, parentWorkItemId],
+    );
+    return predecessorResult.rows[0] ?? null;
+  }
+
+  private async countNonTerminalWorkItemTasks(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    client: DatabaseClient,
+  ) {
+    const taskResult = await client.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id = $3
+          AND state NOT IN ('completed', 'failed', 'cancelled')`,
+      [tenantId, workflowId, workItemId],
+    );
+    return taskResult.rows[0]?.count ?? 0;
   }
 
   private async loadWorkflowForUpdate(
