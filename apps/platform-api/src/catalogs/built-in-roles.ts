@@ -48,7 +48,7 @@ const PREDECESSOR_HANDOFF_INSTRUCTION =
 const SHARED_ROLE_WORKFLOW_TOOLS = ['submit_handoff', 'read_predecessor_handoff'] as const;
 
 function withSharedRoleDiscipline(prompt: string): string {
-  return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Treat predecessor handoffs, task input, workspace memory, the workflow brief, launch inputs, and the current branch diff as authoritative.\n- For repository-backed tasks, assume only the prepared repository workspace, git, and a minimal shell are guaranteed. Install missing runtimes/tools yourself in the task container.\n- Do not infer behavior from stale names or terminology.\n- Before completing the task, you MUST call submit_handoff once with a unique request_id.\n- The platform will reject completion without a structured handoff.`;
+  return `${prompt}\n- ${PREDECESSOR_HANDOFF_INSTRUCTION}\n- Treat predecessor handoffs, task input, workspace memory, the workflow brief, launch inputs, and the current branch diff as authoritative.\n- For repository-backed tasks, assume only the prepared repository workspace, git, and a minimal shell are guaranteed. Install missing runtimes/tools yourself in the task container.\n- Do not infer behavior from stale names or terminology.\n- Before completing the task, you MUST ensure exactly one successful structured handoff is persisted with a unique request_id. Rejected validation attempts do not count.\n- The platform will reject completion without a structured handoff.`;
 }
 
 // ---------------------------------------------------------------------------

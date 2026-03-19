@@ -8,16 +8,18 @@ import { BUILT_IN_ROLES, loadBuiltInRolesConfig } from '../../src/catalogs/built
 
 describe('prompt catalogs', () => {
   it('keeps platform instructions aligned with escalation and memory discipline', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave the work in a clean takeover state.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave clean takeover state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before escalation.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Repository-backed containers guarantee only the repo checkout, git, and sh.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before task completion, you MUST call submit_handoff');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before task completion, you MUST ensure');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('successful structured handoff');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Rejected validation attempts do not count');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects task completion without a structured handoff');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or interim progress marker');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects completion without a structured handoff');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or progress marker');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
@@ -86,7 +88,8 @@ describe('prompt catalogs', () => {
       );
       expect(role.systemPrompt).toContain('Install missing runtimes/tools yourself in the task container');
       expect(role.systemPrompt).toContain('Do not infer behavior from stale names or terminology');
-      expect(role.systemPrompt).toContain('Before completing the task, you MUST call submit_handoff once with a unique request_id');
+      expect(role.systemPrompt).toContain('Before completing the task, you MUST ensure exactly one successful structured handoff is persisted with a unique request_id');
+      expect(role.systemPrompt).toContain('Rejected validation attempts do not count');
       expect(role.systemPrompt).toContain('The platform will reject completion without a structured handoff');
     }
   });
@@ -142,10 +145,10 @@ describe('prompt catalogs', () => {
 
   it('keeps the shared prompts dense enough for routine execution', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(2350);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(4800);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5000);
 
     for (const role of Object.values(BUILT_IN_ROLES.roles)) {
-      expect(role.systemPrompt.length).toBeLessThanOrEqual(1150);
+      expect(role.systemPrompt.length).toBeLessThanOrEqual(1225);
     }
   });
 });

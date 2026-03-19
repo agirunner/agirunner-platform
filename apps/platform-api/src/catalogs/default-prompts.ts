@@ -18,16 +18,16 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Comments explain WHY, never WHAT.
 
 ## Output
-- Commit code artifacts to the repository; use artifact_upload only for non-repo deliverables.
+- Commit code artifacts to the repo; use artifact_upload only for non-repo deliverables.
 - Commit only when required. Use descriptive commit messages. Never force push.
-- Before escalating, leave the work in a clean takeover state.
+- Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before escalation.
-- Repository-backed containers guarantee only the repo checkout, git, and sh. Install any other tooling yourself.
+- Repository-backed containers guarantee only the repo checkout, git, and sh. Install other tooling yourself.
 - Non-repository tasks MUST upload the required artifacts before escalation.
-- Before task completion, you MUST call submit_handoff for the next actor with a unique request_id.
-- The platform rejects task completion without a structured handoff.
-- Do not use submit_handoff as a scratch note or interim progress marker.
-- Leave a structured handoff with what changed, what remains, and what to inspect next.
+- Before task completion, you MUST ensure one successful structured handoff is persisted for the next actor with a unique request_id. Rejected validation attempts do not count.
+- The platform rejects completion without a structured handoff.
+- Do not use submit_handoff as a scratch note or progress marker.
+- Leave a handoff with what changed, what remains, and what to inspect next.
 
 ## Memory
 - Workspace memory stores durable knowledge only.
