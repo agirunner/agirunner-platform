@@ -1,3 +1,5 @@
+import { ChevronDown } from 'lucide-react';
+
 import {
   Card,
   CardContent,
@@ -13,6 +15,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
+import { cn } from '../../lib/utils.js';
 import { ConfigField } from './config-form-controls.js';
 import {
   PLATFORM_DEFAULT_SELECT_VALUE,
@@ -25,6 +28,11 @@ export function RuntimeDefaultsSection({
   fields,
   values,
   errors,
+  configuredCount,
+  fieldCount,
+  errorCount,
+  isExpanded,
+  onToggle,
   onChange,
 }: {
   title: string;
@@ -32,25 +40,47 @@ export function RuntimeDefaultsSection({
   fields: FieldDefinition[];
   values: FormValues;
   errors: Record<string, string>;
+  configuredCount: number;
+  fieldCount: number;
+  errorCount: number;
+  isExpanded: boolean;
+  onToggle(): void;
   onChange: (key: string, value: string) => void;
 }) {
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-5 md:grid-cols-2">
-        {fields.map((field) => (
-          <RuntimeField
-            key={field.key}
-            field={field}
-            value={values[field.key] ?? ''}
-            error={errors[field.key]}
-            onChange={(nextValue) => onChange(field.key, nextValue)}
-          />
-        ))}
-      </CardContent>
+      <button
+        type="button"
+        className="flex w-full items-start justify-between gap-3 px-6 py-6 text-left"
+        aria-expanded={isExpanded}
+        onClick={onToggle}
+      >
+        <CardHeader className="p-0">
+          <CardTitle className="text-lg">{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
+          <p className="text-sm leading-6 text-muted">
+            {configuredCount}/{fieldCount} configured
+            {errorCount > 0 ? ` · ${errorCount} validation blocker${errorCount === 1 ? '' : 's'}` : ' · No validation blockers'}
+          </p>
+        </CardHeader>
+        <span className="flex items-center gap-2 pt-1 text-xs font-medium uppercase tracking-[0.18em] text-muted">
+          {isExpanded ? 'Hide' : 'Show'}
+          <ChevronDown className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-180')} />
+        </span>
+      </button>
+      {isExpanded ? (
+        <CardContent className="grid gap-5 border-t border-border/70 md:grid-cols-2">
+          {fields.map((field) => (
+            <RuntimeField
+              key={field.key}
+              field={field}
+              value={values[field.key] ?? ''}
+              error={errors[field.key]}
+              onChange={(nextValue) => onChange(field.key, nextValue)}
+            />
+          ))}
+        </CardContent>
+      ) : null}
     </Card>
   );
 }

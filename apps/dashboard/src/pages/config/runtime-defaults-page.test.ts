@@ -12,6 +12,10 @@ describe('runtime defaults page source', () => {
   it('exposes the supported runtime configuration sections and agent fields through structured schema exports', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'containers',
+      'task_limits',
+      'fleet',
+      'pool_management',
+      'runtime_throughput',
       'process_logging',
       'server_timeouts',
       'runtime_api',
@@ -25,7 +29,6 @@ describe('runtime defaults page source', () => {
       'realtime_transport',
       'workflow_activation',
       'container_manager',
-      'pool_management',
       'worker_supervision',
       'agent_supervision',
       'webhook_delivery',
@@ -38,13 +41,17 @@ describe('runtime defaults page source', () => {
       'agent_context',
       'orchestrator_context',
       'agent_safeguards',
-      'fleet',
     ]);
     expect(FIELD_DEFINITIONS.map((field) => field.key)).toEqual(
       expect.arrayContaining([
         'default_runtime_image',
         'default_idle_timeout_seconds',
         'default_pull_policy',
+        'pool.enabled',
+        'pool.pool_size',
+        'pool.default_image',
+        'queue.max_concurrency',
+        'queue.max_depth',
         'log.level',
         'server.shutdown_timeout_seconds',
         'api.events_heartbeat_seconds',
@@ -91,8 +98,13 @@ describe('runtime defaults page source', () => {
         'workspace.clone_max_retries',
         'workspace.clone_backoff_base_seconds',
         'workspace.snapshot_interval',
+        'workspace.snapshot_max_per_task',
+        'capture.push_retries',
         'capture.push_timeout_seconds',
         'secrets.vault_timeout_seconds',
+        'subagent.max_concurrent',
+        'subagent.max_total',
+        'subagent.max_depth',
         'subagent.default_timeout_seconds',
         'agent.history_max_messages',
         'agent.context_compaction_threshold',
@@ -120,15 +132,22 @@ describe('runtime defaults page source', () => {
     const source = readSource('./runtime-defaults-page.tsx');
     expect(source).toContain('RuntimeDefaultsSection');
     expect(source).toContain('SECTION_DEFINITIONS.map');
+    expect(source).toContain('expandedSections');
     expect(source).toContain('buildValidationErrors');
     expect(source).toContain('summarizeRuntimeDefaults');
     expect(source).toContain('summarizeRuntimeDefaultSections');
-    expect(source).toContain('Save readiness');
-    expect(source).toContain('Section outline');
+    expect(source).toContain('sticky bottom-4');
+    expect(source).toContain('Save runtime defaults');
+    expect(source).toContain('Saving defaults drains connected runtimes');
+    expect(source).toContain('className="space-y-6 p-6"');
     expect(source).toContain('runtime-defaults-');
     expect(source).toContain('ActiveRuntimeImageCard');
     expect(source).toContain('BuildHistoryCard');
     expect(source).toContain('RuntimeManagementCard');
+    expect(source).not.toContain('Save readiness');
+    expect(source).not.toContain('Section outline');
+    expect(source).not.toContain('max-w-7xl');
+    expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_320px]');
     expect(source).not.toContain('JSON.parse');
   });
 

@@ -25,6 +25,14 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'containers',
     title: 'Agent container defaults',
     description: 'Default image and resource limits applied to agent containers.',
+    defaultExpanded: true,
+  },
+  {
+    key: 'task_limits',
+    title: 'Task limits',
+    description:
+      'Keep the default hard stop on task iterations visible so runaway loops are easy to catch early.',
+    defaultExpanded: true,
   },
   {
     key: 'agent_context',
@@ -48,6 +56,7 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'fleet',
     title: 'Fleet limits',
     description: 'Global concurrency and capacity settings that affect all playbooks.',
+    defaultExpanded: true,
   },
 ];
 
@@ -380,7 +389,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     description: 'Hard stop on agent loop iterations for a single task.',
     configType: 'number',
     placeholder: '500',
-    section: 'agent_safeguards',
+    section: 'task_limits',
     inputMode: 'numeric',
     min: 1,
     step: 1,
@@ -410,9 +419,10 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
 ];
 
 export const SECTION_DEFINITIONS: SectionDefinition[] = [
-  ...BASE_SECTION_DEFINITIONS.slice(0, 1),
+  ...BASE_SECTION_DEFINITIONS.slice(0, 2),
+  ...BASE_SECTION_DEFINITIONS.slice(5, 6),
   ...RUNTIME_OPERATION_SECTION_DEFINITIONS,
-  ...BASE_SECTION_DEFINITIONS.slice(1),
+  ...BASE_SECTION_DEFINITIONS.slice(2, 5),
 ];
 
 export const FIELD_DEFINITIONS: FieldDefinition[] = [

@@ -82,7 +82,7 @@ function shouldRedactString(value: string, inheritedSecret: boolean, allowSecret
     containsJWTLikeToken(trimmed);
 }
 
-function isSecretLikeKey(key: string) {
+export function isSecretLikeKey(key: string) {
   return secretLikeKeyPattern.test(key);
 }
 

@@ -462,6 +462,29 @@ describe('FleetService', () => {
     });
   });
 
+  describe('drainAllRuntimesForTenant', () => {
+    it('marks all tenant runtimes for drain and returns the affected count', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 3 });
+
+      const affected = await service.drainAllRuntimesForTenant(TENANT_ID);
+
+      expect(affected).toBe(3);
+      const sql = pool.query.mock.calls[0][0] as string;
+      expect(sql).toContain('UPDATE runtime_heartbeats');
+      expect(sql).toContain('drain_requested = true');
+      expect(sql).toContain('WHERE tenant_id = $1');
+      expect(pool.query.mock.calls[0][1]).toEqual([TENANT_ID]);
+    });
+
+    it('returns zero when no tenant runtimes are connected', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      const affected = await service.drainAllRuntimesForTenant(TENANT_ID);
+
+      expect(affected).toBe(0);
+    });
+  });
+
   describe('listContainers', () => {
     it('returns actual state rows joined with desired state for tenant', async () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleActualState], rowCount: 1 });

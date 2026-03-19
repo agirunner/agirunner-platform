@@ -11,6 +11,10 @@ describe('runtime defaults page support', () => {
   it('exposes dedicated runtime sections for agent context, orchestrator overrides, and safeguards', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
       'containers',
+      'task_limits',
+      'fleet',
+      'pool_management',
+      'runtime_throughput',
       'process_logging',
       'server_timeouts',
       'runtime_api',
@@ -24,7 +28,6 @@ describe('runtime defaults page support', () => {
       'realtime_transport',
       'workflow_activation',
       'container_manager',
-      'pool_management',
       'worker_supervision',
       'agent_supervision',
       'webhook_delivery',
@@ -37,8 +40,23 @@ describe('runtime defaults page support', () => {
       'agent_context',
       'orchestrator_context',
       'agent_safeguards',
+    ]);
+    expect(SECTION_DEFINITIONS.filter((section) => section.defaultExpanded).map((section) => section.key)).toEqual([
+      'containers',
+      'task_limits',
       'fleet',
     ]);
+    expect(fieldsForSection('task_limits').map((field) => field.key)).toEqual(['agent.max_iterations']);
+    expect(fieldsForSection('fleet').map((field) => field.key)).toContain('global_max_runtimes');
+    expect(fieldsForSection('pool_management').map((field) => field.key)).toContain('pool.enabled');
+    expect(fieldsForSection('pool_management').map((field) => field.key)).toContain('pool.pool_size');
+    expect(fieldsForSection('pool_management').map((field) => field.key)).toContain('pool.default_image');
+    expect(fieldsForSection('runtime_throughput').map((field) => field.key)).toContain(
+      'queue.max_concurrency',
+    );
+    expect(fieldsForSection('runtime_throughput').map((field) => field.key)).toContain(
+      'queue.max_depth',
+    );
     expect(fieldsForSection('tool_timeouts').map((field) => field.key)).toContain(
       'tools.git_push_timeout_seconds',
     );
@@ -60,6 +78,9 @@ describe('runtime defaults page support', () => {
     );
     expect(fieldsForSection('workspace_operations').map((field) => field.key)).toContain(
       'workspace.snapshot_interval',
+    );
+    expect(fieldsForSection('workspace_operations').map((field) => field.key)).toContain(
+      'workspace.snapshot_max_per_task',
     );
     expect(fieldsForSection('container_reuse').map((field) => field.key)).toContain(
       'container.max_reuse_age_seconds',
@@ -142,6 +163,18 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('task_timeouts').map((field) => field.key)).toContain(
       'tasks.default_timeout_minutes',
     );
+    expect(fieldsForSection('capture_timeouts').map((field) => field.key)).toContain(
+      'capture.push_retries',
+    );
+    expect(fieldsForSection('subagent_timeouts').map((field) => field.key)).toContain(
+      'subagent.max_concurrent',
+    );
+    expect(fieldsForSection('subagent_timeouts').map((field) => field.key)).toContain(
+      'subagent.max_total',
+    );
+    expect(fieldsForSection('subagent_timeouts').map((field) => field.key)).toContain(
+      'subagent.max_depth',
+    );
     expect(fieldsForSection('agent_context').map((field) => field.key)).toContain(
       'agent.history_max_messages',
     );
@@ -160,7 +193,7 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('orchestrator_context').map((field) => field.key)).toContain(
       'agent.orchestrator_finish_checkpoint_enabled',
     );
-    expect(fieldsForSection('agent_safeguards').map((field) => field.key)).toContain(
+    expect(fieldsForSection('agent_safeguards').map((field) => field.key)).not.toContain(
       'agent.max_iterations',
     );
   });
@@ -174,6 +207,10 @@ describe('runtime defaults page support', () => {
       'agent.specialist_context_strategy': 'invalid',
       'agent.orchestrator_history_preserve_recent': '21',
       'agent.loop_detection_repeat': '0',
+      'queue.max_concurrency': '0',
+      'capture.push_retries': '-1',
+      'pool.enabled': 'maybe',
+      'subagent.max_depth': '-1',
     });
 
     expect(errors['agent.history_preserve_recent']).toContain('overall history budget');
@@ -184,6 +221,10 @@ describe('runtime defaults page support', () => {
       'overall history budget',
     );
     expect(errors['agent.loop_detection_repeat']).toContain('at least 1');
+    expect(errors['queue.max_concurrency']).toContain('at least 1');
+    expect(errors['capture.push_retries']).toContain('at least 0');
+    expect(errors['pool.enabled']).toContain('must be one of');
+    expect(errors['subagent.max_depth']).toContain('at least 0');
   });
 
   it('rejects worker reconnect ranges where the minimum exceeds the maximum', () => {
@@ -258,6 +299,20 @@ describe('runtime defaults page support', () => {
           errorCount: 0,
         },
         {
+          key: 'task_limits',
+          title: 'Task limits',
+          configuredCount: 0,
+          fieldCount: 1,
+          errorCount: 0,
+        },
+        {
+          key: 'fleet',
+          title: 'Fleet limits',
+          configuredCount: 0,
+          fieldCount: 1,
+          errorCount: 0,
+        },
+        {
           key: 'process_logging',
           title: 'Process logging',
           configuredCount: 0,
@@ -294,9 +349,16 @@ describe('runtime defaults page support', () => {
         },
         {
           key: 'pool_management',
-          title: 'Pool refresh',
+          title: 'Warm pool defaults',
           configuredCount: 0,
-          fieldCount: 1,
+          fieldCount: 4,
+          errorCount: 0,
+        },
+        {
+          key: 'runtime_throughput',
+          title: 'Runtime throughput',
+          configuredCount: 0,
+          fieldCount: 2,
           errorCount: 0,
         },
         {
@@ -331,7 +393,21 @@ describe('runtime defaults page support', () => {
           key: 'workspace_operations',
           title: 'Workspace operations',
           configuredCount: 0,
+          fieldCount: 4,
+          errorCount: 0,
+        },
+        {
+          key: 'capture_timeouts',
+          title: 'Capture resilience',
+          configuredCount: 0,
           fieldCount: 3,
+          errorCount: 0,
+        },
+        {
+          key: 'subagent_timeouts',
+          title: 'Subagents',
+          configuredCount: 0,
+          fieldCount: 4,
           errorCount: 0,
         },
       ]),

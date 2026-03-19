@@ -510,6 +510,16 @@ export class FleetService {
     return toPublicDesiredStateRow(result.rows[0]);
   }
 
+  async drainAllRuntimesForTenant(tenantId: string): Promise<number> {
+    const result = await this.pool.query(
+      `UPDATE runtime_heartbeats
+          SET drain_requested = true
+        WHERE tenant_id = $1`,
+      [tenantId],
+    );
+    return result.rowCount ?? 0;
+  }
+
   async listContainers(tenantId: string): Promise<ContainerView[]> {
     const result = await this.pool.query<ContainerView>(
       `SELECT

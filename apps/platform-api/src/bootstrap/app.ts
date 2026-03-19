@@ -166,8 +166,8 @@ export async function buildApp() {
   const apiKeyService = new ApiKeyService(pool);
   const orchestratorConfigService = new OrchestratorConfigService(pool);
   const roleDefinitionService = new RoleDefinitionService(pool);
-  const runtimeDefaultsService = new RuntimeDefaultsService(pool);
   const fleetService = new FleetService(pool);
+  const runtimeDefaultsService = new RuntimeDefaultsService(pool, fleetService, eventService);
   const modelCatalogService = new ModelCatalogService(pool);
   const oauthService = new OAuthService(pool);
   const orchestratorGrantService = new OrchestratorGrantService(pool, eventService);

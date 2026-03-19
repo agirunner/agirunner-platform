@@ -2,6 +2,18 @@ import type { FieldDefinition, SectionDefinition } from './runtime-defaults.type
 
 export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
+    key: 'pool_management',
+    title: 'Warm pool defaults',
+    description:
+      'Control whether shared warm containers stay prefetched and which image/capacity they use.',
+  },
+  {
+    key: 'runtime_throughput',
+    title: 'Runtime throughput',
+    description:
+      'Set how much queued work a runtime accepts and how many tasks it executes in parallel.',
+  },
+  {
     key: 'process_logging',
     title: 'Process logging',
     description: 'Control the runtime process log verbosity applied after platform config loads.',
@@ -72,11 +84,6 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
       'Control fleet reconcile cadence and stop/remove grace periods for the manager service.',
   },
   {
-    key: 'pool_management',
-    title: 'Pool refresh',
-    description: 'Control how often the runtime refreshes pool state from the platform.',
-  },
-  {
     key: 'worker_supervision',
     title: 'Worker supervision',
     description:
@@ -113,8 +120,9 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'capture_timeouts',
-    title: 'Capture timeouts',
-    description: 'Limit result packaging, artifact export, and capture-side exec steps.',
+    title: 'Capture resilience',
+    description:
+      'Control how aggressively the runtime retries result publication and how long capture-side steps may run.',
   },
   {
     key: 'secrets_timeouts',
@@ -123,12 +131,15 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   },
   {
     key: 'subagent_timeouts',
-    title: 'Subagent timeouts',
-    description: 'Set the default deadline for spawned subagents when callers do not override it.',
+    title: 'Subagents',
+    description:
+      'Set default timeout and fanout limits for delegated subagents spawned from a parent task.',
   },
 ];
 
 export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
+  ...buildPoolManagementFields(),
+  ...buildRuntimeThroughputFields(),
   {
     key: 'log.level',
     label: 'Runtime log level',
@@ -200,7 +211,6 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   ...buildConnectedPlatformFields(),
   ...buildRealtimeTransportFields(),
-  ...buildPoolManagementFields(),
   ...buildWorkflowActivationFields(),
   ...buildContainerManagerFields(),
   ...buildWorkerSupervisionFields(),
@@ -209,6 +219,18 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   ...buildPlatformLoopFields(),
   ...buildWorkspaceTimeoutFields(),
   ...buildWorkspaceOperationFields(),
+  {
+    key: 'capture.push_retries',
+    label: 'Capture push retry budget',
+    description:
+      'How many times the runtime retries git push or result publication before giving up.',
+    configType: 'number',
+    placeholder: '3',
+    section: 'capture_timeouts',
+    inputMode: 'numeric',
+    min: 0,
+    step: 1,
+  },
   {
     key: 'capture.push_timeout_seconds',
     label: 'Capture push timeout (seconds)',
@@ -241,6 +263,42 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
     section: 'secrets_timeouts',
     inputMode: 'numeric',
     min: 1,
+    step: 1,
+  },
+  {
+    key: 'subagent.max_concurrent',
+    label: 'Concurrent subagents per root task',
+    description:
+      'Maximum number of subagents that may run at the same time for one root task.',
+    configType: 'number',
+    placeholder: '3',
+    section: 'subagent_timeouts',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
+    key: 'subagent.max_total',
+    label: 'Total subagents per root task',
+    description:
+      'Maximum number of subagents a root task may spawn before further delegation is rejected.',
+    configType: 'number',
+    placeholder: '10',
+    section: 'subagent_timeouts',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
+    key: 'subagent.max_depth',
+    label: 'Subagent nesting depth',
+    description:
+      'Maximum allowed subagent depth. Set to 0 to block nested delegation entirely.',
+    configType: 'number',
+    placeholder: '1',
+    section: 'subagent_timeouts',
+    inputMode: 'numeric',
+    min: 0,
     step: 1,
   },
   {
@@ -508,6 +566,37 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
 function buildPoolManagementFields(): FieldDefinition[] {
   return [
     {
+      key: 'pool.enabled',
+      label: 'Enable warm pool management',
+      description:
+        'Keep prefetched warm containers available for shared startup latency reduction.',
+      configType: 'boolean',
+      placeholder: 'false',
+      section: 'pool_management',
+      options: ['true', 'false'],
+    },
+    {
+      key: 'pool.pool_size',
+      label: 'Warm pool size',
+      description:
+        'Target number of prefetched containers for the shared default pool. Set to 0 to leave only targeted image or tenant pools active.',
+      configType: 'number',
+      placeholder: '0',
+      section: 'pool_management',
+      inputMode: 'numeric',
+      min: 0,
+      step: 1,
+    },
+    {
+      key: 'pool.default_image',
+      label: 'Warm pool default image',
+      description:
+        'Container image used when the shared warm pool is enabled and no image-specific override applies.',
+      configType: 'string',
+      placeholder: 'alpine/git:2.47.2',
+      section: 'pool_management',
+    },
+    {
       key: 'pool.refresh_interval_seconds',
       label: 'Pool refresh interval (seconds)',
       description:
@@ -515,6 +604,34 @@ function buildPoolManagementFields(): FieldDefinition[] {
       configType: 'number',
       placeholder: '300',
       section: 'pool_management',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+  ];
+}
+
+function buildRuntimeThroughputFields(): FieldDefinition[] {
+  return [
+    {
+      key: 'queue.max_concurrency',
+      label: 'Parallel task execution limit',
+      description: 'Maximum number of tasks this runtime may execute at the same time.',
+      configType: 'number',
+      placeholder: '2',
+      section: 'runtime_throughput',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'queue.max_depth',
+      label: 'Queued task backlog limit',
+      description:
+        'Maximum number of accepted queued tasks before the runtime starts rejecting additional submissions.',
+      configType: 'number',
+      placeholder: '100',
+      section: 'runtime_throughput',
       inputMode: 'numeric',
       min: 1,
       step: 1,
@@ -625,6 +742,18 @@ function buildWorkspaceOperationFields(): FieldDefinition[] {
         'Automatic workspace snapshot cadence in engine iterations; set to 0 to disable snapshots.',
       configType: 'number',
       placeholder: '1',
+      section: 'workspace_operations',
+      inputMode: 'numeric',
+      min: 0,
+      step: 1,
+    },
+    {
+      key: 'workspace.snapshot_max_per_task',
+      label: 'Snapshots kept per task',
+      description:
+        'Maximum number of archived workspace snapshots retained for one task before older snapshots are pruned.',
+      configType: 'number',
+      placeholder: '10',
       section: 'workspace_operations',
       inputMode: 'numeric',
       min: 0,

@@ -14,6 +14,8 @@ export interface FieldDefinition {
   placeholder: string;
   section:
     | 'containers'
+    | 'task_limits'
+    | 'runtime_throughput'
     | 'process_logging'
     | 'server_timeouts'
     | 'runtime_api'
@@ -52,6 +54,7 @@ export interface SectionDefinition {
   key: FieldDefinition['section'];
   title: string;
   description: string;
+  defaultExpanded?: boolean;
 }
 
 export type FormValues = Record<string, string>;

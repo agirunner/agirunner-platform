@@ -3,6 +3,8 @@ import { z } from 'zod';
 import type { DatabaseQueryable } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import type { EventService } from './event-service.js';
+import type { FleetService } from './fleet-service.js';
 
 const CONFIG_TYPES = ['string', 'number', 'boolean', 'json'] as const;
 const RUNTIME_DEFAULT_SECRET_REDACTION = 'redacted://runtime-default-secret';
@@ -103,14 +105,22 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['workspace.clone_max_retries', { min: 1 }],
   ['workspace.clone_backoff_base_seconds', { min: 1 }],
   ['workspace.snapshot_interval', { min: 0 }],
+  ['workspace.snapshot_max_per_task', { min: 0 }],
   ['container.copy_timeout_seconds', { min: 1 }],
   ['container.max_reuse_age_seconds', { min: 0 }],
   ['container.max_reuse_tasks', { min: 0 }],
   ['containerd.connect_timeout_seconds', { min: 1 }],
+  ['queue.max_concurrency', { min: 1 }],
+  ['queue.max_depth', { min: 1 }],
   ['capture.push_timeout_seconds', { min: 1 }],
+  ['capture.push_retries', { min: 0 }],
   ['capture.exec_timeout_seconds', { min: 1 }],
   ['secrets.vault_timeout_seconds', { min: 1 }],
+  ['pool.pool_size', { min: 0 }],
   ['subagent.default_timeout_seconds', { min: 1 }],
+  ['subagent.max_concurrent', { min: 1 }],
+  ['subagent.max_total', { min: 1 }],
+  ['subagent.max_depth', { min: 0 }],
   ['api.events_heartbeat_seconds', { min: 1 }],
   ['pool.refresh_interval_seconds', { min: 1 }],
 ]);
@@ -131,6 +141,7 @@ const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
   ['agent.orchestrator_context_strategy', ['activation_checkpoint', 'emergency_only', 'off']],
 ]);
 const BOOLEAN_DEFAULT_KEYS = new Set([
+  'pool.enabled',
   'agent.specialist_prepare_for_compaction_enabled',
   'agent.orchestrator_finish_checkpoint_enabled',
   'agent.orchestrator_finish_refresh_context_bundle',
@@ -154,6 +165,9 @@ const updateDefaultSchema = createDefaultSchema.partial().omit({ configKey: true
 export type CreateRuntimeDefaultInput = z.infer<typeof createDefaultSchema>;
 export type UpdateRuntimeDefaultInput = z.infer<typeof updateDefaultSchema>;
 
+type RuntimeDefaultsFleetService = Pick<FleetService, 'drainAllRuntimesForTenant'>;
+type RuntimeDefaultsEventService = Pick<EventService, 'emit'>;
+
 interface RuntimeDefaultRow {
   [key: string]: unknown;
   id: string;
@@ -167,7 +181,11 @@ interface RuntimeDefaultRow {
 }
 
 export class RuntimeDefaultsService {
-  constructor(private readonly pool: DatabaseQueryable) {}
+  constructor(
+    private readonly pool: DatabaseQueryable,
+    private readonly fleetService?: RuntimeDefaultsFleetService,
+    private readonly eventService?: RuntimeDefaultsEventService,
+  ) {}
 
   async listDefaults(tenantId: string): Promise<RuntimeDefaultRow[]> {
     const repo = new TenantScopedRepository(this.pool, tenantId);
@@ -218,7 +236,9 @@ export class RuntimeDefaultsService {
         validated.description ?? null,
       ],
     );
-    return toPublicRuntimeDefaultRow(result.rows[0]);
+    const created = toPublicRuntimeDefaultRow(result.rows[0]);
+    await this.triggerRuntimeDefaultsRollout(tenantId, 'create', created.config_key);
+    return created;
   }
 
   async updateDefault(
@@ -262,7 +282,9 @@ export class RuntimeDefaultsService {
       values,
     );
     if (!result.rowCount) throw new NotFoundError('Runtime default not found');
-    return toPublicRuntimeDefaultRow(result.rows[0]);
+    const updated = toPublicRuntimeDefaultRow(result.rows[0]);
+    await this.triggerRuntimeDefaultsRollout(tenantId, 'update', updated.config_key);
+    return updated;
   }
 
   async upsertDefault(
@@ -286,15 +308,44 @@ export class RuntimeDefaultsService {
         validated.description ?? null,
       ],
     );
-    return toPublicRuntimeDefaultRow(result.rows[0]);
+    const upserted = toPublicRuntimeDefaultRow(result.rows[0]);
+    await this.triggerRuntimeDefaultsRollout(tenantId, 'upsert', upserted.config_key);
+    return upserted;
   }
 
-  async deleteDefault(tenantId: string, id: string): Promise<void> {
+  async deleteDefault(tenantId: string, id: string, configKey?: string): Promise<void> {
     const result = await this.pool.query(
       'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND id = $2',
       [tenantId, id],
     );
     if (!result.rowCount) throw new NotFoundError('Runtime default not found');
+    await this.triggerRuntimeDefaultsRollout(tenantId, 'delete', configKey ?? id);
+  }
+
+  private async triggerRuntimeDefaultsRollout(
+    tenantId: string,
+    operation: 'create' | 'update' | 'upsert' | 'delete',
+    configKey: string,
+  ): Promise<void> {
+    const affectedRuntimes = this.fleetService
+      ? await this.fleetService.drainAllRuntimesForTenant(tenantId)
+      : 0;
+    if (!this.eventService) {
+      return;
+    }
+    await this.eventService.emit({
+      tenantId,
+      type: 'runtime.defaults_rollout_requested',
+      entityType: 'system',
+      entityId: tenantId,
+      actorType: 'system',
+      data: {
+        config_key: configKey,
+        operation,
+        affected_runtimes: affectedRuntimes,
+        reason: 'runtime_defaults_changed',
+      },
+    });
   }
 }
 
