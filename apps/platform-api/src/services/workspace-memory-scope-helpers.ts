@@ -120,15 +120,12 @@ export function toScopedMemoryEntry(
 }
 
 function isVisibleToTask(
-  entry: Pick<ScopedMemoryEntry, 'workflow_id' | 'work_item_id'>,
+  entry: Pick<ScopedMemoryEntry, 'workflow_id'>,
   workflowId: string,
-  workItemId: string | null,
+  _workItemId: string | null,
 ): boolean {
   if (entry.workflow_id && entry.workflow_id !== workflowId) {
     return false;
-  }
-  if (entry.work_item_id) {
-    return workItemId !== null && entry.work_item_id === workItemId;
   }
   return true;
 }

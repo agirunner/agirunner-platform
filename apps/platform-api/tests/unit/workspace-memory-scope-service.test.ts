@@ -64,7 +64,7 @@ describe('WorkspaceMemoryScopeService', () => {
         same_workflow: 'keep workflow',
         same_work_item: 'keep work item',
         other_workflow: 'hide old workflow',
-        other_work_item: 'hide other item',
+        other_work_item: 'keep sibling work item memory in same workflow',
       },
     });
 
@@ -72,6 +72,41 @@ describe('WorkspaceMemoryScopeService', () => {
       global_note: 'keep global',
       same_workflow: 'keep workflow',
       same_work_item: 'keep work item',
+      other_work_item: 'keep sibling work item memory in same workflow',
+    });
+  });
+
+  it('keeps workspace memory visible across work items in the same workflow', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rows: [
+          {
+            id: 21,
+            type: 'workspace.memory_updated',
+            actor_type: 'agent',
+            actor_id: 'agent:key',
+            created_at: '2026-03-16T09:00:00.000Z',
+            data: { key: 'durable_note', workflow_id: 'wf-1', work_item_id: 'wi-1' },
+          },
+        ],
+        rowCount: 1,
+      }),
+    };
+
+    const service = new WorkspaceMemoryScopeService(pool as never);
+
+    const visible = await service.filterVisibleTaskMemory({
+      tenantId: 'tenant-1',
+      workspaceId: 'workspace-1',
+      workflowId: 'wf-1',
+      workItemId: 'wi-2',
+      currentMemory: {
+        durable_note: 'keep across successor work items',
+      },
+    });
+
+    expect(visible).toEqual({
+      durable_note: 'keep across successor work items',
     });
   });
 
@@ -111,8 +146,16 @@ describe('WorkspaceMemoryScopeService', () => {
             created_at: '2026-03-16T08:03:00.000Z',
             data: { key: 'other_workflow', workflow_id: 'wf-old' },
           },
+          {
+            id: 15,
+            type: 'workspace.memory_updated',
+            actor_type: 'agent',
+            actor_id: 'agent:key',
+            created_at: '2026-03-16T08:04:00.000Z',
+            data: { key: 'other_work_item', workflow_id: 'wf-1', work_item_id: 'wi-2' },
+          },
         ],
-        rowCount: 4,
+        rowCount: 5,
       }),
     };
 
@@ -127,14 +170,15 @@ describe('WorkspaceMemoryScopeService', () => {
         global_note: 'keep global',
         same_workflow: 'keep workflow',
         same_work_item: 'keep work item',
+        other_work_item: 'keep sibling work item memory',
         other_workflow: 'hide old workflow',
       },
       limit: 2,
     });
 
     expect(index).toEqual({
-      keys: ['same_work_item', 'same_workflow'],
-      total: 3,
+      keys: ['other_work_item', 'same_work_item'],
+      total: 4,
       more_available: true,
     });
   });
