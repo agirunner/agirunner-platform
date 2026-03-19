@@ -103,6 +103,24 @@ func TestDCMStartupSweepRemovesOrphanTasksWithDeadParent(t *testing.T) {
 	}
 }
 
+func TestDCMStartupSweepRemovesLegacyOrphanTasksWithDeadParent(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeLegacyDCMTaskContainer("task-orphan", legacyRuntimeInstanceIDLabel, "dead-runtime-id"),
+	}
+	platform := &mockPlatformClient{runtimeTargets: []RuntimeTarget{}}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.startupSweep(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "task-orphan" {
+		t.Fatalf("expected legacy orphan task removed, got %v", docker.removedIDs)
+	}
+}
+
 func TestDCMShutdownOrphanTasksCleansUpRemainingTasks(t *testing.T) {
 	docker := newMockDockerClient()
 	docker.containers = []ContainerInfo{
@@ -116,6 +134,22 @@ func TestDCMShutdownOrphanTasksCleansUpRemainingTasks(t *testing.T) {
 
 	if len(docker.stoppedIDs) != 2 {
 		t.Errorf("expected 2 task containers stopped, got %d", len(docker.stoppedIDs))
+	}
+}
+
+func TestDCMShutdownOrphanTasksCleansUpLegacyTasks(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeLegacyDCMTaskContainer("task-legacy-1", legacyRuntimeInstanceIDLabel, "rt-gone"),
+		makeLegacyDCMTaskContainer("task-legacy-2", legacyParentRuntimeLabel, "rt-gone"),
+	}
+	platform := &mockPlatformClient{}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.shutdownOrphanTasks(context.Background())
+
+	if len(docker.stoppedIDs) != 2 {
+		t.Fatalf("expected 2 legacy task containers stopped, got %d", len(docker.stoppedIDs))
 	}
 }
 
@@ -168,6 +202,25 @@ func TestDCMStartupSweepKeepsTasksWithLiveParent(t *testing.T) {
 	}
 	if len(docker.stoppedIDs) != 0 {
 		t.Errorf("expected no containers stopped when task parent is alive, got %v", docker.stoppedIDs)
+	}
+}
+
+func TestDCMStartupSweepKeepsLegacyTasksWithLiveParentContainer(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		{ID: "live-parent-123456", Name: "orchestrator-primary"},
+		makeLegacyDCMTaskContainer("task-ok", legacyRuntimeInstanceIDLabel, "live-parent-"),
+	}
+	platform := &mockPlatformClient{runtimeTargets: []RuntimeTarget{}}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.startupSweep(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.removedIDs) != 0 {
+		t.Fatalf("expected no legacy task removal when parent container is live, got %v", docker.removedIDs)
 	}
 }
 

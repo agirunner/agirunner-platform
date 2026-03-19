@@ -138,7 +138,7 @@ func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID, workerNam
 		"AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE": targetExecutionMode(target),
 		"AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER":      target.PlaybookID,
 		"AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID":           runtimeID,
-		envRuntimeWorkerName:                               workerName,
+		envRuntimeWorkerName:                              workerName,
 		"AGIRUNNER_RUNTIME_IMAGE":                         target.Image,
 		"DOCKER_HOST":                                     m.config.DockerHost,
 	}
@@ -344,15 +344,7 @@ func (m *Manager) cleanupOrphanTaskContainers(ctx context.Context) {
 
 // collectRuntimeIDs builds a set of active runtime IDs from containers.
 func collectRuntimeIDs(containers []ContainerInfo) map[string]bool {
-	ids := make(map[string]bool)
-	for _, c := range containers {
-		if c.Labels[labelDCMTier] == tierRuntime {
-			if rid := c.Labels[labelDCMRuntimeID]; rid != "" {
-				ids[rid] = true
-			}
-		}
-	}
-	return ids
+	return liveParentIdentifiers(containers)
 }
 
 // findOrphanTasks returns task containers whose parent runtime no longer exists.
@@ -374,14 +366,14 @@ func findOrphanTasks(containers []ContainerInfo, runtimeIDs map[string]bool) []C
 }
 
 func isManagedTaskContainer(labels map[string]string) bool {
-	return labels[labelDCMManaged] == "true" || labels["agirunner.runtime.managed"] == "true"
+	return hasManagedLabel(labels, labelDCMManaged) || hasManagedLabel(labels, legacyRuntimeManagedLabel)
 }
 
 func taskParentRuntimeID(labels map[string]string) string {
 	for _, key := range []string{
 		labelDCMRuntimeID,
-		"agirunner.parent_runtime",
-		"agirunner.runtime.instance_id",
+		legacyParentRuntimeLabel,
+		legacyRuntimeInstanceIDLabel,
 	} {
 		if value := strings.TrimSpace(labels[key]); value != "" {
 			return value

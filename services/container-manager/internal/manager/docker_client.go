@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
@@ -43,14 +42,11 @@ func NewRealDockerClient(host string) (*RealDockerClient, error) {
 	return &RealDockerClient{cli: cli}, nil
 }
 
-// ListContainers returns all containers managed by the container manager.
+// ListContainers returns all agirunner-managed containers visible to the
+// manager. Callers decide which subset matters for their workflow.
 func (d *RealDockerClient) ListContainers(ctx context.Context) ([]ContainerInfo, error) {
-	f := filters.NewArgs()
-	f.Add("label", labelManagedBy)
-
 	containers, err := d.cli.ContainerList(ctx, container.ListOptions{
-		All:     true,
-		Filters: f,
+		All: true,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("docker container list: %w", err)
@@ -58,6 +54,9 @@ func (d *RealDockerClient) ListContainers(ctx context.Context) ([]ContainerInfo,
 
 	result := make([]ContainerInfo, 0, len(containers))
 	for _, c := range containers {
+		if !isAgirunnerManagedContainer(c.Labels) {
+			continue
+		}
 		name := ""
 		if len(c.Names) > 0 {
 			name = strings.TrimPrefix(c.Names[0], "/")

@@ -362,13 +362,7 @@ func readPlainLines(r io.Reader) []string {
 // isManagedContainer checks whether a container's attributes indicate it's
 // managed by agirunner (either WDS or DCM).
 func isManagedContainer(attrs map[string]string) bool {
-	if attrs[labelManagedBy] == "true" {
-		return true
-	}
-	if attrs[labelDCMManaged] == "true" {
-		return true
-	}
-	return false
+	return isAgirunnerManagedContainer(attrs)
 }
 
 // extractResourceInfo pulls agirunner labels from container attributes

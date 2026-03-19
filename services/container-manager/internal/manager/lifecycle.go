@@ -18,10 +18,11 @@ func (m *Manager) startupSweep(ctx context.Context) error {
 }
 
 func (m *Manager) startupSweepWithTargets(ctx context.Context, targets []RuntimeTarget) error {
-	containers, err := m.listAllDCMContainers(ctx)
+	allContainers, err := m.docker.ListContainers(ctx)
 	if err != nil {
-		return fmt.Errorf("list DCM containers on startup: %w", err)
+		return fmt.Errorf("list containers on startup: %w", err)
 	}
+	containers := filterStartupSweepContainers(allContainers)
 
 	if len(containers) == 0 {
 		m.logger.Info("startup sweep: no DCM containers found")
@@ -30,7 +31,7 @@ func (m *Manager) startupSweepWithTargets(ctx context.Context, targets []Runtime
 
 	targetMap := buildTargetMap(targets)
 	adopted, removed := m.adoptOrRemoveRuntimes(ctx, containers, targetMap)
-	orphanCount := m.removeOrphanTasksOnStartup(ctx, containers)
+	orphanCount := m.removeOrphanTasksOnStartup(ctx, allContainers)
 	m.emitLog("container", "lifecycle.startup_sweep", "debug", "completed", map[string]any{
 		"action":           "startup_sweep",
 		"total_containers": len(containers),
@@ -41,20 +42,18 @@ func (m *Manager) startupSweepWithTargets(ctx context.Context, targets []Runtime
 	return nil
 }
 
-// listAllDCMContainers returns all containers with the DCM managed label.
-func (m *Manager) listAllDCMContainers(ctx context.Context) ([]ContainerInfo, error) {
-	all, err := m.docker.ListContainers(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("docker list containers: %w", err)
-	}
-
-	var dcm []ContainerInfo
-	for _, c := range all {
-		if c.Labels[labelDCMManaged] == "true" {
-			dcm = append(dcm, c)
+func filterStartupSweepContainers(containers []ContainerInfo) []ContainerInfo {
+	filtered := make([]ContainerInfo, 0, len(containers))
+	for _, container := range containers {
+		if container.Labels[labelDCMTier] == tierRuntime && hasManagedLabel(container.Labels, labelDCMManaged) {
+			filtered = append(filtered, container)
+			continue
+		}
+		if container.Labels[labelDCMTier] == tierTask && isManagedTaskContainer(container.Labels) {
+			filtered = append(filtered, container)
 		}
 	}
-	return dcm, nil
+	return filtered
 }
 
 // buildTargetMap creates a lookup from playbook/pool target key to RuntimeTarget.
@@ -129,7 +128,7 @@ func containerTargetKey(c ContainerInfo) string {
 
 // removeOrphanTasksOnStartup destroys task containers with dead parent runtimes.
 func (m *Manager) removeOrphanTasksOnStartup(ctx context.Context, containers []ContainerInfo) int {
-	runtimeIDs := collectRuntimeIDs(containers)
+	runtimeIDs := liveParentIdentifiers(containers)
 	orphans := findOrphanTasks(containers, runtimeIDs)
 
 	for _, orphan := range orphans {
@@ -218,7 +217,7 @@ func (m *Manager) shutdownOrphanTasks(ctx context.Context) int {
 		return 0
 	}
 
-	tasks := filterByLabels(all, labelDCMManaged, "true", labelDCMTier, tierTask)
+	tasks := filterManagedTaskContainers(all)
 	for _, t := range tasks {
 		m.logger.Info("shutdown: removing task container", "container", t.ID)
 		m.stopAndRemove(ctx, t.ID, m.shutdownTaskStopTimeout())
@@ -233,6 +232,20 @@ func (m *Manager) shutdownOrphanTasks(ctx context.Context) int {
 		}, logResourceInfo{ResourceType: "task_container", ResourceName: t.ID})
 	}
 	return len(tasks)
+}
+
+func filterManagedTaskContainers(containers []ContainerInfo) []ContainerInfo {
+	filtered := make([]ContainerInfo, 0, len(containers))
+	for _, container := range containers {
+		if container.Labels[labelDCMTier] != tierTask {
+			continue
+		}
+		if !isManagedTaskContainer(container.Labels) {
+			continue
+		}
+		filtered = append(filtered, container)
+	}
+	return filtered
 }
 
 func (m *Manager) shutdownTaskStopTimeout() time.Duration {

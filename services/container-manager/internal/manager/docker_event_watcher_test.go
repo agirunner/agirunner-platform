@@ -52,6 +52,7 @@ func TestIsManagedContainer(t *testing.T) {
 	}{
 		{"WDS managed", map[string]string{labelManagedBy: "true"}, true},
 		{"DCM managed", map[string]string{labelDCMManaged: "true"}, true},
+		{"legacy runtime managed", map[string]string{legacyRuntimeManagedLabel: "true"}, true},
 		{"not managed", map[string]string{"foo": "bar"}, false},
 		{"empty attrs", map[string]string{}, false},
 	}
