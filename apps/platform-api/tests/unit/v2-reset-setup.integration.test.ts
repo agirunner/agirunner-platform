@@ -155,7 +155,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     expect(Number(modelCount.rows[0]?.count ?? '0')).toBe(1);
     expect(Number(assignmentCount.rows[0]?.count ?? '0')).toBe(1);
     expect(defaultRows.rows).toEqual([
-      { config_key: 'agent.max_iterations', config_value: '100' },
+      { config_key: 'agent.max_iterations', config_value: '500' },
       { config_key: 'default_model_id', config_value: '20000000-0000-0000-0000-000000000001' },
       {
         config_key: 'default_reasoning_config',

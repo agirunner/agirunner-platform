@@ -9,7 +9,9 @@ import { readWorkspaceRepositorySettings } from './workspace-settings.js';
 import { resolveRepositoryBranchContext } from './repository-branch-context.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
+  TASK_LLM_MAX_RETRIES_RUNTIME_KEY,
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
+  TASK_MAX_ITERATIONS_RUNTIME_KEY,
 } from './runtime-default-values.js';
 import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
@@ -93,6 +95,7 @@ export class TaskWriteService {
     await this.assertLinkedWorkItem(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyWorkflowExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookTaskExecutionDefaults(identity.tenantId, normalizedInput, db);
+    normalizedInput = await this.materializeTaskLoopExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookRuleDerivedTaskReviewPolicy(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyRoleCapabilityDefaults(identity.tenantId, normalizedInput);
     const dependencies = normalizedInput.depends_on ?? [];
@@ -528,6 +531,29 @@ export class TaskWriteService {
       ...input,
       max_iterations: input.max_iterations ?? definition.orchestrator.max_iterations,
       llm_max_retries: input.llm_max_retries ?? definition.orchestrator.llm_max_retries,
+    };
+  }
+
+  private async materializeTaskLoopExecutionDefaults(
+    tenantId: string,
+    input: CreateTaskInput,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<CreateTaskInput> {
+    const maxIterations = input.max_iterations ?? await readRequiredPositiveIntegerRuntimeDefault(
+      db,
+      tenantId,
+      TASK_MAX_ITERATIONS_RUNTIME_KEY,
+    );
+    const llmMaxRetries = input.llm_max_retries ?? await readRequiredPositiveIntegerRuntimeDefault(
+      db,
+      tenantId,
+      TASK_LLM_MAX_RETRIES_RUNTIME_KEY,
+    );
+
+    return {
+      ...input,
+      max_iterations: maxIterations,
+      llm_max_retries: llmMaxRetries,
     };
   }
 

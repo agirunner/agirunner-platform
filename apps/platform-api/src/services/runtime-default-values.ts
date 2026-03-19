@@ -2,6 +2,8 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ValidationError } from '../errors/domain-errors.js';
 
 export const TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY = 'tasks.default_timeout_minutes';
+export const TASK_MAX_ITERATIONS_RUNTIME_KEY = 'agent.max_iterations';
+export const TASK_LLM_MAX_RETRIES_RUNTIME_KEY = 'agent.llm_max_retries';
 
 export async function readRuntimeDefaultValue(
   db: DatabaseClient | DatabasePool,

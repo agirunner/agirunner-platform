@@ -228,7 +228,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'agent.max_iterations',
-    configValue: '100',
+    configValue: '500',
     configType: 'number',
     description: 'Default maximum agent loop iterations for a single task',
   });

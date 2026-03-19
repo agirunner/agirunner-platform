@@ -222,7 +222,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     label: 'Maximum task iterations',
     description: 'Hard stop on agent loop iterations for a single task.',
     configType: 'number',
-    placeholder: '100',
+    placeholder: '500',
     section: 'agent_safeguards',
     inputMode: 'numeric',
     min: 1,
