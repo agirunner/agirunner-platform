@@ -67,10 +67,13 @@ export class PlatformApiClient {
     this.accessToken = token;
   }
 
-  async exchangeApiKey(apiKey: string): Promise<AuthTokenResponse> {
+  async exchangeApiKey(apiKey: string, persistentSession = true): Promise<AuthTokenResponse> {
     const response = await this.request<ApiDataResponse<AuthTokenResponse>>('/api/v1/auth/token', {
       method: 'POST',
-      body: { api_key: apiKey },
+      body: {
+        api_key: apiKey,
+        persistent_session: persistentSession,
+      },
       includeAuth: false,
     });
     return response.data;

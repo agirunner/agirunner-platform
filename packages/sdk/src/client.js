@@ -20,10 +20,13 @@ export class PlatformApiClient {
     setAccessToken(token) {
         this.accessToken = token;
     }
-    async exchangeApiKey(apiKey) {
+    async exchangeApiKey(apiKey, persistentSession = true) {
         const response = await this.request('/api/v1/auth/token', {
             method: 'POST',
-            body: { api_key: apiKey },
+            body: {
+                api_key: apiKey,
+                persistent_session: persistentSession,
+            },
             includeAuth: false,
         });
         return response.data;

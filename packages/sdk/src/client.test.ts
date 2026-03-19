@@ -195,6 +195,39 @@ describe('PlatformApiClient', () => {
     }
   });
 
+  it('sends the persistent session preference during api key exchange', async () => {
+    const fetcher = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          data: {
+            token: 'token',
+            tenant_id: 'tenant',
+            scope: 'admin',
+          },
+        }),
+        {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        },
+      ),
+    ) as unknown as typeof fetch;
+
+    const client = new PlatformApiClient({
+      baseUrl: 'http://localhost:8080',
+      fetcher,
+    });
+
+    await client.exchangeApiKey('ar_admin_defintegrationlane0000000000001', false);
+
+    const [, options] = vi.mocked(fetcher).mock.calls[0];
+    expect(options?.body).toBe(
+      JSON.stringify({
+        api_key: 'ar_admin_defintegrationlane0000000000001',
+        persistent_session: false,
+      }),
+    );
+  });
+
   it('builds grouped workflow work-item query strings for list and detail reads', async () => {
     const fetcher = vi
       .fn()
