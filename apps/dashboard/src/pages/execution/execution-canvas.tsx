@@ -307,11 +307,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
   return (
     <div
       data-testid="execution-canvas"
-      style={{
-        backgroundColor: 'var(--color-bg-primary)',
-        fontFamily: 'var(--font-family)',
-        minHeight: '100vh',
-      }}
+      className="font-[var(--font-family)]"
     >
       <style>{`
         @media (max-width: 767px) {
@@ -322,13 +318,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
       {/* Top Bar */}
       <header
         data-testid="execution-top-bar"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--color-border-default)',
-        }}
+        className="flex items-center gap-3 px-4 py-3 border-b border-[var(--color-border-default)]"
       >
         <ViewModeSwitcher
           value={canvasState.viewMode}
@@ -348,7 +338,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
           />
         )}
 
-        <div style={{ flex: 1 }}>
+        <div className="flex-1 min-w-0">
           <SearchFilterBar
             searchQuery={searchQuery}
             onSearchChange={setSearchQuery}
@@ -365,24 +355,14 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
           data-testid="new-workflow-btn"
           type="button"
           onClick={onNewWorkflow}
-          style={{
-            backgroundColor: 'var(--color-accent-primary)',
-            color: '#fff',
-            border: 'none',
-            borderRadius: '6px',
-            padding: '6px 14px',
-            fontSize: '11px',
-            fontFamily: 'var(--font-family)',
-            cursor: 'pointer',
-            whiteSpace: 'nowrap',
-          }}
+          className="shrink-0 rounded-md bg-[var(--color-accent-primary)] px-4 py-2 text-xs font-medium text-white whitespace-nowrap transition-all duration-150 hover:opacity-90 active:scale-[0.97]"
         >
           + New Workflow
         </button>
       </header>
 
       {/* Main Canvas */}
-      <main data-testid="execution-main" style={{ padding: '16px' }}>
+      <main data-testid="execution-main" className="p-4">
         {renderOverview()}
       </main>
 

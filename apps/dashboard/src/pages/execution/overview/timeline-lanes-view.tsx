@@ -34,30 +34,20 @@ const LEGEND_COLORS: Record<StageCellStatus, string> = {
 
 function LegendDot({ status }: { status: StageCellStatus }): JSX.Element {
   return (
-    <div style={{
-      width: '8px',
-      height: '8px',
-      borderRadius: '50%',
-      backgroundColor: LEGEND_COLORS[status],
-      flexShrink: 0,
-    }} />
+    <div
+      className="w-2 h-2 rounded-full shrink-0"
+      style={{ backgroundColor: LEGEND_COLORS[status] }}
+    />
   );
 }
 
 function Legend(): JSX.Element {
   return (
-    <div style={{
-      display: 'flex',
-      gap: '16px',
-      flexWrap: 'wrap',
-      padding: '8px 0',
-      borderTop: '1px solid var(--color-border-default)',
-      marginTop: '8px',
-    }}>
+    <div className="flex gap-4 flex-wrap pt-3 mt-3 border-t border-[var(--color-border-default)]">
       {LEGEND_ITEMS.map(({ status, label }) => (
-        <div key={status} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+        <div key={status} className="flex items-center gap-1.5">
           <LegendDot status={status} />
-          <span style={{ fontSize: '11px', color: 'var(--color-text-tertiary)' }}>{label}</span>
+          <span className="text-[11px] text-[var(--color-text-tertiary)]">{label}</span>
         </div>
       ))}
     </div>
@@ -66,17 +56,8 @@ function Legend(): JSX.Element {
 
 function LaneName({ name }: { name: string }): JSX.Element {
   return (
-    <div style={{
-      width: '120px',
-      flexShrink: 0,
-      fontSize: '12px',
-      fontWeight: 500,
-      color: 'var(--color-text-secondary)',
-      overflow: 'hidden',
-      textOverflow: 'ellipsis',
-      whiteSpace: 'nowrap',
-      paddingRight: '8px',
-    }}
+    <div
+      className="w-[120px] shrink-0 text-xs font-medium text-[var(--color-text-secondary)] truncate pr-2"
       title={name}
     >
       {name}
@@ -86,58 +67,21 @@ function LaneName({ name }: { name: string }): JSX.Element {
 
 function LaneRow({ lane, onSelectStage }: { lane: WorkflowLane; onSelectStage: TimelineLanesViewProps['onSelectStage'] }): JSX.Element {
   return (
-    <>
-      <style>{`
-        @media (max-width: 767px) {
-          .timeline-lane-row {
-            flex-direction: column !important;
-            align-items: flex-start !important;
-          }
-          .timeline-lane-name {
-            width: auto !important;
-            padding-right: 0 !important;
-            padding-bottom: 6px !important;
-          }
-          .timeline-lane-stages {
-            flex-direction: column !important;
-            width: 100% !important;
-          }
-          .timeline-lane-stages > div {
-            min-width: auto !important;
-            width: 100% !important;
-          }
-        }
-      `}</style>
-      <div
-        className="timeline-lane-row"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '6px',
-          padding: '6px 0',
-          borderBottom: '1px solid var(--color-border-default)',
-        }}
-      >
-        <div className="timeline-lane-name">
-          <LaneName name={lane.name} />
-        </div>
+    <div className="flex items-center gap-2 py-2 border-b border-[var(--color-border-default)] max-sm:flex-col max-sm:items-start">
+      <LaneName name={lane.name} />
 
-        <div
-          className="timeline-lane-stages"
-          style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}
-        >
-          {lane.stages.map((stage) => (
-            <TimelineStageCell
-              key={stage.name}
-              status={stage.status}
-              stageName={stage.name}
-              agentRoles={stage.agentRoles}
-              onClick={() => onSelectStage(lane.id, stage.name)}
-            />
-          ))}
-        </div>
+      <div className="flex gap-1.5 flex-wrap max-sm:flex-col max-sm:w-full">
+        {lane.stages.map((stage) => (
+          <TimelineStageCell
+            key={stage.name}
+            status={stage.status}
+            stageName={stage.name}
+            agentRoles={stage.agentRoles}
+            onClick={() => onSelectStage(lane.id, stage.name)}
+          />
+        ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -152,7 +96,7 @@ export function TimelineLanesView({ lanes, onSelectStage }: TimelineLanesViewPro
   }
 
   return (
-    <div>
+    <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4">
       {lanes.map((lane) => (
         <LaneRow key={lane.id} lane={lane} onSelectStage={onSelectStage} />
       ))}

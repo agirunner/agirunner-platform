@@ -60,40 +60,29 @@ export function LiveFeedCard({ events, maxEvents = DEFAULT_MAX_EVENTS }: LiveFee
   const visible = events.slice(0, maxEvents);
 
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg-secondary)',
-      borderRadius: '8px',
-      padding: '12px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '4px',
-    }}>
-      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '4px' }}>
+    <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 flex flex-col gap-1">
+      <div className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-2">
         Live Feed
       </div>
-      <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+      <div className="overflow-y-auto flex flex-col gap-2 max-h-64">
         {visible.map((event) => (
-          <div key={event.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '6px' }}>
-            <div style={{
-              width: '6px',
-              height: '6px',
-              borderRadius: '50%',
-              backgroundColor: actorDotColor(event.actorType),
-              marginTop: '3px',
-              flexShrink: 0,
-            }} />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div key={event.id} className="flex items-start gap-2 group">
+            <div
+              className="w-1.5 h-1.5 rounded-full mt-1.5 shrink-0"
+              style={{ backgroundColor: actorDotColor(event.actorType) }}
+            />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs text-[var(--color-text-secondary)] truncate group-hover:text-[var(--color-text-primary)] transition-colors duration-150">
                 {formatEventSummary(event)}
               </div>
             </div>
-            <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>
+            <div className="text-[10px] text-[var(--color-text-tertiary)] shrink-0 tabular-nums">
               {formatRelativeTime(event.createdAt)}
             </div>
           </div>
         ))}
         {visible.length === 0 && (
-          <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', textAlign: 'center', padding: '8px 0' }}>
+          <div className="text-xs text-[var(--color-text-tertiary)] text-center py-4">
             No events yet
           </div>
         )}

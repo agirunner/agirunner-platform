@@ -67,37 +67,18 @@ export function WarRoomView({
   const sorted = sortWorkflowsByAttention(workflows);
 
   return (
-    <>
-      <style>{`
-        @media (max-width: 767px) {
-          .war-room-layout {
-            flex-direction: column !important;
-          }
-          .war-room-left, .war-room-right {
-            flex: none !important;
-            width: 100% !important;
-          }
-        }
-      `}</style>
-      <div className="war-room-layout" style={{ display: 'flex', gap: '16px' }}>
-        <div
-          className="war-room-left"
-          style={{ flex: '0 0 65%', display: 'flex', flexDirection: 'column', gap: '6px' }}
-        >
-          {sorted.map(w => (
-            <WorkflowStatusRow key={w.id} workflow={w} onClick={onSelectWorkflow} />
-          ))}
-        </div>
-
-        <div
-          className="war-room-right"
-          style={{ flex: '0 0 35%', display: 'flex', flexDirection: 'column', gap: '8px' }}
-        >
-          <FleetStatusCard workers={workers} />
-          <LiveFeedCard events={events} />
-          <CostTicker spendUsd={spendUsd} tokenCount={tokenCount} />
-        </div>
+    <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="flex flex-col gap-1.5 lg:flex-[0_0_65%]">
+        {sorted.map(w => (
+          <WorkflowStatusRow key={w.id} workflow={w} onClick={onSelectWorkflow} />
+        ))}
       </div>
-    </>
+
+      <div className="flex flex-col gap-3 lg:flex-[0_0_35%]">
+        <FleetStatusCard workers={workers} />
+        <LiveFeedCard events={events} />
+        <CostTicker spendUsd={spendUsd} tokenCount={tokenCount} />
+      </div>
+    </div>
   );
 }

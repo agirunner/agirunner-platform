@@ -22,21 +22,14 @@ export function formatTokenCount(count: number): string {
 
 export function CostTicker({ spendUsd, tokenCount }: CostTickerProps): JSX.Element {
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg-secondary)',
-      borderRadius: '8px',
-      padding: '12px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '4px',
-    }}>
-      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 flex flex-col gap-1">
+      <div className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
         Cost
       </div>
-      <div style={{ fontSize: '20px', fontWeight: 700, color: 'var(--color-text-primary)', fontVariantNumeric: 'tabular-nums' }}>
+      <div className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums mt-1">
         {formatUsd(spendUsd)}
       </div>
-      <div style={{ fontSize: '12px', color: 'var(--color-text-secondary)' }}>
+      <div className="text-xs text-[var(--color-text-secondary)]">
         {formatTokenCount(tokenCount)} tokens
       </div>
     </div>

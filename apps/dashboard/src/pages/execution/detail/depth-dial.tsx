@@ -1,3 +1,4 @@
+import { cn } from '../../../lib/utils.js';
 import type { DepthLevel } from '../execution-canvas-support.js';
 
 interface DepthDialProps {
@@ -15,26 +16,17 @@ const DEPTH_LEVELS: DepthLevel[] = [1, 2, 3];
 
 export function DepthDial({ value, onChange }: DepthDialProps) {
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg-secondary)',
-      borderRadius: '20px',
-      padding: '3px',
-      display: 'inline-flex',
-    }}>
+    <div className="inline-flex rounded-full bg-[var(--color-bg-secondary)] p-0.5">
       {DEPTH_LEVELS.map((level) => (
         <button
           key={level}
           onClick={() => onChange(level)}
-          style={{
-            padding: '5px 12px',
-            borderRadius: '16px',
-            fontSize: '10px',
-            border: 'none',
-            cursor: 'pointer',
-            backgroundColor: value === level ? 'var(--color-accent-primary)' : 'transparent',
-            color: value === level ? '#fff' : 'var(--color-text-tertiary)',
-            transition: 'var(--transition-fast)',
-          }}
+          className={cn(
+            'rounded-full px-3 py-1.5 text-[10px] font-medium border-none cursor-pointer transition-all duration-150',
+            value === level
+              ? 'bg-[var(--color-accent-primary)] text-white shadow-sm'
+              : 'bg-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
+          )}
         >
           {DEPTH_LABELS[level]}
         </button>

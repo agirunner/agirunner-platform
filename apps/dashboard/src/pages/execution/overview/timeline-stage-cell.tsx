@@ -1,3 +1,5 @@
+import { cn } from '../../../lib/utils.js';
+
 export type StageCellStatus = 'completed' | 'active' | 'waiting' | 'failed' | 'pending';
 
 interface StageCellStyles {
@@ -52,41 +54,26 @@ export function TimelineStageCell({ status, stageName, agentRoles, onClick }: Ti
       onClick={onClick}
       onKeyDown={onClick ? (e) => e.key === 'Enter' && onClick() : undefined}
       title={stageName}
-      style={{
-        background: styles.background,
-        border: styles.border,
-        borderRadius: '4px',
-        padding: '6px 8px',
-        minWidth: '80px',
-        cursor: onClick ? 'pointer' : 'default',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '4px',
-      }}
+      className={cn(
+        'rounded-md px-2.5 py-2 min-w-[80px] flex flex-col gap-1',
+        'transition-all duration-150',
+        onClick ? 'cursor-pointer hover:opacity-80 active:scale-[0.97]' : '',
+        'max-sm:min-w-0 max-sm:w-full',
+      )}
+      style={{ background: styles.background, border: styles.border }}
     >
-      <div style={{
-        fontSize: '11px',
-        color: 'var(--color-text-primary)',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      }}>
+      <div className="text-[11px] text-[var(--color-text-primary)] truncate font-medium">
         {stageName}
       </div>
 
       {agentRoles && agentRoles.length > 0 && (
-        <div style={{ display: 'flex', gap: '3px', flexWrap: 'wrap' }}>
+        <div className="flex gap-1 flex-wrap">
           {agentRoles.map((role, i) => (
             <div
               key={`${role}-${i}`}
               title={role}
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: `var(--role-${role}, var(--color-text-tertiary))`,
-                flexShrink: 0,
-              }}
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ backgroundColor: `var(--role-${role}, var(--color-text-tertiary))` }}
             />
           ))}
         </div>

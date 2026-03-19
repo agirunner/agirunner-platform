@@ -1,3 +1,4 @@
+import { cn } from '../../lib/utils.js';
 import type { ViewMode } from './execution-canvas-support.js';
 
 interface ViewModeSwitcherProps {
@@ -13,26 +14,17 @@ export function ViewModeSwitcher({ value, onChange }: ViewModeSwitcherProps) {
   ];
 
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg-secondary)',
-      borderRadius: '20px',
-      padding: '3px',
-      display: 'inline-flex',
-    }}>
+    <div className="inline-flex rounded-full bg-[var(--color-bg-secondary)] p-0.5">
       {modes.map(({ key, label }) => (
         <button
           key={key}
           onClick={() => onChange(key)}
-          style={{
-            padding: '5px 12px',
-            borderRadius: '16px',
-            fontSize: '10px',
-            border: 'none',
-            cursor: 'pointer',
-            backgroundColor: value === key ? 'var(--color-accent-primary)' : 'transparent',
-            color: value === key ? '#fff' : 'var(--color-text-tertiary)',
-            transition: 'var(--transition-fast)',
-          }}
+          className={cn(
+            'rounded-full px-3 py-1.5 text-[10px] font-medium border-none cursor-pointer transition-all duration-150',
+            value === key
+              ? 'bg-[var(--color-accent-primary)] text-white shadow-sm'
+              : 'bg-transparent text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]',
+          )}
         >
           {label}
         </button>

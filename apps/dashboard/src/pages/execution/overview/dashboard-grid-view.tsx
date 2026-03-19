@@ -1,3 +1,4 @@
+import { cn } from '../../../lib/utils.js';
 import { MetricCard } from './metric-card.js';
 
 const MAX_RECENT_EVENTS = 10;
@@ -81,14 +82,14 @@ function AttentionList({ workflows, onSelect }: { workflows: Workflow[]; onSelec
 
   if (items.length === 0) {
     return (
-      <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '8px 0' }}>
+      <div className="text-xs text-[var(--color-text-tertiary)] py-3">
         No items need attention
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div className="flex flex-col gap-1.5">
       {items.map(w => (
         <div
           key={w.id}
@@ -96,25 +97,20 @@ function AttentionList({ workflows, onSelect }: { workflows: Workflow[]; onSelec
           tabIndex={0}
           onClick={() => onSelect(w.id)}
           onKeyDown={(e) => e.key === 'Enter' && onSelect(w.id)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            backgroundColor: 'var(--color-bg-secondary)',
-            borderRadius: '6px',
-            padding: '8px 10px',
-            cursor: 'pointer',
-            borderLeft: `3px solid ${badgeColor(w)}`,
-          }}
+          className={cn(
+            'flex items-center justify-between rounded-lg p-3 cursor-pointer',
+            'bg-[var(--color-bg-secondary)]',
+            'border border-transparent',
+            'transition-all duration-150',
+            'hover:border-[var(--color-border-subtle)] hover:shadow-sm',
+          )}
+          style={{ borderLeftWidth: '3px', borderLeftColor: badgeColor(w) }}
         >
-          <span style={{ fontSize: '13px', color: 'var(--color-text-primary)' }}>{w.name}</span>
-          <span style={{
-            fontSize: '10px',
-            color: badgeColor(w),
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-          }}>
+          <span className="text-[13px] text-[var(--color-text-primary)] font-medium">{w.name}</span>
+          <span
+            className="text-[10px] font-semibold uppercase tracking-wide"
+            style={{ color: badgeColor(w) }}
+          >
             {attentionBadge(w)}
           </span>
         </div>
@@ -128,20 +124,20 @@ function RecentActivity({ events }: { events: FeedEvent[] }): JSX.Element {
 
   if (visible.length === 0) {
     return (
-      <div style={{ fontSize: '12px', color: 'var(--color-text-tertiary)', padding: '8px 0' }}>
+      <div className="text-xs text-[var(--color-text-tertiary)] py-3">
         No recent activity
       </div>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+    <div className="flex flex-col gap-2">
       {visible.map(event => (
-        <div key={event.id} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ flex: 1, fontSize: '12px', color: 'var(--color-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div key={event.id} className="flex items-center gap-2 group">
+          <div className="flex-1 text-xs text-[var(--color-text-secondary)] truncate group-hover:text-[var(--color-text-primary)] transition-colors duration-150">
             {formatEventLabel(event)}
           </div>
-          <div style={{ fontSize: '10px', color: 'var(--color-text-tertiary)', flexShrink: 0 }}>
+          <div className="text-[10px] text-[var(--color-text-tertiary)] shrink-0 tabular-nums">
             {formatRelativeTime(event.createdAt)}
           </div>
         </div>
@@ -150,41 +146,29 @@ function RecentActivity({ events }: { events: FeedEvent[] }): JSX.Element {
   );
 }
 
-const sectionHeaderStyle: React.CSSProperties = {
-  fontSize: '11px',
-  fontWeight: 600,
-  color: 'var(--color-text-tertiary)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.05em',
-  marginBottom: '8px',
-};
-
 export function DashboardGridView({ workflows, events, spendUsd, onSelectWorkflow }: DashboardGridViewProps): JSX.Element {
   const metrics = computeMetrics(workflows, spendUsd);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <style>{`
-        @media (max-width: 767px) {
-          .dashboard-metrics-grid {
-            grid-template-columns: repeat(2, 1fr) !important;
-          }
-        }
-      `}</style>
-      <div className="dashboard-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+    <div className="flex flex-col gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <MetricCard value={metrics.active} label="Active" />
         <MetricCard value={metrics.attention} label="Needs Attention" color="var(--color-status-warning)" />
         <MetricCard value={metrics.completed} label="Completed Today" />
         <MetricCard value={metrics.spend} label="Daily Spend" />
       </div>
 
-      <div>
-        <div style={sectionHeaderStyle}>Needs Attention</div>
+      <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4">
+        <div className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">
+          Needs Attention
+        </div>
         <AttentionList workflows={workflows} onSelect={onSelectWorkflow} />
       </div>
 
-      <div>
-        <div style={sectionHeaderStyle}>Recent Activity</div>
+      <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4">
+        <div className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">
+          Recent Activity
+        </div>
         <RecentActivity events={events} />
       </div>
     </div>

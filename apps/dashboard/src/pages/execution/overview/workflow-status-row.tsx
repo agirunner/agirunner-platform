@@ -1,3 +1,5 @@
+import { cn } from '../../../lib/utils.js';
+
 interface WorkflowStatusRowWorkflow {
   id: string;
   name: string;
@@ -36,63 +38,44 @@ export function WorkflowStatusRow({ workflow, onClick }: WorkflowStatusRowProps)
       tabIndex={0}
       onClick={() => onClick(workflow.id)}
       onKeyDown={(e) => e.key === 'Enter' && onClick(workflow.id)}
-      style={{
-        backgroundColor: 'var(--color-bg-secondary)',
-        borderRadius: '6px',
-        padding: '10px',
-        borderLeft: `3px solid ${borderColor}`,
-        cursor: 'pointer',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-      }}
+      className={cn(
+        'flex items-center gap-3 rounded-lg p-3 cursor-pointer',
+        'bg-[var(--color-bg-secondary)]',
+        'border border-transparent',
+        'transition-all duration-150',
+        'hover:border-[var(--color-border-subtle)] hover:shadow-sm',
+        'active:scale-[0.995]',
+      )}
+      style={{ borderLeftWidth: '3px', borderLeftColor: borderColor }}
     >
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: '13px',
-          fontWeight: 500,
-          color: 'var(--color-text-primary)',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-        }}>
+      <div className="flex-1 min-w-0">
+        <div className="text-[13px] font-medium text-[var(--color-text-primary)] truncate">
           {workflow.name}
         </div>
         {workflow.currentStage && (
-          <div style={{
-            fontSize: '11px',
-            color: 'var(--color-text-tertiary)',
-            marginTop: '2px',
-          }}>
+          <div className="text-[11px] text-[var(--color-text-tertiary)] mt-0.5">
             {workflow.currentStage}
           </div>
         )}
       </div>
 
       {workflow.agentRoles && workflow.agentRoles.length > 0 && (
-        <div style={{ display: 'flex', gap: '3px', flexShrink: 0 }}>
+        <div className="flex gap-1 shrink-0">
           {workflow.agentRoles.map((role, i) => (
             <div
               key={`${role}-${i}`}
               title={role}
-              style={{
-                width: '6px',
-                height: '6px',
-                borderRadius: '50%',
-                backgroundColor: `var(--role-${role}, var(--color-text-tertiary))`,
-              }}
+              className="w-1.5 h-1.5 rounded-full"
+              style={{ backgroundColor: `var(--role-${role}, var(--color-text-tertiary))` }}
             />
           ))}
         </div>
       )}
 
-      <div style={{
-        width: '8px',
-        height: '8px',
-        borderRadius: '50%',
-        backgroundColor: borderColor,
-        flexShrink: 0,
-      }} />
+      <div
+        className="w-2 h-2 rounded-full shrink-0"
+        style={{ backgroundColor: borderColor }}
+      />
     </div>
   );
 }

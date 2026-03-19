@@ -32,16 +32,13 @@ interface StatusRowProps {
 
 function StatusRow({ label, count, color }: StatusRowProps): JSX.Element {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <div style={{
-        width: '8px',
-        height: '8px',
-        borderRadius: '50%',
-        backgroundColor: color,
-        flexShrink: 0,
-      }} />
-      <span style={{ flex: 1, fontSize: '12px', color: 'var(--color-text-secondary)' }}>{label}</span>
-      <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--color-text-primary)' }}>{count}</span>
+    <div className="flex items-center gap-2.5 py-0.5">
+      <div
+        className="w-2 h-2 rounded-full shrink-0"
+        style={{ backgroundColor: color }}
+      />
+      <span className="flex-1 text-xs text-[var(--color-text-secondary)]">{label}</span>
+      <span className="text-[13px] font-semibold text-[var(--color-text-primary)] tabular-nums">{count}</span>
     </div>
   );
 }
@@ -50,15 +47,8 @@ export function FleetStatusCard({ workers }: FleetStatusCardProps): JSX.Element 
   const counts = computeFleetCounts(workers);
 
   return (
-    <div style={{
-      backgroundColor: 'var(--color-bg-secondary)',
-      borderRadius: '8px',
-      padding: '12px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: '8px',
-    }}>
-      <div style={{ fontSize: '11px', fontWeight: 600, color: 'var(--color-text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 flex flex-col gap-2">
+      <div className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-1">
         Fleet
       </div>
       <StatusRow label="Online" count={counts.online} color="var(--color-status-success)" />

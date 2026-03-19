@@ -5,29 +5,15 @@ interface ConnectionIndicatorProps {
 export function ConnectionIndicator({ isConnected }: ConnectionIndicatorProps) {
   if (isConnected) {
     return (
-      <div style={{
-        width: '6px',
-        height: '6px',
-        borderRadius: '50%',
-        backgroundColor: 'var(--color-status-success)',
-      }} />
+      <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-status-success)]" />
     );
   }
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 'var(--z-connection)' as any,
-      backgroundColor: 'var(--color-status-warning)',
-      color: '#000',
-      textAlign: 'center',
-      padding: '4px',
-      fontSize: '11px',
-      fontFamily: 'var(--font-family)',
-    }}>
+    <div
+      className="fixed top-0 left-0 right-0 bg-[var(--color-status-warning)] text-black text-center py-1 px-2 text-[11px] font-[var(--font-family)]"
+      style={{ zIndex: 'var(--z-connection)' as any }}
+    >
       Connection lost. Reconnecting...
     </div>
   );

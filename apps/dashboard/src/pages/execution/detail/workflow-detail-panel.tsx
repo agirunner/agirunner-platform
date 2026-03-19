@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import type { ReactNode } from 'react';
+import { cn } from '../../../lib/utils.js';
 import type { DepthLevel } from '../execution-canvas-support.js';
 import { DepthDial } from './depth-dial.js';
 import { formatElapsed, isWorkflowLive } from './workflow-detail-panel-support.js';
@@ -36,29 +37,14 @@ function LiveDot() {
   return (
     <span
       title="Live"
-      style={{
-        display: 'inline-block',
-        width: '8px',
-        height: '8px',
-        borderRadius: '50%',
-        backgroundColor: 'var(--color-status-success)',
-        animation: 'pulse 2s infinite',
-        flexShrink: 0,
-      }}
+      className="inline-block w-2 h-2 rounded-full shrink-0 bg-[var(--color-status-success)] animate-pulse"
     />
   );
 }
 
 function StatusBar({ workflow }: { workflow: WorkflowSummary }) {
   return (
-    <div style={{
-      display: 'flex',
-      gap: '12px',
-      flexWrap: 'wrap',
-      fontSize: '11px',
-      color: 'var(--color-text-secondary)',
-      marginTop: '6px',
-    }}>
+    <div className="flex gap-3 flex-wrap text-[11px] text-[var(--color-text-secondary)] mt-1.5">
       {workflow.openWorkItems !== undefined && (
         <span>{workflow.openWorkItems} work items</span>
       )}
@@ -83,30 +69,18 @@ function Breadcrumb({
   onNavigate: (index: number) => void;
 }) {
   return (
-    <nav style={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: '4px',
-      fontSize: '11px',
-      color: 'var(--color-text-tertiary)',
-      flexWrap: 'wrap',
-    }}>
+    <nav className="flex items-center gap-1 text-[11px] text-[var(--color-text-tertiary)] flex-wrap">
       {entries.map((entry, index) => (
-        <span key={`${entry.type}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-          {index > 0 && <span>/</span>}
+        <span key={`${entry.type}-${index}`} className="flex items-center gap-1">
+          {index > 0 && <span className="text-[var(--color-text-tertiary)]">/</span>}
           <button
             onClick={() => onNavigate(index)}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: index < entries.length - 1 ? 'pointer' : 'default',
-              padding: '0',
-              color: index < entries.length - 1
-                ? 'var(--color-accent-primary)'
-                : 'var(--color-text-secondary)',
-              fontSize: '11px',
-              fontFamily: 'inherit',
-            }}
+            className={cn(
+              'bg-transparent border-none p-0 text-[11px] font-[inherit]',
+              index < entries.length - 1
+                ? 'cursor-pointer text-[var(--color-accent-primary)] hover:underline'
+                : 'cursor-default text-[var(--color-text-secondary)]',
+            )}
           >
             {entry.label}
           </button>
@@ -170,73 +144,35 @@ export function WorkflowDetailPanel({
         }
       `}</style>
       <div
-        className="workflow-detail-panel-backdrop"
+        className="workflow-detail-panel-backdrop hidden fixed inset-0 bg-black/40"
         data-testid="workflow-detail-panel-backdrop"
         onClick={onClose}
-        style={{
-          display: 'none',
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.4)',
-          zIndex: 'calc(var(--z-panel) - 1)' as any,
-        }}
+        style={{ zIndex: 'calc(var(--z-panel) - 1)' as any }}
       />
       <div
-        className="workflow-detail-panel"
+        className="workflow-detail-panel fixed top-0 right-0 bottom-0 w-[45%] flex flex-col overflow-y-hidden bg-[var(--color-bg-primary)] font-[var(--font-family)]"
         data-testid="workflow-detail-panel"
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
         style={{
-          position: 'fixed',
-          top: 0,
-          right: 0,
-          bottom: 0,
-          width: '45%',
           zIndex: 'var(--z-panel)' as any,
           boxShadow: 'var(--shadow-panel)',
-          backgroundColor: 'var(--color-bg-primary)',
-          display: 'flex',
-          flexDirection: 'column',
-          fontFamily: 'var(--font-family)',
-          overflowY: 'hidden',
         }}
       >
-        <header style={{
-          padding: '12px 16px',
-          borderBottom: '1px solid var(--color-border-subtle)',
-          flexShrink: 0,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{
-                  fontSize: '14px',
-                  fontWeight: 600,
-                  color: 'var(--color-text-primary)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}>
+        <header className="px-4 py-3 border-b border-[var(--color-border-subtle)] shrink-0">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-semibold text-[var(--color-text-primary)] truncate">
                   {workflow.name}
                 </span>
                 {workflow.playbookName && (
-                  <span style={{
-                    fontSize: '10px',
-                    padding: '2px 6px',
-                    borderRadius: '8px',
-                    backgroundColor: 'var(--color-bg-secondary)',
-                    color: 'var(--color-text-secondary)',
-                    flexShrink: 0,
-                  }}>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--color-bg-secondary)] text-[var(--color-text-secondary)] shrink-0">
                     {workflow.playbookName}
                   </span>
                 )}
                 {workflow.currentStage && (
-                  <span style={{
-                    fontSize: '10px',
-                    color: 'var(--color-text-tertiary)',
-                    flexShrink: 0,
-                  }}>
+                  <span className="text-[10px] text-[var(--color-text-tertiary)] shrink-0">
                     {workflow.currentStage}
                   </span>
                 )}
@@ -247,31 +183,22 @@ export function WorkflowDetailPanel({
             <button
               onClick={onClose}
               aria-label="Close panel"
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--color-text-tertiary)',
-                fontSize: '18px',
-                lineHeight: 1,
-                padding: '2px 4px',
-                flexShrink: 0,
-              }}
+              className="shrink-0 w-7 h-7 flex items-center justify-center rounded-md bg-transparent border-none cursor-pointer text-[var(--color-text-tertiary)] text-lg leading-none transition-all duration-150 hover:bg-[var(--color-bg-secondary)] hover:text-[var(--color-text-primary)]"
             >
               ×
             </button>
           </div>
 
-          <div style={{ marginTop: '8px' }}>
+          <div className="mt-2">
             <Breadcrumb entries={breadcrumb} onNavigate={onBreadcrumbNavigate} />
           </div>
 
-          <div style={{ marginTop: '8px' }}>
+          <div className="mt-2">
             <DepthDial value={depthLevel} onChange={onDepthChange} />
           </div>
         </header>
 
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div className="flex-1 overflow-y-auto">
           {children}
         </div>
       </div>
