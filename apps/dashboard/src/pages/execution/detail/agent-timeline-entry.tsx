@@ -1,4 +1,4 @@
-import { ToolCallPill } from './tool-call-pill';
+import { ToolCallPill } from './tool-call-pill.js';
 
 export interface AgentTurnData {
   id: string;

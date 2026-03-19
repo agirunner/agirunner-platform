@@ -1,8 +1,8 @@
-import { WorkflowStatusRow } from './workflow-status-row';
-import { FleetStatusCard } from './fleet-status-card';
-import { LiveFeedCard } from './live-feed-card';
-import { CostTicker } from './cost-ticker';
-import { EmptyState } from '../../../components/ui/empty-state';
+import { WorkflowStatusRow } from './workflow-status-row.js';
+import { FleetStatusCard } from './fleet-status-card.js';
+import { LiveFeedCard } from './live-feed-card.js';
+import { CostTicker } from './cost-ticker.js';
+import { EmptyState } from '../../../components/ui/empty-state.js';
 
 interface Workflow {
   id: string;

@@ -1,7 +1,8 @@
+import { useRef } from 'react';
 import type { ReactNode } from 'react';
-import type { DepthLevel } from '../execution-canvas-support';
-import { DepthDial } from './depth-dial';
-import { formatElapsed, isWorkflowLive } from './workflow-detail-panel-support';
+import type { DepthLevel } from '../execution-canvas-support.js';
+import { DepthDial } from './depth-dial.js';
+import { formatElapsed, isWorkflowLive } from './workflow-detail-panel-support.js';
 
 interface WorkflowSummary {
   id: string;
@@ -115,6 +116,8 @@ function Breadcrumb({
   );
 }
 
+const SWIPE_DISMISS_THRESHOLD = 80;
+
 export function WorkflowDetailPanel({
   workflow,
   depthLevel,
@@ -125,6 +128,20 @@ export function WorkflowDetailPanel({
   children,
 }: WorkflowDetailPanelProps) {
   const isLive = isWorkflowLive(workflow.state);
+  const touchStartX = useRef<number | null>(null);
+
+  function handleTouchStart(e: React.TouchEvent) {
+    touchStartX.current = e.touches[0]?.clientX ?? null;
+  }
+
+  function handleTouchEnd(e: React.TouchEvent) {
+    if (touchStartX.current === null) return;
+    const deltaX = (e.changedTouches[0]?.clientX ?? 0) - touchStartX.current;
+    touchStartX.current = null;
+    if (deltaX > SWIPE_DISMISS_THRESHOLD) {
+      onClose();
+    }
+  }
 
   return (
     <>
@@ -133,17 +150,42 @@ export function WorkflowDetailPanel({
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
+        @media (min-width: 768px) and (max-width: 1023px) {
+          .workflow-detail-panel {
+            width: 80% !important;
+          }
+          .workflow-detail-panel-backdrop {
+            display: block !important;
+          }
+        }
         @media (max-width: 767px) {
           .workflow-detail-panel {
             width: 100% !important;
             top: 0 !important;
             bottom: 0 !important;
           }
+          .workflow-detail-panel-backdrop {
+            display: block !important;
+          }
         }
       `}</style>
       <div
+        className="workflow-detail-panel-backdrop"
+        data-testid="workflow-detail-panel-backdrop"
+        onClick={onClose}
+        style={{
+          display: 'none',
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.4)',
+          zIndex: 'calc(var(--z-panel) - 1)' as any,
+        }}
+      />
+      <div
         className="workflow-detail-panel"
         data-testid="workflow-detail-panel"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
         style={{
           position: 'fixed',
           top: 0,

@@ -1,4 +1,4 @@
-import type { DepthLevel } from '../execution-canvas-support';
+import type { DepthLevel } from '../execution-canvas-support.js';
 
 interface DepthDialProps {
   value: DepthLevel;

@@ -261,10 +261,26 @@ export function LaunchWizard({
   const currentIndex = getStepIndex(currentStep);
 
   return (
+    <>
+      <style>{`
+        @media (max-width: 767px) {
+          .launch-wizard-modal {
+            max-width: 100% !important;
+            max-height: 100% !important;
+            height: 100% !important;
+            border-radius: 0 !important;
+            border: none !important;
+          }
+          .launch-wizard-backdrop {
+            align-items: flex-start !important;
+          }
+        }
+      `}</style>
     <div
       role="dialog"
       aria-modal="true"
       aria-label="Launch Workflow"
+      className="launch-wizard-backdrop"
       style={{
         position: 'fixed',
         inset: 0,
@@ -280,6 +296,7 @@ export function LaunchWizard({
       }}
     >
       <div
+        className="launch-wizard-modal"
         style={{
           width: '100%',
           maxWidth: '680px',
@@ -413,5 +430,6 @@ export function LaunchWizard({
         )}
       </div>
     </div>
+    </>
   );
 }

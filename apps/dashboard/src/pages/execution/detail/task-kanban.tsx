@@ -1,4 +1,4 @@
-import { formatElapsed } from './workflow-detail-panel-support';
+import { formatElapsed } from './workflow-detail-panel-support.js';
 
 export interface TaskCard {
   id: string;

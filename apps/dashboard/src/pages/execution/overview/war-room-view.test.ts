@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { WarRoomView, sortWorkflowsByAttention } from './war-room-view';
+import { WarRoomView, sortWorkflowsByAttention } from './war-room-view.js';
 
 describe('WarRoomView', () => {
   it('exports WarRoomView as a function', () => {

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { getStageCellStyles, TimelineStageCell } from './timeline-stage-cell';
+import { getStageCellStyles, TimelineStageCell } from './timeline-stage-cell.js';
 
 describe('getStageCellStyles', () => {
   it('returns green tint for completed', () => {

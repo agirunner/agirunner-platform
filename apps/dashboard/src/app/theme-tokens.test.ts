@@ -8,7 +8,7 @@ import {
   spacing,
   typography,
   toCssVars,
-} from './theme-tokens';
+} from './theme-tokens.js';
 
 describe('theme-tokens', () => {
   it('defines all color tokens', () => {

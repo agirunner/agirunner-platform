@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
-import type { AgentTurnData } from './agent-timeline-entry';
-import { AgentTimelineEntry } from './agent-timeline-entry';
-import { ScrollPauseToggle } from './scroll-pause-toggle';
+import type { AgentTurnData } from './agent-timeline-entry.js';
+import { AgentTimelineEntry } from './agent-timeline-entry.js';
+import { ScrollPauseToggle } from './scroll-pause-toggle.js';
 
 const ALL_ROLES_VALUE = '__all__';
 

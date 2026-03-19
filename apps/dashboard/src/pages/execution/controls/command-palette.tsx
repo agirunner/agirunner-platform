@@ -61,6 +61,7 @@ function ActionItem({
       role="option"
       aria-selected={isSelected}
       onClick={onSelect}
+      className="command-palette-item"
       style={{
         padding: '8px 16px',
         cursor: 'pointer',
@@ -157,6 +158,27 @@ export function CommandPalette({ isOpen, onClose, actions }: CommandPaletteProps
 
   return (
     <>
+      <style>{`
+        @media (max-width: 767px) {
+          .command-palette-overlay {
+            top: 0 !important;
+            left: 0 !important;
+            transform: none !important;
+            width: 100% !important;
+            max-height: 100% !important;
+            height: 100% !important;
+            border-radius: 0 !important;
+            border: none !important;
+          }
+          .command-palette-overlay input {
+            font-size: 16px !important;
+          }
+          .command-palette-item {
+            padding: 12px 16px !important;
+            min-height: 44px !important;
+          }
+        }
+      `}</style>
       <div
         data-testid="command-palette-backdrop"
         onClick={onClose}
@@ -172,6 +194,7 @@ export function CommandPalette({ isOpen, onClose, actions }: CommandPaletteProps
         aria-expanded={isOpen}
         aria-haspopup="listbox"
         data-testid="command-palette"
+        className="command-palette-overlay"
         style={{
           position: 'fixed',
           top: '15%',

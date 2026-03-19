@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DashboardGridView, computeMetrics } from './dashboard-grid-view';
+import { DashboardGridView, computeMetrics } from './dashboard-grid-view.js';
 
 describe('DashboardGridView', () => {
   it('exports DashboardGridView', () => expect(typeof DashboardGridView).toBe('function'));

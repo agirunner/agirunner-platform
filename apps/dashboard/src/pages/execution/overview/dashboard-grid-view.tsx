@@ -1,4 +1,4 @@
-import { MetricCard } from './metric-card';
+import { MetricCard } from './metric-card.js';
 
 const MAX_RECENT_EVENTS = 10;
 
@@ -164,7 +164,14 @@ export function DashboardGridView({ workflows, events, spendUsd, onSelectWorkflo
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
+      <style>{`
+        @media (max-width: 767px) {
+          .dashboard-metrics-grid {
+            grid-template-columns: repeat(2, 1fr) !important;
+          }
+        }
+      `}</style>
+      <div className="dashboard-metrics-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
         <MetricCard value={metrics.active} label="Active" />
         <MetricCard value={metrics.attention} label="Needs Attention" color="var(--color-status-warning)" />
         <MetricCard value={metrics.completed} label="Completed Today" />

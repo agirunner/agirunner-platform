@@ -20,7 +20,8 @@ const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:
  * When Vite rebuilds, old chunk hashes become stale. This catches the
  * resulting import error and reloads the page once to pick up the new manifest.
  */
-function lazyWithRetry<T extends ComponentType<unknown>>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
 ): React.LazyExoticComponent<T> {
   return lazy(() =>
@@ -52,7 +53,7 @@ function isChunkLoadError(message: string): boolean {
 
 const LoginPage = lazyWithRetry(() => import('../pages/login-page.js').then((m) => ({ default: m.LoginPage })));
 
-const ExecutionCanvas = lazyWithRetry(() => import('../pages/execution/execution-canvas.js').then((m) => ({ default: m.ExecutionCanvas })));
+const ExecutionCanvas = lazyWithRetry(() => import('../pages/execution/execution-canvas.js'));
 
 const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
 

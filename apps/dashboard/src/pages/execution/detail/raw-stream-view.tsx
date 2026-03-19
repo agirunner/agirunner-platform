@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { TaskStreamEvent } from '../../../lib/use-task-stream.js';
 import { useTaskStream } from '../../../lib/use-task-stream.js';
-import { ScrollPauseToggle } from './scroll-pause-toggle';
+import { ScrollPauseToggle } from './scroll-pause-toggle.js';
 
 export interface RawStreamViewProps {
   taskId: string | null;

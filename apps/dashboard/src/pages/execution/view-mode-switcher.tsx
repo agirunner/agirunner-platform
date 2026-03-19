@@ -1,4 +1,4 @@
-import type { ViewMode } from './execution-canvas-support';
+import type { ViewMode } from './execution-canvas-support.js';
 
 interface ViewModeSwitcherProps {
   value: ViewMode;

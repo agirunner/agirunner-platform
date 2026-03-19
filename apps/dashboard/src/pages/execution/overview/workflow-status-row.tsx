@@ -23,6 +23,10 @@ export function getStatusColor(workflow: Pick<WorkflowStatusRowWorkflow, 'state'
   return 'var(--color-status-success)';
 }
 
+// TODO: Add long-press handler on mobile to show quick actions (pause, cancel, view logs).
+// Requires a useRef timer approach: onTouchStart starts a ~500ms timer, onTouchEnd/onTouchMove clears it.
+// Quick actions overlay needs design input before implementation.
+// Tracked in: /home/mark/codex/TODO.md
 export function WorkflowStatusRow({ workflow, onClick }: WorkflowStatusRowProps): JSX.Element {
   const borderColor = getStatusColor(workflow);
 

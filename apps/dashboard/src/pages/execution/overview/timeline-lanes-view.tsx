@@ -1,5 +1,5 @@
-import { TimelineStageCell, StageCellStatus } from './timeline-stage-cell';
-import { EmptyState } from '../../../components/ui/empty-state';
+import { TimelineStageCell, StageCellStatus } from './timeline-stage-cell.js';
+import { EmptyState } from '../../../components/ui/empty-state.js';
 
 export interface WorkflowLane {
   id: string;
