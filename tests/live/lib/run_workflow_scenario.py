@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+from datetime import datetime, timezone
 from typing import Any
 
 from live_test_api import ApiClient, TraceRecorder, read_json
@@ -243,6 +244,28 @@ def _workflow_events(snapshot: Any) -> list[dict[str, Any]]:
     return data if isinstance(data, list) else []
 
 
+def _workflow_tasks(workflow: dict[str, Any]) -> list[dict[str, Any]]:
+    tasks = workflow.get("tasks", [])
+    return tasks if isinstance(tasks, list) else []
+
+
+def _parse_timestamp(value: Any) -> datetime | None:
+    if not isinstance(value, str):
+        return None
+    normalized = value.strip()
+    if normalized == "":
+        return None
+    if normalized.endswith("Z"):
+        normalized = normalized[:-1] + "+00:00"
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
 def evaluate_expectations(
     expectations: dict[str, Any],
     *,
@@ -367,8 +390,9 @@ def evaluate_expectations(
     if isinstance(gate_rework_sequences, list):
         event_list = sorted(
             _workflow_events(events),
-            key=lambda entry: str(entry.get("created_at") or ""),
+            key=lambda entry: _parse_timestamp(entry.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc),
         )
+        workflow_tasks = _workflow_tasks(workflow)
         for entry in gate_rework_sequences:
             if not isinstance(entry, dict):
                 continue
@@ -381,19 +405,20 @@ def evaluate_expectations(
             required_role = entry.get("required_role")
             require_non_orchestrator = bool(entry.get("require_non_orchestrator", True))
 
-            request_index = next(
+            request_event = next(
                 (
-                    index
-                    for index, actual in enumerate(event_list)
+                    actual
+                    for actual in event_list
                     if actual.get("type") == f"stage.gate.{request_action}"
                     and isinstance(actual.get("data"), dict)
                     and actual["data"].get("stage_name") == stage_name
                 ),
                 None,
             )
-            resume_index = next(
+            request_index = event_list.index(request_event) if request_event in event_list else None
+            resume_event = next(
                 (
-                    index
+                    actual
                     for index, actual in enumerate(event_list)
                     if request_index is not None
                     and index > request_index
@@ -403,6 +428,7 @@ def evaluate_expectations(
                 ),
                 None,
             )
+            resume_index = event_list.index(resume_event) if resume_event in event_list else None
 
             matched = False
             if request_index is not None and resume_index is not None:
@@ -421,6 +447,26 @@ def evaluate_expectations(
                         continue
                     matched = True
                     break
+            if not matched and request_event is not None and resume_event is not None:
+                request_at = _parse_timestamp(request_event.get("created_at"))
+                resume_at = _parse_timestamp(resume_event.get("created_at"))
+                if request_at is not None and resume_at is not None:
+                    for task in workflow_tasks:
+                        if not isinstance(task, dict):
+                            continue
+                        if task.get("stage_name") != stage_name:
+                            continue
+                        role = task.get("role")
+                        if require_non_orchestrator and role == "orchestrator":
+                            continue
+                        if required_role is not None and role != required_role:
+                            continue
+                        completed_at = _parse_timestamp(task.get("completed_at"))
+                        if completed_at is None:
+                            continue
+                        if request_at < completed_at < resume_at:
+                            matched = True
+                            break
 
             check_name = (
                 f"gate_rework_sequences:{stage_name}:{request_action}->{required_event_type}->{resume_action}"
@@ -477,6 +523,46 @@ def build_workflow_create_payload(
         "parameters": parameters,
         "metadata": {"live_test": {"scenario_name": scenario_name}},
     }
+
+
+def collect_workflow_events(client: ApiClient, *, workflow_id: str, per_page: int = 100) -> dict[str, Any]:
+    after: str | None = None
+    collected: list[dict[str, Any]] = []
+
+    while True:
+        path = f"/api/v1/workflows/{workflow_id}/events?limit={per_page}"
+        if after:
+            path = f"{path}&after={after}"
+
+        snapshot = client.best_effort_request(
+            "GET",
+            path,
+            expected=(200,),
+            label="workflows.events",
+        )
+        if not snapshot.get("ok"):
+            return snapshot
+
+        payload = snapshot.get("data")
+        data = extract_data(payload)
+        page_items = data if isinstance(data, list) else []
+        collected.extend(item for item in page_items if isinstance(item, dict))
+
+        meta = payload.get("meta", {}) if isinstance(payload, dict) else {}
+        has_more = bool(meta.get("has_more"))
+        next_after = meta.get("next_after")
+        if not has_more or not isinstance(next_after, str) or next_after.strip() == "":
+            return {
+                "ok": True,
+                "data": {
+                    "data": collected,
+                    "meta": {
+                        "has_more": False,
+                        "next_after": None,
+                    },
+                },
+            }
+        after = next_after
 
 
 def main() -> None:
@@ -575,12 +661,7 @@ def main() -> None:
         expected=(200,),
         label="workflows.work-items",
     )
-    events_snapshot = client.best_effort_request(
-        "GET",
-        f"/api/v1/workflows/{workflow_id}/events?limit=500",
-        expected=(200,),
-        label="workflows.events",
-    )
+    events_snapshot = collect_workflow_events(client, workflow_id=workflow_id)
     approvals_snapshot = client.best_effort_request(
         "GET",
         "/api/v1/approvals",

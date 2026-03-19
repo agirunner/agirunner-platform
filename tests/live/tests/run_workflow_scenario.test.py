@@ -29,6 +29,26 @@ class FakeClient:
         return {"data": {"gate_id": path.rsplit("/", 1)[-1], "status": "approved"}}
 
 
+class FakePagedClient:
+    def __init__(self, responses: list[dict[str, object]]) -> None:
+        self.responses = responses
+        self.calls: list[tuple[str, str, dict[str, object] | None, tuple[int, ...], str | None]] = []
+
+    def best_effort_request(
+        self,
+        method: str,
+        path: str,
+        *,
+        payload: dict[str, object] | None = None,
+        expected: tuple[int, ...] = (200,),
+        label: str | None = None,
+    ) -> dict[str, object]:
+        self.calls.append((method, path, payload, expected, label))
+        if not self.responses:
+            raise AssertionError(f"unexpected request: {method} {path}")
+        return self.responses.pop(0)
+
+
 class RunWorkflowScenarioTests(unittest.TestCase):
     def test_build_workflow_create_payload_includes_required_goal_parameter(self) -> None:
         payload = run_workflow_scenario.build_workflow_create_payload(
@@ -417,6 +437,122 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "expected 'task.handoff_submitted' for stage 'release' between stage.gate.request_changes and stage.gate.approve"
             ],
             verification["failures"],
+        )
+
+    def test_evaluate_expectations_accepts_completed_rework_task_between_gate_events(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "gate_rework_sequences": [
+                    {
+                        "stage_name": "release",
+                        "request_action": "request_changes",
+                        "resume_action": "approve",
+                        "required_event_type": "task.handoff_submitted",
+                        "required_role": "live-test-architect",
+                    }
+                ]
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-release-rework",
+                        "role": "live-test-architect",
+                        "stage_name": "release",
+                        "completed_at": "2026-03-19T03:05:00Z",
+                    }
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={
+                "data": {
+                    "data": [
+                        {
+                            "type": "stage.gate.request_changes",
+                            "created_at": "2026-03-19T03:00:00Z",
+                            "data": {"stage_name": "release"},
+                        },
+                        {
+                            "type": "stage.gate.approve",
+                            "created_at": "2026-03-19T03:10:00Z",
+                            "data": {"stage_name": "release"},
+                        },
+                    ]
+                }
+            },
+        )
+
+        self.assertTrue(verification["passed"])
+
+    def test_collect_workflow_events_pages_until_has_more_is_false(self) -> None:
+        client = FakePagedClient(
+            [
+                {
+                    "ok": True,
+                    "data": {
+                        "data": [{"id": 300, "type": "stage.gate.request_changes"}],
+                        "meta": {"has_more": True, "next_after": "300"},
+                    },
+                },
+                {
+                    "ok": True,
+                    "data": {
+                        "data": [{"id": 200, "type": "task.handoff_submitted"}],
+                        "meta": {"has_more": False, "next_after": None},
+                    },
+                },
+            ]
+        )
+
+        snapshot = run_workflow_scenario.collect_workflow_events(client, workflow_id="wf-1")
+
+        self.assertEqual(
+            {
+                "ok": True,
+                "data": {
+                    "data": [
+                        {"id": 300, "type": "stage.gate.request_changes"},
+                        {"id": 200, "type": "task.handoff_submitted"},
+                    ],
+                    "meta": {"has_more": False, "next_after": None},
+                },
+            },
+            snapshot,
+        )
+        self.assertEqual(
+            [
+                ("GET", "/api/v1/workflows/wf-1/events?limit=100", None, (200,), "workflows.events"),
+                ("GET", "/api/v1/workflows/wf-1/events?limit=100&after=300", None, (200,), "workflows.events"),
+            ],
+            client.calls,
+        )
+
+    def test_collect_workflow_events_returns_first_error_without_follow_up_requests(self) -> None:
+        client = FakePagedClient(
+            [
+                {
+                    "ok": False,
+                    "error": "GET /api/v1/workflows/wf-1/events?limit=100 returned 400",
+                }
+            ]
+        )
+
+        snapshot = run_workflow_scenario.collect_workflow_events(client, workflow_id="wf-1")
+
+        self.assertEqual(
+            {
+                "ok": False,
+                "error": "GET /api/v1/workflows/wf-1/events?limit=100 returned 400",
+            },
+            snapshot,
+        )
+        self.assertEqual(
+            [("GET", "/api/v1/workflows/wf-1/events?limit=100", None, (200,), "workflows.events")],
+            client.calls,
         )
 
 
