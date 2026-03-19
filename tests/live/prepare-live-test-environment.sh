@@ -14,6 +14,7 @@ LIVE_TEST_BOOTSTRAP_CONTEXT_FILE="${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE:-${LIVE_TES
 LIVE_TEST_TRACE_DIR="${LIVE_TEST_TRACE_DIR:-${LIVE_TEST_BOOTSTRAP_DIR}/api-trace}"
 LIVE_TEST_PLATFORM_ROOT="${LIVE_TEST_PLATFORM_ROOT:-${REPO_ROOT}}"
 LIVE_TEST_COMPOSE_FILE="${LIVE_TEST_COMPOSE_FILE:-${LIVE_TEST_PLATFORM_ROOT}/docker-compose.yml}"
+LIVE_TEST_COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME:-agirunner-platform}"
 LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT:-${LIVE_TEST_ROOT}/library}"
 LIVE_TEST_PROFILE="${LIVE_TEST_PROFILE:-sdlc-baseline}"
 LIVE_TEST_REPO_SEED_DIR="${LIVE_TEST_REPO_SEED_DIR:-${LIVE_TEST_LIBRARY_ROOT}/${LIVE_TEST_PROFILE}/repo-seed}"
@@ -103,8 +104,9 @@ reset_live_test_fixture_repo \
 log_live_test "rebuilding standard docker compose stack"
 (
   cd "${LIVE_TEST_PLATFORM_ROOT}"
-  docker compose -f "${LIVE_TEST_COMPOSE_FILE}" down -v --remove-orphans
-  docker compose -f "${LIVE_TEST_COMPOSE_FILE}" up -d --build
+  export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
+  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" down -v --remove-orphans
+  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" up -d --build
 )
 
 wait_for_live_test_http "${PLATFORM_API_BASE_URL}/health" "platform api health"
