@@ -14,30 +14,43 @@ interface LiveFeedCardProps {
   maxEvents?: number;
 }
 
-export function formatEventSummary(event: Pick<FeedEvent, 'type' | 'entityType' | 'data'>): string {
-  const data = event.data ?? {};
+export function formatEventSummary(event: { type: string; entityType?: string; data?: Record<string, unknown> }): string {
+  const d = event.data ?? {};
+  const title = (d.task_title ?? d.title ?? '') as string;
+  const role = (d.task_role ?? d.role ?? '') as string;
 
   switch (event.type) {
-    case 'task.completed':
-      return `Task completed: ${data['task_title'] ?? 'unknown task'}`;
-    case 'task.started':
-      return `Task started: ${data['task_title'] ?? 'unknown task'}`;
-    case 'task.failed':
-      return `Task failed: ${data['task_title'] ?? 'unknown task'}`;
-    case 'workflow.started':
-      return `Workflow started: ${data['workflow_name'] ?? 'unknown workflow'}`;
-    case 'workflow.completed':
-      return `Workflow completed: ${data['workflow_name'] ?? 'unknown workflow'}`;
-    case 'workflow.failed':
-      return `Workflow failed: ${data['workflow_name'] ?? 'unknown workflow'}`;
-    case 'gate.opened':
-      return `Gate opened: ${data['gate_name'] ?? 'stage gate'}`;
-    case 'gate.approved':
-      return `Gate approved: ${data['gate_name'] ?? 'stage gate'}`;
-    default: {
-      const label = event.entityType ? `${event.entityType} ` : '';
-      return `${label}${event.type}`;
+    case 'task.state_changed': {
+      const to = d.to_state as string | undefined;
+      if (to === 'completed') return title ? `${role || 'Task'} completed: ${title}` : 'Task completed';
+      if (to === 'in_progress') return title ? `${role || 'Task'} started: ${title}` : 'Task started';
+      if (to === 'claimed') return title ? `Task claimed: ${title}` : 'Task claimed';
+      if (to === 'failed') return title ? `Task failed: ${title}` : 'Task failed';
+      if (to === 'ready') return title ? `Task ready: ${title}` : 'Task ready';
+      return `Task → ${to ?? 'unknown'}`;
     }
+    case 'task.created': return title ? `Task created: ${title}` : 'New task created';
+    case 'task.completed': return `Task completed: ${title || 'unknown task'}`;
+    case 'task.started': return `Task started: ${title || 'unknown task'}`;
+    case 'task.failed': return `Task failed: ${title || 'unknown task'}`;
+    case 'task.review_resolution_skipped': return 'Review resolution skipped';
+    case 'workflow.state_changed': return `Workflow ${(d.to_state as string) ?? 'updated'}`;
+    case 'workflow.activation_queued': return 'Orchestrator activation queued';
+    case 'workflow.activation_started': return 'Orchestrator activated';
+    case 'workflow.activation_completed': return 'Orchestrator completed activation';
+    case 'workflow.activation_failed': return 'Orchestrator activation failed';
+    case 'workflow.started': return `Workflow started: ${(d.workflow_name as string) ?? 'unknown workflow'}`;
+    case 'workflow.completed': return `Workflow completed: ${(d.workflow_name as string) ?? 'unknown workflow'}`;
+    case 'workflow.failed': return `Workflow failed: ${(d.workflow_name as string) ?? 'unknown workflow'}`;
+    case 'work_item.created': return 'Work item created';
+    case 'work_item.updated': return 'Work item updated';
+    case 'worker.registered': return 'Worker registered';
+    case 'worker.offline': return 'Worker went offline';
+    case 'worker.disconnected': return 'Worker disconnected';
+    case 'agent.registered': return 'Agent registered';
+    case 'gate.opened': return `Gate opened: ${(d.gate_name as string) ?? 'stage gate'}`;
+    case 'gate.approved': return `Gate approved: ${(d.gate_name as string) ?? 'stage gate'}`;
+    default: return event.type.replace(/\./g, ' ').replace(/_/g, ' ');
   }
 }
 

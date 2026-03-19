@@ -550,6 +550,8 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
         >
           + New Workflow
         </button>
+
+        <ConnectionIndicator isConnected={isConnected} />
       </header>
 
       {/* Main Canvas */}
@@ -597,8 +599,8 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
         playbooks={(playbooks.data?.data ?? []).map((p: DashboardPlaybookRecord) => ({
           id: p.id,
           name: p.name,
-          stageCount: 0,
-          roleCount: 0,
+          stageCount: (p as any).definition?.stages?.length ?? 0,
+          roleCount: (p as any).definition?.roles?.length ?? 0,
         }))}
         workspaces={(workspaces.data?.data ?? []).map((ws: DashboardWorkspaceRecord) => ({
           id: ws.id,
@@ -614,9 +616,6 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
         onClose={() => setCommandPaletteOpen(false)}
         actions={paletteActions}
       />
-
-      {/* Connection Indicator */}
-      <ConnectionIndicator isConnected={isConnected} />
     </div>
   );
 }

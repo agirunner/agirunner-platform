@@ -57,7 +57,7 @@ function Legend(): JSX.Element {
 function LaneName({ name }: { name: string }): JSX.Element {
   return (
     <div
-      className="w-[120px] shrink-0 text-xs font-medium text-[var(--color-text-secondary)] truncate pr-2"
+      className="w-[200px] shrink-0 text-xs font-medium text-[var(--color-text-secondary)] truncate pr-2"
       title={name}
     >
       {name}

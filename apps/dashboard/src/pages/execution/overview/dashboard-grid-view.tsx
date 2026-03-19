@@ -1,5 +1,6 @@
 import { cn } from '../../../lib/utils.js';
 import { MetricCard } from './metric-card.js';
+import { formatEventSummary } from './live-feed-card.js';
 
 const MAX_RECENT_EVENTS = 10;
 
@@ -40,7 +41,7 @@ export function computeMetrics(workflows: Workflow[], spendUsd: number): Metrics
   const active = workflows.filter(w => w.state === 'active').length;
   const completed = workflows.filter(w => w.state === 'completed').length;
   const attention = workflows.filter(needsAttention).length;
-  const spend = `$${spendUsd.toFixed(2)}`;
+  const spend = spendUsd > 0 ? `$${spendUsd.toFixed(2)}` : '\u2014';
   return { active, attention, completed, spend };
 }
 
@@ -65,16 +66,7 @@ function formatRelativeTime(createdAt: string): string {
 }
 
 function formatEventLabel(event: FeedEvent): string {
-  const data = event.data ?? {};
-  switch (event.type) {
-    case 'task.completed': return `Task completed: ${data['task_title'] ?? 'unknown'}`;
-    case 'task.started': return `Task started: ${data['task_title'] ?? 'unknown'}`;
-    case 'task.failed': return `Task failed: ${data['task_title'] ?? 'unknown'}`;
-    case 'workflow.started': return `Workflow started: ${data['workflow_name'] ?? 'unknown'}`;
-    case 'workflow.completed': return `Workflow completed: ${data['workflow_name'] ?? 'unknown'}`;
-    case 'workflow.failed': return `Workflow failed: ${data['workflow_name'] ?? 'unknown'}`;
-    default: return event.type;
-  }
+  return formatEventSummary(event);
 }
 
 function AttentionList({ workflows, onSelect }: { workflows: Workflow[]; onSelect: (id: string) => void }): JSX.Element {

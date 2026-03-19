@@ -21,17 +21,27 @@ export function formatTokenCount(count: number): string {
 }
 
 export function CostTicker({ spendUsd, tokenCount }: CostTickerProps): JSX.Element {
+  const hasData = spendUsd !== 0 || tokenCount !== 0;
+
   return (
     <div className="rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-secondary)] p-4 flex flex-col gap-1">
       <div className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider">
         Cost
       </div>
-      <div className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums mt-1">
-        {formatUsd(spendUsd)}
-      </div>
-      <div className="text-xs text-[var(--color-text-secondary)]">
-        {formatTokenCount(tokenCount)} tokens
-      </div>
+      {hasData ? (
+        <>
+          <div className="text-xl font-bold text-[var(--color-text-primary)] tabular-nums mt-1">
+            {formatUsd(spendUsd)}
+          </div>
+          <div className="text-xs text-[var(--color-text-secondary)]">
+            {formatTokenCount(tokenCount)} tokens
+          </div>
+        </>
+      ) : (
+        <div className="text-sm text-[var(--color-text-tertiary)] mt-1">
+          No cost data
+        </div>
+      )}
     </div>
   );
 }

@@ -64,7 +64,7 @@ function PlaybookCard({
     >
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className={isProminent ? 'text-lg' : 'text-base'}>
+          <CardTitle className={`${isProminent ? 'text-lg' : 'text-base'} text-[var(--color-text-primary)]`}>
             {playbook.name}
           </CardTitle>
           <button
