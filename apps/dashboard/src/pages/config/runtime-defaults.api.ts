@@ -8,7 +8,7 @@ export async function fetchRuntimeDefaults(): Promise<RuntimeDefault[]> {
 export async function upsertRuntimeDefault(input: {
   configKey: string;
   configValue: string;
-  configType: 'string' | 'number';
+  configType: 'string' | 'number' | 'boolean';
   description: string;
 }): Promise<void> {
   return dashboardApi.upsertRuntimeDefault(input);

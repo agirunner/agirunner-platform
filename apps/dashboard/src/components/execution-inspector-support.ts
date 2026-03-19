@@ -165,6 +165,14 @@ interface GovernanceExecutionDescriptor {
   signals: string[];
 }
 
+interface ContextContinuityDescriptor {
+  operationLabel: string;
+  contextLabel: string;
+  headlineSuffix: string;
+  nextAction: string;
+  signals: string[];
+}
+
 const GOVERNANCE_EXECUTION_DESCRIPTORS: Record<string, GovernanceExecutionDescriptor> = {
   'task.handoff_submitted': {
     operationLabel: 'Handoff submitted',
@@ -255,6 +263,105 @@ const GOVERNANCE_EXECUTION_DESCRIPTORS: Record<string, GovernanceExecutionDescri
   },
 };
 
+const CONTEXT_CONTINUITY_DESCRIPTORS: Record<string, ContextContinuityDescriptor> = {
+  'runtime.context.warning': {
+    operationLabel: 'Context warning',
+    contextLabel: 'Context continuity packet',
+    headlineSuffix: 'reported context pressure',
+    nextAction:
+      'Review durable memory, artifact breadcrumbs, and pending checkpoints before the next compaction boundary.',
+    signals: ['Continuity', 'Compaction'],
+  },
+  'runtime.context.compaction.prepare_started': {
+    operationLabel: 'Context compaction prepare started',
+    contextLabel: 'Context continuity packet',
+    headlineSuffix: 'started context compaction prepare',
+    nextAction:
+      'Check that durable memory writes and a fresh checkpoint are recorded before more history is compacted.',
+    signals: ['Continuity', 'Compaction'],
+  },
+  'runtime.context.compaction.memory_persisted': {
+    operationLabel: 'Context compaction memory persisted',
+    contextLabel: 'Context continuity packet',
+    headlineSuffix: 'persisted pre-compaction memory',
+    nextAction:
+      'Confirm the recorded memory keys are durable facts rather than temporary status before the run continues.',
+    signals: ['Continuity', 'Compaction'],
+  },
+  'runtime.context.compaction.checkpoint_written': {
+    operationLabel: 'Context compaction checkpoint written',
+    contextLabel: 'Context continuity packet',
+    headlineSuffix: 'wrote compaction checkpoint',
+    nextAction:
+      'Inspect the checkpoint ref and make sure it captures the transient continuity you expect to survive compaction.',
+    signals: ['Continuity', 'Compaction'],
+  },
+  'runtime.context.compaction.completed': {
+    operationLabel: 'Context compaction completed',
+    contextLabel: 'Context continuity packet',
+    headlineSuffix: 'compacted specialist context',
+    nextAction:
+      'Inspect the preserved checkpoint, tokens saved, and recent breadcrumbs before assuming older context is still available.',
+    signals: ['Continuity', 'Compaction'],
+  },
+  'runtime.context.compaction.failed': {
+    operationLabel: 'Context compaction failed',
+    contextLabel: 'Context continuity packet',
+    headlineSuffix: 'failed context compaction',
+    nextAction:
+      'Review the failure packet, then decide whether the step needs retry or manual recovery before more context pressure builds.',
+    signals: ['Continuity', 'Compaction', 'Recovery'],
+  },
+  'runtime.context.activation_finish.prepare_started': {
+    operationLabel: 'Activation finish prepare started',
+    contextLabel: 'Activation checkpoint packet',
+    headlineSuffix: 'started activation finish prepare',
+    nextAction:
+      'Check the pending checkpoint and continuity state before the orchestrator yields this activation.',
+    signals: ['Continuity', 'Activation checkpoint'],
+  },
+  'runtime.context.activation_finish.memory_persisted': {
+    operationLabel: 'Activation finish memory persisted',
+    contextLabel: 'Activation checkpoint packet',
+    headlineSuffix: 'persisted durable activation memory',
+    nextAction:
+      'Confirm the saved memory keys are durable facts that the next activation may need to recover quickly.',
+    signals: ['Continuity', 'Activation checkpoint'],
+  },
+  'runtime.context.activation_finish.continuity_persisted': {
+    operationLabel: 'Activation finish continuity persisted',
+    contextLabel: 'Activation checkpoint packet',
+    headlineSuffix: 'persisted activation continuity',
+    nextAction:
+      'Review the work-item continuity update before assuming the next activation has enough routing context.',
+    signals: ['Continuity', 'Activation checkpoint'],
+  },
+  'runtime.context.activation_finish.checkpoint_persisted': {
+    operationLabel: 'Activation checkpoint persisted',
+    contextLabel: 'Activation checkpoint packet',
+    headlineSuffix: 'persisted activation checkpoint',
+    nextAction:
+      'Inspect the checkpoint ref and confirm the next activation can recover the working state from it.',
+    signals: ['Continuity', 'Activation checkpoint'],
+  },
+  'runtime.context.activation_finish.completed': {
+    operationLabel: 'Activation finish completed',
+    contextLabel: 'Activation checkpoint packet',
+    headlineSuffix: 'persisted activation checkpoint',
+    nextAction:
+      'Confirm the activation checkpoint, continuity update, and durable memory writes before the next orchestrator activation starts.',
+    signals: ['Continuity', 'Activation checkpoint'],
+  },
+  'runtime.context.activation_finish.failed': {
+    operationLabel: 'Activation finish failed',
+    contextLabel: 'Activation checkpoint packet',
+    headlineSuffix: 'failed activation finish persistence',
+    nextAction:
+      'Review the failed persistence step before trusting the next activation to inherit the current working state.',
+    signals: ['Continuity', 'Activation checkpoint', 'Recovery'],
+  },
+};
+
 export function isTaskContextContinuityOperation(operation: string): boolean {
   return describeTaskContextPacketKind(operation) !== null;
 }
@@ -283,7 +390,10 @@ export function summarizeLogContext(entry: LogEntry): string[] {
     items.push('Predecessor handoff packet');
   } else {
     const governanceDescriptor = readGovernanceExecutionDescriptor(entry.operation);
-    if (governanceDescriptor) {
+    const continuityDescriptor = readContextContinuityDescriptor(entry.operation);
+    if (continuityDescriptor) {
+      items.push(continuityDescriptor.contextLabel);
+    } else if (governanceDescriptor) {
       items.push(governanceDescriptor.contextLabel);
     }
   }
@@ -297,6 +407,10 @@ export function describeExecutionHeadline(entry: LogEntry): string {
   }
   if (packetKind === 'predecessor_handoff') {
     return `${readExecutionSubject(entry)} attached predecessor handoff`;
+  }
+  const continuityDescriptor = readContextContinuityDescriptor(entry.operation);
+  if (continuityDescriptor) {
+    return `${readExecutionSubject(entry)} ${continuityDescriptor.headlineSuffix}`;
   }
   const governanceDescriptor = readGovernanceExecutionDescriptor(entry.operation);
   if (governanceDescriptor) {
@@ -339,6 +453,10 @@ export function describeExecutionSummary(entry: LogEntry): string {
 }
 
 export function describeExecutionOperationLabel(value: string): string {
+  const continuityDescriptor = readContextContinuityDescriptor(value);
+  if (continuityDescriptor) {
+    return continuityDescriptor.operationLabel;
+  }
   const governanceDescriptor = readGovernanceExecutionDescriptor(value);
   if (governanceDescriptor) {
     return governanceDescriptor.operationLabel;
@@ -370,6 +488,10 @@ export function describeExecutionNextAction(entry: LogEntry): string {
   if (packetKind === 'predecessor_handoff') {
     return 'Confirm the selected handoff before the step resumes.';
   }
+  const continuityDescriptor = readContextContinuityDescriptor(entry.operation);
+  if (continuityDescriptor) {
+    return continuityDescriptor.nextAction;
+  }
   const governanceDescriptor = readGovernanceExecutionDescriptor(entry.operation);
   if (governanceDescriptor) {
     return governanceDescriptor.nextAction;
@@ -392,12 +514,16 @@ export function describeExecutionNextAction(entry: LogEntry): string {
 export function readExecutionSignals(entry: LogEntry): string[] {
   const signals = new Set<string>();
   const packetKind = describeTaskContextPacketKind(entry.operation);
+  const continuityDescriptor = readContextContinuityDescriptor(entry.operation);
   const governanceDescriptor = readGovernanceExecutionDescriptor(entry.operation);
   if (packetKind) {
     signals.add('Continuity');
   }
   if (packetKind === 'predecessor_handoff') {
     signals.add('Handoff');
+  }
+  for (const signal of continuityDescriptor?.signals ?? []) {
+    signals.add(signal);
   }
   for (const signal of governanceDescriptor?.signals ?? []) {
     signals.add(signal);
@@ -531,6 +657,12 @@ function readGovernanceExecutionDescriptor(
   operation: string,
 ): GovernanceExecutionDescriptor | null {
   return GOVERNANCE_EXECUTION_DESCRIPTORS[operation] ?? null;
+}
+
+function readContextContinuityDescriptor(
+  operation: string,
+): ContextContinuityDescriptor | null {
+  return CONTEXT_CONTINUITY_DESCRIPTORS[operation] ?? null;
 }
 
 function containsSignalKeyword(entry: LogEntry, needle: string): boolean {

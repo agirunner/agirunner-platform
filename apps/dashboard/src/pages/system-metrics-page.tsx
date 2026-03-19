@@ -65,8 +65,11 @@ export function SystemMetricsPage(): JSX.Element {
             <h1 className="text-2xl font-semibold">System Metrics</h1>
           </div>
           <p className="max-w-2xl text-sm text-muted">
-            Inspect the live Prometheus metrics feed exposed by the platform. Use the filter to
-            narrow output to a metric family or label of interest.
+            Inspect the live Prometheus platform metrics feed. Use the filter to narrow output to
+            a metric family or label of interest. Runtime continuity metrics such as
+            `agirunner_runtime_context_warnings_total` and
+            `agirunner_runtime_loop_compactions_total` appear here only after your aggregation
+            pipeline exposes runtime registries alongside the platform feed.
           </p>
         </div>
         <Button variant="outline" onClick={() => void query.refetch()} disabled={query.isFetching}>

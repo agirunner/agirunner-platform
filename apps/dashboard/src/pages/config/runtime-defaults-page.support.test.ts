@@ -145,8 +145,20 @@ describe('runtime defaults page support', () => {
     expect(fieldsForSection('agent_context').map((field) => field.key)).toContain(
       'agent.history_max_messages',
     );
+    expect(fieldsForSection('agent_context').map((field) => field.key)).toContain(
+      'agent.specialist_context_strategy',
+    );
+    expect(fieldsForSection('agent_context').map((field) => field.key)).toContain(
+      'agent.specialist_prepare_for_compaction_enabled',
+    );
     expect(fieldsForSection('orchestrator_context').map((field) => field.key)).toContain(
       'agent.orchestrator_context_compaction_threshold',
+    );
+    expect(fieldsForSection('orchestrator_context').map((field) => field.key)).toContain(
+      'agent.orchestrator_context_strategy',
+    );
+    expect(fieldsForSection('orchestrator_context').map((field) => field.key)).toContain(
+      'agent.orchestrator_finish_checkpoint_enabled',
     );
     expect(fieldsForSection('agent_safeguards').map((field) => field.key)).toContain(
       'agent.max_iterations',
@@ -157,13 +169,17 @@ describe('runtime defaults page support', () => {
     const errors = buildValidationErrors({
       'agent.history_max_messages': '20',
       'agent.history_preserve_recent': '25',
+      'agent.specialist_context_tail_messages': '21',
       'agent.context_compaction_threshold': '1.5',
+      'agent.specialist_context_strategy': 'invalid',
       'agent.orchestrator_history_preserve_recent': '21',
       'agent.loop_detection_repeat': '0',
     });
 
     expect(errors['agent.history_preserve_recent']).toContain('overall history budget');
+    expect(errors['agent.specialist_context_tail_messages']).toContain('overall history budget');
     expect(errors['agent.context_compaction_threshold']).toContain('at most 1');
+    expect(errors['agent.specialist_context_strategy']).toContain('must be one of');
     expect(errors['agent.orchestrator_history_preserve_recent']).toContain(
       'overall history budget',
     );
@@ -301,8 +317,15 @@ describe('runtime defaults page support', () => {
           key: 'agent_context',
           title: 'Agent context handling',
           configuredCount: 2,
-          fieldCount: 4,
+          fieldCount: 11,
           errorCount: 1,
+        },
+        {
+          key: 'orchestrator_context',
+          title: 'Orchestrator context overrides',
+          configuredCount: 0,
+          fieldCount: 8,
+          errorCount: 0,
         },
         {
           key: 'workspace_operations',

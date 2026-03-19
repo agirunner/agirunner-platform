@@ -10,9 +10,11 @@ describe('task detail context section source', () => {
   it('uses summary-first packets with explicit raw-data disclosure', () => {
     const source = readSource();
     expect(source).toContain('Execution evidence');
+    expect(source).toContain('Activation checkpoint');
     expect(source).toContain('Clarification history');
     expect(source).toContain('View clarification answers');
     expect(source).toContain('View escalation response');
+    expect(source).toContain('View activation checkpoint');
     expect(source).toContain('View runtime context');
     expect(source).toContain('ProgressiveDataBlock');
   });
@@ -21,6 +23,7 @@ describe('task detail context section source', () => {
     const source = readSource();
     expect(source).toContain('Current answers');
     expect(source).toContain('Recorded human guidance');
+    expect(source).toContain('Continuity highlights');
     expect(source).toContain('Execution highlights');
     expect(source).toContain('FactGrid');
     expect(source).toContain('rounded-xl border border-border/70 bg-card/60 p-4');

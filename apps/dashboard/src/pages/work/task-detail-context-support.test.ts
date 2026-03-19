@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildActivationCheckpointPacket,
   buildClarificationPacket,
+  buildContinuityHighlightFacts,
   buildEscalationPacket,
   buildExecutionPacket,
   buildPreviewFacts,
@@ -83,5 +85,45 @@ describe('task detail context support', () => {
       { label: 'checks', value: '2 items' },
       { label: 'repo', value: '1 field' },
     ]);
+  });
+
+  it('surfaces continuity highlights and activation checkpoint facts', () => {
+    expect(
+      buildContinuityHighlightFacts({
+        metrics: {
+          effective_context_strategy: 'activation_checkpoint',
+          activation_finish_checkpoint_writes: 1,
+          activation_finish_memory_writes: 2,
+        },
+        activationCheckpoint: {
+          trigger: 'task.completed',
+          next_expected_event: 'specialist_completed',
+          recent_memory_keys: ['repo_root'],
+        },
+      }),
+    ).toEqual([
+      { label: 'Context strategy', value: 'activation_checkpoint' },
+      { label: 'Activation checkpoints', value: '1' },
+      { label: 'Activation memory writes', value: '2' },
+      { label: 'Checkpoint trigger', value: 'task.completed' },
+    ]);
+
+    expect(
+      buildActivationCheckpointPacket({
+        trigger: 'task.completed',
+        next_expected_event: 'specialist_completed',
+        important_ids: ['task-1', 'work-item-1'],
+        recent_memory_keys: ['repo_root'],
+      }),
+    ).toEqual({
+      summary:
+        'Latest orchestrator activation checkpoint captures 2 important ids and records the next expected event.',
+      facts: [
+        { label: 'Checkpoint trigger', value: 'task.completed' },
+        { label: 'Next expected event', value: 'specialist_completed' },
+        { label: 'Important ids', value: '2' },
+        { label: 'Recent memory keys', value: '1' },
+      ],
+    });
   });
 });

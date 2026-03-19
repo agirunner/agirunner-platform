@@ -8,7 +8,9 @@ import {
   readReviewSignals,
 } from '../task-detail-support.js';
 import {
+  buildActivationCheckpointPacket,
   buildClarificationPacket,
+  buildContinuityHighlightFacts,
   buildEscalationPacket,
   buildExecutionPacket,
   buildPreviewFacts,
@@ -44,6 +46,7 @@ export function TaskDetailContextSection({
   const executionSummary = readExecutionSummary(task as never);
   const reviewSignals = readReviewSignals(task as never);
   const runtimeContext = asRecord(task.context);
+  const activationCheckpoint = asRecord(asRecord(task.metadata).last_activation_checkpoint);
 
   const clarificationPacket = buildClarificationPacket({
     answers: clarificationAnswers,
@@ -58,6 +61,11 @@ export function TaskDetailContextSection({
     metrics: executionSummary.metrics,
     runtimeContext,
   });
+  const continuityHighlights = buildContinuityHighlightFacts({
+    metrics: executionSummary.metrics,
+    activationCheckpoint,
+  });
+  const activationCheckpointPacket = buildActivationCheckpointPacket(activationCheckpoint);
 
   return (
     <div className="grid gap-4">
@@ -114,12 +122,27 @@ export function TaskDetailContextSection({
           summary={executionPacket.summary}
           facts={executionPacket.facts}
           previewFacts={[
+            ...continuityHighlights,
             ...buildPreviewFacts(executionSummary.verification, 2),
             ...buildPreviewFacts(executionSummary.metrics, 2),
           ].slice(0, 4)}
-          previewLabel="Execution highlights"
+          previewLabel={continuityHighlights.length > 0 ? 'Continuity highlights' : 'Execution highlights'}
         >
           <div className="space-y-3">
+            <TaskPacketCard
+              title="Activation checkpoint"
+              summary={activationCheckpointPacket.summary}
+              facts={activationCheckpointPacket.facts}
+              previewFacts={buildPreviewFacts(activationCheckpoint, 2)}
+              previewLabel="Checkpoint details"
+              disclosureTitle="View activation checkpoint"
+              disclosureContent={
+                <StructuredRecordView
+                  data={activationCheckpoint}
+                  emptyMessage="No activation checkpoint."
+                />
+              }
+            />
             <ProgressiveDataBlock
               title="Verification evidence"
               disclosureTitle="View verification fields"

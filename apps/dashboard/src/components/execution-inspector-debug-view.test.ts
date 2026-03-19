@@ -19,6 +19,10 @@ describe('execution inspector secondary surfaces', () => {
     expect(source).toContain('Activity key');
     expect(source).toContain('Trace handle');
     expect(source).toContain('Span handle');
+    expect(source).toContain('Effective context strategy');
+    expect(source).toContain('Tokens saved');
+    expect(source).toContain('Checkpoint ref');
+    expect(source).toContain('Memory writes');
     expect(source).not.toContain('inspect raw payloads and identifiers');
   });
 

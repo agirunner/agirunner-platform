@@ -282,7 +282,7 @@ export interface DashboardRuntimeDefaultRecord {
 export interface DashboardRuntimeDefaultUpsertInput {
   configKey: string;
   configValue: string;
-  configType: 'string' | 'number';
+  configType: 'string' | 'number' | 'boolean';
   description: string;
 }
 

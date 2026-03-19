@@ -464,4 +464,87 @@ describe('execution inspector support', () => {
     expect(formatCost(0.0012)).toBe('$0.0012');
     expect(formatCost('2.5')).toBe('$2.5000');
   });
+
+  it('describes runtime compaction events as continuity packets', () => {
+    const entry = {
+      id: 9,
+      trace_id: 'trace-9',
+      span_id: 'span-9',
+      source: 'runtime',
+      category: 'task_lifecycle',
+      level: 'info',
+      operation: 'runtime.context.compaction.completed',
+      status: 'completed',
+      task_title: 'Implement billing',
+      actor_type: 'worker',
+      actor_id: 'worker-1',
+      actor_name: 'Runtime worker',
+      created_at: '2026-03-19T00:00:00Z',
+      payload: {
+        context_strategy: 'semantic_local',
+        trigger: 'context_window',
+        tokens_before: 120000,
+        tokens_after: 62000,
+        tokens_saved: 58000,
+        checkpoint_ref: 'context/compaction-checkpoint.json',
+      },
+    } as const;
+
+    expect(describeExecutionHeadline(entry)).toBe(
+      'Step Implement billing compacted specialist context',
+    );
+    expect(describeExecutionOperationLabel(entry.operation)).toBe('Context compaction completed');
+    expect(summarizeLogContext(entry)).toEqual([
+      'step Implement billing',
+      'Context continuity packet',
+    ]);
+    expect(describeExecutionNextAction(entry)).toBe(
+      'Inspect the preserved checkpoint, tokens saved, and recent breadcrumbs before assuming older context is still available.',
+    );
+    expect(readExecutionSignals(entry)).toEqual(['Continuity', 'Compaction']);
+  });
+
+  it('describes activation-finish persistence events as orchestrator continuity packets', () => {
+    const entry = {
+      id: 10,
+      trace_id: 'trace-10',
+      span_id: 'span-10',
+      source: 'runtime',
+      category: 'task_lifecycle',
+      level: 'info',
+      operation: 'runtime.context.activation_finish.completed',
+      status: 'completed',
+      workflow_name: 'Delivery',
+      activation_id: 'activation-12345678',
+      is_orchestrator_task: true,
+      actor_type: 'worker',
+      actor_id: 'worker-1',
+      actor_name: 'Runtime worker',
+      created_at: '2026-03-19T00:00:00Z',
+      payload: {
+        memory_keys_written: ['repo_root'],
+        checkpoint_ref: 'context/activation-checkpoint.json',
+        continuity_written: true,
+      },
+    } as const;
+
+    expect(describeExecutionHeadline(entry)).toBe(
+      'Orchestrator activity persisted activation checkpoint',
+    );
+    expect(describeExecutionOperationLabel(entry.operation)).toBe('Activation finish completed');
+    expect(summarizeLogContext(entry)).toEqual([
+      'board Delivery',
+      'activation activati',
+      'Activation checkpoint packet',
+    ]);
+    expect(describeExecutionNextAction(entry)).toBe(
+      'Confirm the activation checkpoint, continuity update, and durable memory writes before the next orchestrator activation starts.',
+    );
+    expect(readExecutionSignals(entry)).toEqual([
+      'Continuity',
+      'Activation checkpoint',
+      'Orchestrator',
+      'Activation',
+    ]);
+  });
 });

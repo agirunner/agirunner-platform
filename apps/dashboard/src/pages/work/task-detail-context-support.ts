@@ -8,6 +8,17 @@ export interface TaskContextPacket {
   facts: TaskContextFact[];
 }
 
+const CONTINUITY_METRIC_LABELS: Array<[key: string, label: string]> = [
+  ['effective_context_strategy', 'Context strategy'],
+  ['context_warnings', 'Context warnings'],
+  ['context_compactions', 'Context compactions'],
+  ['context_compaction_tokens_saved', 'Tokens saved'],
+  ['activation_finish_prepares', 'Activation finish prepares'],
+  ['activation_finish_checkpoint_writes', 'Activation checkpoints'],
+  ['activation_finish_memory_writes', 'Activation memory writes'],
+  ['activation_finish_continuity_writes', 'Activation continuity writes'],
+];
+
 export function buildClarificationPacket({
   answers,
   history,
@@ -107,6 +118,90 @@ export function buildExecutionPacket({
       {
         label: 'Most detailed source',
         value: selectMostDetailedSource(verificationCount, metricCount, runtimeContextCount),
+      },
+    ],
+  };
+}
+
+export function buildContinuityHighlightFacts({
+  metrics,
+  activationCheckpoint,
+  limit = 4,
+}: {
+  metrics: Record<string, unknown>;
+  activationCheckpoint: Record<string, unknown>;
+  limit?: number;
+}): TaskContextFact[] {
+  const facts: TaskContextFact[] = [];
+
+  for (const [key, label] of CONTINUITY_METRIC_LABELS) {
+    if (!(key in metrics)) {
+      continue;
+    }
+    facts.push({
+      label,
+      value: summarizeValue(metrics[key]),
+    });
+    if (facts.length >= limit) {
+      return facts;
+    }
+  }
+
+  const checkpointFacts: Array<[keyof typeof activationCheckpoint, string]> = [
+    ['trigger', 'Checkpoint trigger'],
+    ['next_expected_event', 'Next expected event'],
+    ['current_working_state', 'Working state'],
+  ];
+  for (const [key, label] of checkpointFacts) {
+    const value = activationCheckpoint[key];
+    if (typeof value !== 'string' || value.trim().length === 0) {
+      continue;
+    }
+    facts.push({ label, value: summarizeValue(value) });
+    if (facts.length >= limit) {
+      return facts;
+    }
+  }
+
+  return facts;
+}
+
+export function buildActivationCheckpointPacket(
+  checkpoint: Record<string, unknown>,
+): TaskContextPacket {
+  const trigger = typeof checkpoint.trigger === 'string' ? checkpoint.trigger : null;
+  const nextExpectedEvent =
+    typeof checkpoint.next_expected_event === 'string'
+      ? checkpoint.next_expected_event
+      : null;
+  const importantIds = Array.isArray(checkpoint.important_ids)
+    ? checkpoint.important_ids.length
+    : 0;
+  const recentMemoryKeys = Array.isArray(checkpoint.recent_memory_keys)
+    ? checkpoint.recent_memory_keys.length
+    : 0;
+
+  return {
+    summary:
+      Object.keys(checkpoint).length === 0
+        ? 'No orchestrator activation checkpoint is recorded for this step.'
+        : `Latest orchestrator activation checkpoint captures ${importantIds} important ids and records the next expected event.`,
+    facts: [
+      {
+        label: 'Checkpoint trigger',
+        value: trigger ?? 'No trigger recorded',
+      },
+      {
+        label: 'Next expected event',
+        value: nextExpectedEvent ?? 'No next event recorded',
+      },
+      {
+        label: 'Important ids',
+        value: String(importantIds),
+      },
+      {
+        label: 'Recent memory keys',
+        value: String(recentMemoryKeys),
       },
     ],
   };

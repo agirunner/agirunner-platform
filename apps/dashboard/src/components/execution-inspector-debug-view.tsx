@@ -31,6 +31,7 @@ export function ExecutionInspectorDebugView(
 
   const context = summarizeLogContext(props.entry);
   const signals = readExecutionSignals(props.entry);
+  const continuityFacts = readContinuityFacts(props.entry);
 
   return (
     <div className="grid min-w-0 gap-4 xl:grid-cols-[1.2fr_1fr]">
@@ -97,6 +98,21 @@ export function ExecutionInspectorDebugView(
               </div>
             ) : null}
 
+            {continuityFacts.length > 0 ? (
+              <div className="space-y-2">
+                <div className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Continuity facts
+                </div>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {continuityFacts.map((fact) => (
+                    <InspectorMeta key={fact.label} label={fact.label}>
+                      {fact.value}
+                    </InspectorMeta>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <div className="text-xs font-medium uppercase tracking-wide text-muted">
                 Diagnostic handles
@@ -157,4 +173,58 @@ function InspectorMeta(props: {
       <div className="mt-1 break-all text-sm">{props.children}</div>
     </div>
   );
+}
+
+function readContinuityFacts(entry: LogEntry): Array<{ label: string; value: string }> {
+  const payload = asRecord(entry.payload);
+  const facts: Array<{ label: string; value: string }> = [];
+
+  pushStringFact(facts, 'Effective context strategy', payload.context_strategy);
+  pushStringFact(facts, 'Trigger', payload.trigger);
+  pushNumberFact(facts, 'Tokens before', payload.tokens_before);
+  pushNumberFact(facts, 'Tokens after', payload.tokens_after);
+  pushNumberFact(facts, 'Tokens saved', payload.tokens_saved);
+  pushNumberFact(facts, 'Memory writes', payload.memory_writes);
+  pushNumberFact(facts, 'Continuity writes', payload.continuity_writes);
+  pushNumberFact(facts, 'Checkpoint writes', payload.checkpoint_writes);
+  pushStringFact(facts, 'Checkpoint ref', payload.checkpoint_ref);
+
+  const memoryKeys = Array.isArray(payload.memory_keys_written)
+    ? payload.memory_keys_written.filter((value): value is string => typeof value === 'string')
+    : [];
+  if (memoryKeys.length > 0) {
+    facts.push({
+      label: 'Recent memory writes',
+      value: memoryKeys.join(', '),
+    });
+  }
+  return facts.slice(0, 10);
+}
+
+function pushStringFact(
+  facts: Array<{ label: string; value: string }>,
+  label: string,
+  value: unknown,
+): void {
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return;
+  }
+  facts.push({ label, value: value.trim() });
+}
+
+function pushNumberFact(
+  facts: Array<{ label: string; value: string }>,
+  label: string,
+  value: unknown,
+): void {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return;
+  }
+  facts.push({ label, value: String(value) });
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
 }
