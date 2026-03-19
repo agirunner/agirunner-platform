@@ -250,6 +250,33 @@ def _workflow_tasks(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     return tasks if isinstance(tasks, list) else []
 
 
+def _playbook_pool_status(fleet: Any, *, playbook_id: str) -> dict[str, Any] | None:
+    data = _nested_data(fleet)
+    if not isinstance(data, dict):
+        return None
+    pools = data.get("by_playbook_pool")
+    if not isinstance(pools, list):
+        return None
+    for item in pools:
+        if isinstance(item, dict) and item.get("playbook_id") == playbook_id:
+            return item
+    return None
+
+
+def update_fleet_peaks(peaks: dict[str, int], fleet: Any, *, playbook_id: str) -> None:
+    pool = _playbook_pool_status(fleet, playbook_id=playbook_id)
+    if pool is None:
+        return
+    for field, peak_key in (
+        ("running", "peak_running"),
+        ("executing", "peak_executing"),
+        ("active_workflows", "peak_active_workflows"),
+    ):
+        value = pool.get(field)
+        if isinstance(value, int):
+            peaks[peak_key] = max(peaks.get(peak_key, 0), value)
+
+
 def _parse_timestamp(value: Any) -> datetime | None:
     if not isinstance(value, str):
         return None
@@ -277,6 +304,9 @@ def evaluate_expectations(
     artifacts: Any,
     approval_actions: list[dict[str, Any]],
     events: Any | None = None,
+    fleet: Any | None = None,
+    playbook_id: str = "",
+    fleet_peaks: dict[str, int] | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
     checks: list[dict[str, Any]] = []
@@ -408,6 +438,64 @@ def evaluate_expectations(
             )
             if not passed:
                 failures.append(f"expected at least {minimum} non-orchestrator tasks, found {actual}")
+
+    fleet_expectations = expectations.get("fleet", {})
+    if isinstance(fleet_expectations, dict):
+        pool_expectations = fleet_expectations.get("playbook_pool", {})
+        if isinstance(pool_expectations, dict) and pool_expectations:
+            pool = _playbook_pool_status(fleet, playbook_id=playbook_id)
+            if pool is None:
+                checks.append(
+                    {
+                        "name": "fleet.playbook_pool.present",
+                        "passed": False,
+                        "playbook_id": playbook_id,
+                    }
+                )
+                failures.append(f"expected fleet pool entry for playbook {playbook_id!r}")
+            else:
+                for field in ("max_runtimes", "active_workflows"):
+                    if field not in pool_expectations:
+                        continue
+                    expected_value = int(pool_expectations[field])
+                    actual_value = int(pool.get(field, 0))
+                    passed = actual_value == expected_value
+                    checks.append(
+                        {
+                            "name": f"fleet.playbook_pool.{field}",
+                            "passed": passed,
+                            "expected": expected_value,
+                            "actual": actual_value,
+                        }
+                    )
+                    if not passed:
+                        failures.append(
+                            f"expected fleet playbook pool {field}={expected_value}, got {actual_value}"
+                        )
+
+                peaks = fleet_peaks or {}
+                for expectation_key, peak_key in (
+                    ("peak_running_lte", "peak_running"),
+                    ("peak_executing_lte", "peak_executing"),
+                    ("peak_active_workflows_lte", "peak_active_workflows"),
+                ):
+                    if expectation_key not in pool_expectations:
+                        continue
+                    expected_max = int(pool_expectations[expectation_key])
+                    actual_peak = int(peaks.get(peak_key, 0))
+                    passed = actual_peak <= expected_max
+                    checks.append(
+                        {
+                            "name": f"fleet.playbook_pool.{expectation_key}",
+                            "passed": passed,
+                            "expected_max": expected_max,
+                            "actual": actual_peak,
+                        }
+                    )
+                    if not passed:
+                        failures.append(
+                            f"expected fleet playbook pool {peak_key} <= {expected_max}, got {actual_peak}"
+                        )
 
     approval_action_expectations = expectations.get("approval_actions", [])
     if isinstance(approval_action_expectations, list):
@@ -785,6 +873,12 @@ def main() -> None:
     approved_gate_ids: set[str] = set()
     approval_actions: list[dict[str, Any]] = []
     consumed_decisions: set[int] = set()
+    fleet_peaks: dict[str, int] = {
+        "peak_running": 0,
+        "peak_executing": 0,
+        "peak_active_workflows": 0,
+    }
+    latest_fleet: Any = {}
 
     while time.time() < deadline:
         poll_iterations += 1
@@ -798,6 +892,14 @@ def main() -> None:
         )
         if latest_workflow.get("state") in TERMINAL_STATES:
             break
+        latest_fleet = client.best_effort_request(
+            "GET",
+            "/api/v1/fleet/status",
+            expected=(200,),
+            label="fleet.status",
+        )
+        if latest_fleet.get("ok"):
+            update_fleet_peaks(fleet_peaks, latest_fleet.get("data"), playbook_id=playbook_id)
         latest_approvals = extract_data(
             client.request(
                 "GET",
@@ -854,6 +956,14 @@ def main() -> None:
         expected=(200,),
         label="workspaces.artifacts",
     )
+    latest_fleet = client.best_effort_request(
+        "GET",
+        "/api/v1/fleet/status",
+        expected=(200,),
+        label="fleet.status.final",
+    )
+    if latest_fleet.get("ok"):
+        update_fleet_peaks(fleet_peaks, latest_fleet.get("data"), playbook_id=playbook_id)
 
     final_state = latest_workflow.get("state")
     verification = evaluate_expectations(
@@ -865,6 +975,9 @@ def main() -> None:
         artifacts=artifacts_snapshot,
         approval_actions=approval_actions,
         events=events_snapshot,
+        fleet=latest_fleet,
+        playbook_id=playbook_id,
+        fleet_peaks=fleet_peaks,
     )
     print(
         json.dumps(
@@ -885,6 +998,8 @@ def main() -> None:
                 "workflow_actions": workflow_actions,
                 "workspace": workspace_snapshot,
                 "artifacts": artifacts_snapshot,
+                "fleet": latest_fleet,
+                "fleet_peaks": fleet_peaks,
                 "verification": verification,
             }
         )

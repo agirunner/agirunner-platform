@@ -23,6 +23,7 @@ EXPECTED_SCENARIOS = {
     "product-requirements-approve",
     "product-requirements-request-changes-then-approve",
     "parallel-burst-ten-work-items",
+    "parallel-burst-two-runtimes",
 }
 
 

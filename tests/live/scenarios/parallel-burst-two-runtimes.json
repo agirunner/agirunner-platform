@@ -1,0 +1,59 @@
+{
+  "name": "parallel-burst-two-runtimes",
+  "profile": "parallel-burst-two-runtimes",
+  "workflow": {
+    "name": "Parallel Burst Two Runtimes",
+    "goal": "Process ten independent burst work items through the standard workflow APIs while enforcing a two-runtime specialist cap."
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "burst_context": "Each burst work item is independent. Do not reuse conclusions across work items."
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [
+    {
+      "type": "create_work_items",
+      "dispatch": "parallel",
+      "count": 10,
+      "stage_name": "analysis",
+      "owner_role": "live-test-burst-specialist",
+      "request_id_template": "live-test-parallel-burst-r2-{index:02d}",
+      "title_template": "parallel-burst-{index:02d}",
+      "goal_template": "Summarize the independent burst request for item {index:02d}.",
+      "acceptance_criteria_template": "Artifact parallel-burst/parallel-burst-{index:02d}.md exists and the work item is completed.",
+      "metadata": {
+        "burst_index": "{index:02d}",
+        "test_kind": "parallel-burst-two-runtimes"
+      }
+    }
+  ],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true,
+      "min_count": 10
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 10
+    },
+    "artifacts": [
+      {
+        "logical_path_pattern": "parallel-burst/parallel-burst-\\d{2}\\.md",
+        "min_count": 10
+      }
+    ],
+    "fleet": {
+      "playbook_pool": {
+        "max_runtimes": 2,
+        "peak_running_lte": 2,
+        "peak_executing_lte": 2
+      }
+    }
+  }
+}

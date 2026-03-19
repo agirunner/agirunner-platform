@@ -1,8 +1,8 @@
 {
-  "name": "Parallel Burst Live Test Cycle",
-  "slug": "live-test-parallel-burst-v1",
-  "description": "Test-owned parallel work-item burst playbook used to prove multi-item dispatch and completion.",
-  "outcome": "Independent burst work items are processed cleanly without cross-contamination.",
+  "name": "Parallel Burst Live Test Cycle (2 Runtimes)",
+  "slug": "live-test-parallel-burst-r2-v1",
+  "description": "Test-owned parallel work-item burst playbook used to prove multi-item dispatch with a two-runtime cap.",
+  "outcome": "Independent burst work items are processed cleanly without cross-contamination under a two-runtime cap.",
   "lifecycle": "planned",
   "definition": {
     "process_instructions": "Each work item title is a safe slug such as `parallel-burst-01`. Treat every work item as independent. For each work item, create exactly one concise artifact at logical path `parallel-burst/<work-item-title>.md` summarizing the result for that item. Persist the substantive result to artifacts, not only the handoff. Do not modify any repository. Before task completion, ensure one successful structured handoff is persisted with a unique request_id. Rejected validation attempts do not count.",
@@ -45,7 +45,7 @@
     },
     "runtime": {
       "pool_mode": "warm",
-      "max_runtimes": 10,
+      "max_runtimes": 2,
       "priority": 1
     }
   }

@@ -50,6 +50,48 @@ class FakePagedClient:
 
 
 class RunWorkflowScenarioTests(unittest.TestCase):
+    def test_evaluate_expectations_checks_fleet_pool_bounds(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "fleet": {
+                    "playbook_pool": {
+                        "max_runtimes": 2,
+                        "peak_running_lte": 2,
+                        "peak_executing_lte": 2,
+                    }
+                }
+            },
+            workflow={"state": "completed", "tasks": []},
+            board={"ok": True, "data": {"columns": []}},
+            work_items={"ok": True, "data": []},
+            workspace={"memory": {}, "memory_index": {"keys": []}, "artifact_index": {"items": []}},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={
+                "ok": True,
+                "data": {
+                    "by_playbook_pool": [
+                        {
+                            "playbook_id": "playbook-1",
+                            "max_runtimes": 2,
+                            "running": 0,
+                            "executing": 0,
+                            "active_workflows": 0,
+                        }
+                    ]
+                },
+            },
+            playbook_id="playbook-1",
+            fleet_peaks={"peak_running": 2, "peak_executing": 2, "peak_active_workflows": 1},
+        )
+
+        self.assertTrue(result["passed"])
+        check_names = {entry["name"] for entry in result["checks"]}
+        self.assertIn("fleet.playbook_pool.max_runtimes", check_names)
+        self.assertIn("fleet.playbook_pool.peak_running_lte", check_names)
+        self.assertIn("fleet.playbook_pool.peak_executing_lte", check_names)
+
     def test_build_workflow_create_payload_includes_required_goal_parameter(self) -> None:
         payload = run_workflow_scenario.build_workflow_create_payload(
             playbook_id="playbook-1",
