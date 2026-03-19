@@ -3,13 +3,19 @@ import type { ElementType, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
+  Archive,
+  Bell,
   Bot,
   ChevronRight,
+  Clipboard,
   Cog,
   Container,
+  DollarSign,
+  FileText,
   FolderOpen,
   HardDrive,
   Key,
+  LayoutDashboard,
   Link2,
   LogOut,
   Menu,
@@ -127,6 +133,18 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Retention Policy', href: '/governance/retention', icon: Timer },
       { label: 'API Keys', href: '/governance/api-keys', icon: Key },
       { label: 'Orchestrator Grants', href: '/governance/grants', icon: Link2 },
+    ],
+  },
+  {
+    label: 'Legacy Views',
+    icon: Archive,
+    items: [
+      { label: 'Mission Control', href: '/mission-control', icon: LayoutDashboard },
+      { label: 'Alerts & Approvals', href: '/mission-control/alerts', icon: Bell },
+      { label: 'Cost Dashboard', href: '/mission-control/costs', icon: DollarSign },
+      { label: 'Boards', href: '/work/boards', icon: Clipboard },
+      { label: 'Tasks', href: '/work/tasks', icon: FileText },
+      { label: 'Approval Queue', href: '/work/approvals', icon: Clipboard },
     ],
   },
 ];

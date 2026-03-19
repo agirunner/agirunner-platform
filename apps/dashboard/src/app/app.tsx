@@ -88,6 +88,16 @@ const OrchestratorGrantsPage = lazyWithRetry(() => import('../pages/governance/o
 const SettingsPage = lazyWithRetry(() => import('../pages/governance/settings-page.js').then((m) => ({ default: m.SettingsPage })));
 const LogsPage = lazyWithRetry(() => import('../pages/mission-control/logs-page.js').then((m) => ({ default: m.LogsPage })));
 
+const LiveBoardPage = lazyWithRetry(() => import('../pages/mission-control/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
+const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/mission-control/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
+const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
+
+const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
+const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/work/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
+const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
+const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
+const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
+
 function PageFallback(): JSX.Element {
   return (
     <div className="flex items-center justify-center p-12 text-muted">
@@ -178,16 +188,15 @@ export function App(): JSX.Element {
             <Route path="/execution" element={<Suspense fallback={<PageFallback />}><ExecutionCanvas /></Suspense>} />
             <Route path="/execution/launch" element={<Suspense fallback={<PageFallback />}><ExecutionCanvas initialAction="launch" /></Suspense>} />
 
-            {/* Deprecated routes — redirect to Execution Canvas */}
-            <Route path="/mission-control" element={<Navigate to="/execution" replace />} />
-            <Route path="/mission-control/alerts" element={<Navigate to="/execution" replace />} />
-            <Route path="/mission-control/costs" element={<Navigate to="/execution" replace />} />
-            <Route path="/work/boards" element={<Navigate to="/execution" replace />} />
-            <Route path="/work/boards/:id" element={<Navigate to="/execution" replace />} />
-            <Route path="/work/boards/:id/inspector" element={<Navigate to="/execution" replace />} />
-            <Route path="/work/tasks" element={<Navigate to="/execution" replace />} />
-            <Route path="/work/tasks/:id" element={<Navigate to="/execution" replace />} />
-            <Route path="/work/approvals" element={<Navigate to="/execution" replace />} />
+            {/* Legacy pages — accessible via Deprecated nav section */}
+            <Route path="/mission-control" element={<Suspense fallback={<PageFallback />}><LiveBoardPage /></Suspense>} />
+            <Route path="/mission-control/alerts" element={<Suspense fallback={<PageFallback />}><AlertsApprovalsPage /></Suspense>} />
+            <Route path="/mission-control/costs" element={<Suspense fallback={<PageFallback />}><CostDashboardPage /></Suspense>} />
+            <Route path="/work/boards" element={<Suspense fallback={<PageFallback />}><WorkflowListPage /></Suspense>} />
+            <Route path="/work/boards/:id/inspector" element={<Suspense fallback={<PageFallback />}><WorkflowInspectorPage /></Suspense>} />
+            <Route path="/work/tasks" element={<Suspense fallback={<PageFallback />}><TaskListPage /></Suspense>} />
+            <Route path="/work/tasks/:id" element={<Suspense fallback={<PageFallback />}><TaskDetailPage /></Suspense>} />
+            <Route path="/work/approvals" element={<Suspense fallback={<PageFallback />}><ApprovalQueuePage /></Suspense>} />
             <Route path="/work/workflows/*" element={<Navigate to="/execution" replace />} />
 
             {/* Logs */}
