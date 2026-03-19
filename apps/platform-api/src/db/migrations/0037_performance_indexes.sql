@@ -116,3 +116,9 @@ CREATE INDEX IF NOT EXISTS idx_tasks_metadata_parent_id
 CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_retention_mode
   ON workflow_artifacts (tenant_id, workflow_id, (retention_policy ->> 'mode'))
   WHERE retention_policy ->> 'mode' IS NOT NULL;
+
+-- execution_logs.role is added via raw SQL migration, not in Drizzle schema,
+-- but actively filtered by the log viewer dashboard
+CREATE INDEX IF NOT EXISTS idx_exlogs_role
+  ON execution_logs (tenant_id, role, created_at)
+  WHERE role IS NOT NULL;
