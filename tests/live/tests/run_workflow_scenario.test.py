@@ -277,6 +277,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             workspace={"memory": {"prd_summary": "approved"}},
             artifacts={"data": {"items": [{"logical_path": "reports/findings.md"}, {"logical_path": "reports/summary.md"}]}},
             approval_actions=[{"action": "request_changes", "stage_name": "requirements"}],
+            events={"data": {"data": []}},
         )
 
         self.assertTrue(verification["passed"])
@@ -298,6 +299,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             workspace={"memory": {}},
             artifacts={"data": {"items": []}},
             approval_actions=[],
+            events={"data": {"data": []}},
         )
 
         self.assertFalse(verification["passed"])
@@ -317,12 +319,102 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             workspace={"memory": {}},
             artifacts={"data": {"items": []}},
             approval_actions=[{"action": "approve", "stage_name": "requirements"}],
+            events={"data": {"data": []}},
         )
 
         self.assertFalse(verification["passed"])
         self.assertEqual(
             [
                 "expected approval action {'action': 'request_changes', 'stage_name': 'requirements'} was not observed"
+            ],
+            verification["failures"],
+        )
+
+    def test_evaluate_expectations_requires_rework_between_request_changes_and_approve(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "gate_rework_sequences": [
+                    {
+                        "stage_name": "release",
+                        "request_action": "request_changes",
+                        "resume_action": "approve",
+                        "required_event_type": "task.handoff_submitted",
+                        "required_role": "live-test-architect",
+                    }
+                ]
+            },
+            workflow={"state": "completed"},
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={
+                "data": {
+                    "data": [
+                        {
+                            "type": "stage.gate.request_changes",
+                            "created_at": "2026-03-19T03:00:00Z",
+                            "data": {"stage_name": "release"},
+                        },
+                        {
+                            "type": "task.handoff_submitted",
+                            "created_at": "2026-03-19T03:05:00Z",
+                            "data": {"stage_name": "release", "role": "live-test-architect"},
+                        },
+                        {
+                            "type": "stage.gate.approve",
+                            "created_at": "2026-03-19T03:10:00Z",
+                            "data": {"stage_name": "release"},
+                        },
+                    ]
+                }
+            },
+        )
+
+        self.assertTrue(verification["passed"])
+
+    def test_evaluate_expectations_fails_when_gate_is_reapproved_without_rework(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "gate_rework_sequences": [
+                    {
+                        "stage_name": "release",
+                        "request_action": "request_changes",
+                        "resume_action": "approve",
+                        "required_event_type": "task.handoff_submitted",
+                        "required_role": "live-test-architect",
+                    }
+                ]
+            },
+            workflow={"state": "completed"},
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={
+                "data": {
+                    "data": [
+                        {
+                            "type": "stage.gate.request_changes",
+                            "created_at": "2026-03-19T03:00:00Z",
+                            "data": {"stage_name": "release"},
+                        },
+                        {
+                            "type": "stage.gate.approve",
+                            "created_at": "2026-03-19T03:10:00Z",
+                            "data": {"stage_name": "release"},
+                        },
+                    ]
+                }
+            },
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertEqual(
+            [
+                "expected 'task.handoff_submitted' for stage 'release' between stage.gate.request_changes and stage.gate.approve"
             ],
             verification["failures"],
         )

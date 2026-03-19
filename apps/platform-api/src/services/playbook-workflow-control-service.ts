@@ -276,6 +276,23 @@ export class PlaybookWorkflowControlService {
       return toStageResponse(stage);
     }
 
+    const latestGate = await this.loadLatestGateForStage(identity.tenantId, workflowId, stage.id, db);
+    if (
+      latestGate?.status === 'changes_requested'
+      && latestGate.decided_at
+      && !(await this.hasNewStageHandoffSinceGateDecision(
+        identity.tenantId,
+        workflowId,
+        stage.name,
+        latestGate.decided_at,
+        db,
+      ))
+    ) {
+      throw new ConflictError(
+        `Stage '${stageName}' was sent back with changes requested. Complete corrective work and submit a new stage handoff before requesting approval again.`,
+      );
+    }
+
     const recommendation = nullableText(input.recommendation);
     const keyArtifacts = normalizeArtifactList(input.key_artifacts);
     const concerns = normalizeConcernList(input.concerns);
@@ -1065,6 +1082,31 @@ export class PlaybookWorkflowControlService {
     return result.rows[0] ?? null;
   }
 
+  private async hasNewStageHandoffSinceGateDecision(
+    tenantId: string,
+    workflowId: string,
+    stageName: string,
+    decidedAt: Date,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const result = await db.query<{ has_rework: boolean }>(
+      `SELECT EXISTS (
+          SELECT 1
+            FROM task_handoffs h
+            JOIN tasks t
+              ON t.tenant_id = h.tenant_id
+             AND t.id = h.task_id
+           WHERE h.tenant_id = $1
+             AND h.workflow_id = $2
+             AND h.stage_name = $3
+             AND h.created_at > $4
+             AND COALESCE(t.role, '') <> 'orchestrator'
+        ) AS has_rework`,
+      [tenantId, workflowId, stageName, decidedAt],
+    );
+    return result.rows[0]?.has_rework ?? false;
+  }
+
   private async applyGateDecision(
     identity: ApiKeyIdentity,
     workflowId: string,
@@ -1128,17 +1170,31 @@ export class PlaybookWorkflowControlService {
       ],
     );
 
-    await db.query(
-      `UPDATE workflow_work_items
-          SET next_expected_actor = NULL,
-              next_expected_action = NULL,
-              updated_at = now()
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND stage_name = $3
-          AND next_expected_action = 'approve'`,
-      [identity.tenantId, workflowId, stage.name],
-    );
+    if (input.action === 'request_changes') {
+      await db.query(
+        `UPDATE workflow_work_items
+            SET next_expected_actor = COALESCE(owner_role, next_expected_actor),
+                next_expected_action = 'rework',
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND stage_name = $3
+            AND completed_at IS NULL`,
+        [identity.tenantId, workflowId, stage.name],
+      );
+    } else {
+      await db.query(
+        `UPDATE workflow_work_items
+            SET next_expected_actor = NULL,
+                next_expected_action = NULL,
+                updated_at = now()
+          WHERE tenant_id = $1
+            AND workflow_id = $2
+            AND stage_name = $3
+            AND next_expected_action IN ('approve', 'rework')`,
+        [identity.tenantId, workflowId, stage.name],
+      );
+    }
 
     await this.deps.eventService.emit(
       {

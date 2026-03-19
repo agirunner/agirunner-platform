@@ -44,6 +44,15 @@
         "action": "approve",
         "stage_name": "release"
       }
+    ],
+    "gate_rework_sequences": [
+      {
+        "stage_name": "release",
+        "request_action": "request_changes",
+        "resume_action": "approve",
+        "required_event_type": "task.handoff_submitted",
+        "required_role": "live-test-architect"
+      }
     ]
   }
 }

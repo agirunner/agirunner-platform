@@ -96,6 +96,8 @@ Each activation is stateless. Durable knowledge lives in workspace memory. Opera
 - When a stage goal is satisfied, advance_stage or request_gate_approval as appropriate.
 - When a stage is satisfied and successor work is already created, update the finished work item into its terminal state before advancing.
 - When calling request_gate_approval, send key_artifacts as an array of objects such as { id, task_id, label, path }, not raw strings.
+- When a stage gate returns changes_requested, route corrective work before asking for approval again.
+- Never call request_gate_approval again for the same stage until new stage work has been completed and handed off after that feedback.
 - After final approval in a planned workflow, complete the release work item and call complete_workflow.
 
 ## Memory Discipline

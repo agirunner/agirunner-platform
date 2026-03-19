@@ -2120,6 +2120,105 @@ describe('PlaybookWorkflowControlService', () => {
     expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
   });
 
+  it('rejects re-requesting gate approval after changes were requested without new stage work', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = { enqueueForWorkflow: vi.fn() };
+    const dispatchService = { dispatchActivation: vi.fn() };
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'requirements',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('name = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'active',
+              gate_status: 'changes_requested',
+              iteration_count: 1,
+              summary: 'Needs rework',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:31:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stage_gates') && sql.includes("AND status = 'awaiting_approval'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM workflow_stage_gates') && sql.includes('ORDER BY requested_at DESC')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'gate-1',
+              workflow_id: 'workflow-1',
+              stage_id: 'stage-1',
+              stage_name: 'requirements',
+              status: 'changes_requested',
+              request_summary: 'Needs clarification',
+              recommendation: 'Rework and resubmit',
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'admin',
+              requested_by_id: 'k1',
+              requested_at: new Date('2026-03-11T00:30:00Z'),
+              updated_at: new Date('2026-03-11T00:31:00Z'),
+              decided_by_type: 'admin',
+              decided_by_id: 'k1',
+              decision_feedback: 'Clarify the summary',
+              decided_at: new Date('2026-03-11T00:31:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('SELECT EXISTS (') && sql.includes('FROM task_handoffs h')) {
+          return {
+            rowCount: 1,
+            rows: [{ has_rework: false }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    await expect(
+      service.requestStageGateApproval(
+        { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+        'workflow-1',
+        'requirements',
+        { summary: 'Ready for gate review again' },
+        pool as never,
+      ),
+    ).rejects.toThrow(ConflictError);
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
+  });
+
   it('treats a repeated stage advance as idempotent once the next stage is already current', async () => {
     const service = new PlaybookWorkflowControlService({
       pool: {} as never,

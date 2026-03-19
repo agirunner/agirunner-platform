@@ -238,6 +238,11 @@ def _artifacts(snapshot: Any) -> list[dict[str, Any]]:
     return []
 
 
+def _workflow_events(snapshot: Any) -> list[dict[str, Any]]:
+    data = _nested_data(snapshot)
+    return data if isinstance(data, list) else []
+
+
 def evaluate_expectations(
     expectations: dict[str, Any],
     *,
@@ -247,6 +252,7 @@ def evaluate_expectations(
     workspace: dict[str, Any],
     artifacts: Any,
     approval_actions: list[dict[str, Any]],
+    events: Any | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
     checks: list[dict[str, Any]] = []
@@ -356,6 +362,75 @@ def evaluate_expectations(
             checks.append({"name": f"approval_actions:{entry}", "passed": matched})
             if not matched:
                 failures.append(f"expected approval action {entry!r} was not observed")
+
+    gate_rework_sequences = expectations.get("gate_rework_sequences", [])
+    if isinstance(gate_rework_sequences, list):
+        event_list = sorted(
+            _workflow_events(events),
+            key=lambda entry: str(entry.get("created_at") or ""),
+        )
+        for entry in gate_rework_sequences:
+            if not isinstance(entry, dict):
+                continue
+            stage_name = entry.get("stage_name")
+            if not isinstance(stage_name, str) or stage_name.strip() == "":
+                continue
+            request_action = str(entry.get("request_action", "request_changes"))
+            resume_action = str(entry.get("resume_action", "approve"))
+            required_event_type = str(entry.get("required_event_type", "task.handoff_submitted"))
+            required_role = entry.get("required_role")
+            require_non_orchestrator = bool(entry.get("require_non_orchestrator", True))
+
+            request_index = next(
+                (
+                    index
+                    for index, actual in enumerate(event_list)
+                    if actual.get("type") == f"stage.gate.{request_action}"
+                    and isinstance(actual.get("data"), dict)
+                    and actual["data"].get("stage_name") == stage_name
+                ),
+                None,
+            )
+            resume_index = next(
+                (
+                    index
+                    for index, actual in enumerate(event_list)
+                    if request_index is not None
+                    and index > request_index
+                    and actual.get("type") == f"stage.gate.{resume_action}"
+                    and isinstance(actual.get("data"), dict)
+                    and actual["data"].get("stage_name") == stage_name
+                ),
+                None,
+            )
+
+            matched = False
+            if request_index is not None and resume_index is not None:
+                for actual in event_list[request_index + 1 : resume_index]:
+                    data = actual.get("data")
+                    if not isinstance(data, dict):
+                        continue
+                    if actual.get("type") != required_event_type:
+                        continue
+                    if data.get("stage_name") != stage_name:
+                        continue
+                    role = data.get("role")
+                    if require_non_orchestrator and role == "orchestrator":
+                        continue
+                    if required_role is not None and role != required_role:
+                        continue
+                    matched = True
+                    break
+
+            check_name = (
+                f"gate_rework_sequences:{stage_name}:{request_action}->{required_event_type}->{resume_action}"
+            )
+            checks.append({"name": check_name, "passed": matched})
+            if not matched:
+                failures.append(
+                    f"expected {required_event_type!r} for stage {stage_name!r} between "
+                    f"stage.gate.{request_action} and stage.gate.{resume_action}"
+                )
 
     return {
         "passed": len(failures) == 0,
@@ -502,7 +577,7 @@ def main() -> None:
     )
     events_snapshot = client.best_effort_request(
         "GET",
-        f"/api/v1/workflows/{workflow_id}/events",
+        f"/api/v1/workflows/{workflow_id}/events?per_page=500",
         expected=(200,),
         label="workflows.events",
     )
@@ -536,6 +611,7 @@ def main() -> None:
         workspace=workspace_snapshot,
         artifacts=artifacts_snapshot,
         approval_actions=approval_actions,
+        events=events_snapshot,
     )
     print(
         json.dumps(
