@@ -1078,14 +1078,13 @@ func TestComputeWarmScaleUpNoActiveWorkflows(t *testing.T) {
 	}
 }
 
-func TestComputeWarmScaleUpIgnoresPendingTasks(t *testing.T) {
-	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 2, 0, 10)
+func TestComputeWarmScaleUpScalesToPendingTasks(t *testing.T) {
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 3, 10)
 	target.PoolMode = "warm"
 	target.ActiveWorkflows = 1
-	target.PendingTasks = 0
 	got := computeScaleUp(target, 0, 10)
-	if got != 1 {
-		t.Errorf("expected 1 (warm uses active_workflows, ignores pending_tasks), got %d", got)
+	if got != 3 {
+		t.Errorf("expected 3 (warm scales to current pending work up to max_runtimes), got %d", got)
 	}
 }
 
@@ -1096,6 +1095,16 @@ func TestComputeWarmScaleUpCappedByCapacity(t *testing.T) {
 	got := computeScaleUp(target, 0, 2)
 	if got != 2 {
 		t.Errorf("expected 2 (capped by capacity), got %d", got)
+	}
+}
+
+func TestComputeWarmScaleUpKeepsWorkflowFloorWhenNoPendingTasks(t *testing.T) {
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 0, 10)
+	target.PoolMode = "warm"
+	target.ActiveWorkflows = 2
+	got := computeScaleUp(target, 0, 10)
+	if got != 2 {
+		t.Errorf("expected 2 (warm keeps floor for active workflows), got %d", got)
 	}
 }
 
