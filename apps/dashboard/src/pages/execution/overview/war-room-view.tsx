@@ -1,6 +1,6 @@
 import { WorkflowStatusRow, type WorkflowStatusRowWorkflow } from './workflow-status-row.js';
 import { FleetStatusCard } from './fleet-status-card.js';
-import { LiveFeedCard } from './live-feed-card.js';
+import { LiveFeedCard, type TaskNameMap } from './live-feed-card.js';
 import { CostTicker } from './cost-ticker.js';
 import { EmptyState } from '../../../components/ui/empty-state.js';
 import type { ControlMode } from '../execution-canvas-support.js';
@@ -27,6 +27,7 @@ export interface WarRoomViewProps {
   onSelectWorkflow: (workflowId: string) => void;
   controlMode?: ControlMode;
   onWorkflowAction?: (workflowId: string, action: string) => void;
+  taskNameMap?: TaskNameMap;
 }
 
 function attentionRank(workflow: WorkflowStatusRowWorkflow): number {
@@ -49,6 +50,7 @@ export function WarRoomView({
   onSelectWorkflow,
   controlMode,
   onWorkflowAction,
+  taskNameMap,
 }: WarRoomViewProps) {
   if (workflows.length === 0) {
     return (
@@ -77,7 +79,7 @@ export function WarRoomView({
 
       <div className="flex flex-col gap-3 lg:flex-[0_0_35%]">
         <FleetStatusCard workers={workers} />
-        <LiveFeedCard events={events} />
+        <LiveFeedCard events={events} taskNameMap={taskNameMap} />
         <CostTicker spendUsd={spendUsd} tokenCount={tokenCount} />
       </div>
     </div>

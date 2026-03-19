@@ -14,12 +14,14 @@ import {
   LogOut,
   Menu,
   Monitor,
+  Moon,
   ScrollText,
   Search,
   Server,
   Settings2,
   Shield,
   Sparkles,
+  Sun,
   Timer,
   Users,
   Webhook,
@@ -31,6 +33,7 @@ import {
 
 import { dashboardApi, type DashboardSearchResult } from '../lib/api.js';
 import { readSession, clearSession } from '../lib/session.js';
+import { readTheme, applyTheme, type ThemeMode } from '../app/theme.js';
 import { cn } from '../lib/utils.js';
 import { BreadcrumbBar } from './breadcrumb-bar.js';
 import {
@@ -174,6 +177,7 @@ export function DashboardLayout(): JSX.Element {
   const [recentPaletteItems, setRecentPaletteItems] = useState<CommandPaletteItem[]>(
     () => readRecentCommandPaletteItems(),
   );
+  const [theme, setTheme] = useState<ThemeMode>(() => readTheme());
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const desktopSearchButtonRef = useRef<HTMLButtonElement | null>(null);
   const mobileMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -185,6 +189,14 @@ export function DashboardLayout(): JSX.Element {
   const mobileMenuRestoreFocusRef = useRef<HTMLElement | null>(null);
   const skipMobileMenuRestoreRef = useRef(false);
   const searchRequestRef = useRef(0);
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  function toggleTheme(): void {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  }
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -466,17 +478,28 @@ export function DashboardLayout(): JSX.Element {
             <img src="/logo.svg" alt="" className="h-7 w-7" />
             <span className="text-lg font-semibold">AGI Runner</span>
           </div>
-          {isMobile ? (
+          <div className="flex items-center gap-1">
             <button
-              ref={mobileMenuCloseButtonRef}
               type="button"
-              onClick={closeMobileMenu}
+              onClick={toggleTheme}
               className={ICON_BUTTON_CLASSES}
-              aria-label="Close navigation menu"
+              aria-label={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+              title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
             >
-              <X size={16} />
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
-          ) : null}
+            {isMobile ? (
+              <button
+                ref={mobileMenuCloseButtonRef}
+                type="button"
+                onClick={closeMobileMenu}
+                className={ICON_BUTTON_CLASSES}
+                aria-label="Close navigation menu"
+              >
+                <X size={16} />
+              </button>
+            ) : null}
+          </div>
         </div>
 
         <div className="px-3 py-2">

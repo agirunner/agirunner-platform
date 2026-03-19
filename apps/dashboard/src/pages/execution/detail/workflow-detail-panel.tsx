@@ -15,6 +15,7 @@ interface WorkflowSummary {
   activeAgents?: number;
   costUsd?: number;
   elapsedMs?: number;
+  pendingActionCount?: number;
 }
 
 interface BreadcrumbEntry {
@@ -40,6 +41,23 @@ function LiveDot() {
       title="Live"
       className="inline-block w-2 h-2 rounded-full shrink-0 bg-[var(--color-status-success)] animate-pulse"
     />
+  );
+}
+
+function PendingActionsBadge({ count }: { count: number }) {
+  if (count <= 0) return null;
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 cursor-default"
+      style={{
+        color: 'var(--color-status-warning)',
+        backgroundColor: 'color-mix(in srgb, var(--color-status-warning) 15%, transparent)',
+        border: '1px solid color-mix(in srgb, var(--color-status-warning) 30%, transparent)',
+      }}
+      title={`${count} pending action${count > 1 ? 's' : ''}`}
+    >
+      {count} pending
+    </span>
   );
 }
 
@@ -179,6 +197,7 @@ export function WorkflowDetailPanel({
                   </span>
                 )}
                 {isLive && <LiveDot />}
+                <PendingActionsBadge count={workflow.pendingActionCount ?? 0} />
               </div>
               <StatusBar workflow={workflow} />
             </div>

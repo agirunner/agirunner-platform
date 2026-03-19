@@ -233,19 +233,34 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
       tasksByWorkflow.set(t.workflow_id, list);
     }
 
-    // Build approval lookup by workflow
+    // Build approval and escalation counts by workflow
     const approvals = approvalsQuery.data as DashboardApprovalQueueResponse | undefined;
     const gateWorkflowIds = new Set<string>();
+    const escalationsByWorkflow = new Map<string, number>();
+    const approvalsByWorkflow = new Map<string, number>();
     if (approvals) {
       for (const gate of approvals.stage_gates) {
         if (gate.gate_status === 'pending' || gate.gate_status === 'awaiting_human') {
           gateWorkflowIds.add(gate.workflow_id);
+          approvalsByWorkflow.set(gate.workflow_id, (approvalsByWorkflow.get(gate.workflow_id) ?? 0) + 1);
         }
       }
       for (const task of approvals.task_approvals) {
         if (task.workflow_id && (task.state === 'output_pending_review' || task.state === 'escalated')) {
           gateWorkflowIds.add(task.workflow_id);
+          if (task.state === 'escalated') {
+            escalationsByWorkflow.set(task.workflow_id, (escalationsByWorkflow.get(task.workflow_id) ?? 0) + 1);
+          } else {
+            approvalsByWorkflow.set(task.workflow_id, (approvalsByWorkflow.get(task.workflow_id) ?? 0) + 1);
+          }
         }
+      }
+    }
+
+    // Also count escalated tasks from the task list
+    for (const t of taskData) {
+      if (t.workflow_id !== null && t.state === 'escalated') {
+        escalationsByWorkflow.set(t.workflow_id, (escalationsByWorkflow.get(t.workflow_id) ?? 0) + 1);
       }
     }
 
@@ -273,6 +288,8 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
         agentRoles: activeRoles,
         needsAttention: w.state === 'failed' || hasFailedTask,
         gateWaiting: gateWorkflowIds.has(w.id),
+        escalationCount: escalationsByWorkflow.get(w.id) ?? 0,
+        pendingApprovalCount: approvalsByWorkflow.get(w.id) ?? 0,
       };
     });
   }, [workflowsQuery.data, tasksQuery.data, approvalsQuery.data]);
@@ -297,6 +314,16 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
     const raw = (workersQuery.data ?? []) as WorkerRecord[];
     return raw.map((w) => ({ status: w.status ?? 'offline' }));
   }, [workersQuery.data]);
+
+  // Task name lookup for enriching feed events
+  const taskNameMap = useMemo(() => {
+    const map = new Map<string, { title: string; role: string }>();
+    const rawTasks = (tasksQuery.data as { data?: Array<{ id: string; title: string; role?: string }> })?.data ?? [];
+    for (const t of rawTasks) {
+      map.set(t.id, { title: t.title, role: t.role ?? '' });
+    }
+    return map;
+  }, [tasksQuery.data]);
 
   // Events: listEvents returns DashboardEventPage { data, meta }
   const events = useMemo(() => {
@@ -466,6 +493,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
               onSelectWorkflow(id, w?.name ?? 'Workflow');
             }}
             controlMode={canvasState.controlMode}
+            taskNameMap={taskNameMap}
           />
         );
       case 'dashboard-grid':
@@ -478,6 +506,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
               const w = workflows.find((wf) => wf.id === id);
               onSelectWorkflow(id, w?.name ?? 'Workflow');
             }}
+            taskNameMap={taskNameMap}
           />
         );
       case 'timeline-lanes':
@@ -573,6 +602,7 @@ export function ExecutionCanvas({ initialAction }: ExecutionCanvasProps): JSX.El
             name: focusedWorkflow.name,
             state: focusedWorkflow.state,
             currentStage: focusedWorkflow.currentStage,
+            pendingActionCount: (focusedWorkflow.escalationCount ?? 0) + (focusedWorkflow.pendingApprovalCount ?? 0),
           }}
           depthLevel={canvasState.depthLevel}
           onDepthChange={(level) => {

@@ -10,6 +10,7 @@ import {
   resolveAuthCallbackRedirect,
 } from '../lib/auth-session.js';
 import { clearSession, readSession } from '../lib/session.js';
+import { applyTheme, readTheme } from './theme.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
@@ -159,6 +160,10 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryS
 }
 
 export function App(): JSX.Element {
+  useEffect(() => {
+    applyTheme(readTheme());
+  }, []);
+
   return (
     <AppErrorBoundary>
     <Suspense fallback={<PageFallback />}>

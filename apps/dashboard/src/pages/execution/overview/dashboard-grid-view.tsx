@@ -1,6 +1,6 @@
 import { cn } from '../../../lib/utils.js';
 import { MetricCard } from './metric-card.js';
-import { formatEventSummary } from './live-feed-card.js';
+import { formatEventSummary, type TaskNameMap } from './live-feed-card.js';
 
 const MAX_RECENT_EVENTS = 10;
 
@@ -24,6 +24,7 @@ export interface DashboardGridViewProps {
   events: FeedEvent[];
   spendUsd: number;
   onSelectWorkflow: (workflowId: string) => void;
+  taskNameMap?: TaskNameMap;
 }
 
 export interface Metrics {
@@ -65,8 +66,8 @@ function formatRelativeTime(createdAt: string): string {
   return `${Math.floor(diffMin / 60)}h ago`;
 }
 
-function formatEventLabel(event: FeedEvent): string {
-  return formatEventSummary(event);
+function formatEventLabel(event: FeedEvent, taskNames?: TaskNameMap): string {
+  return formatEventSummary(event, taskNames);
 }
 
 function AttentionList({ workflows, onSelect }: { workflows: Workflow[]; onSelect: (id: string) => void }): JSX.Element {
@@ -111,7 +112,7 @@ function AttentionList({ workflows, onSelect }: { workflows: Workflow[]; onSelec
   );
 }
 
-function RecentActivity({ events }: { events: FeedEvent[] }): JSX.Element {
+function RecentActivity({ events, taskNameMap }: { events: FeedEvent[]; taskNameMap?: TaskNameMap }): JSX.Element {
   const visible = events.slice(0, MAX_RECENT_EVENTS);
 
   if (visible.length === 0) {
@@ -127,7 +128,7 @@ function RecentActivity({ events }: { events: FeedEvent[] }): JSX.Element {
       {visible.map(event => (
         <div key={event.id} className="flex items-center gap-2 group">
           <div className="flex-1 text-xs text-[var(--color-text-secondary)] truncate group-hover:text-[var(--color-text-primary)] transition-colors duration-150">
-            {formatEventLabel(event)}
+            {formatEventLabel(event, taskNameMap)}
           </div>
           <div className="text-[10px] text-[var(--color-text-tertiary)] shrink-0 tabular-nums">
             {formatRelativeTime(event.createdAt)}
@@ -138,7 +139,7 @@ function RecentActivity({ events }: { events: FeedEvent[] }): JSX.Element {
   );
 }
 
-export function DashboardGridView({ workflows, events, spendUsd, onSelectWorkflow }: DashboardGridViewProps): JSX.Element {
+export function DashboardGridView({ workflows, events, spendUsd, onSelectWorkflow, taskNameMap }: DashboardGridViewProps): JSX.Element {
   const metrics = computeMetrics(workflows, spendUsd);
 
   return (
@@ -161,7 +162,7 @@ export function DashboardGridView({ workflows, events, spendUsd, onSelectWorkflo
         <div className="text-[11px] font-semibold text-[var(--color-text-tertiary)] uppercase tracking-wider mb-3">
           Recent Activity
         </div>
-        <RecentActivity events={events} />
+        <RecentActivity events={events} taskNameMap={taskNameMap} />
       </div>
     </div>
   );

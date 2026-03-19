@@ -59,4 +59,25 @@ describe('formatEventSummary', () => {
     const event = { type: 'task.completed' };
     expect(formatEventSummary(event)).toBe('Task completed: unknown task');
   });
+
+  it('enriches task state change from taskNameMap', () => {
+    const taskNames = new Map([['t1', { title: 'Write tests', role: 'qa' }]]);
+    const event = { type: 'task.state_changed', data: { to_state: 'in_progress', task_id: 't1' } };
+    const result = formatEventSummary(event, taskNames);
+    expect(result).toContain('Write tests');
+    expect(result).toContain('qa');
+  });
+
+  it('shows escalation reason for agent_escalated events', () => {
+    const event = { type: 'task.agent_escalated', data: { reason: 'Need human review' } };
+    const result = formatEventSummary(event);
+    expect(result).toContain('Need human review');
+  });
+
+  it('falls back when taskNameMap has no entry for task_id', () => {
+    const taskNames = new Map<string, { title: string; role: string }>();
+    const event = { type: 'task.state_changed', data: { to_state: 'completed', task_id: 'unknown' } };
+    const result = formatEventSummary(event, taskNames);
+    expect(result).toBe('Task completed');
+  });
 });

@@ -30,6 +30,8 @@ export interface WorkflowStatusRowWorkflow {
   agentRoles?: string[];
   needsAttention?: boolean;
   gateWaiting?: boolean;
+  escalationCount?: number;
+  pendingApprovalCount?: number;
 }
 
 interface WorkflowStatusRowProps {
@@ -63,12 +65,21 @@ function formatWorkItemProgress(summary?: WorkItemSummary): string | null {
   return `${open}/${summary.total_work_items} open`;
 }
 
+function formatAttentionBadge(workflow: WorkflowStatusRowWorkflow): string | null {
+  const escalations = workflow.escalationCount ?? 0;
+  const approvals = workflow.pendingApprovalCount ?? 0;
+  if (escalations > 0) return `${escalations} escalation${escalations > 1 ? 's' : ''}`;
+  if (workflow.gateWaiting || approvals > 0) return 'Gate review needed';
+  return null;
+}
+
 const ACTIONABLE_STATES = new Set(['active', 'paused']);
 
 export function WorkflowStatusRow({ workflow, onClick, controlMode, onAction }: WorkflowStatusRowProps): JSX.Element {
   const borderColor = getStatusColor(workflow);
   const taskProgress = formatTaskProgress(workflow.taskCounts);
   const workItemProgress = formatWorkItemProgress(workflow.workItemSummary);
+  const attentionLabel = formatAttentionBadge(workflow);
 
   return (
     <div
@@ -94,6 +105,16 @@ export function WorkflowStatusRow({ workflow, onClick, controlMode, onAction }: 
           {workflow.playbookName && (
             <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-[var(--color-bg-tertiary)] text-[var(--color-text-tertiary)] font-medium">
               {workflow.playbookName}
+            </span>
+          )}
+          {attentionLabel && (
+            <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase tracking-wide"
+              style={{
+                color: 'var(--color-status-warning)',
+                backgroundColor: 'color-mix(in srgb, var(--color-status-warning) 15%, transparent)',
+              }}
+            >
+              {attentionLabel}
             </span>
           )}
         </div>
