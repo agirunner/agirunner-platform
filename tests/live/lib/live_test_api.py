@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -19,6 +20,10 @@ SENSITIVE_KEYS = {
     "secret_ref",
     "token",
 }
+SAFE_READ_METHODS = {"GET", "HEAD", "OPTIONS"}
+TRANSIENT_HTTP_STATUS_CODES = {502, 503, 504}
+DEFAULT_SAFE_READ_MAX_ATTEMPTS = 24
+DEFAULT_SAFE_READ_RETRY_DELAY_SECONDS = 5.0
 
 
 def _timestamp() -> str:
@@ -80,14 +85,25 @@ class ApiClient:
         base_url: str,
         trace: TraceRecorder | None = None,
         default_headers: dict[str, str] | None = None,
+        *,
+        safe_read_max_attempts: int = DEFAULT_SAFE_READ_MAX_ATTEMPTS,
+        safe_read_retry_delay_seconds: float = DEFAULT_SAFE_READ_RETRY_DELAY_SECONDS,
     ):
         self.base_url = base_url.rstrip("/")
         self.trace = trace
         self.default_headers = default_headers or {}
+        self.safe_read_max_attempts = max(1, safe_read_max_attempts)
+        self.safe_read_retry_delay_seconds = max(0.0, safe_read_retry_delay_seconds)
 
     def with_bearer_token(self, token: str) -> "ApiClient":
         headers = {**self.default_headers, "authorization": f"Bearer {token}"}
-        return ApiClient(self.base_url, self.trace, headers)
+        return ApiClient(
+            self.base_url,
+            self.trace,
+            headers,
+            safe_read_max_attempts=self.safe_read_max_attempts,
+            safe_read_retry_delay_seconds=self.safe_read_retry_delay_seconds,
+        )
 
     def request(
         self,
@@ -117,19 +133,33 @@ class ApiClient:
                 }
             )
 
-        try:
-            with urllib.request.urlopen(request, timeout=60) as response:
-                response_body = response.read().decode("utf-8")
+        attempts = self._attempt_budget(method)
+        for attempt in range(1, attempts + 1):
+            try:
+                with urllib.request.urlopen(request, timeout=60) as response:
+                    response_body = response.read().decode("utf-8")
+                    parsed_body = _parse_body(response_body)
+                    self._record_response(label or path, method, path, response.status, parsed_body)
+                    if response.status not in expected:
+                        raise ApiError(f"{method} {path} returned unexpected status {response.status}")
+                    return parsed_body
+            except urllib.error.HTTPError as error:
+                response_body = error.read().decode("utf-8")
                 parsed_body = _parse_body(response_body)
-                self._record_response(label or path, method, path, response.status, parsed_body)
-                if response.status not in expected:
-                    raise ApiError(f"{method} {path} returned unexpected status {response.status}")
-                return parsed_body
-        except urllib.error.HTTPError as error:
-            response_body = error.read().decode("utf-8")
-            parsed_body = _parse_body(response_body)
-            self._record_response(label or path, method, path, error.code, parsed_body)
-            raise ApiError(f"{method} {path} returned {error.code}: {parsed_body}") from error
+                self._record_response(label or path, method, path, error.code, parsed_body)
+                if self._should_retry_http_error(method, error.code, attempt, attempts):
+                    self._record_retry(label or path, method, path, attempt, attempts, f"http:{error.code}")
+                    time.sleep(self.safe_read_retry_delay_seconds)
+                    continue
+                raise ApiError(f"{method} {path} returned {error.code}: {parsed_body}") from error
+            except urllib.error.URLError as error:
+                self._record_transport_error(label or path, method, path, error)
+                if self._should_retry_url_error(method, attempt, attempts):
+                    self._record_retry(label or path, method, path, attempt, attempts, f"url:{error}")
+                    time.sleep(self.safe_read_retry_delay_seconds)
+                    continue
+                raise ApiError(f"{method} {path} transport failed: {error}") from error
+        raise ApiError(f"{method} {path} exhausted retry budget")
 
     def best_effort_request(
         self,
@@ -158,6 +188,58 @@ class ApiClient:
                 "body": redact_json(body),
             }
         )
+
+    def _record_transport_error(self, label: str, method: str, path: str, error: urllib.error.URLError) -> None:
+        if self.trace is None:
+            return
+        self.trace.record(
+            {
+                "event": "http.transport_error",
+                "label": label,
+                "method": method,
+                "path": path,
+                "error": str(error),
+            }
+        )
+
+    def _record_retry(
+        self,
+        label: str,
+        method: str,
+        path: str,
+        attempt: int,
+        attempts: int,
+        reason: str,
+    ) -> None:
+        if self.trace is None:
+            return
+        self.trace.record(
+            {
+                "event": "http.retry",
+                "label": label,
+                "method": method,
+                "path": path,
+                "attempt": attempt,
+                "max_attempts": attempts,
+                "retry_delay_seconds": self.safe_read_retry_delay_seconds,
+                "reason": reason,
+            }
+        )
+
+    def _attempt_budget(self, method: str) -> int:
+        if method.upper() not in SAFE_READ_METHODS:
+            return 1
+        return self.safe_read_max_attempts
+
+    def _should_retry_http_error(self, method: str, status_code: int, attempt: int, attempts: int) -> bool:
+        return (
+            method.upper() in SAFE_READ_METHODS
+            and attempt < attempts
+            and status_code in TRANSIENT_HTTP_STATUS_CODES
+        )
+
+    def _should_retry_url_error(self, method: str, attempt: int, attempts: int) -> bool:
+        return method.upper() in SAFE_READ_METHODS and attempt < attempts
 
 
 def _parse_body(body: str) -> Any:
