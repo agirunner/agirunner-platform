@@ -424,6 +424,137 @@ describe('orchestratorControlRoutes', () => {
     expect(response.json().data.nextExpectedAction).toBe(longAction);
   });
 
+  it('resolves continuity work item from active subordinate tasks when the orchestrator task is workflow-scoped', async () => {
+    const activeTaskId = '11111111-1111-4111-8111-111111111111';
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'continuity_write', 'cont-infer-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes('WHERE tenant_id = $1')
+          && sql.includes('AND id = $2')
+          && !sql.includes('ANY($3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'task-replay']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-replay',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: null,
+              stage_name: 'requirements',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('ANY($3::uuid[])')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', [activeTaskId]]);
+          return {
+            rowCount: 1,
+            rows: [{ work_item_id: 'work-item-1' }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'work-item-1',
+            'live-test-product-manager',
+            'Complete the active PRD task and upload requirements/prd.md.',
+            {
+              orchestrator_finish_state: {
+                status_summary: 'PRD drafting is already in progress.',
+                next_expected_event: 'task.handoff_submitted',
+                active_subordinate_tasks: [activeTaskId],
+              },
+            },
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              next_expected_actor: 'live-test-product-manager',
+              next_expected_action: 'Complete the active PRD task and upload requirements/prd.md.',
+              metadata: {
+                orchestrator_finish_state: {
+                  status_summary: 'PRD drafting is already in progress.',
+                  next_expected_event: 'task.handoff_submitted',
+                  active_subordinate_tasks: [activeTaskId],
+                },
+              },
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                nextExpectedActor: 'live-test-product-manager',
+                nextExpectedAction: 'Complete the active PRD task and upload requirements/prd.md.',
+                continuity: {
+                  status_summary: 'PRD drafting is already in progress.',
+                  next_expected_event: 'task.handoff_submitted',
+                  active_subordinate_tasks: ['task-specialist-1'],
+                },
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => ({
+        query: pool.query,
+        release: vi.fn(),
+      })),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-replay/continuity',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'cont-infer-1',
+        next_expected_actor: 'live-test-product-manager',
+        next_expected_action: 'Complete the active PRD task and upload requirements/prd.md.',
+        status_summary: 'PRD drafting is already in progress.',
+        next_expected_event: 'task.handoff_submitted',
+        active_subordinate_tasks: [activeTaskId],
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.nextExpectedAction).toBe(
+      'Complete the active PRD task and upload requirements/prd.md.',
+    );
+  });
+
   it('accepts create_work_item without column_id so the playbook intake lane can apply', async () => {
     const workflowService = {
       createWorkflowWorkItem: vi.fn(async () => ({

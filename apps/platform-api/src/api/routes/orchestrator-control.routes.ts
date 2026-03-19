@@ -200,7 +200,8 @@ const orchestratorContinuityWriteSchema = z.object({
   active_subordinate_tasks: z.array(z.string().min(1).max(255)).max(100).optional(),
 }).strict();
 
-const workItemIdParamSchema = z.string().uuid();
+const uuidParamSchema = z.string().uuid();
+const workItemIdParamSchema = uuidParamSchema;
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
@@ -215,6 +216,54 @@ function parseWorkItemIdOrThrow(value: string): string {
     throw new ValidationError('work_item_id must be a valid uuid');
   }
   return parsed.data;
+}
+
+function normalizeUUIDList(values: string[] | undefined): string[] {
+  if (!Array.isArray(values)) {
+    return [];
+  }
+  return [...new Set(values
+    .map((value) => uuidParamSchema.safeParse(value))
+    .filter((parsed): parsed is z.SafeParseSuccess<string> => parsed.success)
+    .map((parsed) => parsed.data))];
+}
+
+async function resolveContinuityWorkItemId(
+  app: FastifyInstance,
+  tenantId: string,
+  taskScope: ActiveOrchestratorTaskScope,
+  body: z.infer<typeof orchestratorContinuityWriteSchema>,
+): Promise<string> {
+  if (body.work_item_id) {
+    return body.work_item_id;
+  }
+  if (taskScope.work_item_id) {
+    return taskScope.work_item_id;
+  }
+
+  const subordinateTaskIds = normalizeUUIDList(body.active_subordinate_tasks);
+  if (subordinateTaskIds.length > 0) {
+    const result = await app.pgPool.query<{ work_item_id: string }>(
+      `SELECT DISTINCT work_item_id
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = ANY($3::uuid[])
+          AND work_item_id IS NOT NULL`,
+      [tenantId, taskScope.workflow_id, subordinateTaskIds],
+    );
+    const resolvedCount = result.rowCount ?? result.rows.length;
+    if (resolvedCount === 1) {
+      return result.rows[0].work_item_id;
+    }
+    if (resolvedCount > 1) {
+      throw new ValidationError(
+        'This continuity update spans multiple work items; specify work_item_id explicitly',
+      );
+    }
+  }
+
+  throw new ValidationError('This task is not linked to a work item');
 }
 
 const workspaceMemoryDeleteQuerySchema = z.object({
@@ -925,10 +974,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         request.auth!,
         params.taskId,
       );
-      const workItemId = body.work_item_id ?? taskScope.work_item_id;
-      if (!workItemId) {
-        throw new ValidationError('This task is not linked to a work item');
-      }
+      const workItemId = await resolveContinuityWorkItemId(
+        app,
+        request.auth!.tenantId,
+        taskScope,
+        body,
+      );
       const stored = await runIdempotentMutation(
         app,
         toolResultService,
