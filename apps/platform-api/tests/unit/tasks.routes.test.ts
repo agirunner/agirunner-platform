@@ -3,8 +3,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 
+const mockWithAllowedScopes = vi.fn((scopes: string[]) => async () => {});
+
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
-  authenticateApiKey: async (request: { auth?: unknown }) => {
+  authenticateApiKey: vi.fn(async (request: { auth?: unknown }) => {
     request.auth = {
       id: 'key-1',
       tenantId: 'tenant-1',
@@ -13,9 +15,9 @@ vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
       ownerId: 'agent-1',
       keyPrefix: 'agent-1',
     };
-  },
+  }),
   withScope: () => async () => {},
-  withAllowedScopes: () => async () => {},
+  withAllowedScopes: (scopes: string[]) => mockWithAllowedScopes(scopes),
 }));
 
 describe('tasks routes', () => {
@@ -23,6 +25,7 @@ describe('tasks routes', () => {
 
   beforeEach(() => {
     vi.resetAllMocks();
+    mockWithAllowedScopes.mockImplementation(() => async () => {});
   });
 
   afterEach(async () => {
@@ -844,6 +847,21 @@ describe('tasks routes', () => {
     expect(second.statusCode).toBe(200);
     expect(completeTask).toHaveBeenCalledTimes(1);
     expect(second.json()).toEqual(first.json());
+  });
+
+  it('registers PATCH /api/v1/tasks/:id with admin scope allowed', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', createTaskService() as never);
+
+    await app.register(taskRoutes);
+
+    const patchScopeCall = mockWithAllowedScopes.mock.calls.find(
+      ([scopes]) => Array.isArray(scopes) && scopes.includes('worker') && scopes.includes('admin'),
+    );
+    expect(patchScopeCall).toBeDefined();
   });
 });
 
