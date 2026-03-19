@@ -52,7 +52,7 @@ function resolvePersistentSession(
     return false;
   }
 
-  return session.persistentSession;
+  return session.persistentSession ?? false;
 }
 
 export function completeSsoBrowserSession(
