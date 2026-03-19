@@ -80,6 +80,11 @@ interface WorkflowStageContextRow {
   definition: unknown;
 }
 
+interface NonTerminalTaskStateCountRow {
+  state: string;
+  count: number;
+}
+
 const WORK_ITEM_BASE_COLUMNS = [
   'id',
   'workflow_id',
@@ -455,21 +460,16 @@ export class WorkItemService {
       return;
     }
 
-    if (!shouldAutoClosePredecessorCheckpoint(definition, predecessor.stage_name, successorStageName)) {
+    if (predecessor.stage_name === successorStageName) {
       return;
     }
 
-    const nonTerminalTaskCount = await this.countNonTerminalWorkItemTasks(
-      tenantId,
-      workflowId,
-      parentWorkItemId,
-      client,
-    );
-    if (nonTerminalTaskCount > 0) {
+    const expectedSuccessorStageName = nextStageNameFor(definition, predecessor.stage_name);
+    if (!expectedSuccessorStageName || successorStageName !== expectedSuccessorStageName) {
       throw new ValidationError(
-        `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
-          `'${predecessor.title}' (${predecessor.stage_name}) still has non-terminal tasks. ` +
-          `Wait for the current checkpoint task to finish before routing to the next stage.`,
+        `Cannot create successor work item in stage '${successorStageName}' from predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}). Expected the next planned stage ` +
+          `'${expectedSuccessorStageName ?? 'none'}'.`,
       );
     }
 
@@ -485,6 +485,20 @@ export class WorkItemService {
         `Cannot create successor work item in stage '${successorStageName}' before predecessor ` +
           `'${predecessor.title}' (${predecessor.stage_name}) has a full handoff. ` +
           `Wait for the checkpoint specialist to complete and submit the handoff first.`,
+      );
+    }
+
+    const nonTerminalTaskStates = await this.loadNonTerminalWorkItemTaskStateCounts(
+      tenantId,
+      workflowId,
+      parentWorkItemId,
+      client,
+    );
+    if (shouldBlockSuccessorCheckpointForOpenTasks(definition, predecessor.stage_name, nonTerminalTaskStates)) {
+      throw new ValidationError(
+        `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}) still has non-terminal tasks. ` +
+          `Wait for the current checkpoint task to finish before routing to the next stage.`,
       );
     }
   }
@@ -665,6 +679,28 @@ export class WorkItemService {
       [tenantId, workflowId, workItemId],
     );
     return taskResult.rows[0]?.count ?? 0;
+  }
+
+  private async loadNonTerminalWorkItemTaskStateCounts(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    client: DatabaseClient,
+  ) {
+    const taskResult = await client.query<NonTerminalTaskStateCountRow>(
+      `SELECT state, COUNT(*)::int AS count
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id = $3
+          AND state NOT IN ('completed', 'failed', 'cancelled')
+        GROUP BY state`,
+      [tenantId, workflowId, workItemId],
+    );
+    return taskResult.rows.reduce((counts, row) => {
+      counts.set(row.state, row.count);
+      return counts;
+    }, new Map<string, number>());
   }
 
   private async loadWorkflowForUpdate(
@@ -852,7 +888,52 @@ function shouldAutoClosePredecessorCheckpoint(
   if (predecessorIndex < 0 || successorIndex < 0) {
     return false;
   }
-  return successorIndex > predecessorIndex;
+  return successorIndex === predecessorIndex + 1;
+}
+
+function nextStageNameFor(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  currentStageName: string | null,
+) {
+  if (!currentStageName) {
+    return null;
+  }
+  const currentIndex = definition.stages.findIndex((stage) => stage.name === currentStageName);
+  if (currentIndex < 0) {
+    return null;
+  }
+  return definition.stages[currentIndex + 1]?.name ?? null;
+}
+
+function shouldBlockSuccessorCheckpointForOpenTasks(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  predecessorStageName: string | null,
+  taskStateCounts: Map<string, number>,
+) {
+  if (taskStateCounts.size === 0) {
+    return false;
+  }
+
+  const nonReviewReadyStates = Array.from(taskStateCounts.keys()).filter(
+    (state) => state !== 'output_pending_review',
+  );
+  if (nonReviewReadyStates.length > 0) {
+    return true;
+  }
+
+  return !checkpointRequiresMandatoryReview(definition, predecessorStageName);
+}
+
+function checkpointRequiresMandatoryReview(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  checkpointName: string | null,
+) {
+  if (!checkpointName) {
+    return false;
+  }
+  return definition.review_rules.some(
+    (rule) => rule.required !== false && (!rule.checkpoint || rule.checkpoint === checkpointName),
+  );
 }
 
 function terminalColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition>) {

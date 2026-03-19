@@ -82,7 +82,7 @@ describe('reconcilePlannedWorkflowStages', () => {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('SELECT ws.id')) {
           return {
-            rowCount: 2,
+            rowCount: 3,
             rows: [
               {
                 id: 'stage-1',
@@ -117,9 +117,28 @@ describe('reconcilePlannedWorkflowStages', () => {
                 summary: null,
                 started_at: null,
                 completed_at: null,
-                open_work_item_count: 0,
-                total_work_item_count: 0,
-                first_work_item_at: null,
+                open_work_item_count: 1,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-11T01:00:00Z'),
+                last_completed_work_item_at: null,
+              },
+              {
+                id: 'stage-3',
+                lifecycle: 'planned',
+                name: 'release',
+                position: 2,
+                goal: 'Release',
+                guidance: null,
+                human_gate: true,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 1,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-11T02:00:00Z'),
                 last_completed_work_item_at: null,
               },
             ],
@@ -144,6 +163,11 @@ describe('reconcilePlannedWorkflowStages', () => {
         }),
         expect.objectContaining({
           name: 'review',
+          status: 'pending',
+          is_active: false,
+        }),
+        expect.objectContaining({
+          name: 'release',
           status: 'pending',
           is_active: false,
         }),

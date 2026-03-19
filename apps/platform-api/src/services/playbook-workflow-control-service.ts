@@ -460,9 +460,16 @@ export class PlaybookWorkflowControlService {
 
     const definition = parsePlaybookDefinition(workflow.definition);
     const sourceStage = await this.loadStage(identity.tenantId, workflowId, stageName, db);
-    const nextStageName = input.to_stage_name ?? nextStageNameFor(definition, sourceStage.name);
-    if (!nextStageName) {
+    const expectedNextStageName = nextStageNameFor(definition, sourceStage.name);
+    if (!expectedNextStageName) {
       throw new ValidationError('No next stage is available; use complete_workflow for the final stage');
+    }
+    const nextStageName = input.to_stage_name ?? expectedNextStageName;
+    if (nextStageName !== expectedNextStageName) {
+      throw new ValidationError(
+        `Stage '${stageName}' may only advance to the immediate next planned stage ` +
+          `'${expectedNextStageName}', not '${nextStageName}'.`,
+      );
     }
     if (workflow.active_stage_name !== sourceStage.name) {
       if (isIdempotentStageAdvance(workflow.active_stage_name, sourceStage, nextStageName)) {

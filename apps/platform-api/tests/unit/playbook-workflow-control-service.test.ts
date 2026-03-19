@@ -2270,6 +2270,62 @@ describe('PlaybookWorkflowControlService', () => {
     expect(loadStage).toHaveBeenCalled();
   });
 
+  it('rejects explicit stage advances that skip the immediate next planned stage', async () => {
+    const service = new PlaybookWorkflowControlService({
+      pool: {} as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+    const loadWorkflow = vi.spyOn(service as never, 'loadWorkflow').mockResolvedValue({
+      id: 'workflow-1',
+      workspace_id: 'workspace-1',
+      playbook_id: 'playbook-1',
+      lifecycle: 'planned',
+      active_stage_name: 'requirements',
+      state: 'active',
+      orchestration_state: {},
+      definition: {
+        ...definition,
+        stages: [
+          { name: 'requirements', goal: 'Define scope', human_gate: true },
+          { name: 'implementation', goal: 'Ship code' },
+          { name: 'release', goal: 'Release code' },
+        ],
+      },
+    });
+    const loadStage = vi.spyOn(service as never, 'loadStage').mockResolvedValueOnce({
+      id: 'stage-1',
+      name: 'requirements',
+      position: 0,
+      goal: 'Define scope',
+      guidance: null,
+      human_gate: true,
+      status: 'active',
+      gate_status: 'approved',
+      iteration_count: 0,
+      summary: 'Requirements approved',
+      metadata: {},
+      started_at: new Date('2026-03-11T00:00:00Z'),
+      completed_at: null,
+      updated_at: new Date('2026-03-11T00:30:00Z'),
+    });
+
+    await expect(
+      service.advanceStage(
+        { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+        'workflow-1',
+        'requirements',
+        { to_stage_name: 'release', summary: 'Requirements approved' },
+        {} as never,
+      ),
+    ).rejects.toThrowError(ValidationError);
+
+    expect(loadWorkflow).toHaveBeenCalled();
+    expect(loadStage).toHaveBeenCalledTimes(1);
+  });
+
   it('treats a repeated workflow completion as idempotent once the workflow is already completed', async () => {
     const service = new PlaybookWorkflowControlService({
       pool: {} as never,

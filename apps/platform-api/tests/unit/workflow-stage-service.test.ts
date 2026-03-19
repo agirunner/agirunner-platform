@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkflowStageService } from '../../src/services/workflow-stage-service.js';
 
 describe('WorkflowStageService', () => {
-  it('derives planned stage status from work-item activity instead of stale stored stage rows', async () => {
+  it('keeps future planned stages pending until advance_stage explicitly activates them', async () => {
     const pool = {
       query: vi
         .fn()
@@ -14,9 +14,9 @@ describe('WorkflowStageService', () => {
             {
               id: 'stage-1',
               lifecycle: 'planned',
-              name: 'design',
+              name: 'implementation',
               position: 0,
-              goal: 'Design',
+              goal: 'Implement',
               guidance: null,
               human_gate: false,
               status: 'active',
@@ -33,9 +33,9 @@ describe('WorkflowStageService', () => {
             {
               id: 'stage-2',
               lifecycle: 'planned',
-              name: 'implementation',
+              name: 'review',
               position: 1,
-              goal: 'Implement',
+              goal: 'Review',
               guidance: null,
               human_gate: false,
               status: 'pending',
@@ -56,14 +56,14 @@ describe('WorkflowStageService', () => {
               position: 2,
               goal: 'Release',
               guidance: null,
-              human_gate: true,
+              human_gate: false,
               status: 'pending',
-              gate_status: 'awaiting_approval',
+              gate_status: 'not_requested',
               iteration_count: 0,
               summary: null,
               started_at: null,
               completed_at: null,
-              open_work_item_count: 0,
+              open_work_item_count: 1,
               total_work_item_count: 1,
               first_work_item_at: new Date('2026-03-11T02:00:00Z'),
               last_completed_work_item_at: null,
@@ -77,21 +77,22 @@ describe('WorkflowStageService', () => {
 
     expect(stages).toEqual([
       expect.objectContaining({
-        name: 'design',
-        status: 'completed',
-        is_active: false,
-        completed_at: '2026-03-11T00:30:00.000Z',
-      }),
-      expect.objectContaining({
         name: 'implementation',
         status: 'active',
         is_active: true,
-        started_at: '2026-03-11T01:00:00.000Z',
+        started_at: '2026-03-11T00:00:00.000Z',
+      }),
+      expect.objectContaining({
+        name: 'review',
+        status: 'pending',
+        is_active: false,
+        started_at: null,
       }),
       expect.objectContaining({
         name: 'release',
-        status: 'awaiting_gate',
-        is_active: true,
+        status: 'pending',
+        is_active: false,
+        started_at: null,
       }),
     ]);
   });

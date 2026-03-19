@@ -152,7 +152,10 @@ function deriveStageView(row: WorkflowStageViewInput) {
   const status = row.lifecycle === 'ongoing'
     ? deriveContinuousStageStatus(row)
     : derivePlannedStageStatus(row);
-  const startedAt = row.started_at ?? row.first_work_item_at;
+  const startedAt =
+    row.lifecycle === 'ongoing'
+      ? row.started_at ?? row.first_work_item_at
+      : row.started_at;
   const completedAt =
     status === 'completed' ? row.completed_at ?? row.last_completed_work_item_at : null;
   return {
@@ -175,12 +178,6 @@ function derivePlannedStageStatus(row: WorkflowStageViewInput) {
   }
   if (isActiveStageStatus(row.status)) {
     return row.status;
-  }
-  if (row.open_work_item_count > 0 || row.gate_status === 'changes_requested') {
-    return 'active';
-  }
-  if (row.total_work_item_count > 0) {
-    return 'completed';
   }
   return 'pending';
 }

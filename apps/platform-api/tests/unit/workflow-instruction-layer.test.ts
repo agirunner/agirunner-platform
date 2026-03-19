@@ -71,7 +71,10 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Stage Routing');
     expect(layer!.content).toContain('Successor stage after acceptance: verification');
     expect(layer!.content).toContain(
-      'Only create successor checkpoint work after the predecessor checkpoint has no non-terminal tasks and has a full handoff or approved gate.',
+      `Creating successor work items or specialist tasks does not change the planned workflow's current stage; call advance_stage explicitly from "review" to "verification" before you finish the activation.`,
+    );
+    expect(layer!.content).toContain(
+      'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_review is the only allowed carryover, and only for a required review checkpoint.',
     );
     expect(layer!.content).toContain(
       'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',
