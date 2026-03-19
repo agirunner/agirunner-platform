@@ -26,9 +26,32 @@
 - `lib/`
   - shared API client and scenario helpers
 - `scenarios/`
-  - one executable script per live workflow scenario
+  - scenario JSON files plus thin executable wrappers
 - `tests/`
   - harness-level regression tests
+
+## Scenario Contract
+
+Each live scenario is defined by a JSON file under `tests/live/scenarios/`.
+
+- `profile`
+  - points to `tests/live/library/<profile>/` for the test-owned playbook, roles, and optional `repo-seed/`
+- `workflow`
+  - declares the workflow name, goal, and extra launch parameters
+- `workspace`
+  - declares whether the workspace is repo-backed plus any memory/spec state to seed through workspace APIs
+- `approvals`
+  - ordered scripted gate decisions using `approve`, `reject`, or `request_changes`
+- `expect`
+  - declarative pass criteria evaluated by the runner; a scenario exits non-zero if they are not met
+
+The generic runner is:
+
+```bash
+bash tests/live/scenarios/run-live-scenario.sh sdlc-baseline
+```
+
+Thin per-scenario wrappers can call that runner for convenience.
 
 ## Artifacts
 

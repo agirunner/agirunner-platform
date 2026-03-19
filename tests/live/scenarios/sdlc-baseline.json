@@ -1,0 +1,23 @@
+{
+  "name": "sdlc-baseline",
+  "profile": "sdlc-baseline",
+  "workflow": {
+    "name": "SDLC Baseline Proof",
+    "goal": "Add support for named greetings and uppercase output while preserving the default greeting, with updated docs and regression tests."
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    }
+  }
+}

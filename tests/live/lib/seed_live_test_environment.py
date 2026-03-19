@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from live_test_api import ApiClient, TraceRecorder, read_json
+from scenario_config import load_scenario
 
 
 def env(name: str, default: str | None = None, *, required: bool = False) -> str:
@@ -219,6 +220,57 @@ def create_model(
     )
 
 
+def build_workspace_create_payload(
+    *,
+    workspace_name: str,
+    workspace_slug: str,
+    workspace_description: str,
+    workspace_config: dict[str, Any],
+    repository_url: str,
+    default_branch: str,
+    git_user_name: str,
+    git_user_email: str,
+    git_token: str,
+) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "name": workspace_name,
+        "slug": workspace_slug,
+        "description": workspace_description,
+    }
+    if workspace_config.get("repo", True):
+        payload["repository_url"] = repository_url
+        payload["settings"] = {
+            "default_branch": default_branch,
+            "git_user_name": git_user_name,
+            "git_user_email": git_user_email,
+            "credentials": {"git_token": git_token},
+        }
+    return payload
+
+
+def seed_workspace_context(client: ApiClient, *, workspace_id: str, workspace_config: dict[str, Any]) -> None:
+    memory = workspace_config.get("memory", {})
+    if isinstance(memory, dict):
+        for key, value in memory.items():
+            client.request(
+                "PATCH",
+                f"/api/v1/workspaces/{workspace_id}/memory",
+                payload={"key": key, "value": value},
+                expected=(200,),
+                label=f"workspaces.memory.patch:{key}",
+            )
+
+    spec = workspace_config.get("spec", {})
+    if isinstance(spec, dict) and spec:
+        client.request(
+            "PUT",
+            f"/api/v1/workspaces/{workspace_id}/spec",
+            payload=spec,
+            expected=(200,),
+            label="workspaces.spec.put",
+        )
+
+
 def ensure_specialist_assignments(
     client: ApiClient,
     *,
@@ -293,6 +345,8 @@ def main() -> None:
     base_url = env("PLATFORM_API_BASE_URL", required=True)
     trace_dir = env("LIVE_TEST_TRACE_DIR", required=True)
     admin_api_key = env("DEFAULT_ADMIN_API_KEY", required=True)
+    scenario_file = env("LIVE_TEST_SCENARIO_FILE")
+    scenario = load_scenario(scenario_file) if scenario_file else None
     provider_name = env("LIVE_TEST_PROVIDER_NAME", "OpenAI")
     provider_type = env("LIVE_TEST_PROVIDER_TYPE", "openai")
     provider_base_url = env("LIVE_TEST_PROVIDER_BASE_URL", "https://api.openai.com/v1")
@@ -314,6 +368,8 @@ def main() -> None:
     runtime_image = env("RUNTIME_IMAGE", "agirunner-runtime:local")
     library_root = env("LIVE_TEST_LIBRARY_ROOT", required=True)
     library_profile = env("LIVE_TEST_PROFILE", "sdlc-baseline")
+    if scenario is not None:
+        library_profile = scenario["profile"]
     roles_fixture_path = env(
         "LIVE_TEST_ROLE_FIXTURE_FILE",
         str(Path(library_root) / library_profile / "roles.json"),
@@ -383,22 +439,23 @@ def main() -> None:
         client.request(
             "POST",
             "/api/v1/workspaces",
-            payload={
-                "name": workspace_name,
-                "slug": workspace_slug,
-                "description": "Repeatable live-test workspace seeded by tests/live/prepare-live-test-environment.sh",
-                "repository_url": repository_url,
-                "settings": {
-                    "default_branch": default_branch,
-                    "git_user_name": git_user_name,
-                    "git_user_email": git_user_email,
-                    "credentials": {"git_token": git_token},
-                },
-            },
+            payload=build_workspace_create_payload(
+                workspace_name=workspace_name,
+                workspace_slug=workspace_slug,
+                workspace_description="Repeatable live-test workspace seeded by tests/live/prepare-live-test-environment.sh",
+                workspace_config={"repo": True} if scenario is None else scenario["workspace"],
+                repository_url=repository_url,
+                default_branch=default_branch,
+                git_user_name=git_user_name,
+                git_user_email=git_user_email,
+                git_token=git_token,
+            ),
             expected=(201,),
             label="workspaces.create",
         )
     )
+    if scenario is not None:
+        seed_workspace_context(client, workspace_id=workspace["id"], workspace_config=scenario["workspace"])
 
     playbook = sync_playbook(client, playbook_fixture_path)
     orchestrator = restart_orchestrator(client, worker_name, runtime_image)

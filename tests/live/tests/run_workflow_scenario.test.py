@@ -158,6 +158,147 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         )
         self.assertEqual(1, len(client.calls))
 
+    def test_process_workflow_approvals_applies_scripted_request_changes_then_approve(self) -> None:
+        client = FakeClient()
+        approvals = {
+            "task_approvals": [],
+            "stage_gates": [
+                {"gate_id": "gate-req-1", "workflow_id": "wf-1", "status": "awaiting_approval", "stage_name": "requirements"},
+            ],
+        }
+        consumed_decisions: set[int] = set()
+        approval_decisions = [
+            {
+                "match": {"stage_name": "requirements"},
+                "action": "request_changes",
+                "feedback": "Clarify the default greeting behavior before approval.",
+            },
+            {
+                "match": {"stage_name": "requirements"},
+                "action": "approve",
+            },
+        ]
+
+        first_actions = run_workflow_scenario.process_workflow_approvals(
+            client,
+            approvals,
+            workflow_id="wf-1",
+            scenario_name="approval-rework",
+            approved_gate_ids=set(),
+            approval_mode="scripted",
+            consumed_decisions=consumed_decisions,
+            approval_decisions=approval_decisions,
+        )
+
+        self.assertEqual(
+            [{"gate_id": "gate-req-1", "action": "request_changes", "task_id": None, "stage_name": "requirements"}],
+            first_actions,
+        )
+        self.assertEqual({0}, consumed_decisions)
+        self.assertEqual(
+            {
+                "request_id": "live-test-approval-rework-request_changes-gate-req-1",
+                "action": "request_changes",
+                "feedback": "Clarify the default greeting behavior before approval.",
+            },
+            client.calls[0][2],
+        )
+
+        second_actions = run_workflow_scenario.process_workflow_approvals(
+            client,
+            approvals,
+            workflow_id="wf-1",
+            scenario_name="approval-rework",
+            approved_gate_ids=set(),
+            approval_mode="scripted",
+            consumed_decisions=consumed_decisions,
+            approval_decisions=approval_decisions,
+        )
+
+        self.assertEqual(
+            [{"gate_id": "gate-req-1", "action": "approve", "task_id": None, "stage_name": "requirements"}],
+            second_actions,
+        )
+        self.assertEqual({0, 1}, consumed_decisions)
+        self.assertEqual(
+            {
+                "request_id": "live-test-approval-rework-approve-gate-req-1",
+                "action": "approve",
+                "feedback": "Approved by the live test operator flow for scenario approval-rework.",
+            },
+            client.calls[1][2],
+        )
+
+    def test_process_workflow_approvals_fails_when_pending_gate_has_no_matching_scripted_decision(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "no scripted approval decision"):
+            run_workflow_scenario.process_workflow_approvals(
+                FakeClient(),
+                {
+                    "task_approvals": [],
+                    "stage_gates": [
+                        {
+                            "gate_id": "gate-release-1",
+                            "workflow_id": "wf-1",
+                            "status": "awaiting_approval",
+                            "stage_name": "release",
+                        }
+                    ],
+                },
+                workflow_id="wf-1",
+                scenario_name="approval-missing-script",
+                approved_gate_ids=set(),
+                approval_mode="scripted",
+                consumed_decisions=set(),
+                approval_decisions=[{"match": {"stage_name": "requirements"}, "action": "approve"}],
+            )
+
+    def test_evaluate_expectations_reports_success_when_all_contracts_match(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+                "work_items": {"all_terminal": True},
+                "board": {"blocked_count": 0},
+                "memory": [{"key": "prd_summary", "value": "approved"}],
+                "artifacts": [{"logical_path_pattern": "reports/.*\\.md", "min_count": 2}],
+            },
+            workflow={"state": "completed"},
+            board={"data": {"data": {"columns": [{"id": "blocked", "work_items": []}]}}},
+            work_items={
+                "data": {
+                    "data": [
+                        {"column_id": "done"},
+                        {"column_id": "done"},
+                    ]
+                }
+            },
+            workspace={"memory": {"prd_summary": "approved"}},
+            artifacts={"data": {"items": [{"logical_path": "reports/findings.md"}, {"logical_path": "reports/summary.md"}]}},
+            approval_actions=[],
+        )
+
+        self.assertTrue(verification["passed"])
+        self.assertEqual([], verification["failures"])
+
+    def test_evaluate_expectations_reports_contract_failures(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "completed",
+                "work_items": {"all_terminal": True},
+                "board": {"blocked_count": 0},
+                "memory": [{"key": "prd_summary", "value": "approved"}],
+                "artifacts": [{"logical_path_pattern": "reports/.*\\.md", "min_count": 1}],
+            },
+            workflow={"state": "failed"},
+            board={"data": {"data": {"columns": [{"id": "blocked", "work_items": [{"id": "wi-1"}]}]}}},
+            work_items={"data": {"data": [{"column_id": "active"}]}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertGreaterEqual(len(verification["failures"]), 4)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -50,6 +50,12 @@ class FakeClient:
                 }
             }
 
+        if method == "PATCH" and path.startswith("/api/v1/workspaces/") and path.endswith("/memory"):
+            return {"data": {"ok": True}}
+
+        if method == "PUT" and path.startswith("/api/v1/workspaces/") and path.endswith("/spec"):
+            return {"data": payload}
+
         raise AssertionError(f"unexpected request: {method} {path}")
 
 
@@ -119,6 +125,62 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
         self.assertEqual(
             [("PUT", "/api/v1/config/llm/assignments/live-test-qa")],
             [(method, path) for method, path, _, _, _ in client.calls],
+        )
+
+    def test_build_workspace_create_payload_supports_headless_scenarios(self) -> None:
+        payload = seed_live_test_environment.build_workspace_create_payload(
+            workspace_name="Product Requirements Workspace",
+            workspace_slug="product-requirements",
+            workspace_description="Artifact-first workspace",
+            workspace_config={"repo": False},
+            repository_url="https://github.com/agirunner/agirunner-test-fixtures.git",
+            default_branch="main",
+            git_user_name="sirmarkz",
+            git_user_email="250921129+sirmarkz@users.noreply.github.com",
+            git_token="github-token",
+        )
+
+        self.assertEqual("Product Requirements Workspace", payload["name"])
+        self.assertEqual("product-requirements", payload["slug"])
+        self.assertNotIn("repository_url", payload)
+        self.assertNotIn("settings", payload)
+
+    def test_seed_workspace_context_writes_memory_and_spec_through_workspace_routes(self) -> None:
+        client = FakeClient()
+        seed_live_test_environment.seed_workspace_context(
+            client,
+            workspace_id="workspace-1",
+            workspace_config={
+                "memory": {
+                    "existing_context": "Enterprise admins manage budgets.",
+                    "launch_note": "Write a testable PRD.",
+                },
+                "spec": {
+                    "documents": {
+                        "strategy": {
+                            "source": "external",
+                            "url": "https://example.test/roadmap",
+                        }
+                    }
+                },
+            },
+        )
+
+        self.assertEqual(
+            [
+                ("PATCH", "/api/v1/workspaces/workspace-1/memory"),
+                ("PATCH", "/api/v1/workspaces/workspace-1/memory"),
+                ("PUT", "/api/v1/workspaces/workspace-1/spec"),
+            ],
+            [(method, path) for method, path, _, _, _ in client.calls],
+        )
+        self.assertEqual(
+            {"key": "existing_context", "value": "Enterprise admins manage budgets."},
+            client.calls[0][2],
+        )
+        self.assertEqual(
+            {"documents": {"strategy": {"source": "external", "url": "https://example.test/roadmap"}}},
+            client.calls[2][2],
         )
 
 
