@@ -32,5 +32,6 @@ export const workflowArtifacts = pgTable(
     index('idx_workflow_artifacts_tenant_task').on(table.tenantId, table.taskId),
     index('idx_workflow_artifacts_tenant_workflow').on(table.tenantId, table.workflowId),
     index('idx_workflow_artifacts_tenant_path').on(table.tenantId, table.logicalPath),
+    index('idx_workflow_artifacts_workspace').on(table.tenantId, table.workspaceId),
   ],
 );

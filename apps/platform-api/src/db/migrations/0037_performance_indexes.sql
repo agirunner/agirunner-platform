@@ -77,3 +77,29 @@ CREATE INDEX IF NOT EXISTS idx_role_model_assignments_role
 
 CREATE INDEX IF NOT EXISTS idx_llm_models_model_id
   ON llm_models (tenant_id, model_id);
+
+-- Additional unindexed FKs found in second audit pass
+CREATE INDEX IF NOT EXISTS idx_role_model_assignments_model
+  ON role_model_assignments (primary_model_id)
+  WHERE primary_model_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_work_item_triggers_workflow
+  ON scheduled_work_item_triggers (workflow_id);
+
+CREATE INDEX IF NOT EXISTS idx_scheduled_work_item_triggers_workspace
+  ON scheduled_work_item_triggers (workspace_id);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_deliveries_event
+  ON webhook_deliveries (event_id);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_work_item_triggers_workflow
+  ON webhook_work_item_triggers (workflow_id);
+
+CREATE INDEX IF NOT EXISTS idx_webhook_work_item_triggers_workspace
+  ON webhook_work_item_triggers (workspace_id);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_artifacts_workspace
+  ON workflow_artifacts (tenant_id, workspace_id);
+
+CREATE INDEX IF NOT EXISTS idx_workflow_documents_workspace
+  ON workflow_documents (tenant_id, workspace_id);

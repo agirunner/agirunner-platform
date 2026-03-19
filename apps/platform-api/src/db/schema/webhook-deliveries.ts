@@ -29,5 +29,6 @@ export const webhookDeliveries = pgTable(
   (table) => [
     index('idx_webhook_deliveries_pending').on(table.tenantId, table.status, table.createdAt),
     index('idx_webhook_deliveries_webhook').on(table.webhookId),
+    index('idx_webhook_deliveries_event').on(table.eventId),
   ],
 );

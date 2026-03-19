@@ -28,5 +28,9 @@ export const webhookWorkItemTriggers = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index('idx_webhook_work_item_triggers_tenant').on(table.tenantId, table.isActive, table.createdAt)],
+  (table) => [
+    index('idx_webhook_work_item_triggers_tenant').on(table.tenantId, table.isActive, table.createdAt),
+    index('idx_webhook_work_item_triggers_workflow').on(table.workflowId),
+    index('idx_webhook_work_item_triggers_workspace').on(table.workspaceId),
+  ],
 );

@@ -33,5 +33,7 @@ export const scheduledWorkItemTriggers = pgTable(
   (table) => [
     index('idx_scheduled_work_item_triggers_due').on(table.tenantId, table.isActive, table.nextFireAt),
     index('idx_scheduled_work_item_triggers_lease').on(table.tenantId, table.leaseExpiresAt),
+    index('idx_scheduled_work_item_triggers_workflow').on(table.workflowId),
+    index('idx_scheduled_work_item_triggers_workspace').on(table.workspaceId),
   ],
 );

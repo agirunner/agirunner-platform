@@ -35,5 +35,6 @@ export const workflowDocuments = pgTable(
     index('idx_workflow_documents_artifact')
       .on(table.artifactId)
       .where(sql`${table.artifactId} IS NOT NULL`),
+    index('idx_workflow_documents_workspace').on(table.tenantId, table.workspaceId),
   ],
 );

@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import { index, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { llmModels } from './llm-models.js';
@@ -18,5 +19,8 @@ export const roleModelAssignments = pgTable(
   (table) => [
     index('idx_role_model_assignments_tenant').on(table.tenantId),
     index('idx_role_model_assignments_role').on(table.tenantId, table.roleName),
+    index('idx_role_model_assignments_model')
+      .on(table.primaryModelId)
+      .where(sql`${table.primaryModelId} IS NOT NULL`),
   ],
 );
