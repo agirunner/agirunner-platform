@@ -362,15 +362,32 @@ func findOrphanTasks(containers []ContainerInfo, runtimeIDs map[string]bool) []C
 		if c.Labels[labelDCMTier] != tierTask {
 			continue
 		}
-		if c.Labels[labelDCMManaged] != "true" {
+		if !isManagedTaskContainer(c.Labels) {
 			continue
 		}
-		parentID := c.Labels[labelDCMRuntimeID]
+		parentID := taskParentRuntimeID(c.Labels)
 		if parentID != "" && !runtimeIDs[parentID] {
 			orphans = append(orphans, c)
 		}
 	}
 	return orphans
+}
+
+func isManagedTaskContainer(labels map[string]string) bool {
+	return labels[labelDCMManaged] == "true" || labels["agirunner.runtime.managed"] == "true"
+}
+
+func taskParentRuntimeID(labels map[string]string) string {
+	for _, key := range []string{
+		labelDCMRuntimeID,
+		"agirunner.parent_runtime",
+		"agirunner.runtime.instance_id",
+	} {
+		if value := strings.TrimSpace(labels[key]); value != "" {
+			return value
+		}
+	}
+	return ""
 }
 
 // logFleetEvent records a fleet event via the platform client and logs it.

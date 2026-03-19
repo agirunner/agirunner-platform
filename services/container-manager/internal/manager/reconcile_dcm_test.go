@@ -81,6 +81,15 @@ func makeDCMTaskContainer(id, runtimeID string) ContainerInfo {
 	}
 }
 
+func makeLegacyDCMTaskContainer(id, parentLabel, runtimeID string) ContainerInfo {
+	container := makeDCMTaskContainer(id, runtimeID)
+	delete(container.Labels, labelDCMManaged)
+	delete(container.Labels, labelDCMRuntimeID)
+	container.Labels["agirunner.runtime.managed"] = "true"
+	container.Labels[parentLabel] = runtimeID
+	return container
+}
+
 // makeDCMContainers creates n DCM containers for a template.
 func makeDCMContainers(templateID, image string, count int) []ContainerInfo {
 	containers := make([]ContainerInfo, count)
@@ -313,6 +322,27 @@ func TestDCMOrphanTaskCleanup(t *testing.T) {
 	}
 	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "task-1" {
 		t.Errorf("expected orphan task-1 removed, got %v", docker.removedIDs)
+	}
+}
+
+func TestDCMOrphanTaskCleanupSupportsLegacyParentRuntimeLabels(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeLegacyDCMTaskContainer("task-parent-runtime", "agirunner.parent_runtime", "dead-runtime-id-1"),
+		makeLegacyDCMTaskContainer("task-instance-id", "agirunner.runtime.instance_id", "dead-runtime-id-2"),
+	}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.removedIDs) != 2 {
+		t.Fatalf("expected 2 legacy orphan tasks removed, got %v", docker.removedIDs)
 	}
 }
 
