@@ -88,11 +88,14 @@ describe('FR-030: modern SPA structure', () => {
     expect(source).toContain('/login');
   });
 
-  it('app integrates theme toggle at the application root', () => {
+  it('app applies dark-only theme — no runtime toggle', () => {
     const source = readComponent('app/app.tsx');
-    expect(source).toContain('toggleTheme');
-    expect(source).toContain('applyTheme');
-    expect(source).toContain('readTheme');
+    // Theme toggle removed: dashboard is dark-only
+    expect(source).not.toContain('toggleTheme');
+    expect(source).not.toContain('applyTheme');
+    expect(source).not.toContain('readTheme');
+    // App still mounts the DashboardLayout
+    expect(source).toContain('DashboardLayout');
   });
 });
 
@@ -347,14 +350,16 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('export function DashboardLayout');
   });
 
-  it('layout includes navigation links to all 6 major sections', () => {
+  it('layout includes navigation links to all major sections', () => {
     const source = readComponent('components/layout.tsx');
-    expect(source).toContain('Mission Control');
-    expect(source).toContain('Work');
+    expect(source).toContain('Execution');
     expect(source).toContain('Workspaces');
     expect(source).toContain('Configuration');
     expect(source).toContain('Fleet');
     expect(source).toContain('Governance');
+    // Mission Control and Work are deprecated — replaced by Execution Canvas
+    expect(source).not.toContain("label: 'Mission Control'");
+    expect(source).not.toContain("label: 'Work'");
   });
 
   it('layout includes Cmd+K keyboard shortcut for search', () => {

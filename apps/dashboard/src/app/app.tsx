@@ -11,8 +11,6 @@ import {
 } from '../lib/auth-session.js';
 import { clearSession, readSession } from '../lib/session.js';
 
-import { applyTheme, readTheme } from './theme.js';
-
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 
 /* ── Chunk-resilient lazy loader ──────────────────────────────────────── */
@@ -54,17 +52,9 @@ function isChunkLoadError(message: string): boolean {
 
 const LoginPage = lazyWithRetry(() => import('../pages/login-page.js').then((m) => ({ default: m.LoginPage })));
 
-const LiveBoardPage = lazyWithRetry(() => import('../pages/mission-control/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
-const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/mission-control/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
-const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
+const ExecutionCanvas = lazyWithRetry(() => import('../pages/execution/execution-canvas.js').then((m) => ({ default: m.ExecutionCanvas })));
 
-const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
-const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
-const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/work/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
-const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
-const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
 const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
-const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
 const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspaces/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));
 const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspaces/workspace-detail-page.js').then((m) => ({ default: m.WorkspaceDetailPage })));
@@ -168,15 +158,6 @@ class AppErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundaryS
 }
 
 export function App(): JSX.Element {
-  useEffect(() => {
-    applyTheme(readTheme());
-  }, []);
-
-  const toggleTheme = (): void => {
-    const next = readTheme() === 'light' ? 'dark' : 'light';
-    applyTheme(next);
-  };
-
   return (
     <AppErrorBoundary>
     <Suspense fallback={<PageFallback />}>
@@ -184,24 +165,30 @@ export function App(): JSX.Element {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/auth/callback" element={<SSOCallbackPage />} />
         <Route element={<RequireAuth />}>
-          <Route element={<DashboardLayout onToggleTheme={toggleTheme} />}>
-            <Route path="/" element={<Navigate to="/mission-control" replace />} />
+          <Route element={<DashboardLayout />}>
+            <Route path="/" element={<Navigate to="/execution" replace />} />
 
-            {/* Mission Control */}
-            <Route path="/mission-control" element={<LiveBoardPage />} />
-            <Route path="/mission-control/alerts" element={<AlertsApprovalsPage />} />
-            <Route path="/mission-control/costs" element={<CostDashboardPage />} />
+            {/* Execution Canvas */}
+            <Route path="/execution" element={<Suspense fallback={<PageFallback />}><ExecutionCanvas /></Suspense>} />
+            <Route path="/execution/launch" element={<Suspense fallback={<PageFallback />}><ExecutionCanvas initialAction="launch" /></Suspense>} />
+
+            {/* Deprecated routes — redirect to Execution Canvas */}
+            <Route path="/mission-control" element={<Navigate to="/execution" replace />} />
+            <Route path="/mission-control/alerts" element={<Navigate to="/execution" replace />} />
+            <Route path="/mission-control/costs" element={<Navigate to="/execution" replace />} />
+            <Route path="/work/boards" element={<Navigate to="/execution" replace />} />
+            <Route path="/work/boards/:id" element={<Navigate to="/execution" replace />} />
+            <Route path="/work/boards/:id/inspector" element={<Navigate to="/execution" replace />} />
+            <Route path="/work/tasks" element={<Navigate to="/execution" replace />} />
+            <Route path="/work/tasks/:id" element={<Navigate to="/execution" replace />} />
+            <Route path="/work/approvals" element={<Navigate to="/execution" replace />} />
+            <Route path="/work/workflows/*" element={<Navigate to="/execution" replace />} />
+
+            {/* Logs */}
             <Route path="/logs" element={<LogsPage />} />
 
-            {/* Work */}
-            <Route path="/work/boards" element={<WorkflowListPage />} />
-            <Route path="/work/boards/:id" element={<WorkflowDetailPage />} />
-            <Route path="/work/boards/:id/inspector" element={<WorkflowInspectorPage />} />
-            <Route path="/work/workflows/*" element={<LegacyWorkflowBoardRedirect />} />
-            <Route path="/work/tasks" element={<TaskListPage />} />
-            <Route path="/work/tasks/:id" element={<TaskDetailPage />} />
+            {/* Artifacts */}
             <Route path="/artifacts/tasks/:taskId/:artifactId" element={<ArtifactPreviewPage />} />
-            <Route path="/work/approvals" element={<ApprovalQueuePage />} />
 
             {/* Workspaces */}
             <Route path="/workspaces" element={<WorkspaceListPage />} />
@@ -245,7 +232,7 @@ export function App(): JSX.Element {
             <Route path="/governance/grants" element={<OrchestratorGrantsPage />} />
           </Route>
         </Route>
-        <Route path="*" element={<Navigate to="/mission-control" replace />} />
+        <Route path="*" element={<Navigate to="/execution" replace />} />
       </Routes>
     </Suspense>
     </AppErrorBoundary>
@@ -268,16 +255,6 @@ function RequireAuth(): JSX.Element {
   }
 
   return <Outlet />;
-}
-
-function LegacyWorkflowBoardRedirect(): JSX.Element {
-  const location = useLocation();
-  return (
-    <Navigate
-      to={`${location.pathname.replace('/work/workflows', '/work/boards')}${location.search}${location.hash}`}
-      replace
-    />
-  );
 }
 
 function LegacyWorkspaceKnowledgeRedirect(): JSX.Element {

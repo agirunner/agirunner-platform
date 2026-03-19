@@ -93,7 +93,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'review' }] };
         }
         if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
@@ -179,7 +179,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'implementation' }] };
         }
         if (sql.includes('JOIN workflows w') && sql.includes('ORDER BY ws.position ASC')) {
@@ -281,7 +281,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'implementation' }] };
         }
         if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
@@ -454,7 +454,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'design' }] };
         }
         if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
@@ -564,7 +564,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'release' }] };
         }
         if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
@@ -759,7 +759,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'release' }] };
         }
         if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
@@ -942,7 +942,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'implementation' }] };
         }
         if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
@@ -1195,7 +1195,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'implementation' }] };
         }
         if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {
@@ -1370,7 +1370,7 @@ describe('buildTaskContext active stage semantics', () => {
             }],
           };
         }
-        if (sql.includes('SELECT DISTINCT stage_name')) {
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
           return { rows: [{ stage_name: 'implementation' }] };
         }
         if (sql.includes('FROM workflow_stages') && sql.includes('ORDER BY ws.position ASC')) {

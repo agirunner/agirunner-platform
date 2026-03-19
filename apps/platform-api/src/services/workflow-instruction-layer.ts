@@ -43,12 +43,17 @@ export function buildWorkflowInstructionLayer(
   }
 
   const lifecycle = workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
+  const activationAnchor = input.isOrchestratorTask
+    ? readOrchestratorActivationAnchor(input.orchestratorContext)
+    : { workItemId: null, stageName: null };
   const focusedWorkItem = input.isOrchestratorTask
-    ? selectFocusedWorkItem(input.orchestratorContext)
+    ? selectFocusedWorkItem(input.orchestratorContext, activationAnchor)
     : asRecord(input.workItem);
   const stageName =
-    readString(focusedWorkItem.stage_name)
+    activationAnchor.stageName
+    ?? readString(focusedWorkItem.stage_name)
     ?? deriveSoleActiveStageName(workflow)
+    ?? readString(workflow.current_stage)
     ?? null;
   const checkpoint = definition.checkpoints.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(focusedWorkItem.column_id));
@@ -445,24 +450,58 @@ function approvalRuleAppliesToCheckpoint(
   return Boolean(checkpointName) && rule.checkpoint === checkpointName;
 }
 
-function selectFocusedWorkItem(orchestratorContext: Record<string, unknown> | null | undefined) {
+function selectFocusedWorkItem(
+  orchestratorContext: Record<string, unknown> | null | undefined,
+  activationAnchor: { workItemId: string | null; stageName: string | null },
+) {
   const context = asRecord(orchestratorContext);
-  const activation = asRecord(context.activation);
-  const payload = asRecord(activation.payload);
-  const targetId = readString(payload.work_item_id);
   const board = asRecord(context.board);
   const workItems = Array.isArray(board.work_items)
     ? board.work_items.filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry))
     : [];
-  if (targetId) {
-    const matched = workItems.find((entry) => readString(entry.id) === targetId);
+  if (activationAnchor.workItemId) {
+    const matched = workItems.find((entry) => readString(entry.id) === activationAnchor.workItemId);
     if (matched) {
       return matched;
+    }
+  }
+  if (activationAnchor.stageName) {
+    const stageMatches = workItems.filter((entry) => readString(entry.stage_name) === activationAnchor.stageName);
+    const stagedMatch = stageMatches.find((entry) => readString(entry.next_expected_actor) || readString(entry.next_expected_action));
+    if (stagedMatch) {
+      return stagedMatch;
+    }
+    if (stageMatches[0]) {
+      return stageMatches[0];
     }
   }
   return workItems.find((entry) => readString(entry.next_expected_actor) || readString(entry.next_expected_action))
     ?? workItems[0]
     ?? {};
+}
+
+function readOrchestratorActivationAnchor(
+  orchestratorContext: Record<string, unknown> | null | undefined,
+) {
+  const context = asRecord(orchestratorContext);
+  const activation = asRecord(context.activation);
+  const activationEvents = Array.isArray(activation.events)
+    ? activation.events
+    : [];
+  const payloadSources = [
+    activation.payload,
+    ...activationEvents.map((event) => asRecord(event).payload),
+  ].map(asRecord);
+
+  for (const payload of payloadSources) {
+    const workItemId = readString(payload.work_item_id);
+    const stageName = readString(payload.stage_name);
+    if (workItemId || stageName) {
+      return { workItemId, stageName };
+    }
+  }
+
+  return { workItemId: null, stageName: null };
 }
 
 function isRepositoryBacked(

@@ -29,13 +29,15 @@ export async function loadWorkflowStageProjection(
   workflowId: string,
   input: LoadWorkflowStageProjectionInput,
 ): Promise<WorkflowStageProjection & { stageRows: WorkflowStageResponse[] }> {
+  const openWorkItemStageNames = await loadOpenWorkflowWorkItemStageNames(db, tenantId, workflowId);
+
   if (input.lifecycle === 'ongoing') {
     return {
       stageRows: [],
       ...deriveWorkflowStageProjection({
         lifecycle: input.lifecycle,
         stageRows: [],
-        openWorkItemStageNames: await loadOpenWorkflowWorkItemStageNames(db, tenantId, workflowId),
+        openWorkItemStageNames,
         definition: input.definition,
       }),
     };
@@ -47,7 +49,7 @@ export async function loadWorkflowStageProjection(
     ...deriveWorkflowStageProjection({
       lifecycle: input.lifecycle,
       stageRows,
-      openWorkItemStageNames: [],
+      openWorkItemStageNames,
       definition: input.definition,
     }),
   };
@@ -63,6 +65,23 @@ export function deriveWorkflowStageProjection(
         input.openWorkItemStageNames,
         input.stageRows,
         input.definition,
+      ),
+    };
+  }
+
+  const orderedOpenStages = orderStageNames(
+    input.openWorkItemStageNames,
+    input.stageRows,
+    input.definition,
+  );
+  if (orderedOpenStages.length > 0) {
+    return {
+      currentStage: orderedOpenStages[0] ?? null,
+      activeStages: mergeStageNames(
+        orderedOpenStages,
+        input.stageRows
+          .filter((row) => row.status === 'awaiting_gate' || row.status === 'blocked')
+          .map((row) => row.name),
       ),
     };
   }
@@ -91,6 +110,10 @@ export async function loadOpenWorkflowWorkItemStageNames(
     [tenantId, workflowId],
   );
   return result.rows.map((row) => row.stage_name);
+}
+
+function mergeStageNames(primary: string[], additional: string[]) {
+  return Array.from(new Set([...primary, ...additional]));
 }
 
 function orderStageNames(

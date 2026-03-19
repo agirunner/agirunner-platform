@@ -25,7 +25,7 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain("localStorage.setItem('refresh_token'");
   });
 
-  it('keeps legacy workspace-scoped explorer routes as redirects back to knowledge and preserves inspector routes', () => {
+  it('keeps legacy workspace-scoped explorer routes as redirects back to knowledge and deprecated work routes as redirects to execution', () => {
     const source = readSource();
     expect(source).toContain('path="/workspaces/:id/memory"');
     expect(source).toContain('path="/workspaces/:id/content"');
@@ -36,9 +36,21 @@ describe('app trigger routes source', () => {
     expect(source).toContain("location.pathname.endsWith('/artifacts')");
     expect(source).toContain("? 'artifacts'");
     expect(source).toContain('Navigate to={`/workspaces/${id}?tab=knowledge&panel=${panel}`} replace');
+    // Work routes are now deprecated — they redirect to the execution canvas
     expect(source).toContain('path="/work/boards/:id/inspector"');
     expect(source).toContain('path="/work/workflows/*"');
-    expect(source).toContain("replace('/work/workflows', '/work/boards')");
+    expect(source).toContain('path="/work/boards"');
+    expect(source).toContain('path="/work/tasks"');
+    expect(source).toContain('path="/work/approvals"');
+  });
+
+  it('registers execution canvas routes and redirects deprecated screens to /execution', () => {
+    const source = readSource();
+    expect(source).toContain('path="/execution"');
+    expect(source).toContain('path="/execution/launch"');
+    expect(source).toContain('initialAction="launch"');
+    expect(source).toContain('Navigate to="/execution" replace');
+    expect(source).toContain('path="/mission-control"');
   });
 
   it('keeps /config/runtimes as the canonical route and redirects the legacy runtime-defaults path', () => {

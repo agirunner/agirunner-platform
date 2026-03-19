@@ -229,4 +229,67 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Current Stage\nimplementation');
     expect(layer!.content).not.toContain('## Current Stage\nreview');
   });
+
+  it('follows the activation stage anchor instead of drifting back to older work items', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        current_stage: 'fix',
+        active_stages: ['fix'],
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions: 'Reproduce the issue, fix it, then verify it.',
+            board: {
+              columns: [
+                { id: 'active', label: 'Active' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            checkpoints: [
+              { name: 'reproduce', goal: 'Confirm the issue' },
+              { name: 'fix', goal: 'Implement the fix' },
+              { name: 'verify', goal: 'Verify the fix' },
+            ],
+          },
+        },
+      },
+      orchestratorContext: {
+        activation: {
+          payload: {
+            stage_name: 'fix',
+          },
+        },
+        board: {
+          work_items: [
+            {
+              id: 'wi-reproduce',
+              stage_name: 'reproduce',
+              column_id: 'active',
+              next_expected_actor: 'developer',
+              next_expected_action: 'reproduce',
+              rework_count: 0,
+            },
+            {
+              id: 'wi-fix',
+              stage_name: 'fix',
+              column_id: 'active',
+              next_expected_actor: 'developer',
+              next_expected_action: 'implement',
+              rework_count: 1,
+            },
+          ],
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Current Stage\nfix');
+    expect(layer!.content).not.toContain('## Current Stage\nreproduce');
+    expect(layer!.content).toContain('Next expected action: implement');
+    expect(layer!.content).not.toContain('Next expected action: reproduce');
+    expect(layer!.content).toContain('Current rework count: 1');
+    expect(layer!.content).not.toContain('Current rework count: 0');
+  });
 });

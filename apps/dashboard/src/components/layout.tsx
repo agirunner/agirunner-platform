@@ -3,31 +3,23 @@ import type { ElementType, KeyboardEvent as ReactKeyboardEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Bell,
   Bot,
   ChevronRight,
-  Clipboard,
   Cog,
   Container,
-  Database,
-  DollarSign,
-  FileText,
   FolderOpen,
-  Gauge,
   HardDrive,
   Key,
-  LayoutDashboard,
   Link2,
   LogOut,
   Menu,
-  Moon,
+  Monitor,
   ScrollText,
   Search,
   Server,
   Settings2,
   Shield,
   Sparkles,
-  Sun,
   Timer,
   Users,
   Webhook,
@@ -40,7 +32,6 @@ import {
 import { dashboardApi, type DashboardSearchResult } from '../lib/api.js';
 import { readSession, clearSession } from '../lib/session.js';
 import { cn } from '../lib/utils.js';
-import { readTheme } from '../app/theme.js';
 import { BreadcrumbBar } from './breadcrumb-bar.js';
 import {
   Dialog,
@@ -64,10 +55,6 @@ import {
   type CommandPaletteStatus,
 } from './layout-search.js';
 
-interface LayoutProps {
-  onToggleTheme: () => void;
-}
-
 interface NavItem {
   label: string;
   href: string;
@@ -83,27 +70,16 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Mission Control',
-    icon: Gauge,
-    items: [
-      { label: 'Live Board', href: '/mission-control', icon: LayoutDashboard },
-      { label: 'Action Queue', href: '/mission-control/alerts', icon: Bell },
-      { label: 'Cost Dashboard', href: '/mission-control/costs', icon: DollarSign },
-      { label: 'Logs', href: '/logs', icon: ScrollText },
-    ],
-  },
-  {
-    label: 'Work',
-    icon: Workflow,
+    label: 'Execution',
+    icon: Monitor,
     items: [
       {
-        label: 'Workflow Boards',
-        href: '/work/boards',
-        icon: Workflow,
-        keywords: ['workflow', 'workflows', 'board', 'boards', 'delivery board', 'board run'],
+        label: 'Execution Canvas',
+        href: '/execution',
+        icon: Monitor,
+        keywords: ['execution', 'canvas', 'workflows', 'launch', 'run', 'board', 'live'],
       },
-      { label: 'Tasks', href: '/work/tasks', icon: Clipboard },
-      { label: 'Approval Queue', href: '/work/approvals', icon: Bell },
+      { label: 'Logs', href: '/logs', icon: ScrollText },
     ],
   },
   {
@@ -183,7 +159,7 @@ function restoreFocusToElement(element: HTMLElement | null): boolean {
   return document.activeElement === element;
 }
 
-export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
+export function DashboardLayout(): JSX.Element {
   const navigate = useNavigate();
   const location = useLocation();
   const queryClient = useQueryClient();
@@ -209,7 +185,6 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   const mobileMenuRestoreFocusRef = useRef<HTMLElement | null>(null);
   const skipMobileMenuRestoreRef = useRef(false);
   const searchRequestRef = useRef(0);
-  const isDark = readTheme() === 'dark';
 
   useEffect(() => {
     setIsMobileMenuOpen(false);
@@ -232,14 +207,6 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   );
   const actionItems = useMemo<Array<CommandPaletteItem>>(
     () => [
-      {
-        id: 'action:toggle-theme',
-        label: isDark ? 'Switch to light theme' : 'Switch to dark theme',
-        meta: 'Appearance',
-        kind: 'action',
-        actionId: 'toggle-theme',
-        keywords: ['theme', 'appearance', isDark ? 'light' : 'dark'],
-      },
       {
         id: 'action:refresh-view',
         label: 'Refresh current view',
@@ -265,7 +232,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
         keywords: ['recent', 'clear', 'history'],
       },
     ],
-    [isDark],
+    [],
   );
   const visiblePaletteSections = useMemo(
     () =>
@@ -344,11 +311,6 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
   }, [searchOpen]);
 
   function executeCommandPaletteAction(actionId: CommandPaletteActionId): void {
-    if (actionId === 'toggle-theme') {
-      onToggleTheme();
-      closeSearchPalette();
-      return;
-    }
     if (actionId === 'refresh-view') {
       void queryClient.invalidateQueries();
       closeSearchPalette();
@@ -504,27 +466,17 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
             <img src="/logo.svg" alt="" className="h-7 w-7" />
             <span className="text-lg font-semibold">AGI Runner</span>
           </div>
-          <div className="flex items-center gap-1">
+          {isMobile ? (
             <button
+              ref={mobileMenuCloseButtonRef}
               type="button"
-              onClick={onToggleTheme}
+              onClick={closeMobileMenu}
               className={ICON_BUTTON_CLASSES}
-              aria-label="Toggle theme"
+              aria-label="Close navigation menu"
             >
-              {isDark ? <Sun size={16} /> : <Moon size={16} />}
+              <X size={16} />
             </button>
-            {isMobile ? (
-              <button
-                ref={mobileMenuCloseButtonRef}
-                type="button"
-                onClick={closeMobileMenu}
-                className={ICON_BUTTON_CLASSES}
-                aria-label="Close navigation menu"
-              >
-                <X size={16} />
-              </button>
-            ) : null}
-          </div>
+          ) : null}
         </div>
 
         <div className="px-3 py-2">
