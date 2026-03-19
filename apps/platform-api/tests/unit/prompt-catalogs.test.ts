@@ -16,7 +16,8 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before task completion, you MUST ensure');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('successful structured handoff');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Rejected validation attempts do not count');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Rejected attempts do not count');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not duplicate unchanged handoffs');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects completion without a structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or progress marker');
@@ -92,9 +93,10 @@ describe('prompt catalogs', () => {
         'assume only the prepared repository workspace, git, and a minimal shell are guaranteed',
       );
       expect(role.systemPrompt).toContain('Install missing runtimes/tools yourself in the task container');
-      expect(role.systemPrompt).toContain('Do not infer behavior from stale names or terminology');
-      expect(role.systemPrompt).toContain('Before completing the task, you MUST ensure exactly one successful structured handoff is persisted with a unique request_id');
-      expect(role.systemPrompt).toContain('Rejected validation attempts do not count');
+      expect(role.systemPrompt).toContain('Do not infer behavior from stale terminology');
+      expect(role.systemPrompt).toContain('Before completing the task, you MUST ensure one successful structured handoff exists with a unique request_id');
+      expect(role.systemPrompt).toContain('Do not duplicate unchanged handoffs');
+      expect(role.systemPrompt).toContain('Rejected attempts do not count');
       expect(role.systemPrompt).toContain('The platform will reject completion without a structured handoff');
     }
   });

@@ -24,7 +24,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Repository-backed tasks MUST commit and push relevant work before escalation.
 - Repository-backed containers guarantee only the repo checkout, git, and sh. Install other tooling yourself.
 - Non-repository tasks MUST upload the required artifacts before escalation.
-- Before task completion, you MUST ensure one successful structured handoff is persisted for the next actor with a unique request_id. Rejected validation attempts do not count.
+- Before task completion, you MUST ensure one successful structured handoff exists with a unique request_id. Rejected attempts do not count. Do not duplicate unchanged handoffs.
 - The platform rejects completion without a structured handoff.
 - Do not use submit_handoff as a scratch note or progress marker.
 - Leave a handoff with what changed, what remains, and what to inspect next.
