@@ -14,6 +14,20 @@ import type { RelevantHandoffResolution } from './predecessor-handoff-resolver.j
 
 const SECRET_REDACTION = 'redacted://task-secret';
 
+export type TaskResponseRecord = Record<string, unknown> & {
+  id: string | null;
+  state: unknown;
+  workflow_id: string | null;
+  work_item_id: string | null;
+  stage_name: string | null;
+  assigned_agent_id: string | null;
+  assigned_worker_id: string | null;
+  description: unknown;
+  parent_id: unknown;
+  verification: unknown;
+  latest_handoff?: unknown;
+};
+
 export class TaskQueryService {
   constructor(
     private readonly pool: DatabasePool,
@@ -28,7 +42,7 @@ export class TaskQueryService {
     return task;
   }
 
-  toTaskResponse(task: Record<string, unknown>) {
+  toTaskResponse(task: Record<string, unknown>): TaskResponseRecord {
     const sanitizedTask = sanitizeTaskRecord(task);
     const metadata = (sanitizedTask.metadata ?? {}) as Record<string, unknown>;
     return {
@@ -37,7 +51,7 @@ export class TaskQueryService {
       description: metadata.description ?? null,
       parent_id: metadata.parent_id ?? null,
       verification: metadata.verification ?? null,
-    };
+    } as TaskResponseRecord;
   }
 
   async listTasks(tenantId: string, query: ListTaskQuery) {
