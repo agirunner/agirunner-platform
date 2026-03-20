@@ -136,6 +136,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         payload = run_workflow_scenario.build_run_result_payload(
             workflow_id="wf-1",
             final_state="completed",
+            timed_out=False,
             poll_iterations=7,
             scenario_name="sdlc-lite-approval-request-changes-then-approve",
             approval_mode="scripted",
@@ -158,6 +159,35 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual("sdlc-lite-approval-request-changes-then-approve", payload["scenario_name"])
         self.assertEqual("oauth", payload["provider_auth_mode"])
         self.assertEqual("completed", payload["workflow_state"])
+
+    def test_build_run_result_payload_does_not_mark_expected_pending_ongoing_workflow_as_timed_out(
+        self,
+    ) -> None:
+        payload = run_workflow_scenario.build_run_result_payload(
+            workflow_id="wf-1",
+            final_state="pending",
+            timed_out=False,
+            poll_iterations=50,
+            scenario_name="ongoing-intake-reuse-positive",
+            approval_mode="none",
+            provider_auth_mode="oauth",
+            workflow={"id": "wf-1", "state": "pending", "lifecycle": "ongoing", "tasks": []},
+            board={"ok": True},
+            work_items={"ok": True},
+            events={"ok": True},
+            approvals={"ok": True},
+            approval_actions=[],
+            workflow_actions=[],
+            workspace={"id": "workspace-1"},
+            artifacts={"ok": True},
+            fleet={"ok": True},
+            fleet_peaks={"peak_running": 1},
+            verification={"passed": True, "failures": [], "checks": []},
+        )
+
+        self.assertFalse(payload["timed_out"])
+        self.assertFalse(payload["terminal"])
+        self.assertEqual("pending", payload["workflow_state"])
 
     def test_evaluate_expectations_checks_fleet_pool_bounds(self) -> None:
         result = run_workflow_scenario.evaluate_expectations(
@@ -282,6 +312,30 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         )
 
         self.assertTrue(result["passed"])
+
+    def test_evaluate_expectations_checks_generic_workflow_fields(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "pending",
+                "workflow_fields": {
+                    "lifecycle": "ongoing",
+                    "current_stage": None,
+                },
+            },
+            workflow={"state": "pending", "lifecycle": "ongoing", "current_stage": None, "tasks": []},
+            board={"ok": True, "data": {"columns": []}},
+            work_items={"ok": True, "data": []},
+            workspace={"memory": {}, "memory_index": {"keys": []}, "artifact_index": {"items": []}},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={"ok": True, "data": {"by_playbook_pool": []}},
+        )
+
+        self.assertTrue(result["passed"])
+        check_names = {entry["name"] for entry in result["checks"]}
+        self.assertIn("workflow_fields.lifecycle", check_names)
+        self.assertIn("workflow_fields.current_stage", check_names)
 
     def test_evaluate_expectations_checks_host_directory_files(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -421,6 +475,44 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             payloads,
         )
 
+    def test_workflow_action_wait_conditions_check_workflow_and_work_item_state(self) -> None:
+        ready = run_workflow_scenario.workflow_action_wait_conditions_met(
+            {
+                "wait_for": {
+                    "workflow_state": "pending",
+                    "completed_work_items_min": 1,
+                    "all_work_items_terminal": True,
+                    "total_work_items_min": 1,
+                    "open_work_items_max": 0,
+                }
+            },
+            workflow={"state": "pending"},
+            work_items_snapshot={
+                "ok": True,
+                "data": [
+                    {"id": "wi-1", "column_id": "done"},
+                ],
+            },
+        )
+        blocked = run_workflow_scenario.workflow_action_wait_conditions_met(
+            {
+                "wait_for": {
+                    "workflow_state": "pending",
+                    "completed_work_items_min": 2,
+                }
+            },
+            workflow={"state": "active"},
+            work_items_snapshot={
+                "ok": True,
+                "data": [
+                    {"id": "wi-1", "column_id": "done"},
+                ],
+            },
+        )
+
+        self.assertTrue(ready)
+        self.assertFalse(blocked)
+
     def test_dispatch_workflow_actions_creates_work_items(self) -> None:
         client = FakeClient()
         actions = run_workflow_scenario.dispatch_workflow_actions(
@@ -465,6 +557,93 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                     },
                     (201,),
                     "workflows.work-items.create:burst-02",
+                ),
+            ],
+            client.calls,
+        )
+
+    def test_dispatch_ready_workflow_actions_respects_wait_conditions_between_waves(self) -> None:
+        client = FakeClient()
+        actions = [
+            {
+                "type": "create_work_items",
+                "count": 1,
+                "dispatch": "serial",
+                "stage_name": "triage",
+                "request_id_template": "wave-1-{index}",
+                "title_template": "wave-1-item-{index}",
+            },
+            {
+                "type": "create_work_items",
+                "count": 1,
+                "dispatch": "serial",
+                "stage_name": "triage",
+                "request_id_template": "wave-2-{index}",
+                "title_template": "wave-2-item-{index}",
+                "wait_for": {
+                    "workflow_state": "pending",
+                    "completed_work_items_min": 1,
+                    "all_work_items_terminal": True,
+                },
+            },
+        ]
+
+        next_index, first_wave = run_workflow_scenario.dispatch_ready_workflow_actions(
+            client,
+            workflow_id="wf-1",
+            scenario_name="ongoing-intake-reuse",
+            actions=actions,
+            next_action_index=0,
+            workflow={"state": "pending"},
+            work_items_snapshot={"ok": True, "data": []},
+        )
+        paused_index, paused_wave = run_workflow_scenario.dispatch_ready_workflow_actions(
+            client,
+            workflow_id="wf-1",
+            scenario_name="ongoing-intake-reuse",
+            actions=actions,
+            next_action_index=next_index,
+            workflow={"state": "active"},
+            work_items_snapshot={"ok": True, "data": [{"id": "wi-1", "column_id": "planned"}]},
+        )
+        final_index, second_wave = run_workflow_scenario.dispatch_ready_workflow_actions(
+            client,
+            workflow_id="wf-1",
+            scenario_name="ongoing-intake-reuse",
+            actions=actions,
+            next_action_index=paused_index,
+            workflow={"state": "pending"},
+            work_items_snapshot={"ok": True, "data": [{"id": "wi-1", "column_id": "done"}]},
+        )
+
+        self.assertEqual(1, next_index)
+        self.assertEqual(2, final_index)
+        self.assertEqual(1, len(first_wave))
+        self.assertEqual([], paused_wave)
+        self.assertEqual(1, len(second_wave))
+        self.assertEqual(
+            [
+                (
+                    "POST",
+                    "/api/v1/workflows/wf-1/work-items",
+                    {
+                        "request_id": "wave-1-1",
+                        "title": "wave-1-item-1",
+                        "stage_name": "triage",
+                    },
+                    (201,),
+                    "workflows.work-items.create:wave-1-1",
+                ),
+                (
+                    "POST",
+                    "/api/v1/workflows/wf-1/work-items",
+                    {
+                        "request_id": "wave-2-1",
+                        "title": "wave-2-item-1",
+                        "stage_name": "triage",
+                    },
+                    (201,),
+                    "workflows.work-items.create:wave-2-1",
                 ),
             ],
             client.calls,

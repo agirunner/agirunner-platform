@@ -253,6 +253,14 @@ def _workflow_tasks(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     return tasks if isinstance(tasks, list) else []
 
 
+def _completed_work_item_count(work_items_snapshot: Any) -> int:
+    return sum(1 for item in _work_items(work_items_snapshot) if item.get("column_id") == "done")
+
+
+def _open_work_item_count(work_items_snapshot: Any) -> int:
+    return sum(1 for item in _work_items(work_items_snapshot) if item.get("column_id") != "done")
+
+
 def _workspace_host_directory_root(workspace: dict[str, Any]) -> Path | None:
     settings = workspace.get("settings")
     if not isinstance(settings, dict):
@@ -377,6 +385,24 @@ def evaluate_expectations(
         checks.append({"name": "workflow.state", "passed": passed, "expected": expected_state, "actual": actual_state})
         if not passed:
             failures.append(f"expected workflow state {expected_state!r}, got {actual_state!r}")
+
+    workflow_field_expectations = expectations.get("workflow_fields", {})
+    if isinstance(workflow_field_expectations, dict):
+        for field_name, expected_value in workflow_field_expectations.items():
+            actual_value = workflow.get(field_name)
+            passed = actual_value == expected_value
+            checks.append(
+                {
+                    "name": f"workflow_fields.{field_name}",
+                    "passed": passed,
+                    "expected": expected_value,
+                    "actual": actual_value,
+                }
+            )
+            if not passed:
+                failures.append(
+                    f"expected workflow field {field_name!r} to equal {expected_value!r}, got {actual_value!r}"
+                )
 
     work_item_expectations = expectations.get("work_items", {})
     if isinstance(work_item_expectations, dict) and work_item_expectations.get("all_terminal"):
@@ -840,6 +866,41 @@ def build_create_work_item_payloads(
     return payloads
 
 
+def workflow_action_wait_conditions_met(
+    action: dict[str, Any],
+    *,
+    workflow: dict[str, Any],
+    work_items_snapshot: Any,
+) -> bool:
+    wait_for = action.get("wait_for", {})
+    if not isinstance(wait_for, dict) or not wait_for:
+        return True
+
+    expected_workflow_state = wait_for.get("workflow_state")
+    if expected_workflow_state is not None and workflow.get("state") != expected_workflow_state:
+        return False
+
+    if "completed_work_items_min" in wait_for:
+        if _completed_work_item_count(work_items_snapshot) < int(wait_for["completed_work_items_min"]):
+            return False
+
+    if "total_work_items_min" in wait_for:
+        if len(_work_items(work_items_snapshot)) < int(wait_for["total_work_items_min"]):
+            return False
+
+    if "open_work_items_max" in wait_for:
+        if _open_work_item_count(work_items_snapshot) > int(wait_for["open_work_items_max"]):
+            return False
+
+    if "all_work_items_terminal" in wait_for:
+        expected = bool(wait_for["all_work_items_terminal"])
+        actual = _open_work_item_count(work_items_snapshot) == 0
+        if actual != expected:
+            return False
+
+    return True
+
+
 def dispatch_workflow_actions(
     client: ApiClient,
     *,
@@ -893,6 +954,38 @@ def dispatch_workflow_actions(
     return executed
 
 
+def dispatch_ready_workflow_actions(
+    client: ApiClient,
+    *,
+    workflow_id: str,
+    scenario_name: str,
+    actions: list[dict[str, Any]],
+    next_action_index: int,
+    workflow: dict[str, Any],
+    work_items_snapshot: Any,
+) -> tuple[int, list[dict[str, Any]]]:
+    executed: list[dict[str, Any]] = []
+    current_index = next_action_index
+    while current_index < len(actions):
+        action = actions[current_index]
+        if not workflow_action_wait_conditions_met(
+            action,
+            workflow=workflow,
+            work_items_snapshot=work_items_snapshot,
+        ):
+            break
+        executed.extend(
+            dispatch_workflow_actions(
+                client,
+                workflow_id=workflow_id,
+                scenario_name=scenario_name,
+                actions=[action],
+            )
+        )
+        current_index += 1
+    return current_index, executed
+
+
 def collect_workflow_events(client: ApiClient, *, workflow_id: str, per_page: int = 100) -> dict[str, Any]:
     after: str | None = None
     collected: list[dict[str, Any]] = []
@@ -937,6 +1030,7 @@ def build_run_result_payload(
     *,
     workflow_id: str,
     final_state: str,
+    timed_out: bool,
     poll_iterations: int,
     scenario_name: str,
     approval_mode: str,
@@ -959,7 +1053,7 @@ def build_run_result_payload(
         "state": final_state,
         "workflow_state": final_state,
         "terminal": final_state in TERMINAL_STATES,
-        "timed_out": final_state not in TERMINAL_STATES,
+        "timed_out": timed_out,
         "poll_iterations": poll_iterations,
         "scenario": scenario_name,
         "scenario_name": scenario_name,
@@ -1007,6 +1101,8 @@ def main() -> None:
         "LIVE_TEST_FINAL_SETTLE_DELAY_SECONDS",
         DEFAULT_FINAL_SETTLE_DELAY_SECONDS,
     )
+    action_plan = [] if scenario is None else scenario["actions"]
+    expectation_plan = {} if scenario is None else scenario["expect"]
 
     trace = TraceRecorder(trace_dir)
     public_client = ApiClient(base_url, trace)
@@ -1032,16 +1128,20 @@ def main() -> None:
     )
 
     workflow_id = created["id"]
-    workflow_actions = dispatch_workflow_actions(
+    next_action_index, workflow_actions = dispatch_ready_workflow_actions(
         client,
         workflow_id=workflow_id,
         scenario_name=scenario_name,
-        actions=[] if scenario is None else scenario["actions"],
+        actions=action_plan,
+        next_action_index=0,
+        workflow=created,
+        work_items_snapshot={"ok": True, "data": []},
     )
     deadline = time.time() + timeout_seconds
     latest_workflow = created
     latest_approvals: dict[str, Any] | None = None
     poll_iterations = 0
+    timed_out = True
     approved_gate_ids: set[str] = set()
     approval_actions: list[dict[str, Any]] = []
     consumed_decisions: set[int] = set()
@@ -1062,7 +1162,30 @@ def main() -> None:
                 label="workflows.get",
             )
         )
+
+        work_items_for_actions = None
+        if next_action_index < len(action_plan):
+            work_items_for_actions = client.best_effort_request(
+                "GET",
+                f"/api/v1/workflows/{workflow_id}/work-items",
+                expected=(200,),
+                label="workflows.work-items.actions",
+            )
+            next_action_index, ready_actions = dispatch_ready_workflow_actions(
+                client,
+                workflow_id=workflow_id,
+                scenario_name=scenario_name,
+                actions=action_plan,
+                next_action_index=next_action_index,
+                workflow=latest_workflow,
+                work_items_snapshot=work_items_for_actions,
+            )
+            if ready_actions:
+                workflow_actions.extend(ready_actions)
+                continue
+
         if latest_workflow.get("state") in TERMINAL_STATES:
+            timed_out = False
             break
         latest_fleet = client.best_effort_request(
             "GET",
@@ -1093,6 +1216,58 @@ def main() -> None:
         if actions:
             approval_actions.extend(actions)
             continue
+
+        if (
+            next_action_index == len(action_plan)
+            and latest_workflow.get("state") not in TERMINAL_STATES
+            and expectation_plan.get("state") not in TERMINAL_STATES
+        ):
+            board_snapshot = client.best_effort_request(
+                "GET",
+                f"/api/v1/workflows/{workflow_id}/board",
+                expected=(200,),
+                label="workflows.board.progress",
+            )
+            work_items_snapshot = (
+                work_items_for_actions
+                if work_items_for_actions is not None
+                else client.best_effort_request(
+                    "GET",
+                    f"/api/v1/workflows/{workflow_id}/work-items",
+                    expected=(200,),
+                    label="workflows.work-items.progress",
+                )
+            )
+            workspace_snapshot = extract_data(
+                client.request(
+                    "GET",
+                    f"/api/v1/workspaces/{workspace_id}",
+                    expected=(200,),
+                    label="workspaces.get.progress",
+                )
+            )
+            artifacts_snapshot = client.best_effort_request(
+                "GET",
+                f"/api/v1/workspaces/{workspace_id}/artifacts",
+                expected=(200,),
+                label="workspaces.artifacts.progress",
+            )
+            progress_verification = evaluate_expectations(
+                expectation_plan,
+                workflow=latest_workflow,
+                board=board_snapshot,
+                work_items=work_items_snapshot,
+                workspace=workspace_snapshot,
+                artifacts=artifacts_snapshot,
+                approval_actions=approval_actions,
+                events={"ok": True, "data": []},
+                fleet=latest_fleet,
+                playbook_id=playbook_id,
+                fleet_peaks=fleet_peaks,
+            )
+            if progress_verification["passed"]:
+                timed_out = False
+                break
         time.sleep(poll_interval_seconds)
 
     latest_workflow = refresh_terminal_workflow_snapshot(
@@ -1147,7 +1322,7 @@ def main() -> None:
 
     final_state = latest_workflow.get("state")
     verification = evaluate_expectations(
-        {} if scenario is None else scenario["expect"],
+        expectation_plan,
         workflow=latest_workflow,
         board=board_snapshot,
         work_items=work_items_snapshot,
@@ -1164,6 +1339,7 @@ def main() -> None:
             build_run_result_payload(
                 workflow_id=workflow_id,
                 final_state=final_state,
+                timed_out=timed_out,
                 poll_iterations=poll_iterations,
                 scenario_name=scenario_name,
                 approval_mode=approval_mode,

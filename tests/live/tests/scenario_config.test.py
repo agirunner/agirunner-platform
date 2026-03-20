@@ -99,6 +99,11 @@ class ScenarioConfigTests(unittest.TestCase):
                         "count": 3,
                         "title_template": "parallel-burst-{index:02d}",
                         "request_id_template": "burst-{index:02d}",
+                        "wait_for": {
+                            "workflow_state": "pending",
+                            "completed_work_items_min": 1,
+                            "all_work_items_terminal": True,
+                        },
                     }
                 ],
                 "expect": {
@@ -134,6 +139,14 @@ class ScenarioConfigTests(unittest.TestCase):
         )
         self.assertEqual(2, len(scenario["approvals"]))
         self.assertEqual(1, len(scenario["actions"]))
+        self.assertEqual(
+            {
+                "workflow_state": "pending",
+                "completed_work_items_min": 1,
+                "all_work_items_terminal": True,
+            },
+            scenario["actions"][0]["wait_for"],
+        )
         self.assertEqual("completed", scenario["expect"]["state"])
         self.assertEqual(900, scenario["timeout_seconds"])
         self.assertEqual(3, scenario["poll_interval_seconds"])

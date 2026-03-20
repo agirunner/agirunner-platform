@@ -1,0 +1,70 @@
+{
+  "name": "ongoing-intake-reuse-positive",
+  "profile": "ongoing-intake-reuse",
+  "workflow": {
+    "name": "Ongoing Intake Reuse Positive",
+    "goal": "Process two independent intake requests on the same ongoing workflow and return to pending when idle."
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "intake_policy": "Each intake request is independent. Finish a request, close its work item, and leave the workflow pending for the next request."
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [
+    {
+      "type": "create_work_items",
+      "dispatch": "serial",
+      "count": 1,
+      "stage_name": "triage",
+      "owner_role": "live-test-intake-analyst",
+      "request_id_template": "ongoing-intake-wave-1-{index}",
+      "title_template": "intake-wave-1-item-{index}",
+      "goal_template": "Triage the first incoming request for ongoing workflow reuse proof.",
+      "acceptance_criteria_template": "The first intake request is triaged, has a structured handoff, and the work item is done.",
+      "metadata": {
+        "wave": "1",
+        "request_kind": "first-intake"
+      }
+    },
+    {
+      "type": "create_work_items",
+      "dispatch": "serial",
+      "count": 1,
+      "stage_name": "triage",
+      "owner_role": "live-test-intake-analyst",
+      "request_id_template": "ongoing-intake-wave-2-{index}",
+      "title_template": "intake-wave-2-item-{index}",
+      "goal_template": "Triage the second incoming request after the workflow has returned to pending.",
+      "acceptance_criteria_template": "The second intake request is triaged on the same workflow after the first wave completed and the workflow returned to pending.",
+      "metadata": {
+        "wave": "2",
+        "request_kind": "second-intake"
+      },
+      "wait_for": {
+        "workflow_state": "pending",
+        "completed_work_items_min": 1,
+        "all_work_items_terminal": true
+      }
+    }
+  ],
+  "expect": {
+    "state": "pending",
+    "workflow_fields": {
+      "lifecycle": "ongoing",
+      "current_stage": null
+    },
+    "work_items": {
+      "all_terminal": true,
+      "min_count": 2
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 2
+    }
+  }
+}
