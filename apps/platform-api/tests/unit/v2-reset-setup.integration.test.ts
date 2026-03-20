@@ -122,7 +122,8 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
             'agent.no_file_change_threshold',
             'agent.max_tool_steps_per_burst',
             'agent.max_mutating_steps_per_burst',
-            'agent.max_burst_elapsed_ms'
+            'agent.max_burst_elapsed_ms',
+            'agent.max_parallel_tool_calls_per_burst'
           )
         ORDER BY config_key ASC`,
       ['00000000-0000-0000-0000-000000000001'],
@@ -145,6 +146,12 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         config_value: '3',
         description:
           'Maximum mutating tool steps the runtime executes inside one reactive burst before re-evaluating',
+      },
+      {
+        config_key: 'agent.max_parallel_tool_calls_per_burst',
+        config_value: '4',
+        description:
+          'Maximum read-only tool calls the runtime executes in parallel inside one reactive burst',
       },
       {
         config_key: 'agent.max_tool_steps_per_burst',

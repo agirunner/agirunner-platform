@@ -65,6 +65,7 @@ describe('runtime defaults page source', () => {
         'agent.max_tool_steps_per_burst',
         'agent.max_mutating_steps_per_burst',
         'agent.max_burst_elapsed_ms',
+        'agent.max_parallel_tool_calls_per_burst',
       ]),
     );
 

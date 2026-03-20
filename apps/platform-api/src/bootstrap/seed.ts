@@ -1004,6 +1004,12 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       description: 'Maximum elapsed time in milliseconds allowed for one reactive burst before re-evaluating',
     },
     {
+      configKey: 'agent.max_parallel_tool_calls_per_burst',
+      configValue: '4',
+      configType: 'number',
+      description: 'Maximum read-only tool calls the runtime executes in parallel inside one reactive burst',
+    },
+    {
       configKey: 'agent.max_stuck_interventions',
       configValue: '2',
       configType: 'number',

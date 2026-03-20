@@ -429,6 +429,18 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   {
+    key: 'agent.max_parallel_tool_calls_per_burst',
+    label: 'Maximum parallel tool calls per burst',
+    description:
+      'How many read-only tool calls a reactive burst may execute in parallel before the runtime throttles concurrency.',
+    configType: 'number',
+    placeholder: '4',
+    section: 'agent_safeguards',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
     key: 'agent.max_stuck_interventions',
     label: 'Maximum stuck interventions',
     description:

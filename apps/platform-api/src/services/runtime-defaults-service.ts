@@ -34,6 +34,7 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['agent.max_tool_steps_per_burst', { min: 1 }],
   ['agent.max_mutating_steps_per_burst', { min: 1 }],
   ['agent.max_burst_elapsed_ms', { min: 1 }],
+  ['agent.max_parallel_tool_calls_per_burst', { min: 1 }],
   ['agent.max_stuck_interventions', { min: 0 }],
   ['agent.max_iterations', { min: 1 }],
   ['agent.llm_max_retries', { min: 1 }],

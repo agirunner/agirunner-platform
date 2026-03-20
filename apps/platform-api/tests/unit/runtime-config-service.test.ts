@@ -68,6 +68,12 @@ const loopSafeguardDefaults = [
     config_type: 'number',
     updated_at: new Date(),
   },
+  {
+    config_key: 'agent.max_parallel_tool_calls_per_burst',
+    config_value: '4',
+    config_type: 'number',
+    updated_at: new Date(),
+  },
 ];
 
 const sampleSecretDefault = {
@@ -215,6 +221,7 @@ describe('RuntimeConfigService', () => {
       { key: 'agent.max_tool_steps_per_burst', value: '8', type: 'number' },
       { key: 'agent.max_mutating_steps_per_burst', value: '3', type: 'number' },
       { key: 'agent.max_burst_elapsed_ms', value: '45000', type: 'number' },
+      { key: 'agent.max_parallel_tool_calls_per_burst', value: '4', type: 'number' },
     ]);
   });
 });

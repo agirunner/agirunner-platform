@@ -65,6 +65,7 @@ describe('runtime defaults page support', () => {
       'agent.max_tool_steps_per_burst',
       'agent.max_mutating_steps_per_burst',
       'agent.max_burst_elapsed_ms',
+      'agent.max_parallel_tool_calls_per_burst',
       'agent.max_stuck_interventions',
       'agent.llm_max_retries',
     ]);
@@ -128,6 +129,9 @@ describe('runtime defaults page support', () => {
     const maxBurstElapsedField = FIELD_DEFINITIONS.find(
       (field) => field.key === 'agent.max_burst_elapsed_ms',
     );
+    const maxParallelField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.max_parallel_tool_calls_per_burst',
+    );
 
     expect(loopRepeatField).toMatchObject({
       placeholder: '3',
@@ -157,6 +161,11 @@ describe('runtime defaults page support', () => {
       placeholder: '45000',
       description:
         'How long a reactive burst may run before the runtime forces a new planning boundary.',
+    });
+    expect(maxParallelField).toMatchObject({
+      placeholder: '4',
+      description:
+        'How many read-only tool calls a reactive burst may execute in parallel before the runtime throttles concurrency.',
     });
   });
 
