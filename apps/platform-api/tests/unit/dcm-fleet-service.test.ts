@@ -110,7 +110,7 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       });
       pool.query.mockResolvedValueOnce({
-        rows: [{ name: 'developer', capabilities: ['coding', 'testing', 'git', 'python'] }],
+        rows: [{ name: 'developer' }],
         rowCount: 1,
       });
 
@@ -131,21 +131,11 @@ describe('FleetService DCM', () => {
         cpu: '1',
         memory: '1Gi',
         pending_tasks: 3,
-        tasks_with_capabilities: 2,
-        distinct_capability_sets: 2,
-        max_required_capabilities: 3,
-        capability_demand_units: 7,
         active_workflows: 0,
         active_execution_containers: 4,
         available_execution_slots: 16,
       });
-      expect(result[0].capability_tags).toEqual([
-        'role:developer',
-        'coding',
-        'testing',
-        'git',
-        'python',
-      ]);
+      expect(result[0].routing_tags).toEqual(['role:developer']);
     });
 
     it('fails fast when required runtime defaults are missing', async () => {
@@ -190,7 +180,7 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       });
       pool.query.mockResolvedValueOnce({
-        rows: [{ name: 'developer', capabilities: ['coding'] }],
+        rows: [{ name: 'developer' }],
         rowCount: 1,
       });
 
@@ -245,8 +235,8 @@ describe('FleetService DCM', () => {
       expect(query).toContain('WITH ready_specialist_tasks AS');
       expect(query).toContain('specialist_runtime_heartbeats AS');
       expect(query).toContain('active_execution_leases AS');
-      expect(query).toContain('COUNT(DISTINCT capabilities_required)::int');
-      expect(query.match(/FROM ready_specialist_tasks/g)?.length).toBeGreaterThanOrEqual(3);
+      expect(query).not.toContain('capabilities_required');
+      expect(query.match(/FROM ready_specialist_tasks/g)?.length).toBeGreaterThanOrEqual(1);
       expect(query).not.toContain('FROM playbooks p');
     });
 
@@ -273,7 +263,7 @@ describe('FleetService DCM', () => {
       expect(params).toEqual([TENANT_ID, 90]);
     });
 
-    it('includes all active specialist role tags and capabilities', async () => {
+    it('includes all active specialist role tags', async () => {
       pool.query.mockResolvedValueOnce({
         rows: createRuntimeTargetDefaultRows(),
         rowCount: 8,
@@ -291,10 +281,10 @@ describe('FleetService DCM', () => {
       });
       pool.query.mockResolvedValueOnce({
         rows: [
-          { name: 'developer', capabilities: ['coding', 'testing', 'git', 'python'] },
-          { name: 'reviewer', capabilities: ['code-review', 'security-review', 'git'] },
-          { name: 'product-manager', capabilities: ['requirements', 'documentation', 'research', 'git'] },
-          { name: 'orchestrator', capabilities: ['orchestration'] },
+          { name: 'developer' },
+          { name: 'reviewer' },
+          { name: 'product-manager' },
+          { name: 'orchestrator' },
         ],
         rowCount: 4,
       });
@@ -302,20 +292,7 @@ describe('FleetService DCM', () => {
       const result = await service.getRuntimeTargets(TENANT_ID);
 
       expect(result).toHaveLength(1);
-      expect(result[0].capability_tags).toEqual([
-        'role:developer',
-        'coding',
-        'testing',
-        'git',
-        'python',
-        'role:reviewer',
-        'code-review',
-        'security-review',
-        'role:product-manager',
-        'requirements',
-        'documentation',
-        'research',
-      ]);
+      expect(result[0].routing_tags).toEqual(['role:developer', 'role:reviewer', 'role:product-manager']);
     });
   });
 
@@ -592,7 +569,7 @@ describe('FleetService DCM', () => {
         rowCount: 1,
       });
       pool.query.mockResolvedValueOnce({
-        rows: [{ name: 'developer', capabilities: ['coding', 'testing', 'git', 'python'] }],
+        rows: [{ name: 'developer' }],
         rowCount: 1,
       });
       pool.query.mockResolvedValueOnce({
@@ -654,10 +631,6 @@ describe('FleetService DCM', () => {
             playbook_id: 'specialist',
             pool_kind: 'specialist',
             pending_tasks: 2,
-            tasks_with_capabilities: 2,
-            distinct_capability_sets: 1,
-            max_required_capabilities: 2,
-            capability_demand_units: 5,
             max_runtimes: 10,
           }),
         ]),

@@ -298,7 +298,7 @@ CREATE TABLE public.workers (
     metadata jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     updated_at timestamp with time zone DEFAULT now() NOT NULL,
-    capabilities text[] DEFAULT '{}'::text[] NOT NULL,
+    routing_tags text[] DEFAULT '{}'::text[] NOT NULL,
     current_task_id uuid,
     quality_score numeric(5,3) DEFAULT 1.000 NOT NULL,
     circuit_breaker_state text DEFAULT 'closed'::text NOT NULL,
@@ -310,7 +310,7 @@ CREATE TABLE public.agents (
     tenant_id uuid NOT NULL,
     worker_id uuid,
     name text NOT NULL,
-    capabilities text[] DEFAULT '{}'::text[] NOT NULL,
+    routing_tags text[] DEFAULT '{}'::text[] NOT NULL,
     status public.agent_status DEFAULT 'idle'::public.agent_status NOT NULL,
     current_task_id uuid,
     heartbeat_interval_seconds integer DEFAULT 30 NOT NULL,
@@ -365,7 +365,6 @@ CREATE TABLE public.tasks (
     input jsonb DEFAULT '{}'::jsonb NOT NULL,
     output jsonb,
     error jsonb,
-    capabilities_required text[] DEFAULT '{}'::text[] NOT NULL,
     role_config jsonb,
     environment jsonb,
     resource_bindings jsonb DEFAULT '[]'::jsonb NOT NULL,
@@ -798,7 +797,6 @@ CREATE TABLE public.role_definitions (
     model_preference text,
     fallback_model text,
     verification_strategy text,
-    capabilities text[] DEFAULT '{}'::text[],
     is_built_in boolean DEFAULT false,
     escalation_target text DEFAULT NULL,
     max_escalation_depth integer NOT NULL DEFAULT 5,
@@ -1155,7 +1153,7 @@ CREATE INDEX idx_exlogs_wf_level ON ONLY public.execution_logs USING btree (work
 CREATE INDEX idx_acp_sessions_tenant_agent ON public.acp_sessions USING btree (tenant_id, agent_id, created_at DESC);
 CREATE INDEX idx_acp_sessions_tenant_status ON public.acp_sessions USING btree (tenant_id, status, updated_at DESC);
 CREATE INDEX idx_acp_sessions_tenant_workflow ON public.acp_sessions USING btree (tenant_id, workflow_id, created_at DESC);
-CREATE INDEX idx_agents_capabilities ON public.agents USING gin (capabilities);
+CREATE INDEX idx_agents_routing_tags ON public.agents USING gin (routing_tags);
 CREATE INDEX idx_agents_current_task ON public.agents USING btree (current_task_id) WHERE (current_task_id IS NOT NULL);
 CREATE INDEX idx_agents_status ON public.agents USING btree (tenant_id, status);
 CREATE INDEX idx_agents_tenant ON public.agents USING btree (tenant_id);
@@ -1224,7 +1222,7 @@ CREATE INDEX idx_worker_actual_state_desired ON public.worker_actual_state USING
 CREATE INDEX idx_worker_desired_state_enabled ON public.worker_desired_state USING btree (tenant_id, enabled);
 CREATE INDEX idx_worker_desired_state_tenant ON public.worker_desired_state USING btree (tenant_id);
 CREATE INDEX idx_worker_signals_pending ON public.worker_signals USING btree (worker_id, delivered) WHERE (delivered = false);
-CREATE INDEX idx_workers_capabilities ON public.workers USING gin (capabilities);
+CREATE INDEX idx_workers_routing_tags ON public.workers USING gin (routing_tags);
 CREATE INDEX idx_workers_status ON public.workers USING btree (tenant_id, status);
 CREATE INDEX idx_workers_tenant ON public.workers USING btree (tenant_id);
 CREATE INDEX idx_workflow_artifacts_tenant_path ON public.workflow_artifacts USING btree (tenant_id, logical_path);

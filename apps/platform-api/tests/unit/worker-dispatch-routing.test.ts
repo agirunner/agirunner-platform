@@ -42,7 +42,7 @@ describe('dispatchReadyTasks role-first routing', () => {
     resetTaskClaimMock.mockReset();
   });
 
-  it('passes the internal role tag for workflow specialist tasks instead of stored capabilities', async () => {
+  it('passes the internal role tag for workflow specialist tasks', async () => {
     findReadyTasksMock.mockResolvedValue([
       {
         id: 'task-1',
@@ -51,7 +51,6 @@ describe('dispatchReadyTasks role-first routing', () => {
         work_item_id: 'work-item-1',
         is_orchestrator_task: false,
         role: 'developer',
-        capabilities_required: [],
       },
     ]);
     findDispatchCandidateWorkersMock.mockResolvedValue([]);
@@ -82,7 +81,6 @@ describe('dispatchReadyTasks role-first routing', () => {
       context.pool,
       'tenant-1',
       ['worker-1'],
-      [],
       'role:developer',
     );
   });

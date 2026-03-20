@@ -44,7 +44,7 @@ describe('runtime config routes', () => {
       .mockResolvedValueOnce({
         rows: [{
           name: 'worker-alpha',
-          capabilities: ['coding', 'testing'],
+          routing_tags: ['role:developer'],
         }],
         rowCount: 1,
       })
@@ -54,7 +54,6 @@ describe('runtime config routes', () => {
           description: 'Implements features',
           system_prompt: 'You are a developer.',
           allowed_tools: ['file_read'],
-          capabilities: ['coding', 'testing'],
           verification_strategy: 'peer_review',
           updated_at: new Date('2026-03-12T00:00:00Z'),
         }],
@@ -125,7 +124,6 @@ describe('runtime config routes', () => {
             description: 'Implements features',
             system_prompt: 'You are a developer.',
             allowed_tools: ['file_read'],
-            capabilities: ['coding'],
             verification_strategy: 'peer_review',
             updated_at: new Date('2026-03-12T00:00:00Z'),
           },
@@ -134,7 +132,6 @@ describe('runtime config routes', () => {
             description: 'Verifies behavior',
             system_prompt: 'You are a QA specialist.',
             allowed_tools: ['file_read'],
-            capabilities: ['testing'],
             verification_strategy: 'manual',
             updated_at: new Date('2026-03-12T00:00:00Z'),
           },

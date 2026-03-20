@@ -11,7 +11,7 @@ const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 const sampleWorker = {
   id: 'worker-1',
   name: 'built-in-worker',
-  capabilities: ['coding', 'testing', 'code-review'],
+  routing_tags: ['role:developer'],
 };
 
 const sampleRole = {
@@ -19,7 +19,6 @@ const sampleRole = {
   description: 'Implements features',
   system_prompt: 'You are a developer.',
   allowed_tools: ['file_read', 'file_write'],
-  capabilities: ['coding', 'testing'],
   verification_strategy: 'peer_review',
   updated_at: new Date(),
 };
@@ -145,7 +144,7 @@ describe('RuntimeConfigService', () => {
   });
 
   it('does not expose role model assignments through worker runtime config', async () => {
-    const workerWithRole = { ...sampleWorker, capabilities: ['role:developer', 'coding'] };
+    const workerWithRole = { ...sampleWorker, routing_tags: ['role:developer'] };
 
     pool.query
       .mockResolvedValueOnce({ rows: [], rowCount: 0 })
@@ -159,8 +158,8 @@ describe('RuntimeConfigService', () => {
     expect(result).not.toHaveProperty('fallbackModel');
   });
 
-  it('returns all active roles when worker has no role capabilities', async () => {
-    const workerNoRoles = { ...sampleWorker, capabilities: ['coding'] };
+  it('returns all active roles when worker has no role routing tags', async () => {
+    const workerNoRoles = { ...sampleWorker, routing_tags: [] };
 
     pool.query
       .mockResolvedValueOnce({ rows: [], rowCount: 0 })
@@ -198,7 +197,6 @@ describe('RuntimeConfigService', () => {
         description: 'Implements features',
         systemPrompt: 'You are a developer.',
         allowedTools: ['file_read', 'file_write'],
-        capabilities: ['coding', 'testing'],
         verificationStrategy: 'peer_review',
       },
     ]);

@@ -101,7 +101,6 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
       state: 'ready',
       workflow_id: null,
       workspace_id: null,
-      capabilities_required: [],
       depends_on: [],
       metadata: {},
       role: 'coder',
@@ -221,7 +220,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const service = new TaskClaimService(deps as never);
     const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
-      { agent_id: 'agent-1', routing_tags: [] },
+      { agent_id: 'agent-1', routing_tags: ['role:coder'] },
     );
 
     expect(result).not.toBeNull();
@@ -253,7 +252,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const service = new TaskClaimService(deps as never);
     const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
-      { agent_id: 'agent-1', routing_tags: [] },
+      { agent_id: 'agent-1', routing_tags: ['role:coder'] },
     );
 
     const roleConfig = (result as Record<string, unknown>).role_config as Record<string, unknown>;
@@ -273,7 +272,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const service = new TaskClaimService(deps as never);
     const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
-      { agent_id: 'agent-1', routing_tags: [] },
+      { agent_id: 'agent-1', routing_tags: ['role:coder'] },
     );
 
     const roleConfig = (result as Record<string, unknown>).role_config as Record<string, unknown>;
@@ -291,7 +290,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const service = new TaskClaimService(deps as never);
     const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
-      { agent_id: 'agent-1', routing_tags: [] },
+      { agent_id: 'agent-1', routing_tags: ['role:coder'] },
     );
 
     expect((result as Record<string, unknown>).instructions).toBe('flat instructions');

@@ -41,6 +41,7 @@ describe('three-container model integration', () => {
       ['agent.llm_max_retries', '5'],
       ['global_max_runtimes', '3'],
       ['global_max_execution_containers', '1'],
+      ['container_manager.hung_runtime_stale_after_seconds', '90'],
       ['specialist_runtime_bootstrap_claim_timeout_seconds', '60'],
       ['specialist_runtime_drain_grace_seconds', '15'],
       ['platform.workflow_activation_delay_ms', '10000'],
@@ -161,17 +162,17 @@ describe('three-container model integration', () => {
       name: 'three-container-worker',
       runtime_type: 'external',
       connection_mode: 'polling',
-      routing_tags: ['coding'],
+      routing_tags: ['role:default-specialist', 'role:heavy-specialist'],
       agents: [
         {
           name: 'specialist-a',
           execution_mode: 'specialist',
-          routing_tags: ['coding'],
+          routing_tags: ['role:default-specialist', 'role:heavy-specialist'],
         },
         {
           name: 'specialist-b',
           execution_mode: 'specialist',
-          routing_tags: ['coding'],
+          routing_tags: ['role:default-specialist', 'role:heavy-specialist'],
         },
       ],
     });
@@ -185,7 +186,6 @@ describe('three-container model integration', () => {
       role: 'default-specialist',
       work_item_id: String(workItem.id),
       request_id: 'tc-default-1',
-      capabilities_required: ['coding'],
       input: { description: 'Run with tenant execution defaults' },
     });
     const overrideTask = await harness.taskService.createTask(identity, {
@@ -193,7 +193,6 @@ describe('three-container model integration', () => {
       role: 'heavy-specialist',
       work_item_id: String(workItem.id),
       request_id: 'tc-override-1',
-      capabilities_required: ['coding'],
       input: { description: 'Run with role execution override' },
     });
 
@@ -219,7 +218,7 @@ describe('three-container model integration', () => {
       {
         agent_id: String(firstAgent?.id),
         worker_id: registration.worker_id,
-        routing_tags: ['coding'],
+        routing_tags: ['role:default-specialist', 'role:heavy-specialist'],
         playbook_id: String(playbook.id),
       },
     );
@@ -245,7 +244,7 @@ describe('three-container model integration', () => {
       {
         agent_id: String(secondAgent?.id),
         worker_id: registration.worker_id,
-        routing_tags: ['coding'],
+        routing_tags: ['role:default-specialist', 'role:heavy-specialist'],
         playbook_id: String(playbook.id),
       },
     );
@@ -285,7 +284,7 @@ describe('three-container model integration', () => {
       {
         agent_id: String(secondAgent?.id),
         worker_id: registration.worker_id,
-        routing_tags: ['coding'],
+        routing_tags: ['role:default-specialist', 'role:heavy-specialist'],
         playbook_id: String(playbook.id),
       },
     );
@@ -342,7 +341,6 @@ describe('three-container model integration', () => {
       role: 'default-specialist',
       work_item_id: String(workItem.id),
       request_id: 'tc-default-2',
-      capabilities_required: ['coding'],
       input: { description: 'Run with updated tenant execution defaults' },
     });
 
@@ -351,7 +349,7 @@ describe('three-container model integration', () => {
       {
         agent_id: String(firstAgent?.id),
         worker_id: registration.worker_id,
-        routing_tags: ['coding'],
+        routing_tags: ['role:default-specialist', 'role:heavy-specialist'],
         playbook_id: String(playbook.id),
       },
     );

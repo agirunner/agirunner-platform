@@ -18,7 +18,6 @@ const sampleRole = {
   allowed_tools: ['file_read', 'file_write'],
   model_preference: 'gpt-5-mini',
   verification_strategy: 'peer_review',
-  capabilities: ['coding', 'testing'],
   execution_container_config: null,
   is_built_in: true,
   is_active: true,

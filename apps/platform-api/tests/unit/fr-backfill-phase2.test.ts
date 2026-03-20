@@ -378,29 +378,29 @@ describe('FR-715: workflow cancellation guardrails', () => {
 // FR-744: BYOK model for built-in worker
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-744: BYOK model for built-in worker', () => {
-  it('selectLeastLoadedWorker picks least loaded eligible worker by capability', () => {
+  it('selectLeastLoadedWorker picks least loaded eligible worker by routing tag', () => {
     const workers = [
       {
         id: 'heavy',
         status: 'online' as const,
-        capabilities: ['typescript', 'openclaw'],
+        routing_tags: ['typescript', 'openclaw'],
         currentLoad: 10,
       },
       {
         id: 'light',
         status: 'online' as const,
-        capabilities: ['typescript', 'openclaw'],
+        routing_tags: ['typescript', 'openclaw'],
         currentLoad: 2,
       },
-      { id: 'no-cap', status: 'online' as const, capabilities: ['python'], currentLoad: 0 },
+      { id: 'no-cap', status: 'online' as const, routing_tags: ['python'], currentLoad: 0 },
     ];
     const selected = selectLeastLoadedWorker(workers, ['openclaw']);
     expect(selected?.id).toBe('light');
   });
 
-  it('selectLeastLoadedWorker returns null when no worker matches required capabilities', () => {
+  it('selectLeastLoadedWorker returns null when no worker matches required routing tags', () => {
     const workerList = [
-      { id: 'python-worker', status: 'online' as const, capabilities: ['python'], currentLoad: 0 },
+      { id: 'python-worker', status: 'online' as const, routing_tags: ['python'], currentLoad: 0 },
     ];
     const selected = selectLeastLoadedWorker(workerList, ['typescript']);
     expect(selected).toBeNull();

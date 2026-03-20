@@ -173,7 +173,7 @@ export class RuntimeConfigService {
         result.rowCount
           ? {
               name: result.rows[0].name,
-              routingTags: result.rows[0].routing_tags,
+              routingTags: result.rows[0].routing_tags ?? [],
               roleNames: [],
               allowAllRolesWhenEmpty: true,
             }

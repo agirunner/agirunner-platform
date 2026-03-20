@@ -144,13 +144,13 @@ func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID, workerNam
 	if normalizePoolKind(target.PoolKind) != "specialist" && strings.TrimSpace(target.PlaybookID) != "" {
 		environment["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"] = target.PlaybookID
 	}
-	if capabilityTags := joinCapabilityTags(target.CapabilityTags); capabilityTags != "" {
-		environment["AGIRUNNER_RUNTIME_PLATFORM_CAPABILITY_TAGS"] = capabilityTags
+	if routingTags := joinRoutingTags(target.RoutingTags); routingTags != "" {
+		environment["AGIRUNNER_RUNTIME_PLATFORM_ROUTING_TAGS"] = routingTags
 	}
 	return environment
 }
 
-func joinCapabilityTags(values []string) string {
+func joinRoutingTags(values []string) string {
 	filtered := make([]string, 0, len(values))
 	for _, value := range values {
 		trimmed := strings.TrimSpace(value)

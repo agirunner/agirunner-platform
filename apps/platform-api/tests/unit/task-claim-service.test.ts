@@ -195,7 +195,6 @@ describe('TaskClaimService', () => {
                 is_orchestrator_task: false,
                 max_iterations: null,
                 llm_max_retries: null,
-                capabilities_required: [],
               },
               {
                 id: 'task-developer',
@@ -209,7 +208,6 @@ describe('TaskClaimService', () => {
                 is_orchestrator_task: false,
                 max_iterations: null,
                 llm_max_retries: null,
-                capabilities_required: [],
               },
             ],
           };
@@ -229,7 +227,6 @@ describe('TaskClaimService', () => {
               is_orchestrator_task: false,
               max_iterations: null,
               llm_max_retries: null,
-              capabilities_required: [],
             }],
           };
         }
@@ -268,7 +265,7 @@ describe('TaskClaimService', () => {
 
     expect(task?.id).toBe('task-developer');
     const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
-    expect(taskSelectSql).not.toContain('tasks.capabilities_required <@');
+    expect(taskSelectSql).not.toContain('capabilities_required');
   });
 
   it('attaches the effective loop contract to claimed specialist tasks', async () => {
@@ -2369,7 +2366,6 @@ describe('TaskClaimService', () => {
               workflow_id: 'wf-1',
               state: 'claimed',
               role: 'developer',
-              capabilities_required: ['coding'],
               priority: 'normal',
               metadata: {},
             }],
@@ -2525,7 +2521,6 @@ describe('TaskClaimService', () => {
               workflow_id: 'wf-1',
               state: 'claimed',
               role: 'developer',
-              capabilities_required: ['coding'],
               priority: 'normal',
               metadata: {},
             }],
@@ -3233,7 +3228,6 @@ describe('TaskClaimService', () => {
               workflow_id: 'wf-1',
               state: 'ready',
               role: 'developer',
-              capabilities_required: ['coding'],
               priority: 'normal',
               metadata: {},
             }],
@@ -3250,7 +3244,6 @@ describe('TaskClaimService', () => {
               workflow_id: 'wf-1',
               state: 'claimed',
               role: 'developer',
-              capabilities_required: ['coding'],
               priority: 'normal',
               metadata: {},
             }],

@@ -204,7 +204,7 @@ func TestGetTaskStateReturnsTaskState(t *testing.T) {
 	}
 }
 
-func TestFetchRuntimeTargetsIncludesCapabilityDemandSummary(t *testing.T) {
+func TestFetchRuntimeTargetsReturnsRoutingTags(t *testing.T) {
 	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
 		if req.URL.Path != "/api/v1/fleet/runtime-targets" {
 			t.Errorf("expected path /api/v1/fleet/runtime-targets, got %s", req.URL.Path)
@@ -212,7 +212,7 @@ func TestFetchRuntimeTargetsIncludesCapabilityDemandSummary(t *testing.T) {
 		if req.Method != http.MethodGet {
 			t.Errorf("expected GET, got %s", req.Method)
 		}
-		return jsonResponse(http.StatusOK, `{"data":[{"playbook_id":"pb-1","playbook_name":"Build","pool_kind":"specialist","pool_mode":"cold","max_runtimes":3,"priority":10,"idle_timeout_seconds":300,"grace_period_seconds":180,"image":"runtime:v1","pull_policy":"if-not-present","cpu":"1","memory":"512m","pending_tasks":4,"tasks_with_capabilities":3,"distinct_capability_sets":2,"max_required_capabilities":2,"capability_demand_units":7,"active_workflows":1}]}`), nil
+		return jsonResponse(http.StatusOK, `{"data":[{"playbook_id":"pb-1","playbook_name":"Build","pool_kind":"specialist","routing_tags":["role:developer","role:reviewer"],"pool_mode":"cold","max_runtimes":3,"priority":10,"idle_timeout_seconds":300,"grace_period_seconds":180,"image":"runtime:v1","pull_policy":"if-not-present","cpu":"1","memory":"512m","pending_tasks":4,"active_workflows":1}]}`), nil
 	})
 
 	result, err := client.FetchRuntimeTargets()
@@ -225,11 +225,8 @@ func TestFetchRuntimeTargetsIncludesCapabilityDemandSummary(t *testing.T) {
 	if len(result) != 1 {
 		t.Fatalf("expected one runtime target, got %d", len(result))
 	}
-	if result[0].CapabilityDemandUnits != 7 {
-		t.Fatalf("expected capability_demand_units 7, got %d", result[0].CapabilityDemandUnits)
-	}
-	if result[0].TasksWithCapabilities != 3 {
-		t.Fatalf("expected tasks_with_capabilities 3, got %d", result[0].TasksWithCapabilities)
+	if got := result[0].RoutingTags; len(got) != 2 || got[0] != "role:developer" || got[1] != "role:reviewer" {
+		t.Fatalf("expected routing tags [role:developer role:reviewer], got %#v", got)
 	}
 }
 
@@ -267,7 +264,7 @@ func TestFetchReconcileSnapshotUsesSharedFleetEndpoint(t *testing.T) {
 		if req.Method != http.MethodGet {
 			t.Errorf("expected GET, got %s", req.Method)
 		}
-		return jsonResponse(http.StatusOK, `{"data":{"desired_states":[{"id":"worker-1","enabled":true}],"runtime_targets":[{"playbook_id":"pb-1","playbook_name":"Build","pool_kind":"orchestrator","pool_mode":"warm","max_runtimes":1,"priority":0,"idle_timeout_seconds":300,"grace_period_seconds":180,"image":"runtime:v1","pull_policy":"if-not-present","cpu":"1","memory":"512m","pending_tasks":1,"tasks_with_capabilities":0,"distinct_capability_sets":0,"max_required_capabilities":0,"capability_demand_units":0,"active_workflows":1}],"heartbeats":[{"runtime_id":"rt-1","playbook_id":"pb-1","pool_kind":"orchestrator","state":"idle","last_heartbeat_at":"2026-03-12T00:00:00Z","active_task_id":"task-1"}],"container_manager_config":{"platform_api_request_timeout_seconds":19,"platform_log_ingest_timeout_seconds":17,"reconcile_interval_seconds":7,"stop_timeout_seconds":45,"shutdown_task_stop_timeout_seconds":3,"docker_action_buffer_seconds":20,"log_flush_interval_ms":500,"docker_event_reconnect_backoff_ms":5000,"crash_log_capture_timeout_seconds":5,"starvation_threshold_seconds":60,"runtime_orphan_grace_cycles":3,"hung_runtime_stale_after_seconds":90,"hung_runtime_stop_grace_period_seconds":30,"global_max_runtimes":12}}}`), nil
+		return jsonResponse(http.StatusOK, `{"data":{"desired_states":[{"id":"worker-1","enabled":true}],"runtime_targets":[{"playbook_id":"pb-1","playbook_name":"Build","pool_kind":"orchestrator","routing_tags":["orchestrator"],"pool_mode":"warm","max_runtimes":1,"priority":0,"idle_timeout_seconds":300,"grace_period_seconds":180,"image":"runtime:v1","pull_policy":"if-not-present","cpu":"1","memory":"512m","pending_tasks":1,"active_workflows":1}],"heartbeats":[{"runtime_id":"rt-1","playbook_id":"pb-1","pool_kind":"orchestrator","state":"idle","last_heartbeat_at":"2026-03-12T00:00:00Z","active_task_id":"task-1"}],"container_manager_config":{"platform_api_request_timeout_seconds":19,"platform_log_ingest_timeout_seconds":17,"reconcile_interval_seconds":7,"stop_timeout_seconds":45,"shutdown_task_stop_timeout_seconds":3,"docker_action_buffer_seconds":20,"log_flush_interval_ms":500,"docker_event_reconnect_backoff_ms":5000,"crash_log_capture_timeout_seconds":5,"starvation_threshold_seconds":60,"runtime_orphan_grace_cycles":3,"hung_runtime_stale_after_seconds":90,"hung_runtime_stop_grace_period_seconds":30,"global_max_runtimes":12}}}`), nil
 	})
 
 	result, err := client.FetchReconcileSnapshot()

@@ -85,27 +85,23 @@ type ContainerResourceMetrics struct {
 
 // RuntimeTarget describes the desired runtime fleet configuration for a playbook.
 type RuntimeTarget struct {
-	PlaybookID              string   `json:"playbook_id"`
-	PlaybookName            string   `json:"playbook_name"`
-	PoolKind                string   `json:"pool_kind"`
-	CapabilityTags          []string `json:"capability_tags"`
-	PoolMode                string   `json:"pool_mode"`
-	MaxRuntimes             int      `json:"max_runtimes"`
-	Priority                int      `json:"priority"`
-	IdleTimeoutSeconds      int      `json:"idle_timeout_seconds"`
-	GracePeriodSeconds      int      `json:"grace_period_seconds"`
-	Image                   string   `json:"image"`
-	PullPolicy              string   `json:"pull_policy"`
-	CPU                     string   `json:"cpu"`
-	Memory                  string   `json:"memory"`
-	PendingTasks            int      `json:"pending_tasks"`
-	TasksWithCapabilities   int      `json:"tasks_with_capabilities"`
-	DistinctCapabilitySets  int      `json:"distinct_capability_sets"`
-	MaxRequiredCapabilities int      `json:"max_required_capabilities"`
-	CapabilityDemandUnits   int      `json:"capability_demand_units"`
-	ActiveWorkflows         int      `json:"active_workflows"`
-	ActiveExecutionContainers *int   `json:"active_execution_containers,omitempty"`
-	AvailableExecutionSlots   *int   `json:"available_execution_slots,omitempty"`
+	PlaybookID                string   `json:"playbook_id"`
+	PlaybookName              string   `json:"playbook_name"`
+	PoolKind                  string   `json:"pool_kind"`
+	RoutingTags               []string `json:"routing_tags"`
+	PoolMode                  string   `json:"pool_mode"`
+	MaxRuntimes               int      `json:"max_runtimes"`
+	Priority                  int      `json:"priority"`
+	IdleTimeoutSeconds        int      `json:"idle_timeout_seconds"`
+	GracePeriodSeconds        int      `json:"grace_period_seconds"`
+	Image                     string   `json:"image"`
+	PullPolicy                string   `json:"pull_policy"`
+	CPU                       string   `json:"cpu"`
+	Memory                    string   `json:"memory"`
+	PendingTasks              int      `json:"pending_tasks"`
+	ActiveWorkflows           int      `json:"active_workflows"`
+	ActiveExecutionContainers *int     `json:"active_execution_containers,omitempty"`
+	AvailableExecutionSlots   *int     `json:"available_execution_slots,omitempty"`
 }
 
 // RuntimeHeartbeat represents a runtime's last known heartbeat state.

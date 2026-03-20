@@ -29,7 +29,6 @@ interface TaskWriteDependencies {
   loadTaskOrThrow: (tenantId: string, taskId: string) => Promise<Record<string, unknown>>;
   toTaskResponse: (task: Record<string, unknown>) => Record<string, unknown>;
   parallelismService: PlaybookTaskParallelismService;
-  resolveRoleCapabilities?: (tenantId: string, roleName: string) => Promise<string[] | null>;
 }
 
 interface ParentTaskRow {

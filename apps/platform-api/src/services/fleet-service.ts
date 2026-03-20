@@ -744,7 +744,7 @@ export class FleetService {
     }
 
     const runtimeDefaults = readSpecialistRuntimeTargetDefaults(defaults);
-    const capabilityTags = await this.loadSpecialistCapabilityTags(tenantId);
+    const routingTags = await this.loadSpecialistRoutingTags(tenantId);
     const globalMaxRuntimes = readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
@@ -757,16 +757,12 @@ export class FleetService {
       globalMaxExecutionContainers - stats.active_execution_containers,
       0,
     );
-    const tasksWithCapabilities = stats.specialist_tasks_with_capabilities;
-    const distinctCapabilitySets = stats.specialist_distinct_capability_sets;
-    const maxRequiredCapabilities = stats.specialist_max_required_capabilities;
-
     return [
       {
         playbook_id: GENERIC_SPECIALIST_TARGET_ID,
         playbook_name: GENERIC_SPECIALIST_TARGET_NAME,
         pool_kind: 'specialist',
-        capability_tags: capabilityTags,
+        routing_tags: routingTags,
         pool_mode: 'cold',
         max_runtimes: globalMaxRuntimes,
         priority: 0,
@@ -777,11 +773,6 @@ export class FleetService {
         cpu: runtimeDefaults.cpu,
         memory: runtimeDefaults.memory,
         pending_tasks: stats.pending_tasks,
-        tasks_with_capabilities: tasksWithCapabilities,
-        distinct_capability_sets: distinctCapabilitySets,
-        max_required_capabilities: maxRequiredCapabilities,
-        capability_demand_units:
-          tasksWithCapabilities + distinctCapabilitySets + maxRequiredCapabilities,
         active_workflows: 0,
         active_execution_containers: stats.active_execution_containers,
         available_execution_slots: availableExecutionSlots,
@@ -795,7 +786,7 @@ export class FleetService {
   ): Promise<SpecialistRuntimeStatsRow> {
     const result = await this.pool.query<SpecialistRuntimeStatsRow>(
       `WITH ready_specialist_tasks AS (
-         SELECT capabilities_required
+         SELECT 1
            FROM tasks
           WHERE tenant_id = $1
             AND state = 'ready'
@@ -816,41 +807,20 @@ export class FleetService {
        )
        SELECT
          (SELECT COUNT(*)::int FROM ready_specialist_tasks) AS pending_tasks,
-         (
-           SELECT COUNT(*)::int
-             FROM ready_specialist_tasks
-            WHERE cardinality(capabilities_required) > 0
-         ) AS specialist_tasks_with_capabilities,
-         (
-           SELECT COUNT(DISTINCT capabilities_required)::int
-             FROM ready_specialist_tasks
-            WHERE cardinality(capabilities_required) > 0
-         ) AS specialist_distinct_capability_sets,
-         COALESCE(
-           (
-             SELECT MAX(cardinality(capabilities_required))::int
-               FROM ready_specialist_tasks
-              WHERE cardinality(capabilities_required) > 0
-           ),
-           0
-         ) AS specialist_max_required_capabilities,
          (SELECT active_runtimes FROM specialist_runtime_heartbeats) AS active_runtimes,
          (SELECT active_execution_containers FROM active_execution_leases) AS active_execution_containers`,
       [tenantId, heartbeatFreshnessSeconds],
     );
     return result.rows[0] ?? {
       pending_tasks: 0,
-      specialist_tasks_with_capabilities: 0,
-      specialist_distinct_capability_sets: 0,
-      specialist_max_required_capabilities: 0,
       active_runtimes: 0,
       active_execution_containers: 0,
     };
   }
 
-  private async loadSpecialistCapabilityTags(tenantId: string): Promise<string[]> {
+  private async loadSpecialistRoutingTags(tenantId: string): Promise<string[]> {
     const result = await this.pool.query<RoleCatalogRow>(
-      `SELECT name, capabilities
+      `SELECT name
          FROM role_definitions
         WHERE tenant_id = $1
           AND is_active = true`,
@@ -864,9 +834,6 @@ export class FleetService {
         continue;
       }
       tags.add(`role:${roleName}`);
-      for (const capability of normalizeCapabilityList(row.capabilities)) {
-        tags.add(capability);
-      }
     }
     return [...tags];
   }
@@ -1069,10 +1036,6 @@ export class FleetService {
           executing: 0,
           draining: 0,
           pending_tasks: 0,
-          tasks_with_capabilities: 0,
-          distinct_capability_sets: 0,
-          max_required_capabilities: 0,
-          capability_demand_units: 0,
           active_workflows: 0,
         };
         playbookPoolMap.set(poolKey, poolSummary);
@@ -1108,10 +1071,6 @@ export class FleetService {
       if (poolSummary) {
         poolSummary.max_runtimes = target.max_runtimes;
         poolSummary.pending_tasks = target.pending_tasks;
-        poolSummary.tasks_with_capabilities = target.tasks_with_capabilities;
-        poolSummary.distinct_capability_sets = target.distinct_capability_sets;
-        poolSummary.max_required_capabilities = target.max_required_capabilities;
-        poolSummary.capability_demand_units = target.capability_demand_units;
         poolSummary.active_workflows = target.active_workflows;
       } else {
         playbookPoolMap.set(poolKey, {
@@ -1124,10 +1083,6 @@ export class FleetService {
           executing: 0,
           draining: 0,
           pending_tasks: target.pending_tasks,
-          tasks_with_capabilities: target.tasks_with_capabilities,
-          distinct_capability_sets: target.distinct_capability_sets,
-          max_required_capabilities: target.max_required_capabilities,
-          capability_demand_units: target.capability_demand_units,
           active_workflows: target.active_workflows,
         });
       }
@@ -1303,7 +1258,7 @@ export interface RuntimeTarget {
   playbook_id: string;
   playbook_name: string;
   pool_kind: PlaybookRuntimePoolKind;
-  capability_tags: string[];
+  routing_tags: string[];
   pool_mode: string;
   max_runtimes: number;
   priority: number;
@@ -1314,10 +1269,6 @@ export interface RuntimeTarget {
   cpu: string;
   memory: string;
   pending_tasks: number;
-  tasks_with_capabilities: number;
-  distinct_capability_sets: number;
-  max_required_capabilities: number;
-  capability_demand_units: number;
   active_workflows: number;
   active_execution_containers?: number;
   available_execution_slots?: number;
@@ -1325,16 +1276,12 @@ export interface RuntimeTarget {
 
 interface SpecialistRuntimeStatsRow {
   pending_tasks: number;
-  specialist_tasks_with_capabilities: number;
-  specialist_distinct_capability_sets: number;
-  specialist_max_required_capabilities: number;
   active_runtimes: number;
   active_execution_containers: number;
 }
 
 interface RoleCatalogRow {
   name: string;
-  capabilities: string[];
 }
 
 const SPECIALIST_RUNTIME_TARGET_DEFAULT_KEYS = {
@@ -1523,10 +1470,6 @@ interface PlaybookFleetSummary {
 export interface PlaybookPoolFleetSummary extends PlaybookFleetSummary {
   pool_kind: PlaybookRuntimePoolKind;
   draining: number;
-  tasks_with_capabilities: number;
-  distinct_capability_sets: number;
-  max_required_capabilities: number;
-  capability_demand_units: number;
 }
 
 export interface WorkerPoolSummary {
@@ -1643,13 +1586,4 @@ function normalizeRuntimeHeartbeatPlaybookID(playbookID: string | null | undefin
     return null;
   }
   return normalized.length > 0 ? normalized : null;
-}
-
-function normalizeCapabilityList(values: string[] | null | undefined): string[] {
-  if (!Array.isArray(values)) {
-    return [];
-  }
-  return values
-    .map((value) => String(value).trim())
-    .filter((value) => value.length > 0);
 }

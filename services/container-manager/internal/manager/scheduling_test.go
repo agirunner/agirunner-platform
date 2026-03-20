@@ -219,11 +219,10 @@ func TestStarvationBoostRaisesPriority(t *testing.T) {
 	}
 }
 
-func TestEqualPendingTargetsDoNotPreferCapabilityDemand(t *testing.T) {
+func TestEqualPendingTargetsPreserveOrder(t *testing.T) {
 	docker := newMockDockerClient()
 	first := makeRuntimeTarget("tmpl-first", "img:v1", 1, 1, 10)
 	second := makeRuntimeTarget("tmpl-second", "img:v1", 1, 1, 10)
-	second.CapabilityDemandUnits = 8
 	platform := &mockPlatformClient{
 		runtimeTargets: []RuntimeTarget{first, second},
 	}
@@ -239,7 +238,7 @@ func TestEqualPendingTargetsDoNotPreferCapabilityDemand(t *testing.T) {
 		t.Fatalf("expected exactly one created runtime, got %d", len(docker.createdSpecs))
 	}
 	if got := docker.createdSpecs[0].Labels[labelDCMPlaybookID]; got != "tmpl-first" {
-		t.Fatalf("expected first equal-pending target to win tie regardless of capability demand, got %s", got)
+		t.Fatalf("expected first equal-pending target to win tie, got %s", got)
 	}
 }
 

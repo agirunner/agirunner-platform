@@ -366,7 +366,6 @@ describe('task query service git activity (FR-055)', () => {
           rows: [{
             id: 'agent-1',
             name: 'Agent One',
-            capabilities: ['analysis'],
             metadata: {
               profile: {
                 name: 'Agent One',
