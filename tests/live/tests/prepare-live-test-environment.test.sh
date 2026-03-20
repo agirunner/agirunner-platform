@@ -19,6 +19,16 @@ assert_contains() {
   fi
 }
 
+assert_not_contains() {
+  local needle="$1"
+  local file="$2"
+  if grep -Fq "$needle" "$file"; then
+    echo "--- ${file} ---" >&2
+    cat "$file" >&2
+    fail "did not expect to find: ${needle}"
+  fi
+}
+
 make_stub() {
   local path="$1"
   local body="$2"
@@ -251,9 +261,88 @@ EOF
   fi
 }
 
+test_host_directory_workspace_seed_skips_git_reset_and_exports_host_path() {
+  local tmpdir stubdir logfile stdout_log envfile runtime_root fixtures_root fake_platform_root output_root library_root scenario_file host_seed_dir host_workspaces_root host_workspace_path bootstrap_context_file
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  logfile="${tmpdir}/calls.log"
+  stdout_log="${tmpdir}/stdout.log"
+  envfile="${tmpdir}/env/local.env"
+  runtime_root="${tmpdir}/runtime"
+  fixtures_root="${tmpdir}/fixtures"
+  fake_platform_root="${tmpdir}/platform"
+  output_root="${tmpdir}/out"
+  library_root="${tmpdir}/library"
+  scenario_file="${tmpdir}/host-directory.json"
+  host_seed_dir="${library_root}/host-directory-bug-fix/host-seed"
+  host_workspaces_root="${output_root}/host-workspaces"
+  host_workspace_path="${host_workspaces_root}/host-directory-bug-fix-positive"
+  bootstrap_context_file="${output_root}/bootstrap/context.json"
+  mkdir -p "${stubdir}" "${runtime_root}" "${fixtures_root}" "${fake_platform_root}/apps/platform-api" "${host_seed_dir}/tests" "$(dirname "${envfile}")"
+  touch "${runtime_root}/Dockerfile.execution"
+  touch "${fake_platform_root}/docker-compose.yml"
+  printf '%s\n' 'seed-version-2' >"${host_seed_dir}/seed.txt"
+  printf '%s\n' 'echo ok' >"${host_seed_dir}/tests/run.sh"
+  cat >"${scenario_file}" <<'EOF'
+{
+  "name": "host-directory-bug-fix-positive",
+  "profile": "host-directory-bug-fix",
+  "workflow": {
+    "goal": "Fix the greeting script in a host-directory workspace."
+  },
+  "workspace": {
+    "storage": {
+      "type": "host_directory"
+    }
+  }
+}
+EOF
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+LIVE_TEST_PROVIDER_AUTH_MODE=api_key
+LIVE_TEST_PROVIDER_API_KEY=test-provider-key
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5433
+PLATFORM_API_PORT=8080
+EOF
+
+  make_stub "${stubdir}/docker" 'printf "docker %s\n" "$*" >>"'"${logfile}"'"'
+  make_stub "${stubdir}/git" 'printf "git %s\n" "$*" >>"'"${logfile}"'"'
+  make_stub "${stubdir}/curl" 'printf "curl %s\n" "$*" >>"'"${logfile}"'"'
+  make_stub "${stubdir}/python3" 'printf "python3 %s\n" "$*" >>"'"${logfile}"'"; printf "python3 LIVE_TEST_HOST_WORKSPACE_PATH=%s LIVE_TEST_GITHUB_TOKEN=%s\n" "${LIVE_TEST_HOST_WORKSPACE_PATH:-}" "${LIVE_TEST_GITHUB_TOKEN:-}" >>"'"${logfile}"'"; printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"host-directory\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\"}"'
+
+  PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_PLATFORM_ROOT="${fake_platform_root}" \
+    RUNTIME_REPO_PATH="${runtime_root}" \
+    FIXTURES_REPO_PATH="${fixtures_root}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    LIVE_TEST_LIBRARY_ROOT="${library_root}" \
+    LIVE_TEST_SCENARIO_FILE="${scenario_file}" \
+    LIVE_TEST_SCENARIO_NAME="host-directory-bug-fix-positive" \
+    LIVE_TEST_PROFILE="host-directory-bug-fix" \
+    LIVE_TEST_WORKSPACE_STORAGE_TYPE="host_directory" \
+    "${SCRIPT_PATH}" >"${stdout_log}"
+
+  assert_contains "python3 LIVE_TEST_HOST_WORKSPACE_PATH=${host_workspace_path} LIVE_TEST_GITHUB_TOKEN=" "${logfile}"
+  assert_not_contains "git -C ${fixtures_root}" "${logfile}"
+  if [[ "$(cat "${host_workspace_path}/seed.txt")" != "seed-version-2" ]]; then
+    fail "expected host workspace path to contain seeded files"
+  fi
+  if [[ "$(cat "${host_workspace_path}/tests/run.sh")" != "echo ok" ]]; then
+    fail "expected host workspace path to contain seeded nested files"
+  fi
+  assert_contains "\"workspace_id\":\"workspace-1\"" "${bootstrap_context_file}"
+}
+
 test_happy_path_runs_bootstrap_steps_and_writes_context
 test_fails_fast_when_admin_key_missing
 test_oauth_mode_uses_import_bootstrap_without_requiring_api_key
 test_baseline_seed_force_resets_remote_fixture_repo
+test_host_directory_workspace_seed_skips_git_reset_and_exports_host_path
 
 echo "[tests/live/prepare-live-test-environment.test] PASS"

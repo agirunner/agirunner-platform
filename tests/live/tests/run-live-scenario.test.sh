@@ -51,10 +51,10 @@ EOF
 
   make_stub "${bootstrap_stub}" \
 'mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
-printf "bootstrap LIVE_TEST_PROFILE=%s LIVE_TEST_SCENARIO_FILE=%s LIVE_TEST_SCENARIO_NAME=%s\n" "${LIVE_TEST_PROFILE:-}" "${LIVE_TEST_SCENARIO_FILE:-}" "${LIVE_TEST_SCENARIO_NAME:-}" >>"'"${logfile}"'"
+printf "bootstrap LIVE_TEST_PROFILE=%s LIVE_TEST_WORKSPACE_STORAGE_TYPE=%s LIVE_TEST_SCENARIO_FILE=%s LIVE_TEST_SCENARIO_NAME=%s\n" "${LIVE_TEST_PROFILE:-}" "${LIVE_TEST_WORKSPACE_STORAGE_TYPE:-}" "${LIVE_TEST_SCENARIO_FILE:-}" "${LIVE_TEST_SCENARIO_NAME:-}" >>"'"${logfile}"'"
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
 
-  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix"; else printf "%s\n" "{\"workflow_id\":\"workflow-1\",\"state\":\"active\"}"; fi'
+  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix" "git_remote"; else printf "%s\n" "{\"workflow_id\":\"workflow-1\",\"state\":\"active\"}"; fi'
 
   if PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
@@ -64,7 +64,7 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
     :
   fi
 
-  assert_contains "bootstrap LIVE_TEST_PROFILE=bug-fix LIVE_TEST_SCENARIO_FILE=${ROOT_DIR}/tests/live/scenarios/bug-fix-positive.json LIVE_TEST_SCENARIO_NAME=bug-fix-positive" "${logfile}"
+  assert_contains "bootstrap LIVE_TEST_PROFILE=bug-fix LIVE_TEST_WORKSPACE_STORAGE_TYPE=git_remote LIVE_TEST_SCENARIO_FILE=${ROOT_DIR}/tests/live/scenarios/bug-fix-positive.json LIVE_TEST_SCENARIO_NAME=bug-fix-positive" "${logfile}"
   assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
 }
 
@@ -94,7 +94,7 @@ EOF
 'mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
 
-  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix"; else printf "%s" "{\"workflow_id\":\"workflow-1\"}"; exit 1; fi'
+  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix" "git_remote"; else printf "%s" "{\"workflow_id\":\"workflow-1\"}"; exit 1; fi'
 
   if PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
@@ -139,7 +139,7 @@ EOF
 mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
 
-  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix"; else printf "%s\n" "{\"workflow_id\":\"workflow-1\",\"state\":\"active\"}"; fi'
+  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix" "git_remote"; else printf "%s\n" "{\"workflow_id\":\"workflow-1\",\"state\":\"active\"}"; fi'
 
   PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \

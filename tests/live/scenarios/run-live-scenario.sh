@@ -23,17 +23,23 @@ require_live_test_file "${LIVE_TEST_SCENARIO_FILE}" "live test scenario file"
 
 LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
 LIVE_TEST_SCENARIO_NAME="${LIVE_TEST_SCENARIO_NAME:-$(basename "${LIVE_TEST_SCENARIO_FILE}" .json)}"
-LIVE_TEST_PROFILE="${LIVE_TEST_PROFILE:-$(
-  python3 - "${LIVE_TEST_ROOT}/lib" "${LIVE_TEST_SCENARIO_FILE}" <<'PY'
+if [[ -z "${LIVE_TEST_PROFILE:-}" || -z "${LIVE_TEST_WORKSPACE_STORAGE_TYPE:-}" ]]; then
+  mapfile -t LIVE_TEST_SCENARIO_METADATA < <(
+    python3 - "${LIVE_TEST_ROOT}/lib" "${LIVE_TEST_SCENARIO_FILE}" <<'PY'
 import sys
 from pathlib import Path
 
 sys.path.insert(0, sys.argv[1])
 from scenario_config import load_scenario
 
-print(load_scenario(Path(sys.argv[2]))["profile"])
+scenario = load_scenario(Path(sys.argv[2]))
+print(scenario["profile"])
+print(scenario["workspace"]["storage"]["type"])
 PY
-)}"
+  )
+fi
+LIVE_TEST_PROFILE="${LIVE_TEST_PROFILE:-${LIVE_TEST_SCENARIO_METADATA[0]}}"
+LIVE_TEST_WORKSPACE_STORAGE_TYPE="${LIVE_TEST_WORKSPACE_STORAGE_TYPE:-${LIVE_TEST_SCENARIO_METADATA[1]}}"
 LIVE_TEST_ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
 LIVE_TEST_BOOTSTRAP_CONTEXT_FILE="${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE:-${LIVE_TEST_ARTIFACTS_DIR}/bootstrap/context.json}"
 LIVE_TEST_SCENARIO_DIR="${LIVE_TEST_SCENARIO_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/${LIVE_TEST_SCENARIO_NAME}}"
@@ -52,6 +58,7 @@ mkdir -p "${LIVE_TEST_SCENARIO_DIR}" "${LIVE_TEST_SCENARIO_TRACE_DIR}"
 export LIVE_TEST_ARTIFACTS_DIR
 export LIVE_TEST_BOOTSTRAP_CONTEXT_FILE
 export LIVE_TEST_PROFILE
+export LIVE_TEST_WORKSPACE_STORAGE_TYPE
 export LIVE_TEST_SCENARIO_FILE
 export LIVE_TEST_SCENARIO_NAME
 "${LIVE_TEST_BOOTSTRAP_SCRIPT}"

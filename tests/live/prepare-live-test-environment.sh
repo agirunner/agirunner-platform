@@ -17,7 +17,10 @@ LIVE_TEST_COMPOSE_FILE="${LIVE_TEST_COMPOSE_FILE:-${LIVE_TEST_PLATFORM_ROOT}/doc
 LIVE_TEST_COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME:-agirunner-platform}"
 LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT:-${LIVE_TEST_ROOT}/library}"
 LIVE_TEST_PROFILE="${LIVE_TEST_PROFILE:-sdlc-baseline}"
+LIVE_TEST_WORKSPACE_STORAGE_TYPE="${LIVE_TEST_WORKSPACE_STORAGE_TYPE:-git_remote}"
 LIVE_TEST_REPO_SEED_DIR="${LIVE_TEST_REPO_SEED_DIR:-${LIVE_TEST_LIBRARY_ROOT}/${LIVE_TEST_PROFILE}/repo-seed}"
+LIVE_TEST_HOST_SEED_DIR="${LIVE_TEST_HOST_SEED_DIR:-${LIVE_TEST_LIBRARY_ROOT}/${LIVE_TEST_PROFILE}/host-seed}"
+LIVE_TEST_HOST_WORKSPACES_DIR="${LIVE_TEST_HOST_WORKSPACES_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/host-workspaces}"
 LIVE_TEST_RESET_FIXTURE_REMOTE="${LIVE_TEST_RESET_FIXTURE_REMOTE:-true}"
 RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
 FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH:-${REPO_ROOT}/../agirunner-test-fixtures}"
@@ -45,7 +48,6 @@ LIVE_TEST_GIT_USER_NAME="${LIVE_TEST_GIT_USER_NAME:-sirmarkz}"
 LIVE_TEST_GIT_USER_EMAIL="${LIVE_TEST_GIT_USER_EMAIL:-250921129+sirmarkz@users.noreply.github.com}"
 
 require_live_test_dir "${RUNTIME_REPO_PATH}" "runtime repo"
-require_live_test_dir "${FIXTURES_REPO_PATH}" "fixtures repo"
 require_live_test_dir "${LIVE_TEST_PLATFORM_ROOT}/apps/platform-api" "platform api app"
 require_live_test_file "${LIVE_TEST_COMPOSE_FILE}" "platform docker compose file"
 require_live_test_dir "${LIVE_TEST_LIBRARY_ROOT}" "live test library"
@@ -53,7 +55,6 @@ require_live_test_file "${RUNTIME_REPO_PATH}/Dockerfile.execution" "execution Do
 load_live_test_env "${LIVE_TEST_ENV_FILE}"
 
 require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
-require_live_test_value "LIVE_TEST_GITHUB_TOKEN" "${LIVE_TEST_GITHUB_TOKEN:-}"
 
 case "${LIVE_TEST_PROVIDER_AUTH_MODE}" in
   api_key)
@@ -86,20 +87,41 @@ esac
 PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
 mkdir -p "${LIVE_TEST_BOOTSTRAP_DIR}" "${LIVE_TEST_TRACE_DIR}"
 
+case "${LIVE_TEST_WORKSPACE_STORAGE_TYPE}" in
+  git_remote)
+    require_live_test_dir "${FIXTURES_REPO_PATH}" "fixtures repo"
+    require_live_test_value "LIVE_TEST_GITHUB_TOKEN" "${LIVE_TEST_GITHUB_TOKEN:-}"
+    ;;
+  host_directory)
+    LIVE_TEST_HOST_WORKSPACE_PATH="${LIVE_TEST_HOST_WORKSPACE_PATH:-${LIVE_TEST_HOST_WORKSPACES_DIR}/${LIVE_TEST_SCENARIO_NAME:-${LIVE_TEST_PROFILE}}}"
+    mkdir -p "${LIVE_TEST_HOST_WORKSPACES_DIR}"
+    log_live_test "resetting host workspace ${LIVE_TEST_HOST_WORKSPACE_PATH}"
+    reset_live_test_host_workspace "${LIVE_TEST_HOST_WORKSPACE_PATH}" "${LIVE_TEST_HOST_SEED_DIR}"
+    ;;
+  workspace_artifacts)
+    ;;
+  *)
+    echo "[tests/live] unsupported LIVE_TEST_WORKSPACE_STORAGE_TYPE: ${LIVE_TEST_WORKSPACE_STORAGE_TYPE}" >&2
+    exit 1
+    ;;
+esac
+
 log_live_test "building runtime image ${RUNTIME_IMAGE}"
 docker build -t "${RUNTIME_IMAGE}" "${RUNTIME_REPO_PATH}"
 
 log_live_test "building execution image ${EXECUTION_IMAGE}"
 docker build -f "${RUNTIME_REPO_PATH}/Dockerfile.execution" -t "${EXECUTION_IMAGE}" "${RUNTIME_REPO_PATH}"
 
-log_live_test "resetting fixtures repo ${FIXTURES_REPO_PATH}"
-reset_live_test_fixture_repo \
-  "${FIXTURES_REPO_PATH}" \
-  "${LIVE_TEST_DEFAULT_BRANCH}" \
-  "${LIVE_TEST_REPO_SEED_DIR}" \
-  "${LIVE_TEST_GIT_USER_NAME}" \
-  "${LIVE_TEST_GIT_USER_EMAIL}" \
-  "${LIVE_TEST_RESET_FIXTURE_REMOTE}"
+if [[ "${LIVE_TEST_WORKSPACE_STORAGE_TYPE}" == "git_remote" ]]; then
+  log_live_test "resetting fixtures repo ${FIXTURES_REPO_PATH}"
+  reset_live_test_fixture_repo \
+    "${FIXTURES_REPO_PATH}" \
+    "${LIVE_TEST_DEFAULT_BRANCH}" \
+    "${LIVE_TEST_REPO_SEED_DIR}" \
+    "${LIVE_TEST_GIT_USER_NAME}" \
+    "${LIVE_TEST_GIT_USER_EMAIL}" \
+    "${LIVE_TEST_RESET_FIXTURE_REMOTE}"
+fi
 
 log_live_test "rebuilding standard docker compose stack"
 (
@@ -134,6 +156,8 @@ export LIVE_TEST_WORKSPACE_NAME
 export LIVE_TEST_WORKSPACE_SLUG
 export LIVE_TEST_GIT_USER_NAME
 export LIVE_TEST_GIT_USER_EMAIL
+export LIVE_TEST_WORKSPACE_STORAGE_TYPE
+export LIVE_TEST_HOST_WORKSPACE_PATH
 export LIVE_TEST_LIBRARY_ROOT
 export LIVE_TEST_PROFILE
 export ORCHESTRATOR_WORKER_NAME

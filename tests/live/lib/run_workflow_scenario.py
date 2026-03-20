@@ -7,6 +7,7 @@ import os
 import re
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from live_test_api import ApiClient, TraceRecorder, read_json
@@ -252,6 +253,21 @@ def _workflow_tasks(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     return tasks if isinstance(tasks, list) else []
 
 
+def _workspace_host_directory_root(workspace: dict[str, Any]) -> Path | None:
+    settings = workspace.get("settings")
+    if not isinstance(settings, dict):
+        return None
+    if settings.get("workspace_storage_type") != "host_directory":
+        return None
+    storage = settings.get("workspace_storage")
+    if not isinstance(storage, dict):
+        return None
+    host_path = storage.get("host_path")
+    if not isinstance(host_path, str) or host_path.strip() == "":
+        return None
+    return Path(host_path.strip())
+
+
 def workflow_is_fully_terminal(workflow: dict[str, Any]) -> bool:
     if workflow.get("state") not in TERMINAL_STATES:
         return False
@@ -460,6 +476,39 @@ def evaluate_expectations(
                 failures.append(
                     f"expected at least {minimum} artifacts matching {pattern!r}, found {len(matches)}"
                 )
+
+    host_file_expectations = expectations.get("host_files", [])
+    if isinstance(host_file_expectations, list):
+        host_root = _workspace_host_directory_root(workspace)
+        for entry in host_file_expectations:
+            if not isinstance(entry, dict):
+                continue
+            relative_path = entry.get("path")
+            if not isinstance(relative_path, str) or relative_path.strip() == "":
+                continue
+            check_name = f"host_files.{relative_path}"
+            if host_root is None:
+                checks.append({"name": check_name, "passed": False, "reason": "host_directory_root_missing"})
+                failures.append("expected host-directory workspace settings with a host_path for host_files checks")
+                continue
+            target = host_root / relative_path
+            exists = target.is_file()
+            passed = exists
+            actual_content = None
+            if exists and "contains" in entry:
+                actual_content = target.read_text(encoding="utf-8")
+                passed = str(entry["contains"]) in actual_content
+            checks.append(
+                {
+                    "name": check_name,
+                    "passed": passed,
+                    "path": str(target),
+                }
+            )
+            if not exists:
+                failures.append(f"expected host file {target} to exist")
+            elif "contains" in entry and not passed:
+                failures.append(f"expected host file {target} to contain {entry['contains']!r}")
 
     workflow_task_expectations = expectations.get("workflow_tasks", {})
     if isinstance(workflow_task_expectations, dict):

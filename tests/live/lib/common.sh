@@ -155,3 +155,12 @@ reset_live_test_fixture_repo() {
   git -C "${fixtures_root}" clean -fdx
   git -C "${fixtures_root}" branch -D "${seed_branch}" >/dev/null 2>&1 || true
 }
+
+reset_live_test_host_workspace() {
+  local host_root="$1"
+  local seed_dir="$2"
+
+  rm -rf "${host_root}"
+  mkdir -p "${host_root}"
+  copy_live_test_seed_tree "${seed_dir}" "${host_root}"
+}

@@ -9,6 +9,7 @@ from live_test_api import read_json
 
 DEFAULT_TIMEOUT_SECONDS = 1800
 DEFAULT_POLL_INTERVAL_SECONDS = 10
+WORKSPACE_STORAGE_TYPES = {"git_remote", "host_directory", "workspace_artifacts"}
 
 
 def _read_mapping(value: Any, field_name: str) -> dict[str, Any]:
@@ -32,6 +33,24 @@ def _read_list(value: Any, field_name: str) -> list[dict[str, Any]]:
     return normalized
 
 
+def _read_workspace_storage(value: Any, *, repo_default: bool) -> dict[str, Any]:
+    storage = _read_mapping(value, "workspace.storage")
+    storage_type = str(storage.get("type") or "").strip()
+    if storage_type == "":
+        storage_type = "git_remote" if repo_default else "workspace_artifacts"
+    if storage_type not in WORKSPACE_STORAGE_TYPES:
+        raise RuntimeError(f"workspace.storage.type must be one of: {sorted(WORKSPACE_STORAGE_TYPES)}")
+
+    normalized: dict[str, Any] = {
+        "type": storage_type,
+        "read_only": bool(storage.get("read_only", False)),
+    }
+    host_path = storage.get("host_path")
+    if isinstance(host_path, str) and host_path.strip() != "":
+        normalized["host_path"] = host_path.strip()
+    return normalized
+
+
 def load_scenario(path: str | Path) -> dict[str, Any]:
     scenario_path = Path(path)
     payload = read_json(scenario_path)
@@ -51,6 +70,8 @@ def load_scenario(path: str | Path) -> dict[str, Any]:
     workflow_metadata = _read_mapping(workflow.get("metadata"), "workflow.metadata")
 
     workspace = _read_mapping(payload.get("workspace"), "workspace")
+    repo_default = bool(workspace.get("repo", True))
+    storage = _read_workspace_storage(workspace.get("storage"), repo_default=repo_default)
 
     return {
         "name": scenario_name,
@@ -62,7 +83,8 @@ def load_scenario(path: str | Path) -> dict[str, Any]:
             "metadata": workflow_metadata,
         },
         "workspace": {
-            "repo": bool(workspace.get("repo", True)),
+            "repo": storage["type"] == "git_remote",
+            "storage": storage,
             "memory": _read_mapping(workspace.get("memory"), "workspace.memory"),
             "spec": _read_mapping(workspace.get("spec"), "workspace.spec"),
         },

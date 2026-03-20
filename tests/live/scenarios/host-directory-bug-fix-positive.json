@@ -1,0 +1,39 @@
+{
+  "name": "host-directory-bug-fix-positive",
+  "profile": "host-directory-bug-fix",
+  "workflow": {
+    "name": "Host Directory Bug Fix Positive",
+    "goal": "Fix the named-greeting punctuation bug directly in the mapped host-directory workspace and keep the default greeting unchanged.",
+    "parameters": {
+      "bug_report": "Greeting a named user omits the comma after Hello, producing 'Hello Mark!' instead of 'Hello, Mark!'.",
+      "reproduction_steps": "1. Run `sh greet.sh Mark`. 2. Observe `Hello Mark!`. 3. The expected output is `Hello, Mark!`."
+    }
+  },
+  "workspace": {
+    "storage": {
+      "type": "host_directory"
+    },
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "host_files": [
+      {
+        "path": "greet.sh",
+        "contains": "Hello, %s!"
+      },
+      {
+        "path": "tests/run.sh",
+        "contains": "Hello, Mark!"
+      }
+    ]
+  }
+}

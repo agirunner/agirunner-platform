@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -281,6 +282,42 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         )
 
         self.assertTrue(result["passed"])
+
+    def test_evaluate_expectations_checks_host_directory_files(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            host_root = Path(tmpdir)
+            (host_root / "greet.sh").write_text("#!/usr/bin/env sh\nprintf '%s\\n' 'Hello, Mark!'\n", encoding="utf-8")
+            tests_dir = host_root / "tests"
+            tests_dir.mkdir()
+            (tests_dir / "run.sh").write_text("echo ok\n", encoding="utf-8")
+
+            result = run_workflow_scenario.evaluate_expectations(
+                {
+                    "host_files": [
+                        {"path": "greet.sh", "contains": "Hello, Mark!"},
+                        {"path": "tests/run.sh", "contains": "ok"},
+                    ]
+                },
+                workflow={"state": "completed", "tasks": []},
+                board={"ok": True, "data": {"columns": []}},
+                work_items={"ok": True, "data": []},
+                workspace={
+                    "memory": {},
+                    "settings": {
+                        "workspace_storage_type": "host_directory",
+                        "workspace_storage": {"host_path": str(host_root), "read_only": False},
+                    },
+                },
+                artifacts={"ok": True, "data": []},
+                approval_actions=[],
+                events={"ok": True, "data": []},
+                fleet={"ok": True, "data": {"by_playbook_pool": []}},
+            )
+
+        self.assertTrue(result["passed"])
+        check_names = {entry["name"] for entry in result["checks"]}
+        self.assertIn("host_files.greet.sh", check_names)
+        self.assertIn("host_files.tests/run.sh", check_names)
 
     def test_update_fleet_peaks_falls_back_to_generic_specialist_pool(self) -> None:
         peaks = {"peak_running": 0, "peak_executing": 0, "peak_active_workflows": 0}

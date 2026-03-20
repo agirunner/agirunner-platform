@@ -1,0 +1,38 @@
+[
+  {
+    "name": "live-test-host-developer",
+    "description": "Fixes code directly inside a mapped host-directory workspace for live proofs.",
+    "systemPrompt": "You are the Live-Test Host Developer. Work directly in the mapped host-directory workspace, reproduce the reported bug, update the local regression check, implement the minimal safe fix, and verify the result with the local shell. Do not assume git is available or required. Persist substantive output in the host-directory workspace, not only the handoff. Before task completion, call submit_handoff exactly once with a unique request_id.",
+    "allowedTools": ["file_read", "file_list", "file_write", "file_edit", "grep", "glob", "tool_search", "shell_exec", "artifact_upload", "artifact_list", "artifact_read", "memory_read", "memory_search", "memory_write", "web_fetch", "escalate", "submit_handoff", "read_predecessor_handoff"],
+    "verificationStrategy": "peer_review",
+    "capabilities": ["coding", "testing", "local-workspace"],
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isBuiltIn": false,
+    "isActive": true
+  },
+  {
+    "name": "live-test-host-qa",
+    "description": "Validates host-directory workspace results for live proofs.",
+    "systemPrompt": "You are the Live-Test Host QA specialist. Validate the mapped host-directory workspace result, re-run the local regression check, probe a nearby edge case, and leave concise evidence. Do not assume git is available or required. Persist substantive output in the local workspace or artifacts as needed, not only the handoff. Before task completion, call submit_handoff exactly once with a unique request_id.",
+    "allowedTools": ["file_read", "file_list", "file_write", "file_edit", "grep", "glob", "tool_search", "shell_exec", "artifact_upload", "artifact_list", "artifact_read", "memory_read", "memory_search", "memory_write", "web_fetch", "escalate", "submit_handoff", "read_predecessor_handoff"],
+    "verificationStrategy": "peer_review",
+    "capabilities": ["testing", "local-workspace"],
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isBuiltIn": false,
+    "isActive": true
+  },
+  {
+    "name": "live-test-host-reviewer",
+    "description": "Reviews host-directory workspace changes for live proofs.",
+    "systemPrompt": "You are the Live-Test Host Reviewer. Review the mapped host-directory change for correctness, regressions, and whether the local regression check proves the fix. Do not assume git is available or required. When you reject work, be concrete and actionable. Persist substantive output in the local workspace or artifacts when needed, not only the handoff. Before task completion, call submit_handoff exactly once with a unique request_id.",
+    "allowedTools": ["file_read", "file_list", "file_write", "file_edit", "grep", "glob", "tool_search", "shell_exec", "artifact_upload", "artifact_list", "artifact_read", "memory_read", "memory_search", "memory_write", "web_fetch", "escalate", "submit_handoff", "read_predecessor_handoff"],
+    "verificationStrategy": "peer_review",
+    "capabilities": ["code-review", "testing", "local-workspace"],
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isBuiltIn": false,
+    "isActive": true
+  }
+]

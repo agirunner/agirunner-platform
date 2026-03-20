@@ -237,6 +237,58 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
         self.assertNotIn("repository_url", payload)
         self.assertNotIn("settings", payload)
 
+    def test_build_workspace_create_payload_supports_host_directory_workspaces(self) -> None:
+        payload = seed_live_test_environment.build_workspace_create_payload(
+            workspace_name="Host Directory Workspace",
+            workspace_slug="host-directory",
+            workspace_description="Host directory workspace",
+            workspace_config={
+                "repo": False,
+                "storage": {
+                    "type": "host_directory",
+                    "host_path": "/tmp/live-tests/host-directory",
+                    "read_only": True,
+                },
+            },
+            repository_url="https://github.com/agirunner/agirunner-test-fixtures.git",
+            default_branch="main",
+            git_user_name="sirmarkz",
+            git_user_email="250921129+sirmarkz@users.noreply.github.com",
+            git_token="github-token",
+        )
+
+        self.assertEqual("Host Directory Workspace", payload["name"])
+        self.assertNotIn("repository_url", payload)
+        self.assertEqual(
+            {
+                "workspace_storage_type": "host_directory",
+                "workspace_storage": {
+                    "host_path": "/tmp/live-tests/host-directory",
+                    "read_only": True,
+                },
+            },
+            payload["settings"],
+        )
+
+    def test_build_workspace_create_payload_rejects_host_directory_without_path(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "host directory path is required"):
+            seed_live_test_environment.build_workspace_create_payload(
+                workspace_name="Host Directory Workspace",
+                workspace_slug="host-directory",
+                workspace_description="Host directory workspace",
+                workspace_config={
+                    "repo": False,
+                    "storage": {
+                        "type": "host_directory",
+                    },
+                },
+                repository_url="https://github.com/agirunner/agirunner-test-fixtures.git",
+                default_branch="main",
+                git_user_name="sirmarkz",
+                git_user_email="250921129+sirmarkz@users.noreply.github.com",
+                git_token="github-token",
+            )
+
     def test_seed_workspace_context_writes_memory_and_spec_through_workspace_routes(self) -> None:
         client = FakeClient()
         seed_live_test_environment.seed_workspace_context(

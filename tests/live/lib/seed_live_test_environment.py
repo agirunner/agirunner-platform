@@ -449,13 +449,15 @@ def build_workspace_create_payload(
     git_user_name: str,
     git_user_email: str,
     git_token: str,
+    host_workspace_path: str | None = None,
 ) -> dict[str, Any]:
+    storage = resolve_workspace_storage(workspace_config)
     payload: dict[str, Any] = {
         "name": workspace_name,
         "slug": workspace_slug,
         "description": workspace_description,
     }
-    if workspace_config.get("repo", True):
+    if storage["type"] == "git_remote":
         payload["repository_url"] = repository_url
         payload["settings"] = {
             "default_branch": default_branch,
@@ -463,7 +465,34 @@ def build_workspace_create_payload(
             "git_user_email": git_user_email,
             "credentials": {"git_token": git_token},
         }
+    elif storage["type"] == "host_directory":
+        resolved_host_path = storage.get("host_path") or host_workspace_path
+        if not isinstance(resolved_host_path, str) or resolved_host_path.strip() == "":
+            raise RuntimeError("host directory path is required for host-directory workspaces")
+        payload["settings"] = {
+            "workspace_storage_type": "host_directory",
+            "workspace_storage": {
+                "host_path": resolved_host_path.strip(),
+                "read_only": bool(storage.get("read_only", False)),
+            },
+        }
     return payload
+
+
+def resolve_workspace_storage(workspace_config: dict[str, Any]) -> dict[str, Any]:
+    storage = workspace_config.get("storage")
+    if isinstance(storage, dict):
+        storage_type = str(storage.get("type") or "").strip()
+        if storage_type != "":
+            normalized = {"type": storage_type, "read_only": bool(storage.get("read_only", False))}
+            host_path = storage.get("host_path")
+            if isinstance(host_path, str) and host_path.strip() != "":
+                normalized["host_path"] = host_path.strip()
+            return normalized
+    return {
+        "type": "git_remote" if workspace_config.get("repo", True) else "workspace_artifacts",
+        "read_only": False,
+    }
 
 
 def seed_workspace_context(client: ApiClient, *, workspace_id: str, workspace_config: dict[str, Any]) -> None:
@@ -565,6 +594,8 @@ def main() -> None:
     admin_api_key = env("DEFAULT_ADMIN_API_KEY", required=True)
     scenario_file = env("LIVE_TEST_SCENARIO_FILE")
     scenario = load_scenario(scenario_file) if scenario_file else None
+    workspace_config = {"repo": True} if scenario is None else scenario["workspace"]
+    workspace_storage = resolve_workspace_storage(workspace_config)
     provider_auth_mode = env("LIVE_TEST_PROVIDER_AUTH_MODE", "api_key")
     provider_name = env("LIVE_TEST_PROVIDER_NAME", "OpenAI")
     provider_type = env("LIVE_TEST_PROVIDER_TYPE", "openai")
@@ -585,7 +616,8 @@ def main() -> None:
     default_branch = env("LIVE_TEST_DEFAULT_BRANCH", "main")
     git_user_name = env("LIVE_TEST_GIT_USER_NAME", "sirmarkz")
     git_user_email = env("LIVE_TEST_GIT_USER_EMAIL", "250921129+sirmarkz@users.noreply.github.com")
-    git_token = env("LIVE_TEST_GITHUB_TOKEN", required=True)
+    git_token = env("LIVE_TEST_GITHUB_TOKEN", required=workspace_storage["type"] == "git_remote")
+    host_workspace_path = env("LIVE_TEST_HOST_WORKSPACE_PATH") or None
     worker_name = env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
     runtime_image = env("RUNTIME_IMAGE", "agirunner-runtime:local")
     library_root = env("LIVE_TEST_LIBRARY_ROOT", required=True)
@@ -642,12 +674,13 @@ def main() -> None:
                 workspace_name=workspace_name,
                 workspace_slug=workspace_slug,
                 workspace_description="Repeatable live-test workspace seeded by tests/live/prepare-live-test-environment.sh",
-                workspace_config={"repo": True} if scenario is None else scenario["workspace"],
+                workspace_config=workspace_config,
                 repository_url=repository_url,
                 default_branch=default_branch,
                 git_user_name=git_user_name,
                 git_user_email=git_user_email,
                 git_token=git_token,
+                host_workspace_path=host_workspace_path,
             ),
             expected=(201,),
             label="workspaces.create",

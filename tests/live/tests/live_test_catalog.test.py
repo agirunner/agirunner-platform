@@ -26,6 +26,7 @@ EXPECTED_SCENARIOS = {
     "parallel-burst-ten-work-items",
     "parallel-burst-two-runtimes",
     "sdlc-parallel-validation-positive",
+    "host-directory-bug-fix-positive",
 }
 
 

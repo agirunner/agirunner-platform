@@ -43,7 +43,15 @@ class ScenarioConfigTests(unittest.TestCase):
             },
             scenario["workflow"],
         )
-        self.assertEqual({"repo": True, "memory": {}, "spec": {}}, scenario["workspace"])
+        self.assertEqual(
+            {
+                "repo": True,
+                "storage": {"type": "git_remote", "read_only": False},
+                "memory": {},
+                "spec": {},
+            },
+            scenario["workspace"],
+        )
         self.assertEqual([], scenario["approvals"])
         self.assertEqual([], scenario["actions"])
         self.assertEqual({}, scenario["expect"])
@@ -108,6 +116,7 @@ class ScenarioConfigTests(unittest.TestCase):
         self.assertEqual("product-requirements-positive", scenario["name"])
         self.assertEqual("product-requirements", scenario["profile"])
         self.assertEqual(False, scenario["workspace"]["repo"])
+        self.assertEqual("workspace_artifacts", scenario["workspace"]["storage"]["type"])
         self.assertEqual(
             {"existing_context": "Enterprise admins manage budgets."},
             scenario["workspace"]["memory"],
@@ -128,6 +137,36 @@ class ScenarioConfigTests(unittest.TestCase):
         self.assertEqual("completed", scenario["expect"]["state"])
         self.assertEqual(900, scenario["timeout_seconds"])
         self.assertEqual(3, scenario["poll_interval_seconds"])
+
+    def test_load_scenario_supports_host_directory_workspace_storage(self) -> None:
+        scenario_path = self.write_scenario(
+            {
+                "name": "host-directory-bug-fix",
+                "profile": "host-directory-bug-fix",
+                "workflow": {
+                    "goal": "Fix the greeting script directly in a host-directory workspace.",
+                },
+                "workspace": {
+                    "storage": {
+                        "type": "host_directory",
+                        "read_only": True,
+                    },
+                    "memory": {"workspace_kind": "host-directory"},
+                },
+            }
+        )
+
+        scenario = scenario_config.load_scenario(scenario_path)
+
+        self.assertFalse(scenario["workspace"]["repo"])
+        self.assertEqual(
+            {"type": "host_directory", "read_only": True},
+            scenario["workspace"]["storage"],
+        )
+        self.assertEqual(
+            {"workspace_kind": "host-directory"},
+            scenario["workspace"]["memory"],
+        )
 
 
 if __name__ == "__main__":
