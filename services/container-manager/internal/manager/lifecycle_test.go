@@ -65,6 +65,24 @@ func TestDCMShutdownCascadeStopsAllRuntimes(t *testing.T) {
 	}
 }
 
+func TestDCMShutdownCascadeStopsLegacyDesiredStateRuntimes(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeContainerInfo("c-legacy", "orchestrator-primary", "agirunner-runtime:local", "ds-1", 1),
+	}
+	platform := &mockPlatformClient{}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.shutdownCascade()
+
+	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "c-legacy" {
+		t.Fatalf("expected legacy desired-state runtime stopped during shutdown, got %v", docker.stoppedIDs)
+	}
+	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "c-legacy" {
+		t.Fatalf("expected legacy desired-state runtime removed during shutdown, got %v", docker.removedIDs)
+	}
+}
+
 func TestDCMStartupSweepNoContainers(t *testing.T) {
 	docker := newMockDockerClient()
 	platform := &mockPlatformClient{

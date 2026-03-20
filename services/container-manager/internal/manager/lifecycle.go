@@ -185,7 +185,7 @@ func (m *Manager) shutdownCascade() {
 
 // shutdownRuntimes stops all DCM runtime containers with appropriate grace periods.
 func (m *Manager) shutdownRuntimes(ctx context.Context) int {
-	containers, err := m.listDCMRuntimeContainers(ctx)
+	containers, err := m.listShutdownRuntimeContainers(ctx)
 	if err != nil {
 		m.logger.Error("shutdown: failed to list runtime containers", "error", err)
 		return 0
@@ -207,6 +207,28 @@ func (m *Manager) shutdownRuntimes(ctx context.Context) int {
 		}, logResourceInfo{ResourceType: "runtime", ResourceID: c.Labels[labelDCMRuntimeID]})
 	}
 	return len(containers)
+}
+
+func (m *Manager) listShutdownRuntimeContainers(ctx context.Context) ([]ContainerInfo, error) {
+	all, err := m.docker.ListContainers(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return filterShutdownRuntimeContainers(all), nil
+}
+
+func filterShutdownRuntimeContainers(containers []ContainerInfo) []ContainerInfo {
+	filtered := make([]ContainerInfo, 0, len(containers))
+	for _, container := range containers {
+		if container.Labels[labelDCMTier] == tierRuntime && hasManagedLabel(container.Labels, labelDCMManaged) {
+			filtered = append(filtered, container)
+			continue
+		}
+		if container.Labels[labelDesiredStateID] != "" && hasManagedLabel(container.Labels, labelManagedBy) {
+			filtered = append(filtered, container)
+		}
+	}
+	return filtered
 }
 
 // shutdownOrphanTasks removes any remaining task containers after runtimes are stopped.
