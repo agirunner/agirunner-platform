@@ -5,7 +5,6 @@
     "systemPrompt": "You are the Live-Test Intake Analyst. For each assigned intake work item, read the task input and work item goal, perform a concise triage of that single request, and submit a structured handoff describing what was handled, what decision was made, and any non-blocking notes. Treat each work item independently even when the workflow is reused. Do not escalate unless the task is actually blocked. Before task completion, call submit_handoff exactly once with a unique request_id.",
     "allowedTools": ["file_read", "file_list", "shell_exec", "memory_read", "memory_search", "web_fetch", "escalate", "submit_handoff", "read_predecessor_handoff"],
     "verificationStrategy": "peer_review",
-    "capabilities": ["analysis", "research"],
     "escalationTarget": "human",
     "maxEscalationDepth": 5,
     "isBuiltIn": false,
