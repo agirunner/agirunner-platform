@@ -150,8 +150,49 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
   assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
 }
 
+test_runner_resets_stale_trace_before_each_run() {
+  local tmpdir stubdir output_root context_file trace_file bootstrap_stub envfile
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  envfile="${tmpdir}/env/local.env"
+  output_root="${tmpdir}/artifacts"
+  context_file="${output_root}/bootstrap/context.json"
+  trace_file="${output_root}/bug-fix-positive/trace/api.ndjson"
+  bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
+  mkdir -p "${stubdir}" "$(dirname "${context_file}")" "$(dirname "${envfile}")" "$(dirname "${trace_file}")"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5432
+PLATFORM_API_PORT=8080
+EOF
+
+  printf 'stale-trace\n' >"${trace_file}"
+
+  make_stub "${bootstrap_stub}" \
+'mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
+
+  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix" "git_remote"; else printf "%s\n" "{\"workflow_id\":\"workflow-1\",\"state\":\"active\"}"; fi'
+
+  PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
+    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log"
+
+  if [[ -e "${trace_file}" ]] && grep -Fq "stale-trace" "${trace_file}"; then
+    fail "expected stale trace file to be removed before run"
+  fi
+}
+
 test_scenario_profile_is_exported_to_bootstrap
 test_runner_failure_does_not_publish_partial_workflow_result
 test_bootstrap_can_delete_scenario_dir_without_breaking_runner
+test_runner_resets_stale_trace_before_each_run
 
 echo "[tests/live/run-live-scenario.test] PASS"

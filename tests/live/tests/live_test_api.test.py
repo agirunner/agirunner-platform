@@ -116,6 +116,86 @@ class ApiClientTests(unittest.TestCase):
 
         self.assertEqual(1, urlopen.call_count)
 
+    @mock.patch("urllib.request.urlopen")
+    def test_request_summarizes_large_logs_response_in_trace(self, urlopen: mock.Mock) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trace = TraceRecorder(tmpdir)
+            client = ApiClient("http://127.0.0.1:8080", trace=trace)
+            body = {
+                "data": [
+                    {
+                        "id": "log-1",
+                        "category": "llm",
+                        "operation": "llm.chat_stream",
+                        "created_at": "2026-03-20T19:00:00Z",
+                        "payload": {"messages": ["x" * 50000]},
+                    },
+                    {
+                        "id": "log-2",
+                        "category": "tool",
+                        "operation": "tool.exec",
+                        "created_at": "2026-03-20T19:00:01Z",
+                        "payload": {"stdout": "y" * 50000},
+                    },
+                ],
+                "pagination": {"has_more": False, "next_cursor": None},
+            }
+            urlopen.return_value = FakeResponse(200, json.dumps(body))
+
+            response = client.request("GET", "/api/v1/logs?detail=full", label="logs.list")
+
+            self.assertEqual(body, response)
+            trace_lines = [
+                json.loads(line)
+                for line in (Path(tmpdir) / "api.ndjson").read_text(encoding="utf-8").splitlines()
+            ]
+            response_event = trace_lines[-1]
+            self.assertEqual("http.response", response_event["event"])
+            self.assertTrue(response_event["body_omitted"])
+            self.assertNotIn("body", response_event)
+            self.assertEqual("logs_page", response_event["body_summary"]["kind"])
+            self.assertEqual(2, response_event["body_summary"]["row_count"])
+
+    @mock.patch("urllib.request.urlopen")
+    def test_request_summarizes_workflow_snapshot_trace(self, urlopen: mock.Mock) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            trace = TraceRecorder(tmpdir)
+            client = ApiClient("http://127.0.0.1:8080", trace=trace)
+            body = {
+                "data": {
+                    "id": "wf-1",
+                    "state": "active",
+                    "current_stage": "review",
+                    "updated_at": "2026-03-20T19:00:00Z",
+                    "tasks": [
+                        {"id": "t-1", "state": "completed"},
+                        {"id": "t-2", "state": "in_progress"},
+                    ],
+                    "work_items": [
+                        {"id": "w-1", "column_id": "done"},
+                        {"id": "w-2", "column_id": "in_progress"},
+                    ],
+                    "activations": [
+                        {"id": "a-1", "state": "completed"},
+                        {"id": "a-2", "state": "processing"},
+                    ],
+                }
+            }
+            urlopen.return_value = FakeResponse(200, json.dumps(body))
+
+            response = client.request("GET", "/api/v1/workflows/wf-1", label="workflows.get")
+
+            self.assertEqual(body, response)
+            trace_lines = [
+                json.loads(line)
+                for line in (Path(tmpdir) / "api.ndjson").read_text(encoding="utf-8").splitlines()
+            ]
+            response_event = trace_lines[-1]
+            self.assertTrue(response_event["body_omitted"])
+            self.assertEqual("workflow_snapshot", response_event["body_summary"]["kind"])
+            self.assertEqual("wf-1", response_event["body_summary"]["id"])
+            self.assertEqual(2, response_event["body_summary"]["task_count"])
+
 
 if __name__ == "__main__":
     unittest.main()
