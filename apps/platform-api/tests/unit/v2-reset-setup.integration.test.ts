@@ -1,8 +1,8 @@
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { FIELD_DEFINITIONS as DASHBOARD_RUNTIME_DEFAULT_FIELDS } from '../../../dashboard/src/pages/config/runtime-defaults.schema.js';
 
 import { runMigrations } from '../../src/db/migrations/run-migrations.js';
 import { seedDefaultTenant } from '../../src/db/seed.js';
@@ -349,7 +349,63 @@ async function captureLegacySchemaState(pool: TestDatabase['pool']) {
 }
 
 function readRuntimeDefaultsDashboardFieldKeys(): string[] {
-  return DASHBOARD_RUNTIME_DEFAULT_FIELDS.map((field) => field.key).sort();
+  const dashboardDir = path.resolve(
+    __dirname,
+    '../../../dashboard/src/pages/config',
+  );
+  const sources = [
+    path.join(dashboardDir, 'runtime-defaults.schema.ts'),
+    path.join(dashboardDir, 'runtime-defaults-runtime-ops.ts'),
+  ];
+  const keys = new Set<string>();
+  const objectKeyPattern = /key:\s*'([^']+)'/g;
+  const generatedFieldPattern = /[A-Za-z_]+Field\('([^']+)'/g;
+  const sectionKeys = new Set([
+    'runtime_containers',
+    'execution_containers',
+    'task_limits',
+    'capacity_limits',
+    'agent_context',
+    'orchestrator_context',
+    'agent_safeguards',
+    'runtime_throughput',
+    'process_logging',
+    'server_timeouts',
+    'runtime_api',
+    'llm_transport',
+    'tool_timeouts',
+    'container_timeouts',
+    'lifecycle_timeouts',
+    'task_timeouts',
+    'connected_platform',
+    'realtime_transport',
+    'workflow_activation',
+    'container_manager',
+    'worker_supervision',
+    'agent_supervision',
+    'webhook_delivery',
+    'platform_loops',
+    'workspace_timeouts',
+    'workspace_operations',
+    'capture_timeouts',
+    'secrets_timeouts',
+    'subagent_timeouts',
+  ]);
+
+  for (const source of sources) {
+    const text = readFileSync(source, 'utf8');
+    for (const pattern of [objectKeyPattern, generatedFieldPattern]) {
+      for (const match of text.matchAll(pattern)) {
+        const key = match[1];
+        if (!key || sectionKeys.has(key)) {
+          continue;
+        }
+        keys.add(key);
+      }
+    }
+  }
+
+  return [...keys].sort();
 }
 
 function migrationsDirFromTest() {
