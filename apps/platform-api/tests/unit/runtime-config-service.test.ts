@@ -31,6 +31,27 @@ const sampleDefault = {
   updated_at: new Date(),
 };
 
+const loopSafeguardDefaults = [
+  {
+    config_key: 'agent.loop_detection_repeat',
+    config_value: '3',
+    config_type: 'number',
+    updated_at: new Date(),
+  },
+  {
+    config_key: 'agent.response_repeat_threshold',
+    config_value: '2',
+    config_type: 'number',
+    updated_at: new Date(),
+  },
+  {
+    config_key: 'agent.no_file_change_threshold',
+    config_value: '50',
+    config_type: 'number',
+    updated_at: new Date(),
+  },
+];
+
 const sampleSecretDefault = {
   config_key: 'custom.api_key_secret_ref',
   config_value: 'secret:SERPER_API_KEY',
@@ -158,5 +179,21 @@ describe('RuntimeConfigService', () => {
       },
     ]);
     expect(result.defaults).toHaveLength(1);
+  });
+
+  it('propagates stuck-loop safeguard defaults from platform runtime defaults', async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+      .mockResolvedValueOnce({ rows: [sampleWorker], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
+      .mockResolvedValueOnce({ rows: loopSafeguardDefaults, rowCount: loopSafeguardDefaults.length });
+
+    const result = await service.getConfigForWorker(TENANT_ID, 'built-in-worker');
+
+    expect(result.defaults).toEqual([
+      { key: 'agent.loop_detection_repeat', value: '3', type: 'number' },
+      { key: 'agent.response_repeat_threshold', value: '2', type: 'number' },
+      { key: 'agent.no_file_change_threshold', value: '50', type: 'number' },
+    ]);
   });
 });

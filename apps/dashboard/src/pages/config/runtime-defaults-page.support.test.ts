@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { fieldsForSection, SECTION_DEFINITIONS } from './runtime-defaults.schema.js';
+import { FIELD_DEFINITIONS, fieldsForSection, SECTION_DEFINITIONS } from './runtime-defaults.schema.js';
 import { buildValidationErrors } from './runtime-defaults.validation.js';
 import { summarizeRuntimeDefaultSections } from './runtime-defaults-page.support.js';
 
@@ -97,6 +97,33 @@ describe('runtime defaults page support', () => {
     expect(errors['capture.push_retries']).toContain('at least 0');
     expect(errors['subagent.max_depth']).toContain('at least 0');
     expect(errors['global_max_execution_containers']).toContain('at least 1');
+  });
+
+  it('describes loop safeguard defaults with platform-authoritative thresholds', () => {
+    const loopRepeatField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.loop_detection_repeat',
+    );
+    const responseRepeatField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.response_repeat_threshold',
+    );
+    const noProgressField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.no_file_change_threshold',
+    );
+
+    expect(loopRepeatField).toMatchObject({
+      placeholder: '3',
+      description: 'Flag repeated loop patterns after this many repeated turns.',
+    });
+    expect(responseRepeatField).toMatchObject({
+      placeholder: '2',
+      description: 'Mark the agent as stuck after this many repeated near-identical replies.',
+    });
+    expect(noProgressField).toMatchObject({
+      label: 'No-progress intervention threshold',
+      placeholder: '50',
+      description:
+        'Intervene only after this many turns with no meaningful progress toward task completion.',
+    });
   });
 
   it('rejects invalid runtime and execution container defaults with recovery guidance', () => {

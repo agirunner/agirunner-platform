@@ -382,11 +382,11 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'agent.no_file_change_threshold',
-    label: 'No-change intervention threshold',
+    label: 'No-progress intervention threshold',
     description:
-      'Intervene after this many file-mutating turns with no actual workspace change.',
+      'Intervene only after this many turns with no meaningful progress toward task completion.',
     configType: 'number',
-    placeholder: '5',
+    placeholder: '50',
     section: 'agent_safeguards',
     inputMode: 'numeric',
     min: 1,

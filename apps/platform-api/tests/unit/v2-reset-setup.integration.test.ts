@@ -1,8 +1,8 @@
 import path from 'node:path';
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { FIELD_DEFINITIONS as DASHBOARD_RUNTIME_DEFAULT_FIELDS } from '../../../dashboard/src/pages/config/runtime-defaults.schema.js';
 
 import { runMigrations } from '../../src/db/migrations/run-migrations.js';
 import { seedDefaultTenant } from '../../src/db/seed.js';
@@ -99,6 +99,50 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
     const missingKeys = dashboardKeys.filter((key) => !seededKeys.has(key));
 
     expect(missingKeys).toEqual([]);
+  });
+
+  it('seeds loop safeguard runtime defaults with the platform-authoritative values', async () => {
+    expect(db).not.toBeNull();
+    const pool = db!.pool;
+
+    await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
+    await seedConfigTables(pool);
+
+    const seededRows = await pool.query<{
+      config_key: string;
+      config_value: string;
+      description: string | null;
+    }>(
+      `SELECT config_key, config_value, description
+         FROM runtime_defaults
+        WHERE tenant_id = $1
+          AND config_key IN (
+            'agent.loop_detection_repeat',
+            'agent.response_repeat_threshold',
+            'agent.no_file_change_threshold'
+          )
+        ORDER BY config_key ASC`,
+      ['00000000-0000-0000-0000-000000000001'],
+    );
+
+    expect(seededRows.rows).toEqual([
+      {
+        config_key: 'agent.loop_detection_repeat',
+        config_value: '3',
+        description: 'Flag repeated loop patterns after this many repeated turns',
+      },
+      {
+        config_key: 'agent.no_file_change_threshold',
+        config_value: '50',
+        description:
+          'Intervene only after this many turns with no meaningful progress toward task completion',
+      },
+      {
+        config_key: 'agent.response_repeat_threshold',
+        config_value: '2',
+        description: 'Mark the agent as stuck after this many repeated near-identical replies',
+      },
+    ]);
   });
 
   it('preserves admin key and explicit llm page defaults while rebuilding redesign-owned state', async () => {
@@ -305,60 +349,7 @@ async function captureLegacySchemaState(pool: TestDatabase['pool']) {
 }
 
 function readRuntimeDefaultsDashboardFieldKeys(): string[] {
-  const dashboardDir = path.resolve(
-    __dirname,
-    '../../../dashboard/src/pages/config',
-  );
-  const sources = [
-    path.join(dashboardDir, 'runtime-defaults.schema.ts'),
-    path.join(dashboardDir, 'runtime-defaults-runtime-ops.ts'),
-  ];
-  const sectionKeys = new Set([
-    'runtime_containers',
-    'execution_containers',
-    'task_limits',
-    'capacity_limits',
-    'agent_context',
-    'orchestrator_context',
-    'agent_safeguards',
-    'runtime_throughput',
-    'process_logging',
-    'server_timeouts',
-    'runtime_api',
-    'llm_transport',
-    'tool_timeouts',
-    'container_timeouts',
-    'lifecycle_timeouts',
-    'task_timeouts',
-    'connected_platform',
-    'realtime_transport',
-    'workflow_activation',
-    'container_manager',
-    'worker_supervision',
-    'agent_supervision',
-    'webhook_delivery',
-    'platform_loops',
-    'workspace_timeouts',
-    'workspace_operations',
-    'capture_timeouts',
-    'secrets_timeouts',
-    'subagent_timeouts',
-  ]);
-  const configKeyPattern = /key:\s*'([^']+)'/g;
-  const keys = new Set<string>();
-
-  for (const source of sources) {
-    const text = readFileSync(source, 'utf8');
-    for (const match of text.matchAll(configKeyPattern)) {
-      const key = match[1];
-      if (!key || sectionKeys.has(key)) {
-        continue;
-      }
-      keys.add(key);
-    }
-  }
-
-  return [...keys].sort();
+  return DASHBOARD_RUNTIME_DEFAULT_FIELDS.map((field) => field.key).sort();
 }
 
 function migrationsDirFromTest() {
