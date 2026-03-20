@@ -62,7 +62,6 @@ describe('handoff rework integration', () => {
       description: 'Implements workflow tasks in integration tests.',
       systemPrompt: 'You are a developer.',
       allowedTools: [],
-      capabilities: ['coding'],
       isActive: true,
     });
     await harness.roleDefinitionService.createRole(identity.tenantId, {
@@ -70,7 +69,6 @@ describe('handoff rework integration', () => {
       description: 'Reviews workflow tasks in integration tests.',
       systemPrompt: 'You are a reviewer.',
       allowedTools: [],
-      capabilities: ['review'],
       isActive: true,
     });
   }, 120_000);

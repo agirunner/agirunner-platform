@@ -88,8 +88,8 @@ describe('backwards compatibility', () => {
 
       const now = new Date();
       const selected = selectWorkerForDispatch([
-        { id: 'w1', capabilities: ['coding'], task_load: 2, quality_score: 1, created_at: now },
-        { id: 'w2', capabilities: ['coding'], task_load: 1, quality_score: 1, created_at: now },
+        { id: 'w1', routing_tags: ['coding'], task_load: 2, quality_score: 1, created_at: now },
+        { id: 'w2', routing_tags: ['coding'], task_load: 1, quality_score: 1, created_at: now },
       ]);
 
       // With equal quality, lower load wins (w2 has task_load=1)

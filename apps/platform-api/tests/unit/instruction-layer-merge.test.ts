@@ -221,7 +221,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const service = new TaskClaimService(deps as never);
     const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
-      { agent_id: 'agent-1', capabilities: [] },
+      { agent_id: 'agent-1', routing_tags: [] },
     );
 
     expect(result).not.toBeNull();
@@ -253,7 +253,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const service = new TaskClaimService(deps as never);
     const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
-      { agent_id: 'agent-1', capabilities: [] },
+      { agent_id: 'agent-1', routing_tags: [] },
     );
 
     const roleConfig = (result as Record<string, unknown>).role_config as Record<string, unknown>;
@@ -273,7 +273,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const service = new TaskClaimService(deps as never);
     const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
-      { agent_id: 'agent-1', capabilities: [] },
+      { agent_id: 'agent-1', routing_tags: [] },
     );
 
     const roleConfig = (result as Record<string, unknown>).role_config as Record<string, unknown>;
@@ -291,7 +291,7 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
     const service = new TaskClaimService(deps as never);
     const result = await service.claimTask(
       { tenantId: 'tenant-1', scope: 'agent', keyPrefix: 'ab_test' } as never,
-      { agent_id: 'agent-1', capabilities: [] },
+      { agent_id: 'agent-1', routing_tags: [] },
     );
 
     expect((result as Record<string, unknown>).instructions).toBe('flat instructions');

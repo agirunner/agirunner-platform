@@ -121,7 +121,6 @@ describe('playbook workflow integration', () => {
       description: 'Integration-test product manager role',
       systemPrompt: 'Clarify scope, plan the work, and submit a structured handoff.',
       allowedTools: ['submit_handoff'],
-      capabilities: ['planning'],
       verificationStrategy: 'peer_review',
       isActive: true,
     });
@@ -131,7 +130,6 @@ describe('playbook workflow integration', () => {
       description: 'Integration-test developer role',
       systemPrompt: 'Implement the requested change and submit a structured handoff.',
       allowedTools: ['shell_exec', 'submit_handoff'],
-      capabilities: ['coding'],
       verificationStrategy: 'peer_review',
       isActive: true,
     });
@@ -1223,17 +1221,17 @@ describe('playbook workflow integration', () => {
       name: 'runtime-v2-harness',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding', 'testing', 'git', 'python'],
+      routing_tags: ['coding', 'testing', 'git', 'python'],
       agents: [
         {
           name: 'workflow-orchestrator',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          capabilities: ['coding', 'testing', 'git', 'python'],
+          routing_tags: ['coding', 'testing', 'git', 'python'],
         },
       ],
     });
@@ -1260,7 +1258,7 @@ describe('playbook workflow integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1298,7 +1296,7 @@ describe('playbook workflow integration', () => {
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'testing', 'git', 'python'],
+      routing_tags: ['coding', 'testing', 'git', 'python'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1328,7 +1326,7 @@ describe('playbook workflow integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1362,7 +1360,7 @@ describe('playbook workflow integration', () => {
     const thirdClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1443,12 +1441,12 @@ describe('playbook workflow integration', () => {
       name: 'triggered-run-specialist',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding', 'testing', 'git', 'python'],
+      routing_tags: ['coding', 'testing', 'git', 'python'],
       agents: [
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          capabilities: ['coding', 'testing', 'git', 'python'],
+          routing_tags: ['coding', 'testing', 'git', 'python'],
         },
       ],
     });
@@ -1601,7 +1599,7 @@ describe('playbook workflow integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'testing', 'git', 'python'],
+      routing_tags: ['coding', 'testing', 'git', 'python'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1626,7 +1624,7 @@ describe('playbook workflow integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'testing', 'git', 'python'],
+      routing_tags: ['coding', 'testing', 'git', 'python'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -1690,12 +1688,12 @@ describe('playbook workflow integration', () => {
       name: 'runtime-child-linkage',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding', 'testing', 'git', 'python'],
+      routing_tags: ['coding', 'testing', 'git', 'python'],
       agents: [
         {
           name: 'workflow-orchestrator',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
       ],
     });
@@ -1715,7 +1713,7 @@ describe('playbook workflow integration', () => {
     const parentClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
       agent_id: String(orchestratorAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(parentPlaybook.id),
     });
@@ -1824,7 +1822,7 @@ describe('playbook workflow integration', () => {
       const resumedParentClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgent?.id)), {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding', 'orchestrator'],
+        routing_tags: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(parentPlaybook.id),
       });

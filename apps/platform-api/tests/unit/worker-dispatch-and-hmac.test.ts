@@ -3,14 +3,14 @@ import { describe, expect, it } from 'vitest';
 import { createWebhookSignature, selectLeastLoadedWorker, verifyWebhookSignature } from '../../src/services/worker-service.js';
 
 describe('worker dispatch and webhook hmac', () => {
-  it('picks least-loaded worker with matching capabilities', () => {
+  it('picks least-loaded worker with matching routing tags', () => {
     const selected = selectLeastLoadedWorker(
       [
-        { id: 'w3', status: 'online', capabilities: ['typescript', 'testing'], currentLoad: 2 },
-        { id: 'w1', status: 'busy', capabilities: ['typescript', 'testing'], currentLoad: 1 },
-        { id: 'w2', status: 'online', capabilities: ['typescript'], currentLoad: 0 },
+        { id: 'w3', status: 'online', routing_tags: ['role:typescript', 'testing'], currentLoad: 2 },
+        { id: 'w1', status: 'busy', routing_tags: ['role:typescript', 'testing'], currentLoad: 1 },
+        { id: 'w2', status: 'online', routing_tags: ['role:typescript'], currentLoad: 0 },
       ],
-      ['typescript', 'testing'],
+      ['role:typescript', 'testing'],
     );
 
     expect(selected?.id).toBe('w1');

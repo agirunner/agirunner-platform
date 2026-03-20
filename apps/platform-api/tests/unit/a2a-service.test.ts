@@ -13,13 +13,11 @@ describe('a2a service mapping', () => {
         id: 'external-1',
         title: 'Review spec',
         type: 'review',
-        capabilities: ['docs'],
         metadata: { source: 'a2a-client' },
       }),
     ).toEqual(
       expect.objectContaining({
         title: 'Review spec',
-        capabilities_required: ['docs'],
         metadata: {
           source: 'a2a-client',
           protocol_ingress: {

@@ -111,7 +111,6 @@ describe('V2 escalation round-trip integration', () => {
     await harness.roleDefinitionService.createRole(identity.tenantId, {
       name: 'developer',
       description: 'Escalation-capable developer specialist',
-      capabilities: ['coding', 'testing'],
       escalationTarget: 'human',
       maxEscalationDepth: 3,
     });
@@ -142,17 +141,17 @@ describe('V2 escalation round-trip integration', () => {
       name: 'runtime-escalation-harness',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding'],
+      routing_tags: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
         {
           name: 'developer-specialist',
           execution_mode: 'specialist',
-          capabilities: ['coding', 'testing'],
+          routing_tags: ['coding', 'testing'],
         },
       ],
     });
@@ -181,7 +180,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding', 'orchestrator'],
+        routing_tags: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(playbook.id),
       },
@@ -216,7 +215,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding', 'orchestrator'],
+        routing_tags: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(playbook.id),
       },
@@ -258,7 +257,7 @@ describe('V2 escalation round-trip integration', () => {
     const specialistClaim = await harness.taskService.claimTask(agentIdentity(String(specialistAgent?.id)), {
       agent_id: String(specialistAgent?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'testing'],
+      routing_tags: ['coding', 'testing'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -290,7 +289,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding', 'orchestrator'],
+        routing_tags: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(playbook.id),
       },
@@ -350,7 +349,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(orchestratorAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding', 'orchestrator'],
+        routing_tags: ['coding', 'orchestrator'],
         include_context: true,
         playbook_id: String(playbook.id),
       },
@@ -388,7 +387,7 @@ describe('V2 escalation round-trip integration', () => {
       {
         agent_id: String(specialistAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding', 'testing'],
+        routing_tags: ['coding', 'testing'],
         include_context: true,
         playbook_id: String(playbook.id),
       },

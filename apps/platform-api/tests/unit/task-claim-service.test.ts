@@ -123,7 +123,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
@@ -136,7 +136,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
     });
 
     const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
@@ -149,7 +149,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
       playbook_id: 'playbook-1',
     });
 
@@ -263,7 +263,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.id).toBe('task-developer');
@@ -367,7 +367,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.max_iterations).toBe(100);
@@ -464,7 +464,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.execution_container).toEqual({
@@ -546,7 +546,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task).toBeNull();
@@ -664,7 +664,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.execution_container).toEqual({
@@ -770,7 +770,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -841,7 +841,7 @@ describe('TaskClaimService', () => {
 
     await expect(service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     })).rejects.toThrow('Missing runtime default "agent.max_iterations"');
   });
 
@@ -942,7 +942,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.id).toBe('task-open');
@@ -1061,7 +1061,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
       workflow_id: 'wf-1',
     });
 
@@ -1207,7 +1207,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual({
@@ -1335,7 +1335,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual({
@@ -1465,7 +1465,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect((task?.credentials as Record<string, unknown>).llm_reasoning_config).toEqual({
@@ -1563,7 +1563,7 @@ describe('TaskClaimService', () => {
     await expect(
       service.claimTask(identity, {
         agent_id: 'agent-1',
-        capabilities: ['coding', 'role:developer'],
+        routing_tags: ['coding', 'role:developer'],
       }),
     ).rejects.toThrow(/providerType/i);
   });
@@ -1682,7 +1682,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect((task?.credentials as Record<string, unknown>).llm_reasoning_config).toEqual({
@@ -1750,7 +1750,7 @@ describe('TaskClaimService', () => {
 
     await expect(service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     })).rejects.toThrow(/explicit task model override/i);
 
     expect(resolveRoleConfig).not.toHaveBeenCalled();
@@ -1817,7 +1817,7 @@ describe('TaskClaimService', () => {
 
     await expect(service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     })).rejects.toThrow(/explicit task model override/i);
 
     expect(resolveRoleConfig).not.toHaveBeenCalled();
@@ -1884,7 +1884,7 @@ describe('TaskClaimService', () => {
     await expect(
       service.claimTask(identity, {
         agent_id: 'agent-1',
-        capabilities: ['coding', 'role:developer'],
+        routing_tags: ['coding', 'role:developer'],
       }),
     ).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -1992,7 +1992,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -2093,7 +2093,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -2192,7 +2192,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -2291,7 +2291,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -2444,7 +2444,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(expect.objectContaining({
@@ -2581,7 +2581,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual({
@@ -2708,7 +2708,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     const handle = (task?.credentials as Record<string, unknown>).llm_api_key_claim_handle as string;
@@ -2927,7 +2927,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     const contractEntry = (logService.insertWithExecutor.mock.calls[0] as unknown[] | undefined)?.[1] as
@@ -3064,7 +3064,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task).not.toBeNull();
@@ -3182,7 +3182,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     const contractEntry = (logService.insertWithExecutor.mock.calls[0] as unknown[] | undefined)?.[1] as
@@ -3303,7 +3303,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding', 'role:developer'],
+      routing_tags: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual({

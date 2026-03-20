@@ -42,8 +42,8 @@ describe('requirements structural backfill', () => {
   it('covers FR-291/FR-292/FR-293 dispatch runtime compatibility through generic capability selection', () => {
     const selected = selectLeastLoadedWorker(
       [
-        { id: 'openclaw', status: 'online', capabilities: ['openclaw', 'typescript'], currentLoad: 2 },
-        { id: 'custom', status: 'online', capabilities: ['custom_script', 'typescript'], currentLoad: 1 },
+        { id: 'openclaw', status: 'online', routing_tags: ['openclaw', 'typescript'], currentLoad: 2 },
+        { id: 'custom', status: 'online', routing_tags: ['custom_script', 'typescript'], currentLoad: 1 },
       ],
       ['typescript'],
     );
@@ -64,8 +64,8 @@ describe('requirements structural backfill', () => {
     // worker-dispatch-service sends tasks to workers — selectLeastLoadedWorker picks the right one
     const workerWithTask = selectLeastLoadedWorker(
       [
-        { id: 'built-in', status: 'online', capabilities: ['general'], currentLoad: 5 },
-        { id: 'external', status: 'online', capabilities: ['general'], currentLoad: 0 },
+        { id: 'built-in', status: 'online', routing_tags: ['general'], currentLoad: 5 },
+        { id: 'external', status: 'online', routing_tags: ['general'], currentLoad: 0 },
       ],
       ['general'],
     );

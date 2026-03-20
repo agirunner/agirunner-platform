@@ -17,7 +17,6 @@ import type { WorkerServiceContext } from './worker-service.js';
 interface DispatchCandidate {
   id: string;
   status: 'online' | 'busy' | 'draining' | 'degraded' | 'disconnected' | 'offline';
-  capabilities?: string[];
   routing_tags?: string[];
   currentLoad: number;
 }
@@ -28,7 +27,7 @@ export function selectLeastLoadedWorker(
 ): DispatchCandidate | null {
   const eligible = workers.filter(
     (worker) => {
-      const workerRoutingTags = worker.routing_tags ?? worker.capabilities ?? [];
+      const workerRoutingTags = worker.routing_tags ?? [];
       const requiredTags = Array.isArray(requiredRoutingTag)
         ? requiredRoutingTag
         : requiredRoutingTag

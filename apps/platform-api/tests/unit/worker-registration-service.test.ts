@@ -30,7 +30,7 @@ describe('worker registration service', () => {
         if (sql.includes('INSERT INTO agents')) {
           return {
             rowCount: 1,
-            rows: [{ id: 'agent-1', name: 'my-runtime-agent', capabilities: ['coding', 'testing'] }],
+            rows: [{ id: 'agent-1', name: 'my-runtime-agent', routing_tags: ['coding', 'testing'] }],
           };
         }
         throw new Error(`Unexpected SQL: ${sql}`);
@@ -62,8 +62,8 @@ describe('worker registration service', () => {
       name: 'my-runtime',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding', 'testing'],
-      agents: [{ name: 'my-runtime-agent', capabilities: ['coding', 'testing'] }],
+      routing_tags: ['coding', 'testing'],
+      agents: [{ name: 'my-runtime-agent', routing_tags: ['coding', 'testing'] }],
     });
 
     expect(result.worker_id).toBe('worker-1');
@@ -114,7 +114,7 @@ describe('worker registration service', () => {
 
     const result = await registerWorker(context as never, identity as never, {
       name: 'bare-worker',
-      capabilities: ['general'],
+      routing_tags: ['general'],
     });
 
     expect(result.worker_id).toBe('worker-2');

@@ -11,7 +11,6 @@ interface ReadyTaskRow {
 
 export interface DispatchWorkerCandidate {
   id: string;
-  capabilities?: string[];
   routing_tags?: string[];
   task_load: number;
   quality_score: number;

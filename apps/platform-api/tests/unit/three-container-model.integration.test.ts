@@ -116,14 +116,12 @@ describe('three-container model integration', () => {
     await harness.roleDefinitionService.createRole(identity.tenantId, {
       name: 'default-specialist',
       description: 'Uses the tenant execution defaults',
-      capabilities: ['coding'],
       allowedTools: [],
       maxEscalationDepth: 3,
     });
     await harness.roleDefinitionService.createRole(identity.tenantId, {
       name: 'heavy-specialist',
       description: 'Overrides the execution container contract',
-      capabilities: ['coding'],
       allowedTools: [],
       maxEscalationDepth: 3,
       executionContainerConfig: {
@@ -163,17 +161,17 @@ describe('three-container model integration', () => {
       name: 'three-container-worker',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding'],
+      routing_tags: ['coding'],
       agents: [
         {
           name: 'specialist-a',
           execution_mode: 'specialist',
-          capabilities: ['coding'],
+          routing_tags: ['coding'],
         },
         {
           name: 'specialist-b',
           execution_mode: 'specialist',
-          capabilities: ['coding'],
+          routing_tags: ['coding'],
         },
       ],
     });
@@ -221,7 +219,7 @@ describe('three-container model integration', () => {
       {
         agent_id: String(firstAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding'],
+        routing_tags: ['coding'],
         playbook_id: String(playbook.id),
       },
     );
@@ -247,7 +245,7 @@ describe('three-container model integration', () => {
       {
         agent_id: String(secondAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding'],
+        routing_tags: ['coding'],
         playbook_id: String(playbook.id),
       },
     );
@@ -287,7 +285,7 @@ describe('three-container model integration', () => {
       {
         agent_id: String(secondAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding'],
+        routing_tags: ['coding'],
         playbook_id: String(playbook.id),
       },
     );
@@ -353,7 +351,7 @@ describe('three-container model integration', () => {
       {
         agent_id: String(firstAgent?.id),
         worker_id: registration.worker_id,
-        capabilities: ['coding'],
+        routing_tags: ['coding'],
         playbook_id: String(playbook.id),
       },
     );

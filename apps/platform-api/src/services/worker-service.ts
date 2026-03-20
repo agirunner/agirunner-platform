@@ -22,7 +22,6 @@ import { createWebhookSignature, generateWebhookSecret, verifyWebhookSignature }
 
 export interface WorkerAgentInput {
   name: string;
-  capabilities?: string[];
   routing_tags?: string[];
   execution_mode?: 'specialist' | 'orchestrator' | 'hybrid';
   metadata?: Record<string, unknown>;
@@ -32,7 +31,6 @@ export interface RegisterWorkerInput {
   name: string;
   runtime_type?: string;
   connection_mode?: 'websocket' | 'sse' | 'polling';
-  capabilities?: string[];
   routing_tags?: string[];
   host_info?: Record<string, unknown>;
   heartbeat_interval_seconds?: number;

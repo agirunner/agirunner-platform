@@ -14,7 +14,6 @@ interface A2ATaskPayload {
   role?: string;
   input?: Record<string, unknown>;
   context?: Record<string, unknown>;
-  capabilities?: string[];
   metadata?: Record<string, unknown>;
   requires_approval?: boolean;
 }

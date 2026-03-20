@@ -15,7 +15,6 @@ const AGENT_REDACTION_OPTIONS = { redactionValue: AGENT_SECRET_REDACTION, allowS
 interface RegisterAgentInput {
   name: string;
   protocol?: 'rest' | 'acp';
-  capabilities?: string[];
   routing_tags?: string[];
   execution_mode?: 'specialist' | 'orchestrator' | 'hybrid';
   tools?: { required?: string[]; optional?: string[] };
@@ -39,7 +38,7 @@ export class AgentService {
   async registerAgent(identity: ApiKeyIdentity, input: RegisterAgentInput) {
     const timingDefaults = await readAgentSupervisionTimingDefaults(this.pool);
     const executionMode = input.execution_mode ?? 'specialist';
-    const routingTags = normalizeAgentRoutingTags(input.routing_tags ?? input.capabilities ?? [], executionMode);
+    const routingTags = normalizeAgentRoutingTags(input.routing_tags ?? [], executionMode);
     const metadata = {
       ...(input.metadata ?? {}),
       protocol: input.protocol ?? 'rest',

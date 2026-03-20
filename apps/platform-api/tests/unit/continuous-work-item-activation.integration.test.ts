@@ -81,7 +81,6 @@ describe('continuous workflow work-item activation integration', () => {
       description: 'Handles continuous-workflow specialist tasks in integration tests.',
       systemPrompt: 'You are a developer.',
       allowedTools: [],
-      capabilities: ['coding'],
       isActive: true,
     });
   }, 120_000);
@@ -122,17 +121,17 @@ describe('continuous workflow work-item activation integration', () => {
       name: 'activation-serial-worker',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding'],
+      routing_tags: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator-a',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
         {
           name: 'workflow-orchestrator-b',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
       ],
     });
@@ -154,7 +153,7 @@ describe('continuous workflow work-item activation integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -188,7 +187,7 @@ describe('continuous workflow work-item activation integration', () => {
     const duplicateClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -205,7 +204,7 @@ describe('continuous workflow work-item activation integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -260,17 +259,17 @@ describe('continuous workflow work-item activation integration', () => {
       name: 'activation-replay-worker',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding'],
+      routing_tags: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator-replay-a',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
         {
           name: 'workflow-orchestrator-replay-b',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
       ],
     });
@@ -292,7 +291,7 @@ describe('continuous workflow work-item activation integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -320,7 +319,7 @@ describe('continuous workflow work-item activation integration', () => {
     const secondClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -358,7 +357,7 @@ describe('continuous workflow work-item activation integration', () => {
     const thirdClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });

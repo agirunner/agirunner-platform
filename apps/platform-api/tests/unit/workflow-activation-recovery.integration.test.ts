@@ -81,7 +81,6 @@ describe('workflow activation recovery integration', () => {
       description: 'Handles workflow activation recovery integration tests.',
       systemPrompt: 'You are a developer.',
       allowedTools: [],
-      capabilities: ['coding'],
       isActive: true,
     });
   }, 120_000);
@@ -117,17 +116,17 @@ describe('workflow activation recovery integration', () => {
       name: 'activation-recovery-worker',
       runtime_type: 'external',
       connection_mode: 'polling',
-      capabilities: ['coding'],
+      routing_tags: ['coding'],
       agents: [
         {
           name: 'workflow-orchestrator-recovery-a',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
         {
           name: 'workflow-orchestrator-recovery-b',
           execution_mode: 'orchestrator',
-          capabilities: ['coding', 'orchestrator'],
+          routing_tags: ['coding', 'orchestrator'],
         },
       ],
     });
@@ -149,7 +148,7 @@ describe('workflow activation recovery integration', () => {
     const firstClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentA?.id)), {
       agent_id: String(orchestratorAgentA?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -196,7 +195,7 @@ describe('workflow activation recovery integration', () => {
     const recoveredClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });
@@ -297,7 +296,7 @@ describe('workflow activation recovery integration', () => {
     const noFollowOnClaim = await harness.taskService.claimTask(agentIdentity(String(orchestratorAgentB?.id)), {
       agent_id: String(orchestratorAgentB?.id),
       worker_id: registration.worker_id,
-      capabilities: ['coding', 'orchestrator'],
+      routing_tags: ['coding', 'orchestrator'],
       include_context: true,
       playbook_id: String(playbook.id),
     });

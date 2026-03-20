@@ -35,7 +35,7 @@ export async function registerWorker(
       input.name,
       input.connection_mode ?? 'websocket',
       input.runtime_type ?? 'external',
-      input.routing_tags ?? input.capabilities ?? [],
+      input.routing_tags ?? [],
       input.host_info ?? {},
       input.heartbeat_interval_seconds ?? context.config.WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
       input.metadata ?? {},
@@ -62,10 +62,7 @@ export async function registerWorker(
       ...(agent.metadata ?? {}),
       execution_mode: executionMode,
     };
-    const routingTags = normalizeWorkerAgentRoutingTags(
-      agent.routing_tags ?? agent.capabilities ?? [],
-      executionMode,
-    );
+    const routingTags = normalizeWorkerAgentRoutingTags(agent.routing_tags ?? [], executionMode);
     const agentRes = await context.pool.query(
       `INSERT INTO agents (
         tenant_id, worker_id, name, routing_tags, status, heartbeat_interval_seconds, last_heartbeat_at, metadata

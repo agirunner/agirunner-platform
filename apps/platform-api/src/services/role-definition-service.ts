@@ -34,8 +34,8 @@ const createRoleSchema = z.object({
 
 const updateRoleSchema = createRoleSchema.partial().omit({ isBuiltIn: true });
 
-export type CreateRoleInput = z.input<typeof createRoleSchema> & { capabilities?: unknown };
-export type UpdateRoleInput = z.input<typeof updateRoleSchema> & { capabilities?: unknown };
+export type CreateRoleInput = z.input<typeof createRoleSchema>;
+export type UpdateRoleInput = z.input<typeof updateRoleSchema>;
 
 interface RoleDefinitionRow {
   [key: string]: unknown;

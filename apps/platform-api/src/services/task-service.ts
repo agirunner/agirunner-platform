@@ -245,7 +245,6 @@ export class TaskService {
     payload: {
       agent_id: string;
       worker_id?: string;
-      capabilities?: string[];
       routing_tags?: string[];
       workflow_id?: string;
       playbook_id?: string;
