@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildRoleModelOptions,
   buildRolePayload,
+  createRoleForm,
   createDuplicateRoleForm,
   listAvailableCapabilities,
   listAvailableTools,
@@ -58,6 +59,38 @@ describe('role definitions support helpers', () => {
           cpu: '2',
           memory: '4Gi',
           pullPolicy: 'always',
+        },
+      }),
+    );
+  });
+
+  it('defaults role execution container pull policy to if-not-present', () => {
+    expect(createRoleForm().executionContainer.pullPolicy).toBe('if-not-present');
+  });
+
+  it('fills in if-not-present when execution container overrides omit pull policy', () => {
+    expect(
+      buildRolePayload({
+        name: 'developer',
+        description: '',
+        systemPrompt: '',
+        allowedTools: ['file_read'],
+        capabilities: ['coding'],
+        isActive: true,
+        executionContainer: {
+          image: 'agirunner-runtime-execution:large',
+          cpu: '2',
+          memory: '4Gi',
+          pullPolicy: '',
+        },
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        executionContainerConfig: {
+          image: 'agirunner-runtime-execution:large',
+          cpu: '2',
+          memory: '4Gi',
+          pullPolicy: 'if-not-present',
         },
       }),
     );

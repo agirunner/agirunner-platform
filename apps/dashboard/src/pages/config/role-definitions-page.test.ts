@@ -118,10 +118,12 @@ describe('role definitions page source', () => {
     expect(source).toContain('Save model routing');
     expect(source).toContain('Save pool posture');
     expect(source).toContain('Runtime image');
-    expect(source).toContain('CPU / Memory');
+    expect(source).toContain('CPU / memory');
     expect(source).toContain('grid gap-2 border-t border-border/70 pt-3');
     expect(source).not.toContain('grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3');
     expect(source).toContain('text-base font-semibold text-foreground');
+    expect(source).toContain("{fact.label}:");
+    expect(source).toContain('className="font-medium text-foreground"');
     expect(source).toContain('dashboardApi.getOrchestratorConfig()');
     expect(source).toContain('dashboardApi.updateOrchestratorConfig');
     expect(source).toContain("updateAssignment('orchestrator'");

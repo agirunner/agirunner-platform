@@ -15,4 +15,11 @@ describe('agent list two-pool source', () => {
     expect(source).toContain("SelectItem value=\"orchestrator\"");
     expect(source).toContain('readAgentPool');
   });
+
+  it('shows explicit loading states for both the agent table and pool summary', () => {
+    const source = readSource();
+    expect(source).toContain('Loading agents...');
+    expect(source).toContain('if (isLoading) {');
+    expect(source).toContain('Loading pool status...');
+  });
 });

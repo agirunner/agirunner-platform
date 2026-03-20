@@ -129,6 +129,34 @@ describe('RoleDefinitionService', () => {
       expect(pool.query.mock.calls[1]?.[1]).toContainEqual(inserted.execution_container_config);
     });
 
+    it('defaults execution container pull policy to if-not-present when omitted', async () => {
+      const inserted = {
+        ...sampleRole,
+        execution_container_config: {
+          image: 'agirunner-runtime-execution:role',
+          cpu: '2',
+          memory: '2Gi',
+          pull_policy: 'if-not-present',
+        },
+      };
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [inserted], rowCount: 1 });
+
+      const result = await service.createRole(TENANT_ID, {
+        name: 'developer',
+        allowedTools: [],
+        executionContainerConfig: {
+          image: 'agirunner-runtime-execution:role',
+          cpu: '2',
+          memory: '2Gi',
+        },
+      });
+
+      expect(result.execution_container_config).toEqual(inserted.execution_container_config);
+      expect(pool.query.mock.calls[1]?.[1]).toContainEqual(inserted.execution_container_config);
+    });
+
     it('throws ConflictError when role name already exists', async () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 });
 

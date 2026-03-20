@@ -123,7 +123,7 @@ export function OrchestratorControlPlane(props: {
                   mono: true,
                 },
                 {
-                  label: 'CPU / Memory',
+                  label: 'CPU / memory',
                   value: props.poolSummary.resourceLabel,
                 },
                 {

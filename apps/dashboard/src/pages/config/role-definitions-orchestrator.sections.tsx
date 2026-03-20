@@ -79,14 +79,12 @@ export function EditableControlPacket(props: {
           {props.facts?.length ? (
             <div className="grid gap-2 border-t border-border/70 pt-3">
               {props.facts.map((fact) => (
-                <div key={fact.label} className="flex items-start justify-between gap-3">
-                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
-                    {fact.label}
-                  </span>
-                  <span className={fact.mono ? 'font-mono text-xs text-foreground' : 'text-sm text-foreground'}>
+                <p key={fact.label} className="text-sm text-muted">
+                  <span className="font-medium text-foreground">{fact.label}:</span>{' '}
+                  <span className={fact.mono ? 'font-mono text-xs text-foreground' : 'text-foreground'}>
                     {fact.value}
                   </span>
-                </div>
+                </p>
               ))}
             </div>
           ) : null}

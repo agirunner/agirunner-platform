@@ -144,6 +144,7 @@ const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
 ];
 
 export const NATIVE_SEARCH_TOOL = 'native_search';
+export const DEFAULT_PULL_POLICY = 'if-not-present';
 
 export const KNOWN_TOOLS = ['file_read', 'file_write', 'file_edit', 'file_list', 'grep', 'glob', 'tool_search', 'shell_exec', 'git_status', 'git_diff', 'git_log', 'git_commit', 'git_push', 'artifact_upload', 'artifact_list', 'artifact_read', 'memory_read', 'memory_search', 'memory_write', 'web_fetch', 'escalate'];
 
@@ -159,7 +160,7 @@ export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
       image: role?.execution_container_config?.image ?? '',
       cpu: role?.execution_container_config?.cpu ?? '',
       memory: role?.execution_container_config?.memory ?? '',
-      pullPolicy: role?.execution_container_config?.pull_policy ?? '',
+      pullPolicy: role?.execution_container_config?.pull_policy ?? DEFAULT_PULL_POLICY,
     },
   };
 }
@@ -187,9 +188,9 @@ function buildExecutionContainerPayload(form: RoleExecutionContainerFormState) {
   const image = form.image.trim();
   const cpu = form.cpu.trim();
   const memory = form.memory.trim();
-  const pullPolicy = form.pullPolicy.trim();
+  const pullPolicy = form.pullPolicy.trim() || DEFAULT_PULL_POLICY;
 
-  if (!image && !cpu && !memory && !pullPolicy) {
+  if (!image && !cpu && !memory) {
     return undefined;
   }
 
@@ -197,7 +198,7 @@ function buildExecutionContainerPayload(form: RoleExecutionContainerFormState) {
     image: image || undefined,
     cpu: cpu || undefined,
     memory: memory || undefined,
-    pullPolicy: pullPolicy || undefined,
+    pullPolicy,
   };
 }
 

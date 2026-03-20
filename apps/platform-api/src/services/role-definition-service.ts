@@ -32,6 +32,8 @@ const createRoleSchema = z.object({
   isActive: z.boolean().default(true),
 }).strict();
 
+const DEFAULT_PULL_POLICY = 'if-not-present' as const;
+
 const updateRoleSchema = createRoleSchema.partial().omit({ isBuiltIn: true });
 
 export type CreateRoleInput = z.input<typeof createRoleSchema>;
@@ -265,6 +267,10 @@ function normalizeExecutionContainerConfig(
   }
 
   const normalized: Record<string, unknown> = {};
+  const hasResourceOverride =
+    typeof value.image === 'string' && value.image.trim().length > 0
+    || typeof value.cpu === 'string' && value.cpu.trim().length > 0
+    || typeof value.memory === 'string' && value.memory.trim().length > 0;
   if (typeof value.image === 'string' && value.image.trim().length > 0) {
     normalized.image = value.image.trim();
   }
@@ -276,6 +282,8 @@ function normalizeExecutionContainerConfig(
   }
   if (typeof value.pullPolicy === 'string' && value.pullPolicy.trim().length > 0) {
     normalized.pull_policy = value.pullPolicy.trim();
+  } else if (hasResourceOverride) {
+    normalized.pull_policy = DEFAULT_PULL_POLICY;
   }
 
   return Object.keys(normalized).length > 0 ? normalized : null;

@@ -108,7 +108,17 @@ function PoolBadge({ pool }: { pool: PoolFilter }): JSX.Element {
   );
 }
 
-function FleetPoolCards({ status }: { status: FleetStatusResponse | undefined }): JSX.Element | null {
+function FleetPoolCards({
+  status,
+  isLoading,
+}: {
+  status: FleetStatusResponse | undefined;
+  isLoading: boolean;
+}): JSX.Element | null {
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading pool status...</p>;
+  }
+
   if (!status) {
     return null;
   }
@@ -205,7 +215,7 @@ export function AgentListPage(): JSX.Element {
         </div>
       </div>
 
-      <FleetPoolCards status={fleetStatusQuery.data} />
+      <FleetPoolCards status={fleetStatusQuery.data} isLoading={fleetStatusQuery.isLoading} />
 
       <div className="flex flex-wrap items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
