@@ -3,6 +3,11 @@ import type {
   DashboardLlmProviderRecord,
   FleetWorkerRecord,
 } from '../../lib/api.js';
+import {
+  validateContainerCpu,
+  validateContainerImage,
+  validateContainerMemory,
+} from '../../lib/container-resources.validation.js';
 
 export type PoolKind = 'orchestrator' | 'specialist';
 export type NetworkPolicy = 'restricted' | 'open';
@@ -33,6 +38,8 @@ export interface WorkerDesiredStateValidationErrors {
   workerName?: string;
   role?: string;
   runtimeImage?: string;
+  cpuLimit?: string;
+  memoryLimit?: string;
   replicas?: string;
 }
 
@@ -269,6 +276,18 @@ export function validateWorkerDesiredState(
   }
   if (!values.runtimeImage.trim()) {
     errors.runtimeImage = 'Provide the runtime image that should be deployed for this worker.';
+  }
+  const imageError = validateContainerImage(values.runtimeImage, 'Runtime image');
+  if (imageError) {
+    errors.runtimeImage = imageError;
+  }
+  const cpuError = validateContainerCpu(values.cpuLimit, 'CPU limit');
+  if (cpuError) {
+    errors.cpuLimit = cpuError;
+  }
+  const memoryError = validateContainerMemory(values.memoryLimit, 'Memory limit');
+  if (memoryError) {
+    errors.memoryLimit = memoryError;
   }
 
   const replicas = Number.parseInt(values.replicas, 10);

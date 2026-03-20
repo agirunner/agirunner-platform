@@ -48,7 +48,7 @@ export function OrchestratorPromptDialog(props: {
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
-      <DialogContent className="max-h-[85vh] max-w-3xl overflow-y-auto">
+      <DialogContent className="max-h-[88vh] max-w-4xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit orchestrator prompt</DialogTitle>
           <DialogDescription>
@@ -68,7 +68,7 @@ export function OrchestratorPromptDialog(props: {
             <Textarea
               value={content}
               onChange={(event) => setContent(event.target.value)}
-              className="min-h-[320px]"
+              className="min-h-[420px] sm:min-h-[480px]"
               placeholder="Define how the orchestrator should manage workflows, delegate tasks, evaluate quality, and handle escalation."
             />
             <p className="text-right text-xs text-muted">{content.trim().length} characters</p>

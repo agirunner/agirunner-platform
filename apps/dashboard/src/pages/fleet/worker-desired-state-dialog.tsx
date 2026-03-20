@@ -10,6 +10,7 @@ import {
 } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { Button } from '../../components/ui/button.js';
+import { ImageReferenceField } from '../../components/forms/image-reference-field.js';
 import {
   Card,
   CardContent,
@@ -350,20 +351,13 @@ export function WorkerDesiredStateDialog(props: WorkerDesiredStateDialogProps): 
                 <label htmlFor="worker-runtime-image" className="text-sm font-medium">
                   Runtime image
                 </label>
-                <Input
-                  id="worker-runtime-image"
+                <ImageReferenceField
                   value={formValues.runtimeImage}
-                  onChange={(event) => setField('runtimeImage', event.target.value)}
+                  onChange={(value) => setField('runtimeImage', value)}
                   placeholder="ghcr.io/agirunner/runtime:latest"
-                  aria-invalid={validationErrors.runtimeImage ? 'true' : 'false'}
+                  error={validationErrors.runtimeImage}
+                  helperText="Match the image that should be present on the worker after reconciliation."
                 />
-                {validationErrors.runtimeImage ? (
-                  <p className="text-xs text-red-600">{validationErrors.runtimeImage}</p>
-                ) : (
-                  <p className="text-xs text-muted">
-                    Match the image that should be present on the worker after reconciliation.
-                  </p>
-                )}
               </div>
               <div className="space-y-2">
                 <label htmlFor="worker-cpu-limit" className="text-sm font-medium">
@@ -374,7 +368,11 @@ export function WorkerDesiredStateDialog(props: WorkerDesiredStateDialogProps): 
                   value={formValues.cpuLimit}
                   onChange={(event) => setField('cpuLimit', event.target.value)}
                   placeholder="2"
+                  aria-invalid={validationErrors.cpuLimit ? 'true' : 'false'}
                 />
+                {validationErrors.cpuLimit ? (
+                  <p className="text-xs text-red-600">{validationErrors.cpuLimit}</p>
+                ) : null}
               </div>
               <div className="space-y-2">
                 <label htmlFor="worker-memory-limit" className="text-sm font-medium">
@@ -385,7 +383,11 @@ export function WorkerDesiredStateDialog(props: WorkerDesiredStateDialogProps): 
                   value={formValues.memoryLimit}
                   onChange={(event) => setField('memoryLimit', event.target.value)}
                   placeholder="2g"
+                  aria-invalid={validationErrors.memoryLimit ? 'true' : 'false'}
                 />
+                {validationErrors.memoryLimit ? (
+                  <p className="text-xs text-red-600">{validationErrors.memoryLimit}</p>
+                ) : null}
               </div>
               <div className="space-y-2 md:col-span-2">
                 <label className="text-sm font-medium">Network policy</label>

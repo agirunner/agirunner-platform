@@ -13,7 +13,6 @@ import {
   type WorkspaceDetailTabValue,
 } from './workspace-detail-support.js';
 import { WorkspaceAutomationTab } from './workspace-automation-tab.js';
-import { WorkspaceDeliveryHistory } from './workspace-delivery-history.js';
 import { WorkspaceDetailShell } from './workspace-detail-shell.js';
 import { WorkspaceKnowledgeTab } from './workspace-knowledge-tab.js';
 import { WorkspaceOverviewShell } from './workspace-overview-shell.js';
@@ -73,7 +72,6 @@ export function WorkspaceDetailPage(): JSX.Element {
       }
       knowledgeContent={<WorkspaceKnowledgeTab workspaceId={workspace.id} overview={knowledgeOverview} />}
       automationContent={<WorkspaceAutomationTab workspace={workspace} />}
-      deliveryContent={<WorkspaceDeliveryHistory workspaceId={workspace.id} />}
     />
   );
 }

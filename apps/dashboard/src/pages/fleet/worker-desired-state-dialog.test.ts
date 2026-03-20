@@ -23,4 +23,9 @@ describe('worker desired state dialog source', () => {
     expect(source).toContain('dashboardApi.updateFleetWorker');
     expect(source).toContain('max-h-[90vh] max-w-5xl overflow-y-auto p-0');
   });
+
+  it('uses the shared image reference field for runtime image entry', () => {
+    const source = readSource();
+    expect(source).toContain('ImageReferenceField');
+  });
 });

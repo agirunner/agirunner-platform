@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
 import type { FleetWorkerRecord } from '../../lib/api.js';
+import { ImageReferenceField } from '../../components/forms/image-reference-field.js';
 import {
   Card,
   CardContent,
@@ -29,6 +30,7 @@ import {
   listOrchestratorWorkerOptions,
   listSuggestedRuntimeImages,
   ORCHESTRATOR_ASSIGNMENT_MODEL,
+  validateOrchestratorPoolDraft,
 } from './role-definitions-orchestrator.form.js';
 import { DialogActions } from './role-definitions-orchestrator.dialog-shared.js';
 import type { LlmModelRecord } from './role-definitions-page.support.js';
@@ -69,6 +71,8 @@ export function OrchestratorPoolDialog(props: {
       setDraft(buildOrchestratorPoolDraft(props.workers, props.models));
     }
   }, [props.isOpen, props.models, props.workers]);
+  const validationErrors = validateOrchestratorPoolDraft(draft);
+  const hasValidationErrors = Object.keys(validationErrors).length > 0;
 
   return (
     <Dialog open={props.isOpen} onOpenChange={props.onOpenChange}>
@@ -149,19 +153,15 @@ export function OrchestratorPoolDialog(props: {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Runtime image</label>
-              <Input
-                list="orchestrator-runtime-image-suggestions"
+              <ImageReferenceField
                 value={draft.runtimeImage}
-                onChange={(event) =>
-                  setDraft((current) => ({ ...current, runtimeImage: event.target.value }))
-                }
+                onChange={(value) => setDraft((current) => ({ ...current, runtimeImage: value }))}
                 placeholder="agirunner-runtime:local"
+                suggestions={runtimeImages}
+                listId="orchestrator-runtime-image-suggestions"
+                error={validationErrors.runtimeImage}
+                helperText="Use the same standard image ref format as Roles and Fleet worker posture."
               />
-              <datalist id="orchestrator-runtime-image-suggestions">
-                {runtimeImages.map((image) => (
-                  <option key={image} value={image} />
-                ))}
-              </datalist>
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Worker model pin</label>
@@ -205,14 +205,17 @@ export function OrchestratorPoolDialog(props: {
             </div>
           </CardContent>
         </Card>
-        <DialogActions
-          isSaving={props.isSaving}
-          saveLabel={draft.workerId ? 'Save pool posture' : 'Create worker posture'}
-          onCancel={() => props.onOpenChange(false)}
-          onSave={async () => {
-            await props.onSave({
-              workerId: draft.workerId,
-              workerName: draft.workerName,
+      <DialogActions
+        isSaving={props.isSaving}
+        saveLabel={draft.workerId ? 'Save pool posture' : 'Create worker posture'}
+        onCancel={() => props.onOpenChange(false)}
+        onSave={async () => {
+          if (hasValidationErrors) {
+            return;
+          }
+          await props.onSave({
+            workerId: draft.workerId,
+            workerName: draft.workerName,
               runtimeImage: draft.runtimeImage,
               replicas: Math.max(1, parseInt(draft.replicas || '1', 10) || 1),
               enabled: draft.enabled,

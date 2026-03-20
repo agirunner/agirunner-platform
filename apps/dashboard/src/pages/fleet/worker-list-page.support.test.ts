@@ -178,4 +178,26 @@ describe('worker list support', () => {
     expect(formatCapacityDelta(3, 1)).toBe('2 replicas below target');
     expect(formatCapacityDelta(2, 4)).toBe('2 extra replicas still running');
   });
+
+  it('validates runtime image, cpu, and memory formats for worker desired state', () => {
+    const errors = validateWorkerDesiredState({
+      workerName: 'worker-1',
+      role: 'developer',
+      poolKind: 'specialist',
+      runtimeImage: 'ghcr.io/agirunner runtime:latest',
+      cpuLimit: '0',
+      memoryLimit: 'banana',
+      networkPolicy: 'restricted',
+      environmentEntries: [],
+      llmProvider: '',
+      llmModel: '',
+      llmApiKeySecretRef: '',
+      replicas: '1',
+      enabled: true,
+    });
+
+    expect(errors.runtimeImage).toContain('valid container image reference');
+    expect(errors.cpuLimit).toContain('greater than 0');
+    expect(errors.memoryLimit).toContain('512m, 2g, or 2Gi');
+  });
 });

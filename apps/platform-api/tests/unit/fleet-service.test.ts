@@ -330,6 +330,24 @@ describe('FleetService', () => {
       );
       expect(pool.query).not.toHaveBeenCalled();
     });
+
+    it('rejects invalid runtime image, cpu, and memory values', async () => {
+      await expect(
+        service.createWorker(TENANT_ID, {
+          workerName: 'test-worker',
+          role: 'developer',
+          poolKind: 'specialist',
+          runtimeImage: 'https://ghcr.io/agirunner/runtime latest',
+          cpuLimit: 'zero',
+          memoryLimit: 'banana',
+          networkPolicy: 'restricted',
+          environment: {},
+          replicas: 1,
+          enabled: true,
+        }),
+      ).rejects.toThrow('valid container image reference');
+      expect(pool.query).not.toHaveBeenCalled();
+    });
   });
 
   describe('updateWorker', () => {

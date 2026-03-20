@@ -189,7 +189,11 @@ export function RoleDialog(props: {
                 tools={tools}
                 toggleTool={toggleTool}
               />
-              <RoleExecutionContainerSection form={form} setForm={setForm} />
+              <RoleExecutionContainerSection
+                form={form}
+                setForm={setForm}
+                validation={validation}
+              />
               <RoleReadinessCard validation={validation} summary={summary} />
             </div>
           </div>

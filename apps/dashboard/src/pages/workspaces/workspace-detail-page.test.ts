@@ -7,23 +7,14 @@ function readSource(filename: string) {
 }
 
 describe('workspace detail workspace shell source', () => {
-  it('uses delivery-oriented operator copy for workspace run history inside the delivery tab', () => {
+  it('removes the delivery tab from the top-level workspace taxonomy', () => {
     const source = readSource('./workspace-detail-page.tsx');
     const supportSource = readSource('./workspace-detail-support.ts');
-    const deliverySource = readSource('./workspace-delivery-history.tsx');
-    expect(supportSource).toContain("value: 'delivery'");
-    expect(source).toContain('<WorkspaceDeliveryHistory workspaceId={workspace.id} />');
-    expect(deliverySource).toContain('dashboardApi.getWorkspaceTimeline(workspaceId)');
-    expect(deliverySource).toContain('buildWorkspaceDeliveryAttentionOverview');
-    expect(deliverySource).toContain('buildWorkspaceDeliveryPacket');
-    expect(deliverySource).toContain('Delivery Overview');
-    expect(deliverySource).toContain('Workspace delivery timeline');
-    expect(deliverySource).toContain('Recent Signals');
-    expect(deliverySource).toContain('Run Cards');
-    expect(deliverySource).toContain('Open board');
-    expect(deliverySource).toContain('Open inspector');
-    expect(deliverySource).not.toContain('In Development');
-    expect(deliverySource).not.toContain('Workspace delivery is being rebuilt');
+    const shellSource = readSource('./workspace-detail-shell.tsx');
+    expect(supportSource).not.toContain("value: 'delivery'");
+    expect(source).not.toContain("import { WorkspaceDeliveryHistory } from './workspace-delivery-history.js';");
+    expect(source).not.toContain('deliveryContent={<WorkspaceDeliveryHistory workspaceId={workspace.id} />}');
+    expect(shellSource).not.toContain('<TabsContent value="delivery">');
   });
 
   it('keeps an automation tab for scheduled work-item triggers', () => {
@@ -59,7 +50,7 @@ describe('workspace detail workspace shell source', () => {
     expect(formSource).not.toContain('label="Source"');
   });
 
-  it('rebuilds the top-level taxonomy around overview, settings, knowledge, automation, and delivery', () => {
+  it('rebuilds the top-level taxonomy around overview, settings, knowledge, and automation', () => {
     const source = readSource('./workspace-detail-page.tsx');
     const shellSource = readSource('./workspace-detail-shell.tsx');
     const supportSource = readSource('./workspace-detail-support.ts');
@@ -68,12 +59,10 @@ describe('workspace detail workspace shell source', () => {
     expect(supportSource).toContain("value: 'settings'");
     expect(supportSource).toContain("value: 'knowledge'");
     expect(supportSource).toContain("value: 'automation'");
-    expect(supportSource).toContain("value: 'delivery'");
     expect(shellSource).toContain('<TabsContent value="overview">');
     expect(shellSource).toContain('<TabsContent value="settings">');
     expect(shellSource).toContain('<TabsContent value="knowledge">');
     expect(shellSource).toContain('<TabsContent value="automation">');
-    expect(shellSource).toContain('<TabsContent value="delivery">');
     expect(source).not.toContain('<TabsContent value="spec">');
     expect(source).not.toContain('<TabsContent value="resources">');
     expect(source).not.toContain('<TabsContent value="tools">');
@@ -189,6 +178,7 @@ describe('workspace detail workspace shell source', () => {
     expect(source).toContain("import { WorkspaceKnowledgeTab } from './workspace-knowledge-tab.js';");
     expect(source).toContain("import { WorkspaceSettingsTab } from './workspace-settings-tab.js';");
     expect(source).toContain("import { WorkspaceAutomationTab } from './workspace-automation-tab.js';");
+    expect(source).not.toContain('WorkspaceDeliveryHistory');
     expect(source).toContain('buildWorkspaceDetailHeaderState(workspace, activeTab)');
     expect(source).toContain('buildWorkspaceOverview(workspace)');
     expect(source).toContain('buildWorkspaceKnowledgeOverview(workspace)');

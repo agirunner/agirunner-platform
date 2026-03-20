@@ -40,4 +40,27 @@ describe('role dialog support', () => {
       modelSummary: 'Model assigned via LLM Providers',
     });
   });
+
+  it('surfaces execution container field errors for invalid overrides', () => {
+    const result = validateRoleDialog(
+      {
+        ...createRoleForm(),
+        name: 'Developer',
+        executionContainer: {
+          image: 'https://ghcr.io/agirunner/runtime latest',
+          cpu: 'zero',
+          memory: 'banana',
+          pullPolicy: '',
+        },
+      },
+      [],
+    );
+
+    expect(result.isValid).toBe(false);
+    expect(result.fieldErrors).toMatchObject({
+      executionContainerImage: expect.stringContaining('valid container image reference'),
+      executionContainerCpu: expect.stringContaining('positive number'),
+      executionContainerMemory: expect.stringContaining('512m, 2g, or 2Gi'),
+    });
+  });
 });

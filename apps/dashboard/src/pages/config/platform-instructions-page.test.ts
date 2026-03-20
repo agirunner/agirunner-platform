@@ -22,6 +22,7 @@ describe('platform instructions page source', () => {
     const source = readSource();
     expect(source).toContain('Textarea');
     expect(source).toContain('Save');
+    expect(source).toContain('min-h-[65vh]');
     expect(source).not.toContain('Version History');
     expect(source).not.toContain('DiffViewer');
     expect(source).not.toContain('Restore');

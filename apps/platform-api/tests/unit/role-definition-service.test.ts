@@ -150,6 +150,21 @@ describe('RoleDefinitionService', () => {
         service.createRole(TENANT_ID, { name: '', allowedTools: [], capabilities: [], isBuiltIn: false, isActive: true }),
       ).rejects.toThrow();
     });
+
+    it('rejects invalid execution container overrides', async () => {
+      await expect(
+        service.createRole(TENANT_ID, {
+          name: 'developer',
+          allowedTools: [],
+          capabilities: [],
+          executionContainerConfig: {
+            image: 'https://ghcr.io/agirunner/runtime latest',
+            cpu: 'zero',
+            memory: 'banana',
+          },
+        }),
+      ).rejects.toThrow('valid container image reference');
+    });
   });
 
   describe('updateRole', () => {
@@ -336,12 +351,13 @@ describe('RoleDefinitionService', () => {
       pool.query
         .mockResolvedValueOnce({ rows: [nonBuiltIn], rowCount: 1 }) // getRoleById
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // findPlaybooksUsingRole
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // findWorkflowReferencedPlaybooksUsingRole
         .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // DELETE role_model_assignments
         .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // DELETE
 
       await expect(service.deleteRole(TENANT_ID, ROLE_ID)).resolves.toBeUndefined();
       expect(pool.query).toHaveBeenNthCalledWith(
-        3,
+        4,
         'DELETE FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
         [TENANT_ID, sampleRole.name],
       );
@@ -360,6 +376,16 @@ describe('RoleDefinitionService', () => {
         .mockResolvedValueOnce({ rows: [{ name: 'SDLC' }], rowCount: 1 }); // findPlaybooksUsingRole
 
       await expect(service.deleteRole(TENANT_ID, ROLE_ID)).rejects.toThrow('used by playbook');
+    });
+
+    it('rejects delete when a workflow-linked inactive playbook version still uses the role', async () => {
+      const nonBuiltIn = { ...sampleRole, is_built_in: false };
+      pool.query
+        .mockResolvedValueOnce({ rows: [nonBuiltIn], rowCount: 1 }) // getRoleById
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // active playbooks
+        .mockResolvedValueOnce({ rows: [{ name: 'SDLC v4' }], rowCount: 1 }); // workflow-linked playbooks
+
+      await expect(service.deleteRole(TENANT_ID, ROLE_ID)).rejects.toThrow('referenced by workflow');
     });
 
     it('throws NotFoundError when role does not exist', async () => {

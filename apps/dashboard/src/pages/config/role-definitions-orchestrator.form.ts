@@ -2,6 +2,7 @@ import type {
   DashboardPlatformInstructionRecord,
   FleetWorkerRecord,
 } from '../../lib/api.js';
+import { validateContainerImage } from '../../lib/container-resources.validation.js';
 import type { LlmModelRecord, ReasoningConfigSchema } from './role-definitions-page.support.js';
 import type { RoleAssignmentRecord } from './role-definitions-orchestrator.support.js';
 
@@ -101,6 +102,13 @@ export function listSuggestedRuntimeImages(workers: FleetWorkerRecord[]): string
   );
   images.add(DEFAULT_RUNTIME_IMAGE);
   return [...images];
+}
+
+export function validateOrchestratorPoolDraft(draft: OrchestratorPoolDraft): {
+  runtimeImage?: string;
+} {
+  const runtimeImageError = validateContainerImage(draft.runtimeImage, 'Runtime image');
+  return runtimeImageError ? { runtimeImage: runtimeImageError } : {};
 }
 
 export function resolveWorkerModelSelection(

@@ -27,18 +27,16 @@ describe('workspace detail shell source', () => {
     expect(source).toContain('className="text-lg font-semibold tracking-tight"');
   });
 
-  it('keeps all five workspace tab panels together in one shell component', () => {
+  it('keeps all four workspace tab panels together in one shell component', () => {
     const source = readSource();
 
     expect(source).toContain('<TabsContent value="overview">');
     expect(source).toContain('<TabsContent value="settings">');
     expect(source).toContain('<TabsContent value="knowledge">');
     expect(source).toContain('<TabsContent value="automation">');
-    expect(source).toContain('<TabsContent value="delivery">');
     expect(source).toContain('props.overviewContent');
     expect(source).toContain('props.settingsContent');
     expect(source).toContain('props.knowledgeContent');
     expect(source).toContain('props.automationContent');
-    expect(source).toContain('props.deliveryContent');
   });
 });

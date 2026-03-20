@@ -5,6 +5,11 @@ import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { type PlaybookRuntimePoolKind } from '../orchestration/playbook-model.js';
 import {
+  assertValidContainerCpu,
+  assertValidContainerImage,
+  assertValidContainerMemory,
+} from './container-resource-validation.js';
+import {
   GLOBAL_MAX_EXECUTION_CONTAINERS_RUNTIME_KEY,
   SPECIALIST_RUNTIME_DEFAULT_KEYS,
 } from './runtime-default-values.js';
@@ -258,6 +263,22 @@ function validateDesiredStateSecrets(input: {
   validateLlmSecretRef(input.llmApiKeySecretRef);
 }
 
+function validateDesiredStateResources(input: {
+  runtimeImage?: string;
+  cpuLimit?: string;
+  memoryLimit?: string;
+}): void {
+  if (typeof input.runtimeImage === 'string') {
+    assertValidContainerImage(input.runtimeImage, 'Runtime image');
+  }
+  if (typeof input.cpuLimit === 'string') {
+    assertValidContainerCpu(input.cpuLimit, 'CPU limit');
+  }
+  if (typeof input.memoryLimit === 'string') {
+    assertValidContainerMemory(input.memoryLimit, 'Memory limit');
+  }
+}
+
 function validateEnvironmentSecrets(
   environment: Record<string, unknown>,
   path: string[],
@@ -398,6 +419,7 @@ export class FleetService {
 
   async createWorker(tenantId: string, input: CreateDesiredStateInput): Promise<PublicDesiredStateRow> {
     const validated = createDesiredStateSchema.parse(input);
+    validateDesiredStateResources(validated);
     validateDesiredStateSecrets(validated);
 
     const result = await this.pool.query<DesiredStateRow>(
@@ -429,6 +451,7 @@ export class FleetService {
 
   async updateWorker(tenantId: string, id: string, input: UpdateDesiredStateInput): Promise<PublicDesiredStateRow> {
     const validated = updateDesiredStateSchema.parse(input);
+    validateDesiredStateResources(validated);
     validateDesiredStateSecrets(validated);
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];

@@ -1,8 +1,10 @@
 import { FIELD_DEFINITIONS } from './runtime-defaults.schema.js';
 import type { FormValues } from './runtime-defaults.types.js';
-
-const MEMORY_ALLOCATION_PATTERN =
-  /^\d+(?:\.\d+)?(?:b|k|m|g|t|p|e|kb|mb|gb|tb|pb|eb|ki|mi|gi|ti|pi|ei|kib|mib|gib|tib|pib|eib)?$/i;
+import {
+  validateContainerCpu,
+  validateContainerImage,
+  validateContainerMemory,
+} from '../../lib/container-resources.validation.js';
 
 export function buildValidationErrors(values: FormValues): Record<string, string> {
   const errors: Record<string, string> = {};
@@ -112,33 +114,27 @@ function validateContainerAllocation(
   },
 ): void {
   const imageValue = values[config.imageKey]?.trim();
-  if (imageValue && (/\s/.test(imageValue) || imageValue.includes('://'))) {
-    errors[config.imageKey] =
-      `${config.labelPrefix} image must look like image:tag or image@sha256:digest. Remove spaces or URL prefixes, or clear the field to use the platform default image.`;
+  const imageError = validateContainerImage(imageValue ?? '', `${config.labelPrefix} image`, {
+    emptyValueHint: 'Clear the field to use the platform default image.',
+  });
+  if (imageError) {
+    errors[config.imageKey] = imageError;
   }
 
   const cpuValue = values[config.cpuKey]?.trim();
-  if (cpuValue) {
-    const parsed = Number(cpuValue);
-    if (Number.isFinite(parsed) && parsed <= 0) {
-      errors[config.cpuKey] =
-        `${config.labelPrefix} CPU must be greater than 0. Use a positive value such as 1 or 0.5, or clear the field to use the platform default.`;
-    }
+  const cpuError = validateContainerCpu(cpuValue ?? '', `${config.labelPrefix} CPU`, {
+    emptyValueHint: 'Clear the field to use the platform default.',
+  });
+  if (cpuError) {
+    errors[config.cpuKey] = cpuError;
   }
 
   const memoryValue = values[config.memoryKey]?.trim();
-  if (!memoryValue) {
-    return;
-  }
-  if (!MEMORY_ALLOCATION_PATTERN.test(memoryValue)) {
-    errors[config.memoryKey] =
-      `${config.labelPrefix} memory must look like 512m, 2g, or 2Gi. Clear the field to use the platform default memory limit.`;
-    return;
-  }
-  const numeric = Number.parseFloat(memoryValue);
-  if (!Number.isFinite(numeric) || numeric <= 0) {
-    errors[config.memoryKey] =
-      `${config.labelPrefix} memory must be greater than 0. Use a value such as 512m or 2Gi, or clear the field to use the platform default memory limit.`;
+  const memoryError = validateContainerMemory(memoryValue ?? '', `${config.labelPrefix} memory`, {
+    emptyValueHint: 'Clear the field to use the platform default memory limit.',
+  });
+  if (memoryError) {
+    errors[config.memoryKey] = memoryError;
   }
 }
 

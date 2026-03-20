@@ -104,7 +104,7 @@ export function PlatformInstructionsPage(): JSX.Element {
               setContent(event.target.value);
               setHasUnsavedChanges(event.target.value !== (query.data?.content ?? ''));
             }}
-            className="min-h-[400px] font-mono text-sm"
+            className="min-h-[65vh] font-mono text-sm"
             placeholder="Write org-wide instructions that apply to all agents — coding standards, security policies, communication guidelines."
           />
           <div className="flex items-center justify-between text-xs text-muted">

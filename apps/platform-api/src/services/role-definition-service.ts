@@ -3,6 +3,11 @@ import { z } from 'zod';
 import type { DatabaseQueryable } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { ConflictError, NotFoundError } from '../errors/domain-errors.js';
+import {
+  assertValidContainerCpu,
+  assertValidContainerImage,
+  assertValidContainerMemory,
+} from './container-resource-validation.js';
 import { sanitizeSecretLikeValue } from './secret-redaction.js';
 
 const createRoleSchema = z.object({
@@ -87,6 +92,7 @@ export class RoleDefinitionService {
 
   async createRole(tenantId: string, input: CreateRoleInput): Promise<RoleDefinitionRow> {
     const validated = createRoleSchema.parse(input);
+    validateExecutionContainerConfig(validated.executionContainerConfig);
 
     const existing = await this.getRoleByName(tenantId, validated.name);
     if (existing) throw new ConflictError(`Role "${validated.name}" already exists`);
@@ -121,6 +127,7 @@ export class RoleDefinitionService {
 
   async updateRole(tenantId: string, id: string, input: UpdateRoleInput): Promise<RoleDefinitionRow> {
     const validated = updateRoleSchema.parse(input);
+    validateExecutionContainerConfig(validated.executionContainerConfig);
     const current = await this.getRoleById(tenantId, id);
     const executionContainerConfig =
       validated.executionContainerConfig === undefined
@@ -179,6 +186,14 @@ export class RoleDefinitionService {
       throw new ConflictError(`Cannot delete role "${role.name}" — used by playbook${playbooks.length > 1 ? 's' : ''}: ${names}`);
     }
 
+    const workflowPlaybooks = await this.findWorkflowReferencedPlaybooksUsingRole(tenantId, role.name);
+    if (workflowPlaybooks.length > 0) {
+      const names = workflowPlaybooks.map((p) => p.name).join(', ');
+      throw new ConflictError(
+        `Cannot delete role "${role.name}" — referenced by workflow playbook version${workflowPlaybooks.length > 1 ? 's' : ''}: ${names}`,
+      );
+    }
+
     await this.pool.query(
       'DELETE FROM role_model_assignments WHERE tenant_id = $1 AND role_name = $2',
       [tenantId, role.name],
@@ -194,6 +209,23 @@ export class RoleDefinitionService {
   private async findPlaybooksUsingRole(tenantId: string, roleName: string): Promise<Array<{ name: string }>> {
     const result = await this.pool.query<{ name: string }>(
       `SELECT name FROM playbooks WHERE tenant_id = $1 AND is_active = true AND definition->'roles' ? $2`,
+      [tenantId, roleName],
+    );
+    return result.rows;
+  }
+
+  private async findWorkflowReferencedPlaybooksUsingRole(
+    tenantId: string,
+    roleName: string,
+  ): Promise<Array<{ name: string }>> {
+    const result = await this.pool.query<{ name: string }>(
+      `SELECT DISTINCT p.name
+         FROM workflows w
+         JOIN playbooks p
+           ON p.tenant_id = w.tenant_id
+          AND p.id = w.playbook_id
+        WHERE w.tenant_id = $1
+          AND p.definition->'roles' ? $2`,
       [tenantId, roleName],
     );
     return result.rows;
@@ -251,4 +283,28 @@ function normalizeExecutionContainerConfig(
   }
 
   return Object.keys(normalized).length > 0 ? normalized : null;
+}
+
+function validateExecutionContainerConfig(
+  value:
+    | {
+        image?: string;
+        cpu?: string;
+        memory?: string;
+        pullPolicy?: 'always' | 'if-not-present' | 'never';
+      }
+    | undefined,
+): void {
+  if (!value) {
+    return;
+  }
+  if (typeof value.image === 'string') {
+    assertValidContainerImage(value.image, 'Execution container image');
+  }
+  if (typeof value.cpu === 'string') {
+    assertValidContainerCpu(value.cpu, 'Execution container CPU');
+  }
+  if (typeof value.memory === 'string') {
+    assertValidContainerMemory(value.memory, 'Execution container memory');
+  }
 }

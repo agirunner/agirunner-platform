@@ -13,6 +13,7 @@ import type {
 import {
   canDeleteRole,
 } from './role-definitions-lifecycle.js';
+import { buildRoleDetailSummary } from './role-definitions-list.support.js';
 
 export function MetricCard(props: {
   label: string;
@@ -48,6 +49,7 @@ export function RoleRow(props: {
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isDeletable = canDeleteRole(props.role);
+  const detailSummary = buildRoleDetailSummary(props.role, props.modelLabel);
 
   return (
     <>
@@ -143,15 +145,29 @@ export function RoleRow(props: {
         <TableRow>
           <TableCell colSpan={4} className="bg-border/10">
             <div className="space-y-3 py-3">
-              {props.role.system_prompt ? (
-                <p className="rounded-lg bg-surface p-3 font-mono text-sm whitespace-pre-wrap">
-                  {props.role.system_prompt}
-                </p>
-              ) : (
-                <div className="rounded-lg border border-dashed border-border/70 p-3 text-sm text-muted">
-                  No system prompt configured.
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {[
+                  detailSummary.model,
+                  detailSummary.tools,
+                  detailSummary.capabilities,
+                  detailSummary.executionContainer,
+                  detailSummary.governance,
+                  detailSummary.metadata,
+                ].map((item) => (
+                  <div key={item.title} className="rounded-lg border border-border/70 bg-background/80 p-3">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                      {item.title}
+                    </div>
+                    <div className="mt-2 text-sm text-foreground">{item.label}</div>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-lg border border-border/70 bg-background/80 p-3">
+                <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
+                  System prompt
                 </div>
-              )}
+                <p className="mt-2 font-mono text-sm whitespace-pre-wrap">{detailSummary.promptPreview}</p>
+              </div>
               {props.role.allowed_tools?.length ? (
                 <div className="flex flex-wrap gap-1">
                   {props.role.allowed_tools.map((tool) => (

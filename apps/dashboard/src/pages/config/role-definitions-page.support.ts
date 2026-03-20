@@ -17,6 +17,8 @@ export interface RoleDefinition {
   } | null;
   is_built_in?: boolean;
   is_active?: boolean;
+  version?: number;
+  updated_at?: string | null;
 }
 
 export interface RoleExecutionContainerFormState {

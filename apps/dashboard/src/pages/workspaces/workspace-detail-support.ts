@@ -5,7 +5,7 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
     value: 'overview',
     label: 'Overview',
     description:
-      'Start with workspace posture, knowledge depth, automation readiness, and delivery access.',
+      'Start with workspace posture, knowledge depth, and automation readiness.',
   },
   {
     value: 'settings',
@@ -23,11 +23,6 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
     value: 'automation',
     label: 'Automation',
     description: 'Use one control center for workspace schedules while inbound automation stays out of scope.',
-  },
-  {
-    value: 'delivery',
-    label: 'Delivery',
-    description: 'Answer what ran, what failed, what needs attention, and what to inspect next.',
   },
 ] as const;
 
@@ -134,7 +129,7 @@ export function buildWorkspaceDetailHeaderState(
       mode: 'expanded',
       title: workspace.name,
       description:
-        'Use this workspace to move between settings, knowledge, automation, and delivery without losing context.',
+        'Use this workspace to move between settings, knowledge, and automation without losing context.',
       activeTab: activeTabOption,
       contextPills: [],
       quickActions: [],

@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from 'react';
 
 import { Badge } from '../../components/ui/badge.js';
+import { ImageReferenceField } from '../../components/forms/image-reference-field.js';
 import {
   Card,
   CardContent,
@@ -183,6 +184,7 @@ export function RoleModelAssignmentSection(props: {
 export function RoleExecutionContainerSection(props: {
   form: RoleFormState;
   setForm: Dispatch<SetStateAction<RoleFormState>>;
+  validation: RoleDialogValidation;
 }) {
   return (
     <Card>
@@ -195,27 +197,28 @@ export function RoleExecutionContainerSection(props: {
       <CardContent className="grid gap-4 md:grid-cols-2">
         <label className="grid gap-2 text-sm md:col-span-2">
           <span className="font-medium">Image</span>
-          <Input
+          <ImageReferenceField
             value={props.form.executionContainer.image}
-            onChange={(event) =>
+            onChange={(value) =>
               props.setForm((current) => ({
                 ...current,
                 executionContainer: {
                   ...current.executionContainer,
-                  image: event.target.value,
+                  image: value,
                 },
               }))
             }
             placeholder="agirunner-runtime-execution:local"
+            helperText="Blank means this role uses the default specialist execution image."
+            error={props.validation.fieldErrors.executionContainerImage}
+            listId="role-execution-image-suggestions"
           />
-          <span className="text-xs text-muted">
-            Blank means this role uses the default specialist execution image.
-          </span>
         </label>
         <label className="grid gap-2 text-sm">
           <span className="font-medium">CPU</span>
           <Input
             value={props.form.executionContainer.cpu}
+            aria-invalid={Boolean(props.validation.fieldErrors.executionContainerCpu)}
             onChange={(event) =>
               props.setForm((current) => ({
                 ...current,
@@ -227,11 +230,17 @@ export function RoleExecutionContainerSection(props: {
             }
             placeholder="1"
           />
+          {props.validation.fieldErrors.executionContainerCpu ? (
+            <span className="text-xs text-red-600 dark:text-red-400">
+              {props.validation.fieldErrors.executionContainerCpu}
+            </span>
+          ) : null}
         </label>
         <label className="grid gap-2 text-sm">
           <span className="font-medium">Memory</span>
           <Input
             value={props.form.executionContainer.memory}
+            aria-invalid={Boolean(props.validation.fieldErrors.executionContainerMemory)}
             onChange={(event) =>
               props.setForm((current) => ({
                 ...current,
@@ -243,6 +252,11 @@ export function RoleExecutionContainerSection(props: {
             }
             placeholder="1Gi"
           />
+          {props.validation.fieldErrors.executionContainerMemory ? (
+            <span className="text-xs text-red-600 dark:text-red-400">
+              {props.validation.fieldErrors.executionContainerMemory}
+            </span>
+          ) : null}
         </label>
         <label className="grid gap-2 text-sm md:col-span-2">
           <span className="font-medium">Pull policy</span>

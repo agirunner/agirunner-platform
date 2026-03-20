@@ -1,8 +1,16 @@
 import type { RoleDefinition, RoleFormState } from './role-definitions-page.support.js';
+import {
+  validateContainerCpu,
+  validateContainerImage,
+  validateContainerMemory,
+} from '../../lib/container-resources.validation.js';
 
 export interface RoleDialogValidation {
   fieldErrors: {
     name?: string;
+    executionContainerImage?: string;
+    executionContainerCpu?: string;
+    executionContainerMemory?: string;
   };
   blockingIssues: string[];
   advisoryIssues: string[];
@@ -48,6 +56,31 @@ function buildFieldErrors(
     errors.name = 'Enter a role name.';
   } else if (hasDuplicateRoleName(trimmedName, roles, currentRole)) {
     errors.name = 'Choose a unique role name.';
+  }
+
+  const imageError = validateContainerImage(form.executionContainer.image, 'Execution container image', {
+    emptyValueHint: 'Clear the field to inherit the system default image.',
+  });
+  if (imageError) {
+    errors.executionContainerImage = imageError;
+  }
+
+  const cpuError = validateContainerCpu(form.executionContainer.cpu, 'Execution container CPU', {
+    emptyValueHint: 'Clear the field to inherit the system default CPU limit.',
+  });
+  if (cpuError) {
+    errors.executionContainerCpu = cpuError;
+  }
+
+  const memoryError = validateContainerMemory(
+    form.executionContainer.memory,
+    'Execution container memory',
+    {
+      emptyValueHint: 'Clear the field to inherit the system default memory limit.',
+    },
+  );
+  if (memoryError) {
+    errors.executionContainerMemory = memoryError;
   }
 
   return errors;

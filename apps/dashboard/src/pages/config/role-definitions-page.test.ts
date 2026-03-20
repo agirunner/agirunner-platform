@@ -63,6 +63,11 @@ describe('role definitions page source', () => {
     expect(source).toContain('Choose a unique role name.');
   });
 
+  it('reuses the shared image reference field across roles and orchestrator posture editing', () => {
+    const source = readCombinedSource();
+    expect(source).toContain('ImageReferenceField');
+  });
+
   it('provides an inline active toggle so operators skip the full dialog for status changes', () => {
     const source = readCombinedSource();
     expect(source).toContain('onToggleActive');
@@ -100,6 +105,8 @@ describe('role definitions page source', () => {
     expect(source).toContain('Edit prompt');
     expect(source).toContain('Edit orchestrator prompt');
     expect(source).toContain('Save orchestrator prompt');
+    expect(source).toContain('max-w-4xl');
+    expect(source).toContain('min-h-[420px]');
     expect(source).toContain('Save model routing');
     expect(source).toContain('Save pool posture');
     expect(source).toContain('dashboardApi.getOrchestratorConfig()');
