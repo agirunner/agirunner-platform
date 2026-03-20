@@ -53,6 +53,7 @@ Each live scenario is defined by a JSON file under `tests/live/scenarios/`.
   - ordered scripted gate decisions using `approve`, `reject`, or `request_changes`
 - `expect`
   - declarative pass criteria evaluated by the runner; a scenario exits non-zero if they are not met
+  - MAY include `efficiency` ceilings derived from execution logs so the same scenario proves both correctness and bounded latency/loop churn
 
 The generic runner is:
 

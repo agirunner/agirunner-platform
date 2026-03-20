@@ -33,6 +33,14 @@
         "action": "approve",
         "stage_name": "release"
       }
-    ]
+    ],
+    "efficiency": {
+      "non_orchestrator_max_llm_turns_lte": 10,
+      "orchestrator_max_llm_turns_lte": 12,
+      "approval_decision_to_continuation_started_seconds_lte": 30,
+      "approval_decision_to_continuation_completed_seconds_lte": 60,
+      "specialist_teardown_lag_seconds_lte": 5,
+      "orphan_cleanup_events_eq": 0
+    }
   }
 }

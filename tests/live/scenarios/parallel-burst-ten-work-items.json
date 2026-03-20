@@ -47,6 +47,11 @@
         "logical_path_pattern": "parallel-burst/parallel-burst-\\d{2}\\.md",
         "min_count": 10
       }
-    ]
+    ],
+    "efficiency": {
+      "non_orchestrator_max_llm_turns_lte": 8,
+      "specialist_teardown_lag_seconds_lte": 5,
+      "orphan_cleanup_events_eq": 0
+    }
   }
 }

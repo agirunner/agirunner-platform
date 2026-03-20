@@ -23,6 +23,12 @@
     },
     "board": {
       "blocked_count": 0
+    },
+    "efficiency": {
+      "non_orchestrator_max_llm_turns_lte": 8,
+      "orchestrator_max_llm_turns_lte": 10,
+      "specialist_teardown_lag_seconds_lte": 5,
+      "orphan_cleanup_events_eq": 0
     }
   }
 }
