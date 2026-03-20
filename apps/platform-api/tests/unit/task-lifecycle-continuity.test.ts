@@ -148,4 +148,55 @@ describe('TaskLifecycleService continuity hooks', () => {
       client,
     );
   });
+
+  it('treats already-completed task output approval as idempotent', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const workItemContinuityService = {
+      clearReviewExpectation: vi.fn(async () => null),
+    };
+    const completedTask = {
+      id: 'task-output-approval-idempotent',
+      state: 'completed',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      stage_name: 'implementation',
+      role: 'developer',
+      output: { summary: 'done' },
+      metadata: {},
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(completedTask),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: workItemContinuityService as never,
+    });
+
+    const result = await service.approveTaskOutput(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-output-approval-idempotent',
+    );
+
+    expect(result).toEqual(completedTask);
+    expect(client.query).not.toHaveBeenCalled();
+    expect(workItemContinuityService.clearReviewExpectation).not.toHaveBeenCalled();
+  });
 });

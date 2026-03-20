@@ -1016,10 +1016,7 @@ export class TaskLifecycleService {
     const currentTask = normalizeTaskRecord(
       await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client),
     );
-    if (
-      currentTask.state === 'completed' &&
-      matchesReviewMetadata(currentTask, { action: 'approve_output' })
-    ) {
+    if (currentTask.state === 'completed') {
       return this.deps.toTaskResponse(currentTask);
     }
 
