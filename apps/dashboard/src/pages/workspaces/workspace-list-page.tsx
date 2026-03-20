@@ -3,6 +3,14 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
+import { Input } from '../../components/ui/input.js';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '../../components/ui/select.js';
 import { dashboardApi } from '../../lib/api.js';
 import { CreateWorkspaceDialog } from './workspace-list-page.dialogs.js';
 import {
@@ -16,10 +24,12 @@ import {
   normalizeWorkspaces,
   sortWorkspaces,
   type WorkspaceListSortState,
+  type WorkspaceListStatusFilter,
 } from './workspace-list-page.support.js';
 
 export function WorkspaceListPage(): JSX.Element {
-  const [showInactive, setShowInactive] = useState(false);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<WorkspaceListStatusFilter>('active');
   const [sort, setSort] = useState<WorkspaceListSortState>({
     key: 'recent_activity',
     direction: 'desc',
@@ -48,8 +58,10 @@ export function WorkspaceListPage(): JSX.Element {
   }
 
   const workspaces = normalizeWorkspaces(data ?? []);
-  const hasInactiveWorkspaces = workspaces.some((workspace) => workspace.is_active === false);
-  const visibleWorkspaces = sortWorkspaces(filterWorkspaces(workspaces, showInactive), sort);
+  const visibleWorkspaces = sortWorkspaces(filterWorkspaces(workspaces, search, status), sort);
+  const activeCount = workspaces.filter((workspace) => workspace.is_active !== false).length;
+  const inactiveCount = workspaces.length - activeCount;
+  const hasFilters = search.trim().length > 0 || status !== 'active';
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
@@ -61,70 +73,109 @@ export function WorkspaceListPage(): JSX.Element {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
-          {hasInactiveWorkspaces ? (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowInactive((current) => !current)}
-            >
-              {showInactive ? 'Hide inactive' : 'Show inactive'}
-            </Button>
-          ) : null}
-          {workspaces.length > 1 ? (
-            <>
-              <select
-                aria-label="Sort workspaces"
-                className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground shadow-sm outline-none focus:ring-2 focus:ring-ring"
-                value={sort.key}
-                onChange={(event) =>
-                  setSort((current) => ({
-                    ...current,
-                    key: event.target.value as WorkspaceListSortState['key'],
-                  }))
-                }
-              >
-                <option value="recent_activity">Recent activity</option>
-                <option value="workspace_name">Workspace name</option>
-                <option value="workflow_volume">Workflow volume</option>
-              </select>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  setSort((current) => ({
-                    ...current,
-                    direction: current.direction === 'asc' ? 'desc' : 'asc',
-                  }))
-                }
-              >
-                {buildWorkspaceSortDirectionLabel(sort.key, sort.direction)}
-              </Button>
-            </>
-          ) : null}
           <CreateWorkspaceDialog />
         </div>
       </div>
 
-      {visibleWorkspaces.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted">
-          <span>{visibleWorkspaces.length} visible workspace{visibleWorkspaces.length === 1 ? '' : 's'}</span>
-          {hasInactiveWorkspaces && !showInactive ? (
-            <span>{workspaces.length - visibleWorkspaces.length} inactive hidden</span>
-          ) : null}
+      <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+          <div className="min-w-0 flex-1 space-y-3">
+            <p className="text-sm text-muted">
+              {workspaces.length} workspace{workspaces.length === 1 ? '' : 's'} · {activeCount} active · {inactiveCount} inactive
+            </p>
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,180px)_minmax(0,200px)_auto]">
+              <label className="grid gap-2 text-sm">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Search
+                </span>
+                <Input
+                  aria-label="Search workspaces"
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search workspaces"
+                />
+              </label>
+              <label className="grid gap-2 text-sm">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Status
+                </span>
+                <Select
+                  value={status}
+                  onValueChange={(value) => setStatus(value as WorkspaceListStatusFilter)}
+                >
+                  <SelectTrigger aria-label="Workspace status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+              <label className="grid gap-2 text-sm">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Sort
+                </span>
+                <Select
+                  value={sort.key}
+                  onValueChange={(value) =>
+                    setSort((current) => ({
+                      ...current,
+                      key: value as WorkspaceListSortState['key'],
+                    }))
+                  }
+                >
+                  <SelectTrigger aria-label="Sort workspaces">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="recent_activity">Recent activity</SelectItem>
+                    <SelectItem value="workspace_name">Workspace name</SelectItem>
+                    <SelectItem value="workflow_volume">Workflow volume</SelectItem>
+                  </SelectContent>
+                </Select>
+              </label>
+              <div className="grid gap-2 text-sm lg:self-end">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                  Order
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    setSort((current) => ({
+                      ...current,
+                      direction: current.direction === 'asc' ? 'desc' : 'asc',
+                    }))
+                  }
+                >
+                  {buildWorkspaceSortDirectionLabel(sort.key, sort.direction)}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-      ) : null}
+      </div>
 
       {workspaces.length === 0 ? (
         <WorkspaceListEmptyState />
       ) : visibleWorkspaces.length === 0 ? (
         <WorkspaceListFilteredEmptyState
-          onShowInactive={() => {
-            setShowInactive(true);
+          onResetFilters={() => {
+            setSearch('');
+            setStatus('all');
           }}
         />
       ) : (
         <WorkspaceListGrid workspaces={visibleWorkspaces} />
       )}
+
+      {visibleWorkspaces.length > 0 && hasFilters ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-muted">
+          <span>{visibleWorkspaces.length} matching workspace{visibleWorkspaces.length === 1 ? '' : 's'}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

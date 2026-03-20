@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
-import type { DashboardWorkspaceRecord, DashboardWorkspaceSpecRecord } from '../../lib/api.js';
 import { Button } from '../../components/ui/button.js';
 import {
   buildStructuredObject,
@@ -15,78 +14,48 @@ import { ErrorCard, LoadingCard } from './workspace-detail-shared.js';
 import { WorkspaceArtifactFilesPanel } from './workspace-artifact-files-panel.js';
 import { WorkspaceDetailMemoryTab } from './workspace-detail-memory-tab.js';
 import { WorkspaceKnowledgeShell } from './workspace-knowledge-shell.js';
-import { WorkspaceSpecTab } from './workspace-spec-tab.js';
-
-const EMPTY_SPEC_SECTION = {};
 
 export function WorkspaceKnowledgeTab(props: {
   workspaceId: string;
   overview: WorkspaceOverview;
 }): JSX.Element {
   const queryClient = useQueryClient();
-  const [knowledgeDrafts, setKnowledgeDrafts] = useState<StructuredEntryDraft[]>([]);
   const [memoryDrafts, setMemoryDrafts] = useState<StructuredEntryDraft[]>([]);
-  const [workspaceContext, setWorkspaceContext] = useState('');
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const workspaceQuery = useQuery({
     queryKey: ['workspace', props.workspaceId],
     queryFn: () => dashboardApi.getWorkspace(props.workspaceId),
   });
-  const specQuery = useQuery({
-    queryKey: ['workspace-spec', props.workspaceId],
-    queryFn: () => dashboardApi.getWorkspaceSpec(props.workspaceId),
-  });
-
-  useEffect(() => {
-    if (!specQuery.data) {
-      return;
-    }
-    setKnowledgeDrafts(toKnowledgeDrafts(specQuery.data));
-  }, [specQuery.data]);
 
   useEffect(() => {
     if (!workspaceQuery.data) {
       return;
     }
-    setWorkspaceContext(readWorkspaceContext(workspaceQuery.data));
     setMemoryDrafts(toMemoryDrafts(workspaceQuery.data));
   }, [workspaceQuery.data]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      const nextKnowledge = buildWorkspaceKnowledgeRecord(knowledgeDrafts);
       const nextMemory = buildWorkspaceMemoryRecord(memoryDrafts);
-      const nextSpec = buildWorkspaceSpecPayload(specQuery.data, nextKnowledge);
-      const nextSettings = buildWorkspaceSettingsPatch(workspaceQuery.data, workspaceContext, nextKnowledge);
       const currentMemory = asRecord(workspaceQuery.data?.memory);
-
-      await Promise.all([
-        dashboardApi.updateWorkspaceSpec(props.workspaceId, nextSpec),
-        dashboardApi.patchWorkspace(props.workspaceId, { settings: nextSettings }),
-      ]);
       await syncWorkspaceMemory(props.workspaceId, currentMemory, nextMemory);
     },
     onSuccess: async () => {
-      setSaveMessage('Knowledge and memory saved.');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['workspace-spec', props.workspaceId] }),
-        queryClient.invalidateQueries({ queryKey: ['workspace', props.workspaceId] }),
-        queryClient.invalidateQueries({ queryKey: ['workspaces'] }),
-      ]);
+      setSaveMessage('Workspace memory saved.');
+      await queryClient.invalidateQueries({ queryKey: ['workspace', props.workspaceId] });
     },
   });
 
-  const knowledgeValidationError = readStructuredValidationError(knowledgeDrafts, 'Workspace knowledge');
   const memoryValidationError = readStructuredValidationError(memoryDrafts, 'Workspace memory');
   const mutationError = readMutationError(saveMutation.error);
-  const validationError = knowledgeValidationError ?? memoryValidationError;
+  const validationError = memoryValidationError;
 
-  if (workspaceQuery.isLoading || specQuery.isLoading) {
+  if (workspaceQuery.isLoading) {
     return <LoadingCard />;
   }
 
-  if (workspaceQuery.error || specQuery.error) {
+  if (workspaceQuery.error) {
     return <ErrorCard message="Failed to load workspace knowledge." />;
   }
 
@@ -96,7 +65,6 @@ export function WorkspaceKnowledgeTab(props: {
         workspaceId={props.workspaceId}
         overview={props.overview}
         headerNotice={saveMessage ? <p className="text-sm text-muted">{saveMessage}</p> : null}
-        referenceSummary={buildReferenceDraftSummary(workspaceContext, knowledgeDrafts.length)}
         memorySummary={buildMemoryDraftSummary(memoryDrafts.length)}
         headerAction={
           <Button
@@ -105,25 +73,8 @@ export function WorkspaceKnowledgeTab(props: {
             onClick={() => saveMutation.mutate()}
           >
             <Save className="h-4 w-4" />
-            Save knowledge
+            Save memory
           </Button>
-        }
-        referenceContent={
-          <WorkspaceSpecTab
-            workspaceContext={workspaceContext}
-            knowledgeDrafts={knowledgeDrafts}
-            saveErrorMessage={knowledgeValidationError ?? mutationError}
-            onWorkspaceContextChange={(value) => {
-              setSaveMessage(null);
-              saveMutation.reset();
-              setWorkspaceContext(value);
-            }}
-            onKnowledgeDraftsChange={(drafts) => {
-              setSaveMessage(null);
-              saveMutation.reset();
-              setKnowledgeDrafts(normalizeKnowledgeDrafts(drafts));
-            }}
-          />
         }
         artifactContent={
           <WorkspaceArtifactFilesPanel workspaceId={props.workspaceId} />
@@ -144,62 +95,14 @@ export function WorkspaceKnowledgeTab(props: {
   );
 }
 
-function readWorkspaceContext(workspace: DashboardWorkspaceRecord): string {
-  const settings = asRecord(workspace.settings);
-  return typeof settings.workspace_brief === 'string' ? settings.workspace_brief : '';
-}
-
-function buildWorkspaceSettingsPatch(
-  workspace: DashboardWorkspaceRecord | undefined,
-  workspaceContext: string,
-  knowledge: Record<string, unknown>,
-): Record<string, unknown> {
-  const existing = asRecord(workspace?.settings);
-  return {
-    ...existing,
-    knowledge,
-    workspace_brief: workspaceContext.trim(),
-  };
-}
-
-function buildWorkspaceKnowledgeRecord(
-  knowledgeDrafts: StructuredEntryDraft[],
-): Record<string, unknown> {
-  return buildStructuredObject(normalizeKnowledgeDrafts(knowledgeDrafts), 'Workspace knowledge') ?? {};
-}
-
 function buildWorkspaceMemoryRecord(
   memoryDrafts: StructuredEntryDraft[],
 ): Record<string, unknown> {
   return buildStructuredObject(memoryDrafts, 'Workspace memory') ?? {};
 }
 
-function buildWorkspaceSpecPayload(
-  spec: DashboardWorkspaceSpecRecord | undefined,
-  knowledge: Record<string, unknown>,
-): Record<string, unknown> {
-  return {
-    config: knowledge,
-    instructions: EMPTY_SPEC_SECTION,
-    resources: EMPTY_SPEC_SECTION,
-    documents: EMPTY_SPEC_SECTION,
-    ...(hasRecord(spec?.tools) ? { tools: spec?.tools } : {}),
-  };
-}
-
-function toKnowledgeDrafts(spec: DashboardWorkspaceSpecRecord): StructuredEntryDraft[] {
-  return normalizeKnowledgeDrafts(objectToStructuredDrafts(spec.config));
-}
-
-function toMemoryDrafts(workspace: DashboardWorkspaceRecord): StructuredEntryDraft[] {
+function toMemoryDrafts(workspace: { memory?: Record<string, unknown> | null }): StructuredEntryDraft[] {
   return normalizeMemoryDrafts(objectToStructuredDrafts(asRecord(workspace.memory)));
-}
-
-function normalizeKnowledgeDrafts(drafts: StructuredEntryDraft[]): StructuredEntryDraft[] {
-  return drafts.map((draft) => ({
-    ...draft,
-    valueType: draft.valueType === 'json' ? 'json' : 'string',
-  }));
 }
 
 function normalizeMemoryDrafts(drafts: StructuredEntryDraft[]): StructuredEntryDraft[] {
@@ -209,20 +112,8 @@ function normalizeMemoryDrafts(drafts: StructuredEntryDraft[]): StructuredEntryD
   }));
 }
 
-function buildReferenceDraftSummary(workspaceContext: string, knowledgeCount: number): string {
-  const summary = [
-    workspaceContext.trim().length > 0 ? 'Workspace Context: Configured' : 'Workspace Context: Not configured',
-    `Knowledge entries: ${knowledgeCount} ${knowledgeCount === 1 ? 'entry' : 'entries'}`,
-  ];
-  return summary.join(' • ');
-}
-
 function buildMemoryDraftSummary(memoryCount: number): string {
   return `Shared memory: ${memoryCount} ${memoryCount === 1 ? 'entry' : 'entries'}`;
-}
-
-function hasRecord(value: unknown): boolean {
-  return Object.keys(asRecord(value)).length > 0;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -247,7 +138,7 @@ function readMutationError(error: unknown): string | null {
   if (error instanceof Error) {
     return error.message;
   }
-  return error ? 'Failed to save workspace knowledge.' : null;
+  return error ? 'Failed to save workspace memory.' : null;
 }
 
 async function syncWorkspaceMemory(

@@ -75,4 +75,15 @@ describe('workspace settings tab source', () => {
     expect(source).not.toContain('Planning brief');
     expect(source).not.toContain('label="Description"');
   });
+
+  it('points workspace artifact uploads back to the knowledge tab with concise storage guidance', () => {
+    const source = readSource('./workspace-settings-tab.tsx');
+
+    expect(source).toContain('Artifacts upload from the Knowledge tab.');
+    expect(source).toContain('Stored artifacts appear in task context');
+    expect(source).toContain('working directory automatically.');
+    expect(source).not.toContain(
+      'Workspace persistence happens through uploaded artifacts. Prior artifacts are listed in',
+    );
+  });
 });

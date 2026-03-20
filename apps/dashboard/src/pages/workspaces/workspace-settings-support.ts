@@ -79,7 +79,6 @@ const KNOWN_SETTING_KEYS = new Set([
   'git_user_email',
   'credentials',
   'model_overrides',
-  'workspace_brief',
 ]);
 
 export function readWorkspaceSettings(workspace: DashboardWorkspaceRecord): WorkspaceSettingsState {

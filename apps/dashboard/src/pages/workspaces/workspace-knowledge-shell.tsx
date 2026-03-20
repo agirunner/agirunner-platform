@@ -1,22 +1,20 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { BrainCircuit, ChevronDown, FileText, PackageSearch } from 'lucide-react';
+import { BrainCircuit, ChevronDown, PackageSearch } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
 import { Card, CardContent } from '../../components/ui/card.js';
 import { cn } from '../../lib/utils.js';
 import type { WorkspaceOverview } from './workspace-detail-support.js';
 
-type KnowledgePanelValue = 'reference' | 'artifacts' | 'memory';
+type KnowledgePanelValue = 'artifacts' | 'memory';
 
 interface WorkspaceKnowledgeShellProps {
   workspaceId: string;
   overview: WorkspaceOverview;
   headerAction?: ReactNode;
   headerNotice?: ReactNode;
-  referenceSummary?: string;
   artifactSummary?: string;
   memorySummary?: string;
-  referenceContent: ReactNode;
   artifactContent: ReactNode;
   memoryContent: ReactNode;
 }
@@ -27,12 +25,6 @@ const KNOWLEDGE_PANELS: Array<{
   description: string;
   icon: typeof BrainCircuit;
 }> = [
-  {
-    value: 'reference',
-    label: 'Workspace Context & Knowledge',
-    description: 'Curated workspace context, policies, and reusable facts stay here.',
-    icon: FileText,
-  },
   {
     value: 'artifacts',
     label: 'Workspace Artifacts',
@@ -51,7 +43,6 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
   const location = useLocation();
   const [expandedPanel, setExpandedPanel] = useState<KnowledgePanelValue | null>(null);
   const sectionSummaries: Record<KnowledgePanelValue, string> = {
-    reference: props.referenceSummary ?? buildReferenceSummary(props.overview),
     artifacts: props.artifactSummary ?? buildArtifactSummary(props.overview),
     memory:
       props.memorySummary
@@ -80,7 +71,7 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
           <div className="space-y-1">
             <h2 className="text-sm font-semibold text-foreground">Knowledge</h2>
             <p className="max-w-3xl text-sm leading-6 text-muted">
-              Use Knowledge for curated context, Workspace Artifacts for generated outputs, and Workspace Memory for evolving notes.
+              Use Knowledge for workspace artifacts and shared memory.
             </p>
             {props.headerNotice}
             <p className="sr-only">{props.overview.summary}</p>
@@ -99,11 +90,9 @@ export function WorkspaceKnowledgeShell(props: WorkspaceKnowledgeShellProps): JS
               isExpanded={expandedPanel === panel.value}
               onToggle={() => togglePanel(panel.value)}
             >
-              {panel.value === 'reference'
-                ? props.referenceContent
-                : panel.value === 'artifacts'
+              {panel.value === 'artifacts'
                   ? props.artifactContent
-                  : panel.value === 'memory'
+                : panel.value === 'memory'
                   ? props.memoryContent
                   : null}
             </KnowledgeSection>
@@ -157,13 +146,6 @@ function KnowledgeSection(props: {
   );
 }
 
-function buildReferenceSummary(overview: WorkspaceOverview): string {
-  const workspaceContext = getPacketSummary(overview, 'Workspace Context');
-  const knowledgeEntries = getPacketSummary(overview, 'Knowledge entries');
-  const summary = [workspaceContext, knowledgeEntries].filter(Boolean).join(' • ');
-  return summary || 'Curated workspace context and reusable knowledge entries.';
-}
-
 function buildArtifactSummary(overview: WorkspaceOverview): string {
   const artifacts = getPacketSummary(overview, 'Workspace artifacts');
   return artifacts || 'Workspace-owned files available to this workspace';
@@ -176,5 +158,5 @@ function getPacketSummary(overview: WorkspaceOverview, label: string): string {
 
 function readKnowledgePanel(search: string): KnowledgePanelValue | null {
   const panel = new URLSearchParams(search).get('panel');
-  return panel === 'reference' || panel === 'artifacts' || panel === 'memory' ? panel : null;
+  return panel === 'artifacts' || panel === 'memory' ? panel : null;
 }

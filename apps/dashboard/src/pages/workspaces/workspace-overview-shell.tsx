@@ -23,7 +23,7 @@ const WORKSPACE_ACTIONS = [
   },
   {
     label: 'Knowledge',
-    description: 'Workspace context, curated knowledge, memory, and run content in one place.',
+    description: 'Workspace artifacts and shared memory in one place.',
     tab: 'knowledge',
     icon: BrainCircuit,
   },

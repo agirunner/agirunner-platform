@@ -38,58 +38,78 @@ export function PlaybookLibraryToolbar(props: {
 }): JSX.Element {
   return (
     <div className="rounded-2xl border border-border/70 bg-card/80 p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="space-y-1">
-          <div className="text-sm font-medium">Playbook library</div>
+      <div className="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="min-w-0 flex-1 space-y-3">
           <p className="text-sm text-muted">
-            {props.familyCount} families, {props.activeFamilyCount} active,{' '}
-            {props.archivedFamilyCount} inactive.
+            {props.familyCount} families · {props.activeFamilyCount} active ·{' '}
+            {props.archivedFamilyCount} inactive
           </p>
+          <div className="grid gap-3 lg:grid-cols-[minmax(0,1.5fr)_minmax(0,180px)_minmax(0,180px)_minmax(0,220px)]">
+            <label className="grid gap-2 text-sm">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                Search
+              </span>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+                <Input
+                  value={props.search}
+                  onChange={(event) => props.onSearchChange(event.target.value)}
+                  placeholder="Search playbooks"
+                  className="pl-9"
+                />
+              </div>
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                Status
+              </span>
+              <Select
+                value={props.statusFilter}
+                onValueChange={(value) => props.onStatusFilterChange(value as PlaybookStatusFilter)}
+              >
+                <SelectTrigger aria-label="Playbook status">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="archived">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted">
+                Lifecycle
+              </span>
+              <Select
+                value={props.lifecycleFilter}
+                onValueChange={(value) => props.onLifecycleFilterChange(value as PlaybookLifecycleFilter)}
+              >
+                <SelectTrigger aria-label="Playbook lifecycle">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All</SelectItem>
+                  <SelectItem value="ongoing">Ongoing</SelectItem>
+                  <SelectItem value="planned">Planned</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+            <label className="grid gap-2 text-sm">
+              <span className="text-xs font-medium uppercase tracking-wide text-muted">Sort</span>
+              <Select value={props.sort} onValueChange={(value) => props.onSortChange(value as PlaybookSortOption)}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="updated-desc">Recently updated</SelectItem>
+                  <SelectItem value="name-asc">Name</SelectItem>
+                  <SelectItem value="revision-count-desc">Most revisions</SelectItem>
+                </SelectContent>
+              </Select>
+            </label>
+          </div>
         </div>
-        <div className="relative min-w-[240px] flex-1 md:max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-          <Input
-            value={props.search}
-            onChange={(event) => props.onSearchChange(event.target.value)}
-            placeholder="Search playbooks"
-            className="pl-9"
-          />
-        </div>
-      </div>
-      <div className="mt-4 flex flex-wrap items-end gap-3">
-        <SegmentedFilter
-          label="Status"
-          value={props.statusFilter}
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'active', label: 'Active' },
-            { value: 'archived', label: 'Inactive' },
-          ]}
-          onChange={(value) => props.onStatusFilterChange(value as PlaybookStatusFilter)}
-        />
-        <SegmentedFilter
-          label="Lifecycle"
-          value={props.lifecycleFilter}
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'ongoing', label: 'Ongoing' },
-            { value: 'planned', label: 'Planned' },
-          ]}
-          onChange={(value) => props.onLifecycleFilterChange(value as PlaybookLifecycleFilter)}
-        />
-        <label className="grid gap-2 text-sm">
-          <span className="text-xs font-medium uppercase tracking-wide text-muted">Sort</span>
-          <Select value={props.sort} onValueChange={(value) => props.onSortChange(value as PlaybookSortOption)}>
-            <SelectTrigger className="min-w-[220px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="updated-desc">Recently updated</SelectItem>
-              <SelectItem value="name-asc">Name</SelectItem>
-              <SelectItem value="revision-count-desc">Most revisions</SelectItem>
-            </SelectContent>
-          </Select>
-        </label>
       </div>
     </div>
   );
@@ -105,7 +125,7 @@ export function PlaybookFamilyCard(props: {
     family.process.processInstructions || 'Open the playbook to define process instructions.';
 
   return (
-    <Card className="flex min-h-[420px] flex-col border-border/70 shadow-sm">
+    <Card className="flex min-h-[420px] flex-col border-border/70 bg-card/80 shadow-sm">
       <CardHeader className="space-y-3">
         <div className="flex items-start justify-between gap-3">
           <div className="space-y-1">
@@ -175,31 +195,5 @@ export function PlaybookFamilyCard(props: {
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function SegmentedFilter(props: {
-  label: string;
-  value: string;
-  options: Array<{ value: string; label: string }>;
-  onChange(value: string): void;
-}): JSX.Element {
-  return (
-    <div className="grid gap-2">
-      <span className="text-xs font-medium uppercase tracking-wide text-muted">{props.label}</span>
-      <div className="flex flex-wrap gap-2">
-        {props.options.map((option) => (
-          <Button
-            key={option.value}
-            type="button"
-            variant={props.value === option.value ? 'secondary' : 'outline'}
-            size="sm"
-            onClick={() => props.onChange(option.value)}
-          >
-            {option.label}
-          </Button>
-        ))}
-      </div>
-    </div>
   );
 }

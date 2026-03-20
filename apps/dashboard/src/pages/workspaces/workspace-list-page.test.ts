@@ -14,10 +14,12 @@ function readSource() {
 }
 
 describe('workspace list page source', () => {
-  it('keeps the list focused on simplified cards and a single inactive toggle', () => {
+  it('uses a compact library toolbar with search, status, and sort controls', () => {
     const source = readSource();
-    expect(source).toContain('Show inactive');
-    expect(source).toContain('Hide inactive');
+    expect(source).toContain('Search workspaces');
+    expect(source).toContain('Workspace status');
+    expect(source).toContain('All');
+    expect(source).toContain('Inactive');
     expect(source).toContain('Sort workspaces');
     expect(source).toContain('Recent activity');
     expect(source).toContain('Workspace name');
@@ -26,30 +28,34 @@ describe('workspace list page source', () => {
     expect(source).toContain('A → Z');
     expect(source).toContain('Most workflows');
     expect(source).toContain('active workflow');
-    expect(source).toContain('completed');
+    expect(source).toContain('workflow completed');
     expect(source).toContain('Active');
     expect(source).toContain('Inactive');
-    expect(source).not.toContain('Search workspaces');
+    expect(source).toContain('workspace');
+    expect(source).toContain('active ·');
     expect(source).not.toContain('Workspace coverage');
     expect(source).not.toContain('Repository posture');
     expect(source).not.toContain('Operator next step');
     expect(source).not.toContain('WorkspaceListPackets');
-    expect(source).not.toContain('Inactive workspaces are hidden by default');
+    expect(source).not.toContain('Show inactive');
+    expect(source).not.toContain('Hide inactive');
     expect(source).toContain('No workflows yet');
   });
 
-  it('routes the card surface to workspace detail tabs and keeps list actions labeled', () => {
+  it('routes the card surface to a single manage action and removes the entry-point grid', () => {
     const source = readSource();
     expect(source).toContain('const workspaceLinkState = { workspaceLabel: props.workspace.name };');
     expect(source).toContain('to={`/workspaces/${props.workspace.id}`}');
     expect(source).toContain('state={workspaceLinkState}');
-    expect(source).toContain("const WORKSPACE_WORKSPACE_LINKS = [");
-    expect(source).toContain("{ label: 'Settings', tab: 'settings' }");
-    expect(source).toContain("{ label: 'Knowledge', tab: 'knowledge' }");
-    expect(source).toContain("{ label: 'Automation', tab: 'automation' }");
-    expect(source).toContain("{ label: 'Delivery', tab: 'delivery' }");
-    expect(source).toContain('to={`/workspaces/${props.workspace.id}?tab=${workspace.tab}`}');
-    expect(source).toContain('Open workspace');
+    expect(source).toContain('Manage');
+    expect(source).toContain('Storage');
+    expect(source).toContain('Workflows');
+    expect(source).not.toContain('const WORKSPACE_WORKSPACE_LINKS = [');
+    expect(source).not.toContain('?tab=settings');
+    expect(source).not.toContain('?tab=knowledge');
+    expect(source).not.toContain('?tab=automation');
+    expect(source).not.toContain('?tab=delivery');
+    expect(source).not.toContain('Open workspace');
     expect(source).not.toContain('Workspace actions');
     expect(source).not.toContain('DropdownMenuTrigger asChild');
     expect(source).not.toContain('Edit basics');
@@ -58,6 +64,7 @@ describe('workspace list page source', () => {
     expect(source).not.toContain('CompactSignalPill');
     expect(source).not.toContain('Workspace entry points');
     expect(source).not.toContain('Edit details');
+    expect(source).not.toContain('buildWorkspaceDescription');
   });
 
   it('keeps workspace dialogs on the shared api client and scroll-safe', () => {

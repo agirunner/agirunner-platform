@@ -104,35 +104,23 @@ describe('workspace detail workspace shell source', () => {
     expect(settingsTabSource).toContain('<Save className="h-4 w-4" />');
   });
 
-  it('nests workspace context and simplified knowledge editing under the knowledge shell instead of a top-level spec tab', () => {
+  it('keeps the knowledge tab focused on workspace artifacts and shared memory instead of a spec editor', () => {
     const source = readSource('./workspace-detail-page.tsx');
-    const specSource = readSource('./workspace-spec-tab.tsx');
     const knowledgeTabSource = readSource('./workspace-knowledge-tab.tsx');
     const knowledgeSource = readSource('./workspace-knowledge-shell.tsx');
-    const structuredEditorSource = readSource('./workspace-structured-entry-editor.tsx');
     expect(source).toContain('<WorkspaceKnowledgeTab workspaceId={workspace.id} overview={knowledgeOverview} />');
     expect(source).not.toContain('resourcesContent={<WorkspaceResourcesTab');
     expect(source).not.toContain('toolsContent={<WorkspaceToolsTab');
-    expect(knowledgeSource).toContain("value: 'reference'");
-    expect(specSource).toContain(
-      "import { StructuredEntryEditor } from './workspace-structured-entry-editor.js';",
-    );
-    expect(specSource).toContain('Workspace Context');
-    expect(specSource).toContain('Workspace Knowledge');
-    expect(specSource).toContain('Key/Value pairs');
-    expect(specSource).toContain('Use simple string or JSON values for reusable workspace knowledge.');
-    expect(knowledgeTabSource).toContain('Save knowledge');
-    expect(specSource).toContain('Add knowledge entry');
-    expect(specSource).toContain('Edit curated workspace facts and policies as simple key/value entries');
-    expect(specSource).toContain('workspace.settings.knowledge');
-    expect(specSource).not.toContain('Workspace structure');
-    expect(specSource).not.toContain('Start here');
-    expect(knowledgeTabSource).toContain('dashboardApi.updateWorkspaceSpec(props.workspaceId, nextSpec)');
-    expect(structuredEditorSource).toContain('allowedTypes?: StructuredValueType[]');
-    expect(structuredEditorSource).toContain("allowedTypes ?? ['string', 'number', 'boolean', 'json']");
-    expect(structuredEditorSource).toContain('formatStructuredTypeLabel(type)');
-    expect(structuredEditorSource).toContain('Remove entry');
-    expect(specSource).not.toContain('Save (read-only)');
+    expect(knowledgeSource).toContain("value: 'artifacts'");
+    expect(knowledgeSource).toContain("value: 'memory'");
+    expect(knowledgeSource).not.toContain("value: 'reference'");
+    expect(knowledgeTabSource).toContain('Save memory');
+    expect(knowledgeTabSource).toContain('syncWorkspaceMemory');
+    expect(knowledgeTabSource).not.toContain('Save knowledge');
+    expect(knowledgeTabSource).not.toContain('dashboardApi.updateWorkspaceSpec');
+    expect(knowledgeTabSource).not.toContain('dashboardApi.patchWorkspace(props.workspaceId');
+    expect(knowledgeTabSource).not.toContain('workspaceContext');
+    expect(knowledgeTabSource).not.toContain('knowledgeDrafts');
   });
 
   it('uses bounded workflow stage and role options in the automation form when they are available', () => {
@@ -202,9 +190,10 @@ describe('workspace detail workspace shell source', () => {
     expect(source).toContain("import { WorkspaceSettingsTab } from './workspace-settings-tab.js';");
     expect(source).toContain("import { WorkspaceAutomationTab } from './workspace-automation-tab.js';");
     expect(source).toContain('buildWorkspaceDetailHeaderState(workspace, activeTab)');
-    expect(source).toContain('buildWorkspaceOverview(workspace, workspaceSpecQuery.data)');
-    expect(source).toContain('buildWorkspaceKnowledgeOverview(workspace, workspaceSpecQuery.data)');
+    expect(source).toContain('buildWorkspaceOverview(workspace)');
+    expect(source).toContain('buildWorkspaceKnowledgeOverview(workspace)');
     expect(source).toContain('buildWorkspaceSettingsOverview(workspace)');
+    expect(source).not.toContain('workspaceSpecQuery');
     expect(source).not.toContain("headerState.mode === 'expanded'");
     expect(source).not.toContain('headerState.activeTab.label');
     expect(source).not.toContain('headerState.quickActions.map((action)');
@@ -212,7 +201,7 @@ describe('workspace detail workspace shell source', () => {
     expect(shellSource).toContain("headerState.mode === 'expanded'");
     expect(shellSource).toContain('headerState.activeTab.label');
     expect(shellSource).toContain('headerState.quickActions.map((action)');
-    expect(supportSource).toContain('Knowledge base');
+    expect(supportSource).toContain('Shared memory');
     expect(source).not.toContain('WorkspaceWorkspaceTabIcon');
     expect(source).not.toContain('activeTabOption.description');
     expect(source).not.toContain('Open memory workspace');

@@ -257,7 +257,7 @@ export function WorkspaceSettingsTab(props: {
               </p>
               <ToggleCard
                 label="Read-only mount"
-                description="Leave this off for the v1 default shared read-write workspace."
+                description="Mount this path read-only for task runs."
                 checked={draft.readOnly}
                 checkedLabel="Read-only"
                 uncheckedLabel="Read-write"
@@ -268,9 +268,8 @@ export function WorkspaceSettingsTab(props: {
 
           {draft.storageType === 'workspace_artifacts' ? (
             <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm leading-6 text-muted">
-              Workspace persistence happens through uploaded artifacts. Prior artifacts are listed in
-              task context and can be fetched explicitly by tools, but they are not restored into the
-              working directory automatically.
+              Artifacts upload from the Knowledge tab. Stored artifacts appear in task context and do
+              not restore into the working directory automatically.
             </div>
           ) : null}
         </div>

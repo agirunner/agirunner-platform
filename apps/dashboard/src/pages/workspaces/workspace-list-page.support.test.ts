@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildWorkspaceDescription,
   buildWorkspaceMetrics,
   buildWorkspaceReadiness,
   buildWorkspaceSortDirectionLabel,
@@ -41,7 +40,7 @@ describe('workspace list page support', () => {
     });
   });
 
-  it('hides inactive workspaces until the explicit filter is enabled', () => {
+  it('filters workspaces by status and search text', () => {
     const workspaces = [
       {
         id: 'p1',
@@ -56,12 +55,35 @@ describe('workspace list page support', () => {
         slug: 'gamma',
         description: 'Dormant workspace',
         is_active: false,
+        settings: {
+          workspace_storage_type: 'host_directory',
+        },
+      },
+      {
+        id: 'p3',
+        name: 'Delta Knowledge',
+        slug: 'delta',
+        description: 'Research and knowledge archive',
+        is_active: true,
       },
     ];
 
-    expect(filterWorkspaces(workspaces, false).map((workspace) => workspace.name)).toEqual(['Alpha']);
-    expect(filterWorkspaces(workspaces, true).map((workspace) => workspace.name)).toEqual([
+    expect(filterWorkspaces(workspaces, '', 'active').map((workspace) => workspace.name)).toEqual([
       'Alpha',
+      'Delta Knowledge',
+    ]);
+    expect(filterWorkspaces(workspaces, '', 'inactive').map((workspace) => workspace.name)).toEqual([
+      'Gamma',
+    ]);
+    expect(filterWorkspaces(workspaces, '', 'all').map((workspace) => workspace.name)).toEqual([
+      'Alpha',
+      'Gamma',
+      'Delta Knowledge',
+    ]);
+    expect(filterWorkspaces(workspaces, 'knowledge', 'all').map((workspace) => workspace.name)).toEqual([
+      'Delta Knowledge',
+    ]);
+    expect(filterWorkspaces(workspaces, 'host directory', 'inactive').map((workspace) => workspace.name)).toEqual([
       'Gamma',
     ]);
   });
@@ -82,7 +104,7 @@ describe('workspace list page support', () => {
           last_workflow_activity_at: '2026-03-14T09:30:00.000Z',
         },
       }),
-    ).toBe('2 active workflows · 5 completed');
+    ).toBe('2 active workflows · 5 workflows completed');
 
     expect(
       buildWorkspaceMetrics(
@@ -120,31 +142,6 @@ describe('workspace list page support', () => {
         },
       }),
     ).toBe('No workflows yet');
-  });
-
-  it('normalizes and trims card descriptions for compact display', () => {
-    expect(
-      buildWorkspaceDescription({
-        id: 'p1',
-        name: 'Alpha',
-        slug: 'alpha',
-        description:
-          '  This workspace owns release orchestration, handoff quality checks, operator runbooks, and a much longer narrative than the list should render in full.  ',
-        is_active: true,
-      }),
-    ).toBe(
-      'This workspace owns release orchestration, handoff quality checks, operator runbooks, and a much longer narrative t…',
-    );
-
-    expect(
-      buildWorkspaceDescription({
-        id: 'p2',
-        name: 'Beta',
-        slug: 'beta',
-        description: '   ',
-        is_active: true,
-      }),
-    ).toBe('Add a short description so this workspace is scannable from the list.');
   });
 
   it('sorts workspaces by recent activity, name, and workflow volume', () => {

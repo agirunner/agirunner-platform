@@ -84,6 +84,7 @@ describe('workspace settings support', () => {
           git_token_configured: true,
         },
         extra_retention_window: 7,
+        workspace_brief: 'Keep release automation ready for Friday handoff.',
       },
     });
   });

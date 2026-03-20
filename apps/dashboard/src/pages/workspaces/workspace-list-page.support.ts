@@ -1,8 +1,5 @@
 import type { DashboardWorkspaceRecord } from '../../lib/api.js';
-
-const WORKSPACE_DESCRIPTION_MAX_LENGTH = 116;
-const WORKSPACE_DESCRIPTION_FALLBACK =
-  'Add a short description so this workspace is scannable from the list.';
+import { readWorkspaceStorageLabel } from './workspace-detail-support.js';
 
 export interface WorkspaceListReadiness {
   label: 'Active' | 'Inactive';
@@ -16,6 +13,7 @@ export interface WorkspaceListSortState {
 
 export type WorkspaceListSortField = WorkspaceListSortState['key'];
 export type WorkspaceListSortDirection = WorkspaceListSortState['direction'];
+export type WorkspaceListStatusFilter = 'all' | 'active' | 'inactive';
 
 export function normalizeWorkspaces(
   response: { data: DashboardWorkspaceRecord[] } | DashboardWorkspaceRecord[],
@@ -29,13 +27,22 @@ export function normalizeWorkspaces(
 
 export function filterWorkspaces(
   workspaces: DashboardWorkspaceRecord[],
-  showInactive: boolean,
+  search: string,
+  status: WorkspaceListStatusFilter,
 ): DashboardWorkspaceRecord[] {
-  if (showInactive) {
-    return workspaces;
-  }
-
-  return workspaces.filter((workspace) => workspace.is_active !== false);
+  const normalizedSearch = search.trim().toLowerCase();
+  return workspaces.filter((workspace) => {
+    if (status === 'active' && workspace.is_active === false) {
+      return false;
+    }
+    if (status === 'inactive' && workspace.is_active !== false) {
+      return false;
+    }
+    if (!normalizedSearch) {
+      return true;
+    }
+    return buildWorkspaceSearchText(workspace).includes(normalizedSearch);
+  });
 }
 
 export function sortWorkspaces(
@@ -105,7 +112,11 @@ export function buildWorkspaceMetrics(
   }
 
   if (completedWorkflowCount > 0) {
-    parts.push(`${completedWorkflowCount} completed`);
+    parts.push(
+      completedWorkflowCount === 1
+        ? '1 workflow completed'
+        : `${completedWorkflowCount} workflows completed`,
+    );
   }
 
   if (parts.length === 0) {
@@ -133,23 +144,14 @@ export function buildWorkspaceSortDirectionLabel(
   return direction === 'asc' ? 'Oldest first' : 'Newest first';
 }
 
-export function buildWorkspaceDescription(
-  workspace: DashboardWorkspaceRecord,
-): string {
-  const description = normalizeDescription(workspace.description);
-  if (description.length === 0) {
-    return WORKSPACE_DESCRIPTION_FALLBACK;
-  }
-
-  if (description.length <= WORKSPACE_DESCRIPTION_MAX_LENGTH) {
-    return description;
-  }
-
-  return `${description.slice(0, WORKSPACE_DESCRIPTION_MAX_LENGTH - 1).trimEnd()}…`;
-}
-
-function normalizeDescription(description?: string | null): string {
-  return description?.replace(/\s+/g, ' ').trim() ?? '';
+function buildWorkspaceSearchText(workspace: DashboardWorkspaceRecord): string {
+  return [
+    workspace.name,
+    workspace.slug,
+    readWorkspaceStorageLabel(workspace),
+  ]
+    .join(' ')
+    .toLowerCase();
 }
 
 function readTotalWorkflowCount(workspace: DashboardWorkspaceRecord): number {

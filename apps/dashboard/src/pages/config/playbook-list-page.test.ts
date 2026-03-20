@@ -38,10 +38,13 @@ describe('playbook list page source', () => {
     expect(source).toContain('reviews');
     expect(source).toContain('handoffs /');
     expect(source).toContain('Most revisions');
-    expect(source).toContain('families,');
+    expect(source).toContain('families ·');
     expect(source).toContain('statusFilter');
     expect(source).toContain('lifecycleFilter');
     expect(source).toContain('sort');
+    expect(source).toContain('aria-label="Playbook status"');
+    expect(source).toContain('aria-label="Playbook lifecycle"');
+    expect(source).not.toContain('SegmentedFilter');
     expect(source).toContain('validatePlaybookCreateDraft');
     expect(source).toContain('Resolve these blockers before creating the playbook.');
     expect(source).toContain('Slug preview:');

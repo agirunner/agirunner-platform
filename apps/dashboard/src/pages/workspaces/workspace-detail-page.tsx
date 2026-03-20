@@ -28,11 +28,6 @@ export function WorkspaceDetailPage(): JSX.Element {
     queryFn: () => dashboardApi.getWorkspace(id!),
     enabled: Boolean(id),
   });
-  const workspaceSpecQuery = useQuery({
-    queryKey: ['workspace-spec', id],
-    queryFn: () => dashboardApi.getWorkspaceSpec(id!),
-    enabled: Boolean(id),
-  });
 
   if (isLoading) {
     return (
@@ -48,9 +43,9 @@ export function WorkspaceDetailPage(): JSX.Element {
 
   const workspace = data as DashboardWorkspaceRecord;
   const activeTab = normalizeWorkspaceDetailTab(searchParams.get('tab'));
-  const workspaceOverview = buildWorkspaceOverview(workspace, workspaceSpecQuery.data);
+  const workspaceOverview = buildWorkspaceOverview(workspace);
   const settingsOverview = buildWorkspaceSettingsOverview(workspace);
-  const knowledgeOverview = buildWorkspaceKnowledgeOverview(workspace, workspaceSpecQuery.data);
+  const knowledgeOverview = buildWorkspaceKnowledgeOverview(workspace);
   const baseHeaderState = buildWorkspaceDetailHeaderState(workspace, activeTab);
   const headerState = activeTab === 'knowledge'
     ? { ...baseHeaderState, quickActions: [] }

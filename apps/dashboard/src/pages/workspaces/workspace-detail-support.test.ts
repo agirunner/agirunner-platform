@@ -73,39 +73,32 @@ describe('workspace detail support', () => {
   });
 
   it('builds a workspace workspace overview from workspace and spec posture', () => {
-    const overview = buildWorkspaceOverview(
-      {
-        id: 'workspace-1',
-        name: 'Release automation',
-        slug: 'release-automation',
-        is_active: true,
-        repository_url: 'https://example.com/repo.git',
-        git_webhook_provider: 'github',
-        summary: {
-          active_workflow_count: 2,
-          completed_workflow_count: 5,
-          attention_workflow_count: 0,
-          total_workflow_count: 7,
-          last_workflow_activity_at: '2026-03-13T08:00:00Z',
-        },
-        memory: {
-          last_release: '2026-03-12',
-          rollout: { phase: 'candidate' },
-        },
-        updated_at: '2026-03-13T08:00:00Z',
+    const overview = buildWorkspaceOverview({
+      id: 'workspace-1',
+      name: 'Release automation',
+      slug: 'release-automation',
+      is_active: true,
+      repository_url: 'https://example.com/repo.git',
+      git_webhook_provider: 'github',
+      summary: {
+        active_workflow_count: 2,
+        completed_workflow_count: 5,
+        attention_workflow_count: 0,
+        total_workflow_count: 7,
+        last_workflow_activity_at: '2026-03-13T08:00:00Z',
       },
-      {
-        workspace_id: 'workspace-1',
-        config: { retries: 2, branch: 'main' },
-        tools: { shell: { allowed: true } },
+      memory: {
+        last_release: '2026-03-12',
+        rollout: { phase: 'candidate' },
       },
-    );
+      updated_at: '2026-03-13T08:00:00Z',
+    });
 
     expect(overview.summary).toContain('lifecycle');
     expect(overview.packets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Lifecycle', value: 'Active' }),
-        expect.objectContaining({ label: 'Knowledge base', value: '5 entries' }),
+        expect.objectContaining({ label: 'Shared memory', value: '2 entries' }),
         expect.objectContaining({ label: 'Automation', value: 'Schedules only' }),
         expect.objectContaining({ label: 'Storage', value: 'Git Remote' }),
         expect.objectContaining({ label: 'Delivery', value: '7 workflows' }),
@@ -188,7 +181,7 @@ describe('workspace detail support', () => {
     expect(overview.packets.map((packet) => packet.label)).not.toContain('Workspace Context');
   });
 
-  it('builds a knowledge overview that separates curated knowledge from workspace memory and artifacts', () => {
+  it('builds a knowledge overview around workspace artifacts and shared memory', () => {
     const overview = buildWorkspaceKnowledgeOverview(
       {
         id: 'workspace-1',
@@ -200,21 +193,17 @@ describe('workspace detail support', () => {
           rollout: { phase: 'candidate' },
         },
       },
-      {
-        workspace_id: 'workspace-1',
-        config: { retries: 2, branch: 'main' },
-      },
     );
 
-    expect(overview.summary).toContain('reusable workspace context');
+    expect(overview.summary).toContain('workspace-owned artifacts');
     expect(overview.packets).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ label: 'Workspace Context' }),
-        expect.objectContaining({ label: 'Knowledge entries', value: '2 entries' }),
         expect.objectContaining({ label: 'Workspace artifacts', value: 'Inline workspace' }),
         expect.objectContaining({ label: 'Shared memory', value: '2 entries' }),
       ]),
     );
+    expect(overview.packets.map((packet) => packet.label)).not.toContain('Workspace Context');
+    expect(overview.packets.map((packet) => packet.label)).not.toContain('Knowledge entries');
   });
 
 });

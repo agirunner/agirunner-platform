@@ -16,7 +16,7 @@ vi.mock('./workspace-list-page.dialogs.js', () => ({
 }));
 
 describe('workspace list page cards', () => {
-  it('renders workspace cards with grouped workspace links and quiet status', () => {
+  it('renders workspace cards with a single manage action and aligned card chrome', () => {
     const markup = renderCards(
       [
         {
@@ -26,6 +26,9 @@ describe('workspace list page cards', () => {
           description: 'Primary delivery workspace',
           is_active: true,
           repository_url: null,
+          settings: {
+            workspace_storage_type: 'workspace_artifacts',
+          },
           summary: {
             active_workflow_count: 2,
             completed_workflow_count: 5,
@@ -39,22 +42,22 @@ describe('workspace list page cards', () => {
     );
 
     expect(markup).toContain('Alpha');
-    expect(markup).toContain('Primary delivery workspace');
     expect(markup).toContain('Active');
     expect(markup).toContain('href="/workspaces/workspace-1"');
-    expect(markup).toContain('href="/workspaces/workspace-1?tab=settings"');
-    expect(markup).toContain('href="/workspaces/workspace-1?tab=knowledge"');
-    expect(markup).toContain('href="/workspaces/workspace-1?tab=automation"');
-    expect(markup).toContain('href="/workspaces/workspace-1?tab=delivery"');
+    expect(markup).toContain('Storage');
+    expect(markup).toContain('Workspace Artifacts');
+    expect(markup).toContain('Workflows');
     expect(markup).toContain('7 workflows total');
-    expect(markup).toContain('Open workspace');
-    expect(markup).toContain('Settings');
-    expect(markup).toContain('Knowledge');
-    expect(markup).toContain('Automation');
-    expect(markup).toContain('Delivery');
+    expect(markup).toContain('Manage');
+    expect(markup).toContain('bg-card/80');
     expect(markup).not.toContain('Edit basics');
     expect(markup).not.toContain('Delete');
     expect(markup).not.toContain('Needs attention');
+    expect(markup).not.toContain('Open workspace');
+    expect(markup).not.toContain('Settings');
+    expect(markup).not.toContain('Knowledge');
+    expect(markup).not.toContain('Automation');
+    expect(markup).not.toContain('Delivery');
     expect(markup).not.toContain('alpha-slug');
     expect(markup).not.toContain('Ready');
     expect(markup).not.toContain('Summary');
@@ -64,6 +67,7 @@ describe('workspace list page cards', () => {
     expect(markup).not.toContain('State');
     expect(markup).not.toContain('Created');
     expect(markup).not.toContain('Repository posture');
+    expect(markup).not.toContain('Primary delivery workspace');
   });
 
   it('keeps inactive cards neutral without separate attention badges', () => {
@@ -75,6 +79,9 @@ describe('workspace list page cards', () => {
         description: '',
         is_active: true,
         repository_url: 'https://github.com/example/beta',
+        settings: {
+          workspace_storage_type: 'git_remote',
+        },
         summary: {
           active_workflow_count: 0,
           completed_workflow_count: 0,
@@ -90,6 +97,9 @@ describe('workspace list page cards', () => {
         description: 'Dormant workspace',
         is_active: false,
         repository_url: null,
+        settings: {
+          workspace_storage_type: 'host_directory',
+        },
         summary: {
           active_workflow_count: 0,
           completed_workflow_count: 3,
@@ -102,9 +112,10 @@ describe('workspace list page cards', () => {
 
     expect(markup).toContain('Active');
     expect(markup).toContain('Inactive');
-    expect(markup).toContain('Add a short description so this workspace is scannable from the list.');
+    expect(markup).toContain('Git Remote');
+    expect(markup).toContain('Host Directory');
     expect(markup).toContain('3 workflows total');
-    expect(markup).toContain('3 completed');
+    expect(markup).toContain('3 workflows completed');
     expect(markup).not.toContain('Needs attention');
     expect(markup).not.toContain('bg-yellow-100');
     expect(markup).not.toContain('Ready');
@@ -116,14 +127,15 @@ describe('workspace list page cards', () => {
     const emptyMarkup = renderToStaticMarkup(createElement(WorkspaceListEmptyState));
     expect(emptyMarkup).toContain('No workspaces yet');
     expect(emptyMarkup).toContain('Create first workspace');
+    expect(emptyMarkup).toContain('manage storage, memory, artifacts, and delivery');
 
     const filteredMarkup = renderToStaticMarkup(
       createElement(WorkspaceListFilteredEmptyState, {
-        onShowInactive: () => undefined,
+        onResetFilters: () => undefined,
       }),
     );
-    expect(filteredMarkup).toContain('No active workspaces to show');
-    expect(filteredMarkup).toContain('Show inactive');
+    expect(filteredMarkup).toContain('No workspaces match the current filters');
+    expect(filteredMarkup).toContain('Reset filters');
   });
 });
 

@@ -1,4 +1,4 @@
-import type { DashboardWorkspaceRecord, DashboardWorkspaceSpecRecord } from '../../lib/api.js';
+import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 
 export const WORKSPACE_DETAIL_TAB_OPTIONS = [
   {
@@ -17,7 +17,7 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
     value: 'knowledge',
     label: 'Knowledge',
     description:
-      'Group workspace context, reusable knowledge entries, memory, and run content in one surface.',
+      'Group workspace artifacts and shared memory in one surface.',
   },
   {
     value: 'automation',
@@ -80,18 +80,14 @@ export function normalizeWorkspaceDetailTab(value: string | null | undefined): W
 
 export function buildWorkspaceOverview(
   workspace: DashboardWorkspaceRecord,
-  spec?: DashboardWorkspaceSpecRecord | null,
 ): WorkspaceOverview {
   const memoryCount = countObjectEntries(workspace.memory);
-  const configCount = countObjectEntries(spec?.config);
-  const toolCount = countObjectEntries(spec?.tools);
-  const knowledgeCount = configCount + toolCount + memoryCount;
-  const updatedLabel = formatWorkspaceDateTime(workspace.updated_at ?? spec?.updated_at);
+  const updatedLabel = formatWorkspaceDateTime(workspace.updated_at);
   const deliveryOverview = buildWorkspaceDeliveryOverview(workspace);
 
   return {
     summary:
-      'Use this snapshot to confirm lifecycle, storage posture, knowledge coverage, automation setup, and delivery activity before switching workspaces.',
+      'Use this snapshot to confirm lifecycle, storage posture, shared memory, automation setup, and delivery activity before switching workspaces.',
     packets: [
       {
         label: 'Lifecycle',
@@ -102,9 +98,12 @@ export function buildWorkspaceOverview(
             : `Last updated ${updatedLabel}.`,
       },
       {
-        label: 'Knowledge base',
-        value: `${knowledgeCount} entries`,
-        detail: `${configCount} curated knowledge • ${memoryCount} memory • ${toolCount} tool policies`,
+        label: 'Shared memory',
+        value: `${memoryCount} ${memoryCount === 1 ? 'entry' : 'entries'}`,
+        detail:
+          memoryCount > 0
+            ? 'Workspace memory keeps evolving notes and learned state available between runs.'
+            : 'No workspace memory entries are saved yet.',
       },
       {
         label: 'Automation',
@@ -135,8 +134,7 @@ export function buildWorkspaceDetailHeaderState(
       mode: 'expanded',
       title: workspace.name,
       description:
-        normalizeWorkspaceDescription(workspace.description)
-        ?? 'Use this workspace to move between settings, knowledge, automation, and delivery without losing context.',
+        'Use this workspace to move between settings, knowledge, automation, and delivery without losing context.',
       activeTab: activeTabOption,
       contextPills: [],
       quickActions: [],
@@ -178,31 +176,13 @@ export function buildWorkspaceSettingsOverview(
 
 export function buildWorkspaceKnowledgeOverview(
   workspace: DashboardWorkspaceRecord,
-  spec?: DashboardWorkspaceSpecRecord | null,
 ): WorkspaceOverview {
-  const hasWorkspaceContext = readString(asRecord(workspace.settings).workspace_brief).trim().length > 0;
-  const configCount = countObjectEntries(spec?.config);
   const memoryCount = countObjectEntries(workspace.memory);
 
   return {
     summary:
-      'Knowledge brings reusable workspace context, simple knowledge entries, shared memory, and run content into one operator-facing surface.',
+      'Knowledge keeps workspace-owned artifacts and shared memory in one operator-facing surface.',
     packets: [
-      {
-        label: 'Workspace Context',
-        value: hasWorkspaceContext ? 'Configured' : 'Not configured',
-        detail: hasWorkspaceContext
-          ? 'Reusable workspace context is ready for playbooks that map it into workflow inputs.'
-          : 'Add reusable context here when workflows should inherit stable LLM context.',
-      },
-      {
-        label: 'Knowledge entries',
-        value: `${configCount} entries`,
-        detail:
-          configCount > 0
-            ? 'Curated workspace facts and policies are ready for workflows and runtime access by key.'
-            : 'No curated knowledge entries are saved yet.',
-      },
       {
         label: 'Workspace artifacts',
         value: 'Inline workspace',
@@ -213,7 +193,7 @@ export function buildWorkspaceKnowledgeOverview(
         value: `${memoryCount} entries`,
         detail:
           memoryCount > 0
-            ? 'Working memory holds evolving notes and learned state without changing the curated knowledge base.'
+            ? 'Working memory holds evolving notes and learned state without leaving the workspace surface.'
             : 'No workspace memory entries are saved yet.',
       },
     ],
@@ -418,11 +398,6 @@ function buildWorkspaceDeliveryOverview(workspace: DashboardWorkspaceRecord): Wo
         ? `${detailParts.join(' • ')}. Open Delivery for the full timeline.`
         : 'Open Delivery for the full timeline.',
   };
-}
-
-function normalizeWorkspaceDescription(description?: string | null): string | null {
-  const normalized = description?.trim();
-  return normalized ? normalized : null;
 }
 
 function formatWorkspaceDateTime(value?: string | null): string {

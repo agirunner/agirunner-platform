@@ -404,12 +404,12 @@ export function PlaybookListPage(): JSX.Element {
 
   return (
     <div className="space-y-6 p-4 sm:p-6">
-      <div className="flex items-center justify-between gap-3">
-        <div>
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        <div className="min-w-0 flex-1 space-y-2">
           <h1 className="text-2xl font-semibold">Playbooks</h1>
-          <p className="text-sm text-muted">
+          <p className="text-sm leading-6 text-muted">
             Define reusable orchestrated workflow operating models and manage them from a single
-            full-width library.
+            library surface.
           </p>
         </div>
         <Button onClick={openCreateWorkspace}>
