@@ -117,8 +117,16 @@ describe('role definitions page source', () => {
     expect(source).toContain('min-h-[420px]');
     expect(source).toContain('Save model routing');
     expect(source).toContain('Save pool posture');
+    expect(source).toContain('primaryLabel="Edit model"');
+    expect(source).toContain('primaryLabel="Edit pool"');
+    expect(source).not.toContain('Edit model here');
+    expect(source).not.toContain('Edit pool here');
     expect(source).toContain('Runtime image');
     expect(source).toContain('CPU / memory');
+    expect(source).not.toContain("label: 'Model pin'");
+    expect(source).not.toContain('Worker model pin');
+    expect(source).not.toContain('Keep the orchestrator worker defined but temporarily inactive when needed.');
+    expect(source).not.toContain('<p className="text-sm font-medium">Enabled</p>');
     expect(source).toContain('grid gap-2 border-t border-border/70 pt-3');
     expect(source).not.toContain('grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3');
     expect(source).toContain('text-base font-semibold text-foreground');

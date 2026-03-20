@@ -39,7 +39,6 @@ export interface OrchestratorPoolSummary {
   runningContainers: number;
   runtimeLabel: string;
   resourceLabel: string;
-  modelLabel: string;
 }
 
 export interface OrchestratorControlIssue {
@@ -131,7 +130,6 @@ export function summarizeOrchestratorPool(
   const pool = status?.worker_pools.find((entry) => entry.pool_kind === 'orchestrator');
   const orchestratorWorkers = (workers ?? []).filter((worker) => worker.pool_kind === 'orchestrator');
   const runtimeImages = uniqueCompact(orchestratorWorkers.map((worker) => worker.runtime_image));
-  const modelPins = uniqueCompact(orchestratorWorkers.map((worker) => worker.llm_model));
   const cpuLimits = uniqueCompact(orchestratorWorkers.map((worker) => worker.cpu_limit));
   const memoryLimits = uniqueCompact(orchestratorWorkers.map((worker) => worker.memory_limit));
 
@@ -146,7 +144,6 @@ export function summarizeOrchestratorPool(
     runtimeLabel:
       runtimeImages.length > 0 ? runtimeImages.join(', ') : ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE,
     resourceLabel: summarizeResourceLabel(cpuLimits, memoryLimits),
-    modelLabel: modelPins.length > 0 ? modelPins.join(', ') : 'Inherited from LLM assignments',
   };
 }
 

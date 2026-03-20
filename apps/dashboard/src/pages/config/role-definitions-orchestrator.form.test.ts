@@ -6,9 +6,7 @@ import {
   buildOrchestratorPoolDraft,
   buildOrchestratorPromptDraft,
   listOrchestratorWorkerOptions,
-  ORCHESTRATOR_ASSIGNMENT_MODEL,
   ORCHESTRATOR_INHERIT_MODEL,
-  resolveWorkerModelSelection,
 } from './role-definitions-orchestrator.form.js';
 
 describe('role definitions orchestrator form', () => {
@@ -47,16 +45,7 @@ describe('role definitions orchestrator form', () => {
         llm_provider: 'OpenAI (Subscription)',
       }),
     ];
-    const models = [
-      {
-        id: 'model-gpt54',
-        model_id: 'gpt-5.4',
-        provider_name: 'OpenAI (Subscription)',
-        is_enabled: true,
-      },
-    ];
-
-    expect(buildOrchestratorPoolDraft(workers, models)).toEqual({
+    expect(buildOrchestratorPoolDraft(workers)).toEqual({
       workerId: 'worker-primary',
       workerName: 'orch-primary',
       runtimeImage: 'agirunner-runtime:local',
@@ -64,7 +53,6 @@ describe('role definitions orchestrator form', () => {
       memoryLimit: '2Gi',
       replicas: '3',
       enabled: true,
-      modelId: 'model-gpt54',
     });
     expect(listOrchestratorWorkerOptions(workers)).toEqual([
       {
@@ -78,26 +66,6 @@ describe('role definitions orchestrator form', () => {
         detail: 'Disabled · 2 desired replicas',
       },
     ]);
-  });
-
-  it('converts a worker model pin into the provider/model payload expected by the fleet api', () => {
-    expect(
-      resolveWorkerModelSelection(
-        [
-          {
-            id: 'model-gpt54',
-            model_id: 'gpt-5.4',
-            provider_name: 'OpenAI (Subscription)',
-            is_enabled: true,
-          },
-        ],
-        'model-gpt54',
-      ),
-    ).toEqual({
-      llmProvider: 'OpenAI (Subscription)',
-      llmModel: 'gpt-5.4',
-    });
-    expect(resolveWorkerModelSelection([], ORCHESTRATOR_ASSIGNMENT_MODEL)).toEqual({});
   });
 });
 

@@ -109,7 +109,6 @@ describe('role definitions orchestrator support', () => {
       runningContainers: 3,
       runtimeLabel: 'ghcr.io/agirunner/orchestrator:latest',
       resourceLabel: '1 CPU · 2Gi memory',
-      modelLabel: 'gpt-5.4',
     });
   });
 
@@ -132,7 +131,6 @@ describe('role definitions orchestrator support', () => {
           runningContainers: 0,
           runtimeLabel: 'agirunner-runtime:local',
           resourceLabel: '1 CPU · 512m memory',
-          modelLabel: 'Inherited from LLM assignments',
         },
       ),
     ).toEqual({
@@ -179,7 +177,6 @@ describe('role definitions orchestrator support', () => {
           runningContainers: 1,
           runtimeLabel: 'ghcr.io/agirunner/runtime:latest',
           resourceLabel: '2 CPU · 2Gi memory',
-          modelLabel: 'gpt-5.4',
         },
       ),
     ).toEqual({

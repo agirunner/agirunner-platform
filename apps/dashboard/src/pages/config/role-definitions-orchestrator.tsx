@@ -61,7 +61,6 @@ export function OrchestratorControlPlane(props: {
     memoryLimit: string;
     replicas: number;
     enabled: boolean;
-    modelId: string;
   }) => Promise<unknown>;
 }): JSX.Element {
   const [isPromptOpen, setIsPromptOpen] = useState(false);
@@ -106,7 +105,7 @@ export function OrchestratorControlPlane(props: {
               status={props.modelSummary.sourceLabel}
               value={props.modelSummary.modelLabel}
               detail={props.modelSummary.reasoningLabel}
-              primaryLabel="Edit model here"
+              primaryLabel="Edit model"
               isLoading={props.isLoading}
               onEdit={() => setIsModelOpen(true)}
             />
@@ -126,12 +125,8 @@ export function OrchestratorControlPlane(props: {
                   label: 'CPU / memory',
                   value: props.poolSummary.resourceLabel,
                 },
-                {
-                  label: 'Model pin',
-                  value: props.poolSummary.modelLabel,
-                },
               ]}
-              primaryLabel="Edit pool here"
+              primaryLabel="Edit pool"
               isLoading={props.isLoading}
               onEdit={() => setIsPoolOpen(true)}
             />
@@ -162,7 +157,6 @@ export function OrchestratorControlPlane(props: {
       />
       <OrchestratorPoolDialog
         workers={props.workers}
-        models={props.models}
         isOpen={isPoolOpen}
         isSaving={props.isPoolSaving}
         onOpenChange={setIsPoolOpen}

@@ -24,20 +24,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
-import { Switch } from '../../components/ui/switch.js';
 import {
   buildOrchestratorPoolDraft,
   listOrchestratorWorkerOptions,
   listSuggestedRuntimeImages,
-  ORCHESTRATOR_ASSIGNMENT_MODEL,
   validateOrchestratorPoolDraft,
 } from './role-definitions-orchestrator.form.js';
 import { DialogActions } from './role-definitions-orchestrator.dialog-shared.js';
-import type { LlmModelRecord } from './role-definitions-page.support.js';
 
 export function OrchestratorPoolDialog(props: {
   workers: FleetWorkerRecord[];
-  models: LlmModelRecord[];
   isOpen: boolean;
   isSaving: boolean;
   onOpenChange: (nextOpen: boolean) => void;
@@ -49,13 +45,8 @@ export function OrchestratorPoolDialog(props: {
     memoryLimit: string;
     replicas: number;
     enabled: boolean;
-    modelId: string;
   }) => Promise<unknown>;
 }): JSX.Element {
-  const enabledModels = useMemo(
-    () => props.models.filter((model) => model.is_enabled !== false),
-    [props.models],
-  );
   const workerOptions = useMemo(
     () => listOrchestratorWorkerOptions(props.workers),
     [props.workers],
@@ -65,14 +56,14 @@ export function OrchestratorPoolDialog(props: {
     [props.workers],
   );
   const [draft, setDraft] = useState(() =>
-    buildOrchestratorPoolDraft(props.workers, props.models),
+    buildOrchestratorPoolDraft(props.workers),
   );
 
   useEffect(() => {
     if (props.isOpen) {
-      setDraft(buildOrchestratorPoolDraft(props.workers, props.models));
+      setDraft(buildOrchestratorPoolDraft(props.workers));
     }
-  }, [props.isOpen, props.models, props.workers]);
+  }, [props.isOpen, props.workers]);
   const validationErrors = validateOrchestratorPoolDraft(draft);
   const hasValidationErrors = Object.keys(validationErrors).length > 0;
 
@@ -90,8 +81,8 @@ export function OrchestratorPoolDialog(props: {
           <CardHeader>
             <CardTitle className="text-base">Worker desired state</CardTitle>
             <CardDescription>
-              Configure the main orchestrator worker entry, desired replicas, runtime image,
-              CPU/memory limits, and optional model pinning without leaving the orchestrator page.
+              Configure the main orchestrator worker entry, desired replicas, runtime image, and
+              CPU/memory limits without leaving the orchestrator page.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -103,10 +94,9 @@ export function OrchestratorPoolDialog(props: {
                   onValueChange={(nextValue) => {
                     const nextDraft =
                       nextValue === '__new__'
-                        ? buildOrchestratorPoolDraft([], props.models)
+                        ? buildOrchestratorPoolDraft([])
                         : buildOrchestratorPoolDraft(
                             props.workers.filter((worker) => worker.id === nextValue),
-                            props.models,
                           );
                     setDraft(nextDraft);
                   }}
@@ -193,46 +183,6 @@ export function OrchestratorPoolDialog(props: {
                 <p className="text-xs text-red-600">{validationErrors.memoryLimit}</p>
               ) : null}
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Worker model pin</label>
-              <Select
-                value={draft.modelId}
-                onValueChange={(nextValue) =>
-                  setDraft((current) => ({ ...current, modelId: nextValue }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={ORCHESTRATOR_ASSIGNMENT_MODEL}>
-                    Follow orchestrator assignment
-                  </SelectItem>
-                  {enabledModels.map((model) => (
-                    <SelectItem key={model.id} value={model.id}>
-                      {model.model_id}
-                      {model.provider_name ? ` (${model.provider_name})` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="md:col-span-2">
-              <div className="flex items-center justify-between rounded-lg border border-border/70 p-3">
-                <div className="space-y-1">
-                  <p className="text-sm font-medium">Enabled</p>
-                  <p className="text-xs text-muted">
-                    Keep the orchestrator worker defined but temporarily inactive when needed.
-                  </p>
-                </div>
-                <Switch
-                  checked={draft.enabled}
-                  onCheckedChange={(checked) =>
-                    setDraft((current) => ({ ...current, enabled: checked }))
-                  }
-                />
-              </div>
-            </div>
           </CardContent>
         </Card>
       <DialogActions
@@ -251,7 +201,6 @@ export function OrchestratorPoolDialog(props: {
             memoryLimit: draft.memoryLimit,
             replicas: Math.max(1, parseInt(draft.replicas || '1', 10) || 1),
             enabled: draft.enabled,
-            modelId: draft.modelId,
           });
           props.onOpenChange(false);
         }}

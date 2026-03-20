@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import { ORCHESTRATOR_INHERIT_MODEL, resolveWorkerModelSelection } from './role-definitions-orchestrator.form.js';
+import { ORCHESTRATOR_INHERIT_MODEL } from './role-definitions-orchestrator.form.js';
 import {
   ORCHESTRATOR_DEFAULT_CPU_LIMIT,
   ORCHESTRATOR_DEFAULT_MEMORY_LIMIT,
@@ -89,7 +89,6 @@ export function useRolePageOrchestratorState() {
       memoryLimit: string;
       replicas: number;
       enabled: boolean;
-      modelId: string;
     }) => {
       const workerName = input.workerName.trim();
       const runtimeImage = input.runtimeImage.trim() || ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE;
@@ -98,7 +97,6 @@ export function useRolePageOrchestratorState() {
       if (!workerName) {
         throw new Error('Enter a worker name for the orchestrator pool entry.');
       }
-      const selection = resolveWorkerModelSelection(modelsQuery.data ?? [], input.modelId);
       const payload = {
         role: 'orchestrator',
         poolKind: 'orchestrator' as const,
@@ -107,8 +105,6 @@ export function useRolePageOrchestratorState() {
         memoryLimit,
         replicas: input.replicas,
         enabled: input.enabled,
-        llmProvider: selection.llmProvider,
-        llmModel: selection.llmModel,
       };
       if (input.workerId) {
         return dashboardApi.updateFleetWorker(input.workerId, payload);
@@ -193,7 +189,6 @@ export function useRolePageOrchestratorState() {
         memoryLimit: string;
         replicas: number;
         enabled: boolean;
-        modelId: string;
       }) => poolMutation.mutateAsync(input),
     },
   };

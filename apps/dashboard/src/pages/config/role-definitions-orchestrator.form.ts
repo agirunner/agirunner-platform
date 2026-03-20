@@ -7,7 +7,7 @@ import {
   validateContainerImage,
   validateContainerMemory,
 } from '../../lib/container-resources.validation.js';
-import type { LlmModelRecord, ReasoningConfigSchema } from './role-definitions-page.support.js';
+import type { ReasoningConfigSchema } from './role-definitions-page.support.js';
 import type { RoleAssignmentRecord } from './role-definitions-orchestrator.support.js';
 import {
   ORCHESTRATOR_DEFAULT_CPU_LIMIT,
@@ -16,7 +16,6 @@ import {
 } from './role-definitions-orchestrator.defaults.js';
 
 export const ORCHESTRATOR_INHERIT_MODEL = '__inherit__';
-export const ORCHESTRATOR_ASSIGNMENT_MODEL = '__assignment__';
 
 export interface OrchestratorPromptDraft {
   content: string;
@@ -35,7 +34,6 @@ export interface OrchestratorPoolDraft {
   memoryLimit: string;
   replicas: string;
   enabled: boolean;
-  modelId: string;
 }
 
 export function buildOrchestratorPromptDraft(
@@ -56,7 +54,6 @@ export function buildOrchestratorModelDraft(
 
 export function buildOrchestratorPoolDraft(
   workers: FleetWorkerRecord[],
-  models: LlmModelRecord[] = [],
 ): OrchestratorPoolDraft {
   const worker = choosePrimaryOrchestratorWorker(workers);
   if (!worker) {
@@ -68,7 +65,6 @@ export function buildOrchestratorPoolDraft(
       memoryLimit: ORCHESTRATOR_DEFAULT_MEMORY_LIMIT,
       replicas: '1',
       enabled: true,
-      modelId: ORCHESTRATOR_ASSIGNMENT_MODEL,
     };
   }
 
@@ -80,7 +76,6 @@ export function buildOrchestratorPoolDraft(
     memoryLimit: worker.memory_limit,
     replicas: String(worker.replicas),
     enabled: worker.enabled,
-    modelId: resolveWorkerModelDraftValue(worker, models),
   };
 }
 
@@ -133,23 +128,6 @@ export function validateOrchestratorPoolDraft(draft: OrchestratorPoolDraft): {
   };
 }
 
-export function resolveWorkerModelSelection(
-  models: LlmModelRecord[],
-  modelId: string,
-): { llmProvider?: string; llmModel?: string } {
-  if (modelId === ORCHESTRATOR_ASSIGNMENT_MODEL) {
-    return {};
-  }
-  const model = models.find((candidate) => candidate.id === modelId) ?? null;
-  if (!model) {
-    return {};
-  }
-  return {
-    llmProvider: model.provider_name ?? undefined,
-    llmModel: model.model_id,
-  };
-}
-
 export function extractReasoningValue(
   schema: ReasoningConfigSchema | null | undefined,
   config: Record<string, unknown> | null | undefined,
@@ -175,22 +153,6 @@ function findOrchestratorAssignment(
     assignments?.find((assignment) => assignment.role_name.trim().toLowerCase() === 'orchestrator') ??
     null
   );
-}
-
-function resolveWorkerModelDraftValue(
-  worker: FleetWorkerRecord,
-  models: LlmModelRecord[],
-): string {
-  if (!worker.llm_model?.trim()) {
-    return ORCHESTRATOR_ASSIGNMENT_MODEL;
-  }
-  const matchedModel =
-    models.find(
-      (model) =>
-        model.model_id === worker.llm_model &&
-        (worker.llm_provider ? model.provider_name === worker.llm_provider : true),
-    ) ?? null;
-  return matchedModel?.id ?? ORCHESTRATOR_ASSIGNMENT_MODEL;
 }
 
 function compareWorkers(left: FleetWorkerRecord, right: FleetWorkerRecord): number {
