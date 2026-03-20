@@ -59,7 +59,7 @@ describe('role dialog support', () => {
     expect(result.isValid).toBe(false);
     expect(result.fieldErrors).toMatchObject({
       executionContainerImage: expect.stringContaining('valid container image reference'),
-      executionContainerCpu: expect.stringContaining('positive number'),
+      executionContainerCpu: expect.stringContaining('whole number'),
       executionContainerMemory: expect.stringContaining('512m, 2g, or 2Gi'),
     });
   });

@@ -47,6 +47,11 @@ export function EditableControlPacket(props: {
   status: string;
   value: string;
   detail: string;
+  facts?: Array<{
+    label: string;
+    value: string;
+    mono?: boolean;
+  }>;
   primaryLabel: string;
   secondaryHref?: string;
   secondaryLabel?: string;
@@ -71,6 +76,20 @@ export function EditableControlPacket(props: {
         <>
           <p className="text-lg font-semibold leading-6 text-foreground">{props.value}</p>
           <p className="text-sm leading-6 text-muted">{props.detail}</p>
+          {props.facts?.length ? (
+            <div className="grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3">
+              {props.facts.map((fact) => (
+                <div key={fact.label} className="flex items-start justify-between gap-3">
+                  <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
+                    {fact.label}
+                  </span>
+                  <span className={fact.mono ? 'font-mono text-xs text-foreground' : 'text-sm text-foreground'}>
+                    {fact.value}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </>
       )}
       <div className="flex flex-wrap gap-2 pt-1">

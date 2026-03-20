@@ -21,7 +21,8 @@ describe('container resource validation', () => {
     expect(() => assertValidContainerImage('https://ghcr.io/agirunner/runtime latest', 'runtime image')).toThrow(
       'valid container image reference',
     );
-    expect(() => assertValidContainerCpu('zero', 'cpu')).toThrow('positive number');
+    expect(() => assertValidContainerCpu('zero', 'cpu')).toThrow('whole number');
+    expect(() => assertValidContainerCpu('0.5', 'cpu')).toThrow('whole number');
     expect(() => assertValidContainerMemory('banana', 'memory')).toThrow('512m, 2g, or 2Gi');
     expect(() => assertValidContainerMemory('1', 'memory')).toThrow('512m, 2g, or 2Gi');
   });

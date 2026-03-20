@@ -28,7 +28,8 @@ describe('container resources validation', () => {
   });
 
   it('rejects invalid cpu and memory values', () => {
-    expect(validateContainerCpu('zero', 'CPU limit')).toContain('positive number');
+    expect(validateContainerCpu('zero', 'CPU limit')).toContain('whole number');
+    expect(validateContainerCpu('0.5', 'CPU limit')).toContain('whole number');
     expect(validateContainerCpu('0', 'CPU limit')).toContain('greater than 0');
     expect(validateContainerMemory('banana', 'Memory limit')).toContain('512m, 2g, or 2Gi');
     expect(validateContainerMemory('1', 'Memory limit')).toContain('512m, 2g, or 2Gi');

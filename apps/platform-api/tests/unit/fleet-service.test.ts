@@ -265,6 +265,25 @@ describe('FleetService', () => {
       expect(sql).toContain('INSERT INTO worker_desired_state');
     });
 
+    it('applies orchestrator-specific cpu and memory defaults when omitted', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [sampleDesiredStateWithSecrets], rowCount: 1 });
+
+      await service.createWorker(TENANT_ID, {
+        workerName: 'orchestrator-primary',
+        role: 'orchestrator',
+        poolKind: 'orchestrator',
+        runtimeImage: 'agirunner-runtime:latest',
+        networkPolicy: 'restricted',
+        environment: {},
+        replicas: 1,
+        enabled: true,
+      });
+
+      const params = pool.query.mock.calls[0][1] as unknown[];
+      expect(params).toContain('1');
+      expect(params).toContain('512m');
+    });
+
     it('rejects plaintext llm api keys in desired state writes', async () => {
       await expect(
         service.createWorker(TENANT_ID, {

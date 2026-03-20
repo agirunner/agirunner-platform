@@ -2,9 +2,18 @@ import type {
   DashboardPlatformInstructionRecord,
   FleetWorkerRecord,
 } from '../../lib/api.js';
-import { validateContainerImage } from '../../lib/container-resources.validation.js';
+import {
+  validateContainerCpu,
+  validateContainerImage,
+  validateContainerMemory,
+} from '../../lib/container-resources.validation.js';
 import type { LlmModelRecord, ReasoningConfigSchema } from './role-definitions-page.support.js';
 import type { RoleAssignmentRecord } from './role-definitions-orchestrator.support.js';
+import {
+  ORCHESTRATOR_DEFAULT_CPU_LIMIT,
+  ORCHESTRATOR_DEFAULT_MEMORY_LIMIT,
+  ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE,
+} from './role-definitions-orchestrator.defaults.js';
 
 export const ORCHESTRATOR_INHERIT_MODEL = '__inherit__';
 export const ORCHESTRATOR_ASSIGNMENT_MODEL = '__assignment__';
@@ -22,6 +31,8 @@ export interface OrchestratorPoolDraft {
   workerId: string | null;
   workerName: string;
   runtimeImage: string;
+  cpuLimit: string;
+  memoryLimit: string;
   replicas: string;
   enabled: boolean;
   modelId: string;
@@ -52,7 +63,9 @@ export function buildOrchestratorPoolDraft(
     return {
       workerId: null,
       workerName: 'orchestrator-primary',
-      runtimeImage: 'agirunner-runtime:local',
+      runtimeImage: ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE,
+      cpuLimit: ORCHESTRATOR_DEFAULT_CPU_LIMIT,
+      memoryLimit: ORCHESTRATOR_DEFAULT_MEMORY_LIMIT,
       replicas: '1',
       enabled: true,
       modelId: ORCHESTRATOR_ASSIGNMENT_MODEL,
@@ -63,6 +76,8 @@ export function buildOrchestratorPoolDraft(
     workerId: worker.id,
     workerName: worker.worker_name,
     runtimeImage: worker.runtime_image,
+    cpuLimit: worker.cpu_limit,
+    memoryLimit: worker.memory_limit,
     replicas: String(worker.replicas),
     enabled: worker.enabled,
     modelId: resolveWorkerModelDraftValue(worker, models),
@@ -91,8 +106,6 @@ export function listOrchestratorWorkerOptions(workers: FleetWorkerRecord[]) {
     }));
 }
 
-const DEFAULT_RUNTIME_IMAGE = 'agirunner-runtime:local';
-
 export function listSuggestedRuntimeImages(workers: FleetWorkerRecord[]): string[] {
   const images = new Set(
     workers
@@ -100,15 +113,24 @@ export function listSuggestedRuntimeImages(workers: FleetWorkerRecord[]): string
       .map((worker) => worker.runtime_image.trim())
       .filter(Boolean),
   );
-  images.add(DEFAULT_RUNTIME_IMAGE);
+  images.add(ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE);
   return [...images];
 }
 
 export function validateOrchestratorPoolDraft(draft: OrchestratorPoolDraft): {
   runtimeImage?: string;
+  cpuLimit?: string;
+  memoryLimit?: string;
 } {
   const runtimeImageError = validateContainerImage(draft.runtimeImage, 'Runtime image');
-  return runtimeImageError ? { runtimeImage: runtimeImageError } : {};
+  const cpuLimitError = validateContainerCpu(draft.cpuLimit, 'CPU limit');
+  const memoryLimitError = validateContainerMemory(draft.memoryLimit, 'Memory limit');
+
+  return {
+    ...(runtimeImageError ? { runtimeImage: runtimeImageError } : {}),
+    ...(cpuLimitError ? { cpuLimit: cpuLimitError } : {}),
+    ...(memoryLimitError ? { memoryLimit: memoryLimitError } : {}),
+  };
 }
 
 export function resolveWorkerModelSelection(

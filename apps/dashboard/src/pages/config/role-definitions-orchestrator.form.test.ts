@@ -60,6 +60,8 @@ describe('role definitions orchestrator form', () => {
       workerId: 'worker-primary',
       workerName: 'orch-primary',
       runtimeImage: 'agirunner-runtime:local',
+      cpuLimit: '1',
+      memoryLimit: '2Gi',
       replicas: '3',
       enabled: true,
       modelId: 'model-gpt54',

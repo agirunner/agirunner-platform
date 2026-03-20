@@ -45,6 +45,8 @@ export function OrchestratorPoolDialog(props: {
     workerId: string | null;
     workerName: string;
     runtimeImage: string;
+    cpuLimit: string;
+    memoryLimit: string;
     replicas: number;
     enabled: boolean;
     modelId: string;
@@ -80,16 +82,16 @@ export function OrchestratorPoolDialog(props: {
         <DialogHeader>
           <DialogTitle>Edit orchestrator pool posture</DialogTitle>
           <DialogDescription>
-            Keep the primary orchestrator worker entry editable here. Use the fleet page when you
-            need advanced multi-worker topology changes.
+            Keep the primary orchestrator worker entry editable here, including runtime image and
+            resource limits.
           </DialogDescription>
         </DialogHeader>
         <Card className="border-border/70 shadow-none">
           <CardHeader>
             <CardTitle className="text-base">Worker desired state</CardTitle>
             <CardDescription>
-              Configure the main orchestrator worker entry, desired replicas, runtime image, and
-              optional model pinning without leaving the roles surface.
+              Configure the main orchestrator worker entry, desired replicas, runtime image,
+              CPU/memory limits, and optional model pinning without leaving the orchestrator page.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4 md:grid-cols-2">
@@ -135,8 +137,8 @@ export function OrchestratorPoolDialog(props: {
               />
               {draft.workerId ? (
                 <p className="text-xs text-muted">
-                  Existing worker names stay fixed. Create a new worker entry on the fleet page if
-                  you need a different name.
+                  Existing worker names stay fixed. Create a new orchestrator entry here if you
+                  need a different name.
                 </p>
               ) : null}
             </div>
@@ -160,8 +162,36 @@ export function OrchestratorPoolDialog(props: {
                 suggestions={runtimeImages}
                 listId="orchestrator-runtime-image-suggestions"
                 error={validationErrors.runtimeImage}
-                helperText="Use the same standard image ref format as Roles and Fleet worker posture."
+                helperText="Use the same standard image ref format as Roles and runtime defaults."
               />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">CPU limit</label>
+              <Input
+                value={draft.cpuLimit}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, cpuLimit: event.target.value }))
+                }
+                placeholder="1"
+                aria-invalid={validationErrors.cpuLimit ? 'true' : 'false'}
+              />
+              {validationErrors.cpuLimit ? (
+                <p className="text-xs text-red-600">{validationErrors.cpuLimit}</p>
+              ) : null}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Memory limit</label>
+              <Input
+                value={draft.memoryLimit}
+                onChange={(event) =>
+                  setDraft((current) => ({ ...current, memoryLimit: event.target.value }))
+                }
+                placeholder="512m"
+                aria-invalid={validationErrors.memoryLimit ? 'true' : 'false'}
+              />
+              {validationErrors.memoryLimit ? (
+                <p className="text-xs text-red-600">{validationErrors.memoryLimit}</p>
+              ) : null}
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Worker model pin</label>
@@ -216,13 +246,15 @@ export function OrchestratorPoolDialog(props: {
           await props.onSave({
             workerId: draft.workerId,
             workerName: draft.workerName,
-              runtimeImage: draft.runtimeImage,
-              replicas: Math.max(1, parseInt(draft.replicas || '1', 10) || 1),
-              enabled: draft.enabled,
-              modelId: draft.modelId,
-            });
-            props.onOpenChange(false);
-          }}
+            runtimeImage: draft.runtimeImage,
+            cpuLimit: draft.cpuLimit,
+            memoryLimit: draft.memoryLimit,
+            replicas: Math.max(1, parseInt(draft.replicas || '1', 10) || 1),
+            enabled: draft.enabled,
+            modelId: draft.modelId,
+          });
+          props.onOpenChange(false);
+        }}
         />
       </DialogContent>
     </Dialog>

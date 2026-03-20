@@ -1043,8 +1043,18 @@ async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<void> {
   if (existing.rowCount && existing.rowCount > 0) return;
 
   await db.query(
-    `INSERT INTO worker_desired_state (tenant_id, worker_name, role, runtime_image, replicas, enabled, pool_kind)
-     VALUES ($1, 'orchestrator-primary', 'orchestrator', 'agirunner-runtime:local', 1, true, 'orchestrator')
+    `INSERT INTO worker_desired_state (
+        tenant_id,
+        worker_name,
+        role,
+        runtime_image,
+        cpu_limit,
+        memory_limit,
+        replicas,
+        enabled,
+        pool_kind
+      )
+     VALUES ($1, 'orchestrator-primary', 'orchestrator', 'agirunner-runtime:local', '1', '512m', 1, true, 'orchestrator')
      ON CONFLICT DO NOTHING`,
     [DEFAULT_TENANT_ID],
   );

@@ -4,6 +4,11 @@ import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { ORCHESTRATOR_INHERIT_MODEL, resolveWorkerModelSelection } from './role-definitions-orchestrator.form.js';
 import {
+  ORCHESTRATOR_DEFAULT_CPU_LIMIT,
+  ORCHESTRATOR_DEFAULT_MEMORY_LIMIT,
+  ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE,
+} from './role-definitions-orchestrator.defaults.js';
+import {
   summarizeOrchestratorModel,
   summarizeOrchestratorPool,
   summarizeOrchestratorPrompt,
@@ -80,12 +85,16 @@ export function useRolePageOrchestratorState() {
       workerId: string | null;
       workerName: string;
       runtimeImage: string;
+      cpuLimit: string;
+      memoryLimit: string;
       replicas: number;
       enabled: boolean;
       modelId: string;
     }) => {
       const workerName = input.workerName.trim();
-      const runtimeImage = input.runtimeImage.trim() || 'agirunner-runtime:local';
+      const runtimeImage = input.runtimeImage.trim() || ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE;
+      const cpuLimit = input.cpuLimit.trim() || ORCHESTRATOR_DEFAULT_CPU_LIMIT;
+      const memoryLimit = input.memoryLimit.trim() || ORCHESTRATOR_DEFAULT_MEMORY_LIMIT;
       if (!workerName) {
         throw new Error('Enter a worker name for the orchestrator pool entry.');
       }
@@ -94,6 +103,8 @@ export function useRolePageOrchestratorState() {
         role: 'orchestrator',
         poolKind: 'orchestrator' as const,
         runtimeImage,
+        cpuLimit,
+        memoryLimit,
         replicas: input.replicas,
         enabled: input.enabled,
         llmProvider: selection.llmProvider,
@@ -178,6 +189,8 @@ export function useRolePageOrchestratorState() {
         workerId: string | null;
         workerName: string;
         runtimeImage: string;
+        cpuLimit: string;
+        memoryLimit: string;
         replicas: number;
         enabled: boolean;
         modelId: string;

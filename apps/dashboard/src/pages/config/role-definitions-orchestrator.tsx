@@ -57,6 +57,8 @@ export function OrchestratorControlPlane(props: {
     workerId: string | null;
     workerName: string;
     runtimeImage: string;
+    cpuLimit: string;
+    memoryLimit: string;
     replicas: number;
     enabled: boolean;
     modelId: string;
@@ -113,7 +115,22 @@ export function OrchestratorControlPlane(props: {
               title="Pool posture"
               status={`${props.poolSummary.enabledWorkers} enabled workers`}
               value={`${props.poolSummary.runningContainers} running / ${props.poolSummary.desiredReplicas} desired replicas`}
-              detail={`Runtime: ${props.poolSummary.runtimeLabel} · Model pin: ${props.poolSummary.modelLabel}`}
+              detail="Manage the primary orchestrator worker runtime and capacity here."
+              facts={[
+                {
+                  label: 'Runtime image',
+                  value: props.poolSummary.runtimeLabel,
+                  mono: true,
+                },
+                {
+                  label: 'CPU / Memory',
+                  value: props.poolSummary.resourceLabel,
+                },
+                {
+                  label: 'Model pin',
+                  value: props.poolSummary.modelLabel,
+                },
+              ]}
               primaryLabel="Edit pool here"
               isLoading={props.isLoading}
               onEdit={() => setIsPoolOpen(true)}

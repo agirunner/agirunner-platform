@@ -2653,7 +2653,7 @@ describe('dashboard api auth/session behavior', () => {
 });
 
 describe('dashboard global search', () => {
-  it('buildSearchResults creates task, workflow, workspace, playbook, worker, and agent route targets', () => {
+  it('buildSearchResults creates task, workflow, workspace, playbook, and agent route targets', () => {
     const results = buildSearchResults('build', {
       workflows: [{ id: 'workflow-1', name: 'Build Workflow', state: 'running' }],
       tasks: [{ id: 'task-1', title: 'Build artifact', state: 'ready' }],
@@ -2668,15 +2668,13 @@ describe('dashboard global search', () => {
       'task',
       'workspace',
       'playbook',
-      'worker',
       'agent',
     ]);
     expect(results[0].href).toBe('/work/boards/workflow-1');
     expect(results[1].href).toBe('/work/tasks/task-1');
     expect(results[2].href).toBe('/workspaces/workspace-1');
     expect(results[3].href).toBe('/config/playbooks/playbook-1');
-    expect(results[4].href).toBe('/fleet/workers');
-    expect(results[5].href).toBe('/fleet/agents');
+    expect(results[4].href).toBe('/fleet/agents');
   });
 
   it('search() merges matches from all dashboard resources', async () => {
@@ -2714,7 +2712,7 @@ describe('dashboard global search', () => {
     });
     const results = await api.search('test');
 
-    expect(results).toHaveLength(6);
+    expect(results).toHaveLength(5);
     expect(client.listWorkflows).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listTasks).toHaveBeenCalledWith({ per_page: 50 });
     expect(client.listWorkspaces).toHaveBeenCalledWith({ per_page: 50 });

@@ -17,6 +17,10 @@ import {
 const VALID_POOL_KINDS = new Set(['orchestrator', 'specialist']);
 const FLEET_ENV_SECRET_REDACTION = 'redacted://fleet-environment-secret';
 const FLEET_EVENT_SECRET_REDACTION = 'redacted://fleet-event-secret';
+const DEFAULT_SPECIALIST_CPU_LIMIT = '2';
+const DEFAULT_SPECIALIST_MEMORY_LIMIT = '2g';
+const DEFAULT_ORCHESTRATOR_CPU_LIMIT = '1';
+const DEFAULT_ORCHESTRATOR_MEMORY_LIMIT = '512m';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 const secretLikeValuePattern =
   /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
@@ -57,8 +61,8 @@ const createDesiredStateSchema = z.object({
   role: z.string().min(1).max(100),
   poolKind: z.enum(['orchestrator', 'specialist']).default('specialist'),
   runtimeImage: z.string().min(1),
-  cpuLimit: z.string().default('2'),
-  memoryLimit: z.string().default('2g'),
+  cpuLimit: z.string().optional(),
+  memoryLimit: z.string().optional(),
   networkPolicy: z.string().default('restricted'),
   environment: z.record(z.unknown()).default({}),
   llmProvider: z.string().optional(),
@@ -72,6 +76,28 @@ const updateDesiredStateSchema = createDesiredStateSchema.partial().omit({ worke
 
 export type CreateDesiredStateInput = z.infer<typeof createDesiredStateSchema>;
 export type UpdateDesiredStateInput = z.infer<typeof updateDesiredStateSchema>;
+
+function resolveCreateDesiredStateDefaults(input: CreateDesiredStateInput): CreateDesiredStateInput & {
+  cpuLimit: string;
+  memoryLimit: string;
+} {
+  const defaults =
+    input.poolKind === 'orchestrator'
+      ? {
+          cpuLimit: DEFAULT_ORCHESTRATOR_CPU_LIMIT,
+          memoryLimit: DEFAULT_ORCHESTRATOR_MEMORY_LIMIT,
+        }
+      : {
+          cpuLimit: DEFAULT_SPECIALIST_CPU_LIMIT,
+          memoryLimit: DEFAULT_SPECIALIST_MEMORY_LIMIT,
+        };
+
+  return {
+    ...input,
+    cpuLimit: input.cpuLimit ?? defaults.cpuLimit,
+    memoryLimit: input.memoryLimit ?? defaults.memoryLimit,
+  };
+}
 
 interface DesiredStateRow {
   [key: string]: unknown;
@@ -418,7 +444,7 @@ export class FleetService {
   }
 
   async createWorker(tenantId: string, input: CreateDesiredStateInput): Promise<PublicDesiredStateRow> {
-    const validated = createDesiredStateSchema.parse(input);
+    const validated = resolveCreateDesiredStateDefaults(createDesiredStateSchema.parse(input));
     validateDesiredStateResources(validated);
     validateDesiredStateSecrets(validated);
 

@@ -83,7 +83,9 @@ describe('FR-030: modern SPA structure', () => {
     expect(source).toContain('/workspaces');
     expect(source).toContain('/config/playbooks');
     expect(source).not.toContain('/config/templates');
-    expect(source).toContain('/fleet/workers');
+    expect(source).not.toContain('/fleet/workers');
+    expect(source).toContain('/fleet/agents');
+    expect(source).toContain('/fleet/docker');
     expect(source).toContain('/governance/api-keys');
     expect(source).toContain('/login');
   });
@@ -348,13 +350,13 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('export function DashboardLayout');
   });
 
-  it('layout includes navigation links to all 6 major sections', () => {
+  it('layout includes navigation links to the shipped major sections without a fleet shell group', () => {
     const source = readComponent('components/layout.tsx');
     expect(source).toContain('Mission Control');
     expect(source).toContain('Work');
     expect(source).toContain('Workspaces');
     expect(source).toContain('Configuration');
-    expect(source).toContain('Fleet');
+    expect(source).not.toContain("label: 'Fleet'");
     expect(source).toContain('Governance');
   });
 

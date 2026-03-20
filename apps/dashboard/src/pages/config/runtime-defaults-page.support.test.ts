@@ -187,6 +187,16 @@ describe('runtime defaults page support', () => {
     expect(errors['specialist_execution_default_memory']).toContain('512m, 2g, or 2Gi');
   });
 
+  it('rejects fractional cpu values for runtime defaults', () => {
+    const errors = buildValidationErrors({
+      specialist_runtime_default_cpu: '0.5',
+      specialist_execution_default_cpu: '0.5',
+    });
+
+    expect(errors['specialist_runtime_default_cpu']).toContain('whole number');
+    expect(errors['specialist_execution_default_cpu']).toContain('whole number');
+  });
+
   it('rejects worker reconnect ranges where the minimum exceeds the maximum', () => {
     const errors = buildValidationErrors({
       'platform.worker_reconnect_min_ms': '60000',

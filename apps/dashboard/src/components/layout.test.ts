@@ -22,9 +22,9 @@ describe('layout breadcrumbs', () => {
   });
 
   it('creates labeled breadcrumbs for sections', () => {
-    expect(buildBreadcrumbs('/fleet/workers')).toEqual([
-      { label: 'Fleet' },
-      { label: 'Workers' },
+    expect(buildBreadcrumbs('/config/orchestrator')).toEqual([
+      { label: 'Config' },
+      { label: 'Orchestrator' },
     ]);
   });
 
@@ -51,8 +51,9 @@ describe('layout breadcrumbs', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Runtimes'");
     expect(source).not.toContain("label: 'Runtime Defaults'");
-    expect(source).not.toContain("label: 'Workers'");
-    expect(source).not.toContain("label: 'Warm Pools'");
+    expect(source).not.toContain("label: 'Fleet'");
+    expect(source).not.toContain("label: 'Agents'");
+    expect(source).not.toContain("label: 'Docker'");
   });
 
   it('has separate Orchestrator and Roles nav entries', () => {

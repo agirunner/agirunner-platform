@@ -3,6 +3,11 @@ import type {
   FleetStatusResponse,
   FleetWorkerRecord,
 } from '../../lib/api.js';
+import {
+  ORCHESTRATOR_DEFAULT_CPU_LIMIT,
+  ORCHESTRATOR_DEFAULT_MEMORY_LIMIT,
+  ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE,
+} from './role-definitions-orchestrator.defaults.js';
 
 export interface SystemDefaultRecord {
   modelId: string | null;
@@ -33,6 +38,7 @@ export interface OrchestratorPoolSummary {
   enabledWorkers: number;
   runningContainers: number;
   runtimeLabel: string;
+  resourceLabel: string;
   modelLabel: string;
 }
 
@@ -126,6 +132,8 @@ export function summarizeOrchestratorPool(
   const orchestratorWorkers = (workers ?? []).filter((worker) => worker.pool_kind === 'orchestrator');
   const runtimeImages = uniqueCompact(orchestratorWorkers.map((worker) => worker.runtime_image));
   const modelPins = uniqueCompact(orchestratorWorkers.map((worker) => worker.llm_model));
+  const cpuLimits = uniqueCompact(orchestratorWorkers.map((worker) => worker.cpu_limit));
+  const memoryLimits = uniqueCompact(orchestratorWorkers.map((worker) => worker.memory_limit));
 
   return {
     desiredWorkers: pool?.desired_workers ?? orchestratorWorkers.length,
@@ -135,9 +143,27 @@ export function summarizeOrchestratorPool(
     runningContainers:
       pool?.running_containers ??
       orchestratorWorkers.reduce((sum, worker) => sum + worker.actual.length, 0),
-    runtimeLabel: runtimeImages.length > 0 ? runtimeImages.join(', ') : 'Use worker desired state',
+    runtimeLabel:
+      runtimeImages.length > 0 ? runtimeImages.join(', ') : ORCHESTRATOR_DEFAULT_RUNTIME_IMAGE,
+    resourceLabel: summarizeResourceLabel(cpuLimits, memoryLimits),
     modelLabel: modelPins.length > 0 ? modelPins.join(', ') : 'Inherited from LLM assignments',
   };
+}
+
+function summarizeResourceLabel(cpuLimits: string[], memoryLimits: string[]): string {
+  const cpuLabel =
+    cpuLimits.length === 0
+      ? ORCHESTRATOR_DEFAULT_CPU_LIMIT
+      : cpuLimits.length === 1
+        ? cpuLimits[0]
+        : 'Mixed';
+  const memoryLabel =
+    memoryLimits.length === 0
+      ? ORCHESTRATOR_DEFAULT_MEMORY_LIMIT
+      : memoryLimits.length === 1
+        ? memoryLimits[0]
+        : 'Mixed';
+  return `${cpuLabel} CPU · ${memoryLabel} memory`;
 }
 
 export function summarizeOrchestratorReadiness(
@@ -223,9 +249,9 @@ export function summarizeOrchestratorControlSurfaces(
       id: 'pool',
       title: 'Pool and runtime',
       summary: `${pool.enabledWorkers} enabled / ${pool.desiredReplicas} desired replicas`,
-      detail: `Worker desired state controls pool capacity. Runtime defaults control the shared execution envelope and safeguards.`,
-      href: '/fleet/workers',
-      label: 'Open worker pool',
+      detail: `Orchestrator posture owns the primary worker runtime image and capacity. Runtime defaults control the shared specialist execution envelope and safeguards.`,
+      href: '/config/orchestrator',
+      label: 'Open orchestrator',
       secondaryHref: '/config/runtimes',
       secondaryLabel: 'Open runtime defaults',
     },

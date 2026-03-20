@@ -3575,14 +3575,6 @@ export function buildSearchResults(
     href: `/work/tasks/${item.id}`,
   }));
 
-  const workerMatches = filterRecords(collections.workers, normalizedQuery).map((item) => ({
-    type: 'worker' as const,
-    id: item.id,
-    label: item.name ?? item.id,
-    subtitle: item.status ?? 'worker',
-    href: '/fleet/workers',
-  }));
-
   const agentMatches = filterRecords(collections.agents, normalizedQuery).map((item) => ({
     type: 'agent' as const,
     id: item.id,
@@ -3612,7 +3604,6 @@ export function buildSearchResults(
     ...taskMatches,
     ...workspaceMatches,
     ...playbookMatches,
-    ...workerMatches,
     ...agentMatches,
   ].slice(0, 12);
 }

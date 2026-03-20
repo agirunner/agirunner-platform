@@ -117,6 +117,8 @@ describe('role definitions page source', () => {
     expect(source).toContain('min-h-[420px]');
     expect(source).toContain('Save model routing');
     expect(source).toContain('Save pool posture');
+    expect(source).toContain('Runtime image');
+    expect(source).toContain('CPU / Memory');
     expect(source).toContain('dashboardApi.getOrchestratorConfig()');
     expect(source).toContain('dashboardApi.updateOrchestratorConfig');
     expect(source).toContain("updateAssignment('orchestrator'");

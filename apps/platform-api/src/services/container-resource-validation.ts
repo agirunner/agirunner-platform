@@ -25,10 +25,10 @@ export function assertValidContainerCpu(value: string, label: string): void {
   if (!trimmed) {
     return;
   }
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed)) {
-    throw new ValidationError(`${label} must be a positive number such as 1 or 0.5`);
+  if (!/^\d+$/.test(trimmed)) {
+    throw new ValidationError(`${label} must be a whole number such as 1 or 2`);
   }
+  const parsed = Number(trimmed);
   if (parsed <= 0) {
     throw new ValidationError(`${label} must be greater than 0`);
   }

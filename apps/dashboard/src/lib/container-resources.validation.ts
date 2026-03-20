@@ -34,10 +34,10 @@ export function validateContainerCpu(
   if (!trimmed) {
     return null;
   }
-  const parsed = Number(trimmed);
-  if (!Number.isFinite(parsed)) {
-    return `${label} must be a positive number such as 1 or 0.5.${buildHint(options.emptyValueHint)}`;
+  if (!/^\d+$/.test(trimmed)) {
+    return `${label} must be a whole number such as 1 or 2.${buildHint(options.emptyValueHint)}`;
   }
+  const parsed = Number(trimmed);
   if (parsed <= 0) {
     return `${label} must be greater than 0.${buildHint(options.emptyValueHint)}`;
   }
