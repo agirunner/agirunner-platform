@@ -231,12 +231,13 @@ export class ModelCatalogService {
   }
 
   async deleteProvider(tenantId: string, id: string): Promise<void> {
-    await this.pool.query(
-      `UPDATE role_model_assignments SET primary_model_id = NULL
-       WHERE tenant_id = $1 AND primary_model_id IN (
-         SELECT id FROM llm_models WHERE tenant_id = $1 AND provider_id = $2
-       )`,
+    const providerModels = await this.pool.query<{ id: string }>(
+      'SELECT id FROM llm_models WHERE tenant_id = $1 AND provider_id = $2',
       [tenantId, id],
+    );
+    await this.clearDeletedModelReferences(
+      tenantId,
+      providerModels.rows.map((row) => row.id),
     );
 
     await this.pool.query(
@@ -347,6 +348,7 @@ export class ModelCatalogService {
   }
 
   async deleteModel(tenantId: string, id: string): Promise<void> {
+    await this.clearDeletedModelReferences(tenantId, [id]);
     const result = await this.pool.query(
       'DELETE FROM llm_models WHERE tenant_id = $1 AND id = $2',
       [tenantId, id],
@@ -630,6 +632,29 @@ export class ModelCatalogService {
          ON CONFLICT (tenant_id, config_key)
          DO UPDATE SET config_value = $3, updated_at = NOW()`,
         [tenantId, key, value],
+      );
+    }
+  }
+
+  private async clearDeletedModelReferences(tenantId: string, modelIds: string[]): Promise<void> {
+    if (modelIds.length === 0) {
+      return;
+    }
+
+    await this.pool.query(
+      'UPDATE role_model_assignments SET primary_model_id = NULL WHERE tenant_id = $1 AND primary_model_id = ANY($2::uuid[])',
+      [tenantId, modelIds],
+    );
+
+    const clearedDefaultModel = await this.pool.query(
+      'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND config_key = $2 AND config_value = ANY($3::text[])',
+      [tenantId, 'default_model_id', modelIds],
+    );
+
+    if ((clearedDefaultModel.rowCount ?? 0) > 0) {
+      await this.pool.query(
+        'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND config_key = $2',
+        [tenantId, 'default_reasoning_config'],
       );
     }
   }

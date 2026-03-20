@@ -254,14 +254,27 @@ describe('ModelCatalogService', () => {
       expect(result.api_key_secret_ref).toBe('secret:OPENAI_API_KEY');
     });
 
-    it('deletes a provider and cascades to models and assignments', async () => {
+    it('deletes a provider and clears dependent assignments and system defaults', async () => {
       pool.query
+        .mockResolvedValueOnce({ rows: [{ id: MODEL_ID }], rowCount: 1 }) // load provider models
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // clear assignments
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // clear default model id
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // clear default reasoning config
         .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // delete models
         .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // delete provider
 
       await expect(service.deleteProvider(TENANT_ID, PROVIDER_ID)).resolves.toBeUndefined();
-      expect(pool.query).toHaveBeenCalledTimes(3);
+      expect(pool.query).toHaveBeenCalledTimes(6);
+      expect(pool.query).toHaveBeenNthCalledWith(
+        3,
+        'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND config_key = $2 AND config_value = ANY($3::text[])',
+        [TENANT_ID, 'default_model_id', [MODEL_ID]],
+      );
+      expect(pool.query).toHaveBeenNthCalledWith(
+        4,
+        'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND config_key = $2',
+        [TENANT_ID, 'default_reasoning_config'],
+      );
     });
   });
 
@@ -311,9 +324,29 @@ describe('ModelCatalogService', () => {
       expect(result).toEqual(sampleModel);
     });
 
-    it('deletes a model', async () => {
-      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    it('deletes a model and clears dependent assignments and system defaults', async () => {
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 }) // clear assignments
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // clear default model id
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }) // clear default reasoning config
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }); // delete model
+
       await expect(service.deleteModel(TENANT_ID, MODEL_ID)).resolves.toBeUndefined();
+      expect(pool.query).toHaveBeenNthCalledWith(
+        1,
+        'UPDATE role_model_assignments SET primary_model_id = NULL WHERE tenant_id = $1 AND primary_model_id = ANY($2::uuid[])',
+        [TENANT_ID, [MODEL_ID]],
+      );
+      expect(pool.query).toHaveBeenNthCalledWith(
+        2,
+        'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND config_key = $2 AND config_value = ANY($3::text[])',
+        [TENANT_ID, 'default_model_id', [MODEL_ID]],
+      );
+      expect(pool.query).toHaveBeenNthCalledWith(
+        3,
+        'DELETE FROM runtime_defaults WHERE tenant_id = $1 AND config_key = $2',
+        [TENANT_ID, 'default_reasoning_config'],
+      );
     });
   });
 
