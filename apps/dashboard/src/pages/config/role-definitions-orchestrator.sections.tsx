@@ -59,7 +59,7 @@ export function EditableControlPacket(props: {
   onEdit: () => void;
 }): JSX.Element {
   return (
-    <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
+    <div className="flex h-full flex-col gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
           <p className="text-base font-semibold text-foreground">{props.title}</p>
@@ -68,12 +68,12 @@ export function EditableControlPacket(props: {
         <props.icon className="h-4 w-4 text-muted" />
       </div>
       {props.isLoading ? (
-        <div className="space-y-2">
+        <div className="flex-1 space-y-2">
           <div className="h-6 w-2/3 rounded bg-border/70" />
           <div className="h-4 w-full rounded bg-border/50" />
         </div>
       ) : (
-        <>
+        <div className="flex-1 space-y-3">
           <p className="text-lg font-semibold leading-6 text-foreground">{props.value}</p>
           <p className="text-sm leading-6 text-muted">{props.detail}</p>
           {props.facts?.length ? (
@@ -88,9 +88,9 @@ export function EditableControlPacket(props: {
               ))}
             </div>
           ) : null}
-        </>
+        </div>
       )}
-      <div className="flex flex-wrap gap-2 pt-1">
+      <div className="mt-auto flex flex-wrap gap-2 pt-1">
         <Button size="sm" onClick={props.onEdit}>
           <Settings2 className="h-4 w-4" />
           {props.primaryLabel}

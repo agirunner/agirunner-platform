@@ -129,6 +129,13 @@ describe('role definitions page source', () => {
     expect(source).toContain("updateAssignment('orchestrator'");
   });
 
+  it('pins orchestrator control actions to a consistent card footer', () => {
+    const source = readCombinedSource();
+    expect(source).toContain('flex h-full flex-col gap-3');
+    expect(source).toContain('flex-1 space-y-3');
+    expect(source).toContain('mt-auto flex flex-wrap gap-2 pt-1');
+  });
+
   it('exposes a first-class delete role flow for custom roles with built-in protection', () => {
     const source = readCombinedSource();
     expect(source).toContain('dashboardApi.deleteRoleDefinition');
