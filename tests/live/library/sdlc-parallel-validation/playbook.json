@@ -1,0 +1,75 @@
+{
+  "name": "SDLC Parallel Validation Live Test Cycle",
+  "slug": "live-test-sdlc-parallel-validation-v1",
+  "description": "Test-owned SDLC playbook used to prove reviewer and QA fan out in parallel after implementation.",
+  "outcome": "Production-ready software with repository-backed release notes, parallel review evidence, and QA evidence.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The live-test product manager clarifies the goal and acceptance criteria. The live-test architect produces the technical design before implementation. The live-test developer implements the change. After implementation is complete, the live-test reviewer and live-test QA engineer must both validate the delivered change in parallel on the same validation checkpoint. The reviewer focuses on correctness, regressions, safety, and missing evidence. QA focuses on behavioral verification, edge cases, and release evidence. Both must read the developer handoff and repository state before completing. This positive-path scenario has no human approvals and no deliberate rework. Release work begins only after both validation handoffs are complete. When a checkpoint deliverable is accepted and the next checkpoint begins, complete the finished checkpoint work item instead of leaving it open.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "live-test-product-manager",
+      "live-test-architect",
+      "live-test-developer",
+      "live-test-reviewer",
+      "live-test-qa"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
+        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
+        { "id": "review", "label": "In Review", "description": "Primary work is under validation." },
+        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
+        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+      ]
+    },
+    "stages": [
+      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria", "involves": ["live-test-product-manager", "live-test-architect"], "human_gate": false },
+      { "name": "design", "goal": "Approved system design with key decisions captured", "involves": ["live-test-architect", "live-test-product-manager"] },
+      { "name": "implementation", "goal": "Working code with tests on a feature branch", "involves": ["live-test-developer"] },
+      { "name": "validation", "goal": "Reviewer and QA verdicts exist for the delivered change", "involves": ["live-test-reviewer", "live-test-qa", "live-test-developer"] },
+      { "name": "release", "goal": "Operator-ready release package and final release summary", "involves": ["live-test-product-manager"], "human_gate": false }
+    ],
+    "checkpoints": [
+      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria.", "human_gate": false, "entry_criteria": "The workflow goal and initial context are available." },
+      { "name": "design", "goal": "A design exists for the implementation approach when needed.", "human_gate": false, "entry_criteria": "Requirements are clear enough to shape implementation." },
+      { "name": "implementation", "goal": "Working code exists and is ready for validation.", "human_gate": false, "entry_criteria": "Requirements and any required design are available." },
+      { "name": "validation", "goal": "Reviewer and QA validation evidence are both complete.", "human_gate": false, "entry_criteria": "Implementation output and developer handoff are available." },
+      { "name": "release", "goal": "Release notes, residual risk, and operator summary are complete.", "human_gate": false, "entry_criteria": "Reviewer and QA validation evidence are both complete." }
+    ],
+    "review_rules": [
+      {
+        "from_role": "live-test-developer",
+        "reviewed_by": "live-test-reviewer",
+        "checkpoint": "validation",
+        "required": true,
+        "on_reject": { "action": "return_to_role", "role": "live-test-developer" }
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      { "from_role": "live-test-product-manager", "to_role": "live-test-architect", "required": true },
+      { "from_role": "live-test-architect", "to_role": "live-test-developer", "required": true },
+      { "from_role": "live-test-developer", "to_role": "live-test-reviewer", "checkpoint": "validation", "required": true },
+      { "from_role": "live-test-developer", "to_role": "live-test-qa", "checkpoint": "validation", "required": true },
+      { "from_role": "live-test-reviewer", "to_role": "live-test-product-manager", "checkpoint": "release", "required": true },
+      { "from_role": "live-test-qa", "to_role": "live-test-product-manager", "checkpoint": "release", "required": true }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 2,
+      "allow_parallel_work_items": false
+    }
+  }
+}

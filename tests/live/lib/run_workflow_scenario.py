@@ -540,6 +540,29 @@ def evaluate_expectations(
                             f"expected fleet playbook pool {peak_key} <= {expected_max}, got {actual_peak}"
                         )
 
+                for expectation_key, peak_key in (
+                    ("peak_running_gte", "peak_running"),
+                    ("peak_executing_gte", "peak_executing"),
+                    ("peak_active_workflows_gte", "peak_active_workflows"),
+                ):
+                    if expectation_key not in pool_expectations:
+                        continue
+                    expected_min = int(pool_expectations[expectation_key])
+                    actual_peak = int(peaks.get(peak_key, 0))
+                    passed = actual_peak >= expected_min
+                    checks.append(
+                        {
+                            "name": f"fleet.playbook_pool.{expectation_key}",
+                            "passed": passed,
+                            "expected_min": expected_min,
+                            "actual": actual_peak,
+                        }
+                    )
+                    if not passed:
+                        failures.append(
+                            f"expected fleet playbook pool {peak_key} >= {expected_min}, got {actual_peak}"
+                        )
+
     approval_action_expectations = expectations.get("approval_actions", [])
     if isinstance(approval_action_expectations, list):
         for entry in approval_action_expectations:

@@ -166,6 +166,8 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                         "max_runtimes": 2,
                         "peak_running_lte": 2,
                         "peak_executing_lte": 2,
+                        "peak_running_gte": 1,
+                        "peak_executing_gte": 1,
                     }
                 }
             },
@@ -199,6 +201,47 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertIn("fleet.playbook_pool.max_runtimes", check_names)
         self.assertIn("fleet.playbook_pool.peak_running_lte", check_names)
         self.assertIn("fleet.playbook_pool.peak_executing_lte", check_names)
+        self.assertIn("fleet.playbook_pool.peak_running_gte", check_names)
+        self.assertIn("fleet.playbook_pool.peak_executing_gte", check_names)
+
+    def test_evaluate_expectations_reports_fleet_peak_lower_bound_failures(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "fleet": {
+                    "playbook_pool": {
+                        "peak_running_gte": 2,
+                        "peak_executing_gte": 2,
+                    }
+                }
+            },
+            workflow={"state": "completed", "tasks": []},
+            board={"ok": True, "data": {"columns": []}},
+            work_items={"ok": True, "data": []},
+            workspace={"memory": {}, "memory_index": {"keys": []}, "artifact_index": {"items": []}},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={
+                "ok": True,
+                "data": {
+                    "by_playbook_pool": [
+                        {
+                            "playbook_id": "playbook-1",
+                            "max_runtimes": 2,
+                            "running": 1,
+                            "executing": 1,
+                            "active_workflows": 1,
+                        }
+                    ]
+                },
+            },
+            playbook_id="playbook-1",
+            fleet_peaks={"peak_running": 1, "peak_executing": 1, "peak_active_workflows": 1},
+        )
+
+        self.assertFalse(result["passed"])
+        self.assertIn("expected fleet playbook pool peak_running >= 2, got 1", result["failures"])
+        self.assertIn("expected fleet playbook pool peak_executing >= 2, got 1", result["failures"])
 
     def test_evaluate_expectations_accepts_generic_specialist_pool_fallback(self) -> None:
         result = run_workflow_scenario.evaluate_expectations(

@@ -25,6 +25,7 @@ EXPECTED_SCENARIOS = {
     "product-requirements-request-changes-then-approve",
     "parallel-burst-ten-work-items",
     "parallel-burst-two-runtimes",
+    "sdlc-parallel-validation-positive",
 }
 
 

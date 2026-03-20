@@ -1,0 +1,35 @@
+{
+  "name": "sdlc-parallel-validation-positive",
+  "profile": "sdlc-parallel-validation",
+  "workflow": {
+    "name": "SDLC Parallel Validation Proof",
+    "goal": "Add support for named greetings and uppercase output while preserving the default greeting, with reviewer and QA validation running in parallel after implementation."
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 6
+    },
+    "fleet": {
+      "playbook_pool": {
+        "peak_running_gte": 2,
+        "peak_running_lte": 2,
+        "peak_executing_gte": 2,
+        "peak_executing_lte": 2
+      }
+    }
+  }
+}
