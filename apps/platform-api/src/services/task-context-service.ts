@@ -189,7 +189,7 @@ export async function buildTaskContext(
 function resolveTaskContextAnchor(task: Record<string, unknown>): TaskContextAnchor {
   const workItemId = asOptionalString(task.work_item_id) ?? null;
   const stageName = asOptionalString(task.stage_name) ?? null;
-  if (workItemId || stageName) {
+  if (workItemId) {
     return {
       source: 'task',
       event_type: null,
@@ -200,22 +200,32 @@ function resolveTaskContextAnchor(task: Record<string, unknown>): TaskContextAnc
   }
 
   const activationEvent = readActivationEventAnchor(asRecord(task.input));
-  if (!activationEvent) {
+  if (activationEvent) {
     return {
-      source: 'none',
+      source: 'activation_event',
+      event_type: activationEvent.event_type,
+      work_item_id: activationEvent.work_item_id,
+      stage_name: activationEvent.stage_name,
+      triggering_task_id: activationEvent.triggering_task_id,
+    };
+  }
+
+  if (stageName) {
+    return {
+      source: 'task',
       event_type: null,
       work_item_id: null,
-      stage_name: null,
+      stage_name: stageName,
       triggering_task_id: null,
     };
   }
 
   return {
-    source: 'activation_event',
-    event_type: activationEvent.event_type,
-    work_item_id: activationEvent.work_item_id,
-    stage_name: activationEvent.stage_name,
-    triggering_task_id: activationEvent.triggering_task_id,
+    source: 'none',
+    event_type: null,
+    work_item_id: null,
+    stage_name: null,
+    triggering_task_id: null,
   };
 }
 
