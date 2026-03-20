@@ -37,7 +37,6 @@ export function ToolsPage(): JSX.Element {
     queryKey: ['tools'],
     queryFn: () => dashboardApi.listToolTags(),
   });
-  const [editorMode, setEditorMode] = useState<'create' | 'edit'>('create');
   const [editorOpen, setEditorOpen] = useState(false);
   const [editorDraft, setEditorDraft] = useState(createEmptyToolTagDraft());
   const [editorError, setEditorError] = useState<string | null>(null);
@@ -45,26 +44,6 @@ export function ToolsPage(): JSX.Element {
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const summaryCards = useMemo(() => summarizeTools(data), [data]);
-  const createMutation = useMutation({
-    mutationFn: () =>
-      dashboardApi.createToolTag({
-        id: editorDraft.id.trim(),
-        name: editorDraft.name.trim(),
-        description: editorDraft.description.trim(),
-        category: editorDraft.category,
-      }),
-    onSuccess: async () => {
-      setEditorError(null);
-      setEditorOpen(false);
-      setEditorDraft(createEmptyToolTagDraft());
-      await queryClient.invalidateQueries({ queryKey: ['tools'] });
-    },
-    onError: (mutationError) => {
-      setEditorError(
-        mutationError instanceof Error ? mutationError.message : 'Failed to create tool tag.',
-      );
-    },
-  });
   const updateMutation = useMutation({
     mutationFn: () =>
       dashboardApi.updateToolTag(editorDraft.id, {
@@ -103,15 +82,7 @@ export function ToolsPage(): JSX.Element {
     },
   });
 
-  function openCreateDialog(): void {
-    setEditorMode('create');
-    setEditorDraft(createEmptyToolTagDraft());
-    setEditorError(null);
-    setEditorOpen(true);
-  }
-
   function openEditDialog(tool: ToolTag): void {
-    setEditorMode('edit');
     setEditorDraft({
       id: tool.id,
       name: tool.name,
@@ -138,12 +109,9 @@ export function ToolsPage(): JSX.Element {
   return (
     <div className="space-y-6 p-6">
       <div className="space-y-2">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2">
-            <Wrench className="h-5 w-5 text-accent" />
-            <h1 className="text-2xl font-semibold">Tools</h1>
-          </div>
-          <Button onClick={openCreateDialog}>Create Tool Tag</Button>
+        <div className="flex items-center gap-2">
+          <Wrench className="h-5 w-5 text-accent" />
+          <h1 className="text-2xl font-semibold">Tools</h1>
         </div>
         <p className="max-w-3xl text-sm text-muted">
           Built-in tools available to agents. Use the Roles page to control which tools each role can access.
@@ -237,10 +205,10 @@ export function ToolsPage(): JSX.Element {
       )}
       <ToolTagEditorDialog
         isOpen={editorOpen}
-        mode={editorMode}
+        mode="edit"
         draft={editorDraft}
         error={editorError}
-        isPending={createMutation.isPending || updateMutation.isPending}
+        isPending={updateMutation.isPending}
         onOpenChange={(open) => {
           setEditorOpen(open);
           if (!open) {
@@ -249,13 +217,7 @@ export function ToolsPage(): JSX.Element {
           }
         }}
         onDraftChange={setEditorDraft}
-        onSubmit={() => {
-          if (editorMode === 'create') {
-            createMutation.mutate();
-            return;
-          }
-          updateMutation.mutate();
-        }}
+        onSubmit={() => updateMutation.mutate()}
       />
       <ToolTagDeleteDialog
         isOpen={deleteTarget !== null}
