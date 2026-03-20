@@ -393,6 +393,42 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     step: 1,
   },
   {
+    key: 'agent.max_tool_steps_per_burst',
+    label: 'Maximum tool steps per burst',
+    description:
+      'How many tool steps a reactive loop may execute before it must stop and re-evaluate progress.',
+    configType: 'number',
+    placeholder: '8',
+    section: 'agent_safeguards',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
+    key: 'agent.max_mutating_steps_per_burst',
+    label: 'Maximum mutating steps per burst',
+    description:
+      'How many mutating tool steps a reactive loop may execute before it must stop and re-evaluate progress.',
+    configType: 'number',
+    placeholder: '3',
+    section: 'agent_safeguards',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
+    key: 'agent.max_burst_elapsed_ms',
+    label: 'Maximum burst elapsed time (ms)',
+    description:
+      'How long a reactive burst may run before the runtime forces a new planning boundary.',
+    configType: 'number',
+    placeholder: '45000',
+    section: 'agent_safeguards',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
     key: 'agent.max_stuck_interventions',
     label: 'Maximum stuck interventions',
     description:

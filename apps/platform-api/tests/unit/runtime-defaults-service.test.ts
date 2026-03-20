@@ -704,6 +704,24 @@ describe('RuntimeDefaultsService', () => {
       ).rejects.toThrow('agent.max_iterations must be at least 1');
     });
 
+    it('rejects invalid reactive burst safeguard updates', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [
+          {
+            ...sampleDefault,
+            config_key: 'agent.max_tool_steps_per_burst',
+            config_value: '8',
+            config_type: 'number',
+          },
+        ],
+        rowCount: 1,
+      });
+
+      await expect(
+        service.updateDefault(TENANT_ID, DEFAULT_ID, { configValue: '0' }),
+      ).rejects.toThrow('agent.max_tool_steps_per_burst must be at least 1');
+    });
+
     it('redacts secret refs from update responses for secret-bearing defaults', async () => {
       pool.query
         .mockResolvedValueOnce({

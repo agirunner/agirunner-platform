@@ -50,6 +50,24 @@ const loopSafeguardDefaults = [
     config_type: 'number',
     updated_at: new Date(),
   },
+  {
+    config_key: 'agent.max_tool_steps_per_burst',
+    config_value: '8',
+    config_type: 'number',
+    updated_at: new Date(),
+  },
+  {
+    config_key: 'agent.max_mutating_steps_per_burst',
+    config_value: '3',
+    config_type: 'number',
+    updated_at: new Date(),
+  },
+  {
+    config_key: 'agent.max_burst_elapsed_ms',
+    config_value: '45000',
+    config_type: 'number',
+    updated_at: new Date(),
+  },
 ];
 
 const sampleSecretDefault = {
@@ -194,6 +212,9 @@ describe('RuntimeConfigService', () => {
       { key: 'agent.loop_detection_repeat', value: '3', type: 'number' },
       { key: 'agent.response_repeat_threshold', value: '2', type: 'number' },
       { key: 'agent.no_file_change_threshold', value: '50', type: 'number' },
+      { key: 'agent.max_tool_steps_per_burst', value: '8', type: 'number' },
+      { key: 'agent.max_mutating_steps_per_burst', value: '3', type: 'number' },
+      { key: 'agent.max_burst_elapsed_ms', value: '45000', type: 'number' },
     ]);
   });
 });

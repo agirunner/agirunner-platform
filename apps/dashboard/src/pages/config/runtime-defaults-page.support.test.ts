@@ -58,6 +58,16 @@ describe('runtime defaults page support', () => {
       'global_max_runtimes',
       'global_max_execution_containers',
     ]);
+    expect(fieldsForSection('agent_safeguards').map((field) => field.key)).toEqual([
+      'agent.loop_detection_repeat',
+      'agent.response_repeat_threshold',
+      'agent.no_file_change_threshold',
+      'agent.max_tool_steps_per_burst',
+      'agent.max_mutating_steps_per_burst',
+      'agent.max_burst_elapsed_ms',
+      'agent.max_stuck_interventions',
+      'agent.llm_max_retries',
+    ]);
     expect(fieldsForSection('runtime_throughput').map((field) => field.key)).toEqual([
       'queue.max_concurrency',
       'queue.max_depth',
@@ -109,6 +119,15 @@ describe('runtime defaults page support', () => {
     const noProgressField = FIELD_DEFINITIONS.find(
       (field) => field.key === 'agent.no_file_change_threshold',
     );
+    const maxToolStepsField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.max_tool_steps_per_burst',
+    );
+    const maxMutatingStepsField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.max_mutating_steps_per_burst',
+    );
+    const maxBurstElapsedField = FIELD_DEFINITIONS.find(
+      (field) => field.key === 'agent.max_burst_elapsed_ms',
+    );
 
     expect(loopRepeatField).toMatchObject({
       placeholder: '3',
@@ -123,6 +142,21 @@ describe('runtime defaults page support', () => {
       placeholder: '50',
       description:
         'Intervene only after this many turns with no meaningful progress toward task completion.',
+    });
+    expect(maxToolStepsField).toMatchObject({
+      placeholder: '8',
+      description:
+        'How many tool steps a reactive loop may execute before it must stop and re-evaluate progress.',
+    });
+    expect(maxMutatingStepsField).toMatchObject({
+      placeholder: '3',
+      description:
+        'How many mutating tool steps a reactive loop may execute before it must stop and re-evaluate progress.',
+    });
+    expect(maxBurstElapsedField).toMatchObject({
+      placeholder: '45000',
+      description:
+        'How long a reactive burst may run before the runtime forces a new planning boundary.',
     });
   });
 

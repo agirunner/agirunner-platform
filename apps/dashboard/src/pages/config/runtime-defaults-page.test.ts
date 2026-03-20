@@ -62,6 +62,9 @@ describe('runtime defaults page source', () => {
         'platform.drain_timeout_seconds',
         'agent.max_iterations',
         'agent.llm_max_retries',
+        'agent.max_tool_steps_per_burst',
+        'agent.max_mutating_steps_per_burst',
+        'agent.max_burst_elapsed_ms',
       ]),
     );
 

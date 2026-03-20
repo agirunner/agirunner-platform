@@ -119,7 +119,10 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
           AND config_key IN (
             'agent.loop_detection_repeat',
             'agent.response_repeat_threshold',
-            'agent.no_file_change_threshold'
+            'agent.no_file_change_threshold',
+            'agent.max_tool_steps_per_burst',
+            'agent.max_mutating_steps_per_burst',
+            'agent.max_burst_elapsed_ms'
           )
         ORDER BY config_key ASC`,
       ['00000000-0000-0000-0000-000000000001'],
@@ -130,6 +133,24 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         config_key: 'agent.loop_detection_repeat',
         config_value: '3',
         description: 'Flag repeated loop patterns after this many repeated turns',
+      },
+      {
+        config_key: 'agent.max_burst_elapsed_ms',
+        config_value: '45000',
+        description:
+          'Maximum elapsed time in milliseconds allowed for one reactive burst before re-evaluating',
+      },
+      {
+        config_key: 'agent.max_mutating_steps_per_burst',
+        config_value: '3',
+        description:
+          'Maximum mutating tool steps the runtime executes inside one reactive burst before re-evaluating',
+      },
+      {
+        config_key: 'agent.max_tool_steps_per_burst',
+        config_value: '8',
+        description:
+          'Maximum tool steps the runtime executes inside one reactive burst before re-evaluating',
       },
       {
         config_key: 'agent.no_file_change_threshold',

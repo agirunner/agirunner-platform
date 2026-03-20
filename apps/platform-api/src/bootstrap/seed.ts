@@ -986,6 +986,24 @@ async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsServic
       description: 'Intervene only after this many turns with no meaningful progress toward task completion',
     },
     {
+      configKey: 'agent.max_tool_steps_per_burst',
+      configValue: '8',
+      configType: 'number',
+      description: 'Maximum tool steps the runtime executes inside one reactive burst before re-evaluating',
+    },
+    {
+      configKey: 'agent.max_mutating_steps_per_burst',
+      configValue: '3',
+      configType: 'number',
+      description: 'Maximum mutating tool steps the runtime executes inside one reactive burst before re-evaluating',
+    },
+    {
+      configKey: 'agent.max_burst_elapsed_ms',
+      configValue: '45000',
+      configType: 'number',
+      description: 'Maximum elapsed time in milliseconds allowed for one reactive burst before re-evaluating',
+    },
+    {
       configKey: 'agent.max_stuck_interventions',
       configValue: '2',
       configType: 'number',
