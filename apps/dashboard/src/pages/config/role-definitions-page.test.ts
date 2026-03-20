@@ -26,7 +26,15 @@ function readCombinedSource() {
     readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.form.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-orchestrator.support.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-list.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-list.support.ts'), 'utf8'),
     readFileSync(resolve(import.meta.dirname, './role-definitions-page.support.ts'), 'utf8'),
+  ].join('\n');
+}
+
+function readExpandedRoleRowSource() {
+  return [
+    readFileSync(resolve(import.meta.dirname, './role-definitions-list.tsx'), 'utf8'),
+    readFileSync(resolve(import.meta.dirname, './role-definitions-list.support.ts'), 'utf8'),
   ].join('\n');
 }
 
@@ -121,5 +129,14 @@ describe('role definitions page source', () => {
     expect(source).toContain('Delete Role');
     expect(source).toContain('Built-in roles are protected and can only be deactivated.');
     expect(source).toContain('onDelete={setDeletingRole}');
+  });
+
+  it('keeps the expanded role row compact and human-readable', () => {
+    const source = readExpandedRoleRowSource();
+    expect(source).toContain('Verification and escalation');
+    expect(source).toContain('line-clamp-3');
+    expect(source).not.toContain('Capabilities');
+    expect(source).not.toContain('Metadata');
+    expect(source).not.toContain('props.role.allowed_tools.map');
   });
 });

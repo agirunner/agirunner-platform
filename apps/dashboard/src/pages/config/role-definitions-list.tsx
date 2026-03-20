@@ -149,10 +149,8 @@ export function RoleRow(props: {
                 {[
                   detailSummary.model,
                   detailSummary.tools,
-                  detailSummary.capabilities,
                   detailSummary.executionContainer,
                   detailSummary.governance,
-                  detailSummary.metadata,
                 ].map((item) => (
                   <div key={item.title} className="rounded-lg border border-border/70 bg-background/80 p-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
@@ -166,17 +164,10 @@ export function RoleRow(props: {
                 <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
                   System prompt
                 </div>
-                <p className="mt-2 font-mono text-sm whitespace-pre-wrap">{detailSummary.promptPreview}</p>
+                <p className="mt-2 line-clamp-3 font-mono text-sm whitespace-pre-wrap">
+                  {detailSummary.promptPreview}
+                </p>
               </div>
-              {props.role.allowed_tools?.length ? (
-                <div className="flex flex-wrap gap-1">
-                  {props.role.allowed_tools.map((tool) => (
-                    <Badge key={tool} variant="outline">
-                      {tool}
-                    </Badge>
-                  ))}
-                </div>
-              ) : null}
             </div>
           </TableCell>
         </TableRow>
