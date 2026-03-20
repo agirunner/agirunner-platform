@@ -34,6 +34,7 @@ LIVE_TEST_PROVIDER_BASE_URL="${LIVE_TEST_PROVIDER_BASE_URL:-https://api.openai.c
 LIVE_TEST_PROVIDER_API_KEY="${LIVE_TEST_PROVIDER_API_KEY:-${LIVE_TEST_OPENAI_API_KEY:-}}"
 LIVE_TEST_OAUTH_PROFILE_ID="${LIVE_TEST_OAUTH_PROFILE_ID:-}"
 LIVE_TEST_OAUTH_SESSION_JSON="${LIVE_TEST_OAUTH_SESSION_JSON:-}"
+LIVE_TEST_OAUTH_SESSION_SOURCE="${LIVE_TEST_OAUTH_SESSION_SOURCE:-current_db}"
 LIVE_TEST_MODEL_ID="${LIVE_TEST_MODEL_ID:-gpt-5.4}"
 LIVE_TEST_MODEL_ENDPOINT_TYPE="${LIVE_TEST_MODEL_ENDPOINT_TYPE:-responses}"
 LIVE_TEST_SYSTEM_REASONING_EFFORT="${LIVE_TEST_SYSTEM_REASONING_EFFORT:-low}"
@@ -62,7 +63,23 @@ case "${LIVE_TEST_PROVIDER_AUTH_MODE}" in
     ;;
   oauth)
     require_live_test_value "LIVE_TEST_OAUTH_PROFILE_ID" "${LIVE_TEST_OAUTH_PROFILE_ID:-}"
-    require_live_test_value "LIVE_TEST_OAUTH_SESSION_JSON" "${LIVE_TEST_OAUTH_SESSION_JSON:-}"
+    if [[ -z "${LIVE_TEST_OAUTH_SESSION_JSON:-}" ]]; then
+      case "${LIVE_TEST_OAUTH_SESSION_SOURCE}" in
+        current_db)
+          log_live_test "exporting oauth session ${LIVE_TEST_OAUTH_PROFILE_ID} from current database"
+          LIVE_TEST_OAUTH_SESSION_JSON="$(
+            bash "${LIVE_TEST_ROOT}/export-current-oauth-session.sh"
+          )"
+          ;;
+        env)
+          require_live_test_value "LIVE_TEST_OAUTH_SESSION_JSON" "${LIVE_TEST_OAUTH_SESSION_JSON:-}"
+          ;;
+        *)
+          echo "[tests/live] unsupported LIVE_TEST_OAUTH_SESSION_SOURCE: ${LIVE_TEST_OAUTH_SESSION_SOURCE}" >&2
+          exit 1
+          ;;
+      esac
+    fi
     if [[ "${LIVE_TEST_PROVIDER_NAME}" == "OpenAI" ]]; then
       LIVE_TEST_PROVIDER_NAME="OpenAI (Subscription)"
     fi
@@ -138,6 +155,7 @@ export LIVE_TEST_PROVIDER_BASE_URL
 export LIVE_TEST_PROVIDER_API_KEY
 export LIVE_TEST_OAUTH_PROFILE_ID
 export LIVE_TEST_OAUTH_SESSION_JSON
+export LIVE_TEST_OAUTH_SESSION_SOURCE
 export LIVE_TEST_MODEL_ID
 export LIVE_TEST_MODEL_ENDPOINT_TYPE
 export LIVE_TEST_SYSTEM_REASONING_EFFORT
