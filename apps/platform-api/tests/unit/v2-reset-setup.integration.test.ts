@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -78,6 +79,27 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
 
     expect(rebuiltSnapshot).toEqual(initialSnapshot);
   }, 120_000);
+
+  it('seeds a runtime default row for every field shown on the runtime defaults dashboard', async () => {
+    expect(db).not.toBeNull();
+    const pool = db!.pool;
+
+    await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
+    await seedConfigTables(pool);
+
+    const seededRows = await pool.query<{ config_key: string }>(
+      `SELECT config_key
+         FROM runtime_defaults
+        WHERE tenant_id = $1`,
+      ['00000000-0000-0000-0000-000000000001'],
+    );
+
+    const seededKeys = new Set(seededRows.rows.map((row) => row.config_key));
+    const dashboardKeys = readRuntimeDefaultsDashboardFieldKeys();
+    const missingKeys = dashboardKeys.filter((key) => !seededKeys.has(key));
+
+    expect(missingKeys).toEqual([]);
+  });
 
   it('preserves admin key and explicit llm page defaults while rebuilding redesign-owned state', async () => {
     expect(db).not.toBeNull();
@@ -280,6 +302,63 @@ async function captureLegacySchemaState(pool: TestDatabase['pool']) {
     webhook_task_trigger_invocations_table:
       webhookTaskTriggerInvocationTable.rows[0]?.regclass ?? null,
   };
+}
+
+function readRuntimeDefaultsDashboardFieldKeys(): string[] {
+  const dashboardDir = path.resolve(
+    __dirname,
+    '../../../dashboard/src/pages/config',
+  );
+  const sources = [
+    path.join(dashboardDir, 'runtime-defaults.schema.ts'),
+    path.join(dashboardDir, 'runtime-defaults-runtime-ops.ts'),
+  ];
+  const sectionKeys = new Set([
+    'runtime_containers',
+    'execution_containers',
+    'task_limits',
+    'capacity_limits',
+    'agent_context',
+    'orchestrator_context',
+    'agent_safeguards',
+    'runtime_throughput',
+    'process_logging',
+    'server_timeouts',
+    'runtime_api',
+    'llm_transport',
+    'tool_timeouts',
+    'container_timeouts',
+    'lifecycle_timeouts',
+    'task_timeouts',
+    'connected_platform',
+    'realtime_transport',
+    'workflow_activation',
+    'container_manager',
+    'worker_supervision',
+    'agent_supervision',
+    'webhook_delivery',
+    'platform_loops',
+    'workspace_timeouts',
+    'workspace_operations',
+    'capture_timeouts',
+    'secrets_timeouts',
+    'subagent_timeouts',
+  ]);
+  const configKeyPattern = /key:\s*'([^']+)'/g;
+  const keys = new Set<string>();
+
+  for (const source of sources) {
+    const text = readFileSync(source, 'utf8');
+    for (const match of text.matchAll(configKeyPattern)) {
+      const key = match[1];
+      if (!key || sectionKeys.has(key)) {
+        continue;
+      }
+      keys.add(key);
+    }
+  }
+
+  return [...keys].sort();
 }
 
 function migrationsDirFromTest() {

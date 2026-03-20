@@ -595,6 +595,281 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
     description:
       'Grace period in seconds used when stopping runtime containers that are classified as hung',
   });
+
+  await seedDashboardBackedRuntimeDefaults(service);
+}
+
+async function seedDashboardBackedRuntimeDefaults(service: RuntimeDefaultsService): Promise<void> {
+  const defaults = [
+    {
+      configKey: 'server.shutdown_timeout_seconds',
+      configValue: '5',
+      configType: 'number',
+      description: 'How long the runtime waits for graceful shutdown before forcing termination',
+    },
+    {
+      configKey: 'server.read_header_timeout_seconds',
+      configValue: '5',
+      configType: 'number',
+      description: 'Maximum time allowed to receive incoming HTTP request headers',
+    },
+    {
+      configKey: 'llm.http_timeout_seconds',
+      configValue: '60',
+      configType: 'number',
+      description: 'Upper bound for outbound LLM HTTP requests from runtime provider adapters',
+    },
+    {
+      configKey: 'docker.checker_timeout_ms',
+      configValue: '500',
+      configType: 'number',
+      description: 'Timeout in milliseconds for runtime Docker availability checks',
+    },
+    {
+      configKey: 'docker.stop_timeout_seconds',
+      configValue: '10',
+      configType: 'number',
+      description: 'Grace period in seconds before the runtime force-stops managed containers',
+    },
+    {
+      configKey: 'container.copy_timeout_seconds',
+      configValue: '30',
+      configType: 'number',
+      description: 'Timeout in seconds for container copy operations during task setup and capture',
+    },
+    {
+      configKey: 'containerd.connect_timeout_seconds',
+      configValue: '5',
+      configType: 'number',
+      description: 'Timeout in seconds for containerd client connection attempts',
+    },
+    {
+      configKey: 'lifecycle.healthcheck_timeout_seconds',
+      configValue: '5',
+      configType: 'number',
+      description: 'Timeout in seconds for runtime health checks against newly created containers',
+    },
+    {
+      configKey: 'lifecycle.healthcheck_retry_delay_seconds',
+      configValue: '2',
+      configType: 'number',
+      description: 'Delay in seconds between lifecycle health check retries',
+    },
+    {
+      configKey: 'lifecycle.failed_start_stop_timeout_seconds',
+      configValue: '2',
+      configType: 'number',
+      description: 'Grace period in seconds when stopping containers that failed during startup',
+    },
+    {
+      configKey: 'queue.max_concurrency',
+      configValue: '2',
+      configType: 'number',
+      description: 'Maximum number of task executions a single specialist runtime may process concurrently',
+    },
+    {
+      configKey: 'queue.max_depth',
+      configValue: '100',
+      configType: 'number',
+      description: 'Maximum queued tasks buffered inside one specialist runtime process',
+    },
+    {
+      configKey: 'capture.push_retries',
+      configValue: '3',
+      configType: 'number',
+      description: 'How many times capture retries result publication before failing the task',
+    },
+    {
+      configKey: 'capture.push_timeout_seconds',
+      configValue: '60',
+      configType: 'number',
+      description: 'Deadline in seconds for capture-side artifact upload and result publication',
+    },
+    {
+      configKey: 'capture.exec_timeout_seconds',
+      configValue: '10',
+      configType: 'number',
+      description: 'Maximum duration in seconds for capture-side shell execution while packaging task results',
+    },
+    {
+      configKey: 'secrets.vault_timeout_seconds',
+      configValue: '10',
+      configType: 'number',
+      description: 'Upper bound in seconds for Vault reads and revocation calls',
+    },
+    {
+      configKey: 'subagent.max_concurrent',
+      configValue: '3',
+      configType: 'number',
+      description: 'Maximum number of subagents that may run concurrently for one root task',
+    },
+    {
+      configKey: 'subagent.max_total',
+      configValue: '10',
+      configType: 'number',
+      description: 'Maximum total subagents a root task may spawn over its lifetime',
+    },
+    {
+      configKey: 'subagent.max_depth',
+      configValue: '1',
+      configType: 'number',
+      description: 'Maximum recursive delegation depth allowed for spawned subagents',
+    },
+    {
+      configKey: 'subagent.default_timeout_seconds',
+      configValue: '300',
+      configType: 'number',
+      description: 'Default timeout in seconds applied to spawned subagents when no override is provided',
+    },
+    {
+      configKey: 'workspace.snapshot_max_per_task',
+      configValue: '10',
+      configType: 'number',
+      description: 'Maximum automatic workspace snapshots retained per task',
+    },
+    {
+      configKey: 'agent.history_max_messages',
+      configValue: '100',
+      configType: 'number',
+      description: 'Maximum message history kept before specialist task context is compacted',
+    },
+    {
+      configKey: 'agent.history_preserve_recent',
+      configValue: '20',
+      configType: 'number',
+      description: 'Fallback recent-message tail preserved during compaction when no role-specific override is set',
+    },
+    {
+      configKey: 'agent.context_compaction_threshold',
+      configValue: '0.8',
+      configType: 'number',
+      description: 'Base context-pressure threshold that triggers compaction when no role-specific override is set',
+    },
+    {
+      configKey: 'agent.context_compaction_chars_per_token',
+      configValue: '4',
+      configType: 'number',
+      description: 'Fallback character-per-token estimate used when model-side token accounting is unavailable',
+    },
+    {
+      configKey: 'agent.specialist_context_strategy',
+      configValue: 'auto',
+      configType: 'string',
+      description: 'Default continuity strategy for specialist tasks',
+    },
+    {
+      configKey: 'agent.specialist_context_warning_threshold',
+      configValue: '0.7',
+      configType: 'number',
+      description: 'Warn specialists about rising context pressure before compaction starts',
+    },
+    {
+      configKey: 'agent.specialist_context_compaction_threshold',
+      configValue: '0.8',
+      configType: 'number',
+      description: 'Role-specific compaction threshold override for specialists',
+    },
+    {
+      configKey: 'agent.specialist_context_tail_messages',
+      configValue: '20',
+      configType: 'number',
+      description: 'Role-specific preserved recent message count for specialists',
+    },
+    {
+      configKey: 'agent.specialist_context_preserve_memory_ops',
+      configValue: '3',
+      configType: 'number',
+      description: 'How many recent specialist memory breadcrumbs must survive compaction',
+    },
+    {
+      configKey: 'agent.specialist_context_preserve_artifact_ops',
+      configValue: '3',
+      configType: 'number',
+      description: 'How many recent specialist artifact breadcrumbs must survive compaction',
+    },
+    {
+      configKey: 'agent.specialist_prepare_for_compaction_enabled',
+      configValue: 'true',
+      configType: 'boolean',
+      description: 'Whether specialists proactively prepare continuity breadcrumbs before compaction',
+    },
+    {
+      configKey: 'agent.orchestrator_history_preserve_recent',
+      configValue: '30',
+      configType: 'number',
+      description: 'Preserved recent message tail for orchestrator activations',
+    },
+    {
+      configKey: 'agent.orchestrator_context_compaction_threshold',
+      configValue: '0.9',
+      configType: 'number',
+      description: 'Context-pressure threshold that triggers orchestrator activation compaction',
+    },
+    {
+      configKey: 'agent.orchestrator_context_strategy',
+      configValue: 'activation_checkpoint',
+      configType: 'string',
+      description: 'Continuity strategy for orchestrator activations',
+    },
+    {
+      configKey: 'agent.orchestrator_finish_checkpoint_enabled',
+      configValue: 'true',
+      configType: 'boolean',
+      description: 'Whether orchestrator activations persist a checkpoint at the end of a successful run',
+    },
+    {
+      configKey: 'agent.orchestrator_finish_refresh_context_bundle',
+      configValue: 'true',
+      configType: 'boolean',
+      description: 'Whether orchestrator finish-time checkpoints refresh the context bundle before persistence',
+    },
+    {
+      configKey: 'agent.orchestrator_emergency_compaction_threshold',
+      configValue: '0.95',
+      configType: 'number',
+      description: 'Emergency context-pressure threshold for orchestrator activations',
+    },
+    {
+      configKey: 'agent.orchestrator_preserve_memory_ops',
+      configValue: '2',
+      configType: 'number',
+      description: 'How many recent orchestrator memory breadcrumbs must survive compaction',
+    },
+    {
+      configKey: 'agent.orchestrator_preserve_artifact_ops',
+      configValue: '2',
+      configType: 'number',
+      description: 'How many recent orchestrator artifact breadcrumbs must survive compaction',
+    },
+    {
+      configKey: 'agent.loop_detection_repeat',
+      configValue: '3',
+      configType: 'number',
+      description: 'Flag repeated loop patterns after this many repeated turns',
+    },
+    {
+      configKey: 'agent.response_repeat_threshold',
+      configValue: '2',
+      configType: 'number',
+      description: 'Mark the agent as stuck after this many repeated near-identical replies',
+    },
+    {
+      configKey: 'agent.no_file_change_threshold',
+      configValue: '50',
+      configType: 'number',
+      description: 'Intervene only after this many turns with no meaningful progress toward task completion',
+    },
+    {
+      configKey: 'agent.max_stuck_interventions',
+      configValue: '2',
+      configType: 'number',
+      description: 'How many automatic recovery interventions the runtime attempts before failing the task',
+    },
+  ] as const;
+
+  for (const item of defaults) {
+    await service.upsertDefault(DEFAULT_TENANT_ID, item);
+  }
 }
 
 async function deleteNonLlmRuntimeDefaults(db: DatabaseQueryable): Promise<void> {
