@@ -339,7 +339,7 @@ function AgentInventoryField(props: {
         value={props.value}
         onChange={props.onChange}
         placeholder="Select agent"
-        searchPlaceholder="Search agents by name, status, worker, or capability"
+        searchPlaceholder="Search agents by name, status, or worker"
         allGroupLabel="Registered agents"
         isLoading={props.isLoading}
         disabled={props.isLoading || props.hasError || isEmpty}

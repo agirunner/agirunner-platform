@@ -9,7 +9,6 @@ describe('role definitions list support', () => {
         id: 'role-1',
         name: 'developer',
         allowed_tools: ['file_read', 'file_write'],
-        capabilities: ['coding', 'testing'],
         model_preference: null,
         verification_strategy: 'peer-review',
         escalation_target: 'architect',

@@ -31,8 +31,8 @@ interface AgentRecord {
   status: string;
   current_task_id?: string | null;
   worker_id?: string | null;
-  capabilities?: string[];
-  profile?: Record<string, unknown>;
+  routing_tags?: string[];
+  metadata?: Record<string, unknown>;
   last_heartbeat_at?: string | null;
   created_at: string;
 }
@@ -76,11 +76,11 @@ function formatHeartbeat(timestamp: string | null | undefined): string {
 }
 
 function readAgentPool(agent: AgentRecord): PoolFilter {
-  const executionMode = agent.profile?.execution_mode;
+  const executionMode = agent.metadata?.execution_mode;
   if (executionMode === 'orchestrator' || executionMode === 'hybrid') {
     return executionMode;
   }
-  if (agent.capabilities?.includes('orchestrator')) {
+  if (agent.routing_tags?.includes('orchestrator')) {
     return 'orchestrator';
   }
   return 'specialist';

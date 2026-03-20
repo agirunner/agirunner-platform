@@ -31,7 +31,7 @@ export interface DashboardAgentRecord {
   id: string;
   worker_id?: string | null;
   name?: string | null;
-  capabilities?: string[] | null;
+  routing_tags?: string[] | null;
   status?: string | null;
   current_task_id?: string | null;
   heartbeat_interval_seconds?: number | null;

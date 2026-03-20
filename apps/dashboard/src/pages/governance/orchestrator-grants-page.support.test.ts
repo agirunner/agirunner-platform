@@ -75,7 +75,6 @@ describe('orchestrator grants support', () => {
         name: 'Zeta Runner',
         status: 'inactive',
         worker_id: 'worker-z',
-        capabilities: ['review'],
       },
       {
         id: 'agent-1',
@@ -83,7 +82,6 @@ describe('orchestrator grants support', () => {
         status: 'busy',
         worker_id: 'worker-a',
         current_task_id: 'task-9',
-        capabilities: ['orchestrator', 'review'],
       },
     ];
 
@@ -98,13 +96,13 @@ describe('orchestrator grants support', () => {
       {
         id: 'agent-1',
         label: 'Alpha Orchestrator',
-        subtitle: 'busy • worker worker-a • task task-9 • orchestrator, review',
+        subtitle: 'busy • worker worker-a • task task-9',
         status: 'pending',
       },
       {
         id: 'agent-2',
         label: 'Zeta Runner',
-        subtitle: 'inactive • worker worker-z • review',
+        subtitle: 'inactive • worker worker-z',
         status: 'failed',
       },
     ]);
@@ -114,7 +112,6 @@ describe('orchestrator grants support', () => {
       { label: 'Status', value: 'busy' },
       { label: 'Worker', value: 'worker-a' },
       { label: 'Current task', value: 'task-9' },
-      { label: 'Capabilities', value: 'orchestrator, review' },
     ]);
   });
 

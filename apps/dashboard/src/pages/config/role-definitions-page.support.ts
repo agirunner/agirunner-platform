@@ -4,7 +4,6 @@ export interface RoleDefinition {
   description?: string | null;
   system_prompt?: string | null;
   allowed_tools?: string[];
-  capabilities?: string[];
   model_preference?: string | null;
   verification_strategy?: string | null;
   escalation_target?: string | null;
@@ -33,7 +32,6 @@ export interface RoleFormState {
   description: string;
   systemPrompt: string;
   allowedTools: string[];
-  capabilities: string[];
   isActive: boolean;
   executionContainer: RoleExecutionContainerFormState;
 }
@@ -66,82 +64,12 @@ export interface LlmModelRecord {
   is_enabled?: boolean;
 }
 
-export interface CapabilityOption {
-  value: string;
-  label: string;
-  category: string;
-  description: string;
-}
-
 export interface RoleModelOption {
   value: string;
   label: string;
   providerName: string;
   source: 'catalog' | 'existing';
 }
-
-const KNOWN_CAPABILITY_CATALOG: CapabilityOption[] = [
-  {
-    value: 'coding',
-    label: 'Coding',
-    category: 'Engineering',
-    description: 'Writes, modifies, and refactors code.',
-  },
-  {
-    value: 'code-review',
-    label: 'Code review',
-    category: 'Engineering',
-    description: 'Reviews code for correctness, security, and standards.',
-  },
-  {
-    value: 'architecture',
-    label: 'Architecture',
-    category: 'Engineering',
-    description: 'System design, API contracts, and technical decisions.',
-  },
-  {
-    value: 'testing',
-    label: 'Testing',
-    category: 'Quality',
-    description: 'Writes and executes tests, verifies coverage.',
-  },
-  {
-    value: 'security-review',
-    label: 'Security review',
-    category: 'Quality',
-    description: 'Reviews for vulnerabilities, compliance, and secure coding.',
-  },
-  {
-    value: 'documentation',
-    label: 'Documentation',
-    category: 'Content',
-    description: 'Writes specs, docs, READMEs, and technical guides.',
-  },
-  {
-    value: 'requirements',
-    label: 'Requirements',
-    category: 'Content',
-    description: 'Gathers, refines, and validates requirements and acceptance criteria.',
-  },
-  {
-    value: 'research',
-    label: 'Research',
-    category: 'Analysis',
-    description: 'Investigates options, evaluates trade-offs, explores solutions.',
-  },
-  {
-    value: 'workspace-management',
-    label: 'Workspace management',
-    category: 'Coordination',
-    description: 'Plans, coordinates, tracks progress, and manages stakeholders.',
-  },
-  {
-    value: 'data-analysis',
-    label: 'Data analysis',
-    category: 'Analysis',
-    description: 'Processes, analyzes, and visualizes data.',
-  },
-];
 
 export const NATIVE_SEARCH_TOOL = 'native_search';
 export const DEFAULT_PULL_POLICY = 'if-not-present';
@@ -154,7 +82,6 @@ export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
     description: role?.description ?? '',
     systemPrompt: role?.system_prompt ?? '',
     allowedTools: role?.allowed_tools ?? [...KNOWN_TOOLS],
-    capabilities: role?.capabilities ?? [],
     isActive: role?.is_active ?? true,
     executionContainer: {
       image: role?.execution_container_config?.image ?? '',
@@ -178,7 +105,6 @@ export function buildRolePayload(form: RoleFormState) {
     description: form.description.trim() || undefined,
     systemPrompt: form.systemPrompt.trim() || undefined,
     allowedTools: normalizeStringList(form.allowedTools),
-    capabilities: normalizeStringList(form.capabilities),
     ...(executionContainerConfig ? { executionContainerConfig } : {}),
     isActive: form.isActive,
   };
@@ -243,27 +169,6 @@ export function syncNativeSearchGrant(
     ...form,
     allowedTools: normalizeStringList(nextAllowedTools),
   };
-}
-
-export function listAvailableCapabilities(role?: RoleDefinition | null): CapabilityOption[] {
-  const catalog = new Map(
-    KNOWN_CAPABILITY_CATALOG.map((capability) => [capability.value, capability] as const),
-  );
-  for (const capability of role?.capabilities ?? []) {
-    if (!catalog.has(capability)) {
-      catalog.set(capability, {
-        value: capability,
-        label: capability,
-        category: 'Custom',
-        description: 'Existing custom capability preserved from the stored role definition.',
-      });
-    }
-  }
-
-  return [...catalog.values()].sort((left, right) => {
-    const categoryOrder = left.category.localeCompare(right.category);
-    return categoryOrder !== 0 ? categoryOrder : left.label.localeCompare(right.label);
-  });
 }
 
 export function buildRoleModelOptions(

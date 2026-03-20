@@ -101,9 +101,6 @@ export function describeAgentOption(agent: DashboardAgentRecord): string {
   if (agent.current_task_id) {
     parts.push(`task ${agent.current_task_id}`);
   }
-  if (agent.capabilities && agent.capabilities.length > 0) {
-    parts.push(agent.capabilities.join(', '));
-  }
   return parts.join(' • ');
 }
 
@@ -129,9 +126,6 @@ export function describeSelectedAgent(agent: DashboardAgentRecord | null): Array
   }
   if (agent.current_task_id) {
     details.push({ label: 'Current task', value: agent.current_task_id });
-  }
-  if (agent.capabilities && agent.capabilities.length > 0) {
-    details.push({ label: 'Capabilities', value: agent.capabilities.join(', ') });
   }
   return details;
 }
