@@ -200,6 +200,71 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertIn("fleet.playbook_pool.peak_running_lte", check_names)
         self.assertIn("fleet.playbook_pool.peak_executing_lte", check_names)
 
+    def test_evaluate_expectations_accepts_generic_specialist_pool_fallback(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "fleet": {
+                    "playbook_pool": {
+                        "max_runtimes": 10,
+                        "peak_running_lte": 1,
+                        "peak_executing_lte": 1,
+                    }
+                }
+            },
+            workflow={"state": "completed", "tasks": []},
+            board={"ok": True, "data": {"columns": []}},
+            work_items={"ok": True, "data": []},
+            workspace={"memory": {}, "memory_index": {"keys": []}, "artifact_index": {"items": []}},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={
+                "ok": True,
+                "data": {
+                    "by_playbook_pool": [
+                        {
+                            "playbook_id": "specialist",
+                            "pool_kind": "specialist",
+                            "max_runtimes": 10,
+                            "running": 1,
+                            "executing": 1,
+                            "active_workflows": 0,
+                        }
+                    ]
+                },
+            },
+            playbook_id="playbook-1",
+            fleet_peaks={"peak_running": 1, "peak_executing": 1, "peak_active_workflows": 0},
+        )
+
+        self.assertTrue(result["passed"])
+
+    def test_update_fleet_peaks_falls_back_to_generic_specialist_pool(self) -> None:
+        peaks = {"peak_running": 0, "peak_executing": 0, "peak_active_workflows": 0}
+
+        run_workflow_scenario.update_fleet_peaks(
+            peaks,
+            {
+                "data": {
+                    "by_playbook_pool": [
+                        {
+                            "playbook_id": "specialist",
+                            "pool_kind": "specialist",
+                            "running": 1,
+                            "executing": 1,
+                            "active_workflows": 0,
+                        }
+                    ]
+                }
+            },
+            playbook_id="playbook-1",
+        )
+
+        self.assertEqual(
+            {"peak_running": 1, "peak_executing": 1, "peak_active_workflows": 0},
+            peaks,
+        )
+
     def test_build_workflow_create_payload_includes_required_goal_parameter(self) -> None:
         payload = run_workflow_scenario.build_workflow_create_payload(
             playbook_id="playbook-1",

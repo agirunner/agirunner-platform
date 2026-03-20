@@ -295,10 +295,15 @@ def _playbook_pool_status(fleet: Any, *, playbook_id: str) -> dict[str, Any] | N
     pools = data.get("by_playbook_pool")
     if not isinstance(pools, list):
         return None
+    specialist_fallback: dict[str, Any] | None = None
     for item in pools:
-        if isinstance(item, dict) and item.get("playbook_id") == playbook_id:
+        if not isinstance(item, dict):
+            continue
+        if item.get("playbook_id") == playbook_id:
             return item
-    return None
+        if item.get("playbook_id") == "specialist" and item.get("pool_kind") == "specialist":
+            specialist_fallback = item
+    return specialist_fallback
 
 
 def update_fleet_peaks(peaks: dict[str, int], fleet: Any, *, playbook_id: str) -> None:
