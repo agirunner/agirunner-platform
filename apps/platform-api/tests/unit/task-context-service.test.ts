@@ -439,6 +439,7 @@ describe('buildTaskContext active stage semantics', () => {
     const executionBrief = (context as Record<string, any>).execution_brief;
     expect(executionBrief).toEqual(
       expect.objectContaining({
+        refresh_key: expect.stringMatching(/^[a-f0-9]{64}$/),
         current_focus: expect.objectContaining({
           stage_name: 'implementation',
           board_position: 'In Review',

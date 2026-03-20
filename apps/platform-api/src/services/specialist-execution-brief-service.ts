@@ -119,13 +119,7 @@ export function buildSpecialistExecutionBrief(
   ]);
 
   const brief: SpecialistExecutionBrief = {
-    refresh_key: hashCanonicalJson({
-      handoff_id: readString(predecessorHandoff.id),
-      handoff_summary: readString(predecessorHandoff.summary),
-      continuity: continuitySummaryFrom(workItem),
-      relevant_memory_refs: relevantMemoryRefs.map((entry) => entry.key),
-      relevant_artifact_refs: relevantArtifactRefs.map((entry) => entry.artifact_id),
-    }),
+    refresh_key: '',
     workflow_brief: workflowBrief,
     goal: readString(taskInput.description) ?? readString(workItem.goal) ?? workflowBrief.goal,
     acceptance_criteria: normalizeStrings(workItem.acceptance_criteria),
@@ -156,6 +150,7 @@ export function buildSpecialistExecutionBrief(
     relevant_artifact_refs: relevantArtifactRefs,
     rendered_markdown: '',
   };
+  brief.refresh_key = hashCanonicalJson(refreshInputsFrom(brief, workItem, predecessorHandoff));
   brief.rendered_markdown = renderBrief(brief);
   return brief;
 }
@@ -234,6 +229,39 @@ function continuitySummaryFrom(workItem: Record<string, unknown>) {
   };
 }
 
+function refreshInputsFrom(
+  brief: SpecialistExecutionBrief,
+  workItem: Record<string, unknown>,
+  predecessorHandoff: Record<string, unknown>,
+) {
+  return {
+    workflow_brief: brief.workflow_brief,
+    goal: brief.goal,
+    acceptance_criteria: brief.acceptance_criteria,
+    current_focus: brief.current_focus,
+    predecessor_handoff_summary: brief.predecessor_handoff_summary,
+    predecessor_handoff_paths: selectLikelyRelevantFiles(predecessorHandoff),
+    work_item_boundary_state: {
+      stage_name: readString(workItem.stage_name),
+      column_id: readString(workItem.column_id),
+      next_expected_actor: readString(workItem.next_expected_actor),
+      next_expected_action: readString(workItem.next_expected_action),
+      rework_count: readNumber(workItem.rework_count),
+      priority: readNumber(workItem.priority),
+      continuity: asRecord(workItem.continuity),
+      gate_status: readGateField(workItem, 'gate_status'),
+      gate_decision_feedback: readGateField(workItem, 'gate_decision_feedback'),
+      gate_decided_at: readGateField(workItem, 'gate_decided_at'),
+    },
+    work_item_continuity_summary: brief.work_item_continuity_summary,
+    review_output_expectations: brief.review_output_expectations,
+    likely_relevant_files: brief.likely_relevant_files,
+    verification_commands: brief.verification_commands,
+    relevant_memory_refs: brief.relevant_memory_refs.map((entry) => entry.key),
+    relevant_artifact_refs: brief.relevant_artifact_refs.map((entry) => entry.artifact_id),
+  };
+}
+
 function selectLikelyRelevantFiles(predecessorHandoff: Record<string, unknown>) {
   const changes = Array.isArray(predecessorHandoff.changes) ? predecessorHandoff.changes : [];
   return [...new Set(
@@ -303,6 +331,16 @@ function compactWorkflowBriefVariables(variables: Record<string, unknown>) {
     launch_inputs: nonGoalEntries.slice(0, 8),
     omitted_input_count: Math.max(nonGoalEntries.length - 8, 0),
   };
+}
+
+function readGateField(workItem: Record<string, unknown>, key: string) {
+  const direct = readString(workItem[key]);
+  if (direct) {
+    return direct;
+  }
+  const metadata = asRecord(workItem.metadata);
+  const stageGate = asRecord(metadata.stage_gate);
+  return readString(metadata[key]) ?? readString(stageGate[key]);
 }
 
 function buildHintTokens(hints: Array<string | null | undefined>) {
@@ -409,6 +447,17 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function readString(value: unknown) {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readNumber(value: unknown) {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && value.trim().length > 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function hashCanonicalJson(value: unknown): string {

@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { buildSpecialistExecutionBrief } from '../../src/services/specialist-execution-brief-service.js';
 
 describe('buildSpecialistExecutionBrief', () => {
-  it('builds a specialist workflow brief with task-scoped context and selected refs', () => {
-    const brief = buildSpecialistExecutionBrief({
+  function buildInput() {
+    return {
       role: 'reviewer',
       workflow: {
         lifecycle: 'planned',
@@ -33,6 +33,7 @@ describe('buildSpecialistExecutionBrief', () => {
         },
       },
       workspace: {
+        description: 'Primary workspace for auth fixes.',
         memory: {
           release_note: 'Mention the refresh-token expiry fix in release notes.',
           unrelated_note: 'Not relevant here.',
@@ -75,6 +76,9 @@ describe('buildSpecialistExecutionBrief', () => {
         latest_handoff_completion: 'partial',
         unresolved_findings: ['Check release note wording.'],
         review_focus: ['Refresh-token expiry path'],
+        rework_count: 0,
+        priority: 1,
+        metadata: {},
       },
       predecessorHandoff: {
         id: 'handoff-1',
@@ -89,9 +93,14 @@ describe('buildSpecialistExecutionBrief', () => {
       taskInput: {
         description: 'Review the implementation and confirm the release-note update.',
       },
-    });
+    };
+  }
+
+  it('builds a specialist workflow brief with task-scoped context and selected refs', () => {
+    const brief = buildSpecialistExecutionBrief(buildInput());
 
     expect(brief).not.toBeNull();
+    expect(brief?.refresh_key).toMatch(/^[a-f0-9]{64}$/);
     expect(brief?.workflow_brief.goal).toBe('Ship the authentication refresh-token fix.');
     expect(brief?.workflow_brief.launch_inputs).toEqual([
       { key: 'release_target', value: 'v2.4.0' },
@@ -126,5 +135,68 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(brief?.rendered_markdown).toContain('## Workflow Brief');
     expect(brief?.rendered_markdown).not.toContain('git_token_secret_ref');
     expect(brief?.rendered_markdown).not.toContain('secret:GITHUB_TOKEN');
+  });
+
+  it('changes refresh_key when predecessor handoff changes', () => {
+    const base = buildInput();
+    const initial = buildSpecialistExecutionBrief(base);
+    const updated = buildSpecialistExecutionBrief({
+      ...base,
+      predecessorHandoff: {
+        ...base.predecessorHandoff,
+        id: 'handoff-2',
+        summary: 'Implementation is ready for review with an updated release note.',
+      },
+    });
+
+    expect(initial?.refresh_key).not.toBe(updated?.refresh_key);
+  });
+
+  it('changes refresh_key when review focus changes', () => {
+    const base = buildInput();
+    const initial = buildSpecialistExecutionBrief(base);
+    const updated = buildSpecialistExecutionBrief({
+      ...base,
+      workItem: {
+        ...base.workItem,
+        review_focus: ['Refresh-token expiry path', 'Release-note wording'],
+      },
+    });
+
+    expect(initial?.refresh_key).not.toBe(updated?.refresh_key);
+  });
+
+  it('changes refresh_key when gate outcome changes', () => {
+    const base = buildInput();
+    const initial = buildSpecialistExecutionBrief(base);
+    const updated = buildSpecialistExecutionBrief({
+      ...base,
+      workItem: {
+        ...base.workItem,
+        metadata: {
+          stage_gate: {
+            gate_status: 'changes_requested',
+            gate_decision_feedback: 'Clarify the release-note wording before approval.',
+            gate_decided_at: '2026-03-20T12:00:00.000Z',
+          },
+        },
+      },
+    });
+
+    expect(initial?.refresh_key).not.toBe(updated?.refresh_key);
+  });
+
+  it('keeps refresh_key stable when unrelated workspace fields change', () => {
+    const base = buildInput();
+    const initial = buildSpecialistExecutionBrief(base);
+    const updated = buildSpecialistExecutionBrief({
+      ...base,
+      workspace: {
+        ...base.workspace,
+        description: 'Renamed workspace description that should not affect the brief.',
+      },
+    });
+
+    expect(initial?.refresh_key).toBe(updated?.refresh_key);
   });
 });
