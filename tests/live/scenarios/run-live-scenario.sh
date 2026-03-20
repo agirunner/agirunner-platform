@@ -7,6 +7,50 @@ REPO_ROOT="$(cd "${LIVE_TEST_ROOT}/../.." && pwd)"
 # shellcheck disable=SC1091
 source "${LIVE_TEST_ROOT}/lib/common.sh"
 
+json_escape() {
+  local value="${1:-}"
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+  printf '%s' "${value}"
+}
+
+finalize_live_test_result() {
+  local exit_code="$1"
+
+  if [[ -f "${LIVE_TEST_SCENARIO_RUN_FILE}" ]]; then
+    return 0
+  fi
+
+  mkdir -p "$(dirname "${LIVE_TEST_SCENARIO_RUN_FILE}")"
+
+  if [[ -s "${LIVE_TEST_SCENARIO_RUN_TMP_FILE}" ]]; then
+    mv "${LIVE_TEST_SCENARIO_RUN_TMP_FILE}" "${LIVE_TEST_SCENARIO_RUN_FILE}"
+    return 0
+  fi
+
+  cat >"${LIVE_TEST_SCENARIO_RUN_FILE}" <<EOF
+{
+  "scenario_name": "$(json_escape "${LIVE_TEST_SCENARIO_NAME}")",
+  "harness_failure": true,
+  "verification": {
+    "passed": false,
+    "failures": [
+      "Harness failed before emitting a finalized workflow result."
+    ]
+  },
+  "harness": {
+    "phase": "$(json_escape "${LIVE_TEST_RUN_PHASE:-unknown}")",
+    "exit_code": ${exit_code},
+    "result_file": "$(json_escape "${LIVE_TEST_SCENARIO_RUN_FILE}")",
+    "tmp_result_file": "$(json_escape "${LIVE_TEST_SCENARIO_RUN_TMP_FILE}")"
+  }
+}
+EOF
+}
+
 SCENARIO_INPUT="${1:-${LIVE_TEST_SCENARIO_NAME:-}}"
 if [[ -z "${SCENARIO_INPUT}" ]]; then
   echo "[tests/live] scenario name or path is required" >&2
@@ -48,6 +92,9 @@ LIVE_TEST_SCENARIO_RUN_FILE="${LIVE_TEST_SCENARIO_RUN_FILE:-${LIVE_TEST_SCENARIO
 LIVE_TEST_BOOTSTRAP_SCRIPT="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-environment.sh}"
 LIVE_TEST_START_WORKFLOW_SCRIPT="${LIVE_TEST_START_WORKFLOW_SCRIPT:-${LIVE_TEST_ROOT}/lib/run_workflow_scenario.py}"
 LIVE_TEST_SCENARIO_RUN_TMP_FILE="${LIVE_TEST_SCENARIO_RUN_TMP_FILE:-${LIVE_TEST_SCENARIO_RUN_FILE}.tmp}"
+LIVE_TEST_RUN_PHASE="bootstrap"
+
+trap 'status=$?; trap - EXIT; finalize_live_test_result "${status}"; exit "${status}"' EXIT
 
 load_live_test_env "${LIVE_TEST_ENV_FILE}"
 PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
@@ -71,7 +118,9 @@ export DEFAULT_ADMIN_API_KEY
 
 mkdir -p "${LIVE_TEST_SCENARIO_DIR}" "${LIVE_TEST_SCENARIO_TRACE_DIR}"
 rm -f "${LIVE_TEST_SCENARIO_RUN_FILE}" "${LIVE_TEST_SCENARIO_RUN_TMP_FILE}"
+LIVE_TEST_RUN_PHASE="runner"
 python3 "${LIVE_TEST_START_WORKFLOW_SCRIPT}" >"${LIVE_TEST_SCENARIO_RUN_TMP_FILE}"
 mv "${LIVE_TEST_SCENARIO_RUN_TMP_FILE}" "${LIVE_TEST_SCENARIO_RUN_FILE}"
+LIVE_TEST_RUN_PHASE="complete"
 
 log_live_test "scenario result written to ${LIVE_TEST_SCENARIO_RUN_FILE}"

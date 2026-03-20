@@ -68,7 +68,7 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
   assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
 }
 
-test_runner_failure_does_not_publish_partial_workflow_result() {
+test_runner_failure_promotes_nonzero_json_result() {
   local tmpdir stubdir output_root context_file run_file tmp_run_file bootstrap_stub envfile
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "${tmpdir}"' RETURN
@@ -104,13 +104,46 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
     fail "expected scenario runner failure to propagate"
   fi
 
-  if [[ -e "${run_file}" ]]; then
-    fail "expected failing scenario runner to avoid publishing ${run_file}"
+  assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
+  if [[ -e "${tmp_run_file}" ]]; then
+    fail "expected finalized failing scenario runner to consume ${tmp_run_file}"
+  fi
+}
+
+test_bootstrap_failure_publishes_harness_failure_result() {
+  local tmpdir stubdir output_root run_file bootstrap_stub envfile
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  envfile="${tmpdir}/env/local.env"
+  output_root="${tmpdir}/artifacts"
+  run_file="${output_root}/bug-fix-positive/workflow-run.json"
+  bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
+  mkdir -p "${stubdir}" "$(dirname "${envfile}")"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5432
+PLATFORM_API_PORT=8080
+EOF
+
+  make_stub "${bootstrap_stub}" 'exit 1'
+  make_stub "${stubdir}/python3" 'printf "%s\n" "bug-fix" "git_remote"'
+
+  if PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
+    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
+    fail "expected bootstrap failure to propagate"
   fi
 
-  if [[ ! -s "${tmp_run_file}" ]]; then
-    fail "expected failing scenario runner to preserve non-empty temp output for debugging"
-  fi
+  assert_contains "\"harness_failure\": true" "${run_file}"
+  assert_contains "\"phase\": \"bootstrap\"" "${run_file}"
+  assert_contains "\"exit_code\": 1" "${run_file}"
 }
 
 test_bootstrap_can_delete_scenario_dir_without_breaking_runner() {
@@ -191,7 +224,8 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
 }
 
 test_scenario_profile_is_exported_to_bootstrap
-test_runner_failure_does_not_publish_partial_workflow_result
+test_runner_failure_promotes_nonzero_json_result
+test_bootstrap_failure_publishes_harness_failure_result
 test_bootstrap_can_delete_scenario_dir_without_breaking_runner
 test_runner_resets_stale_trace_before_each_run
 
