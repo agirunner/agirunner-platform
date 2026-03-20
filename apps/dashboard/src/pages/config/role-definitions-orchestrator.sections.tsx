@@ -74,7 +74,7 @@ export function EditableControlPacket(props: {
         </div>
       ) : (
         <div className="flex-1 space-y-3">
-          <p className="text-lg font-semibold leading-6 text-foreground">{props.value}</p>
+          <p className="text-base font-semibold leading-6 text-foreground">{props.value}</p>
           <p className="text-sm leading-6 text-muted">{props.detail}</p>
           {props.facts?.length ? (
             <div className="grid gap-2 border-t border-border/70 pt-3">
