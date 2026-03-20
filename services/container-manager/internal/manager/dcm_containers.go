@@ -308,6 +308,30 @@ func (m *Manager) forceRemoveContainer(ctx context.Context, containerID string) 
 	}
 }
 
+func (m *Manager) cleanupTerminalRuntimeContainers(ctx context.Context, containers []ContainerInfo) int {
+	terminal := findTerminalRuntimeContainers(containers)
+	for _, container := range terminal {
+		runtimeID := container.Labels[labelDCMRuntimeID]
+		playbookID := container.Labels[labelDCMPlaybookID]
+		playbookName := container.Labels[labelDCMPlaybookName]
+		m.forceRemoveContainer(ctx, container.ID)
+		m.logFleetEvent("container.destroyed", "info", runtimeID, playbookID, container.Labels[labelDCMPoolKind], container.ID)
+		m.emitLogWithResource("container", "container.destroy", "info", "completed", map[string]any{
+			"action":        "terminal_cleanup",
+			"container_id":  container.ID,
+			"playbook_id":   playbookID,
+			"playbook_name": playbookName,
+			"pool_mode":     container.Labels[labelDCMPoolMode],
+			"priority":      container.Labels[labelDCMPriority],
+			"runtime_id":    runtimeID,
+			"image":         container.Image,
+			"status":        container.Status,
+			"reason":        "terminal_runtime_cleanup",
+		}, logResourceInfo{ResourceType: "runtime", ResourceID: runtimeID, ResourceName: container.Name})
+	}
+	return len(terminal)
+}
+
 func (m *Manager) dockerActionBuffer() time.Duration {
 	return m.config.DockerActionBuffer
 }

@@ -219,30 +219,27 @@ func TestStarvationBoostRaisesPriority(t *testing.T) {
 	}
 }
 
-func TestCapabilityAwarePendingUnitsAddsBoundedSpecialistDemandBonus(t *testing.T) {
-	target := makeRuntimeTarget("tmpl-specialist", "img:v1", 4, 3, 10)
-	target.PoolKind = "specialist"
-	target.CapabilityDemandUnits = 8
-
-	got := capabilityAwarePendingUnits(target)
-
-	if got != 6 {
-		t.Fatalf("expected bounded demand units 6, got %d", got)
+func TestEqualPendingTargetsDoNotPreferCapabilityDemand(t *testing.T) {
+	docker := newMockDockerClient()
+	first := makeRuntimeTarget("tmpl-first", "img:v1", 1, 1, 10)
+	second := makeRuntimeTarget("tmpl-second", "img:v1", 1, 1, 10)
+	second.CapabilityDemandUnits = 8
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{first, second},
 	}
-}
+	mgr := newDCMTestManager(docker, platform)
+	mgr.config.GlobalMaxRuntimes = 1
 
-func TestAllocateProportionallyPrefersHigherCapabilityDemandWithinPriorityGroup(t *testing.T) {
-	shares := allocateProportionally(
-		[]int{1, 1},
-		[]int{
-			capabilityAwarePendingUnits(RuntimeTarget{PoolKind: "specialist", PendingTasks: 2, CapabilityDemandUnits: 4}),
-			capabilityAwarePendingUnits(RuntimeTarget{PoolKind: "specialist", PendingTasks: 2, CapabilityDemandUnits: 0}),
-		},
-		1,
-	)
+	err := mgr.reconcileDCM(context.Background())
 
-	if shares[0] != 1 || shares[1] != 0 {
-		t.Fatalf("expected higher-demand specialist target to receive the single slot, got %#v", shares)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(docker.createdSpecs) != 1 {
+		t.Fatalf("expected exactly one created runtime, got %d", len(docker.createdSpecs))
+	}
+	if got := docker.createdSpecs[0].Labels[labelDCMPlaybookID]; got != "tmpl-first" {
+		t.Fatalf("expected first equal-pending target to win tie regardless of capability demand, got %s", got)
 	}
 }
 

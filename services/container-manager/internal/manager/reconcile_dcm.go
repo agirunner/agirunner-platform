@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -64,9 +65,19 @@ func (m *Manager) reconcileDCMWithResolvedInputs(
 		heartbeatMap = buildHeartbeatMap(heartbeats)
 	}
 
-	grouped := groupContainersByTarget(containers)
-	drainingCount := countDrainingContainers(containers)
-	totalRunning := len(containers)
+	if removed := m.cleanupTerminalRuntimeContainers(ctx, containers); removed > 0 {
+		refreshedContainers, err := m.listDCMRuntimeContainers(ctx)
+		if err != nil {
+			return fmt.Errorf("list DCM containers after terminal cleanup: %w", err)
+		}
+		containers = refreshedContainers
+		heartbeatMap = buildHeartbeatMap(heartbeats)
+	}
+
+	liveContainers := filterLiveRuntimeContainers(containers)
+	grouped := groupContainersByTarget(liveContainers)
+	drainingCount := countDrainingContainers(liveContainers)
+	totalRunning := len(liveContainers)
 
 	sorted := sortTargetsByPriority(targets)
 	m.updateStarvationTracking(sorted, grouped)
@@ -84,15 +95,13 @@ func (m *Manager) reconcileDCMWithResolvedInputs(
 
 	updatedContainers, listErr := m.listDCMRuntimeContainers(ctx)
 	if listErr == nil {
-		m.metrics.UpdateRuntimeGauges(updatedContainers, heartbeatMap)
+		m.metrics.UpdateRuntimeGauges(filterLiveRuntimeContainers(updatedContainers), heartbeatMap)
 	}
 
 	// Count total pending tasks across all targets for the cycle summary.
 	totalPending := 0
-	totalCapabilityDemand := 0
 	for _, t := range sorted {
 		totalPending += t.PendingTasks
-		totalCapabilityDemand += t.CapabilityDemandUnits
 	}
 
 	m.logger.Debug("dcm reconcile cycle",
@@ -100,7 +109,6 @@ func (m *Manager) reconcileDCMWithResolvedInputs(
 		"containers", totalRunning,
 		"draining", drainingCount,
 		"pending_tasks", totalPending,
-		"capability_demand_units", totalCapabilityDemand,
 		"unsatisfied", len(unsatisfied),
 	)
 
@@ -186,7 +194,7 @@ func (m *Manager) processTargetGroup(
 	pendingCounts := make([]int, len(plans))
 	for i, p := range plans {
 		requested[i] = p.actions.toCreate
-		pendingCounts[i] = capabilityAwarePendingUnits(p.target)
+		pendingCounts[i] = p.target.PendingTasks
 	}
 	fairShares := allocateProportionally(requested, pendingCounts, capacity)
 
@@ -472,7 +480,7 @@ func countDrainingContainers(containers []ContainerInfo) int {
 func countActiveContainers(containers []ContainerInfo) int {
 	count := 0
 	for _, c := range containers {
-		if !isDrainingContainer(c) {
+		if !isDrainingContainer(c) && !isTerminalRuntimeContainer(c) {
 			count++
 		}
 	}
@@ -591,20 +599,6 @@ func computeScaleUp(target RuntimeTarget, runningCount, capacity int) int {
 	return computeColdScaleUp(target, runningCount, capacity)
 }
 
-func capabilityAwarePendingUnits(target RuntimeTarget) int {
-	if target.PendingTasks <= 0 {
-		return 0
-	}
-	if normalizePoolKind(target.PoolKind) != "specialist" || target.CapabilityDemandUnits <= 0 {
-		return target.PendingTasks
-	}
-	bonus := target.CapabilityDemandUnits
-	if bonus > target.PendingTasks {
-		bonus = target.PendingTasks
-	}
-	return target.PendingTasks + bonus
-}
-
 // computeColdScaleUp creates runtimes proportional to pending tasks.
 func computeColdScaleUp(target RuntimeTarget, runningCount, capacity int) int {
 	if target.PendingTasks <= 0 {
@@ -647,6 +641,33 @@ func computeWarmScaleUp(target RuntimeTarget, runningCount, capacity int) int {
 		return 0
 	}
 	return toCreate
+}
+
+func filterLiveRuntimeContainers(containers []ContainerInfo) []ContainerInfo {
+	live := make([]ContainerInfo, 0, len(containers))
+	for _, container := range containers {
+		if isTerminalRuntimeContainer(container) {
+			continue
+		}
+		live = append(live, container)
+	}
+	return live
+}
+
+func findTerminalRuntimeContainers(containers []ContainerInfo) []ContainerInfo {
+	terminal := make([]ContainerInfo, 0)
+	for _, container := range containers {
+		if !isTerminalRuntimeContainer(container) {
+			continue
+		}
+		terminal = append(terminal, container)
+	}
+	return terminal
+}
+
+func isTerminalRuntimeContainer(container ContainerInfo) bool {
+	status := strings.ToLower(strings.TrimSpace(container.Status))
+	return strings.HasPrefix(status, "exited") || strings.HasPrefix(status, "dead")
 }
 
 // findIdleForTeardown identifies idle containers that should be destroyed.

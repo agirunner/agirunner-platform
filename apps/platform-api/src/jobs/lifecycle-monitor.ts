@@ -117,7 +117,7 @@ export async function runHeartbeatPruneTick(
   if (!fleetService) {
     return 0;
   }
-  const pruned = await fleetService.pruneStaleHeartbeats(10);
+  const pruned = await fleetService.pruneStaleHeartbeats();
   if (pruned > 0) {
     logger.info({ pruned }, 'stale_heartbeats_pruned');
   }

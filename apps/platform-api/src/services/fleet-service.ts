@@ -596,11 +596,14 @@ export class FleetService {
     return result.rowCount ?? 0;
   }
 
-  async pruneStaleHeartbeats(maxAgeMinutes = 10): Promise<number> {
+  async pruneStaleHeartbeats(): Promise<number> {
     const result = await this.pool.query(
-      `DELETE FROM runtime_heartbeats
-       WHERE last_heartbeat_at < now() - make_interval(mins => $1)`,
-      [maxAgeMinutes],
+      `DELETE FROM runtime_heartbeats rh
+       USING runtime_defaults rd
+       WHERE rd.tenant_id = rh.tenant_id
+         AND rd.config_key = $1
+         AND rh.last_heartbeat_at < now() - make_interval(secs => rd.config_value::int)`,
+      [CONTAINER_MANAGER_RUNTIME_DEFAULTS.hungRuntimeStaleAfterSeconds],
     );
     return result.rowCount ?? 0;
   }
@@ -685,7 +688,8 @@ export class FleetService {
 
   async getRuntimeTargets(tenantId: string): Promise<RuntimeTarget[]> {
     const defaults = await this.loadRuntimeDefaults(tenantId);
-    const stats = await this.loadSpecialistRuntimeStats(tenantId);
+    const heartbeatFreshnessSeconds = readRuntimeHeartbeatFreshnessSeconds(defaults);
+    const stats = await this.loadSpecialistRuntimeStats(tenantId, heartbeatFreshnessSeconds);
     if (stats.pending_tasks <= 0 && stats.active_runtimes <= 0) {
       return [];
     }
@@ -738,6 +742,7 @@ export class FleetService {
 
   private async loadSpecialistRuntimeStats(
     tenantId: string,
+    heartbeatFreshnessSeconds: number,
   ): Promise<SpecialistRuntimeStatsRow> {
     const result = await this.pool.query<SpecialistRuntimeStatsRow>(
       `WITH ready_specialist_tasks AS (
@@ -752,6 +757,7 @@ export class FleetService {
            FROM runtime_heartbeats
           WHERE tenant_id = $1
             AND pool_kind = 'specialist'
+            AND last_heartbeat_at >= now() - make_interval(secs => $2)
        ),
        active_execution_leases AS (
          SELECT COUNT(*)::int AS active_execution_containers
@@ -781,7 +787,7 @@ export class FleetService {
          ) AS specialist_max_required_capabilities,
          (SELECT active_runtimes FROM specialist_runtime_heartbeats) AS active_runtimes,
          (SELECT active_execution_containers FROM active_execution_leases) AS active_execution_containers`,
-      [tenantId],
+      [tenantId, heartbeatFreshnessSeconds],
     );
     return result.rows[0] ?? {
       pending_tasks: 0,
@@ -949,6 +955,7 @@ export class FleetService {
       runtimeDefaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
     );
+    const heartbeatFreshnessSeconds = readRuntimeHeartbeatFreshnessSeconds(runtimeDefaults);
 
     const heartbeats = await this.pool.query<HeartbeatRow>(
       `SELECT
@@ -962,8 +969,9 @@ export class FleetService {
          ) AS playbook_name
        FROM runtime_heartbeats rh
        LEFT JOIN playbooks p ON p.id = rh.playbook_id
-       WHERE rh.tenant_id = $1`,
-      [tenantId, GENERIC_SPECIALIST_TARGET_NAME],
+       WHERE rh.tenant_id = $1
+         AND rh.last_heartbeat_at >= now() - make_interval(secs => $3)`,
+      [tenantId, GENERIC_SPECIALIST_TARGET_NAME, heartbeatFreshnessSeconds],
     );
 
     let totalRunning = 0;
@@ -1156,6 +1164,15 @@ export class FleetService {
     if (!result.rowCount) {
       throw new NotFoundError(`Runtime heartbeat not found: ${runtimeId}`);
     }
+  }
+
+  async removeHeartbeat(tenantId: string, runtimeId: string): Promise<void> {
+    await this.pool.query(
+      `DELETE FROM runtime_heartbeats
+       WHERE tenant_id = $1
+         AND runtime_id = $2`,
+      [tenantId, runtimeId],
+    );
   }
 
   async recordFleetEvent(tenantId: string, event: RecordFleetEventInput): Promise<void> {
@@ -1376,6 +1393,13 @@ function readRequiredIntegerDefault(
     throw new ValidationError(`Missing runtime default "${key}"`);
   }
   return parsed;
+}
+
+function readRuntimeHeartbeatFreshnessSeconds(defaults: Map<string, string>): number {
+  return readRequiredIntegerDefault(
+    defaults,
+    CONTAINER_MANAGER_RUNTIME_DEFAULTS.hungRuntimeStaleAfterSeconds,
+  );
 }
 
 function readSpecialistRuntimeTargetDefaults(

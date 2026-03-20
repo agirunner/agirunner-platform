@@ -222,6 +222,31 @@ func TestDCMScaleCapAtGlobalMax(t *testing.T) {
 	}
 }
 
+func TestDCMRemovesTerminalRuntimeContainersBeforeScaling(t *testing.T) {
+	docker := newMockDockerClient()
+	stopped := makeDCMContainer("c-stopped", "tmpl-1", "runtime:v1", "rt-stopped")
+	stopped.Status = "Exited (0) 5 seconds ago"
+	docker.containers = []ContainerInfo{stopped}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v1", 1, 1, 10),
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.removedIDs) != 1 || docker.removedIDs[0] != "c-stopped" {
+		t.Fatalf("expected terminal runtime c-stopped to be removed, got %#v", docker.removedIDs)
+	}
+	if len(docker.createdSpecs) != 1 {
+		t.Fatalf("expected 1 replacement runtime created after terminal cleanup, got %d", len(docker.createdSpecs))
+	}
+}
+
 func TestDCMColdIdleTeardown(t *testing.T) {
 	docker := newMockDockerClient()
 	docker.containers = []ContainerInfo{

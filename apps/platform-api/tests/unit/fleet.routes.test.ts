@@ -453,6 +453,7 @@ describe('fleet routes', () => {
       recordFleetEvent: vi.fn(),
       listFleetEvents: vi.fn(),
       drainRuntime: vi.fn(),
+      removeHeartbeat: vi.fn(),
     });
 
     await app.register(fleetRoutes);
@@ -480,5 +481,48 @@ describe('fleet routes', () => {
         should_drain: false,
       },
     });
+  });
+
+  it('deletes fleet heartbeats idempotently', async () => {
+    const { fleetRoutes } = await import('../../src/api/routes/fleet.routes.js');
+
+    app = fastify();
+    registerErrorHandler(app);
+    const removeHeartbeat = vi.fn().mockResolvedValue(undefined);
+    app.decorate('fleetService', {
+      listWorkers: vi.fn(),
+      createWorker: vi.fn(),
+      updateWorker: vi.fn(),
+      deleteWorker: vi.fn(),
+      restartWorker: vi.fn(),
+      drainWorker: vi.fn(),
+      listContainers: vi.fn(),
+      getContainerStats: vi.fn(),
+      pruneStaleContainers: vi.fn(),
+      reportActualState: vi.fn(),
+      listImages: vi.fn(),
+      reportImage: vi.fn(),
+      requestImagePull: vi.fn(),
+      getQueueDepth: vi.fn(),
+      getRuntimeTargets: vi.fn(),
+      recordHeartbeat: vi.fn(),
+      listHeartbeats: vi.fn(),
+      getFleetStatus: vi.fn(),
+      recordFleetEvent: vi.fn(),
+      listFleetEvents: vi.fn(),
+      drainRuntime: vi.fn(),
+      removeHeartbeat,
+    });
+
+    await app.register(fleetRoutes);
+
+    const response = await app.inject({
+      method: 'DELETE',
+      url: '/api/v1/fleet/heartbeats/runtime-1',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(204);
+    expect(removeHeartbeat).toHaveBeenCalledWith('tenant-1', 'runtime-1');
   });
 });

@@ -20,6 +20,7 @@ function createRuntimeTargetDefaultRows(overrides: Record<string, string> = {}) 
     specialist_runtime_default_pull_policy: 'if-not-present',
     specialist_runtime_bootstrap_claim_timeout_seconds: '30',
     specialist_runtime_drain_grace_seconds: '30',
+    'container_manager.hung_runtime_stale_after_seconds': '90',
     ...overrides,
   };
   return Object.entries(defaults).map(([config_key, config_value]) => ({ config_key, config_value }));
@@ -71,6 +72,23 @@ describe('FleetService DCM', () => {
       expect(query).toContain('playbook_id');
       const params = pool.query.mock.calls[0][1] as unknown[];
       expect(params).toContain(PLAYBOOK_ID);
+    });
+  });
+
+  describe('pruneStaleHeartbeats', () => {
+    it('uses each tenant runtime stale-heartbeat default instead of a fixed minute window', async () => {
+      pool.query.mockResolvedValueOnce({ rowCount: 3 });
+
+      const result = await service.pruneStaleHeartbeats();
+
+      expect(result).toBe(3);
+      const [query, params] = pool.query.mock.calls[0] as [string, unknown[]];
+      expect(query).toContain('DELETE FROM runtime_heartbeats rh');
+      expect(query).toContain('runtime_defaults rd');
+      expect(query).toContain('rd.tenant_id = rh.tenant_id');
+      expect(query).toContain('rd.config_key = $1');
+      expect(query).toContain('make_interval(secs => rd.config_value::int)');
+      expect(params).toEqual(['container_manager.hung_runtime_stale_after_seconds']);
     });
   });
 
@@ -145,7 +163,7 @@ describe('FleetService DCM', () => {
       });
 
       await expect(service.getRuntimeTargets(TENANT_ID)).rejects.toThrow(
-        'Missing runtime default "specialist_runtime_default_image"',
+        'Missing runtime default "container_manager.hung_runtime_stale_after_seconds"',
       );
     });
 
@@ -230,6 +248,29 @@ describe('FleetService DCM', () => {
       expect(query).toContain('COUNT(DISTINCT capabilities_required)::int');
       expect(query.match(/FROM ready_specialist_tasks/g)?.length).toBeGreaterThanOrEqual(3);
       expect(query).not.toContain('FROM playbooks p');
+    });
+
+    it('filters stale specialist heartbeats out of runtime target supply reads', async () => {
+      pool.query.mockResolvedValueOnce({ rows: createRuntimeTargetDefaultRows(), rowCount: 9 });
+      pool.query.mockResolvedValueOnce({
+        rows: [{
+          pending_tasks: 1,
+          specialist_tasks_with_capabilities: 0,
+          specialist_distinct_capability_sets: 0,
+          specialist_max_required_capabilities: 0,
+          active_runtimes: 0,
+          active_execution_containers: 0,
+        }],
+        rowCount: 1,
+      });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await service.getRuntimeTargets(TENANT_ID);
+
+      const query = pool.query.mock.calls[1]?.[0] as string;
+      const params = pool.query.mock.calls[1]?.[1] as unknown[];
+      expect(query).toContain("last_heartbeat_at >= now() - make_interval(secs => $2)");
+      expect(params).toEqual([TENANT_ID, 90]);
     });
 
     it('includes all active specialist role tags and capabilities', async () => {
@@ -490,7 +531,7 @@ describe('FleetService DCM', () => {
       });
 
       await expect(service.getReconcileSnapshot(TENANT_ID)).rejects.toThrow(
-        /Missing runtime default "platform\.api_request_timeout_seconds"/,
+        /Missing runtime default "container_manager\.hung_runtime_stale_after_seconds"/,
       );
     });
   });
@@ -632,6 +673,38 @@ describe('FleetService DCM', () => {
       await expect(service.getFleetStatus(TENANT_ID)).rejects.toThrow(
         /Missing runtime default "global_max_runtimes"/,
       );
+    });
+
+    it('filters stale runtime heartbeats out of live fleet status reads', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '10' }),
+        rowCount: 9,
+      });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({
+        rows: createRuntimeTargetDefaultRows({ global_max_runtimes: '10' }),
+        rowCount: 9,
+      });
+      pool.query.mockResolvedValueOnce({
+        rows: [{
+          pending_tasks: 0,
+          specialist_tasks_with_capabilities: 0,
+          specialist_distinct_capability_sets: 0,
+          specialist_max_required_capabilities: 0,
+          active_runtimes: 0,
+          active_execution_containers: 0,
+        }],
+        rowCount: 1,
+      });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+      pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+      await service.getFleetStatus(TENANT_ID);
+
+      const heartbeatQuery = pool.query.mock.calls[1]?.[0] as string;
+      const heartbeatParams = pool.query.mock.calls[1]?.[1] as unknown[];
+      expect(heartbeatQuery).toContain("rh.last_heartbeat_at >= now() - make_interval(secs => $3)");
+      expect(heartbeatParams).toEqual([TENANT_ID, 'Specialist runtimes', 90]);
     });
   });
 

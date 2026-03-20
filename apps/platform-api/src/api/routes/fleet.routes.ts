@@ -299,6 +299,17 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  app.delete(
+    '/api/v1/fleet/heartbeats/:runtimeId',
+    { preHandler: [authenticateApiKey, withScope('worker')] },
+    async (request, reply) => {
+      const params = request.params as { runtimeId: string };
+      await service.removeHeartbeat(request.auth!.tenantId, params.runtimeId);
+      reply.status(204);
+      return null;
+    },
+  );
+
   app.get(
     '/api/v1/fleet/status',
     { preHandler: [authenticateApiKey, withScope('admin')] },

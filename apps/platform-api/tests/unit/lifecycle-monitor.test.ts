@@ -18,6 +18,7 @@ vi.mock('../../src/services/platform-timing-defaults.js', async () => {
 });
 
 import {
+  runHeartbeatPruneTick,
   runWorkflowActivationDispatchTick,
   startLifecycleMonitor,
 } from '../../src/jobs/lifecycle-monitor.js';
@@ -237,5 +238,22 @@ describe('startLifecycleMonitor', () => {
       { enqueued: 1 },
       'workflow_activation_heartbeats_enqueued',
     );
+  });
+
+  it('prunes stale heartbeats using fleet-configured thresholds', async () => {
+    const logger = {
+      info: vi.fn(),
+      error: vi.fn(),
+    };
+    const fleetService = {
+      pruneStaleHeartbeats: vi.fn(async () => 2),
+    };
+
+    const result = await runHeartbeatPruneTick(logger as never, fleetService as never);
+
+    expect(result).toBe(2);
+    expect(fleetService.pruneStaleHeartbeats).toHaveBeenCalledTimes(1);
+    expect(fleetService.pruneStaleHeartbeats).toHaveBeenCalledWith();
+    expect(logger.info).toHaveBeenCalledWith({ pruned: 2 }, 'stale_heartbeats_pruned');
   });
 });
