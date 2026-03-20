@@ -23,5 +23,11 @@ describe('container resource validation', () => {
     );
     expect(() => assertValidContainerCpu('zero', 'cpu')).toThrow('positive number');
     expect(() => assertValidContainerMemory('banana', 'memory')).toThrow('512m, 2g, or 2Gi');
+    expect(() => assertValidContainerMemory('1', 'memory')).toThrow('512m, 2g, or 2Gi');
+  });
+
+  it('accepts memory values with explicit units', () => {
+    expect(() => assertValidContainerMemory('1Gi', 'memory')).not.toThrow();
+    expect(() => assertValidContainerMemory('1G', 'memory')).not.toThrow();
   });
 });

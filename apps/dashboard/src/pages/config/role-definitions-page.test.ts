@@ -133,10 +133,11 @@ describe('role definitions page source', () => {
 
   it('keeps the expanded role row compact and human-readable', () => {
     const source = readExpandedRoleRowSource();
-    expect(source).toContain('Verification and escalation');
     expect(source).toContain('line-clamp-3');
+    expect(source).not.toContain('Verification and escalation');
     expect(source).not.toContain('Capabilities');
     expect(source).not.toContain('Metadata');
+    expect(source).not.toContain('detailSummary.governance');
     expect(source).not.toContain('props.role.allowed_tools.map');
   });
 });

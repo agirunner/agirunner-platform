@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildRoleDetailSummary } from './role-definitions-list.support.js';
 
 describe('role definitions list support', () => {
-  it('builds structured detail summaries with human-readable governance labels', () => {
+  it('builds structured detail summaries without a governance card', () => {
     const summary = buildRoleDetailSummary(
       {
         id: 'role-1',
@@ -31,8 +31,7 @@ describe('role definitions list support', () => {
     expect(summary.model.label).toBe('System default');
     expect(summary.tools.label).toBe('2 tools enabled');
     expect(summary.executionContainer.label).toContain('ghcr.io/agirunner/execution:v1.2.3');
-    expect(summary.governance.label).toContain('Peer review');
-    expect(summary.governance.label).toContain('Escalates to architect');
+    expect(summary).not.toHaveProperty('governance');
     expect(summary.promptPreview).toContain('You are a developer role.');
     expect(summary.promptPreview).toContain('Escalate architecture concerns');
   });

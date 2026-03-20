@@ -1,5 +1,5 @@
 const MEMORY_ALLOCATION_PATTERN =
-  /^\d+(?:\.\d+)?(?:b|k|m|g|t|p|e|kb|mb|gb|tb|pb|eb|ki|mi|gi|ti|pi|ei|kib|mib|gib|tib|pib|eib)?$/i;
+  /^\d+(?:\.\d+)?(?:b|k|m|g|t|p|e|kb|mb|gb|tb|pb|eb|ki|mi|gi|ti|pi|ei|kib|mib|gib|tib|pib|eib)$/i;
 const IMAGE_TAG_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/;
 const IMAGE_DIGEST_PATTERN = /^[A-Za-z][A-Za-z0-9_+.-]*:[A-Fa-f0-9]{32,}$/;
 const IMAGE_HOST_PATTERN =

@@ -31,6 +31,12 @@ describe('container resources validation', () => {
     expect(validateContainerCpu('zero', 'CPU limit')).toContain('positive number');
     expect(validateContainerCpu('0', 'CPU limit')).toContain('greater than 0');
     expect(validateContainerMemory('banana', 'Memory limit')).toContain('512m, 2g, or 2Gi');
+    expect(validateContainerMemory('1', 'Memory limit')).toContain('512m, 2g, or 2Gi');
     expect(validateContainerMemory('0Gi', 'Memory limit')).toContain('greater than 0');
+  });
+
+  it('accepts memory values with explicit units', () => {
+    expect(validateContainerMemory('1Gi', 'Memory limit')).toBeNull();
+    expect(validateContainerMemory('1G', 'Memory limit')).toBeNull();
   });
 });

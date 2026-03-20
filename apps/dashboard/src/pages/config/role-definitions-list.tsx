@@ -150,7 +150,6 @@ export function RoleRow(props: {
                   detailSummary.model,
                   detailSummary.tools,
                   detailSummary.executionContainer,
-                  detailSummary.governance,
                 ].map((item) => (
                   <div key={item.title} className="rounded-lg border border-border/70 bg-background/80 p-3">
                     <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-muted">
