@@ -2,11 +2,13 @@ import fastify from 'fastify';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
+import { ValidationError } from '../../src/errors/domain-errors.js';
 import { taskPlatformRoutes } from '../../src/api/routes/task-platform.routes.js';
 
 const downloadArtifactForTaskScope = vi.fn();
 const listArtifactsForTaskScope = vi.fn();
 const previewArtifactForTaskScope = vi.fn();
+const VALID_ARTIFACT_ID = '11111111-1111-4111-8111-111111111111';
 
 vi.mock('../../src/auth/fastify-auth-hook.js', () => ({
   authenticateApiKey: async (request: { auth?: unknown }) => {
@@ -28,6 +30,12 @@ vi.mock('../../src/services/artifact-catalog-service.js', () => ({
     downloadArtifactForTaskScope,
     previewArtifactForTaskScope,
   })),
+  parseArtifactCatalogArtifactId: (value: string) => {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+      throw new ValidationError('artifact_id must be a valid uuid');
+    }
+    return value;
+  },
 }));
 
 describe('task platform routes', () => {
@@ -627,12 +635,52 @@ describe('task platform routes', () => {
 
     const response = await app.inject({
       method: 'GET',
-      url: '/api/v1/tasks/task-1/artifact-catalog/artifact-1',
+      url: `/api/v1/tasks/task-1/artifact-catalog/${VALID_ARTIFACT_ID}`,
       headers: { authorization: 'Bearer test' },
     });
 
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-disposition']).toBe('attachment; filename="spec.md"');
     expect(response.body).toBe('hello');
+  });
+
+  it('rejects malformed artifact ids before calling the artifact catalog service', async () => {
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [{
+          id: 'task-1',
+          workflow_id: 'workflow-1',
+          workspace_id: 'workspace-1',
+          work_item_id: 'work-item-1',
+          stage_name: 'design',
+          activation_id: null,
+          assigned_agent_id: 'agent-1',
+          is_orchestrator_task: false,
+          state: 'in_progress',
+        }],
+      }),
+    } as never);
+    app.decorate('workspaceService', {} as never);
+    app.decorate('config', {
+      ARTIFACT_STORAGE_BACKEND: 'local',
+      ARTIFACT_LOCAL_ROOT: '/tmp/artifacts',
+      ARTIFACT_ACCESS_URL_TTL_SECONDS: 900,
+      ARTIFACT_PREVIEW_MAX_BYTES: 1024,
+    } as never);
+
+    await app.register(taskPlatformRoutes);
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/api/v1/tasks/task-1/artifact-catalog/not-a-uuid',
+      headers: { authorization: 'Bearer test' },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().error.message).toContain('artifact_id must be a valid uuid');
+    expect(downloadArtifactForTaskScope).not.toHaveBeenCalled();
   });
 });

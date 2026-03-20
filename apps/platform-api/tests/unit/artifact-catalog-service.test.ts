@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { ArtifactCatalogService } from '../../src/services/artifact-catalog-service.js';
+import { ValidationError } from '../../src/errors/domain-errors.js';
+
+const ARTIFACT_ID = '11111111-1111-4111-8111-111111111111';
 
 function createStorage() {
   return {
@@ -33,14 +36,14 @@ describe('ArtifactCatalogService', () => {
           rowCount: 1,
           rows: [
             {
-              id: 'artifact-1',
+              id: ARTIFACT_ID,
               workflow_id: 'wf-1',
               workspace_id: 'proj-1',
               task_id: 'task-2',
               work_item_id: 'work-item-1',
               logical_path: 'artifact:wf-1/spec.pdf',
               storage_backend: 'local',
-              storage_key: 'tenant-1/wf-1/artifact-1/spec.pdf',
+              storage_key: `tenant-1/wf-1/${ARTIFACT_ID}/spec.pdf`,
               content_type: 'application/pdf',
               size_bytes: 1024,
               checksum_sha256: 'abc123',
@@ -62,8 +65,8 @@ describe('ArtifactCatalogService', () => {
       work_item_id: 'work-item-1',
       preview_eligible: true,
       preview_mode: 'pdf',
-      preview_url: '/api/v1/tasks/task-2/artifact-catalog/artifact-1/preview',
-      permalink_url: '/api/v1/tasks/task-2/artifact-catalog/artifact-1/permalink',
+      preview_url: `/api/v1/tasks/task-2/artifact-catalog/${ARTIFACT_ID}/preview`,
+      permalink_url: `/api/v1/tasks/task-2/artifact-catalog/${ARTIFACT_ID}/permalink`,
     });
     expect(artifacts[0]?.metadata).toEqual({
       api_key: 'redacted://artifact-metadata-secret',
@@ -86,14 +89,14 @@ describe('ArtifactCatalogService', () => {
           rowCount: 1,
           rows: [
             {
-              id: 'artifact-1',
+              id: ARTIFACT_ID,
               workflow_id: 'wf-1',
               workspace_id: 'proj-1',
               task_id: 'task-2',
               work_item_id: 'work-item-1',
               logical_path: 'artifact:wf-1/spec.pdf',
               storage_backend: 'local',
-              storage_key: 'tenant-1/wf-1/artifact-1/spec.pdf',
+              storage_key: `tenant-1/wf-1/${ARTIFACT_ID}/spec.pdf`,
               content_type: 'application/pdf',
               size_bytes: 4096,
               checksum_sha256: 'abc123',
@@ -109,7 +112,7 @@ describe('ArtifactCatalogService', () => {
     const service = new ArtifactCatalogService(pool as never, storage as never, 900, 2048);
 
     await expect(
-      service.previewArtifactForTaskScope('tenant-1', 'task-1', 'artifact-1'),
+      service.previewArtifactForTaskScope('tenant-1', 'task-1', ARTIFACT_ID),
     ).rejects.toThrow('Artifact is not eligible for inline preview');
     expect(storage.getObject).not.toHaveBeenCalled();
   });
@@ -126,14 +129,14 @@ describe('ArtifactCatalogService', () => {
           rowCount: 1,
           rows: [
             {
-              id: 'artifact-1',
+              id: ARTIFACT_ID,
               workflow_id: 'wf-1',
               workspace_id: 'proj-1',
               task_id: 'task-2',
               work_item_id: 'work-item-1',
               logical_path: 'artifact:wf-1/spec.pdf',
               storage_backend: 'local',
-              storage_key: 'tenant-1/wf-1/artifact-1/spec.pdf',
+              storage_key: `tenant-1/wf-1/${ARTIFACT_ID}/spec.pdf`,
               content_type: 'application/pdf',
               size_bytes: 1024,
               checksum_sha256: 'abc123',
@@ -148,11 +151,15 @@ describe('ArtifactCatalogService', () => {
     const storage = createStorage();
     const service = new ArtifactCatalogService(pool as never, storage as never, 900, 2048);
 
-    const preview = await service.previewArtifactForTaskScope('tenant-1', 'task-1', 'artifact-1');
+    const preview = await service.previewArtifactForTaskScope('tenant-1', 'task-1', ARTIFACT_ID);
 
-    expect(preview.artifact.download_url).toBe('/api/v1/tasks/task-2/artifact-catalog/artifact-1');
-    expect(preview.artifact.preview_url).toBe('/api/v1/tasks/task-2/artifact-catalog/artifact-1/preview');
-    expect(preview.artifact.permalink_url).toBe('/api/v1/tasks/task-2/artifact-catalog/artifact-1/permalink');
+    expect(preview.artifact.download_url).toBe(`/api/v1/tasks/task-2/artifact-catalog/${ARTIFACT_ID}`);
+    expect(preview.artifact.preview_url).toBe(
+      `/api/v1/tasks/task-2/artifact-catalog/${ARTIFACT_ID}/preview`,
+    );
+    expect(preview.artifact.permalink_url).toBe(
+      `/api/v1/tasks/task-2/artifact-catalog/${ARTIFACT_ID}/permalink`,
+    );
     expect(preview.artifact.metadata).toEqual({
       credentials: {
         password: 'redacted://artifact-metadata-secret',
@@ -176,14 +183,14 @@ describe('ArtifactCatalogService', () => {
           rowCount: 1,
           rows: [
             {
-              id: 'artifact-1',
+              id: ARTIFACT_ID,
               workflow_id: 'wf-1',
               workspace_id: 'proj-1',
               task_id: 'task-2',
               work_item_id: 'work-item-1',
               logical_path: 'artifact:wf-1/spec.pdf',
               storage_backend: 'local',
-              storage_key: 'tenant-1/wf-1/artifact-1/spec.pdf',
+              storage_key: `tenant-1/wf-1/${ARTIFACT_ID}/spec.pdf`,
               content_type: 'application/pdf',
               size_bytes: 1024,
               checksum_sha256: 'abc123',
@@ -201,11 +208,28 @@ describe('ArtifactCatalogService', () => {
     const storage = createStorage();
     const service = new ArtifactCatalogService(pool as never, storage as never, 900, 2048);
 
-    const preview = await service.previewArtifactForTaskScope('tenant-1', 'task-1', 'artifact-1');
+    const preview = await service.previewArtifactForTaskScope('tenant-1', 'task-1', ARTIFACT_ID);
 
     expect(preview.artifact.metadata).toEqual({
       note: 'redacted://artifact-metadata-secret',
       session: 'redacted://artifact-metadata-secret',
     });
+  });
+
+  it('rejects malformed artifact ids before querying the catalog table', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValueOnce({
+        rowCount: 1,
+        rows: [{ id: 'task-1', workflow_id: 'wf-1', workspace_id: 'proj-1' }],
+      }),
+    };
+    const storage = createStorage();
+    const service = new ArtifactCatalogService(pool as never, storage as never, 900, 2048);
+
+    await expect(
+      service.downloadArtifactForTaskScope('tenant-1', 'task-1', 'artifact-1'),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(storage.getObject).not.toHaveBeenCalled();
   });
 });

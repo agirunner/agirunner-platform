@@ -1,6 +1,7 @@
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import type { ArtifactStorageAdapter } from '../content/artifact-storage.js';
+import { z } from 'zod';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import {
   type ArtifactResponse,
@@ -9,6 +10,7 @@ import {
 } from './artifact-service.js';
 
 const ARTIFACT_METADATA_SECRET_REDACTION = 'redacted://artifact-metadata-secret';
+const artifactCatalogArtifactIdSchema = z.string().uuid();
 
 interface ArtifactCatalogRow {
   id: string;
@@ -46,6 +48,14 @@ export interface ArtifactCatalogQuery {
   work_item_id?: string;
   name_prefix?: string;
   limit?: number;
+}
+
+export function parseArtifactCatalogArtifactId(value: string): string {
+  const parsed = artifactCatalogArtifactIdSchema.safeParse(value);
+  if (parsed.success) {
+    return parsed.data;
+  }
+  throw new ValidationError('artifact_id must be a valid uuid');
 }
 
 export class ArtifactCatalogService {
@@ -118,6 +128,7 @@ export class ArtifactCatalogService {
 
   async downloadArtifactForTaskScope(tenantId: string, currentTaskId: string, artifactId: string) {
     const currentTask = await this.loadTaskScope(tenantId, currentTaskId);
+    const normalizedArtifactId = parseArtifactCatalogArtifactId(artifactId);
     const result = await this.pool.query<ArtifactCatalogRow>(
       `SELECT fa.id,
               fa.workflow_id,
@@ -145,7 +156,7 @@ export class ArtifactCatalogService {
             OR fa.task_id = $4::uuid
           )
         LIMIT 1`,
-      [tenantId, artifactId, currentTask.workflow_id, currentTask.id],
+      [tenantId, normalizedArtifactId, currentTask.workflow_id, currentTask.id],
     );
     if (!result.rowCount) {
       throw new NotFoundError('Artifact not found');
@@ -165,7 +176,11 @@ export class ArtifactCatalogService {
     artifactId: string,
   ): Promise<ArtifactCatalogPreviewResult> {
     const currentTask = await this.loadTaskScope(tenantId, currentTaskId);
-    const row = await this.loadCatalogArtifact(tenantId, currentTask, artifactId);
+    const row = await this.loadCatalogArtifact(
+      tenantId,
+      currentTask,
+      parseArtifactCatalogArtifactId(artifactId),
+    );
     assertArtifactPreviewEligible(row.content_type, Number(row.size_bytes), this.previewMaxBytes);
     const payload = await this.storage.getObject(row.storage_key);
     return {

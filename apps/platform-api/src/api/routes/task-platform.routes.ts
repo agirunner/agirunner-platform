@@ -7,7 +7,10 @@ import { applyArtifactPreviewHeaders } from '../../bootstrap/plugins.js';
 import { buildArtifactStorageConfig } from '../../content/storage-config.js';
 import { createArtifactStorage } from '../../content/storage-factory.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
-import { ArtifactCatalogService } from '../../services/artifact-catalog-service.js';
+import {
+  ArtifactCatalogService,
+  parseArtifactCatalogArtifactId,
+} from '../../services/artifact-catalog-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
 import { assertWorkspaceMemoryWritesAreDurableKnowledge } from '../../services/workspace-memory-write-guard.js';
 import { WorkspaceMemoryScopeService } from '../../services/workspace-memory-scope-service.js';
@@ -203,10 +206,11 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const params = request.params as { id: string; artifactId: string };
       await taskScopeService.loadAgentOwnedActiveTask(request.auth!, params.id);
+      const artifactId = parseArtifactCatalogArtifactId(params.artifactId);
       const result = await artifactCatalogService.downloadArtifactForTaskScope(
         request.auth!.tenantId,
         params.id,
-        params.artifactId,
+        artifactId,
       );
       reply.header('Content-Type', result.contentType);
       reply.header(
@@ -223,10 +227,11 @@ export const taskPlatformRoutes: FastifyPluginAsync = async (app) => {
     params: { id: string; artifactId: string },
   ): Promise<FastifyReply> {
     await taskScopeService.loadAgentOwnedActiveTask(request.auth!, params.id);
+    const artifactId = parseArtifactCatalogArtifactId(params.artifactId);
     const result = await artifactCatalogService.previewArtifactForTaskScope(
       request.auth!.tenantId,
       params.id,
-      params.artifactId,
+      artifactId,
     );
     applyArtifactPreviewHeaders(reply, result.fileName, result.contentType);
     return reply.send(result.data);
