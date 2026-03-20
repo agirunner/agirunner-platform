@@ -189,6 +189,33 @@ describe('AgentService secret redaction', () => {
       },
     ]);
   });
+
+  it('does not require routing_tags to list agents', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'agent-1',
+            worker_id: 'worker-1',
+            name: 'coder-01',
+            status: 'active',
+            metadata: {},
+            created_at: new Date().toISOString(),
+          },
+        ],
+      }),
+    };
+    const service = new AgentService(
+      pool as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    await service.listAgents('tenant-1');
+
+    const sql = pool.query.mock.calls[0]?.[0] as string;
+    expect(sql).not.toContain('routing_tags');
+  });
 });
 
 describe('AgentService heartbeat enforcement', () => {

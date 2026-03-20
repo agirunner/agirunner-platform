@@ -116,7 +116,7 @@ export class AgentService {
 
   async listAgents(tenantId: string) {
     const result = await this.pool.query(
-      `SELECT id, worker_id, name, routing_tags, status, current_task_id, heartbeat_interval_seconds,
+      `SELECT id, worker_id, name, status, current_task_id, heartbeat_interval_seconds,
               last_heartbeat_at, metadata, registered_at, created_at, updated_at
        FROM agents
       WHERE tenant_id = $1
