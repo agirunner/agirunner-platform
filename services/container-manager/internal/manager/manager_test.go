@@ -39,25 +39,25 @@ type mockDockerClient struct {
 	stats          map[string]*ContainerStats
 	healthStatuses map[string]*ContainerHealthStatus
 
-	createdSpecs    []ContainerSpec
-	networkConnects []networkConnectCall
-	stoppedIDs      []string
-	stopTimeouts    []time.Duration
-	removedIDs      []string
-	updatedLabels   []labelUpdate
-	pulledImages    []pullRecord
-	createErr       error
-	connectErr      error
-	listErr         error
-	stopErr         error
-	removeErr       error
+	createdSpecs       []ContainerSpec
+	networkConnects    []networkConnectCall
+	stoppedIDs         []string
+	stopTimeouts       []time.Duration
+	removedIDs         []string
+	updatedLabels      []labelUpdate
+	pulledImages       []pullRecord
+	createErr          error
+	connectErr         error
+	listErr            error
+	stopErr            error
+	removeErr          error
 	failOnExistingName bool
-	stopWaitForCtx  bool
-	sawStopDeadline bool
-	listImagesErr   error
-	statsErr        error
-	pullErr         error
-	nextContainerID int
+	stopWaitForCtx     bool
+	sawStopDeadline    bool
+	listImagesErr      error
+	statsErr           error
+	pullErr            error
+	nextContainerID    int
 }
 
 func newMockDockerClient() *mockDockerClient {
@@ -192,11 +192,13 @@ type mockPlatformClient struct {
 	reportedImages  []ContainerImage
 	reportedEvents  []FleetEvent
 	failedTasks     []failedTaskRecord
+	taskStates      map[string]string
 	drainedRuntimes []string
 	ackedRestarts   []string
 	reportStateErr  error
 	reportImageErr  error
 	failTaskErr     error
+	getTaskStateErr error
 	ackRestartErr   error
 }
 
@@ -262,6 +264,16 @@ func (m *mockPlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
 		return nil, m.fetchHBErr
 	}
 	return m.heartbeats, nil
+}
+
+func (m *mockPlatformClient) GetTaskState(taskID string) (string, error) {
+	if m.getTaskStateErr != nil {
+		return "", m.getTaskStateErr
+	}
+	if m.taskStates == nil {
+		return "", nil
+	}
+	return m.taskStates[taskID], nil
 }
 
 func (m *mockPlatformClient) RecordFleetEvent(event FleetEvent) error {

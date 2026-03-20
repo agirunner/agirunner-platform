@@ -84,6 +84,7 @@ type PlatformAPI interface {
 	ReportImage(image ContainerImage) error
 	FetchRuntimeTargets() ([]RuntimeTarget, error)
 	FetchHeartbeats() ([]RuntimeHeartbeat, error)
+	GetTaskState(taskID string) (string, error)
 	RecordFleetEvent(event FleetEvent) error
 	DrainRuntime(runtimeID string) error
 	AcknowledgeWorkerRestart(desiredStateID string) error

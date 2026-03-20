@@ -304,7 +304,7 @@ export const taskRoutes: FastifyPluginAsync = async (app) => {
 
   app.get(
     '/api/v1/tasks/:id',
-    { preHandler: [authenticateApiKey, withScope('agent')] },
+    { preHandler: [authenticateApiKey, withAllowedScopes(['agent', 'admin'])] },
     async (request) => {
       const params = request.params as { id: string };
       const taskId = parseTaskId(params.id);

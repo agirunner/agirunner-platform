@@ -3,6 +3,7 @@ package manager
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -129,6 +130,16 @@ func (m *Manager) failActiveTask(runtimeID string, hb *RuntimeHeartbeat, reason 
 	if taskID == "" {
 		return
 	}
+	shouldFail, taskState := m.shouldFailActiveTask(taskID)
+	if !shouldFail {
+		m.logger.Info("hung detection: skipping fail callback for terminal task",
+			"task_id", taskID,
+			"runtime_id", runtimeID,
+			"task_state", taskState,
+			"reason", reason,
+		)
+		return
+	}
 	failReason := fmt.Sprintf("runtime_hung: %s (runtime %s)", reason, runtimeID)
 	if err := m.platform.FailTask(taskID, failReason); err != nil {
 		m.logger.Error("hung detection: failed to mark task as failed",
@@ -136,6 +147,27 @@ func (m *Manager) failActiveTask(runtimeID string, hb *RuntimeHeartbeat, reason 
 			"runtime_id", runtimeID,
 			"error", err,
 		)
+	}
+}
+
+func (m *Manager) shouldFailActiveTask(taskID string) (bool, string) {
+	state, err := m.platform.GetTaskState(taskID)
+	if err != nil {
+		m.logger.Warn("hung detection: failed to fetch task state before fail callback",
+			"task_id", taskID,
+			"error", err,
+		)
+		return true, ""
+	}
+	return isHungRuntimeFailureEligibleTaskState(state), state
+}
+
+func isHungRuntimeFailureEligibleTaskState(state string) bool {
+	switch strings.ToLower(strings.TrimSpace(state)) {
+	case "completed", "failed", "cancelled", "escalated", "output_pending_review", "awaiting_approval":
+		return false
+	default:
+		return true
 	}
 }
 

@@ -181,6 +181,29 @@ func TestFetchHeartbeatsIncludesPoolKind(t *testing.T) {
 	}
 }
 
+func TestGetTaskStateReturnsTaskState(t *testing.T) {
+	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/v1/tasks/task-1" {
+			t.Errorf("expected path /api/v1/tasks/task-1, got %s", req.URL.Path)
+		}
+		if req.Method != http.MethodGet {
+			t.Errorf("expected GET, got %s", req.Method)
+		}
+		return jsonResponse(http.StatusOK, `{"data":{"id":"task-1","state":"completed"}}`), nil
+	})
+
+	state, err := client.GetTaskState("task-1")
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if capture.authorization != "Bearer test-key" {
+		t.Fatalf("expected Authorization Bearer test-key, got %s", capture.authorization)
+	}
+	if state != "completed" {
+		t.Fatalf("expected completed state, got %s", state)
+	}
+}
+
 func TestFetchRuntimeTargetsIncludesCapabilityDemandSummary(t *testing.T) {
 	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
 		if req.URL.Path != "/api/v1/fleet/runtime-targets" {

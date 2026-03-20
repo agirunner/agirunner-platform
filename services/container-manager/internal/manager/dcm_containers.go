@@ -290,13 +290,28 @@ func (m *Manager) stopAndRemove(ctx context.Context, containerID string, timeout
 	stopCtx, stopCancel := context.WithTimeout(context.Background(), timeout+m.dockerActionBuffer())
 	defer stopCancel()
 	if err := m.docker.StopContainer(stopCtx, containerID, timeout); err != nil {
-		m.logger.Error("failed to stop container", "container", containerID, "error", err)
+		if isContainerAlreadyGoneError(err) {
+			m.logger.Info("container already gone before stop", "container", containerID)
+		} else {
+			m.logger.Error("failed to stop container", "container", containerID, "error", err)
+		}
 	}
 	removeCtx, removeCancel := context.WithTimeout(context.Background(), m.dockerActionBuffer())
 	defer removeCancel()
 	if err := m.docker.RemoveContainer(removeCtx, containerID); err != nil {
-		m.logger.Error("failed to remove container", "container", containerID, "error", err)
+		if isContainerAlreadyGoneError(err) {
+			m.logger.Info("container already gone before removal", "container", containerID)
+		} else {
+			m.logger.Error("failed to remove container", "container", containerID, "error", err)
+		}
 	}
+}
+
+func isContainerAlreadyGoneError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return strings.Contains(strings.ToLower(err.Error()), "no such container")
 }
 
 func (m *Manager) forceRemoveContainer(ctx context.Context, containerID string) {

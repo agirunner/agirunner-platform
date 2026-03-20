@@ -306,6 +306,12 @@ type heartbeatsResponse struct {
 	Data []RuntimeHeartbeat `json:"data"`
 }
 
+type taskStateResponse struct {
+	Data struct {
+		State string `json:"state"`
+	} `json:"data"`
+}
+
 // FetchHeartbeats retrieves runtime heartbeat data from the platform.
 func (c *PlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
 	url := fmt.Sprintf("%s/api/v1/fleet/heartbeats", c.baseURL)
@@ -332,6 +338,34 @@ func (c *PlatformClient) FetchHeartbeats() ([]RuntimeHeartbeat, error) {
 		return nil, fmt.Errorf("decode heartbeats response: %w", err)
 	}
 	return result.Data, nil
+}
+
+// GetTaskState retrieves the current public task state from the platform API.
+func (c *PlatformClient) GetTaskState(taskID string) (string, error) {
+	url := fmt.Sprintf("%s/api/v1/tasks/%s", c.baseURL, taskID)
+
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return "", fmt.Errorf("create task state request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("task state request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", fmt.Errorf("task state API returned HTTP %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result taskStateResponse
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return "", fmt.Errorf("decode task state response: %w", err)
+	}
+	return result.Data.State, nil
 }
 
 // RecordFleetEvent posts a fleet event to the platform API for persistence.

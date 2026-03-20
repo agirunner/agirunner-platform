@@ -60,6 +60,36 @@ func TestDetectHungRuntimesDockerUnhealthyStopsContainer(t *testing.T) {
 	}
 }
 
+func TestDetectHungRuntimesDockerUnhealthySkipsFailForCompletedTask(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	docker.healthStatuses = map[string]*ContainerHealthStatus{
+		"c-1": {Status: "unhealthy"},
+	}
+	recentTime := time.Now().UTC().Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-1", PlaybookID: "tmpl-1", State: "running", LastHeartbeatAt: recentTime, ActiveTaskID: "task-99"},
+		},
+		taskStates: map[string]string{
+			"task-99": "completed",
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.detectHungRuntimes(context.Background())
+
+	if len(docker.stoppedIDs) != 1 || docker.stoppedIDs[0] != "c-1" {
+		t.Errorf("expected container c-1 stopped, got %v", docker.stoppedIDs)
+	}
+	if len(platform.failedTasks) != 0 {
+		t.Errorf("expected no failed tasks for completed task, got %v", platform.failedTasks)
+	}
+}
+
 func TestDetectHungRuntimesHealthyRuntimeNotStopped(t *testing.T) {
 	docker := newMockDockerClient()
 	docker.containers = []ContainerInfo{
@@ -322,6 +352,27 @@ func TestOrphanHeartbeatWithActiveTaskFailsTask(t *testing.T) {
 
 	if len(platform.failedTasks) != 1 || platform.failedTasks[0].TaskID != "task-orphan" {
 		t.Errorf("expected task-orphan failed via orphan heartbeat path, got %v", platform.failedTasks)
+	}
+}
+
+func TestOrphanHeartbeatSkipsFailForTerminalTaskState(t *testing.T) {
+	docker := newMockDockerClient()
+	staleTime := time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339)
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{},
+		heartbeats: []RuntimeHeartbeat{
+			{RuntimeID: "rt-orphan", PlaybookID: "tmpl-1", State: "running", LastHeartbeatAt: staleTime, ActiveTaskID: "task-orphan"},
+		},
+		taskStates: map[string]string{
+			"task-orphan": "completed",
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	mgr.detectHungRuntimes(context.Background())
+
+	if len(platform.failedTasks) != 0 {
+		t.Errorf("expected no failed tasks for completed orphan task, got %v", platform.failedTasks)
 	}
 }
 
