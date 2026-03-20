@@ -59,6 +59,7 @@ const builtInToolTags: Array<{ id: string; name: string; description: string; ca
   { id: 'escalate', name: 'Escalate', description: 'Escalate to orchestrator or human when stuck', category: 'control' },
   { id: 'create_work_item', name: 'Create Work Item', description: 'Create a workflow work item', category: 'workflow' },
   { id: 'update_work_item', name: 'Update Work Item', description: 'Update a workflow work item', category: 'workflow' },
+  { id: 'complete_work_item', name: 'Complete Work Item', description: 'Complete a workflow work item using the playbook terminal column', category: 'workflow' },
   { id: 'create_task', name: 'Create Task', description: 'Create a specialist task', category: 'workflow' },
   { id: 'create_workflow', name: 'Create Workflow', description: 'Create a child workflow', category: 'workflow' },
   { id: 'request_gate_approval', name: 'Request Gate Approval', description: 'Request human approval for a stage gate', category: 'workflow' },

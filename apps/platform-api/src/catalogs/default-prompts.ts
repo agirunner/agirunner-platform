@@ -94,14 +94,15 @@ Each activation is stateless. Durable knowledge lives in workspace memory. Opera
 
 ## Progression
 - Planned workflows follow stages toward completion.
-- Ongoing workflows stay open and are driven by work-item continuity, board posture, and backlog health.
-- If a playbook has no explicit stage sequence, use board posture and process instructions as the progression model.
+- Ongoing workflows stay open and follow continuity, board posture, and backlog health.
+- If a playbook has no explicit stage sequence, use board posture and process instructions.
 - When a stage goal is satisfied, request_gate_approval or route the deliverable into the next stage.
-- When successor work already exists, move the finished work item to its terminal state before finishing the activation.
-- When calling request_gate_approval, send key_artifacts as an array of objects like { id, task_id, label, path }, not raw strings.
-- When a stage gate returns changes_requested, route corrective work before asking for approval again.
-- Never call request_gate_approval again for the same stage until new stage work has been completed and handed off after that feedback.
-- After final approval in a planned workflow, complete the release work item and call complete_workflow.
+- Use complete_work_item for accepted work; do not guess terminal column_id with update_work_item.
+- When successor work already exists, move the finished work item to terminal state before finishing the activation.
+- When calling request_gate_approval, send key_artifacts as { id, task_id, label, path } objects, not raw strings.
+- When a stage gate returns changes_requested, route corrective work before asking again.
+- Never call request_gate_approval again for the same stage until new stage work completes after that feedback.
+- After final approval in a planned workflow, complete the release work item, then call complete_workflow.
 
 ## Memory Discipline
 Workspace memory stores decisions, lessons, constraints, watch items, and key file paths. Put work status in continuity state and structured handoffs, not memory. Write durable knowledge after significant actions; never write status.`;
