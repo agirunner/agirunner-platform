@@ -158,7 +158,7 @@ export function PlaybookFamilyCard(props: {
         </div>
       </CardHeader>
       <CardContent className="flex flex-1 flex-col space-y-4 overflow-hidden">
-        <div className="rounded-xl border border-border/70 bg-muted/15 p-3 text-sm">
+        <div className="rounded-xl border border-border/70 bg-background/60 p-3 text-sm">
           <div className="font-medium">Outcome</div>
           <div className="mt-1 line-clamp-2 text-muted">{family.outcome}</div>
         </div>
@@ -173,7 +173,7 @@ export function PlaybookFamilyCard(props: {
           </div>
         ) : null}
         <div className="mt-auto flex flex-wrap gap-2">
-          <Button asChild variant="outline" size="sm">
+          <Button asChild size="sm">
             <Link to={`/config/playbooks/${playbook.id}`}>
               <Settings2 className="h-4 w-4" />
               Manage
