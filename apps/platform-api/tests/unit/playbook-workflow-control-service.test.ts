@@ -155,7 +155,7 @@ describe('PlaybookWorkflowControlService', () => {
   it('treats late duplicate gate requests as a no-op after a gate was already approved', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
           return {
             rowCount: 1,
@@ -194,6 +194,28 @@ describe('PlaybookWorkflowControlService', () => {
         if (sql.includes('FROM workflow_stage_gates')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('UPDATE workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'active',
+              gate_status: 'approved',
+              iteration_count: 0,
+              summary: 'Already approved',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:31:30Z'),
+            }],
+          };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -213,7 +235,7 @@ describe('PlaybookWorkflowControlService', () => {
       pool as never,
     );
 
-    expect(stage.gate_status).toBe('approved');
+    expect(stage).toEqual(expect.objectContaining({ gate_status: 'approved', status: 'active' }));
     expect(eventService.emit).not.toHaveBeenCalled();
     expect(pool.query).not.toHaveBeenCalledWith(expect.stringContaining('INSERT INTO workflow_stage_gates'));
   });
@@ -1127,6 +1149,28 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('UPDATE workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-1',
+              name: 'requirements',
+              position: 0,
+              goal: 'Define scope',
+              guidance: null,
+              human_gate: true,
+              status: 'active',
+              gate_status: 'approved',
+              iteration_count: 0,
+              summary: 'Ready for review',
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              updated_at: new Date('2026-03-11T00:31:30Z'),
+            }],
+          };
+        }
         if (sql.includes('UPDATE workflow_work_items')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
           return { rowCount: 1, rows: [] };
@@ -1153,6 +1197,7 @@ describe('PlaybookWorkflowControlService', () => {
     expect(stage).toEqual(
       expect.objectContaining({
         name: 'requirements',
+        status: 'active',
         gate_status: 'approved',
       }),
     );
@@ -1264,7 +1309,7 @@ describe('PlaybookWorkflowControlService', () => {
               goal: 'Define scope',
               guidance: null,
               human_gate: true,
-              status: 'awaiting_gate',
+              status: 'active',
               gate_status: 'approved',
               iteration_count: 1,
               summary: 'Needs rework',
@@ -1418,7 +1463,7 @@ describe('PlaybookWorkflowControlService', () => {
               goal: 'Define scope',
               guidance: null,
               human_gate: true,
-              status: 'awaiting_gate',
+              status: 'active',
               gate_status: 'approved',
               iteration_count: 1,
               summary: 'Needs rework',
@@ -1455,6 +1500,7 @@ describe('PlaybookWorkflowControlService', () => {
     expect(stage).toEqual(
       expect.objectContaining({
         name: 'requirements',
+        status: 'active',
         gate_status: 'approved',
       }),
     );

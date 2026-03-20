@@ -268,7 +268,9 @@ export class PlaybookWorkflowControlService {
       throw new ValidationError(`Stage '${stageName}' does not require a human gate`);
     }
     if (stage.gate_status === 'approved') {
-      return toStageResponse(stage);
+      return toStageResponse(
+        await this.reactivateApprovedStageIfAwaitingGate(identity.tenantId, workflowId, stage, db),
+      );
     }
 
     const existingGate = await this.loadAwaitingGate(identity.tenantId, workflowId, stage.id, db);
@@ -379,7 +381,9 @@ export class PlaybookWorkflowControlService {
     if (!gate) {
       const latestGate = await this.loadLatestGateForStage(identity.tenantId, workflowId, stage.id, db);
       if (isIdempotentGateDecision(latestGate, input)) {
-        return toStageDecisionResponse(stage);
+        return toStageDecisionResponse(
+          await this.reactivateApprovedStageIfAwaitingGate(identity.tenantId, workflowId, stage, db),
+        );
       }
       if (isFollowOnGateDecisionAllowed(latestGate, input)) {
         const outcome = await this.applyGateDecision(identity, workflowId, stage, latestGate, input, db);
@@ -1112,6 +1116,32 @@ export class PlaybookWorkflowControlService {
     return result.rows[0] ?? null;
   }
 
+  private async reactivateApprovedStageIfAwaitingGate(
+    tenantId: string,
+    workflowId: string,
+    stage: WorkflowStageRow,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (stage.gate_status !== 'approved' || stage.status !== 'awaiting_gate') {
+      return stage;
+    }
+
+    const result = await db.query<WorkflowStageRow>(
+      `UPDATE workflow_stages
+          SET status = 'active',
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND name = $3
+          AND gate_status = 'approved'
+          AND status = 'awaiting_gate'
+      RETURNING id, name, position, goal, guidance, human_gate, status, gate_status,
+                iteration_count, summary, metadata, started_at, completed_at, updated_at`,
+      [tenantId, workflowId, stage.name],
+    );
+    return result.rows[0] ?? { ...stage, status: 'active' };
+  }
+
   private async hasNewStageHandoffSinceGateDecision(
     tenantId: string,
     workflowId: string,
@@ -1148,7 +1178,7 @@ export class PlaybookWorkflowControlService {
     const db = client ?? this.deps.pool;
     const decisionState =
       input.action === 'approve'
-        ? { gate_status: 'approved', status: 'awaiting_gate', iterations: stage.iteration_count }
+        ? { gate_status: 'approved', status: 'active', iterations: stage.iteration_count }
         : input.action === 'request_changes'
           ? { gate_status: 'changes_requested', status: 'active', iterations: stage.iteration_count + 1 }
           : { gate_status: 'rejected', status: 'blocked', iterations: stage.iteration_count + 1 };
