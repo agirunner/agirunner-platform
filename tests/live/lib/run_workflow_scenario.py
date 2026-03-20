@@ -12,6 +12,11 @@ from typing import Any
 
 from live_test_api import ApiClient, TraceRecorder, read_json
 from scenario_config import load_scenario
+from workflow_efficiency import (
+    collect_execution_logs,
+    evaluate_efficiency_expectations,
+    summarize_efficiency,
+)
 
 TERMINAL_STATES = {"completed", "failed", "cancelled"}
 DEFAULT_FINAL_SETTLE_ATTEMPTS = 5
@@ -86,6 +91,7 @@ def auto_approve_workflow_approvals(
                 "action": "approve",
                 "task_id": item.get("task_id"),
                 "stage_name": item.get("stage_name"),
+                "submitted_at": now_timestamp(),
             }
         )
     return actions
@@ -101,6 +107,10 @@ def approval_feedback(action: str, scenario_name: str, feedback: str | None = No
     if action == "request_changes":
         return f"Changes requested by the live test operator flow for scenario {scenario_name}."
     raise RuntimeError(f"unsupported approval action: {action}")
+
+
+def now_timestamp() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def matches_approval_decision(item: dict[str, Any], decision: dict[str, Any]) -> bool:
@@ -164,6 +174,7 @@ def apply_scripted_workflow_approvals(
                 "action": action,
                 "task_id": item.get("task_id"),
                 "stage_name": item.get("stage_name"),
+                "submitted_at": now_timestamp(),
             }
         )
     return actions
@@ -374,6 +385,7 @@ def evaluate_expectations(
     fleet: Any | None = None,
     playbook_id: str = "",
     fleet_peaks: dict[str, int] | None = None,
+    efficiency: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
     checks: list[dict[str, Any]] = []
@@ -744,6 +756,15 @@ def evaluate_expectations(
                     f"stage.gate.{request_action} and stage.gate.{resume_action}"
                 )
 
+    efficiency_expectations = expectations.get("efficiency", {})
+    if isinstance(efficiency_expectations, dict) and efficiency_expectations:
+        efficiency_checks, efficiency_failures = evaluate_efficiency_expectations(
+            efficiency_expectations,
+            efficiency,
+        )
+        checks.extend(efficiency_checks)
+        failures.extend(efficiency_failures)
+
     return {
         "passed": len(failures) == 0,
         "failures": failures,
@@ -1046,7 +1067,9 @@ def build_run_result_payload(
     artifacts: Any,
     fleet: Any,
     fleet_peaks: dict[str, int],
-    verification: dict[str, Any],
+    verification: dict[str, Any] | None = None,
+    execution_logs: Any | None = None,
+    efficiency: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     return {
         "workflow_id": workflow_id,
@@ -1070,7 +1093,9 @@ def build_run_result_payload(
         "artifacts": artifacts,
         "fleet": fleet,
         "fleet_peaks": fleet_peaks,
-        "verification": verification,
+        "execution_logs": execution_logs,
+        "efficiency": efficiency,
+        "verification": {} if verification is None else verification,
     }
 
 
@@ -1264,6 +1289,7 @@ def main() -> None:
                 fleet=latest_fleet,
                 playbook_id=playbook_id,
                 fleet_peaks=fleet_peaks,
+                efficiency=None,
             )
             if progress_verification["passed"]:
                 timed_out = False
@@ -1319,6 +1345,13 @@ def main() -> None:
     )
     if latest_fleet.get("ok"):
         update_fleet_peaks(fleet_peaks, latest_fleet.get("data"), playbook_id=playbook_id)
+    execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
+    efficiency_summary = summarize_efficiency(
+        workflow=latest_workflow,
+        logs=execution_logs_snapshot,
+        events=events_snapshot,
+        approval_actions=approval_actions,
+    )
 
     final_state = latest_workflow.get("state")
     verification = evaluate_expectations(
@@ -1333,6 +1366,7 @@ def main() -> None:
         fleet=latest_fleet,
         playbook_id=playbook_id,
         fleet_peaks=fleet_peaks,
+        efficiency=efficiency_summary,
     )
     print(
         json.dumps(
@@ -1355,6 +1389,8 @@ def main() -> None:
                 artifacts=artifacts_snapshot,
                 fleet=latest_fleet,
                 fleet_peaks=fleet_peaks,
+                execution_logs=execution_logs_snapshot,
+                efficiency=efficiency_summary,
                 verification=verification,
             )
         )

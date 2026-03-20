@@ -189,6 +189,256 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertFalse(payload["terminal"])
         self.assertEqual("pending", payload["workflow_state"])
 
+    def test_collect_execution_logs_paginates_all_pages(self) -> None:
+        client = FakeWorkflowClient(
+            [
+                {
+                    "data": [
+                        {
+                            "id": "log-1",
+                            "task_id": "task-1",
+                            "operation": "llm.chat_stream",
+                            "status": "completed",
+                            "payload": {"burst_id": 1},
+                            "created_at": "2026-03-20T10:00:00Z",
+                        }
+                    ],
+                    "pagination": {
+                        "has_more": True,
+                        "next_cursor": "cursor-1",
+                        "prev_cursor": None,
+                    },
+                },
+                {
+                    "data": [
+                        {
+                            "id": "log-2",
+                            "task_id": "task-1",
+                            "operation": "tool.execute",
+                            "status": "completed",
+                            "payload": {"burst_id": 1},
+                            "created_at": "2026-03-20T10:00:01Z",
+                        }
+                    ],
+                    "pagination": {
+                        "has_more": False,
+                        "next_cursor": None,
+                        "prev_cursor": "cursor-1",
+                    },
+                },
+            ]
+        )
+
+        snapshot = run_workflow_scenario.collect_execution_logs(client, workflow_id="wf-1", per_page=1)
+
+        self.assertEqual(2, len(snapshot["data"]))
+        self.assertEqual(
+            [
+                ("GET", "/api/v1/logs?workflow_id=wf-1&per_page=1&detail=full&order=asc", None, (200,), "logs.list"),
+                (
+                    "GET",
+                    "/api/v1/logs?workflow_id=wf-1&per_page=1&detail=full&order=asc&cursor=cursor-1",
+                    None,
+                    (200,),
+                    "logs.list",
+                ),
+            ],
+            client.calls,
+        )
+
+    def test_summarize_efficiency_aggregates_task_turns_approval_lag_and_teardown(self) -> None:
+        workflow = {
+            "id": "wf-1",
+            "state": "completed",
+            "created_at": "2026-03-20T09:59:50Z",
+            "completed_at": "2026-03-20T10:00:20Z",
+            "tasks": [
+                {
+                    "id": "task-orch-1",
+                    "role": "orchestrator",
+                    "is_orchestrator_task": True,
+                    "state": "completed",
+                },
+                {
+                    "id": "task-spec-1",
+                    "role": "developer",
+                    "is_orchestrator_task": False,
+                    "state": "completed",
+                },
+            ],
+        }
+        logs = {
+            "data": [
+                {
+                    "id": "log-1",
+                    "task_id": "task-orch-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {"burst_id": 1},
+                    "created_at": "2026-03-20T09:59:55Z",
+                },
+                {
+                    "id": "log-2",
+                    "task_id": "task-spec-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {
+                        "burst_id": 1,
+                        "repeated_read_count": 1,
+                        "duplicate_status_check_count": 0,
+                        "checkpoint_count": 1,
+                        "verify_count": 1,
+                    },
+                    "created_at": "2026-03-20T10:00:00Z",
+                },
+                {
+                    "id": "log-3",
+                    "task_id": "task-spec-1",
+                    "operation": "tool.execute",
+                    "status": "completed",
+                    "payload": {"burst_id": 1},
+                    "created_at": "2026-03-20T10:00:01Z",
+                },
+                {
+                    "id": "log-4",
+                    "task_id": "task-spec-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {
+                        "burst_id": 2,
+                        "repeated_read_count": 2,
+                        "duplicate_status_check_count": 1,
+                        "checkpoint_count": 1,
+                        "verify_count": 2,
+                    },
+                    "created_at": "2026-03-20T10:00:03Z",
+                },
+                {
+                    "id": "log-5",
+                    "task_id": "task-spec-1",
+                    "operation": "tool.execute",
+                    "status": "completed",
+                    "payload": {"burst_id": 2},
+                    "created_at": "2026-03-20T10:00:04Z",
+                },
+                {
+                    "id": "log-6",
+                    "task_id": "task-spec-1",
+                    "operation": "task.execute",
+                    "status": "completed",
+                    "payload": {},
+                    "created_at": "2026-03-20T10:00:05Z",
+                },
+                {
+                    "id": "log-7",
+                    "task_id": "task-spec-1",
+                    "operation": "container.remove",
+                    "status": "completed",
+                    "payload": {},
+                    "created_at": "2026-03-20T10:00:07Z",
+                },
+            ]
+        }
+        events = {
+            "ok": True,
+            "data": {
+                "data": [
+                    {
+                        "type": "stage.gate_requested",
+                        "created_at": "2026-03-20T10:00:00Z",
+                        "data": {"gate_id": "gate-1", "stage_name": "approval"},
+                    },
+                    {
+                        "type": "stage.gate.approve",
+                        "created_at": "2026-03-20T10:00:10Z",
+                        "data": {"gate_id": "gate-1", "stage_name": "approval"},
+                    },
+                    {
+                        "type": "workflow.activation_started",
+                        "created_at": "2026-03-20T10:00:11Z",
+                        "data": {"activation_id": "activation-1", "event_type": "stage.gate.approve"},
+                    },
+                    {
+                        "type": "workflow.activation_completed",
+                        "created_at": "2026-03-20T10:00:12Z",
+                        "data": {"activation_id": "activation-1", "event_type": "stage.gate.approve"},
+                    },
+                ]
+            },
+        }
+        approval_actions = [
+            {
+                "gate_id": "gate-1",
+                "action": "approve",
+                "stage_name": "approval",
+                "submitted_at": "2026-03-20T10:00:10Z",
+            }
+        ]
+
+        summary = run_workflow_scenario.summarize_efficiency(
+            workflow=workflow,
+            logs=logs,
+            events=events,
+            approval_actions=approval_actions,
+        )
+
+        self.assertEqual(30.0, summary["workflow_duration_seconds"])
+        self.assertEqual(3, summary["total_llm_turns"])
+        self.assertEqual(2, summary["non_orchestrator_max_llm_turns"])
+        self.assertEqual(2, summary["tasks"]["task-spec-1"]["burst_count"])
+        self.assertEqual(2, summary["tasks"]["task-spec-1"]["max_repeated_read_count"])
+        self.assertEqual(1, summary["tasks"]["task-spec-1"]["max_duplicate_status_check_count"])
+        self.assertEqual(2.0, summary["specialist_teardown"]["max_lag_seconds"])
+        self.assertEqual(
+            1.0,
+            summary["approval_metrics"][0]["decision_to_continuation_started_seconds"],
+        )
+        self.assertEqual(
+            2.0,
+            summary["approval_metrics"][0]["decision_to_continuation_completed_seconds"],
+        )
+
+    def test_evaluate_expectations_checks_efficiency_thresholds(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "efficiency": {
+                    "workflow_duration_seconds_lte": 60,
+                    "non_orchestrator_max_llm_turns_lte": 3,
+                    "non_orchestrator_max_tool_steps_lte": 4,
+                    "approval_decision_to_continuation_started_seconds_lte": 2,
+                    "approval_decision_to_continuation_completed_seconds_lte": 3,
+                    "specialist_teardown_lag_seconds_lte": 3,
+                    "orphan_cleanup_events_eq": 0,
+                }
+            },
+            workflow={"state": "completed", "tasks": []},
+            board={"ok": True, "data": {"columns": []}},
+            work_items={"ok": True, "data": []},
+            workspace={"memory": {}, "memory_index": {"keys": []}, "artifact_index": {"items": []}},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={"ok": True, "data": {"by_playbook_pool": []}},
+            efficiency={
+                "workflow_duration_seconds": 30.0,
+                "non_orchestrator_max_llm_turns": 2,
+                "non_orchestrator_max_tool_steps": 2,
+                "approval_metrics": [
+                    {
+                        "decision_to_continuation_started_seconds": 1.0,
+                        "decision_to_continuation_completed_seconds": 2.0,
+                    }
+                ],
+                "specialist_teardown": {"max_lag_seconds": 2.0, "orphan_cleanup_events": 0},
+            },
+        )
+
+        self.assertTrue(result["passed"])
+        check_names = {entry["name"] for entry in result["checks"]}
+        self.assertIn("efficiency.workflow_duration_seconds_lte", check_names)
+        self.assertIn("efficiency.non_orchestrator_max_llm_turns_lte", check_names)
+        self.assertIn("efficiency.specialist_teardown_lag_seconds_lte", check_names)
+
     def test_evaluate_expectations_checks_fleet_pool_bounds(self) -> None:
         result = run_workflow_scenario.evaluate_expectations(
             {
@@ -672,13 +922,17 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             approved_gate_ids=seen,
         )
 
-        self.assertEqual(
-            [
-                {"gate_id": "task-gate-1", "action": "approve", "task_id": "task-1", "stage_name": None},
-                {"gate_id": "stage-gate-1", "action": "approve", "task_id": None, "stage_name": "requirements"},
-            ],
-            actions,
-        )
+        self.assertEqual(2, len(actions))
+        self.assertEqual("task-gate-1", actions[0]["gate_id"])
+        self.assertEqual("approve", actions[0]["action"])
+        self.assertEqual("task-1", actions[0]["task_id"])
+        self.assertIsNone(actions[0]["stage_name"])
+        self.assertIsInstance(actions[0]["submitted_at"], str)
+        self.assertEqual("stage-gate-1", actions[1]["gate_id"])
+        self.assertEqual("approve", actions[1]["action"])
+        self.assertIsNone(actions[1]["task_id"])
+        self.assertEqual("requirements", actions[1]["stage_name"])
+        self.assertIsInstance(actions[1]["submitted_at"], str)
         self.assertEqual({"task-gate-1", "stage-gate-1"}, seen)
         self.assertEqual(
             [
@@ -747,10 +1001,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             approval_mode="approve_all",
         )
 
-        self.assertEqual(
-            [{"gate_id": "task-gate-1", "action": "approve", "task_id": "task-1", "stage_name": None}],
-            actions,
-        )
+        self.assertEqual(1, len(actions))
+        self.assertEqual("task-gate-1", actions[0]["gate_id"])
+        self.assertEqual("approve", actions[0]["action"])
+        self.assertEqual("task-1", actions[0]["task_id"])
+        self.assertIsNone(actions[0]["stage_name"])
+        self.assertIsInstance(actions[0]["submitted_at"], str)
         self.assertEqual(1, len(client.calls))
 
     def test_process_workflow_approvals_applies_scripted_request_changes_then_approve(self) -> None:
@@ -785,10 +1041,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             approval_decisions=approval_decisions,
         )
 
-        self.assertEqual(
-            [{"gate_id": "gate-req-1", "action": "request_changes", "task_id": None, "stage_name": "requirements"}],
-            first_actions,
-        )
+        self.assertEqual(1, len(first_actions))
+        self.assertEqual("gate-req-1", first_actions[0]["gate_id"])
+        self.assertEqual("request_changes", first_actions[0]["action"])
+        self.assertIsNone(first_actions[0]["task_id"])
+        self.assertEqual("requirements", first_actions[0]["stage_name"])
+        self.assertIsInstance(first_actions[0]["submitted_at"], str)
         self.assertEqual({0}, consumed_decisions)
         self.assertEqual(
             {
@@ -810,10 +1068,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             approval_decisions=approval_decisions,
         )
 
-        self.assertEqual(
-            [{"gate_id": "gate-req-1", "action": "approve", "task_id": None, "stage_name": "requirements"}],
-            second_actions,
-        )
+        self.assertEqual(1, len(second_actions))
+        self.assertEqual("gate-req-1", second_actions[0]["gate_id"])
+        self.assertEqual("approve", second_actions[0]["action"])
+        self.assertIsNone(second_actions[0]["task_id"])
+        self.assertEqual("requirements", second_actions[0]["stage_name"])
+        self.assertIsInstance(second_actions[0]["submitted_at"], str)
         self.assertEqual({0, 1}, consumed_decisions)
         self.assertEqual(
             {
