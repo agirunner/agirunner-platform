@@ -226,6 +226,7 @@ def build_task_efficiency_summary(workflow: dict[str, Any], log_rows: list[dict[
             "max_verify_count": 0,
             "task_terminal_at": None,
             "container_removed_at": None,
+            "teardown_completed_at": None,
             "teardown_lag_seconds": None,
         }
 
@@ -250,6 +251,7 @@ def build_task_efficiency_summary(workflow: dict[str, Any], log_rows: list[dict[
                 "max_verify_count": 0,
                 "task_terminal_at": None,
                 "container_removed_at": None,
+                "teardown_completed_at": None,
                 "teardown_lag_seconds": None,
             },
         )
@@ -286,23 +288,32 @@ def build_task_efficiency_summary(workflow: dict[str, Any], log_rows: list[dict[
             summary["task_terminal_at"] = _latest_time(summary["task_terminal_at"], created_at)
         if row.get("operation") == "container.remove" and row.get("status") == "completed":
             summary["container_removed_at"] = _latest_time(summary["container_removed_at"], created_at)
+            summary["teardown_completed_at"] = _latest_time(summary["teardown_completed_at"], created_at)
+        if row.get("operation") in {"task.teardown_completed", "runtime.teardown_completed"} and row.get("status") == "completed":
+            summary["teardown_completed_at"] = _latest_time(summary["teardown_completed_at"], created_at)
 
     for summary in task_summaries.values():
         summary["burst_count"] = len(summary["burst_ids"])
         summary.pop("burst_ids", None)
         terminal_at = summary.get("task_terminal_at")
         removed_at = summary.get("container_removed_at")
+        teardown_completed_at = summary.get("teardown_completed_at")
+        effective_teardown_at = removed_at
+        if not isinstance(effective_teardown_at, datetime):
+            effective_teardown_at = teardown_completed_at
         if (
             not summary.get("is_orchestrator_task")
             and isinstance(terminal_at, datetime)
-            and isinstance(removed_at, datetime)
-            and removed_at >= terminal_at
+            and isinstance(effective_teardown_at, datetime)
+            and effective_teardown_at >= terminal_at
         ):
-            summary["teardown_lag_seconds"] = round((removed_at - terminal_at).total_seconds(), 3)
+            summary["teardown_lag_seconds"] = round((effective_teardown_at - terminal_at).total_seconds(), 3)
         if isinstance(terminal_at, datetime):
             summary["task_terminal_at"] = terminal_at.isoformat()
         if isinstance(removed_at, datetime):
             summary["container_removed_at"] = removed_at.isoformat()
+        if isinstance(teardown_completed_at, datetime):
+            summary["teardown_completed_at"] = teardown_completed_at.isoformat()
 
     return task_summaries
 

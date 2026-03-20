@@ -132,6 +132,50 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             client.calls,
         )
 
+    def test_refresh_terminal_workflow_snapshot_retries_multiple_times_before_returning(self) -> None:
+        client = FakeWorkflowClient(
+            [
+                {
+                    "data": {
+                        "id": "wf-1",
+                        "state": "completed",
+                        "tasks": [
+                            {"id": "task-1", "state": "completed"},
+                            {"id": "task-2", "state": "in_progress"},
+                        ],
+                    }
+                },
+                {
+                    "data": {
+                        "id": "wf-1",
+                        "state": "completed",
+                        "tasks": [
+                            {"id": "task-1", "state": "completed"},
+                            {"id": "task-2", "state": "completed"},
+                        ],
+                    }
+                },
+            ]
+        )
+
+        refreshed = run_workflow_scenario.refresh_terminal_workflow_snapshot(
+            client,
+            workflow_id="wf-1",
+            workflow={
+                "id": "wf-1",
+                "state": "completed",
+                "tasks": [
+                    {"id": "task-1", "state": "completed"},
+                    {"id": "task-2", "state": "in_progress"},
+                ],
+            },
+            max_attempts=3,
+            delay_seconds=0,
+        )
+
+        self.assertEqual("completed", refreshed["tasks"][1]["state"])
+        self.assertEqual(2, len(client.calls))
+
     def test_build_run_result_payload_includes_explicit_scenario_and_provider_mode(self) -> None:
         payload = run_workflow_scenario.build_run_result_payload(
             workflow_id="wf-1",
@@ -438,6 +482,56 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertIn("efficiency.workflow_duration_seconds_lte", check_names)
         self.assertIn("efficiency.non_orchestrator_max_llm_turns_lte", check_names)
         self.assertIn("efficiency.specialist_teardown_lag_seconds_lte", check_names)
+
+    def test_summarize_efficiency_uses_runtime_teardown_completion_without_container_remove(self) -> None:
+        workflow = {
+            "created_at": "2026-03-20T10:00:00.000Z",
+            "completed_at": "2026-03-20T10:00:10.000Z",
+            "tasks": [
+                {
+                    "id": "task-spec-1",
+                    "role": "live-test-developer",
+                    "state": "completed",
+                }
+            ],
+        }
+        logs = {
+            "data": [
+                {
+                    "id": "log-1",
+                    "task_id": "task-spec-1",
+                    "role": "live-test-developer",
+                    "is_orchestrator_task": False,
+                    "operation": "task.execute",
+                    "status": "completed",
+                    "payload": {},
+                    "created_at": "2026-03-20T10:00:05Z",
+                },
+                {
+                    "id": "log-2",
+                    "task_id": "task-spec-1",
+                    "role": "live-test-developer",
+                    "is_orchestrator_task": False,
+                    "operation": "runtime.teardown_completed",
+                    "status": "completed",
+                    "payload": {"reason": "specialist_task_complete"},
+                    "created_at": "2026-03-20T10:00:07Z",
+                },
+            ]
+        }
+
+        summary = run_workflow_scenario.summarize_efficiency(
+            workflow=workflow,
+            logs=logs,
+            events={"ok": True, "data": []},
+            approval_actions=[],
+        )
+
+        self.assertEqual(
+            "2026-03-20T10:00:07+00:00",
+            summary["tasks"]["task-spec-1"]["teardown_completed_at"],
+        )
+        self.assertEqual(2.0, summary["specialist_teardown"]["max_lag_seconds"])
 
     def test_evaluate_expectations_checks_fleet_pool_bounds(self) -> None:
         result = run_workflow_scenario.evaluate_expectations(
