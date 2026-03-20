@@ -62,7 +62,7 @@ export function EditableControlPacket(props: {
     <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-sm font-medium text-foreground">{props.title}</p>
+          <p className="text-base font-semibold text-foreground">{props.title}</p>
           <p className="text-xs text-muted">{props.status}</p>
         </div>
         <props.icon className="h-4 w-4 text-muted" />
@@ -77,7 +77,7 @@ export function EditableControlPacket(props: {
           <p className="text-lg font-semibold leading-6 text-foreground">{props.value}</p>
           <p className="text-sm leading-6 text-muted">{props.detail}</p>
           {props.facts?.length ? (
-            <div className="grid gap-2 rounded-lg border border-border/70 bg-background/80 p-3">
+            <div className="grid gap-2 border-t border-border/70 pt-3">
               {props.facts.map((fact) => (
                 <div key={fact.label} className="flex items-start justify-between gap-3">
                   <span className="text-xs font-semibold uppercase tracking-[0.18em] text-muted">
@@ -116,7 +116,7 @@ export function AdvancedSurfaceCard(props: {
   return (
     <div className="grid gap-3 rounded-xl border border-border/70 bg-muted/10 p-4">
       <div className="space-y-1">
-        <p className="text-sm font-medium text-foreground">{props.surface.title}</p>
+        <p className="text-base font-semibold text-foreground">{props.surface.title}</p>
         <p className="text-sm font-semibold text-foreground">{props.surface.summary}</p>
         <p className="text-sm leading-6 text-muted">{props.surface.detail}</p>
       </div>

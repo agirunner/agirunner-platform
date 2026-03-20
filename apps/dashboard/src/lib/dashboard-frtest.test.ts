@@ -350,13 +350,19 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('export function DashboardLayout');
   });
 
-  it('layout includes navigation links to the shipped major sections without a fleet shell group', () => {
+  it('layout includes navigation links to the shipped major sections and a trimmed fleet shell group', () => {
     const source = readComponent('components/layout.tsx');
     expect(source).toContain('Mission Control');
     expect(source).toContain('Work');
     expect(source).toContain('Workspaces');
     expect(source).toContain('Configuration');
-    expect(source).not.toContain("label: 'Fleet'");
+    expect(source).toContain("label: 'Fleet'");
+    expect(source).toContain("href: '/config/runtimes'");
+    expect(source).toContain("href: '/fleet/agents'");
+    expect(source).toContain("href: '/fleet/docker'");
+    expect(source).not.toContain("href: '/fleet/workers'");
+    expect(source).not.toContain("href: '/fleet/warm-pools'");
+    expect(source).not.toContain("href: '/fleet/status'");
     expect(source).toContain('Governance');
   });
 
