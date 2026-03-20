@@ -553,6 +553,7 @@ export class WorkItemService {
               completed_at = COALESCE(completed_at, $5),
               next_expected_actor = NULL,
               next_expected_action = NULL,
+              metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
               updated_at = now()
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -962,6 +963,11 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     allowSecretReferences: false,
   }) as Record<string, unknown>;
   const childrenCount = readCount(sanitizedRow.children_count);
+  const completedAt =
+    typeof sanitizedRow.completed_at === 'string' || sanitizedRow.completed_at instanceof Date
+      ? sanitizedRow.completed_at
+      : null;
+  const completedWorkItem = completedAt !== null;
   return {
     ...sanitizedRow,
     id: String(sanitizedRow.id ?? ''),
@@ -970,16 +976,24 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     stage_name: typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null,
     column_id: typeof sanitizedRow.column_id === 'string' ? sanitizedRow.column_id : null,
     next_expected_actor:
-      typeof sanitizedRow.next_expected_actor === 'string' ? sanitizedRow.next_expected_actor : null,
+      completedWorkItem
+        ? null
+        : typeof sanitizedRow.next_expected_actor === 'string'
+          ? sanitizedRow.next_expected_actor
+          : null,
     next_expected_action:
-      typeof sanitizedRow.next_expected_action === 'string' ? sanitizedRow.next_expected_action : null,
+      completedWorkItem
+        ? null
+        : typeof sanitizedRow.next_expected_action === 'string'
+          ? sanitizedRow.next_expected_action
+          : null,
     rework_count: readCount(sanitizedRow.rework_count),
     latest_handoff_completion:
       typeof sanitizedRow.latest_handoff_completion === 'string'
         ? sanitizedRow.latest_handoff_completion
         : null,
-    unresolved_findings: readStringArray(sanitizedRow.unresolved_findings),
-    review_focus: readStringArray(sanitizedRow.review_focus),
+    unresolved_findings: completedWorkItem ? [] : readStringArray(sanitizedRow.unresolved_findings),
+    review_focus: completedWorkItem ? [] : readStringArray(sanitizedRow.review_focus),
     known_risks: readStringArray(sanitizedRow.known_risks),
     gate_status: typeof sanitizedRow.gate_status === 'string' ? sanitizedRow.gate_status : null,
     gate_decision_feedback:
@@ -990,10 +1004,7 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
       typeof sanitizedRow.gate_decided_at === 'string' || sanitizedRow.gate_decided_at instanceof Date
         ? sanitizedRow.gate_decided_at
         : null,
-    completed_at:
-      typeof sanitizedRow.completed_at === 'string' || sanitizedRow.completed_at instanceof Date
-        ? sanitizedRow.completed_at
-        : null,
+    completed_at: completedAt,
     task_count: readCount(sanitizedRow.task_count),
     children_count: childrenCount,
     children_completed: readCount(sanitizedRow.children_completed),

@@ -97,6 +97,8 @@ export interface UpdateWorkflowWorkItemInput {
   metadata?: Record<string, unknown>;
 }
 
+export interface CompleteWorkflowWorkItemInput {}
+
 export interface StageGateRequestInput {
   summary: string;
   recommendation?: string;
@@ -127,6 +129,8 @@ interface NormalizedWorkItemUpdate {
   stage_name: string;
   column_id: string;
   owner_role: string | null;
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
   priority: 'critical' | 'high' | 'normal' | 'low';
   notes: string | null;
   completed_at: Date | null;
@@ -159,6 +163,31 @@ export class PlaybookWorkflowControlService {
     try {
       await db.query('BEGIN');
       const result = await this.updateWorkItemInTransaction(identity, workflowId, workItemId, input, db);
+      await db.query('COMMIT');
+      return result;
+    } catch (error) {
+      await db.query('ROLLBACK');
+      throw error;
+    } finally {
+      db.release();
+    }
+  }
+
+  async completeWorkItem(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    workItemId: string,
+    input: CompleteWorkflowWorkItemInput,
+    client?: DatabaseClient,
+  ) {
+    if (client) {
+      return this.completeWorkItemInTransaction(identity, workflowId, workItemId, input, client);
+    }
+
+    const db = await this.deps.pool.connect();
+    try {
+      await db.query('BEGIN');
+      const result = await this.completeWorkItemInTransaction(identity, workflowId, workItemId, input, db);
       await db.query('COMMIT');
       return result;
     } catch (error) {
@@ -588,6 +617,7 @@ export class PlaybookWorkflowControlService {
                 completed_at = COALESCE(completed_at, now()),
                 next_expected_actor = NULL,
                 next_expected_action = NULL,
+                metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
                 updated_at = now()
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -603,6 +633,7 @@ export class PlaybookWorkflowControlService {
           SET completed_at = COALESCE(completed_at, now()),
               next_expected_actor = NULL,
               next_expected_action = NULL,
+              metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
               updated_at = now()
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -890,10 +921,12 @@ export class PlaybookWorkflowControlService {
               stage_name = $8,
               column_id = $9,
               owner_role = $10,
-              priority = $11,
-              notes = $12,
-              completed_at = $13,
-              metadata = $14::jsonb,
+              next_expected_actor = $11,
+              next_expected_action = $12,
+              priority = $13,
+              notes = $14,
+              completed_at = $15,
+              metadata = $16::jsonb,
               updated_at = now()
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -925,6 +958,8 @@ export class PlaybookWorkflowControlService {
         normalizedUpdate.stage_name,
         normalizedUpdate.column_id,
         normalizedUpdate.owner_role,
+        normalizedUpdate.next_expected_actor,
+        normalizedUpdate.next_expected_action,
         normalizedUpdate.priority,
         normalizedUpdate.notes,
         normalizedUpdate.completed_at,
@@ -959,6 +994,28 @@ export class PlaybookWorkflowControlService {
       actorId: identity.keyPrefix,
     });
     return toWorkItemResponse(updatedWorkItem);
+  }
+
+  private async completeWorkItemInTransaction(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    workItemId: string,
+    _input: CompleteWorkflowWorkItemInput,
+    db: DatabaseClient,
+  ) {
+    const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
+    const definition = parsePlaybookDefinition(workflow.definition);
+    const terminalColumnId = terminalColumnIdFor(definition);
+    if (!terminalColumnId) {
+      throw new ValidationError('This workflow has no terminal board column configured');
+    }
+    return this.updateWorkItemInTransaction(
+      identity,
+      workflowId,
+      workItemId,
+      { column_id: terminalColumnId },
+      db,
+    );
   }
 
   private async assertValidParentChange(
@@ -1470,6 +1527,12 @@ function mergeRecord(
   };
 }
 
+function stripOrchestratorFinishState(metadata: Record<string, unknown>) {
+  const nextMetadata = { ...metadata };
+  delete nextMetadata.orchestrator_finish_state;
+  return nextMetadata;
+}
+
 function normalizeWorkItemUpdate(
   current: WorkflowWorkItemRow,
   input: UpdateWorkflowWorkItemInput,
@@ -1480,6 +1543,7 @@ function normalizeWorkItemUpdate(
     terminalColumns: Set<string>;
   },
 ): NormalizedWorkItemUpdate {
+  const isTerminal = resolved.terminalColumns.has(resolved.columnId);
   return {
     parent_work_item_id: resolved.parentWorkItemId,
     title: input.title?.trim() || current.title,
@@ -1488,12 +1552,14 @@ function normalizeWorkItemUpdate(
     stage_name: resolved.stageName,
     column_id: resolved.columnId,
     owner_role: nullableTextOrNull(input.owner_role, current.owner_role),
+    next_expected_actor: isTerminal ? null : current.next_expected_actor,
+    next_expected_action: isTerminal ? null : current.next_expected_action,
     priority: input.priority ?? current.priority,
     notes: nullableTextOrNull(input.notes, current.notes),
-    completed_at: resolved.terminalColumns.has(resolved.columnId)
-      ? current.completed_at ?? new Date()
-      : null,
-    metadata: mergeRecord(current.metadata, input.metadata),
+    completed_at: isTerminal ? current.completed_at ?? new Date() : null,
+    metadata: isTerminal
+      ? stripOrchestratorFinishState(mergeRecord(current.metadata, input.metadata))
+      : mergeRecord(current.metadata, input.metadata),
   };
 }
 
@@ -1508,6 +1574,8 @@ function sameNormalizedWorkItem(
     && current.stage_name === next.stage_name
     && current.column_id === next.column_id
     && current.owner_role === next.owner_role
+    && current.next_expected_actor === next.next_expected_actor
+    && current.next_expected_action === next.next_expected_action
     && current.priority === next.priority
     && current.notes === next.notes
     && sameCompletionState(current.completed_at, next.completed_at)

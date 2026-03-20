@@ -75,6 +75,7 @@ export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
             completed_at = COALESCE(completed_at, $5),
             next_expected_actor = NULL,
             next_expected_action = NULL,
+            metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
             updated_at = now()
       WHERE tenant_id = $1
         AND workflow_id = $2

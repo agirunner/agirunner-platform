@@ -44,6 +44,7 @@ interface TaskContextRow {
   stage_name: string | null;
   state: string | null;
   rework_count: number | null;
+  is_orchestrator_task: boolean;
   metadata: Record<string, unknown> | null;
 }
 
@@ -231,7 +232,7 @@ export class HandoffService {
     payload: ReturnType<typeof buildNormalizedHandoffPayload>,
     db: DatabaseClient | DatabasePool,
   ) {
-    if (!task.workflow_id || !this.eventService) {
+    if (!task.workflow_id || !this.eventService || task.is_orchestrator_task) {
       return;
     }
 
@@ -348,7 +349,8 @@ export class HandoffService {
     db: DatabaseClient | DatabasePool,
   ) {
     const result = await db.query<TaskContextRow>(
-      `SELECT id, tenant_id, workflow_id, work_item_id, role, stage_name, state, rework_count, metadata
+      `SELECT id, tenant_id, workflow_id, work_item_id, role, stage_name, state, rework_count,
+              is_orchestrator_task, metadata
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2

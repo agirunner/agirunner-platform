@@ -251,6 +251,89 @@ describe('HandoffService', () => {
     );
   });
 
+  it('does not enqueue a new activation when an orchestrator task submits a handoff', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const logService = { insert: vi.fn(async () => undefined) };
+    const activationDispatchService = {
+      dispatchActivation: vi.fn(async () => 'orchestrator-task-1'),
+    };
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'orchestrator',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 0,
+            is_orchestrator_task: true,
+            metadata: { team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 3 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            task_rework_count: 0,
+            request_id: 'req-1',
+            role: 'orchestrator',
+            team_name: 'delivery',
+            stage_name: 'implementation',
+            sequence: 3,
+            summary: 'Closed the work item and workflow state is stable.',
+            completion: 'full',
+            changes: [],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            review_focus: [],
+            known_risks: [],
+            successor_context: null,
+            role_data: {},
+            artifact_ids: [],
+            created_at: new Date('2026-03-15T12:00:00Z'),
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(
+      pool as never,
+      logService as never,
+      eventService as never,
+      activationDispatchService as never,
+    );
+
+    await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-1',
+      summary: 'Closed the work item and workflow state is stable.',
+      completion: 'full',
+    });
+
+    expect(pool.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO workflow_activations'),
+      expect.anything(),
+    );
+    expect(activationDispatchService.dispatchActivation).not.toHaveBeenCalled();
+    expect(eventService.emit).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.activation_queued',
+      }),
+      expect.anything(),
+    );
+  });
+
   it('serializes jsonb handoff fields before inserting them', async () => {
     const query = vi
       .fn()

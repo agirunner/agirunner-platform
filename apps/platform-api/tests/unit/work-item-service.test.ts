@@ -1583,4 +1583,52 @@ describe('WorkItemService', () => {
     expect(workItem).not.toHaveProperty('current_checkpoint');
     expect(workItem.gate_decided_at).toEqual(new Date('2026-03-16T16:31:49.959Z'));
   });
+
+  it('suppresses forward-looking continuity details for completed work items', async () => {
+    const completedAt = new Date('2026-03-16T16:31:49.959Z');
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'wi-1',
+            workflow_id: 'wf-1',
+            parent_work_item_id: null,
+            stage_name: 'release',
+            column_id: 'done',
+            owner_role: 'product-manager',
+            next_expected_actor: 'human',
+            next_expected_action: 'approve',
+            rework_count: 2,
+            latest_handoff_completion: 'full',
+            unresolved_findings: ['Release package is blocked until the CLI deliverable exists.'],
+            review_focus: ['Release deliverable must match approved CLI scope.'],
+            known_risks: ['Release package is blocked until the CLI deliverable exists.'],
+            task_count: 1,
+            children_count: 0,
+            children_completed: 0,
+            completed_at: completedAt,
+            gate_status: 'approved',
+            gate_decision_feedback: 'Looks good.',
+            gate_decided_at: completedAt,
+          },
+        ],
+      })),
+    };
+
+    const service = new WorkItemService(pool as never, {} as never, {} as never, {} as never);
+
+    const workItem = await service.getWorkflowWorkItem('tenant-1', 'wf-1', 'wi-1');
+
+    expect(workItem).toMatchObject({
+      id: 'wi-1',
+      column_id: 'done',
+      completed_at: completedAt,
+      next_expected_actor: null,
+      next_expected_action: null,
+      unresolved_findings: [],
+      review_focus: [],
+    });
+    expect(workItem.known_risks).toEqual(['Release package is blocked until the CLI deliverable exists.']);
+  });
 });

@@ -1817,6 +1817,344 @@ describe('PlaybookWorkflowControlService', () => {
     expect(stateService.recomputeWorkflowState).not.toHaveBeenCalled();
   });
 
+  it('completes a work item by resolving the terminal column server-side', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-9' })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-9'),
+    };
+    const stateService = {
+      recomputeWorkflowState: vi.fn(async () => 'active'),
+    };
+    const updatedAt = new Date('2026-03-11T02:00:00Z');
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'ongoing',
+              active_stage_name: null,
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-ongoing-1',
+              parent_work_item_id: null,
+              stage_name: 'requirements',
+              title: 'Triage request',
+              goal: 'Clarify the incoming ask',
+              acceptance_criteria: 'Next action is unblocked',
+              column_id: 'planned',
+              owner_role: 'analyst',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
+              priority: 'normal',
+              notes: null,
+              completed_at: null,
+              metadata: { lane: 'default' },
+              updated_at: new Date('2026-03-11T00:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(params?.[8]).toBe('done');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-ongoing-1',
+              parent_work_item_id: null,
+              stage_name: 'requirements',
+              title: 'Triage request',
+              goal: 'Clarify the incoming ask',
+              acceptance_criteria: 'Next action is unblocked',
+              column_id: 'done',
+              owner_role: 'analyst',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
+              priority: 'normal',
+              notes: null,
+              completed_at: new Date('2026-03-11T02:00:00Z'),
+              metadata: { lane: 'default' },
+              updated_at: updatedAt,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: stateService as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const updated = await service.completeWorkItem(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'wi-ongoing-1',
+      {},
+      pool as never,
+    );
+
+    expect(updated.column_id).toBe('done');
+    expect(updated.completed_at).toBe('2026-03-11T02:00:00.000Z');
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'work_item.completed',
+        entityType: 'work_item',
+        entityId: 'wi-ongoing-1',
+      }),
+      pool,
+    );
+    expect(activationService.enqueueForWorkflow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workflowId: 'workflow-1',
+        eventType: 'work_item.updated',
+        payload: expect.objectContaining({
+          work_item_id: 'wi-ongoing-1',
+          previous_column_id: 'planned',
+          column_id: 'done',
+        }),
+      }),
+      pool,
+    );
+    expect(dispatchService.dispatchActivation).toHaveBeenCalledWith('tenant-1', 'activation-9', pool);
+    expect(stateService.recomputeWorkflowState).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      pool,
+      expect.objectContaining({ actorType: 'admin', actorId: 'k1' }),
+    );
+  });
+
+  it('treats completeWorkItem as idempotent when the work item is already terminal', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-9' })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-9'),
+    };
+    const stateService = {
+      recomputeWorkflowState: vi.fn(async () => 'active'),
+    };
+    const completedAt = new Date('2026-03-11T02:00:00Z');
+    const updatedAt = new Date('2026-03-11T02:00:30Z');
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'ongoing',
+              active_stage_name: null,
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-ongoing-1',
+              parent_work_item_id: null,
+              stage_name: 'requirements',
+              title: 'Triage request',
+              goal: 'Clarify the incoming ask',
+              acceptance_criteria: 'Next action is unblocked',
+              column_id: 'done',
+              owner_role: 'analyst',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
+              priority: 'normal',
+              notes: null,
+              completed_at: completedAt,
+              metadata: { lane: 'default' },
+              updated_at: updatedAt,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: stateService as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const updated = await service.completeWorkItem(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'wi-ongoing-1',
+      {},
+      pool as never,
+    );
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        id: 'wi-ongoing-1',
+        column_id: 'done',
+        completed_at: completedAt.toISOString(),
+        updated_at: updatedAt.toISOString(),
+      }),
+    );
+    expect(pool.query).not.toHaveBeenCalledWith(expect.stringContaining('UPDATE workflow_work_items'), expect.anything());
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
+    expect(stateService.recomputeWorkflowState).not.toHaveBeenCalled();
+  });
+
+  it('clears forward-looking continuity and finish-state metadata when completing a work item', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-9' })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-9'),
+    };
+    const stateService = {
+      recomputeWorkflowState: vi.fn(async () => 'active'),
+    };
+    const updatedAt = new Date('2026-03-11T02:00:30Z');
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'ongoing',
+              active_stage_name: null,
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-ongoing-1',
+              parent_work_item_id: null,
+              stage_name: 'requirements',
+              title: 'Triage request',
+              goal: 'Clarify the incoming ask',
+              acceptance_criteria: 'Next action is unblocked',
+              column_id: 'planned',
+              owner_role: 'analyst',
+              next_expected_actor: 'live-test-intake-analyst',
+              next_expected_action: 'Complete task and submit a triage handoff',
+              rework_count: 0,
+              priority: 'normal',
+              notes: null,
+              completed_at: null,
+              metadata: {
+                lane: 'default',
+                orchestrator_finish_state: {
+                  status_summary: 'Waiting for analyst handoff',
+                  next_expected_event: 'task.handoff_submitted',
+                },
+              },
+              updated_at: new Date('2026-03-11T00:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          expect(sql).toContain('next_expected_actor');
+          expect(sql).toContain('next_expected_action');
+          expect(sql).toContain('metadata');
+          expect(params).toEqual(
+            expect.arrayContaining([
+              null,
+              {
+                lane: 'default',
+              },
+            ]),
+          );
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-ongoing-1',
+              parent_work_item_id: null,
+              stage_name: 'requirements',
+              title: 'Triage request',
+              goal: 'Clarify the incoming ask',
+              acceptance_criteria: 'Next action is unblocked',
+              column_id: 'done',
+              owner_role: 'analyst',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
+              priority: 'normal',
+              notes: null,
+              completed_at: new Date('2026-03-11T02:00:00Z'),
+              metadata: {
+                lane: 'default',
+              },
+              updated_at: updatedAt,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: stateService as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const updated = await service.completeWorkItem(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'wi-ongoing-1',
+      {},
+      pool as never,
+    );
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        id: 'wi-ongoing-1',
+        column_id: 'done',
+        next_expected_actor: null,
+        next_expected_action: null,
+        metadata: {
+          lane: 'default',
+        },
+      }),
+    );
+  });
+
   it('rejects reparenting a work item under one of its descendants', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
