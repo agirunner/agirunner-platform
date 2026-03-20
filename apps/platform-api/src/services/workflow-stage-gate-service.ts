@@ -43,6 +43,7 @@ export interface WorkflowStageGateRecord {
 export function toGateResponse(row: WorkflowStageGateRecord) {
   const resumeHistory = normalizeResumeHistory(row);
   const latestResume = resumeHistory[resumeHistory.length - 1] ?? null;
+  const continuationMetrics = buildContinuationMetrics(row, latestResume);
   const requestSummary = sanitizeGateString(row.request_summary);
   const recommendation = sanitizeGateString(row.recommendation);
   const decisionFeedback = sanitizeGateString(row.decision_feedback);
@@ -85,10 +86,53 @@ export function toGateResponse(row: WorkflowStageGateRecord) {
       : null,
     orchestrator_resume: latestResume,
     orchestrator_resume_history: resumeHistory,
+    continuation_metrics: continuationMetrics,
     requested_at: row.requested_at.toISOString(),
     decided_at: row.decided_at?.toISOString() ?? null,
     updated_at: (row.updated_at ?? row.requested_at).toISOString(),
   };
+}
+
+function buildContinuationMetrics(
+  row: WorkflowStageGateRecord,
+  latestResume:
+    | {
+        queued_at: string | null;
+        started_at: string | null;
+        completed_at: string | null;
+      }
+    | null,
+) {
+  return {
+    request_to_decision_seconds: secondsBetween(row.requested_at, row.decided_at ?? null),
+    decision_to_continuation_queued_seconds: secondsBetween(
+      row.decided_at ?? null,
+      parseOptionalDate(latestResume?.queued_at),
+    ),
+    decision_to_continuation_started_seconds: secondsBetween(
+      row.decided_at ?? null,
+      parseOptionalDate(latestResume?.started_at),
+    ),
+    decision_to_continuation_completed_seconds: secondsBetween(
+      row.decided_at ?? null,
+      parseOptionalDate(latestResume?.completed_at),
+    ),
+  };
+}
+
+function parseOptionalDate(value: string | null | undefined) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function secondsBetween(from: Date | null, to: Date | null) {
+  if (!from || !to) {
+    return null;
+  }
+  return Math.max(0, Math.round((to.getTime() - from.getTime()) / 1000));
 }
 
 function normalizeStringArray(value: unknown) {
