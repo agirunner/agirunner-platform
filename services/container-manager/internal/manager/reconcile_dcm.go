@@ -556,7 +556,12 @@ func (m *Manager) planTargetActions(
 	drifted := findImageDrift(target, running)
 	driftIDs := containerIDSet(drifted)
 	idle := excludeByID(m.findIdleForTeardown(target, running, heartbeats), driftIDs)
-	toCreate := computeScaleUp(target, len(running), capacity)
+	scaleTarget := target
+	if target.PoolMode == "cold" {
+		claimableRuntimes := countClaimableColdRuntimes(running, heartbeats)
+		scaleTarget.PendingTasks = max(target.PendingTasks-claimableRuntimes, 0)
+	}
+	toCreate := computeScaleUp(scaleTarget, len(running), capacity)
 	if normalizePoolKind(target.PoolKind) == "specialist" && target.AvailableExecutionSlots != nil && toCreate > *target.AvailableExecutionSlots {
 		toCreate = *target.AvailableExecutionSlots
 	}
@@ -566,6 +571,29 @@ func (m *Manager) planTargetActions(
 		idleToDestroy: idle,
 		driftToHandle: drifted,
 	}
+}
+
+func countClaimableColdRuntimes(
+	running []ContainerInfo,
+	heartbeats map[string]RuntimeHeartbeat,
+) int {
+	claimable := 0
+	for _, container := range running {
+		if isDrainingContainer(container) || isTerminalRuntimeContainer(container) {
+			continue
+		}
+		runtimeID := container.Labels[labelDCMRuntimeID]
+		heartbeat, ok := heartbeats[runtimeID]
+		if !ok || heartbeat.State == "" || heartbeat.State == "idle" {
+			claimable++
+			continue
+		}
+		if heartbeat.State == "executing" || heartbeat.State == "draining" {
+			continue
+		}
+		claimable++
+	}
+	return claimable
 }
 
 // containerIDSet builds a set of container IDs for fast lookup.

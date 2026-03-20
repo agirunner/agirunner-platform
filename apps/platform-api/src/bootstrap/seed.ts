@@ -142,6 +142,13 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'lifecycle.destroy_stop_timeout_seconds',
+    configValue: '1',
+    configType: 'number',
+    description: 'Grace period before a completed task or runtime container is force-removed',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_execution_default_image',
     configValue: 'agirunner-runtime-execution:local',
     configType: 'string',

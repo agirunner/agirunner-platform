@@ -202,6 +202,59 @@ func TestDCMScaleCapAtAvailableExecutionSlots(t *testing.T) {
 	}
 }
 
+func TestDCMColdScaleDoesNotDuplicateBootstrapingRuntime(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 1, 10),
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.createdSpecs) != 0 {
+		t.Fatalf("expected no extra runtimes while a bootstraping specialist is already available, got %d", len(docker.createdSpecs))
+	}
+}
+
+func TestDCMColdScaleCreatesWhenAllRunningSpecialistsAreExecuting(t *testing.T) {
+	docker := newMockDockerClient()
+	docker.containers = []ContainerInfo{
+		makeDCMContainer("c-1", "tmpl-1", "runtime:v1", "rt-1"),
+	}
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{
+			makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 1, 10),
+		},
+		heartbeats: []RuntimeHeartbeat{
+			{
+				RuntimeID:       "rt-1",
+				PlaybookID:      "tmpl-1",
+				PoolKind:        "specialist",
+				State:           "executing",
+				LastHeartbeatAt: time.Now().UTC().Format(time.RFC3339),
+			},
+		},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.createdSpecs) != 1 {
+		t.Fatalf("expected 1 extra runtime when the only running specialist is executing, got %d", len(docker.createdSpecs))
+	}
+}
+
 func TestDCMScaleCapAtGlobalMax(t *testing.T) {
 	docker := newMockDockerClient()
 	docker.containers = makeDCMContainers("tmpl-0", "other:v1", 8)
