@@ -52,7 +52,6 @@ const ROUTABLE_PATHS: ReadonlySet<string> = new Set([
   '/governance/api-keys',
   '/governance/users',
   '/governance/retention',
-  '/governance/grants',
 ]);
 
 function capitalizeSegment(segment: string): string {

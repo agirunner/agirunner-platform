@@ -89,13 +89,6 @@ describe('command palette helpers', () => {
         kind: 'navigation',
         keywords: ['specialist', 'agent roles', 'role definitions'],
       },
-      {
-        id: 'nav:/governance/grants',
-        href: '/governance/grants',
-        label: 'Orchestrator Grants',
-        meta: 'Governance',
-        kind: 'navigation',
-      },
     ];
 
     const promptResults = filterCommandPaletteQuickLinks(links, 'prompt');
@@ -103,9 +96,8 @@ describe('command palette helpers', () => {
     expect(promptResults[0].id).toBe('nav:/config/orchestrator');
 
     const orchestratorResults = filterCommandPaletteQuickLinks(links, 'orchestrator');
-    expect(orchestratorResults).toHaveLength(2);
+    expect(orchestratorResults).toHaveLength(1);
     expect(orchestratorResults[0].id).toBe('nav:/config/orchestrator');
-    expect(orchestratorResults[1].id).toBe('nav:/governance/grants');
 
     const poolResults = filterCommandPaletteQuickLinks(links, 'pool');
     expect(poolResults).toHaveLength(1);

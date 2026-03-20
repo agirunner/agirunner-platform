@@ -76,6 +76,16 @@ describe('layout breadcrumbs', () => {
     expect(source).not.toContain("label: 'User Management'");
   });
 
+  it('removes orchestrator grants from governance navigation and breadcrumbs', () => {
+    const source = readLayoutSource();
+    expect(source).not.toContain("label: 'Orchestrator Grants'");
+    expect(source).not.toContain("href: '/governance/grants'");
+    expect(buildBreadcrumbs('/governance/grants')).toEqual([
+      { label: 'Governance' },
+      { label: 'Grants' },
+    ]);
+  });
+
   it('labels the deprecated users route truthfully in breadcrumbs', () => {
     expect(buildBreadcrumbs('/governance/users')).toEqual([
       { label: 'Governance' },

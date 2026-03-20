@@ -61,4 +61,10 @@ describe('app trigger routes source', () => {
     expect(source).not.toContain('path="/fleet/warm-pools"');
     expect(source).not.toContain('path="/fleet/status"');
   });
+
+  it('removes the deprecated orchestrator grants dashboard route', () => {
+    const source = readSource();
+    expect(source).not.toContain("../pages/governance/orchestrator-grants-page.js");
+    expect(source).not.toContain('path="/governance/grants"');
+  });
 });

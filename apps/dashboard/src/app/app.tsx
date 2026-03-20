@@ -89,7 +89,6 @@ const DockerPage = lazyWithRetry(() => import('../pages/fleet/docker-page.js').t
 const ApiKeyPage = lazyWithRetry(() => import('../pages/governance/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
 const UserManagementPage = lazyWithRetry(() => import('../pages/governance/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
 const RetentionPolicyPage = lazyWithRetry(() => import('../pages/governance/retention-policy-page.js').then((m) => ({ default: m.RetentionPolicyPage })));
-const OrchestratorGrantsPage = lazyWithRetry(() => import('../pages/governance/orchestrator-grants-page.js').then((m) => ({ default: m.OrchestratorGrantsPage })));
 const SettingsPage = lazyWithRetry(() => import('../pages/governance/settings-page.js').then((m) => ({ default: m.SettingsPage })));
 const LogsPage = lazyWithRetry(() => import('../pages/mission-control/logs-page.js').then((m) => ({ default: m.LogsPage })));
 
@@ -236,7 +235,6 @@ export function App(): JSX.Element {
             <Route path="/governance/api-keys" element={<ApiKeyPage />} />
             <Route path="/governance/users" element={<UserManagementPage />} />
             <Route path="/governance/retention" element={<RetentionPolicyPage />} />
-            <Route path="/governance/grants" element={<OrchestratorGrantsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/mission-control" replace />} />
