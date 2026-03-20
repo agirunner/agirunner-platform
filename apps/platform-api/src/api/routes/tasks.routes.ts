@@ -32,7 +32,6 @@ const taskCreateSchema = z.object({
   requires_approval: z.boolean().optional(),
   requires_output_review: z.boolean().optional(),
   review_prompt: z.string().max(2000).optional(),
-  capabilities_required: z.array(z.string().min(1)).max(20).optional(),
   role_config: z.record(z.unknown()).optional(),
   environment: z.record(z.unknown()).optional(),
   resource_bindings: z.array(z.unknown()).optional(),
@@ -45,28 +44,27 @@ const taskCreateSchema = z.object({
   llm_max_retries: z.number().int().min(1).optional(),
   metadata: z.record(z.unknown()).optional(),
   retry_policy: z.record(z.unknown()).optional(),
-});
+}).strict();
 
 const taskPatchSchema = z.object({
   request_id: z.string().min(1).max(255).optional(),
   title: z.string().min(1).max(500).optional(),
   description: z.string().max(5000).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
-  capabilities_required: z.array(z.string().min(1)).max(20).optional(),
   timeout_minutes: z.number().int().min(1).max(240).optional(),
   metadata: z.record(z.unknown()).optional(),
   parent_id: z.string().uuid().optional(),
   state: z.never().optional(),
-});
+}).strict();
 
 const claimSchema = z.object({
   agent_id: z.string().uuid(),
   worker_id: z.string().uuid().optional(),
-  capabilities: z.array(z.string()).default([]),
+  routing_tags: z.array(z.string()).default([]),
   workflow_id: z.string().uuid().optional(),
   playbook_id: z.string().uuid().optional(),
   include_context: z.boolean().optional(),
-});
+}).strict();
 
 const claimCredentialResolveSchema = z.object({
   llm_api_key_claim_handle: z.string().min(1).optional(),

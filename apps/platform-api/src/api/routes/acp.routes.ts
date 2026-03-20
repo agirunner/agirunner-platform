@@ -17,11 +17,11 @@ const sessionSchema = z.object({
 const claimSchema = z.object({
   agent_id: z.string().uuid(),
   worker_id: z.string().uuid().optional(),
-  capabilities: z.array(z.string().min(1)).optional(),
+  routing_tags: z.array(z.string().min(1)).optional(),
   workflow_id: z.string().uuid().optional(),
   include_context: z.boolean().optional(),
   session: sessionSchema.omit({ agent_id: true }),
-});
+}).strict();
 
 const heartbeatSchema = z.object({
   status: z.enum(['initializing', 'active', 'idle', 'closed']).optional(),
@@ -74,7 +74,7 @@ export const acpRoutes: FastifyPluginAsync = async (app) => {
     const claimed = await taskService.claimTask(request.auth!, {
       agent_id: body.agent_id,
       worker_id: body.worker_id,
-      capabilities: body.capabilities ?? ['acp'],
+      routing_tags: body.routing_tags ?? ['acp'],
       workflow_id: body.workflow_id,
       include_context: body.include_context ?? true,
     });

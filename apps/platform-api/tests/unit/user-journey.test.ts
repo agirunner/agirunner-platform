@@ -183,7 +183,7 @@ describe('user journey simulation', () => {
 
     pool.query.mockResolvedValueOnce({ rows: [] });
 
-    await findDispatchCandidateWorkers(pool as never, 'tenant-uuid', ['worker-1'], ['coding']);
+    await findDispatchCandidateWorkers(pool as never, 'tenant-uuid', ['worker-1'], 'role:developer');
 
     const sql = pool.query.mock.calls[0][0] as string;
     expect(sql).toContain("circuit_breaker_state <> 'open'");

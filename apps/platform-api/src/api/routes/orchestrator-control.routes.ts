@@ -54,6 +54,10 @@ const workItemUpdateSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+const workItemCompleteSchema = z.object({
+  request_id: z.string().min(1).max(255),
+});
+
 const orchestratorTaskCreateSchema = z.object({
   request_id: z.string().min(1).max(255),
   title: z.string().min(1).max(500),
@@ -70,7 +74,6 @@ const orchestratorTaskCreateSchema = z.object({
   requires_approval: z.boolean().optional(),
   requires_output_review: z.boolean().optional(),
   review_prompt: z.string().max(2000).optional(),
-  capabilities_required: z.array(z.string().min(1)).max(20).optional(),
   role_config: z.record(z.unknown()).optional(),
   environment: z.record(z.unknown()).optional(),
   resource_bindings: z.array(z.unknown()).optional(),
@@ -82,7 +85,7 @@ const orchestratorTaskCreateSchema = z.object({
   max_iterations: z.number().int().min(1).optional(),
   llm_max_retries: z.number().int().min(1).optional(),
   metadata: z.record(z.unknown()).optional(),
-});
+}).strict();
 
 const orchestratorTaskInputUpdateSchema = z.object({
   request_id: z.string().min(1).max(255),
@@ -368,6 +371,36 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             taskScope.workflow_id,
             params.workItemId,
             body,
+            client,
+          ),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/work-items/:workItemId/complete',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string; workItemId: string };
+      const body = parseOrThrow(workItemCompleteSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'complete_work_item',
+        body.request_id,
+        (client) =>
+          playbookControlService.completeWorkItem(
+            request.auth!,
+            taskScope.workflow_id,
+            params.workItemId,
+            {},
             client,
           ),
       );
@@ -673,7 +706,6 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
               workspace_id: taskScope.workspace_id ?? undefined,
               activation_id: taskScope.activation_id ?? undefined,
               is_orchestrator_task: false,
-              capabilities_required: normalizedBody.capabilities_required,
               metadata: {
                 ...(normalizedBody.metadata ?? {}),
                 created_by_orchestrator_task_id: taskScope.id,

@@ -12,7 +12,6 @@ import {
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
   TASK_MAX_ITERATIONS_RUNTIME_KEY,
 } from './runtime-default-values.js';
-import { isWorkflowSpecialistRoutingTask, normalizeCapabilityList } from './task-routing-contract.js';
 import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
@@ -100,7 +99,6 @@ export class TaskWriteService {
     normalizedInput = await this.applyPlaybookTaskExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.materializeTaskLoopExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookRuleDerivedTaskReviewPolicy(identity.tenantId, normalizedInput, db);
-    normalizedInput = await this.applyRoleCapabilityDefaults(identity.tenantId, normalizedInput);
     const dependencies = normalizedInput.depends_on ?? [];
     const metadata = {
       ...(normalizedInput.metadata ?? {}),
@@ -157,9 +155,9 @@ export class TaskWriteService {
     const insertResult = await db.query(
       `INSERT INTO tasks (
         tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
-        requires_approval, requires_output_review, input, context, capabilities_required, role_config, environment,
+        requires_approval, requires_output_review, input, context, role_config, environment,
         resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, metadata
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
       ON CONFLICT DO NOTHING
       RETURNING *`,
       [
@@ -177,7 +175,6 @@ export class TaskWriteService {
         normalizedInput.requires_output_review ?? false,
         normalizedInput.input ?? {},
         normalizedInput.context ?? {},
-        normalizedInput.capabilities_required ?? [],
         normalizedInput.role_config ?? null,
         normalizedInput.environment ?? null,
         JSON.stringify(normalizedInput.resource_bindings ?? []),
@@ -587,39 +584,6 @@ export class TaskWriteService {
     throw new ValidationError('workflow tasks must be linked to a work item');
   }
 
-  private async applyRoleCapabilityDefaults(
-    tenantId: string,
-    input: CreateTaskInput,
-  ): Promise<CreateTaskInput> {
-    if (isWorkflowSpecialistRoutingTask(input)) {
-      return {
-        ...input,
-        capabilities_required: [],
-      };
-    }
-
-    const provided = normalizeCapabilities(input.capabilities_required);
-    const roleName = input.role?.trim();
-    if (provided.length > 0) {
-      return {
-        ...input,
-        capabilities_required: provided,
-      };
-    }
-    if (!roleName) {
-      return input;
-    }
-    const resolved = await this.deps.resolveRoleCapabilities?.(tenantId, roleName);
-    const capabilities = normalizeCapabilities(resolved ?? [`role:${roleName}`]);
-    if (capabilities.length === 0) {
-      return input;
-    }
-    return {
-      ...input,
-      capabilities_required: capabilities,
-    };
-  }
-
   private async applyParentTaskPolicies(identity: ApiKeyIdentity, input: CreateTaskInput) {
     const parentTask = await this.loadParentTask(identity.tenantId, input.parent_id as string);
     await this.assertSubtaskDepth(identity.tenantId, parentTask);
@@ -763,16 +727,15 @@ export class TaskWriteService {
 
     const result = await this.deps.pool.query(
       `UPDATE tasks SET title = COALESCE($3, title), priority = COALESCE($4::task_priority, priority),
-        capabilities_required = COALESCE($5::text[], capabilities_required), metadata = $6,
-        timeout_minutes = COALESCE($7, timeout_minutes),
-        input = CASE WHEN $8::jsonb IS NULL THEN input ELSE jsonb_set(input, '{description}', to_jsonb($8::text), true) END
+        metadata = $5,
+        timeout_minutes = COALESCE($6, timeout_minutes),
+        input = CASE WHEN $7::jsonb IS NULL THEN input ELSE jsonb_set(input, '{description}', to_jsonb($7::text), true) END
        WHERE tenant_id = $1 AND id = $2 RETURNING *`,
       [
         tenantId,
         taskId,
         (payload.title as string | undefined) ?? null,
         (payload.priority as string | undefined) ?? null,
-        resolveUpdatedTaskCapabilities(task, payload),
         nextMetadata,
         (payload.timeout_minutes as number | undefined) ?? null,
         (payload.description as string | undefined) ?? null,
@@ -824,23 +787,6 @@ export class TaskWriteService {
     }, 'release' in db ? db : undefined);
     return this.deps.toTaskResponse(updatedTask);
   }
-}
-
-function normalizeCapabilities(values: string[] | undefined | null): string[] {
-  return normalizeCapabilityList(values);
-}
-
-function resolveUpdatedTaskCapabilities(
-  task: Record<string, unknown>,
-  payload: Record<string, unknown>,
-): string[] | null {
-  if (!Object.prototype.hasOwnProperty.call(payload, 'capabilities_required')) {
-    return null;
-  }
-  if (isWorkflowSpecialistRoutingTask(task)) {
-    return [];
-  }
-  return normalizeCapabilities(payload.capabilities_required as string[] | undefined);
 }
 
 function mergeWorkspaceStorageBindings(

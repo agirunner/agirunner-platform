@@ -16,6 +16,7 @@ interface RegisterAgentInput {
   name: string;
   protocol?: 'rest' | 'acp';
   capabilities?: string[];
+  routing_tags?: string[];
   execution_mode?: 'specialist' | 'orchestrator' | 'hybrid';
   tools?: { required?: string[]; optional?: string[] };
   worker_id?: string;
@@ -38,7 +39,7 @@ export class AgentService {
   async registerAgent(identity: ApiKeyIdentity, input: RegisterAgentInput) {
     const timingDefaults = await readAgentSupervisionTimingDefaults(this.pool);
     const executionMode = input.execution_mode ?? 'specialist';
-    const capabilities = normalizeAgentCapabilities(input.capabilities ?? [], executionMode);
+    const routingTags = normalizeAgentRoutingTags(input.routing_tags ?? input.capabilities ?? [], executionMode);
     const metadata = {
       ...(input.metadata ?? {}),
       protocol: input.protocol ?? 'rest',
@@ -50,14 +51,14 @@ export class AgentService {
 
     const result = await this.pool.query(
       `INSERT INTO agents (
-        tenant_id, worker_id, name, capabilities, status, heartbeat_interval_seconds, last_heartbeat_at, metadata
+        tenant_id, worker_id, name, routing_tags, status, heartbeat_interval_seconds, last_heartbeat_at, metadata
       ) VALUES ($1,$2,$3,$4,'active',$5,now(),$6)
       RETURNING *`,
       [
         identity.tenantId,
         input.worker_id ?? null,
         input.name,
-        capabilities,
+        routingTags,
         input.heartbeat_interval_seconds ?? timingDefaults.defaultHeartbeatIntervalSeconds,
         metadata,
       ],
@@ -86,7 +87,7 @@ export class AgentService {
     return {
       id: agent.id,
       name: agent.name,
-      capabilities: agent.capabilities,
+      routing_tags: agent.routing_tags,
       status: agent.status,
       api_key: apiKey,
       metadata: sanitizeSecretLikeRecord(agent.metadata, AGENT_REDACTION_OPTIONS),
@@ -116,7 +117,7 @@ export class AgentService {
 
   async listAgents(tenantId: string) {
     const result = await this.pool.query(
-      `SELECT id, worker_id, name, capabilities, status, current_task_id, heartbeat_interval_seconds,
+      `SELECT id, worker_id, name, routing_tags, status, current_task_id, heartbeat_interval_seconds,
               last_heartbeat_at, metadata, registered_at, created_at, updated_at
        FROM agents
       WHERE tenant_id = $1
@@ -211,11 +212,11 @@ export class AgentService {
   }
 }
 
-function normalizeAgentCapabilities(
-  capabilities: string[],
+function normalizeAgentRoutingTags(
+  routingTags: string[],
   executionMode: NonNullable<RegisterAgentInput['execution_mode']>,
 ): string[] {
-  const values = new Set(capabilities.map((capability) => capability.trim()).filter(Boolean));
+  const values = new Set(routingTags.map((routingTag) => routingTag.trim()).filter(Boolean));
   if (executionMode === 'orchestrator' || executionMode === 'hybrid') {
     values.add('orchestrator');
   }

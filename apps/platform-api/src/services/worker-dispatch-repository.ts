@@ -7,12 +7,12 @@ interface ReadyTaskRow {
   work_item_id: string | null;
   is_orchestrator_task: boolean;
   role: string | null;
-  capabilities_required: string[];
 }
 
 export interface DispatchWorkerCandidate {
   id: string;
-  capabilities: string[];
+  capabilities?: string[];
+  routing_tags?: string[];
   task_load: number;
   quality_score: number;
   created_at: Date;
@@ -33,7 +33,7 @@ interface ExpiredDispatch {
 
 export async function findReadyTasks(pool: DatabasePool, limit: number): Promise<ReadyTaskRow[]> {
   const result = await pool.query<ReadyTaskRow>(
-    `SELECT id, tenant_id, workflow_id, work_item_id, is_orchestrator_task, role, capabilities_required
+    `SELECT id, tenant_id, workflow_id, work_item_id, is_orchestrator_task, role
      FROM tasks
      WHERE state = 'ready'
      ORDER BY CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END DESC, created_at ASC
@@ -47,15 +47,13 @@ export async function findDispatchCandidateWorker(
   pool: DatabasePool,
   tenantId: string,
   connectedWorkerIds: string[],
-  requiredCapabilities: string[],
-  requiredRoleTag: string | null = null,
+  requiredRoutingTag: string | null = null,
 ): Promise<string | null> {
   const candidates = await findDispatchCandidateWorkers(
     pool,
     tenantId,
     connectedWorkerIds,
-    requiredCapabilities,
-    requiredRoleTag,
+    requiredRoutingTag,
   );
   return candidates[0]?.id ?? null;
 }
@@ -67,12 +65,11 @@ export async function findDispatchCandidateWorkers(
   pool: DatabasePool,
   tenantId: string,
   connectedWorkerIds: string[],
-  requiredCapabilities: string[],
-  requiredRoleTag: string | null = null,
+  requiredRoutingTag: string | null = null,
 ): Promise<DispatchWorkerCandidate[]> {
   const result = await pool.query<DispatchWorkerCandidate>(
     `SELECT w.id,
-            w.capabilities,
+            w.routing_tags,
             w.quality_score,
             w.created_at,
             COUNT(t.id) FILTER (WHERE t.state IN ('claimed','in_progress')) AS task_load
@@ -82,13 +79,10 @@ export async function findDispatchCandidateWorkers(
        AND w.id = ANY($2::uuid[])
        AND w.status IN ('online','busy')
        AND w.circuit_breaker_state <> 'open'
-       AND (
-         ($4::text IS NOT NULL AND w.capabilities @> ARRAY[$4]::text[])
-         OR ($4::text IS NULL AND w.capabilities @> $3::text[])
-       )
+       AND ($3::text IS NULL OR w.routing_tags @> ARRAY[$3]::text[])
      GROUP BY w.id
      ORDER BY w.quality_score DESC, task_load ASC, w.created_at ASC`,
-    [tenantId, connectedWorkerIds, requiredCapabilities, requiredRoleTag],
+    [tenantId, connectedWorkerIds, requiredRoutingTag],
   );
 
   return result.rows;

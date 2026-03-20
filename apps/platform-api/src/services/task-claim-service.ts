@@ -247,7 +247,8 @@ export class TaskClaimService {
     payload: {
       agent_id: string;
       worker_id?: string;
-      capabilities: string[];
+      capabilities?: string[];
+      routing_tags?: string[];
       workflow_id?: string;
       playbook_id?: string;
       include_context?: boolean;
@@ -327,8 +328,9 @@ export class TaskClaimService {
       const agentTools = readAgentToolRequirements(agent);
       let task: Record<string, unknown> | null = null;
       let toolMatch = { matched: [] as string[], unavailable_optional: [] as string[] };
+      const routingTags = payload.routing_tags ?? payload.capabilities ?? [];
       for (const candidate of taskRes.rows as Record<string, unknown>[]) {
-        if (!matchesWorkerToTaskRouting(candidate, payload.capabilities)) {
+        if (!matchesWorkerToTaskRouting(candidate, routingTags)) {
           continue;
         }
         if (

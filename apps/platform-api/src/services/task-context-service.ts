@@ -36,13 +36,13 @@ export async function buildTaskContext(
   let agent = null;
   if (agentId) {
     const agentRes = await db.query(
-      'SELECT id, name, capabilities, metadata FROM agents WHERE tenant_id = $1 AND id = $2',
+      'SELECT id, name, routing_tags, metadata FROM agents WHERE tenant_id = $1 AND id = $2',
       [tenantId, agentId],
     );
     agent = agentRes.rows[0] ?? null;
   } else if (task.assigned_agent_id) {
     const assignedAgentRes = await db.query(
-      'SELECT id, name, capabilities, metadata FROM agents WHERE tenant_id = $1 AND id = $2',
+      'SELECT id, name, routing_tags, metadata FROM agents WHERE tenant_id = $1 AND id = $2',
       [tenantId, task.assigned_agent_id],
     );
     agent = assignedAgentRes.rows[0] ?? null;

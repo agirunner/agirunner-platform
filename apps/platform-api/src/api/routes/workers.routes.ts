@@ -9,7 +9,7 @@ const registerSchema = z.object({
   name: z.string().min(1).max(200),
   runtime_type: z.enum(['openclaw', 'claude_code', 'codex', 'acp', 'custom', 'external']).optional(),
   connection_mode: z.enum(['websocket', 'sse', 'polling']).optional(),
-  capabilities: z.array(z.string().min(1)).default([]),
+  routing_tags: z.array(z.string().min(1)).default([]),
   host_info: z.record(z.unknown()).optional(),
   heartbeat_interval_seconds: z.number().int().min(5).max(3600).optional(),
   metadata: z.record(z.unknown()).optional(),
@@ -17,13 +17,13 @@ const registerSchema = z.object({
     .array(
       z.object({
         name: z.string().min(1).max(200),
-        capabilities: z.array(z.string().min(1)).default([]),
+        routing_tags: z.array(z.string().min(1)).default([]),
         execution_mode: z.enum(['specialist', 'orchestrator', 'hybrid']).optional(),
         metadata: z.record(z.unknown()).optional(),
-      }),
+      }).strict(),
     )
     .optional(),
-});
+}).strict();
 
 const heartbeatSchema = z.object({
   status: z.enum(['online', 'busy', 'draining', 'disconnected', 'offline']).optional(),
@@ -40,11 +40,10 @@ const signalSchema = z.object({
 
 const nextTaskSchema = z.object({
   agent_id: z.string().uuid().optional(),
-  capabilities: z.array(z.string().min(1)).optional(),
   workflow_id: z.string().uuid().optional(),
   playbook_id: z.string().uuid().optional(),
   include_context: z.boolean().optional(),
-});
+}).strict();
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {
@@ -129,11 +128,10 @@ export const workerRoutes: FastifyPluginAsync = async (app) => {
     const claimed = await taskService.claimTask(request.auth!, {
       agent_id: agentId,
       worker_id: params.id,
-      capabilities:
-        body.capabilities ??
-        (Array.isArray(worker.capabilities)
-          ? worker.capabilities.map((capability: unknown) => String(capability))
-          : []),
+      routing_tags:
+        Array.isArray(worker.routing_tags)
+          ? worker.routing_tags.map((routingTag: unknown) => String(routingTag))
+          : [],
       workflow_id: body.workflow_id,
       playbook_id: body.playbook_id,
       include_context: body.include_context,

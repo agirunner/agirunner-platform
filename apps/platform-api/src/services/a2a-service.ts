@@ -52,7 +52,6 @@ export function mapA2ATaskToCreateInput(task: A2ATaskPayload): CreateTaskInput {
     role: task.role,
     input: task.input ?? {},
     context: task.context ?? {},
-    capabilities_required: task.capabilities ?? [],
     requires_approval: task.requires_approval,
     metadata: {
       ...(task.metadata ?? {}),

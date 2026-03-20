@@ -22,11 +22,10 @@ const a2aTaskSchema = z.object({
     role: z.string().max(120).optional(),
     input: z.record(z.unknown()).optional(),
     context: z.record(z.unknown()).optional(),
-    capabilities: z.array(z.string().min(1)).max(20).optional(),
     metadata: z.record(z.unknown()).optional(),
     requires_approval: z.boolean().optional(),
-  }),
-});
+  }).strict(),
+}).strict();
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {

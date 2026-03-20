@@ -49,7 +49,6 @@ export const tasks = pgTable(
     context: jsonb('context').notNull().default({}),
     output: jsonb('output'),
     error: jsonb('error'),
-    capabilitiesRequired: text('capabilities_required').array().notNull().default([]),
     roleConfig: jsonb('role_config'),
     environment: jsonb('environment'),
     resourceBindings: jsonb('resource_bindings').notNull().default([]),

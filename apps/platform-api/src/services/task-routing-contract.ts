@@ -1,17 +1,13 @@
 interface TaskRoutingInput {
-  workflow_id?: unknown;
-  work_item_id?: unknown;
   is_orchestrator_task?: unknown;
   role?: unknown;
-  capabilities_required?: unknown;
 }
 
 export interface DispatchRoutingRequirements {
-  requiredCapabilities: string[];
-  requiredRoleTag: string | null;
+  requiredRoutingTag: string | null;
 }
 
-export function normalizeCapabilityList(value: unknown): string[] {
+export function normalizeRoutingTagList(value: unknown): string[] {
   if (!Array.isArray(value)) {
     return [];
   }
@@ -29,7 +25,6 @@ export function isWorkflowSpecialistRoutingTask(task: TaskRoutingInput): boolean
   return Boolean(
     readRoleName(task.role)
     && task.is_orchestrator_task !== true
-    && (readUuidLike(task.workflow_id) || readUuidLike(task.work_item_id)),
   );
 }
 
@@ -38,38 +33,30 @@ export function buildTaskWorkerRoleTag(role: unknown): string | null {
   return roleName ? `role:${roleName}` : null;
 }
 
+export function resolveRequiredRoutingTag(task: TaskRoutingInput): string | null {
+  if (task.is_orchestrator_task === true) {
+    return 'orchestrator';
+  }
+  return buildTaskWorkerRoleTag(task.role);
+}
+
 export function resolveDispatchRoutingRequirements(
   task: TaskRoutingInput,
 ): DispatchRoutingRequirements {
-  if (isWorkflowSpecialistRoutingTask(task)) {
-    return {
-      requiredCapabilities: [],
-      requiredRoleTag: buildTaskWorkerRoleTag(task.role),
-    };
-  }
   return {
-    requiredCapabilities: normalizeCapabilityList(task.capabilities_required),
-    requiredRoleTag: null,
+    requiredRoutingTag: resolveRequiredRoutingTag(task),
   };
 }
 
 export function matchesWorkerToTaskRouting(
   task: TaskRoutingInput,
-  workerCapabilities: string[],
+  workerRoutingTags: string[],
 ): boolean {
-  const normalizedWorkerCapabilities = normalizeCapabilityList(workerCapabilities);
-  const roleTag = buildTaskWorkerRoleTag(task.role);
-  if (isWorkflowSpecialistRoutingTask(task)) {
-    return roleTag !== null && normalizedWorkerCapabilities.includes(roleTag);
-  }
-  const requiredCapabilities = normalizeCapabilityList(task.capabilities_required);
-  return requiredCapabilities.every((required) => normalizedWorkerCapabilities.includes(required));
+  const normalizedWorkerRoutingTags = normalizeRoutingTagList(workerRoutingTags);
+  const requiredRoutingTag = resolveRequiredRoutingTag(task);
+  return requiredRoutingTag === null || normalizedWorkerRoutingTags.includes(requiredRoutingTag);
 }
 
 function readRoleName(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
-
-function readUuidLike(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }

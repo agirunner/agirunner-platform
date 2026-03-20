@@ -179,6 +179,55 @@ describe('tasks routes', () => {
     expect(getTask).not.toHaveBeenCalled();
   });
 
+  it('rejects legacy capabilities_required on task creation', async () => {
+    const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
+    const createTask = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('taskService', {
+      listTasks: vi.fn(),
+      createTask,
+      getTask: vi.fn(),
+      updateTask: vi.fn(),
+      getTaskContext: vi.fn(),
+      getTaskGitActivity: vi.fn(),
+      claimTask: vi.fn(),
+      startTask: vi.fn(),
+      completeTask: vi.fn(),
+      failTask: vi.fn(),
+      approveTask: vi.fn(),
+      approveTaskOutput: vi.fn(),
+      retryTask: vi.fn(),
+      cancelTask: vi.fn(),
+      rejectTask: vi.fn(),
+      requestTaskChanges: vi.fn(),
+      skipTask: vi.fn(),
+      reassignTask: vi.fn(),
+      escalateTask: vi.fn(),
+      respondToEscalation: vi.fn(),
+      overrideTaskOutput: vi.fn(),
+      agentEscalate: vi.fn(),
+      resolveEscalation: vi.fn(),
+    });
+
+    await app.register(taskRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        title: 'Legacy task',
+        type: 'custom',
+        capabilities_required: ['coding'],
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(createTask).not.toHaveBeenCalled();
+  });
+
   it('rejects legacy task state aliases at the query boundary', async () => {
     const { taskRoutes } = await import('../../src/api/routes/tasks.routes.js');
     const listTasks = vi.fn(async () => ({ data: [], pagination: { page: 1, per_page: 20, total: 0 } }));

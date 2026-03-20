@@ -26,7 +26,7 @@ export async function registerWorker(
 
   const workerRes = await context.pool.query(
     `INSERT INTO workers (
-      tenant_id, name, status, connection_mode, runtime_type, capabilities,
+      tenant_id, name, status, connection_mode, runtime_type, routing_tags,
       host_info, heartbeat_interval_seconds, last_heartbeat_at, connected_at, metadata
     ) VALUES ($1,$2,'online',$3,$4,$5,$6,$7,now(),now(),$8)
     RETURNING *`,
@@ -35,7 +35,7 @@ export async function registerWorker(
       input.name,
       input.connection_mode ?? 'websocket',
       input.runtime_type ?? 'external',
-      input.capabilities ?? [],
+      input.routing_tags ?? input.capabilities ?? [],
       input.host_info ?? {},
       input.heartbeat_interval_seconds ?? context.config.WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
       input.metadata ?? {},
@@ -52,7 +52,7 @@ export async function registerWorker(
     expiresAt: new Date(Date.now() + workerKeyExpiryMs),
   });
 
-  const createdAgents: Array<{ id: string; name: string; api_key: string; capabilities: string[] }> = [];
+  const createdAgents: Array<{ id: string; name: string; api_key: string; routing_tags: string[] }> = [];
 
   const agentsToCreate = input.agents ?? [];
 
@@ -62,20 +62,20 @@ export async function registerWorker(
       ...(agent.metadata ?? {}),
       execution_mode: executionMode,
     };
-    const capabilities = normalizeWorkerAgentCapabilities(
-      agent.capabilities ?? [],
+    const routingTags = normalizeWorkerAgentRoutingTags(
+      agent.routing_tags ?? agent.capabilities ?? [],
       executionMode,
     );
     const agentRes = await context.pool.query(
       `INSERT INTO agents (
-        tenant_id, worker_id, name, capabilities, status, heartbeat_interval_seconds, last_heartbeat_at, metadata
+        tenant_id, worker_id, name, routing_tags, status, heartbeat_interval_seconds, last_heartbeat_at, metadata
       ) VALUES ($1,$2,$3,$4,'idle',$5,now(),$6)
-      RETURNING id, name, capabilities`,
+      RETURNING id, name, routing_tags`,
       [
         identity.tenantId,
         worker.id,
         agent.name,
-        capabilities,
+        routingTags,
         input.heartbeat_interval_seconds ?? context.config.WORKER_DEFAULT_HEARTBEAT_INTERVAL_SECONDS,
         agentMetadata,
       ],
@@ -94,7 +94,7 @@ export async function registerWorker(
     createdAgents.push({
       id: agentRow.id,
       name: agentRow.name,
-      capabilities: agentRow.capabilities,
+      routing_tags: agentRow.routing_tags,
       api_key: agentKeyResult.apiKey,
     });
   }
@@ -118,11 +118,11 @@ export async function registerWorker(
   };
 }
 
-function normalizeWorkerAgentCapabilities(
-  capabilities: string[],
+function normalizeWorkerAgentRoutingTags(
+  routingTags: string[],
   executionMode: 'specialist' | 'orchestrator' | 'hybrid',
 ): string[] {
-  const values = new Set(capabilities.map((capability) => capability.trim()).filter(Boolean));
+  const values = new Set(routingTags.map((routingTag) => routingTag.trim()).filter(Boolean));
   if (executionMode === 'orchestrator' || executionMode === 'hybrid') {
     values.add('orchestrator');
   }
@@ -138,7 +138,7 @@ function requireRuntimeDefaultNumber(value: number | undefined, runtimeKey: stri
 
 export async function listWorkers(context: WorkerServiceContext, tenantId: string) {
   const res = await context.pool.query(
-    `SELECT id, name, status, connection_mode, runtime_type, capabilities, current_task_id,
+    `SELECT id, name, status, connection_mode, runtime_type, routing_tags, current_task_id,
             heartbeat_interval_seconds, last_heartbeat_at, connected_at, metadata, host_info,
             created_at, updated_at
      FROM workers
@@ -151,7 +151,7 @@ export async function listWorkers(context: WorkerServiceContext, tenantId: strin
 
 export async function getWorker(context: WorkerServiceContext, tenantId: string, workerId: string) {
   const res = await context.pool.query(
-    `SELECT id, name, status, connection_mode, runtime_type, capabilities, current_task_id,
+    `SELECT id, name, status, connection_mode, runtime_type, routing_tags, current_task_id,
             heartbeat_interval_seconds, last_heartbeat_at, connected_at, metadata, host_info,
             created_at, updated_at
      FROM workers

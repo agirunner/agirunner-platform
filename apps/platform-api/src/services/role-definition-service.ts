@@ -17,7 +17,6 @@ const createRoleSchema = z.object({
   allowedTools: z.array(z.string()).default([]),
   modelPreference: z.string().optional(),
   verificationStrategy: z.string().optional(),
-  capabilities: z.array(z.string()).default([]),
   escalationTarget: z.string().max(100).nullable().optional(),
   maxEscalationDepth: z.number().int().min(1).max(10).default(5),
   executionContainerConfig: z
@@ -31,12 +30,12 @@ const createRoleSchema = z.object({
     .optional(),
   isBuiltIn: z.boolean().default(false),
   isActive: z.boolean().default(true),
-});
+}).strict();
 
 const updateRoleSchema = createRoleSchema.partial().omit({ isBuiltIn: true });
 
-export type CreateRoleInput = z.input<typeof createRoleSchema>;
-export type UpdateRoleInput = z.input<typeof updateRoleSchema>;
+export type CreateRoleInput = z.input<typeof createRoleSchema> & { capabilities?: unknown };
+export type UpdateRoleInput = z.input<typeof updateRoleSchema> & { capabilities?: unknown };
 
 interface RoleDefinitionRow {
   [key: string]: unknown;
@@ -49,7 +48,6 @@ interface RoleDefinitionRow {
   model_preference: string | null;
   fallback_model?: string | null;
   verification_strategy: string | null;
-  capabilities: string[];
   execution_container_config?: Record<string, unknown> | null;
   escalation_target: string | null;
   max_escalation_depth: number;
@@ -101,9 +99,9 @@ export class RoleDefinitionService {
       `INSERT INTO role_definitions (
         tenant_id, name, description, system_prompt, allowed_tools,
         model_preference, verification_strategy,
-        capabilities, execution_container_config, escalation_target,
+        execution_container_config, escalation_target,
         max_escalation_depth, is_built_in, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *`,
       [
         tenantId,
@@ -113,7 +111,6 @@ export class RoleDefinitionService {
         validated.allowedTools,
         validated.modelPreference ?? null,
         validated.verificationStrategy ?? null,
-        validated.capabilities,
         normalizeExecutionContainerConfig(validated.executionContainerConfig),
         validated.escalationTarget ?? null,
         validated.maxEscalationDepth,
@@ -145,7 +142,6 @@ export class RoleDefinitionService {
       ['allowed_tools', validated.allowedTools],
       ['model_preference', validated.modelPreference],
       ['verification_strategy', validated.verificationStrategy],
-      ['capabilities', validated.capabilities],
       ['execution_container_config', executionContainerConfig],
       ['escalation_target', validated.escalationTarget],
       ['max_escalation_depth', validated.maxEscalationDepth],

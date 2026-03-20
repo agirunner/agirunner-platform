@@ -17,15 +17,28 @@ import type { WorkerServiceContext } from './worker-service.js';
 interface DispatchCandidate {
   id: string;
   status: 'online' | 'busy' | 'draining' | 'degraded' | 'disconnected' | 'offline';
-  capabilities: string[];
+  capabilities?: string[];
+  routing_tags?: string[];
   currentLoad: number;
 }
 
-export function selectLeastLoadedWorker(workers: DispatchCandidate[], requiredCapabilities: string[]): DispatchCandidate | null {
+export function selectLeastLoadedWorker(
+  workers: DispatchCandidate[],
+  requiredRoutingTag: string | string[] | null,
+): DispatchCandidate | null {
   const eligible = workers.filter(
-    (worker) =>
-      (worker.status === 'online' || worker.status === 'busy') &&
-      requiredCapabilities.every((required) => worker.capabilities.includes(required)),
+    (worker) => {
+      const workerRoutingTags = worker.routing_tags ?? worker.capabilities ?? [];
+      const requiredTags = Array.isArray(requiredRoutingTag)
+        ? requiredRoutingTag
+        : requiredRoutingTag
+          ? [requiredRoutingTag]
+          : [];
+      return (
+        (worker.status === 'online' || worker.status === 'busy') &&
+        requiredTags.every((tag) => workerRoutingTags.includes(tag))
+      );
+    },
   );
   if (eligible.length === 0) {
     return null;
@@ -63,8 +76,7 @@ export async function dispatchReadyTasks(context: WorkerServiceContext, limit?: 
       context.pool,
       task.tenant_id,
       connectedWorkerIds,
-      routingRequirements.requiredCapabilities,
-      routingRequirements.requiredRoleTag,
+      routingRequirements.requiredRoutingTag,
     );
 
     const workerId = selectWorkerForDispatch(candidates);

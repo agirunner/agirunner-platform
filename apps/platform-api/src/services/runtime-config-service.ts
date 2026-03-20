@@ -22,7 +22,6 @@ interface RuntimeConfigRole {
   description: string | null;
   systemPrompt: string | null;
   allowedTools: string[];
-  capabilities: string[];
   verificationStrategy: string | null;
 }
 
@@ -44,7 +43,6 @@ interface RoleRow {
   description: string | null;
   system_prompt: string | null;
   allowed_tools: string[];
-  capabilities: string[];
   verification_strategy: string | null;
   updated_at: Date;
 }
@@ -58,7 +56,7 @@ interface DefaultRow {
 
 interface WorkerRow {
   name: string;
-  capabilities: string[];
+  routing_tags: string[];
 }
 
 interface DesiredStateWorkerRow {
@@ -68,7 +66,7 @@ interface DesiredStateWorkerRow {
 
 interface WorkerConfigTarget {
   name: string;
-  capabilities: string[];
+  routingTags: string[];
   roleNames: string[];
   allowAllRolesWhenEmpty: boolean;
 }
@@ -154,12 +152,12 @@ export class RuntimeConfigService {
       return null;
     }
     const row = result.rows[0];
-    return {
-      name: row.worker_name,
-      capabilities: [],
-      roleNames: row.role ? [row.role] : [],
-      allowAllRolesWhenEmpty: false,
-    };
+      return {
+        name: row.worker_name,
+        routingTags: [],
+        roleNames: row.role ? [row.role] : [],
+        allowAllRolesWhenEmpty: false,
+      };
   }
 
   private findRegisteredWorker(
@@ -168,14 +166,14 @@ export class RuntimeConfigService {
   ): Promise<WorkerConfigTarget | null> {
     return this.pool
       .query<WorkerRow>(
-        'SELECT name, capabilities FROM workers WHERE tenant_id = $1 AND name = $2 LIMIT 1',
+        'SELECT name, routing_tags FROM workers WHERE tenant_id = $1 AND name = $2 LIMIT 1',
         [tenantId, workerName],
       )
       .then((result) =>
         result.rowCount
           ? {
               name: result.rows[0].name,
-              capabilities: result.rows[0].capabilities,
+              routingTags: result.rows[0].routing_tags,
               roleNames: [],
               allowAllRolesWhenEmpty: true,
             }
@@ -216,7 +214,7 @@ export class RuntimeConfigService {
 
     return {
       name: workerName,
-      capabilities: [],
+      routingTags: [],
       roleNames: resolveRuntimeTargetRoleNames(definition.roles, poolKind),
       allowAllRolesWhenEmpty: false,
     };
@@ -236,7 +234,7 @@ export class RuntimeConfigService {
     }
     return {
       name: workerName,
-      capabilities: [],
+      routingTags: [],
       roleNames: [],
       allowAllRolesWhenEmpty: true,
     };
@@ -247,15 +245,15 @@ export class RuntimeConfigService {
       return worker.roleNames;
     }
     if (worker.allowAllRolesWhenEmpty) {
-      return this.extractRoleCapabilities(worker.capabilities);
+      return this.extractRoleNames(worker.routingTags);
     }
     return [];
   }
 
-  private extractRoleCapabilities(capabilities: string[]): string[] {
-    return capabilities
-      .filter((cap) => cap.startsWith('role:'))
-      .map((cap) => cap.slice(5));
+  private extractRoleNames(routingTags: string[]): string[] {
+    return routingTags
+      .filter((routingTag) => routingTag.startsWith('role:'))
+      .map((routingTag) => routingTag.slice(5));
   }
 
   private async fetchRoles(
@@ -268,7 +266,7 @@ export class RuntimeConfigService {
         return [];
       }
       const result = await this.pool.query<RoleRow>(
-        'SELECT name, description, system_prompt, allowed_tools, capabilities, verification_strategy, updated_at FROM role_definitions WHERE tenant_id = $1 AND is_active = true',
+        'SELECT name, description, system_prompt, allowed_tools, verification_strategy, updated_at FROM role_definitions WHERE tenant_id = $1 AND is_active = true',
         [tenantId],
       );
       return result.rows.map(this.mapRole);
@@ -276,7 +274,7 @@ export class RuntimeConfigService {
 
     const placeholders = roleNames.map((_, i) => `$${i + 2}`).join(', ');
     const result = await this.pool.query<RoleRow>(
-      `SELECT name, description, system_prompt, allowed_tools, capabilities, verification_strategy, updated_at
+      `SELECT name, description, system_prompt, allowed_tools, verification_strategy, updated_at
        FROM role_definitions WHERE tenant_id = $1 AND name IN (${placeholders}) AND is_active = true`,
       [tenantId, ...roleNames],
     );
@@ -289,7 +287,6 @@ export class RuntimeConfigService {
       description: row.description,
       systemPrompt: row.system_prompt,
       allowedTools: row.allowed_tools,
-      capabilities: row.capabilities,
       verificationStrategy: row.verification_strategy,
     };
   }

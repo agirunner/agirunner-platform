@@ -34,7 +34,6 @@ export interface RoleDefinition {
   systemPrompt: string;
   allowedTools: string[];
   verificationStrategy: string;
-  capabilities: string[];
   escalationTarget?: string | null;
   maxEscalationDepth?: number;
 }
@@ -77,7 +76,6 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['coding', 'testing', 'git', 'python'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -102,7 +100,6 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['code-review', 'security-review', 'git'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -128,7 +125,6 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['architecture', 'research', 'documentation', 'git'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -150,7 +146,6 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['testing', 'security-review', 'requirements', 'git', 'python'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -173,7 +168,6 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['requirements', 'documentation', 'research', 'git'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -195,7 +189,6 @@ export const BUILT_IN_ROLES: BuiltInRolesConfig = {
         ...SHARED_ROLE_WORKFLOW_TOOLS,
       ],
       verificationStrategy: 'peer_review',
-      capabilities: ['workspace-management', 'requirements'],
       escalationTarget: 'human',
       maxEscalationDepth: 5,
     },
@@ -214,20 +207,4 @@ export function loadBuiltInRolesConfig(): BuiltInRolesConfig {
 /** Returns all role names defined in the config. */
 export function listRoleNames(config: BuiltInRolesConfig): RoleName[] {
   return Object.keys(config.roles) as RoleName[];
-}
-
-/** Returns the capabilities for a given role. */
-export function getRoleCapabilities(config: BuiltInRolesConfig, role: RoleName): string[] {
-  return config.roles[role].capabilities;
-}
-
-/** Returns all capabilities across all roles (de-duplicated). */
-export function getAllCapabilities(config: BuiltInRolesConfig): string[] {
-  const seen = new Set<string>();
-  for (const role of Object.values(config.roles)) {
-    for (const cap of role.capabilities) {
-      seen.add(cap);
-    }
-  }
-  return [...seen];
 }

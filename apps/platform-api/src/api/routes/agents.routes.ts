@@ -7,7 +7,7 @@ import { SchemaValidationFailedError } from '../../errors/domain-errors.js';
 const registerSchema = z.object({
   name: z.string().min(1).max(200),
   protocol: z.enum(['rest', 'acp']).optional(),
-  capabilities: z.array(z.string().min(1)).default([]),
+  routing_tags: z.array(z.string().min(1)).default([]),
   execution_mode: z.enum(['specialist', 'orchestrator', 'hybrid']).optional(),
   tools: z
     .object({
@@ -26,7 +26,7 @@ const registerSchema = z.object({
     })
     .optional(),
   profile: z.record(z.unknown()).optional(),
-});
+}).strict();
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {

@@ -93,7 +93,6 @@ describe('RoleDefinitionService', () => {
         allowedTools: ['file_read', 'file_write'],
         modelPreference: 'gpt-5-mini',
         verificationStrategy: 'peer_review',
-        capabilities: ['coding', 'testing'],
         isBuiltIn: true,
         isActive: true,
       });
@@ -118,7 +117,6 @@ describe('RoleDefinitionService', () => {
       const result = await service.createRole(TENANT_ID, {
         name: 'developer',
         allowedTools: [],
-        capabilities: [],
         executionContainerConfig: {
           image: 'agirunner-runtime-execution:role',
           cpu: '2',
@@ -138,7 +136,6 @@ describe('RoleDefinitionService', () => {
         service.createRole(TENANT_ID, {
           name: 'developer',
           allowedTools: [],
-          capabilities: [],
           isBuiltIn: false,
           isActive: true,
         }),
@@ -147,7 +144,19 @@ describe('RoleDefinitionService', () => {
 
     it('rejects invalid input', async () => {
       await expect(
-        service.createRole(TENANT_ID, { name: '', allowedTools: [], capabilities: [], isBuiltIn: false, isActive: true }),
+        service.createRole(TENANT_ID, { name: '', allowedTools: [], isBuiltIn: false, isActive: true }),
+      ).rejects.toThrow();
+    });
+
+    it('rejects legacy capabilities input', async () => {
+      await expect(
+        service.createRole(TENANT_ID, {
+          name: 'developer',
+          allowedTools: [],
+          capabilities: ['coding'],
+          isBuiltIn: false,
+          isActive: true,
+        } as never),
       ).rejects.toThrow();
     });
 
@@ -156,7 +165,6 @@ describe('RoleDefinitionService', () => {
         service.createRole(TENANT_ID, {
           name: 'developer',
           allowedTools: [],
-          capabilities: [],
           executionContainerConfig: {
             image: 'https://ghcr.io/agirunner/runtime latest',
             cpu: 'zero',
@@ -268,7 +276,6 @@ describe('RoleDefinitionService', () => {
         name: 'developer',
         systemPrompt: 'secret:openai-key',
         allowedTools: [],
-        capabilities: [],
       });
 
       expect(result.system_prompt).toBe(REDACTED);

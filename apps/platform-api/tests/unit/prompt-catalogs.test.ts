@@ -42,13 +42,16 @@ describe('prompt catalogs', () => {
       'complete the predecessor work item if its deliverable is accepted',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'After final approval in a planned workflow, complete the release work item and call complete_workflow.',
+      'Use complete_work_item for accepted work; do not guess terminal column_id with update_work_item.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'After final approval in a planned workflow, complete the release work item, then call complete_workflow.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as an array of objects');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as { id, task_id, label, path } objects');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'If a playbook has no explicit stage sequence, use board posture and process instructions as the progression model.',
+      'If a playbook has no explicit stage sequence, use board posture and process instructions.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.',
@@ -123,8 +126,8 @@ describe('prompt catalogs', () => {
     expect(BUILT_IN_ROLES.roles['workspace-manager'].systemPrompt).toContain(
       'You are the Workspace Manager',
     );
-    expect(BUILT_IN_ROLES.roles['workspace-manager'].capabilities).toEqual(
-      expect.arrayContaining(['workspace-management', 'requirements']),
+    expect(BUILT_IN_ROLES.roles['workspace-manager'].allowedTools).toEqual(
+      expect.arrayContaining(['submit_handoff', 'read_predecessor_handoff', 'escalate']),
     );
   });
 
@@ -135,21 +138,21 @@ describe('prompt catalogs', () => {
     }
   });
 
-  it('aligns built-in SDLC role capabilities with repo-backed execution needs', () => {
-    expect(BUILT_IN_ROLES.roles.developer.capabilities).toEqual(
-      expect.arrayContaining(['coding', 'testing', 'git', 'python']),
+  it('aligns built-in SDLC role tool access with repo-backed execution needs', () => {
+    expect(BUILT_IN_ROLES.roles.developer.allowedTools).toEqual(
+      expect.arrayContaining(['shell_exec', 'git_status', 'git_diff', 'git_commit', 'git_push']),
     );
-    expect(BUILT_IN_ROLES.roles.reviewer.capabilities).toEqual(
-      expect.arrayContaining(['code-review', 'security-review', 'git']),
+    expect(BUILT_IN_ROLES.roles.reviewer.allowedTools).toEqual(
+      expect.arrayContaining(['shell_exec', 'git_status', 'git_diff', 'web_fetch']),
     );
-    expect(BUILT_IN_ROLES.roles.architect.capabilities).toEqual(
-      expect.arrayContaining(['architecture', 'documentation', 'git']),
+    expect(BUILT_IN_ROLES.roles.architect.allowedTools).toEqual(
+      expect.arrayContaining(['artifact_upload', 'memory_write', 'web_fetch']),
     );
-    expect(BUILT_IN_ROLES.roles.qa.capabilities).toEqual(
-      expect.arrayContaining(['testing', 'requirements', 'git', 'python']),
+    expect(BUILT_IN_ROLES.roles.qa.allowedTools).toEqual(
+      expect.arrayContaining(['shell_exec', 'artifact_upload', 'memory_write']),
     );
-    expect(BUILT_IN_ROLES.roles['product-manager'].capabilities).toEqual(
-      expect.arrayContaining(['requirements', 'documentation', 'git']),
+    expect(BUILT_IN_ROLES.roles['product-manager'].allowedTools).toEqual(
+      expect.arrayContaining(['artifact_upload', 'memory_write', 'web_fetch']),
     );
   });
 

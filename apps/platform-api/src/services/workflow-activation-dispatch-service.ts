@@ -601,7 +601,6 @@ export class WorkflowActivationDispatchService {
            requires_output_review,
            input,
            context,
-           capabilities_required,
            role_config,
            environment,
            resource_bindings,
@@ -618,7 +617,7 @@ export class WorkflowActivationDispatchService {
            metadata
          ) VALUES (
            $1, $2, $3, $4, $5, $6, 'high', 'ready', '{}'::uuid[], false, false,
-           $7, '{}'::jsonb, $8::text[], $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, true, $14, NULL, NULL, false, 0, $15, $16, $17::jsonb
+           $7, '{}'::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, true, $13, NULL, NULL, false, 0, $14, $15, $16::jsonb
          )
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL
@@ -633,7 +632,6 @@ export class WorkflowActivationDispatchService {
           'orchestrator',
           taskDefinition.stageName,
           taskDefinition.input,
-          ['orchestrator'],
           taskDefinition.roleConfig,
           taskDefinition.environment,
           JSON.stringify(taskDefinition.resourceBindings),
@@ -1744,6 +1742,7 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'update_task_input',
       'create_work_item',
       'update_work_item',
+      'complete_work_item',
       'create_task',
       'create_workflow',
       'request_gate_approval',
