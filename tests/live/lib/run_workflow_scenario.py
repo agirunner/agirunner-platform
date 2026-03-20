@@ -1240,6 +1240,17 @@ def execution_log_rows(logs: Any) -> list[dict[str, Any]]:
     return []
 
 
+def emit_run_result(payload: dict[str, Any]) -> None:
+    serialized = json.dumps(payload)
+    output_path = env("LIVE_TEST_SCENARIO_RUN_TMP_FILE", "")
+    if output_path:
+        path = Path(output_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(serialized, encoding="utf-8")
+        return
+    print(serialized)
+
+
 def main() -> None:
     base_url = env("PLATFORM_API_BASE_URL", required=True)
     trace_dir = env("LIVE_TEST_SCENARIO_TRACE_DIR", required=True)
@@ -1509,31 +1520,29 @@ def main() -> None:
         fleet_peaks=fleet_peaks,
         efficiency=efficiency_summary,
     )
-    print(
-        json.dumps(
-            build_run_result_payload(
-                workflow_id=workflow_id,
-                final_state=final_state,
-                timed_out=timed_out,
-                poll_iterations=poll_iterations,
-                scenario_name=scenario_name,
-                approval_mode=approval_mode,
-                provider_auth_mode=provider_auth_mode,
-                workflow=latest_workflow,
-                board=board_snapshot,
-                work_items=work_items_snapshot,
-                events=events_snapshot,
-                approvals=approvals_snapshot,
-                approval_actions=approval_actions,
-                workflow_actions=workflow_actions,
-                workspace=workspace_snapshot,
-                artifacts=artifacts_snapshot,
-                fleet=latest_fleet,
-                fleet_peaks=fleet_peaks,
-                execution_logs=execution_logs_snapshot,
-                efficiency=efficiency_summary,
-                verification=verification,
-            )
+    emit_run_result(
+        build_run_result_payload(
+            workflow_id=workflow_id,
+            final_state=final_state,
+            timed_out=timed_out,
+            poll_iterations=poll_iterations,
+            scenario_name=scenario_name,
+            approval_mode=approval_mode,
+            provider_auth_mode=provider_auth_mode,
+            workflow=latest_workflow,
+            board=board_snapshot,
+            work_items=work_items_snapshot,
+            events=events_snapshot,
+            approvals=approvals_snapshot,
+            approval_actions=approval_actions,
+            workflow_actions=workflow_actions,
+            workspace=workspace_snapshot,
+            artifacts=artifacts_snapshot,
+            fleet=latest_fleet,
+            fleet_peaks=fleet_peaks,
+            execution_logs=execution_logs_snapshot,
+            efficiency=efficiency_summary,
+            verification=verification,
         )
     )
     if not verification["passed"]:

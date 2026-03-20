@@ -4,6 +4,8 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+import os
+import json
 from pathlib import Path
 
 
@@ -71,6 +73,25 @@ class FakeWorkflowClient:
 
 
 class RunWorkflowScenarioTests(unittest.TestCase):
+    def test_emit_run_result_writes_directly_to_tmp_file_when_configured(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            output_path = Path(tmpdir) / "workflow-run.json.tmp"
+            previous_value = os.environ.get("LIVE_TEST_SCENARIO_RUN_TMP_FILE")
+            os.environ["LIVE_TEST_SCENARIO_RUN_TMP_FILE"] = str(output_path)
+            try:
+                run_workflow_scenario.emit_run_result({"workflow_id": "wf-1", "verification": {"passed": False}})
+            finally:
+                if previous_value is None:
+                    os.environ.pop("LIVE_TEST_SCENARIO_RUN_TMP_FILE", None)
+                else:
+                    os.environ["LIVE_TEST_SCENARIO_RUN_TMP_FILE"] = previous_value
+
+            self.assertTrue(output_path.is_file())
+            self.assertEqual(
+                {"workflow_id": "wf-1", "verification": {"passed": False}},
+                json.loads(output_path.read_text(encoding="utf-8")),
+            )
+
     def test_workflow_is_fully_terminal_requires_terminal_task_states(self) -> None:
         self.assertFalse(
             run_workflow_scenario.workflow_is_fully_terminal(

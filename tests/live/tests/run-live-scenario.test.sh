@@ -110,6 +110,68 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
   fi
 }
 
+test_runner_direct_result_file_is_promoted_on_failure() {
+  local tmpdir stubdir output_root context_file run_file tmp_run_file bootstrap_stub envfile runner_script
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  envfile="${tmpdir}/env/local.env"
+  output_root="${tmpdir}/artifacts"
+  context_file="${output_root}/bootstrap/context.json"
+  run_file="${output_root}/bug-fix-positive/workflow-run.json"
+  tmp_run_file="${run_file}.tmp"
+  bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
+  runner_script="${tmpdir}/runner.py"
+  mkdir -p "${stubdir}" "$(dirname "${context_file}")" "$(dirname "${envfile}")"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5432
+PLATFORM_API_PORT=8080
+EOF
+
+  make_stub "${bootstrap_stub}" \
+'mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
+
+  cat >"${runner_script}" <<'PY'
+#!/usr/bin/env python3
+from pathlib import Path
+import os
+
+Path(os.environ["LIVE_TEST_SCENARIO_RUN_TMP_FILE"]).write_text(
+    "{\"workflow_id\":\"workflow-1\",\"verification\":{\"passed\":false}}",
+    encoding="utf-8",
+)
+raise SystemExit(1)
+PY
+  chmod +x "${runner_script}"
+
+  make_stub "${stubdir}/python3" '
+if [[ "${1:-}" == "-" ]]; then
+  printf "%s\n" "bug-fix" "git_remote"
+else
+  exec /usr/bin/python3 "$@"
+fi'
+
+  if PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
+    LIVE_TEST_START_WORKFLOW_SCRIPT="${runner_script}" \
+    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
+    fail "expected direct-write scenario runner failure to propagate"
+  fi
+
+  assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
+  if [[ -e "${tmp_run_file}" ]]; then
+    fail "expected finalized direct-write scenario runner to consume ${tmp_run_file}"
+  fi
+}
+
 test_bootstrap_failure_publishes_harness_failure_result() {
   local tmpdir stubdir output_root run_file bootstrap_stub envfile
   tmpdir="$(mktemp -d)"
@@ -225,6 +287,7 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
 
 test_scenario_profile_is_exported_to_bootstrap
 test_runner_failure_promotes_nonzero_json_result
+test_runner_direct_result_file_is_promoted_on_failure
 test_bootstrap_failure_publishes_harness_failure_result
 test_bootstrap_can_delete_scenario_dir_without_breaking_runner
 test_runner_resets_stale_trace_before_each_run
