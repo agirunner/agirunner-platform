@@ -7,6 +7,7 @@ import { buildOrchestratorTaskContext } from './orchestrator-task-context.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { WorkspaceMemoryScopeService } from './workspace-memory-scope-service.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+import { buildSpecialistExecutionBrief } from './specialist-execution-brief-service.js';
 import { buildWorkflowInstructionLayer } from './workflow-instruction-layer.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 
@@ -158,6 +159,16 @@ export async function buildTaskContext(
     predecessorHandoff,
     orchestratorContext: orchestratorContext as Record<string, unknown> | undefined,
   });
+  const executionBrief = task.is_orchestrator_task
+    ? null
+    : buildSpecialistExecutionBrief({
+        role: asOptionalString(task.role) ?? null,
+        workflow: workflowContext ?? null,
+        workspace: workspaceContext ?? null,
+        workItem,
+        predecessorHandoff,
+        taskInput: asRecord(task.input),
+      });
 
   return {
     agent: sanitizeTaskContextValue(agent),
@@ -167,6 +178,7 @@ export async function buildTaskContext(
     documents: sanitizeTaskContextValue(documents),
     instructions: sanitizeTaskContextValue(flatInstructions),
     instruction_layers: sanitizeTaskContextValue(instructionLayers),
+    execution_brief: sanitizeTaskContextValue(executionBrief),
     task: {
       id: task.id,
       input: sanitizeTaskContextValue(task.input),
@@ -808,6 +820,7 @@ export function summarizeTaskContextAttachments(
     ? context.documents as unknown[]
     : [];
   const orchestrator = asRecord(context.orchestrator);
+  const executionBrief = asRecord(context.execution_brief);
   const lastActivationCheckpoint = asRecord(orchestrator.last_activation_checkpoint);
   const flattenedSystemPrompt = flattenInstructionLayers(instructionLayers);
   const agentProfileInstructions = readAgentProfileInstructions(agent.metadata);
@@ -835,6 +848,8 @@ export function summarizeTaskContextAttachments(
     workspace_artifact_index_present: Object.keys(artifactIndex).length > 0,
     workspace_artifact_index_count: artifactItems.length,
     workspace_artifact_more_available: artifactIndex.more_available === true,
+    execution_brief_present: Object.keys(executionBrief).length > 0,
+    execution_brief_hash: Object.keys(executionBrief).length > 0 ? hashCanonicalJson(executionBrief) : null,
     document_count: documents.length,
     instruction_context_version: TASK_CONTEXT_LOG_VERSION,
     instruction_layers_hash: hashCanonicalJson(instructionLayers),

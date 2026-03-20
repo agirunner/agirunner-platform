@@ -500,6 +500,7 @@ export class TaskClaimService {
       const instructions =
         typeof instructionContext.instructions === 'string' ? instructionContext.instructions : '';
       const layers = (instructionContext.instruction_layers ?? {}) as Record<string, unknown>;
+      const executionBrief = (instructionContext.execution_brief ?? null) as Record<string, unknown> | null;
       const mergedBase = mergeSystemPrompt(claimedTaskBase, layers);
       if ((payload.include_context ?? true) === false) {
         return {
@@ -510,6 +511,7 @@ export class TaskClaimService {
           execution_container: executionContainer,
           tools: toolMatch,
           instructions,
+          execution_brief: executionBrief,
         };
       }
 
@@ -521,6 +523,7 @@ export class TaskClaimService {
         execution_container: executionContainer,
         tools: toolMatch,
         instructions,
+        execution_brief: executionBrief,
         context: instructionContext,
       };
     } catch (error) {

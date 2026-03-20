@@ -113,7 +113,7 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Repository-backed workflow. Inspect files, diffs, and git state before deciding. Once required work is dispatched');
   });
 
-  it('builds ongoing specialist guidance with board-driven progression and predecessor context', () => {
+  it('builds ongoing specialist durable guidance without task-scoped workflow brief or predecessor context', () => {
     const layer = buildWorkflowInstructionLayer({
       isOrchestratorTask: false,
       role: 'developer',
@@ -155,17 +155,15 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Process Instructions');
     expect(layer!.content).toContain('## Progress Model\nBoard-driven');
     expect(layer!.content).toContain('Use board lane posture and work-item continuity');
-    expect(layer!.content).toContain('## Board Position\nLane: In Review');
-    expect(layer!.content).toContain('Review required from reviewer');
-    expect(layer!.content).toContain('Mandatory review: reviewer should review the current output before completion.');
-    expect(layer!.content).toContain('Next expected actor: reviewer');
-    expect(layer!.content).toContain('Next expected action: review');
-    expect(layer!.content).toContain('## Predecessor Context');
-    expect(layer!.content).toContain('The design is ready for implementation.');
     expect(layer!.content).toContain('Upload required artifacts before completion or escalation');
+    expect(layer!.content).not.toContain('## Board Position');
+    expect(layer!.content).not.toContain('## Review Expectations');
+    expect(layer!.content).not.toContain('## Predecessor Context');
+    expect(layer!.content).not.toContain('The design is ready for implementation.');
+    expect(layer!.content).not.toContain('## Workflow Brief');
   });
 
-  it('surfaces the workflow goal and launch inputs without echoing secret-like values', () => {
+  it('does not surface specialist workflow brief content in the flattened workflow instruction layer', () => {
     const layer = buildWorkflowInstructionLayer({
       isOrchestratorTask: false,
       role: 'developer',
@@ -204,10 +202,10 @@ describe('buildWorkflowInstructionLayer', () => {
     });
 
     expect(layer).not.toBeNull();
-    expect(layer!.content).toContain('## Workflow Brief');
-    expect(layer!.content).toContain('Goal: Deliver a Hello World CLI with automated tests.');
-    expect(layer!.content).toContain('- repository_url: https://github.com/example/repo');
-    expect(layer!.content).toContain('- branch: feature/hello-world');
+    expect(layer!.content).not.toContain('## Workflow Brief');
+    expect(layer!.content).not.toContain('Goal: Deliver a Hello World CLI with automated tests.');
+    expect(layer!.content).not.toContain('- repository_url: https://github.com/example/repo');
+    expect(layer!.content).not.toContain('- branch: feature/hello-world');
     expect(layer!.content).not.toContain('git_token_secret_ref');
     expect(layer!.content).not.toContain('secret:GITHUB_TOKEN');
   });

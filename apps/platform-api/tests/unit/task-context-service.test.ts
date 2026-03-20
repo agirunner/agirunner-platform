@@ -430,17 +430,27 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('## Workflow Mode: planned');
     expect(workflowLayer.content).toContain('## Process Instructions');
     expect(workflowLayer.content).toContain('Developer implements, reviewer reviews');
-    expect(workflowLayer.content).toContain('## Current Stage');
-    expect(workflowLayer.content).toContain('implementation');
-    expect(workflowLayer.content).toContain('## Board Position');
-    expect(workflowLayer.content).toContain('## Board Position\nLane: In Review');
-    expect(workflowLayer.content).toContain('## Review Expectations');
-    expect(workflowLayer.content).toContain('Review required from reviewer');
-    expect(workflowLayer.content).toContain('reviewer should review the current output before completion.');
     expect(workflowLayer.content).toContain('## Output Protocol');
     expect(workflowLayer.content).toContain('Commit and push');
-    expect(workflowLayer.content).toContain('## Predecessor Context');
-    expect(workflowLayer.content).toContain('Implementation is ready for review.');
+    expect(workflowLayer.content).not.toContain('## Current Stage');
+    expect(workflowLayer.content).not.toContain('## Board Position');
+    expect(workflowLayer.content).not.toContain('## Review Expectations');
+    expect(workflowLayer.content).not.toContain('## Predecessor Context');
+    const executionBrief = (context as Record<string, any>).execution_brief;
+    expect(executionBrief).toEqual(
+      expect.objectContaining({
+        current_focus: expect.objectContaining({
+          stage_name: 'implementation',
+          board_position: 'In Review',
+        }),
+        predecessor_handoff_summary: expect.objectContaining({
+          summary: 'Implementation is ready for review.',
+        }),
+      }),
+    );
+    expect(executionBrief.rendered_markdown).toContain('## Workflow Brief');
+    expect(executionBrief.rendered_markdown).toContain('## Current Focus');
+    expect(executionBrief.rendered_markdown).toContain('## Predecessor Context');
     expect((context.task as Record<string, unknown>).work_item).toEqual(
       expect.objectContaining({
         stage_name: 'implementation',
@@ -773,10 +783,10 @@ describe('buildTaskContext active stage semantics', () => {
         sibling_count: 1,
       }),
     );
-    expect(((context.instruction_layers as Record<string, any>).workflow ?? {}).content).toContain(
+    expect(((context as Record<string, any>).execution_brief ?? {}).rendered_markdown).toContain(
       'QA validated the approved branch successfully.',
     );
-    expect(((context.instruction_layers as Record<string, any>).workflow ?? {}).content).not.toContain(
+    expect(((context as Record<string, any>).execution_brief ?? {}).rendered_markdown).not.toContain(
       'Unrelated later workflow note.',
     );
   });
@@ -1386,8 +1396,13 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('## Progress Model');
     expect(workflowLayer.content).toContain('Board-driven');
     expect(workflowLayer.content).toContain('Use board lane posture');
-    expect(workflowLayer.content).toContain('## Board Position\nLane: Active');
     expect(workflowLayer.content).toContain('Upload required artifacts before completion or escalation');
+    expect(workflowLayer.content).not.toContain('## Board Position');
+    expect(((context as Record<string, any>).execution_brief ?? {}).current_focus).toEqual(
+      expect.objectContaining({
+        board_position: 'Active',
+      }),
+    );
   });
 
   it('attaches filtered workspace memory and compact workspace indexes to specialist task context', async () => {

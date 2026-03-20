@@ -75,13 +75,7 @@ export function buildWorkflowInstructionLayer(
     : buildSpecialistSections({
         lifecycle,
         definition,
-        workflow: workflowInstructionContext,
-        checkpoint,
-        boardColumn,
-        focusedWorkItem,
-        predecessorHandoff: asRecord(input.predecessorHandoff),
         repoBacked,
-        role: input.role ?? null,
       });
 
   if (sections.length === 0) {
@@ -157,45 +151,14 @@ function buildOrchestratorSections(params: {
 function buildSpecialistSections(params: {
   lifecycle: 'planned' | 'ongoing';
   definition: ReturnType<typeof parsePlaybookDefinition>;
-  workflow: Record<string, unknown>;
-  checkpoint: { name: string; goal: string; human_gate?: boolean } | null;
-  boardColumn?: { label: string } | null;
-  focusedWorkItem: Record<string, unknown>;
-  predecessorHandoff: Record<string, unknown>;
   repoBacked: boolean;
-  role: string | null;
 }) {
   const sections = [
     `## Workflow Mode: ${params.lifecycle}\n${workflowModeGuidance(params.lifecycle)}`,
-    buildWorkflowBriefSection(params.workflow),
     `## Process Instructions\n${params.definition.process_instructions}`,
     `## Progress Model\n${progressModelGuidance(params.definition)}`,
+    `## Output Protocol\n${outputProtocol(params.repoBacked, false)}`,
   ];
-
-  if (params.checkpoint) {
-    sections.push(
-      `## Current Stage\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}`,
-    );
-    const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
-    if (params.lifecycle === 'planned') {
-      sections.push(`## Stage Routing\n${formatStageRouting(params.checkpoint.name, successorCheckpoint)}`);
-    }
-  }
-
-  if (params.boardColumn) {
-    sections.push(`## Board Position\nLane: ${params.boardColumn.label}`);
-  }
-
-  sections.push(`## Review Expectations\n${formatReviewExpectations(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem, params.role)}`);
-  sections.push(`## Output Protocol\n${outputProtocol(params.repoBacked, false)}`);
-
-  if (Object.keys(params.predecessorHandoff).length > 0) {
-    const summary = readString(params.predecessorHandoff.summary) ?? 'No summary provided.';
-    const successorContext = readString(params.predecessorHandoff.successor_context);
-    sections.push(
-      `## Predecessor Context\nRead the predecessor handoff first (from ${readString(params.predecessorHandoff.role) ?? 'unknown'}).\nSummary: ${summary}${successorContext ? `\nFocus: ${successorContext}` : ''}`,
-    );
-  }
 
   return sections.filter((section) => section.trim().length > 0);
 }
@@ -319,7 +282,7 @@ function isSecretLikeValue(value: unknown) {
   if (typeof value !== 'string') {
     return false;
   }
-  return /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$)/i.test(value.trim());
+  return /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}$)/i.test(value.trim());
 }
 
 function workflowModeGuidance(lifecycle: 'planned' | 'ongoing') {
