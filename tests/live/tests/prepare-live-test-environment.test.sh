@@ -187,7 +187,7 @@ EOF
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     "${SCRIPT_PATH}" >"${stdout_log}"
 
-  assert_contains "python3 DEFAULT_ADMIN_API_KEY=test-admin-key LIVE_TEST_PROVIDER_AUTH_MODE=oauth LIVE_TEST_PROVIDER_API_KEY= LIVE_TEST_OAUTH_PROFILE_ID=openai-codex LIVE_TEST_GITHUB_TOKEN=test-github-token PLATFORM_API_BASE_URL=http://127.0.0.1:8080 LIVE_TEST_TRACE_DIR=${trace_dir} ORCHESTRATOR_WORKER_NAME=orchestrator-primary LIVE_TEST_PROVIDER_TYPE=openai LIVE_TEST_MODEL_ID=gpt-5.4 LIVE_TEST_SPECIALIST_MODEL_ID=gpt-5.4 LIVE_TEST_SPECIALIST_REASONING_EFFORT=low" "${logfile}"
+  assert_contains "python3 DEFAULT_ADMIN_API_KEY=test-admin-key LIVE_TEST_PROVIDER_AUTH_MODE=oauth LIVE_TEST_PROVIDER_API_KEY= LIVE_TEST_OAUTH_PROFILE_ID=openai-codex LIVE_TEST_GITHUB_TOKEN=test-github-token PLATFORM_API_BASE_URL=http://127.0.0.1:8080 LIVE_TEST_TRACE_DIR=${trace_dir} ORCHESTRATOR_WORKER_NAME=orchestrator-primary LIVE_TEST_PROVIDER_TYPE=openai LIVE_TEST_MODEL_ID=gpt-5.4 LIVE_TEST_SPECIALIST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_REASONING_EFFORT=medium" "${logfile}"
   assert_contains "\"provider_id\":\"provider-oauth\"" "${bootstrap_context_file}"
 }
 
