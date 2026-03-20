@@ -677,7 +677,7 @@ function buildInstructionLayers(params: {
 
   if (!params.isOrchestratorTask) {
     const roleDocument = normalizeInstructionDocument(
-      params.roleConfig.system_prompt ?? params.roleConfig.instructions,
+      buildRoleInstructionContent(params.roleConfig),
       'role instructions',
       10_000,
     );
@@ -726,6 +726,20 @@ function buildInstructionLayers(params: {
   }
 
   return layers;
+}
+
+function buildRoleInstructionContent(roleConfig: Record<string, unknown>): string | undefined {
+  const instructions = asOptionalString(roleConfig.system_prompt)
+    ?? asOptionalString(roleConfig.instructions)
+    ?? null;
+  const description = asOptionalString(roleConfig.description) ?? null;
+  if (!description) {
+    return instructions ?? undefined;
+  }
+  if (!instructions) {
+    return `Role description: ${description}`;
+  }
+  return `Role description: ${description}\n\n${instructions}`;
 }
 
 const LAYER_HEADERS: Record<string, string> = {

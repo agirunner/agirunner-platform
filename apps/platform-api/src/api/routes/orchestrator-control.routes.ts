@@ -673,7 +673,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
               workspace_id: taskScope.workspace_id ?? undefined,
               activation_id: taskScope.activation_id ?? undefined,
               is_orchestrator_task: false,
-              capabilities_required: normalizedBody.capabilities_required ?? [normalizedBody.role],
+              capabilities_required: normalizedBody.capabilities_required,
               metadata: {
                 ...(normalizedBody.metadata ?? {}),
                 created_by_orchestrator_task_id: taskScope.id,

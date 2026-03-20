@@ -1646,6 +1646,7 @@ describe('orchestratorControlRoutes', () => {
       }),
       client,
     );
+    expect(taskService.createTask.mock.calls[0]?.[1]?.capabilities_required).toBeUndefined();
     expect(response.json().data).toEqual(createdTask);
   });
 

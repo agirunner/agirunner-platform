@@ -31,6 +31,7 @@ import {
   readRequiredPositiveIntegerRuntimeDefault,
   readSpecialistExecutionDefaults,
 } from './runtime-default-values.js';
+import { matchesWorkerToTaskRouting } from './task-routing-contract.js';
 import { flattenInstructionLayers } from './task-context-service.js';
 import { computeToolMatch, readAgentToolRequirements, resolveWorkspaceToolTags } from './tool-tag-service.js';
 import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
@@ -294,29 +295,28 @@ export class TaskClaimService {
          LEFT JOIN workflows ON workflows.tenant_id = tasks.tenant_id AND workflows.id = tasks.workflow_id
          WHERE tasks.tenant_id = $1
            AND tasks.state = 'ready'
-           AND tasks.capabilities_required <@ $2::text[]
-           AND ($3::uuid IS NULL OR tasks.workflow_id = $3::uuid)
-           AND ($6::uuid IS NULL OR workflows.playbook_id = $6::uuid)
+           AND ($2::uuid IS NULL OR tasks.workflow_id = $2::uuid)
+           AND ($5::uuid IS NULL OR workflows.playbook_id = $5::uuid)
            AND ${buildExecutionModeCondition(executionMode)}
            AND (workflows.id IS NULL OR workflows.state <> 'paused')
            AND (
              NOT (tasks.metadata ? 'preferred_agent_id')
              OR NULLIF(tasks.metadata->>'preferred_agent_id', '') IS NULL
-             OR tasks.metadata->>'preferred_agent_id' = $4
+             OR tasks.metadata->>'preferred_agent_id' = $3
            )
            AND (
              NOT (tasks.metadata ? 'preferred_worker_id')
              OR NULLIF(tasks.metadata->>'preferred_worker_id', '') IS NULL
-             OR tasks.metadata->>'preferred_worker_id' = COALESCE($5, tasks.metadata->>'preferred_worker_id')
+             OR tasks.metadata->>'preferred_worker_id' = COALESCE($4, tasks.metadata->>'preferred_worker_id')
            )
          ORDER BY
-           CASE WHEN tasks.metadata->>'preferred_agent_id' = $4 THEN 1 ELSE 0 END DESC,
-           CASE WHEN tasks.metadata->>'preferred_worker_id' = COALESCE($5, tasks.metadata->>'preferred_worker_id') THEN 1 ELSE 0 END DESC,
+           CASE WHEN tasks.metadata->>'preferred_agent_id' = $3 THEN 1 ELSE 0 END DESC,
+           CASE WHEN tasks.metadata->>'preferred_worker_id' = COALESCE($4, tasks.metadata->>'preferred_worker_id') THEN 1 ELSE 0 END DESC,
            ${priorityCase} DESC,
            tasks.created_at ASC
          LIMIT 25
          FOR UPDATE OF tasks SKIP LOCKED`,
-        [identity.tenantId, payload.capabilities, payload.workflow_id ?? null, payload.agent_id, payload.worker_id ?? null, payload.playbook_id ?? null],
+        [identity.tenantId, payload.workflow_id ?? null, payload.agent_id, payload.worker_id ?? null, payload.playbook_id ?? null],
       );
 
       if (!taskRes.rowCount) {
@@ -328,6 +328,9 @@ export class TaskClaimService {
       let task: Record<string, unknown> | null = null;
       let toolMatch = { matched: [] as string[], unavailable_optional: [] as string[] };
       for (const candidate of taskRes.rows as Record<string, unknown>[]) {
+        if (!matchesWorkerToTaskRouting(candidate, payload.capabilities)) {
+          continue;
+        }
         if (
           this.deps.parallelismService &&
           (await this.deps.parallelismService.shouldQueueForCapacity(
@@ -784,8 +787,9 @@ export class TaskClaimService {
       const roleRes = await this.deps.pool.query<{
         escalation_target: string | null;
         allowed_tools: string[] | null;
+        description: string | null;
       }>(
-        'SELECT escalation_target, allowed_tools FROM role_definitions WHERE tenant_id = $1 AND name = $2 AND is_active = true LIMIT 1',
+        'SELECT escalation_target, allowed_tools, description FROM role_definitions WHERE tenant_id = $1 AND name = $2 AND is_active = true LIMIT 1',
         [tenantId, roleName],
       );
       const row = roleRes.rows[0];
@@ -799,6 +803,9 @@ export class TaskClaimService {
       }
       if (row) {
         updates.tools = Array.isArray(row.allowed_tools) ? row.allowed_tools : [];
+        if (typeof row.description === 'string' && row.description.trim().length > 0) {
+          updates.description = row.description.trim();
+        }
       }
 
       if (Object.keys(updates).length === 0) return task;

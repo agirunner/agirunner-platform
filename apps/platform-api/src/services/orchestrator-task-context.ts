@@ -1,4 +1,5 @@
 import type { DatabaseQueryable } from '../db/database.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import {
   deriveWorkflowStageProjection,
 } from './workflow-stage-projection.js';
@@ -32,6 +33,11 @@ interface WorkflowRow {
   playbook_name: string;
   playbook_outcome: string | null;
   playbook_definition: Record<string, unknown>;
+}
+
+interface PlaybookRoleDefinitionRow {
+  name: string;
+  description: string | null;
 }
 
 export async function buildOrchestratorTaskContext(
@@ -142,6 +148,11 @@ export async function buildOrchestratorTaskContext(
   }
   const stageRows = stagesRes;
   const lifecycle = workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
+  const roleDefinitions = await loadPlaybookRoleDefinitions(
+    db,
+    tenantId,
+    workflow.playbook_definition,
+  );
   const projection = deriveWorkflowStageProjection({
     lifecycle,
     stageRows,
@@ -159,6 +170,7 @@ export async function buildOrchestratorTaskContext(
       outcome: workflow.playbook_outcome,
       definition: workflow.playbook_definition,
     },
+    role_definitions: roleDefinitions,
   } as Record<string, unknown>;
   if (workflow.lifecycle !== 'ongoing') {
     workflowContext.current_stage = projection.currentStage;
@@ -237,4 +249,48 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
+}
+
+async function loadPlaybookRoleDefinitions(
+  db: DatabaseQueryable,
+  tenantId: string,
+  playbookDefinition: Record<string, unknown>,
+): Promise<Array<{ name: string; description: string | null }>> {
+  const roleNames = readPlaybookRoleNames(playbookDefinition);
+  if (roleNames.length === 0) {
+    return [];
+  }
+
+  const result = await db.query<PlaybookRoleDefinitionRow>(
+    `SELECT name, description
+       FROM role_definitions
+      WHERE tenant_id = $1
+        AND is_active = true
+        AND name = ANY($2::text[])`,
+    [tenantId, roleNames],
+  );
+  const descriptions = new Map(
+    result.rows.map((row) => [row.name, row.description ?? null]),
+  );
+
+  return roleNames.map((name) => ({
+    name,
+    description: descriptions.get(name) ?? null,
+  }));
+}
+
+function readPlaybookRoleNames(playbookDefinition: Record<string, unknown>): string[] {
+  try {
+    return parsePlaybookDefinition(playbookDefinition).roles;
+  } catch {
+    const roles = Array.isArray(playbookDefinition.roles) ? playbookDefinition.roles : [];
+    return Array.from(
+      new Set(
+        roles
+          .filter((entry): entry is string => typeof entry === 'string')
+          .map((entry) => entry.trim())
+          .filter((entry) => entry.length > 0),
+      ),
+    );
+  }
 }

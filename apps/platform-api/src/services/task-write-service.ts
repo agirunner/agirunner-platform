@@ -12,6 +12,7 @@ import {
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
   TASK_MAX_ITERATIONS_RUNTIME_KEY,
 } from './runtime-default-values.js';
+import { isWorkflowSpecialistRoutingTask, normalizeCapabilityList } from './task-routing-contract.js';
 import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
@@ -590,15 +591,16 @@ export class TaskWriteService {
     tenantId: string,
     input: CreateTaskInput,
   ): Promise<CreateTaskInput> {
+    if (isWorkflowSpecialistRoutingTask(input)) {
+      return {
+        ...input,
+        capabilities_required: [],
+      };
+    }
+
     const provided = normalizeCapabilities(input.capabilities_required);
     const roleName = input.role?.trim();
     if (provided.length > 0) {
-      if (shouldEnforceWorkflowRoleCapabilityContract(input, roleName)) {
-        const resolved = normalizeCapabilities(
-          (await this.deps.resolveRoleCapabilities?.(tenantId, roleName)) ?? [],
-        );
-        assertSupportedWorkflowRoleCapabilities(roleName, provided, resolved);
-      }
       return {
         ...input,
         capabilities_required: provided,
@@ -770,7 +772,7 @@ export class TaskWriteService {
         taskId,
         (payload.title as string | undefined) ?? null,
         (payload.priority as string | undefined) ?? null,
-        (payload.capabilities_required as string[] | undefined) ?? null,
+        resolveUpdatedTaskCapabilities(task, payload),
         nextMetadata,
         (payload.timeout_minutes as number | undefined) ?? null,
         (payload.description as string | undefined) ?? null,
@@ -825,46 +827,20 @@ export class TaskWriteService {
 }
 
 function normalizeCapabilities(values: string[] | undefined | null): string[] {
-  return Array.from(
-    new Set(
-      (values ?? [])
-        .map((value) => value.trim())
-        .filter((value) => value.length > 0),
-    ),
-  );
+  return normalizeCapabilityList(values);
 }
 
-function shouldEnforceWorkflowRoleCapabilityContract(
-  input: CreateTaskInput,
-  roleName: string | undefined,
-): roleName is string {
-  return Boolean(
-    roleName
-    && !input.is_orchestrator_task
-    && (input.workflow_id || input.work_item_id),
-  );
-}
-
-function assertSupportedWorkflowRoleCapabilities(
-  roleName: string,
-  provided: string[],
-  resolvedRoleCapabilities: string[],
-): void {
-  const allowed = normalizeCapabilities([
-    roleName,
-    `role:${roleName}`,
-    ...resolvedRoleCapabilities,
-  ]);
-  const allowedSet = new Set(allowed);
-  const invalid = provided.filter((capability) => !allowedSet.has(capability));
-  if (invalid.length === 0) {
-    return;
+function resolveUpdatedTaskCapabilities(
+  task: Record<string, unknown>,
+  payload: Record<string, unknown>,
+): string[] | null {
+  if (!Object.prototype.hasOwnProperty.call(payload, 'capabilities_required')) {
+    return null;
   }
-  throw new ValidationError(
-    `capabilities_required contains unsupported entries for role "${roleName}": ` +
-      `${invalid.join(', ')}. Allowed values: ${allowed.join(', ')}. ` +
-      'Omit capabilities_required to use the role default.',
-  );
+  if (isWorkflowSpecialistRoutingTask(task)) {
+    return [];
+  }
+  return normalizeCapabilities(payload.capabilities_required as string[] | undefined);
 }
 
 function mergeWorkspaceStorageBindings(

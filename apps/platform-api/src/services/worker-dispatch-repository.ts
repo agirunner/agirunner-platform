@@ -3,6 +3,10 @@ import type { DatabasePool } from '../db/database.js';
 interface ReadyTaskRow {
   id: string;
   tenant_id: string;
+  workflow_id: string | null;
+  work_item_id: string | null;
+  is_orchestrator_task: boolean;
+  role: string | null;
   capabilities_required: string[];
 }
 
@@ -29,7 +33,7 @@ interface ExpiredDispatch {
 
 export async function findReadyTasks(pool: DatabasePool, limit: number): Promise<ReadyTaskRow[]> {
   const result = await pool.query<ReadyTaskRow>(
-    `SELECT id, tenant_id, capabilities_required
+    `SELECT id, tenant_id, workflow_id, work_item_id, is_orchestrator_task, role, capabilities_required
      FROM tasks
      WHERE state = 'ready'
      ORDER BY CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END DESC, created_at ASC
@@ -44,8 +48,15 @@ export async function findDispatchCandidateWorker(
   tenantId: string,
   connectedWorkerIds: string[],
   requiredCapabilities: string[],
+  requiredRoleTag: string | null = null,
 ): Promise<string | null> {
-  const candidates = await findDispatchCandidateWorkers(pool, tenantId, connectedWorkerIds, requiredCapabilities);
+  const candidates = await findDispatchCandidateWorkers(
+    pool,
+    tenantId,
+    connectedWorkerIds,
+    requiredCapabilities,
+    requiredRoleTag,
+  );
   return candidates[0]?.id ?? null;
 }
 
@@ -57,6 +68,7 @@ export async function findDispatchCandidateWorkers(
   tenantId: string,
   connectedWorkerIds: string[],
   requiredCapabilities: string[],
+  requiredRoleTag: string | null = null,
 ): Promise<DispatchWorkerCandidate[]> {
   const result = await pool.query<DispatchWorkerCandidate>(
     `SELECT w.id,
@@ -70,10 +82,13 @@ export async function findDispatchCandidateWorkers(
        AND w.id = ANY($2::uuid[])
        AND w.status IN ('online','busy')
        AND w.circuit_breaker_state <> 'open'
-       AND w.capabilities @> $3::text[]
+       AND (
+         ($4::text IS NOT NULL AND w.capabilities @> ARRAY[$4]::text[])
+         OR ($4::text IS NULL AND w.capabilities @> $3::text[])
+       )
      GROUP BY w.id
      ORDER BY w.quality_score DESC, task_load ASC, w.created_at ASC`,
-    [tenantId, connectedWorkerIds, requiredCapabilities],
+    [tenantId, connectedWorkerIds, requiredCapabilities, requiredRoleTag],
   );
 
   return result.rows;

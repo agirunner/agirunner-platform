@@ -123,7 +123,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
@@ -149,7 +149,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
       playbook_id: 'playbook-1',
     });
 
@@ -157,6 +157,118 @@ describe('TaskClaimService', () => {
     expect(taskSelectSql).toContain('workflows.playbook_id');
     const params = (client.query.mock.calls[3]?.[1] ?? []) as unknown[];
     expect(params).toContain('playbook-1');
+  });
+
+  it('claims workflow specialist tasks by advertised role tag instead of stored capability tags', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 2,
+            rows: [
+              {
+                id: 'task-architect',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-1',
+                state: 'ready',
+                role: 'architect',
+                workspace_id: null,
+                role_config: {},
+                metadata: {},
+                is_orchestrator_task: false,
+                max_iterations: null,
+                llm_max_retries: null,
+                capabilities_required: [],
+              },
+              {
+                id: 'task-developer',
+                workflow_id: 'wf-1',
+                work_item_id: 'wi-2',
+                state: 'ready',
+                role: 'developer',
+                workspace_id: null,
+                role_config: {},
+                metadata: {},
+                is_orchestrator_task: false,
+                max_iterations: null,
+                llm_max_retries: null,
+                capabilities_required: [],
+              },
+            ],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: params?.[1],
+              workflow_id: 'wf-1',
+              work_item_id: params?.[1] === 'task-developer' ? 'wi-2' : 'wi-1',
+              state: 'claimed',
+              role: params?.[1] === 'task-developer' ? 'developer' : 'architect',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+              capabilities_required: [],
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding', 'role:developer'],
+    });
+
+    expect(task?.id).toBe('task-developer');
+    const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
+    expect(taskSelectSql).not.toContain('tasks.capabilities_required <@');
   });
 
   it('attaches the effective loop contract to claimed specialist tasks', async () => {
@@ -255,7 +367,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.max_iterations).toBe(100);
@@ -352,7 +464,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.execution_container).toEqual({
@@ -434,7 +546,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task).toBeNull();
@@ -552,7 +664,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.execution_container).toEqual({
@@ -658,7 +770,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -729,7 +841,7 @@ describe('TaskClaimService', () => {
 
     await expect(service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     })).rejects.toThrow('Missing runtime default "agent.max_iterations"');
   });
 
@@ -830,7 +942,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.id).toBe('task-open');
@@ -949,7 +1061,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
       workflow_id: 'wf-1',
     });
 
@@ -1095,7 +1207,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual({
@@ -1223,7 +1335,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual({
@@ -1353,7 +1465,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect((task?.credentials as Record<string, unknown>).llm_reasoning_config).toEqual({
@@ -1451,7 +1563,7 @@ describe('TaskClaimService', () => {
     await expect(
       service.claimTask(identity, {
         agent_id: 'agent-1',
-        capabilities: ['coding'],
+        capabilities: ['coding', 'role:developer'],
       }),
     ).rejects.toThrow(/providerType/i);
   });
@@ -1570,7 +1682,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect((task?.credentials as Record<string, unknown>).llm_reasoning_config).toEqual({
@@ -1638,7 +1750,7 @@ describe('TaskClaimService', () => {
 
     await expect(service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     })).rejects.toThrow(/explicit task model override/i);
 
     expect(resolveRoleConfig).not.toHaveBeenCalled();
@@ -1705,7 +1817,7 @@ describe('TaskClaimService', () => {
 
     await expect(service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     })).rejects.toThrow(/explicit task model override/i);
 
     expect(resolveRoleConfig).not.toHaveBeenCalled();
@@ -1772,7 +1884,7 @@ describe('TaskClaimService', () => {
     await expect(
       service.claimTask(identity, {
         agent_id: 'agent-1',
-        capabilities: ['coding'],
+        capabilities: ['coding', 'role:developer'],
       }),
     ).rejects.toMatchObject({
       code: 'VALIDATION_ERROR',
@@ -1880,7 +1992,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -1981,7 +2093,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -2080,7 +2192,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -2179,7 +2291,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(
@@ -2332,7 +2444,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual(expect.objectContaining({
@@ -2469,7 +2581,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual({
@@ -2596,7 +2708,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     const handle = (task?.credentials as Record<string, unknown>).llm_api_key_claim_handle as string;
@@ -2815,7 +2927,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     const contractEntry = (logService.insertWithExecutor.mock.calls[0] as unknown[] | undefined)?.[1] as
@@ -2952,7 +3064,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task).not.toBeNull();
@@ -3070,7 +3182,7 @@ describe('TaskClaimService', () => {
 
     await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     const contractEntry = (logService.insertWithExecutor.mock.calls[0] as unknown[] | undefined)?.[1] as
@@ -3191,7 +3303,7 @@ describe('TaskClaimService', () => {
 
     const task = await service.claimTask(identity, {
       agent_id: 'agent-1',
-      capabilities: ['coding'],
+      capabilities: ['coding', 'role:developer'],
     });
 
     expect(task?.credentials).toEqual({

@@ -153,6 +153,64 @@ describe('buildTaskContext active stage semantics', () => {
     expect((context.workflow as Record<string, unknown>).current_stage).toBe('review');
   });
 
+  it('includes the assigned role description in the specialist role instruction layer', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows p')) {
+          return {
+            rows: [{
+              id: 'workflow-role',
+              name: 'Workflow role',
+              lifecycle: 'planned',
+              context: {},
+              git_branch: 'main',
+              parameters: {},
+              resolved_config: {},
+              instruction_config: {},
+              metadata: {},
+              playbook_id: 'playbook-role',
+              playbook_name: 'Role playbook',
+              playbook_outcome: 'Ship work',
+              playbook_definition: {
+                lifecycle: 'planned',
+                process_instructions: 'Implement the requested change.',
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                checkpoints: [
+                  { name: 'implementation', goal: 'Build the change' },
+                ],
+              },
+              workspace_spec_version: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT DISTINCT wi.stage_name')) {
+          return { rows: [{ stage_name: 'implementation' }] };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildTaskContext(db as never, 'tenant-1', {
+      id: 'task-role',
+      workflow_id: 'workflow-role',
+      depends_on: [],
+      role: 'developer',
+      role_config: {
+        description: 'Implements the requested change.',
+        instructions: 'Write the code and verify it before handoff.',
+      },
+    });
+
+    const roleLayer = ((context.instruction_layers as Record<string, any>).role ?? {});
+    expect(roleLayer.content).toContain('Role description: Implements the requested change.');
+    expect(roleLayer.content).toContain('Write the code and verify it before handoff.');
+  });
+
   it('derives standard workflow current stage from open work items instead of stale stored stage status', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {

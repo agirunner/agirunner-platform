@@ -1142,8 +1142,9 @@ describe('TaskWriteService', () => {
     );
   });
 
-  it('defaults workflow task capabilities from the resolved role definition', async () => {
+  it('stores no scheduler capabilities for workflow specialist tasks', async () => {
     let insertedCapabilities: string[] | null = null;
+    const resolveRoleCapabilities = vi.fn(async () => ['coding', 'testing', 'documentation']);
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
@@ -1200,7 +1201,7 @@ describe('TaskWriteService', () => {
       parallelismService: {
         shouldQueueForCapacity: vi.fn(async () => false),
       } as never,
-      resolveRoleCapabilities: vi.fn(async () => ['coding', 'testing', 'documentation']),
+      resolveRoleCapabilities,
     });
 
     const result = await service.createTask(
@@ -1218,21 +1219,22 @@ describe('TaskWriteService', () => {
       },
     );
 
-    expect(insertedCapabilities).toEqual(['coding', 'testing', 'documentation']);
-    expect(result.capabilities_required).toEqual(['coding', 'testing', 'documentation']);
+    expect(insertedCapabilities).toEqual([]);
+    expect(result.capabilities_required).toEqual([]);
+    expect(resolveRoleCapabilities).not.toHaveBeenCalled();
   });
 
-  it('rejects workflow task capability tags that are outside the assigned role contract', async () => {
-    let insertAttempted = false;
+  it('ignores caller-supplied scheduler capabilities for workflow specialist tasks', async () => {
+    let insertedCapabilities: string[] | null = null;
     const pool = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
           return { rowCount: 0, rows: [] };
         }
         if (isLinkedWorkItemLookup(sql)) {
           return {
             rowCount: 1,
-            rows: [{ workflow_id: 'workflow-1', stage_name: 'requirements' }],
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'implementation' }],
           };
         }
         if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
@@ -1246,12 +1248,25 @@ describe('TaskWriteService', () => {
         ) {
           return { rowCount: 0, rows: [] };
         }
-        if (isPlaybookDefinitionLookup(sql)) {
+        if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertAttempted = true;
-          throw new Error('task insert should not run when capability validation fails');
+          insertedCapabilities = (values?.[14] as string[]) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-role-canonicalized',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              request_id: 'request-role-canonicalized',
+              capabilities_required: insertedCapabilities,
+            }],
+          };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -1267,30 +1282,27 @@ describe('TaskWriteService', () => {
       parallelismService: {
         shouldQueueForCapacity: vi.fn(async () => false),
       } as never,
-      resolveRoleCapabilities: vi.fn(async () => ['requirements', 'documentation', 'research', 'git']),
+      resolveRoleCapabilities: vi.fn(async () => ['coding', 'testing', 'documentation']),
     });
 
-    await expect(
-      service.createTask(
-        {
-          tenantId: 'tenant-1',
-          scope: 'admin',
-          keyPrefix: 'admin-key',
-        } as never,
-        {
-          title: 'Draft requirements',
-          workflow_id: 'workflow-1',
-          work_item_id: 'work-item-1',
-          request_id: 'request-invalid-capabilities',
-          role: 'live-test-product-manager',
-          capabilities_required: ['requirements-analysis', 'repository-review'],
-        },
-      ),
-    ).rejects.toThrow(
-      /capabilities_required contains unsupported entries for role "live-test-product-manager"/i,
+    const result = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Repo-backed developer task',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-role-canonicalized',
+        role: 'developer',
+        capabilities_required: ['developer', 'testing'],
+      },
     );
 
-    expect(insertAttempted).toBe(false);
+    expect(insertedCapabilities).toEqual([]);
+    expect(result.capabilities_required).toEqual([]);
   });
 
   it('rejects workflow specialist tasks that are not linked to a work item', async () => {

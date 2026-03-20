@@ -43,6 +43,9 @@ export function buildWorkflowInstructionLayer(
   }
 
   const lifecycle = workflow.lifecycle === 'ongoing' ? 'ongoing' : 'planned';
+  const workflowInstructionContext = input.isOrchestratorTask
+    ? mergeOrchestratorWorkflowContext(workflow, input.orchestratorContext)
+    : workflow;
   const activationAnchor = input.isOrchestratorTask
     ? readOrchestratorActivationAnchor(input.orchestratorContext)
     : { workItemId: null, stageName: null };
@@ -62,17 +65,17 @@ export function buildWorkflowInstructionLayer(
     ? buildOrchestratorSections({
         lifecycle,
         definition,
-        workflow,
+        workflow: workflowInstructionContext,
         checkpoint,
         boardColumn,
         focusedWorkItem,
-        activeStages: readStringArray(workflow.active_stages),
+        activeStages: readStringArray(workflowInstructionContext.active_stages),
         repoBacked,
       })
     : buildSpecialistSections({
         lifecycle,
         definition,
-        workflow,
+        workflow: workflowInstructionContext,
         checkpoint,
         boardColumn,
         focusedWorkItem,
@@ -127,6 +130,11 @@ function buildOrchestratorSections(params: {
 
   if (params.lifecycle === 'ongoing' && params.activeStages.length > 0) {
     sections.push(`## Active Stages\n${params.activeStages.join(', ')}`);
+  }
+
+  const roleCatalog = readOrchestratorRoleCatalog(params.workflow);
+  if (roleCatalog.length > 0) {
+    sections.push(`## Available Roles\n${formatRoleCatalog(roleCatalog)}`);
   }
 
   sections.push(`## Rule Results\n${formatRuleResults(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem)}`);
@@ -258,6 +266,49 @@ function truncateInlineValue(value: string, maxLength: number) {
     return value;
   }
   return `${value.slice(0, maxLength - 1)}…`;
+}
+
+function mergeOrchestratorWorkflowContext(
+  workflow: Record<string, unknown>,
+  orchestratorContext: Record<string, unknown> | null | undefined,
+): Record<string, unknown> {
+  const orchestratorWorkflow = asRecord(asRecord(orchestratorContext).workflow);
+  if (Object.keys(orchestratorWorkflow).length === 0) {
+    return workflow;
+  }
+  return {
+    ...workflow,
+    role_definitions: orchestratorWorkflow.role_definitions ?? workflow.role_definitions ?? null,
+  };
+}
+
+function readOrchestratorRoleCatalog(
+  workflow: Record<string, unknown>,
+): Array<{ name: string; description: string | null }> {
+  const directRoleDefinitions = Array.isArray(workflow.role_definitions)
+    ? workflow.role_definitions
+    : [];
+  const playbookRoleDefinitions = Array.isArray(asRecord(workflow.playbook).role_definitions)
+    ? asRecord(workflow.playbook).role_definitions as unknown[]
+    : [];
+  const roleEntries = directRoleDefinitions.length > 0
+    ? directRoleDefinitions
+    : playbookRoleDefinitions;
+  return roleEntries
+    .map((entry) => asRecord(entry))
+    .map((entry) => ({
+      name: readString(entry.name) ?? '',
+      description: readString(entry.description),
+    }))
+    .filter((entry) => entry.name.length > 0);
+}
+
+function formatRoleCatalog(
+  roles: Array<{ name: string; description: string | null }>,
+): string {
+  return roles
+    .map((role) => `- ${role.name}: ${role.description ?? 'No description configured.'}`)
+    .join('\n');
 }
 
 function isSecretLikeKey(key: string) {

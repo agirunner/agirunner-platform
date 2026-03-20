@@ -11,6 +11,7 @@ import {
   resetTaskClaim,
   type DispatchWorkerCandidate,
 } from './worker-dispatch-repository.js';
+import { resolveDispatchRoutingRequirements } from './task-routing-contract.js';
 import type { WorkerServiceContext } from './worker-service.js';
 
 interface DispatchCandidate {
@@ -57,11 +58,13 @@ export async function dispatchReadyTasks(context: WorkerServiceContext, limit?: 
       continue;
     }
 
+    const routingRequirements = resolveDispatchRoutingRequirements(task);
     const candidates = await findDispatchCandidateWorkers(
       context.pool,
       task.tenant_id,
       connectedWorkerIds,
-      task.capabilities_required ?? [],
+      routingRequirements.requiredCapabilities,
+      routingRequirements.requiredRoleTag,
     );
 
     const workerId = selectWorkerForDispatch(candidates);

@@ -47,6 +47,13 @@ describe('buildWorkflowInstructionLayer', () => {
       },
       orchestratorContext: {
         activation: { payload: { work_item_id: 'wi-1' } },
+        workflow: {
+          role_definitions: [
+            { name: 'developer', description: 'Implements the requested change.' },
+            { name: 'reviewer', description: 'Reviews implementation quality and correctness.' },
+            { name: 'qa', description: 'Validates behavior before release.' },
+          ],
+        },
         board: {
           work_items: [
             {
@@ -98,6 +105,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Do not poll running tasks in a loop.');
     expect(layer!.content).toContain('If no subordinate work is active and the workflow should progress, perform the workflow mutation now.');
     expect(layer!.content).toContain('A recommendation without the required workflow mutation does not complete the activation.');
+    expect(layer!.content).toContain('## Available Roles');
+    expect(layer!.content).toContain('- developer: Implements the requested change.');
+    expect(layer!.content).toContain('- reviewer: Reviews implementation quality and correctness.');
     expect(layer!.content).toContain('## Parallelism');
     expect(layer!.content).toContain('Max active tasks: 4');
     expect(layer!.content).toContain('Repository-backed workflow. Inspect files, diffs, and git state before deciding. Once required work is dispatched');
