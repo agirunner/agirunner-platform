@@ -8,8 +8,11 @@ const MAX_SHORT_TEXT_LENGTH = 255;
 const MAX_EMAIL_LENGTH = 320;
 const MAX_SECRET_LENGTH = 20_000;
 const MAX_WORKSPACE_BRIEF_LENGTH = 20_000;
+const MAX_PATH_LENGTH = 4_096;
 const WORKSPACE_SETTINGS_SECRET_REDACTION = 'redacted://workspace-settings-secret';
 const WORKSPACE_SETTINGS_KNOWN_KEYS = new Set([
+  'workspace_storage_type',
+  'workspace_storage',
   'default_branch',
   'git_user_name',
   'git_user_email',
@@ -37,7 +40,26 @@ export interface StoredWorkspaceSettingsCredentials {
   git_token?: string;
 }
 
+export const WORKSPACE_STORAGE_TYPES = [
+  'git_remote',
+  'host_directory',
+  'workspace_artifacts',
+] as const;
+
+export type WorkspaceStorageType = (typeof WORKSPACE_STORAGE_TYPES)[number];
+
+export interface StoredWorkspaceStorage extends Record<string, unknown> {
+  repository_url?: string;
+  default_branch?: string;
+  git_user_name?: string;
+  git_user_email?: string;
+  host_path?: string;
+  read_only?: boolean;
+}
+
 export interface StoredWorkspaceSettings extends Record<string, unknown> {
+  workspace_storage_type?: WorkspaceStorageType;
+  workspace_storage?: StoredWorkspaceStorage;
   default_branch?: string;
   git_user_name?: string;
   git_user_email?: string;
@@ -56,6 +78,17 @@ export interface WorkspaceRepositorySettings {
   defaultBranch: string | null;
   gitUserName: string | null;
   gitUserEmail: string | null;
+  gitTokenSecretRef: string | null;
+}
+
+export interface WorkspaceStorageSettings {
+  type: WorkspaceStorageType;
+  repositoryUrl: string | null;
+  defaultBranch: string | null;
+  gitUserName: string | null;
+  gitUserEmail: string | null;
+  hostPath: string | null;
+  readOnly: boolean;
   gitTokenSecretRef: string | null;
 }
 
@@ -84,12 +117,58 @@ export function readWorkspaceSettingsExtras(value: unknown): Record<string, unkn
 }
 
 export function readWorkspaceRepositorySettings(value: unknown): WorkspaceRepositorySettings {
+  const storage = readWorkspaceStorageSettings(value);
   const settings = normalizeWorkspaceSettings(value);
   return {
+    defaultBranch: storage.defaultBranch ?? settings.default_branch ?? null,
+    gitUserName: storage.gitUserName ?? settings.git_user_name ?? null,
+    gitUserEmail: storage.gitUserEmail ?? settings.git_user_email ?? null,
+    gitTokenSecretRef: storage.gitTokenSecretRef ?? settings.credentials.git_token ?? null,
+  };
+}
+
+export function readWorkspaceStorageSettings(value: unknown): WorkspaceStorageSettings {
+  const settings = normalizeWorkspaceSettings(value);
+  const storageType = settings.workspace_storage_type ?? 'workspace_artifacts';
+  const storage = asRecord(settings.workspace_storage);
+  const legacyRepositorySettings = {
     defaultBranch: settings.default_branch ?? null,
     gitUserName: settings.git_user_name ?? null,
     gitUserEmail: settings.git_user_email ?? null,
-    gitTokenSecretRef: settings.credentials.git_token ?? null,
+  };
+  if (storageType === 'git_remote') {
+    return {
+      type: storageType,
+      repositoryUrl: readNullableString(storage.repository_url),
+      defaultBranch: readNullableString(storage.default_branch) ?? legacyRepositorySettings.defaultBranch,
+      gitUserName: readNullableString(storage.git_user_name) ?? legacyRepositorySettings.gitUserName,
+      gitUserEmail: readNullableString(storage.git_user_email) ?? legacyRepositorySettings.gitUserEmail,
+      hostPath: null,
+      readOnly: false,
+      gitTokenSecretRef: settings.credentials.git_token ?? null,
+    };
+  }
+  if (storageType === 'host_directory') {
+    return {
+      type: storageType,
+      repositoryUrl: null,
+      defaultBranch: null,
+      gitUserName: null,
+      gitUserEmail: null,
+      hostPath: readNullableString(storage.host_path),
+      readOnly: storage.read_only === true,
+      gitTokenSecretRef: null,
+    };
+  }
+  return {
+    type: 'workspace_artifacts',
+    repositoryUrl: null,
+    defaultBranch: null,
+    gitUserName: null,
+    gitUserEmail: null,
+    hostPath: null,
+    readOnly: false,
+    gitTokenSecretRef: null,
   };
 }
 
@@ -105,6 +184,12 @@ export function serializeWorkspaceSettings(value: unknown): Record<string, unkno
   });
 
   return {
+    ...(settings.workspace_storage_type
+      ? { workspace_storage_type: settings.workspace_storage_type }
+      : {}),
+    ...(settings.workspace_storage && Object.keys(settings.workspace_storage).length > 0
+      ? { workspace_storage: settings.workspace_storage }
+      : {}),
     ...(settings.default_branch ? { default_branch: settings.default_branch } : {}),
     ...(settings.git_user_name ? { git_user_name: settings.git_user_name } : {}),
     ...(settings.git_user_email ? { git_user_email: settings.git_user_email } : {}),
@@ -126,6 +211,7 @@ function parseWorkspaceSettings(
   }
 
   const existing = options.existing ? normalizeWorkspaceSettings(options.existing) : emptyWorkspaceSettings();
+  const storage = readWorkspaceStorage(record, existing);
 
   const defaultBranch = readOptionalString(record.default_branch, 'settings.default_branch');
   const gitUserName = readOptionalString(record.git_user_name, 'settings.git_user_name');
@@ -135,6 +221,8 @@ function parseWorkspaceSettings(
 
   return {
     ...stripKnownWorkspaceSettingKeys(record),
+    ...(storage.persist ? { workspace_storage_type: storage.type } : {}),
+    ...(storage.persist && Object.keys(storage.settings).length > 0 ? { workspace_storage: storage.settings } : {}),
     ...(defaultBranch ? { default_branch: defaultBranch } : {}),
     ...(gitUserName ? { git_user_name: gitUserName } : {}),
     ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
@@ -148,6 +236,76 @@ function emptyWorkspaceSettings(): StoredWorkspaceSettings {
   return {
     credentials: {},
     model_overrides: {},
+  };
+}
+
+function readWorkspaceStorage(
+  record: Record<string, unknown>,
+  existing: StoredWorkspaceSettings,
+): { type: WorkspaceStorageType; settings: StoredWorkspaceStorage; persist: boolean } {
+  const explicitType = readWorkspaceStorageType(record.workspace_storage_type, 'settings.workspace_storage_type');
+  const existingType = readWorkspaceStorageType(existing.workspace_storage_type, 'settings.workspace_storage_type');
+  const type = explicitType ?? existingType ?? 'workspace_artifacts';
+  const storageRecord = asRecord(record.workspace_storage);
+  const existingStorage = asRecord(existing.workspace_storage);
+  const persist =
+    explicitType !== undefined
+    || existingType !== undefined
+    || Object.keys(storageRecord).length > 0
+    || Object.keys(existingStorage).length > 0;
+
+  if (type === 'git_remote') {
+    const repositoryURL = readOptionalUrl(
+      storageRecord.repository_url ?? existingStorage.repository_url,
+      'settings.workspace_storage.repository_url',
+    );
+    const defaultBranch = readOptionalString(
+      storageRecord.default_branch ?? existingStorage.default_branch ?? record.default_branch,
+      'settings.workspace_storage.default_branch',
+    );
+    const gitUserName = readOptionalString(
+      storageRecord.git_user_name ?? existingStorage.git_user_name ?? record.git_user_name,
+      'settings.workspace_storage.git_user_name',
+    );
+    const gitUserEmail = readOptionalEmail(
+      storageRecord.git_user_email ?? existingStorage.git_user_email ?? record.git_user_email,
+      'settings.workspace_storage.git_user_email',
+    );
+    return {
+      type,
+      persist,
+      settings: {
+        ...(repositoryURL ? { repository_url: repositoryURL } : {}),
+        ...(defaultBranch ? { default_branch: defaultBranch } : {}),
+        ...(gitUserName ? { git_user_name: gitUserName } : {}),
+        ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
+      },
+    };
+  }
+
+  if (type === 'host_directory') {
+    const hostPath = readRequiredAbsolutePath(
+      storageRecord.host_path ?? existingStorage.host_path,
+      'settings.workspace_storage.host_path',
+    );
+    const readOnly = readOptionalBoolean(
+      storageRecord.read_only ?? existingStorage.read_only,
+      'settings.workspace_storage.read_only',
+    );
+    return {
+      type,
+      persist,
+      settings: {
+        host_path: hostPath,
+        ...(readOnly !== undefined ? { read_only: readOnly } : {}),
+      },
+    };
+  }
+
+  return {
+    type: 'workspace_artifacts',
+    persist,
+    settings: {},
   };
 }
 
@@ -245,6 +403,37 @@ function readOptionalString(value: unknown, label: string): string | undefined {
   return normalized;
 }
 
+function readOptionalUrl(value: unknown, label: string): string | undefined {
+  const normalized = readOptionalString(value, label);
+  if (!normalized) {
+    return undefined;
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    throw new ValidationError(`${label} must be a valid URL`);
+  }
+  return parsed.toString();
+}
+
+function readRequiredAbsolutePath(value: unknown, label: string): string {
+  if (typeof value !== 'string') {
+    throw new ValidationError(`${label} is required`);
+  }
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    throw new ValidationError(`${label} is required`);
+  }
+  if (!normalized.startsWith('/')) {
+    throw new ValidationError(`${label} must be an absolute path`);
+  }
+  if (normalized.length > MAX_PATH_LENGTH) {
+    throw new ValidationError(`${label} must be at most ${MAX_PATH_LENGTH} characters`);
+  }
+  return normalized;
+}
+
 function readOptionalLongText(value: unknown, label: string): string | undefined {
   if (value === undefined || value === null) {
     return undefined;
@@ -282,6 +471,32 @@ function readOptionalBoolean(value: unknown, label: string): boolean | undefined
     throw new ValidationError(`${label} must be a boolean`);
   }
   return value;
+}
+
+function readWorkspaceStorageType(
+  value: unknown,
+  label: string,
+): WorkspaceStorageType | undefined {
+  if (value === undefined || value === null) {
+    return undefined;
+  }
+  if (typeof value !== 'string') {
+    throw new ValidationError(`${label} must be a string`);
+  }
+  const normalized = value.trim();
+  if (normalized.length === 0) {
+    return undefined;
+  }
+  if ((WORKSPACE_STORAGE_TYPES as readonly string[]).includes(normalized)) {
+    return normalized as WorkspaceStorageType;
+  }
+  throw new ValidationError(
+    `${label} must be one of ${WORKSPACE_STORAGE_TYPES.join(', ')}`,
+  );
+}
+
+function readNullableString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }
 
 function serializeCredentialPosture(credentials: StoredWorkspaceSettingsCredentials) {

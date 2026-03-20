@@ -548,9 +548,13 @@ func (m *Manager) planTargetActions(
 	drifted := findImageDrift(target, running)
 	driftIDs := containerIDSet(drifted)
 	idle := excludeByID(m.findIdleForTeardown(target, running, heartbeats), driftIDs)
+	toCreate := computeScaleUp(target, len(running), capacity)
+	if normalizePoolKind(target.PoolKind) == "specialist" && target.AvailableExecutionSlots != nil && toCreate > *target.AvailableExecutionSlots {
+		toCreate = *target.AvailableExecutionSlots
+	}
 
 	return targetActions{
-		toCreate:      computeScaleUp(target, len(running), capacity),
+		toCreate:      toCreate,
 		idleToDestroy: idle,
 		driftToHandle: drifted,
 	}

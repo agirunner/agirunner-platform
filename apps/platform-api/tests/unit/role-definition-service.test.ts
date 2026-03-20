@@ -19,6 +19,7 @@ const sampleRole = {
   model_preference: 'gpt-5-mini',
   verification_strategy: 'peer_review',
   capabilities: ['coding', 'testing'],
+  execution_container_config: null,
   is_built_in: true,
   is_active: true,
   version: 1,
@@ -100,6 +101,36 @@ describe('RoleDefinitionService', () => {
       expect(result).toEqual(sampleRole);
     });
 
+    it('persists execution container overrides', async () => {
+      const inserted = {
+        ...sampleRole,
+        execution_container_config: {
+          image: 'agirunner-runtime-execution:role',
+          cpu: '2',
+          memory: '2Gi',
+          pull_policy: 'never',
+        },
+      };
+      pool.query
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [inserted], rowCount: 1 });
+
+      const result = await service.createRole(TENANT_ID, {
+        name: 'developer',
+        allowedTools: [],
+        capabilities: [],
+        executionContainerConfig: {
+          image: 'agirunner-runtime-execution:role',
+          cpu: '2',
+          memory: '2Gi',
+          pullPolicy: 'never',
+        },
+      });
+
+      expect(result.execution_container_config).toEqual(inserted.execution_container_config);
+      expect(pool.query.mock.calls[1]?.[1]).toContainEqual(inserted.execution_container_config);
+    });
+
     it('throws ConflictError when role name already exists', async () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 });
 
@@ -133,6 +164,33 @@ describe('RoleDefinitionService', () => {
       });
 
       expect(result.description).toBe('Updated');
+    });
+
+    it('updates execution container overrides', async () => {
+      const updated = {
+        ...sampleRole,
+        execution_container_config: {
+          image: 'agirunner-runtime-execution:override',
+          cpu: '4',
+          memory: '4Gi',
+          pull_policy: 'always',
+        },
+      };
+      pool.query
+        .mockResolvedValueOnce({ rows: [sampleRole], rowCount: 1 })
+        .mockResolvedValueOnce({ rows: [updated], rowCount: 1 });
+
+      const result = await service.updateRole(TENANT_ID, ROLE_ID, {
+        executionContainerConfig: {
+          image: 'agirunner-runtime-execution:override',
+          cpu: '4',
+          memory: '4Gi',
+          pullPolicy: 'always',
+        },
+      });
+
+      expect(result.execution_container_config).toEqual(updated.execution_container_config);
+      expect(pool.query.mock.calls[1]?.[1]).toContainEqual(updated.execution_container_config);
     });
 
     it('returns current role when no fields to update', async () => {

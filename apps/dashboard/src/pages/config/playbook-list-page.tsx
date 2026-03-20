@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus } from 'lucide-react';
@@ -64,6 +64,19 @@ export function PlaybookListPage(): JSX.Element {
     queryKey: ['playbooks'],
     queryFn: () => dashboardApi.listPlaybooks(),
   });
+  const roleDefinitionsQuery = useQuery({
+    queryKey: ['role-definitions', 'active'],
+    queryFn: () => dashboardApi.listRoleDefinitions(),
+  });
+  const activeRoleNames = useMemo(
+    () =>
+      (roleDefinitionsQuery.data ?? [])
+        .filter((role) => role.is_active)
+        .map((role) => role.name)
+        .filter((value, index, all) => value.trim().length > 0 && all.indexOf(value) === index)
+        .sort((left, right) => left.localeCompare(right)),
+    [roleDefinitionsQuery.data],
+  );
 
   const createMutation = useMutation({
     mutationFn: async () => {
@@ -125,17 +138,33 @@ export function PlaybookListPage(): JSX.Element {
     setSlug('');
     setOutcome('');
     setLifecycle(DEFAULT_LIFECYCLE);
-    setDraft(createDefaultAuthoringDraft(DEFAULT_LIFECYCLE));
+    setDraft(createDefaultAuthoringDraft(DEFAULT_LIFECYCLE, activeRoleNames));
     setAuthoringValidationIssues([]);
     setDefinitionError(null);
   }
 
   function handleLifecycleChange(next: 'planned' | 'ongoing') {
     setLifecycle(next);
-    setDraft(createDefaultAuthoringDraft(next));
+    setDraft(createDefaultAuthoringDraft(next, activeRoleNames));
     setAuthoringValidationIssues([]);
     setDefinitionError(null);
   }
+
+  useEffect(() => {
+    if (!createMode || activeRoleNames.length === 0) {
+      return;
+    }
+    setDraft((current) => {
+      const selectedRoles = current.roles.map((role) => role.value.trim()).filter(Boolean);
+      if (selectedRoles.length > 0) {
+        return current;
+      }
+      return {
+        ...current,
+        roles: activeRoleNames.map((value) => ({ value })),
+      };
+    });
+  }, [activeRoleNames, createMode]);
 
   const summary = summarizePlaybookAuthoringDraft(draft);
   const canCreate = createReadinessIssues.length === 0 && !createMutation.isPending;
@@ -344,7 +373,7 @@ export function PlaybookListPage(): JSX.Element {
                 </div>
                 <div>
                   <div className="font-medium text-foreground">Advanced</div>
-                  Board overrides, specialist runtime posture, and orchestration limits.
+                  Board overrides and orchestration limits.
                 </div>
               </CardContent>
             </Card>

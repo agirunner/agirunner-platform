@@ -3,7 +3,10 @@ import { Link } from 'react-router-dom';
 
 import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
-import type { WorkspaceOverview } from './workspace-detail-support.js';
+import {
+  readWorkspaceStorageLabel,
+  type WorkspaceOverview,
+} from './workspace-detail-support.js';
 import { WorkspaceMetricCard } from './workspace-detail-shared.js';
 
 interface WorkspaceOverviewShellProps {
@@ -14,7 +17,7 @@ interface WorkspaceOverviewShellProps {
 const WORKSPACE_ACTIONS = [
   {
     label: 'Settings',
-    description: 'Workspace basics, lifecycle, repository defaults, and git credentials.',
+    description: 'Workspace basics, storage configuration, and lifecycle posture.',
     tab: 'settings',
     icon: Settings2,
   },
@@ -26,7 +29,7 @@ const WORKSPACE_ACTIONS = [
   },
   {
     label: 'Automation',
-    description: 'Schedules, inbound hooks, and repository trust.',
+    description: 'Scheduled workflow triggers that stay on the workspace surface.',
     tab: 'automation',
     icon: Webhook,
   },
@@ -40,6 +43,7 @@ const WORKSPACE_ACTIONS = [
 
 export function WorkspaceOverviewShell(props: WorkspaceOverviewShellProps): JSX.Element {
   const workspaceLinkState = { workspaceLabel: props.workspace.name };
+  const storageLabel = readWorkspaceStorageLabel(props.workspace);
 
   return (
     <div className="space-y-4">
@@ -85,19 +89,22 @@ export function WorkspaceOverviewShell(props: WorkspaceOverviewShellProps): JSX.
               );
             })}
           </div>
-          {props.workspace.repository_url ? (
-            <p className="text-sm leading-6 text-muted">
-              Delivery can trace back to the linked repository when a run or artifact needs
-              source-level follow-up.
-            </p>
-          ) : (
-            <p className="text-sm leading-6 text-muted">
-              Repository setup is optional. Add it in Settings only when this workspace should map
-              delivery or automation back to source control.
-            </p>
-          )}
+          <p className="text-sm leading-6 text-muted">
+            {describeDeliveryFollowUp(storageLabel)}
+          </p>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function describeDeliveryFollowUp(storageLabel: string): string {
+  switch (storageLabel) {
+    case 'Git Remote':
+      return 'Delivery can trace back to the configured Git Remote when a run needs source-level follow-up.';
+    case 'Host Directory':
+      return 'Delivery follows the configured Host Directory and saved outputs when a run needs filesystem-level follow-up.';
+    default:
+      return 'Delivery follows saved outputs and workspace artifacts when a run needs follow-up.';
+  }
 }

@@ -182,6 +182,26 @@ func TestDCMScaleCapAtMaxRuntimes(t *testing.T) {
 	}
 }
 
+func TestDCMScaleCapAtAvailableExecutionSlots(t *testing.T) {
+	docker := newMockDockerClient()
+	target := makeRuntimeTarget("tmpl-1", "runtime:v1", 5, 4, 10)
+	availableSlots := 2
+	target.AvailableExecutionSlots = &availableSlots
+	platform := &mockPlatformClient{
+		runtimeTargets: []RuntimeTarget{target},
+	}
+	mgr := newDCMTestManager(docker, platform)
+
+	err := mgr.reconcileDCM(context.Background())
+
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if len(docker.createdSpecs) != 2 {
+		t.Errorf("expected 2 containers (capped by execution slots), got %d", len(docker.createdSpecs))
+	}
+}
+
 func TestDCMScaleCapAtGlobalMax(t *testing.T) {
 	docker := newMockDockerClient()
 	docker.containers = makeDCMContainers("tmpl-0", "other:v1", 8)
@@ -393,8 +413,8 @@ func TestDCMRuntimeContainerHasCorrectEnvVars(t *testing.T) {
 	if env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"] != "test-admin-key" {
 		t.Errorf("wrong admin API key: %s", env["AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY"])
 	}
-	if env["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"] != "tmpl-1" {
-		t.Errorf("wrong template filter: %s", env["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"])
+	if filter := env["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"]; filter != "" {
+		t.Errorf("expected no playbook filter for generic specialist runtimes, got %s", filter)
 	}
 	if env["AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID"] == "" {
 		t.Error("expected runtime ID to be set")

@@ -12,7 +12,7 @@ function readSource() {
 }
 
 describe('playbook authoring form sections source', () => {
-  it('rebuilds playbook authoring around process rules while keeping advanced overrides available', () => {
+  it('rebuilds playbook authoring around process rules while keeping orchestrator controls available', () => {
     const source = readSource();
     expect(source).toContain('validateBoardColumnsDraft');
     expect(source).toContain('TypedParameterValueControl');
@@ -35,8 +35,6 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Playbooks use active role definitions from the shared role catalog.');
     expect(source).toContain('Before completion');
     expect(source).toContain('the next specialist always receives the right predecessor context');
-    expect(source).toContain('workspace.repository_url');
-    expect(source).toContain('workspace.settings.default_branch');
     expect(source).toContain('workspace.credentials.git_token');
     expect(source).toContain('Help text');
     expect(source).toContain('Workspace mapping');
@@ -47,12 +45,12 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Task max iterations');
     expect(source).toContain('LLM retry attempts');
     expect(source).toContain('Max active tasks per work item');
-    expect(source).toContain('Specialist runtime override');
     expect(source).toContain('Orchestration Policy');
     expect(source).not.toContain('Custom role');
     expect(source).not.toContain('Optional verification tools');
     expect(source).not.toContain('toggleOrchestratorTool');
     expect(source).not.toContain('Shared runtime defaults');
+    expect(source).not.toContain('Specialist runtime override');
     expect(source).not.toContain('Orchestrator pool override');
     expect(source).not.toContain('Pull policy');
     expect(source).not.toContain('Input style');

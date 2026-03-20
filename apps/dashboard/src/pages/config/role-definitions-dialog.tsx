@@ -8,6 +8,7 @@ import {
 } from './role-definitions-dialog.support.js';
 import {
   RoleBasicsSection,
+  RoleExecutionContainerSection,
   RoleModelAssignmentSection,
 } from './role-definitions-dialog.basics.js';
 import {
@@ -188,6 +189,7 @@ export function RoleDialog(props: {
                 tools={tools}
                 toggleTool={toggleTool}
               />
+              <RoleExecutionContainerSection form={form} setForm={setForm} />
               <RoleReadinessCard validation={validation} summary={summary} />
             </div>
           </div>

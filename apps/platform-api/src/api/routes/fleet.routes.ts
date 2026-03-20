@@ -14,7 +14,7 @@ export const fleetRoutes: FastifyPluginAsync = async (app) => {
   const service = app.fleetService;
   const heartbeatSchema = z.object({
     runtime_id: z.string().uuid(),
-    playbook_id: z.string().uuid(),
+    playbook_id: z.string().uuid().nullable().optional(),
     pool_kind: z.enum(['orchestrator', 'specialist']),
     state: z.enum(['idle', 'executing', 'draining']),
     task_id: z.string().uuid().nullable().optional(),

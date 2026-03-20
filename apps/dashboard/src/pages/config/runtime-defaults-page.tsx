@@ -5,7 +5,6 @@ import { Loader2, RotateCcw, Save, Server } from 'lucide-react';
 import { Button } from '../../components/ui/button.js';
 import {
   Card,
-  CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
@@ -27,10 +26,7 @@ import {
   BuildHistoryCard,
   RuntimeManagementCard,
 } from './runtimes-build-history.js';
-import {
-  summarizeRuntimeDefaults,
-  summarizeRuntimeDefaultSections,
-} from './runtime-defaults-page.support.js';
+import { summarizeRuntimeDefaultSections } from './runtime-defaults-page.support.js';
 
 function buildSaveOperations(
   values: FormValues,
@@ -72,10 +68,6 @@ export function RuntimeDefaultsPage(): JSX.Element {
 
   const defaultsByKey = useMemo(() => buildDefaultsByKey(data), [data]);
   const validationErrors = useMemo(() => buildValidationErrors(formValues), [formValues]);
-  const summaryCards = useMemo(
-    () => summarizeRuntimeDefaults(formValues, validationErrors),
-    [formValues, validationErrors],
-  );
   const sectionSummaries = useMemo(
     () => summarizeRuntimeDefaultSections(formValues, validationErrors),
     [formValues, validationErrors],
@@ -100,7 +92,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ['runtime-defaults'] });
       setIsDirty(false);
-      toast.success('Runtime configuration saved. Connected runtimes are draining for rollout.');
+      toast.success('Runtime configuration saved.');
     },
     onError: (errorValue) => {
       const message = errorValue instanceof Error ? errorValue.message : String(errorValue);
@@ -165,29 +157,15 @@ export function RuntimeDefaultsPage(): JSX.Element {
               <Server className="h-5 w-5 text-muted" />
               <CardTitle className="text-2xl">Runtimes</CardTitle>
             </div>
-            <CardDescription className="max-w-3xl text-sm leading-6">
-              Configure platform-wide runtime defaults for agent containers, context
-              compaction, recovery safeguards, and fleet limits. Playbooks can override
-              these values when they need a different execution posture. Clear a value and
-              save to fall back to the platform default.
+            <CardDescription className="text-sm leading-6">
+              Configure platform-wide defaults for specialist runtime containers, specialist
+              execution containers, context compaction, safeguards, and capacity limits.
+              New containers pick up these defaults as they start. Clear a value and save to
+              fall back to the system default.
             </CardDescription>
           </div>
         </CardHeader>
       </Card>
-
-      <div className="grid gap-4 md:grid-cols-3">
-        {summaryCards.map((summary) => (
-          <Card key={summary.label} className="border-border/70 shadow-sm">
-            <CardHeader className="space-y-1">
-              <p className="text-sm font-medium text-muted">{summary.label}</p>
-              <CardTitle className="text-2xl">{summary.value}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-6 text-muted">{summary.detail}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
       {SECTION_DEFINITIONS.map((section) => {
         const summary = sectionSummaryByKey.get(section.key);
@@ -229,7 +207,7 @@ export function RuntimeDefaultsPage(): JSX.Element {
                 : 'No unsaved runtime changes.'}
           </p>
           <p className="text-sm text-muted">
-            Saving defaults drains connected runtimes. Replacement runtimes start with updated defaults and fresh warm pools.
+            New specialist runtimes and execution containers pick up updated defaults as they start. Running work is not interrupted automatically.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

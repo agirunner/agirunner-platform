@@ -177,8 +177,8 @@ function WorkflowConfigOverrideEditor(props: {
         </div>
       ) : (
         <p className="text-sm text-muted">
-          This playbook does not declare specific runtime config paths. Add any backend-supported
-          dotted path below when a workflow needs an explicit launch-time override.
+          This playbook does not declare specific launch-time config paths. Add any backend-supported
+          dotted path below when a workflow needs an explicit override.
         </p>
       )}
 

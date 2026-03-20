@@ -13,8 +13,10 @@ export interface FieldDefinition {
   configType: 'string' | 'number' | 'boolean';
   placeholder: string;
   section:
-    | 'containers'
+    | 'runtime_containers'
+    | 'execution_containers'
     | 'task_limits'
+    | 'capacity_limits'
     | 'runtime_throughput'
     | 'process_logging'
     | 'server_timeouts'
@@ -23,7 +25,6 @@ export interface FieldDefinition {
     | 'tool_timeouts'
     | 'connected_platform'
     | 'realtime_transport'
-    | 'pool_management'
     | 'workflow_activation'
     | 'container_manager'
     | 'worker_supervision'
@@ -32,7 +33,6 @@ export interface FieldDefinition {
     | 'platform_loops'
     | 'task_timeouts'
     | 'container_timeouts'
-    | 'container_reuse'
     | 'lifecycle_timeouts'
     | 'workspace_timeouts'
     | 'workspace_operations'
@@ -41,8 +41,7 @@ export interface FieldDefinition {
     | 'subagent_timeouts'
     | 'agent_context'
     | 'orchestrator_context'
-    | 'agent_safeguards'
-    | 'fleet';
+    | 'agent_safeguards';
   options?: readonly string[];
   inputMode?: 'numeric' | 'decimal';
   min?: number;

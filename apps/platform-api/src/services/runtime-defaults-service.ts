@@ -14,6 +14,9 @@ const INTEGER_DEFAULT_RULES = new Map([
   ['default_idle_timeout_seconds', { min: 0 }],
   ['default_grace_period', { min: 1 }],
   ['global_max_runtimes', { min: 1 }],
+  ['global_max_execution_containers', { min: 1 }],
+  ['specialist_runtime_bootstrap_claim_timeout_seconds', { min: 1 }],
+  ['specialist_runtime_drain_grace_seconds', { min: 1 }],
   ['server.shutdown_timeout_seconds', { min: 1 }],
   ['server.read_header_timeout_seconds', { min: 1 }],
   ['agent.history_max_messages', { min: 1 }],
@@ -136,6 +139,8 @@ const DECIMAL_DEFAULT_RULES = new Map([
 ]);
 const ENUM_DEFAULT_RULES = new Map<string, readonly string[]>([
   ['default_pull_policy', ['always', 'if-not-present', 'never']],
+  ['specialist_runtime_default_pull_policy', ['always', 'if-not-present', 'never']],
+  ['specialist_execution_default_pull_policy', ['always', 'if-not-present', 'never']],
   ['log.level', ['debug', 'info', 'warn', 'error']],
   ['agent.specialist_context_strategy', ['auto', 'semantic_local', 'deterministic', 'provider_native', 'off']],
   ['agent.orchestrator_context_strategy', ['activation_checkpoint', 'emergency_only', 'off']],
@@ -165,7 +170,6 @@ const updateDefaultSchema = createDefaultSchema.partial().omit({ configKey: true
 export type CreateRuntimeDefaultInput = z.infer<typeof createDefaultSchema>;
 export type UpdateRuntimeDefaultInput = z.infer<typeof updateDefaultSchema>;
 
-type RuntimeDefaultsFleetService = Pick<FleetService, 'drainAllRuntimesForTenant'>;
 type RuntimeDefaultsEventService = Pick<EventService, 'emit'>;
 
 interface RuntimeDefaultRow {
@@ -183,7 +187,7 @@ interface RuntimeDefaultRow {
 export class RuntimeDefaultsService {
   constructor(
     private readonly pool: DatabaseQueryable,
-    private readonly fleetService?: RuntimeDefaultsFleetService,
+    private readonly fleetService?: Pick<FleetService, never>,
     private readonly eventService?: RuntimeDefaultsEventService,
   ) {}
 
@@ -237,7 +241,6 @@ export class RuntimeDefaultsService {
       ],
     );
     const created = toPublicRuntimeDefaultRow(result.rows[0]);
-    await this.triggerRuntimeDefaultsRollout(tenantId, 'create', created.config_key);
     return created;
   }
 
@@ -282,9 +285,7 @@ export class RuntimeDefaultsService {
       values,
     );
     if (!result.rowCount) throw new NotFoundError('Runtime default not found');
-    const updated = toPublicRuntimeDefaultRow(result.rows[0]);
-    await this.triggerRuntimeDefaultsRollout(tenantId, 'update', updated.config_key);
-    return updated;
+    return toPublicRuntimeDefaultRow(result.rows[0]);
   }
 
   async upsertDefault(
@@ -308,9 +309,7 @@ export class RuntimeDefaultsService {
         validated.description ?? null,
       ],
     );
-    const upserted = toPublicRuntimeDefaultRow(result.rows[0]);
-    await this.triggerRuntimeDefaultsRollout(tenantId, 'upsert', upserted.config_key);
-    return upserted;
+    return toPublicRuntimeDefaultRow(result.rows[0]);
   }
 
   async deleteDefault(tenantId: string, id: string, configKey?: string): Promise<void> {
@@ -319,33 +318,7 @@ export class RuntimeDefaultsService {
       [tenantId, id],
     );
     if (!result.rowCount) throw new NotFoundError('Runtime default not found');
-    await this.triggerRuntimeDefaultsRollout(tenantId, 'delete', configKey ?? id);
-  }
-
-  private async triggerRuntimeDefaultsRollout(
-    tenantId: string,
-    operation: 'create' | 'update' | 'upsert' | 'delete',
-    configKey: string,
-  ): Promise<void> {
-    const affectedRuntimes = this.fleetService
-      ? await this.fleetService.drainAllRuntimesForTenant(tenantId)
-      : 0;
-    if (!this.eventService) {
-      return;
-    }
-    await this.eventService.emit({
-      tenantId,
-      type: 'runtime.defaults_rollout_requested',
-      entityType: 'system',
-      entityId: tenantId,
-      actorType: 'system',
-      data: {
-        config_key: configKey,
-        operation,
-        affected_runtimes: affectedRuntimes,
-        reason: 'runtime_defaults_changed',
-      },
-    });
+    void configKey;
   }
 }
 

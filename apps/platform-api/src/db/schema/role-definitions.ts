@@ -1,4 +1,4 @@
-import { boolean, index, integer, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, index, integer, jsonb, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
 
@@ -17,6 +17,7 @@ export const roleDefinitions = pgTable(
     fallbackModel: text('fallback_model'),
     verificationStrategy: text('verification_strategy'),
     capabilities: text('capabilities').array().default([]),
+    executionContainerConfig: jsonb('execution_container_config'),
     isBuiltIn: boolean('is_built_in').notNull().default(false),
     escalationTarget: text('escalation_target'),
     maxEscalationDepth: integer('max_escalation_depth').notNull().default(5),

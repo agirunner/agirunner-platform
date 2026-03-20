@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   buildPlaybookDefinition,
   createDefaultAuthoringDraft,
-  createRuntimePoolDraft,
   hydratePlaybookAuthoringDraft,
   summarizePlaybookAuthoringDraft,
   validateParameterDrafts,
@@ -48,12 +47,6 @@ describe('playbook authoring support', () => {
     draft.orchestrator.max_rework_iterations = '3';
     draft.orchestrator.max_iterations = '100';
     draft.orchestrator.llm_max_retries = '5';
-    draft.runtime.specialist_pool = createRuntimePoolDraft(true);
-    draft.runtime.specialist_pool.pool_mode = 'warm';
-    draft.runtime.specialist_pool.max_runtimes = '3';
-    draft.runtime.specialist_pool.image = 'ghcr.io/agirunner/runtime:latest';
-    draft.runtime.specialist_pool.priority = '10';
-
     const built = buildPlaybookDefinition('planned', draft);
 
     expect(built).toEqual(
@@ -116,14 +109,6 @@ describe('playbook authoring support', () => {
             max_active_tasks_per_work_item: 2,
             allow_parallel_work_items: true,
           }),
-          runtime: expect.objectContaining({
-            specialist_pool: expect.objectContaining({
-              pool_mode: 'warm',
-              max_runtimes: 3,
-              image: 'ghcr.io/agirunner/runtime:latest',
-              priority: 10,
-            }),
-          }),
           parameters: expect.arrayContaining([
             expect.objectContaining({
               name: 'goal',
@@ -148,11 +133,8 @@ describe('playbook authoring support', () => {
       expect(built.value.orchestrator).not.toEqual(
         expect.objectContaining({ tools: expect.anything() }),
       );
-      expect(built.value.runtime).not.toEqual(
-        expect.objectContaining({ orchestrator_pool: expect.anything() }),
-      );
-      expect(built.value.runtime).not.toEqual(
-        expect.objectContaining({ pool_mode: expect.anything() }),
+      expect(built.value).not.toEqual(
+        expect.objectContaining({ runtime: expect.anything() }),
       );
     }
   });
@@ -249,7 +231,7 @@ describe('playbook authoring support', () => {
     });
   });
 
-  it('validates parameter category, secret, and workspace mapping posture together', () => {
+  it('validates credential mappings without allowing repository workspace mappings', () => {
     expect(
       validateParameterDrafts([
         {
@@ -265,19 +247,6 @@ describe('playbook authoring support', () => {
           help_text: '',
           allowed_values: '',
         },
-        {
-          name: 'default_branch',
-          type: 'string',
-          required: false,
-          secret: true,
-          category: 'credential',
-          maps_to: 'workspace.settings.default_branch',
-          description: '',
-          default_value: '',
-          label: '',
-          help_text: '',
-          allowed_values: '',
-        },
       ]),
     ).toEqual({
       parameterErrors: [
@@ -285,37 +254,18 @@ describe('playbook authoring support', () => {
           category: 'Git token mappings should use the Credential category.',
           secret: 'Git token mappings must be marked secret.',
         },
-        {
-          category: 'Repository metadata mappings should use the Repository category.',
-          secret: 'Repository metadata mappings cannot be marked secret.',
-        },
       ],
       blockingIssues: [
         'Git token mappings should use the Credential category.',
         'Git token mappings must be marked secret.',
-        'Repository metadata mappings should use the Repository category.',
-        'Repository metadata mappings cannot be marked secret.',
       ],
       isValid: false,
     });
   });
 
-  it('accepts aligned repository and credential parameter mappings', () => {
+  it('accepts aligned credential parameter mappings', () => {
     expect(
       validateParameterDrafts([
-        {
-          name: 'repository_url',
-          type: 'string',
-          required: false,
-          secret: false,
-          category: 'repository',
-          maps_to: 'workspace.repository_url',
-          description: '',
-          default_value: '',
-          label: '',
-          help_text: '',
-          allowed_values: '',
-        },
         {
           name: 'git_token',
           type: 'string',
@@ -331,7 +281,7 @@ describe('playbook authoring support', () => {
         },
       ]),
     ).toEqual({
-      parameterErrors: [{}, {}],
+      parameterErrors: [{}],
       blockingIssues: [],
       isValid: true,
     });
@@ -394,17 +344,6 @@ describe('playbook authoring support', () => {
         allow_parallel_work_items: false,
         tools: ['tool_search'],
       },
-      runtime: {
-        pool_mode: 'warm',
-        pull_policy: 'always',
-        orchestrator_pool: {
-          max_runtimes: 2,
-        },
-        specialist_pool: {
-          max_runtimes: 4,
-          image: 'ghcr.io/agirunner/runtime:latest',
-        },
-      },
     });
 
     expect(draft.roles).toEqual([{ value: 'developer' }, { value: 'reviewer' }]);
@@ -444,9 +383,6 @@ describe('playbook authoring support', () => {
     expect(draft.orchestrator.max_active_tasks).toBe('6');
     expect(draft.orchestrator.allow_parallel_work_items).toBe(false);
     expect(draft.orchestrator).not.toEqual(expect.objectContaining({ tools: expect.anything() }));
-    expect(draft.runtime.specialist_pool.enabled).toBe(true);
-    expect(draft.runtime.specialist_pool.max_runtimes).toBe('4');
-    expect(draft.runtime.specialist_pool.image).toBe('ghcr.io/agirunner/runtime:latest');
   });
 
   it('inherits task loop limits until a playbook explicitly overrides them', () => {
@@ -485,7 +421,6 @@ describe('playbook authoring support', () => {
     ];
     draft.approval_rules = [{ on: 'completion', checkpoint: '', required: true }];
     draft.handoff_rules = [{ from_role: 'architect', to_role: 'developer', required: true }];
-    draft.runtime.specialist_pool.enabled = true;
     draft.parameters = [
       {
         name: 'ticket_id',
@@ -530,7 +465,7 @@ describe('playbook authoring support', () => {
       parameterCount: 2,
       requiredParameterCount: 1,
       secretParameterCount: 1,
-      runtimeOverrideCount: 1,
+      runtimeOverrideCount: 0,
     });
   });
 });

@@ -104,6 +104,8 @@ type RuntimeTarget struct {
 	MaxRequiredCapabilities int      `json:"max_required_capabilities"`
 	CapabilityDemandUnits   int      `json:"capability_demand_units"`
 	ActiveWorkflows         int      `json:"active_workflows"`
+	ActiveExecutionContainers *int   `json:"active_execution_containers,omitempty"`
+	AvailableExecutionSlots   *int   `json:"available_execution_slots,omitempty"`
 }
 
 // RuntimeHeartbeat represents a runtime's last known heartbeat state.

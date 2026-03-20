@@ -6,8 +6,7 @@ import { DEFAULT_TENANT_ID } from '../db/seed.js';
 import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
 import { readWorkflowActivationTimingDefaults } from './platform-timing-defaults.js';
-import { readWorkspaceRepositorySettings } from './workspace-settings.js';
-import { resolveRepositoryBranchContext } from './repository-branch-context.js';
+import { buildGitRemoteResourceBindings, resolveWorkspaceStorageBinding } from './workspace-storage.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
@@ -1787,32 +1786,18 @@ interface WorkflowRepositoryContext {
 }
 
 function resolveWorkflowRepositoryContext(workflow: WorkflowDispatchRow): WorkflowRepositoryContext {
-  const parameters = asRecord(workflow.workflow_parameters);
-  const workspaceRepository = readWorkspaceRepositorySettings(workflow.workspace_settings);
-  const branchContext = resolveRepositoryBranchContext({
-    parameters,
-    workflowGitBranch: workflow.workflow_git_branch,
-    workspaceDefaultBranch: workspaceRepository.defaultBranch,
+  const storage = resolveWorkspaceStorageBinding({
+    repository_url: workflow.workspace_repository_url,
+    settings: workflow.workspace_settings,
   });
   return {
-    repository_url:
-      asNullableString(parameters.repository_url)
-      ?? asNullableString(parameters.repo)
-      ?? asNullableString(workflow.workspace_repository_url),
-    base_branch: branchContext.baseBranch,
-    feature_branch: branchContext.featureBranch,
-    git_user_name:
-      asNullableString(parameters.git_user_name)
-      ?? asNullableString(parameters.gitUserName)
-      ?? workspaceRepository.gitUserName,
-    git_user_email:
-      asNullableString(parameters.git_user_email)
-      ?? asNullableString(parameters.gitUserEmail)
-      ?? workspaceRepository.gitUserEmail,
+    repository_url: storage.type === 'git_remote' ? storage.repository_url : null,
+    base_branch: storage.type === 'git_remote' ? storage.default_branch : null,
+    feature_branch: null,
+    git_user_name: storage.type === 'git_remote' ? storage.git_user_name : null,
+    git_user_email: storage.type === 'git_remote' ? storage.git_user_email : null,
     git_token_secret_ref:
-      asNullableString(parameters.git_token_secret_ref)
-      ?? asNullableString(parameters.gitTokenSecretRef)
-      ?? workspaceRepository.gitTokenSecretRef,
+      storage.type === 'git_remote' ? storage.git_token_secret_ref : null,
   };
 }
 
@@ -1839,18 +1824,15 @@ function buildActivationRepositoryInput(repository: WorkflowRepositoryContext): 
 }
 
 function buildActivationResourceBindings(repository: WorkflowRepositoryContext): Record<string, unknown>[] {
-  if (!repository.repository_url || !repository.git_token_secret_ref) {
-    return [];
-  }
-  return [
-    {
-      type: 'git_repository',
-      repository_url: repository.repository_url,
-      credentials: {
-        token: repository.git_token_secret_ref,
-      },
-    },
-  ];
+  return buildGitRemoteResourceBindings({
+    type: 'git_remote',
+    working_directory: '/workspace/repo',
+    repository_url: repository.repository_url,
+    default_branch: repository.base_branch,
+    git_user_name: repository.git_user_name,
+    git_user_email: repository.git_user_email,
+    git_token_secret_ref: repository.git_token_secret_ref,
+  });
 }
 
 function buildActivationSummary(

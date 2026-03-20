@@ -9,8 +9,21 @@ export interface RoleDefinition {
   verification_strategy?: string | null;
   escalation_target?: string | null;
   max_escalation_depth?: number | null;
+  execution_container_config?: {
+    image?: string | null;
+    cpu?: string | null;
+    memory?: string | null;
+    pull_policy?: 'always' | 'if-not-present' | 'never' | null;
+  } | null;
   is_built_in?: boolean;
   is_active?: boolean;
+}
+
+export interface RoleExecutionContainerFormState {
+  image: string;
+  cpu: string;
+  memory: string;
+  pullPolicy: string;
 }
 
 export interface RoleFormState {
@@ -20,6 +33,7 @@ export interface RoleFormState {
   allowedTools: string[];
   capabilities: string[];
   isActive: boolean;
+  executionContainer: RoleExecutionContainerFormState;
 }
 
 export interface LlmProviderRecord {
@@ -139,6 +153,12 @@ export function createRoleForm(role?: RoleDefinition | null): RoleFormState {
     allowedTools: role?.allowed_tools ?? [...KNOWN_TOOLS],
     capabilities: role?.capabilities ?? [],
     isActive: role?.is_active ?? true,
+    executionContainer: {
+      image: role?.execution_container_config?.image ?? '',
+      cpu: role?.execution_container_config?.cpu ?? '',
+      memory: role?.execution_container_config?.memory ?? '',
+      pullPolicy: role?.execution_container_config?.pull_policy ?? '',
+    },
   };
 }
 
@@ -149,13 +169,33 @@ export function createDuplicateRoleForm(source: RoleDefinition): RoleFormState {
 }
 
 export function buildRolePayload(form: RoleFormState) {
+  const executionContainerConfig = buildExecutionContainerPayload(form.executionContainer);
   return {
     name: form.name.trim(),
     description: form.description.trim() || undefined,
     systemPrompt: form.systemPrompt.trim() || undefined,
     allowedTools: normalizeStringList(form.allowedTools),
     capabilities: normalizeStringList(form.capabilities),
+    ...(executionContainerConfig ? { executionContainerConfig } : {}),
     isActive: form.isActive,
+  };
+}
+
+function buildExecutionContainerPayload(form: RoleExecutionContainerFormState) {
+  const image = form.image.trim();
+  const cpu = form.cpu.trim();
+  const memory = form.memory.trim();
+  const pullPolicy = form.pullPolicy.trim();
+
+  if (!image && !cpu && !memory && !pullPolicy) {
+    return undefined;
+  }
+
+  return {
+    image: image || undefined,
+    cpu: cpu || undefined,
+    memory: memory || undefined,
+    pullPolicy: pullPolicy || undefined,
   };
 }
 

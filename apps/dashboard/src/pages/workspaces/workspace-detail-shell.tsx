@@ -16,6 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import {
   WORKSPACE_DETAIL_TAB_OPTIONS,
+  readWorkspaceStorageLabel,
   type WorkspaceDetailHeaderState,
   type WorkspaceDetailTabValue,
 } from './workspace-detail-support.js';
@@ -77,9 +78,7 @@ function WorkspaceDetailHeader(props: {
                 {workspace.is_active ? 'Active' : 'Inactive'}
               </Badge>
               {isExpanded ? <Badge variant="outline">{workspace.slug}</Badge> : null}
-              {isExpanded && workspace.repository_url ? (
-                <Badge variant="outline">Repository linked</Badge>
-              ) : null}
+              {isExpanded ? <Badge variant="outline">{readWorkspaceStorageLabel(workspace)}</Badge> : null}
               {!isExpanded ? <Badge variant="outline">{headerState.activeTab.label}</Badge> : null}
             </div>
             <div className="space-y-1">

@@ -23,12 +23,17 @@ import { readNativeSearchCapability } from './llm-discovery-service.js';
 import type { ResolvedRoleConfig } from './model-catalog-service.js';
 import { OAuthService } from './oauth-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
+import type { ExecutionContainerLeaseService } from './execution-container-lease-service.js';
 import {
+  type ExecutionContainerContract,
+  mergeExecutionContainerContract,
   readPositiveInteger,
   readRequiredPositiveIntegerRuntimeDefault,
+  readSpecialistExecutionDefaults,
 } from './runtime-default-values.js';
 import { flattenInstructionLayers } from './task-context-service.js';
 import { computeToolMatch, readAgentToolRequirements, resolveWorkspaceToolTags } from './tool-tag-service.js';
+import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
 
@@ -78,6 +83,7 @@ interface TaskClaimDependencies {
   getTaskContext: (tenantId: string, taskId: string, agentId?: string) => Promise<unknown>;
   resolveRoleConfig?: (tenantId: string, roleName: string) => Promise<ResolvedRoleConfig | null>;
   parallelismService?: PlaybookTaskParallelismService;
+  executionContainerLeaseService?: Pick<ExecutionContainerLeaseService, 'reserveForTask'>;
   claimHandleSecret: string;
 }
 
@@ -126,6 +132,7 @@ interface TaskModelOverrideSelection {
 function buildExecutionContractLogPayload(input: {
   llmResolution: TaskLLMResolution;
   loopContract: TaskLoopContract;
+  executionContainer: ExecutionContainerContract | null;
   agentId: string;
   workerId: string | null;
   task: Record<string, unknown>;
@@ -147,6 +154,10 @@ function buildExecutionContractLogPayload(input: {
       (input.task.role_config ?? {}) as Record<string, unknown>,
       input.llmResolution.resolved,
     ),
+    execution_container_image: input.executionContainer?.image ?? null,
+    execution_container_cpu: input.executionContainer?.cpu ?? null,
+    execution_container_memory: input.executionContainer?.memory ?? null,
+    execution_container_pull_policy: input.executionContainer?.pull_policy ?? null,
     llm_input_cost_per_million_usd: input.llmResolution.resolved.model.inputCostPerMillionUsd,
     llm_output_cost_per_million_usd: input.llmResolution.resolved.model.outputCostPerMillionUsd,
     ...gitContract,
@@ -361,6 +372,38 @@ export class TaskClaimService {
         task,
         client,
       );
+      const executionContainer = await this.resolveExecutionContainerContract(
+        identity.tenantId,
+        task,
+        client,
+      );
+      if (
+        executionContainer
+        && this.deps.executionContainerLeaseService
+      ) {
+        const lease = await this.deps.executionContainerLeaseService.reserveForTask(
+          identity.tenantId,
+          {
+            taskId: String(task.id),
+            workflowId:
+              typeof task.workflow_id === 'string' && task.workflow_id.trim().length > 0
+                ? task.workflow_id
+                : null,
+            workItemId:
+              typeof task.work_item_id === 'string' && task.work_item_id.trim().length > 0
+                ? task.work_item_id
+                : null,
+            role: typeof task.role === 'string' ? task.role : '',
+            agentId: payload.agent_id,
+            workerId: payload.worker_id ?? null,
+          },
+          client,
+        );
+        if (!lease.reserved) {
+          await client.query('COMMIT');
+          return null;
+        }
+      }
       assertValidTransition(task.id as string, task.state as Parameters<typeof assertValidTransition>[1], 'claimed');
 
       const updatedTaskRes = await client.query(
@@ -405,7 +448,9 @@ export class TaskClaimService {
       const namesRes = await client.query(
         `SELECT
            w.name AS workflow_name,
-           p.name AS workspace_name
+           p.name AS workspace_name,
+           p.repository_url AS workspace_repository_url,
+           p.settings AS workspace_settings
          FROM tasks t
          LEFT JOIN workflows w ON w.tenant_id = t.tenant_id AND w.id = t.workflow_id
          LEFT JOIN workspaces p ON p.tenant_id = t.tenant_id AND p.id = t.workspace_id
@@ -415,6 +460,12 @@ export class TaskClaimService {
       if (namesRes.rowCount) {
         (claimedTask as Record<string, unknown>).workflow_name = namesRes.rows[0].workflow_name;
         (claimedTask as Record<string, unknown>).workspace_name = namesRes.rows[0].workspace_name;
+        (claimedTask as Record<string, unknown>).workspace_binding = resolveWorkspaceStorageBinding({
+          repository_url: namesRes.rows[0].workspace_repository_url,
+          settings: namesRes.rows[0].workspace_settings,
+        });
+      } else {
+        (claimedTask as Record<string, unknown>).workspace_binding = resolveWorkspaceStorageBinding({});
       }
 
       const enrichedTask = await this.enrichWithLLMCredentials(
@@ -431,6 +482,7 @@ export class TaskClaimService {
         payload: buildExecutionContractLogPayload({
           llmResolution,
           loopContract,
+          executionContainer,
           agentId: payload.agent_id,
           workerId: payload.worker_id ?? null,
           task: runtimeReadyTask,
@@ -452,6 +504,7 @@ export class TaskClaimService {
           loop_mode: loopContract.loopMode,
           max_iterations: loopContract.maxIterations,
           llm_max_retries: loopContract.llmMaxRetries,
+          execution_container: executionContainer,
           tools: toolMatch,
           instructions,
         };
@@ -462,6 +515,7 @@ export class TaskClaimService {
         loop_mode: loopContract.loopMode,
         max_iterations: loopContract.maxIterations,
         llm_max_retries: loopContract.llmMaxRetries,
+        execution_container: executionContainer,
         tools: toolMatch,
         instructions,
         context: instructionContext,
@@ -743,8 +797,8 @@ export class TaskClaimService {
       } else if (task.is_orchestrator_task === true) {
         updates.escalation_target = 'human';
       }
-      if (row?.allowed_tools && row.allowed_tools.length > 0) {
-        updates.tools = row.allowed_tools;
+      if (row) {
+        updates.tools = Array.isArray(row.allowed_tools) ? row.allowed_tools : [];
       }
 
       if (Object.keys(updates).length === 0) return task;
@@ -868,6 +922,50 @@ export class TaskClaimService {
     };
   }
 
+  private async resolveExecutionContainerContract(
+    tenantId: string,
+    task: Record<string, unknown>,
+    db: DatabaseClient,
+  ): Promise<ExecutionContainerContract | null> {
+    if (task.is_orchestrator_task === true) {
+      return null;
+    }
+    const defaults = await readSpecialistExecutionDefaults(db, tenantId);
+    const override = await this.readRoleExecutionContainerOverride(
+      tenantId,
+      typeof task.role === 'string' ? task.role : '',
+      db,
+    );
+    return mergeExecutionContainerContract(defaults, override);
+  }
+
+  private async readRoleExecutionContainerOverride(
+    tenantId: string,
+    roleName: string,
+    db: DatabaseClient,
+  ): Promise<Partial<ExecutionContainerContract> | null> {
+    const trimmedRoleName = roleName.trim();
+    if (trimmedRoleName.length === 0) {
+      return null;
+    }
+    try {
+      const result = await db.query<{ execution_container_config: Record<string, unknown> | null }>(
+        `SELECT execution_container_config
+           FROM role_definitions
+          WHERE tenant_id = $1
+            AND name = $2
+            AND is_active = true
+          LIMIT 1`,
+        [tenantId, trimmedRoleName],
+      );
+      return coerceExecutionContainerContractOverride(
+        result.rows[0]?.execution_container_config ?? null,
+      );
+    } catch {
+      return null;
+    }
+  }
+
   private async resolveLoopContractValue(
     tenantId: string,
     explicitValue: unknown,
@@ -941,6 +1039,32 @@ function mergeSystemPrompt(
     ...taskResponse,
     role_config: { ...existing, system_prompt: flattened },
   };
+}
+
+function coerceExecutionContainerContractOverride(
+  value: unknown,
+): Partial<ExecutionContainerContract> | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+
+  const override: Partial<ExecutionContainerContract> = {};
+  if (typeof value.image === 'string' && value.image.trim().length > 0) {
+    override.image = value.image.trim();
+  }
+  if (typeof value.cpu === 'string' && value.cpu.trim().length > 0) {
+    override.cpu = value.cpu.trim();
+  }
+  if (typeof value.memory === 'string' && value.memory.trim().length > 0) {
+    override.memory = value.memory.trim();
+  }
+  if (
+    typeof value.pull_policy === 'string'
+    && ['always', 'if-not-present', 'never'].includes(value.pull_policy.trim())
+  ) {
+    override.pull_policy = value.pull_policy.trim() as ExecutionContainerContract['pull_policy'];
+  }
+  return Object.keys(override).length > 0 ? override : null;
 }
 
 function readAgentExecutionMode(value: unknown): AgentExecutionMode {

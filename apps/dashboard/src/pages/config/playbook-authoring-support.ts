@@ -54,18 +54,6 @@ export interface ParameterDraft {
   allowed_values: string;
 }
 
-export interface RuntimePoolDraft {
-  enabled?: boolean;
-  pool_mode: string;
-  max_runtimes: string;
-  priority: string;
-  idle_timeout_seconds: string;
-  grace_period_seconds: string;
-  image: string;
-  cpu: string;
-  memory: string;
-}
-
 export interface PlaybookAuthoringDraft {
   process_instructions: string;
   roles: RoleDraft[];
@@ -83,9 +71,6 @@ export interface PlaybookAuthoringDraft {
     max_active_tasks: string;
     max_active_tasks_per_work_item: string;
     allow_parallel_work_items: boolean;
-  };
-  runtime: {
-    specialist_pool: RuntimePoolDraft;
   };
 }
 
@@ -145,13 +130,20 @@ export interface RoleDraftValidationResult {
   isValid: boolean;
 }
 
-export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): PlaybookAuthoringDraft {
+export function createDefaultAuthoringDraft(
+  lifecycle: PlaybookLifecycle,
+  availableRoleNames: string[] = [],
+): PlaybookAuthoringDraft {
+  const roles = Array.from(
+    new Set(availableRoleNames.map((value) => value.trim()).filter(Boolean)),
+  ).map((value) => ({ value }));
+
   return {
     process_instructions:
       lifecycle === 'ongoing'
         ? 'Keep this workflow open, clarify new work as it arrives, require the expected reviews and handoffs, and always leave the next actor with a clear next step.'
         : 'Run this workflow as a bounded plan, move each work item through the required checkpoints, require the expected reviews and approvals, and finish only after the outcome is delivered.',
-    roles: [{ value: 'developer' }],
+    roles,
     columns: [
       { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
       { id: 'active', label: 'Active', description: '', is_blocked: false, is_terminal: false },
@@ -205,9 +197,6 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
       max_active_tasks_per_work_item: '2',
       allow_parallel_work_items: true,
     },
-    runtime: {
-      specialist_pool: createRuntimePoolDraft(false),
-    },
   };
 }
 
@@ -255,20 +244,6 @@ export function createEmptyParameterDraft(): ParameterDraft {
   };
 }
 
-export function createRuntimePoolDraft(enabled = true): RuntimePoolDraft {
-  return {
-    enabled,
-    pool_mode: '',
-    max_runtimes: '',
-    priority: '',
-    idle_timeout_seconds: '',
-    grace_period_seconds: '',
-    image: '',
-    cpu: '',
-    memory: '',
-  };
-}
-
 export function hydratePlaybookAuthoringDraft(
   lifecycle: PlaybookLifecycle,
   definition: unknown,
@@ -296,12 +271,6 @@ export function hydratePlaybookAuthoringDraft(
     handoff_rules: handoffRules.length > 0 ? handoffRules : fallback.handoff_rules,
     parameters: readParameters(record.parameters),
     orchestrator: { ...fallback.orchestrator, ...readOrchestrator(record.orchestrator) },
-    runtime: {
-      specialist_pool: {
-        ...fallback.runtime.specialist_pool,
-        ...readRuntime(record.runtime).specialist_pool,
-      },
-    },
   };
 }
 
@@ -391,13 +360,6 @@ export function buildPlaybookDefinition(
   });
   if (Object.keys(orchestrator).length > 0) {
     definition.orchestrator = orchestrator;
-  }
-
-  const runtime = compactRecord({
-    specialist_pool: buildRuntimePoolRecord(draft.runtime.specialist_pool),
-  });
-  if (Object.keys(runtime).length > 0) {
-    definition.runtime = runtime;
   }
 
   if (parameters.length > 0) {
@@ -569,7 +531,7 @@ export function summarizePlaybookAuthoringDraft(
     parameterCount: parameters.length,
     requiredParameterCount: parameters.filter((parameter) => parameter.required).length,
     secretParameterCount: parameters.filter((parameter) => parameter.secret).length,
-    runtimeOverrideCount: draft.runtime.specialist_pool.enabled === false ? 0 : 1,
+    runtimeOverrideCount: 0,
   };
 }
 
@@ -674,23 +636,6 @@ function buildParameters(parameters: ParameterDraft[]) {
         parameter.required ||
         parameter.secret,
     );
-}
-
-function buildRuntimePoolRecord(pool: RuntimePoolDraft): Record<string, unknown> | undefined {
-  if (pool.enabled === false) {
-    return undefined;
-  }
-  const runtimePool = compactRecord({
-    pool_mode: normalizePoolMode(pool.pool_mode),
-    max_runtimes: parseOptionalInt(pool.max_runtimes),
-    priority: parseOptionalInt(pool.priority),
-    idle_timeout_seconds: parseOptionalInt(pool.idle_timeout_seconds),
-    grace_period_seconds: parseOptionalInt(pool.grace_period_seconds),
-    image: pool.image.trim(),
-    cpu: pool.cpu.trim(),
-    memory: pool.memory.trim(),
-  });
-  return Object.keys(runtimePool).length > 0 ? runtimePool : undefined;
 }
 
 function readEntryColumnError(columns: BoardColumnDraft[], entryColumnId: string): string | undefined {
@@ -852,10 +797,6 @@ function parseOptionalInt(value: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
-function normalizePoolMode(value: string): string | undefined {
-  return value === 'warm' || value === 'cold' ? value : undefined;
-}
-
 function hasDuplicates(values: string[]): boolean {
   const normalized = values.filter(Boolean);
   return new Set(normalized).size !== normalized.length;
@@ -897,15 +838,6 @@ function readParameterDraftErrors(parameter: ParameterDraft): {
     }
     if (category !== 'credential') {
       errors.category = 'Git token mappings should use the Credential category.';
-    }
-  }
-
-  if (mapsTo === 'workspace.repository_url' || mapsTo === 'workspace.settings.default_branch') {
-    if (isSecret) {
-      errors.secret = 'Repository metadata mappings cannot be marked secret.';
-    }
-    if (category !== 'repository') {
-      errors.category = 'Repository metadata mappings should use the Repository category.';
     }
   }
 
@@ -1083,28 +1015,6 @@ function readOrchestrator(value: unknown): PlaybookAuthoringDraft['orchestrator'
       typeof record.allow_parallel_work_items === 'boolean'
         ? record.allow_parallel_work_items
         : createDefaultAuthoringDraft('ongoing').orchestrator.allow_parallel_work_items,
-  };
-}
-
-function readRuntime(value: unknown): PlaybookAuthoringDraft['runtime'] {
-  const record = asRecord(value);
-  return {
-    specialist_pool: readRuntimePool(record.specialist_pool, false),
-  };
-}
-
-function readRuntimePool(value: unknown, enabledByDefault: boolean): RuntimePoolDraft {
-  const record = asRecord(value);
-  return {
-    enabled: enabledByDefault || Object.keys(record).length > 0 ? true : false,
-    pool_mode: readString(record.pool_mode),
-    max_runtimes: readNumberish(record.max_runtimes),
-    priority: readNumberish(record.priority),
-    idle_timeout_seconds: readNumberish(record.idle_timeout_seconds),
-    grace_period_seconds: readNumberish(record.grace_period_seconds),
-    image: readString(record.image),
-    cpu: readString(record.cpu),
-    memory: readString(record.memory),
   };
 }
 

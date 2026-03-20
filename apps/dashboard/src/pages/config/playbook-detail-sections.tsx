@@ -53,7 +53,7 @@ export function PlaybookControlCenterCard(
           <div className="space-y-1">
             <CardTitle>Orchestrator Configuration</CardTitle>
             <CardDescription>
-              This playbook owns loop policy, concurrency, stages, and runtime posture. Shared prompts,
+              This playbook owns loop policy, concurrency, and workflow stages. Shared prompts,
               model catalog, and specialist escalation policy are linked here so operators can find
               the full control surface without hunting across the dashboard.
             </CardDescription>
@@ -73,11 +73,6 @@ export function PlaybookControlCenterCard(
             title="Parallelism policy"
             value={summary.parallelism}
             href="#playbook-orchestrator-controls"
-          />
-          <SignalCard
-            title="Runtime pools"
-            value={summary.runtime}
-            href="#playbook-runtime-controls"
           />
           <SignalCard
             title="Checkpoints and rules"
@@ -122,10 +117,10 @@ export function PlaybookControlCenterCard(
           />
           <LinkedConfigCard
             icon={<Cpu className="h-4 w-4" />}
-            title="Runtime defaults"
-            description="Global runtime posture that playbook pool overrides inherit from."
-            value="Inspect shared runtime defaults"
-            href="/config/runtime-defaults"
+            title="Container defaults"
+            description="Global specialist runtime and execution-container defaults live outside the playbook."
+            value="Inspect specialist container defaults"
+            href="/config/runtimes"
           />
         </div>
       </CardContent>

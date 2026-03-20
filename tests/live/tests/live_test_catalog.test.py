@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+import json
 from pathlib import Path
 
 
@@ -40,6 +41,26 @@ class LiveTestCatalogTests(unittest.TestCase):
                 self.assertTrue(profile_dir.is_dir(), f"missing library profile: {profile_dir}")
                 self.assertTrue((profile_dir / "playbook.json").is_file(), "missing playbook fixture")
                 self.assertTrue((profile_dir / "roles.json").is_file(), "missing roles fixture")
+
+    def test_live_playbook_fixtures_do_not_override_workspace_storage(self) -> None:
+        forbidden_targets = {
+            "workspace.repository_url",
+            "workspace.settings.default_branch",
+        }
+
+        for playbook_file in sorted(LIBRARY_DIR.glob("*/playbook.json")):
+            with self.subTest(playbook=playbook_file.parent.name):
+                payload = json.loads(playbook_file.read_text())
+                parameters = payload.get("definition", {}).get("parameters", [])
+                mapped_targets = {
+                    parameter.get("maps_to")
+                    for parameter in parameters
+                    if isinstance(parameter, dict) and parameter.get("maps_to")
+                }
+                self.assertTrue(
+                    forbidden_targets.isdisjoint(mapped_targets),
+                    f"{playbook_file} still overrides workspace storage: {sorted(mapped_targets & forbidden_targets)}",
+                )
 
 
 if __name__ == "__main__":

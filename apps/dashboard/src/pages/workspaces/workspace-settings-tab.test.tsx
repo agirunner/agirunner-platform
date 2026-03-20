@@ -17,9 +17,11 @@ describe('workspace settings tab source', () => {
     expect(tabSource).toContain('Resolve Before Saving');
     expect(tabSource).toContain('Workspace Lifecycle');
     expect(tabSource).toContain('Workspace Basics');
-    expect(tabSource).toContain('Repository & Git Defaults');
-    expect(tabSource).toContain('Repository optional');
+    expect(tabSource).toContain('Workspace Storage');
+    expect(tabSource).toContain('Storage type');
     expect(tabSource).toContain('Git token');
+    expect(tabSource).toContain('Host Directory');
+    expect(tabSource).toContain('Workspace Artifacts');
     expect(tabSource).toContain('Active workspaces can receive new work.');
     expect(tabSource).toContain('Danger');
     expect(tabSource).toContain('Delete workspace');
@@ -63,7 +65,7 @@ describe('workspace settings tab source', () => {
     expect(supportSource).toContain('Not configured');
   });
 
-  it('keeps workspace settings limited to operator-facing basics and repository defaults', () => {
+  it('keeps workspace settings limited to operator-facing basics and storage configuration', () => {
     const source = readSource('./workspace-settings-tab.tsx');
 
     expect(source).toContain('Name and slug.');

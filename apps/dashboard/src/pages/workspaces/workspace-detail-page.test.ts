@@ -31,15 +31,12 @@ describe('workspace detail workspace shell source', () => {
     const supportSource = readSource('./workspace-detail-support.ts');
     const automationSource = [
       readSource('./workspace-automation-tab.tsx'),
-      readSource('./workspace-webhook-triggers-card.tsx'),
-      readSource('./workspace-git-webhook-signatures-card.tsx'),
     ].join('\n');
     expect(supportSource).toContain("value: 'automation'");
     expect(source).toContain('<WorkspaceAutomationTab workspace={workspace} />');
     expect(automationSource).toContain('<ScheduledTriggersCard workspace={workspace} />');
-    expect(automationSource).toContain(
-      'Use this only when GitHub, Gitea, or GitLab should be allowed to deliver signed inbound repository events for this workspace.',
-    );
+    expect(automationSource).not.toContain('workspace-webhook-triggers-card');
+    expect(automationSource).not.toContain('workspace-git-webhook-signatures-card');
     expect(automationSource).not.toContain('Automation needs attention');
     expect(automationSource).not.toContain('Best next step:');
     expect(automationSource).not.toContain('Jump to schedules');
@@ -47,14 +44,11 @@ describe('workspace detail workspace shell source', () => {
     expect(automationSource).not.toContain('Jump to repository signatures');
   });
 
-  it('keeps git webhook management inside the workspace automation surface', () => {
-    const automationSource = [
-      readSource('./workspace-automation-tab.tsx'),
-      readSource('./workspace-webhook-triggers-card.tsx'),
-      readSource('./workspace-git-webhook-signatures-card.tsx'),
-    ].join('\n');
-    expect(automationSource).toContain('<WorkspaceGitWebhookSignaturesCard workspace={workspace} compact />');
-    expect(automationSource).toContain('Git repository signatures');
+  it('removes git webhook management from workspace automation surfaces', () => {
+    const automationSource = readSource('./workspace-automation-tab.tsx');
+    expect(automationSource).not.toContain('WorkspaceGitWebhookSignaturesCard');
+    expect(automationSource).not.toContain('Git repository signatures');
+    expect(automationSource).not.toContain('Inbound Hooks');
   });
 
   it('relabels scheduled trigger targeting around workflows and removes operator-only schedule internals', () => {
@@ -88,7 +82,7 @@ describe('workspace detail workspace shell source', () => {
     expect(source).not.toContain('<TabsContent value="models">');
   });
 
-  it('adds a settings shell that keeps workspace basics and repository control posture together', () => {
+  it('adds a settings shell that keeps workspace basics and storage control posture together', () => {
     const source = readSource('./workspace-detail-page.tsx');
     const supportSource = readSource('./workspace-detail-support.ts');
     const settingsShellSource = readSource('./workspace-settings-shell.tsx');
@@ -102,7 +96,7 @@ describe('workspace detail workspace shell source', () => {
     expect(settingsShellSource).not.toContain('WorkspaceMetricCard');
     expect(settingsShellSource).not.toContain('props.overview.packets.map');
     expect(supportSource).toContain('Stored settings');
-    expect(supportSource).toContain('Repository link');
+    expect(supportSource).toContain('Workspace storage');
     expect(supportSource).not.toContain('Repository trust');
     expect(settingsShellSource).not.toContain('Workspace Context');
     expect(settingsTabSource).toContain('<WorkspaceSettingsShell');
@@ -224,5 +218,6 @@ describe('workspace detail workspace shell source', () => {
     expect(source).not.toContain('Open memory workspace');
     expect(source).not.toContain('Open artifact workspace');
     expect(shellSource).toContain('sm:hidden');
+    expect(shellSource).not.toContain('Repository linked');
   });
 });

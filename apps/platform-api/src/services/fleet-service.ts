@@ -3,20 +3,20 @@ import { z } from 'zod';
 import type { DatabasePool } from '../db/database.js';
 import { TenantScopedRepository } from '../db/tenant-scoped-repository.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
+import { type PlaybookRuntimePoolKind } from '../orchestration/playbook-model.js';
 import {
-  parsePlaybookDefinition,
-  readPlaybookRuntimePools,
-  type PlaybookRuntimePoolConfig,
-  type PlaybookRuntimePoolKind,
-} from '../orchestration/playbook-model.js';
+  GLOBAL_MAX_EXECUTION_CONTAINERS_RUNTIME_KEY,
+  SPECIALIST_RUNTIME_DEFAULT_KEYS,
+} from './runtime-default-values.js';
 
-const VALID_POOL_MODES = new Set(['warm', 'cold']);
 const VALID_POOL_KINDS = new Set(['orchestrator', 'specialist']);
 const FLEET_ENV_SECRET_REDACTION = 'redacted://fleet-environment-secret';
 const FLEET_EVENT_SECRET_REDACTION = 'redacted://fleet-event-secret';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 const secretLikeValuePattern =
   /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;
+const GENERIC_SPECIALIST_TARGET_ID = 'specialist';
+const GENERIC_SPECIALIST_TARGET_NAME = 'Specialist runtimes';
 
 interface FleetLogger {
   warn(obj: Record<string, unknown>, msg: string): void;
@@ -638,44 +638,6 @@ export class FleetService {
 
   // --- Dynamic Container Management ---
 
-  private static readonly VALID_PULL_POLICIES = new Set(['always', 'if-not-present', 'never']);
-
-  validateRuntimeConfig(
-    playbookId: string,
-    runtime: PlaybookRuntimePoolConfig,
-  ): PlaybookRuntimePoolConfig {
-    const validatedRuntime = { ...runtime };
-
-    if (validatedRuntime.pool_mode !== undefined && !VALID_POOL_MODES.has(validatedRuntime.pool_mode as string)) {
-      this.logger.warn(
-        { playbookId, value: validatedRuntime.pool_mode },
-        'invalid_runtime_pool_mode_using_default',
-      );
-      validatedRuntime.pool_mode = 'warm';
-    }
-
-    if (validatedRuntime.max_runtimes !== undefined) {
-      const val = validatedRuntime.max_runtimes as number;
-      if (!Number.isInteger(val) || val < 1) {
-        this.logger.warn(
-          { playbookId, value: val },
-          'invalid_max_runtimes_using_default',
-        );
-        validatedRuntime.max_runtimes = 1;
-      }
-    }
-
-    if (validatedRuntime.pull_policy !== undefined && !FleetService.VALID_PULL_POLICIES.has(validatedRuntime.pull_policy as string)) {
-      this.logger.warn(
-        { playbookId, value: validatedRuntime.pull_policy },
-        'invalid_runtime_pull_policy_using_default',
-      );
-      validatedRuntime.pull_policy = 'if-not-present';
-    }
-
-    return validatedRuntime;
-  }
-
   async getQueueDepth(tenantId: string, playbookId?: string): Promise<QueueDepthResult> {
     const baseQuery = `
       SELECT t.workflow_id, w.playbook_id
@@ -723,137 +685,135 @@ export class FleetService {
 
   async getRuntimeTargets(tenantId: string): Promise<RuntimeTarget[]> {
     const defaults = await this.loadRuntimeDefaults(tenantId);
-
-    const result = await this.pool.query<RuntimeTargetRow>(
-      `WITH active_workflows AS (
-         SELECT id, tenant_id, playbook_id
-         FROM workflows
-         WHERE tenant_id = $1
-           AND playbook_id IS NOT NULL
-           AND state NOT IN ('cancelled', 'failed', 'completed')
-       ),
-       active_workflow_counts AS (
-         SELECT playbook_id, COUNT(*)::int AS active_workflows
-         FROM active_workflows
-         GROUP BY playbook_id
-       ),
-       task_counts AS (
-         SELECT
-           aw.playbook_id,
-           (COUNT(*) FILTER (WHERE tk.is_orchestrator_task = true))::int AS pending_orchestrator_tasks,
-           (COUNT(*) FILTER (WHERE COALESCE(tk.is_orchestrator_task, false) = false))::int AS pending_tasks,
-           (
-             COUNT(*) FILTER (
-               WHERE COALESCE(tk.is_orchestrator_task, false) = false
-                 AND cardinality(tk.capabilities_required) > 0
-             )
-           )::int AS specialist_tasks_with_capabilities,
-           (
-             COUNT(DISTINCT tk.capabilities_required) FILTER (
-               WHERE COALESCE(tk.is_orchestrator_task, false) = false
-                 AND cardinality(tk.capabilities_required) > 0
-             )
-           )::int AS specialist_distinct_capability_sets,
-           COALESCE(
-             MAX(cardinality(tk.capabilities_required)) FILTER (
-               WHERE COALESCE(tk.is_orchestrator_task, false) = false
-                 AND cardinality(tk.capabilities_required) > 0
-             ),
-             0
-           )::int AS specialist_max_required_capabilities
-         FROM tasks tk
-         JOIN active_workflows aw ON aw.id = tk.workflow_id AND aw.tenant_id = tk.tenant_id
-         WHERE tk.tenant_id = $1
-           AND tk.state = 'ready'
-         GROUP BY playbook_id
-       )
-       SELECT
-         p.id AS playbook_id,
-         p.name AS playbook_name,
-         p.definition AS definition,
-         COALESCE(awc.active_workflows, 0) AS active_workflows,
-         COALESCE(tc.pending_orchestrator_tasks, 0) AS pending_orchestrator_tasks,
-         COALESCE(tc.specialist_tasks_with_capabilities, 0) AS specialist_tasks_with_capabilities,
-         COALESCE(tc.specialist_distinct_capability_sets, 0) AS specialist_distinct_capability_sets,
-         COALESCE(tc.specialist_max_required_capabilities, 0) AS specialist_max_required_capabilities,
-         COALESCE(tc.pending_tasks, 0) AS pending_tasks
-       FROM playbooks p
-       LEFT JOIN active_workflow_counts awc ON awc.playbook_id = p.id
-       LEFT JOIN task_counts tc ON tc.playbook_id = p.id
-       WHERE p.tenant_id = $1
-         AND p.is_active = true
-         AND p.definition::jsonb ? 'runtime'`,
-      [tenantId],
-    );
-    const targetDefaults = result.rows.length > 0 ? readRuntimeTargetDefaults(defaults) : null;
-
-    const roleCapabilities = await this.loadRoleCapabilities(tenantId, result.rows);
-
-    return result.rows.flatMap((row) => {
-      const definition = parsePlaybookDefinition(row.definition);
-      const poolTargets = readPlaybookRuntimePools(definition);
-      const capabilityTags = resolvePlaybookCapabilityTags(definition.roles, roleCapabilities);
-
-      return poolTargets.map((poolTarget) => {
-        const runtime = this.validateRuntimeConfig(row.playbook_id, poolTarget.config);
-        const tasksWithCapabilities =
-          poolTarget.pool_kind === 'specialist' ? row.specialist_tasks_with_capabilities : 0;
-        const distinctCapabilitySets =
-          poolTarget.pool_kind === 'specialist' ? row.specialist_distinct_capability_sets : 0;
-        const maxRequiredCapabilities =
-          poolTarget.pool_kind === 'specialist' ? row.specialist_max_required_capabilities : 0;
-
-        return {
-          playbook_id: row.playbook_id,
-          playbook_name: row.playbook_name,
-          pool_kind: poolTarget.pool_kind,
-          capability_tags: poolTarget.pool_kind === 'specialist' ? capabilityTags : [],
-          pool_mode: runtime.pool_mode ?? 'warm',
-          max_runtimes: runtime.max_runtimes ?? 1,
-          priority: runtime.priority ?? 0,
-          idle_timeout_seconds: runtime.idle_timeout_seconds ?? targetDefaults!.idleTimeoutSeconds,
-          grace_period_seconds: runtime.grace_period_seconds ?? targetDefaults!.gracePeriodSeconds,
-          image: runtime.image ?? targetDefaults!.image,
-          pull_policy: runtime.pull_policy ?? targetDefaults!.pullPolicy,
-          cpu: runtime.cpu ?? targetDefaults!.cpu,
-          memory: runtime.memory ?? targetDefaults!.memory,
-          pending_tasks:
-            poolTarget.pool_kind === 'orchestrator'
-              ? row.pending_orchestrator_tasks
-              : row.pending_tasks,
-          tasks_with_capabilities: tasksWithCapabilities,
-          distinct_capability_sets: distinctCapabilitySets,
-          max_required_capabilities: maxRequiredCapabilities,
-          capability_demand_units:
-            tasksWithCapabilities + distinctCapabilitySets + maxRequiredCapabilities,
-          active_workflows: row.active_workflows,
-        };
-      });
-    });
-  }
-
-  private async loadRoleCapabilities(
-    tenantId: string,
-    rows: RuntimeTargetRow[],
-  ): Promise<Map<string, string[]>> {
-    const roleNames = collectPlaybookRoleNames(rows);
-    if (roleNames.length === 0) {
-      return new Map<string, string[]>();
+    const stats = await this.loadSpecialistRuntimeStats(tenantId);
+    if (stats.pending_tasks <= 0 && stats.active_runtimes <= 0) {
+      return [];
     }
 
-    const placeholders = roleNames.map((_, index) => `$${index + 2}`).join(', ');
-    const result = await this.pool.query<RoleCapabilityRow>(
+    const runtimeDefaults = readSpecialistRuntimeTargetDefaults(defaults);
+    const capabilityTags = await this.loadSpecialistCapabilityTags(tenantId);
+    const globalMaxRuntimes = readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
+    );
+    const globalMaxExecutionContainers = readRequiredIntegerDefault(
+      defaults,
+      GLOBAL_MAX_EXECUTION_CONTAINERS_RUNTIME_KEY,
+    );
+    const availableExecutionSlots = Math.max(
+      globalMaxExecutionContainers - stats.active_execution_containers,
+      0,
+    );
+    const tasksWithCapabilities = stats.specialist_tasks_with_capabilities;
+    const distinctCapabilitySets = stats.specialist_distinct_capability_sets;
+    const maxRequiredCapabilities = stats.specialist_max_required_capabilities;
+
+    return [
+      {
+        playbook_id: GENERIC_SPECIALIST_TARGET_ID,
+        playbook_name: GENERIC_SPECIALIST_TARGET_NAME,
+        pool_kind: 'specialist',
+        capability_tags: capabilityTags,
+        pool_mode: 'cold',
+        max_runtimes: globalMaxRuntimes,
+        priority: 0,
+        idle_timeout_seconds: 0,
+        grace_period_seconds: runtimeDefaults.drainGraceSeconds,
+        image: runtimeDefaults.image,
+        pull_policy: runtimeDefaults.pullPolicy,
+        cpu: runtimeDefaults.cpu,
+        memory: runtimeDefaults.memory,
+        pending_tasks: stats.pending_tasks,
+        tasks_with_capabilities: tasksWithCapabilities,
+        distinct_capability_sets: distinctCapabilitySets,
+        max_required_capabilities: maxRequiredCapabilities,
+        capability_demand_units:
+          tasksWithCapabilities + distinctCapabilitySets + maxRequiredCapabilities,
+        active_workflows: 0,
+        active_execution_containers: stats.active_execution_containers,
+        available_execution_slots: availableExecutionSlots,
+      },
+    ];
+  }
+
+  private async loadSpecialistRuntimeStats(
+    tenantId: string,
+  ): Promise<SpecialistRuntimeStatsRow> {
+    const result = await this.pool.query<SpecialistRuntimeStatsRow>(
+      `WITH ready_specialist_tasks AS (
+         SELECT capabilities_required
+           FROM tasks
+          WHERE tenant_id = $1
+            AND state = 'ready'
+            AND COALESCE(is_orchestrator_task, false) = false
+       ),
+       specialist_runtime_heartbeats AS (
+         SELECT COUNT(*)::int AS active_runtimes
+           FROM runtime_heartbeats
+          WHERE tenant_id = $1
+            AND pool_kind = 'specialist'
+       ),
+       active_execution_leases AS (
+         SELECT COUNT(*)::int AS active_execution_containers
+           FROM execution_container_leases
+          WHERE tenant_id = $1
+            AND released_at IS NULL
+       )
+       SELECT
+         (SELECT COUNT(*)::int FROM ready_specialist_tasks) AS pending_tasks,
+         (
+           SELECT COUNT(*)::int
+             FROM ready_specialist_tasks
+            WHERE cardinality(capabilities_required) > 0
+         ) AS specialist_tasks_with_capabilities,
+         (
+           SELECT COUNT(DISTINCT capabilities_required)::int
+             FROM ready_specialist_tasks
+            WHERE cardinality(capabilities_required) > 0
+         ) AS specialist_distinct_capability_sets,
+         COALESCE(
+           (
+             SELECT MAX(cardinality(capabilities_required))::int
+               FROM ready_specialist_tasks
+              WHERE cardinality(capabilities_required) > 0
+           ),
+           0
+         ) AS specialist_max_required_capabilities,
+         (SELECT active_runtimes FROM specialist_runtime_heartbeats) AS active_runtimes,
+         (SELECT active_execution_containers FROM active_execution_leases) AS active_execution_containers`,
+      [tenantId],
+    );
+    return result.rows[0] ?? {
+      pending_tasks: 0,
+      specialist_tasks_with_capabilities: 0,
+      specialist_distinct_capability_sets: 0,
+      specialist_max_required_capabilities: 0,
+      active_runtimes: 0,
+      active_execution_containers: 0,
+    };
+  }
+
+  private async loadSpecialistCapabilityTags(tenantId: string): Promise<string[]> {
+    const result = await this.pool.query<RoleCatalogRow>(
       `SELECT name, capabilities
-       FROM role_definitions
-       WHERE tenant_id = $1
-         AND is_active = true
-         AND name IN (${placeholders})`,
-      [tenantId, ...roleNames],
+         FROM role_definitions
+        WHERE tenant_id = $1
+          AND is_active = true`,
+      [tenantId],
     );
 
-    return new Map<string, string[]>(
-      result.rows.map((row) => [row.name, normalizeCapabilityList(row.capabilities)]),
-    );
+    const tags = new Set<string>();
+    for (const row of result.rows) {
+      const roleName = row.name.trim();
+      if (roleName.length === 0 || roleName === 'orchestrator') {
+        continue;
+      }
+      tags.add(`role:${roleName}`);
+      for (const capability of normalizeCapabilityList(row.capabilities)) {
+        tags.add(capability);
+      }
+    }
+    return [...tags];
   }
 
   async getReconcileSnapshot(tenantId: string): Promise<{
@@ -931,12 +891,15 @@ export class FleetService {
       throw new ValidationError(`Invalid heartbeat pool kind: ${payload.pool_kind}`);
     }
 
+    const playbookId = normalizeRuntimeHeartbeatPlaybookID(payload.playbook_id);
+
     const result = await this.pool.query<{ drain_requested: boolean }>(
       `INSERT INTO runtime_heartbeats (
          runtime_id, tenant_id, playbook_id, pool_kind, state, task_id,
          uptime_seconds, last_claim_at, image, last_heartbeat_at
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
        ON CONFLICT (runtime_id) DO UPDATE SET
+         playbook_id = EXCLUDED.playbook_id,
          pool_kind = $4,
          state = $5,
          task_id = $6,
@@ -947,7 +910,7 @@ export class FleetService {
       [
         payload.runtime_id,
         tenantId,
-        payload.playbook_id,
+        playbookId,
         payload.pool_kind,
         payload.state,
         payload.task_id ?? null,
@@ -960,7 +923,7 @@ export class FleetService {
     const drainRequested = result.rows[0]?.drain_requested ?? false;
     return {
       runtime_id: payload.runtime_id,
-      playbook_id: payload.playbook_id,
+      playbook_id: playbookId,
       pool_kind: payload.pool_kind,
       state: payload.state,
       task_id: payload.task_id ?? null,
@@ -988,11 +951,19 @@ export class FleetService {
     );
 
     const heartbeats = await this.pool.query<HeartbeatRow>(
-      `SELECT rh.*, p.name AS playbook_name
+      `SELECT
+         rh.*,
+         COALESCE(
+           p.name,
+           CASE
+             WHEN rh.pool_kind = 'specialist' AND rh.playbook_id IS NULL THEN $2
+             ELSE 'Unknown runtime target'
+           END
+         ) AS playbook_name
        FROM runtime_heartbeats rh
-       JOIN playbooks p ON p.id = rh.playbook_id
+       LEFT JOIN playbooks p ON p.id = rh.playbook_id
        WHERE rh.tenant_id = $1`,
-      [tenantId],
+      [tenantId, GENERIC_SPECIALIST_TARGET_NAME],
     );
 
     let totalRunning = 0;
@@ -1008,10 +979,11 @@ export class FleetService {
       else if (hb.state === 'executing') totalExecuting++;
       else if (hb.state === 'draining') totalDraining++;
 
-      let summary = playbookMap.get(hb.playbook_id);
+      const playbookKey = heartbeatPlaybookKey(hb.playbook_id, hb.pool_kind);
+      let summary = playbookMap.get(playbookKey);
       if (!summary) {
         summary = {
-          playbook_id: hb.playbook_id,
+          playbook_id: playbookKey,
           playbook_name: hb.playbook_name,
           max_runtimes: 0,
           running: 0,
@@ -1020,18 +992,18 @@ export class FleetService {
           pending_tasks: 0,
           active_workflows: 0,
         };
-        playbookMap.set(hb.playbook_id, summary);
+        playbookMap.set(playbookKey, summary);
       }
       summary.running++;
       if (hb.state === 'idle') summary.idle++;
       else if (hb.state === 'executing') summary.executing++;
 
       const poolKind = isPoolKind(hb.pool_kind) ? hb.pool_kind : 'specialist';
-      const poolKey = `${hb.playbook_id}:${poolKind}`;
+      const poolKey = `${playbookKey}:${poolKind}`;
       let poolSummary = playbookPoolMap.get(poolKey);
       if (!poolSummary) {
         poolSummary = {
-          playbook_id: hb.playbook_id,
+          playbook_id: playbookKey,
           playbook_name: hb.playbook_name,
           pool_kind: poolKind,
           max_runtimes: 0,
@@ -1193,6 +1165,7 @@ export class FleetService {
     if (event.level && !VALID_FLEET_EVENT_LEVELS.has(event.level)) {
       throw new ValidationError(`Invalid fleet event level: ${event.level}`);
     }
+    const playbookId = normalizeRuntimeHeartbeatPlaybookID(event.playbook_id);
     await this.pool.query(
       `INSERT INTO fleet_events (
          tenant_id, event_type, level, runtime_id, playbook_id,
@@ -1203,7 +1176,7 @@ export class FleetService {
         event.event_type,
         event.level ?? 'info',
         event.runtime_id ?? null,
-        event.playbook_id ?? null,
+        playbookId,
         event.task_id ?? null,
         event.workflow_id ?? null,
         event.container_id ?? null,
@@ -1280,34 +1253,41 @@ export interface RuntimeTarget {
   max_required_capabilities: number;
   capability_demand_units: number;
   active_workflows: number;
+  active_execution_containers?: number;
+  available_execution_slots?: number;
 }
 
-interface RuntimeTargetRow {
-  [key: string]: unknown;
-  playbook_id: string;
-  playbook_name: string;
-  definition: unknown;
-  active_workflows: number;
+interface SpecialistRuntimeStatsRow {
   pending_tasks: number;
-  pending_orchestrator_tasks: number;
   specialist_tasks_with_capabilities: number;
   specialist_distinct_capability_sets: number;
   specialist_max_required_capabilities: number;
+  active_runtimes: number;
+  active_execution_containers: number;
 }
 
-interface RoleCapabilityRow {
+interface RoleCatalogRow {
   name: string;
   capabilities: string[];
 }
 
-const RUNTIME_TARGET_DEFAULT_KEYS = {
-  image: 'default_runtime_image',
-  cpu: 'default_cpu',
-  memory: 'default_memory',
-  pullPolicy: 'default_pull_policy',
-  idleTimeoutSeconds: 'default_idle_timeout_seconds',
-  gracePeriodSeconds: 'default_grace_period',
+const SPECIALIST_RUNTIME_TARGET_DEFAULT_KEYS = {
+  image: SPECIALIST_RUNTIME_DEFAULT_KEYS.image,
+  cpu: SPECIALIST_RUNTIME_DEFAULT_KEYS.cpu,
+  memory: SPECIALIST_RUNTIME_DEFAULT_KEYS.memory,
+  pullPolicy: SPECIALIST_RUNTIME_DEFAULT_KEYS.pullPolicy,
+  bootstrapClaimTimeoutSeconds: SPECIALIST_RUNTIME_DEFAULT_KEYS.bootstrapClaimTimeoutSeconds,
+  drainGraceSeconds: SPECIALIST_RUNTIME_DEFAULT_KEYS.drainGraceSeconds,
 } as const;
+
+interface SpecialistRuntimeTargetDefaults {
+  image: string;
+  cpu: string;
+  memory: string;
+  pullPolicy: string;
+  bootstrapClaimTimeoutSeconds: number;
+  drainGraceSeconds: number;
+}
 
 const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
   platformApiRequestTimeoutSeconds: 'platform.api_request_timeout_seconds',
@@ -1398,28 +1378,21 @@ function readRequiredIntegerDefault(
   return parsed;
 }
 
-interface RuntimeTargetDefaults {
-  image: string;
-  cpu: string;
-  memory: string;
-  pullPolicy: string;
-  idleTimeoutSeconds: number;
-  gracePeriodSeconds: number;
-}
-
-function readRuntimeTargetDefaults(defaults: Map<string, string>): RuntimeTargetDefaults {
+function readSpecialistRuntimeTargetDefaults(
+  defaults: Map<string, string>,
+): SpecialistRuntimeTargetDefaults {
   return {
-    image: readRequiredStringDefault(defaults, RUNTIME_TARGET_DEFAULT_KEYS.image),
-    cpu: readRequiredStringDefault(defaults, RUNTIME_TARGET_DEFAULT_KEYS.cpu),
-    memory: readRequiredStringDefault(defaults, RUNTIME_TARGET_DEFAULT_KEYS.memory),
-    pullPolicy: readRequiredStringDefault(defaults, RUNTIME_TARGET_DEFAULT_KEYS.pullPolicy),
-    idleTimeoutSeconds: readRequiredNonNegativeIntegerDefault(
+    image: readRequiredStringDefault(defaults, SPECIALIST_RUNTIME_TARGET_DEFAULT_KEYS.image),
+    cpu: readRequiredStringDefault(defaults, SPECIALIST_RUNTIME_TARGET_DEFAULT_KEYS.cpu),
+    memory: readRequiredStringDefault(defaults, SPECIALIST_RUNTIME_TARGET_DEFAULT_KEYS.memory),
+    pullPolicy: readRequiredStringDefault(defaults, SPECIALIST_RUNTIME_TARGET_DEFAULT_KEYS.pullPolicy),
+    bootstrapClaimTimeoutSeconds: readRequiredIntegerDefault(
       defaults,
-      RUNTIME_TARGET_DEFAULT_KEYS.idleTimeoutSeconds,
+      SPECIALIST_RUNTIME_TARGET_DEFAULT_KEYS.bootstrapClaimTimeoutSeconds,
     ),
-    gracePeriodSeconds: readRequiredIntegerDefault(
+    drainGraceSeconds: readRequiredIntegerDefault(
       defaults,
-      RUNTIME_TARGET_DEFAULT_KEYS.gracePeriodSeconds,
+      SPECIALIST_RUNTIME_TARGET_DEFAULT_KEYS.drainGraceSeconds,
     ),
   };
 }
@@ -1432,20 +1405,9 @@ function readRequiredStringDefault(defaults: Map<string, string>, key: string): 
   return value;
 }
 
-function readRequiredNonNegativeIntegerDefault(
-  defaults: Map<string, string>,
-  key: string,
-): number {
-  const parsed = Number(defaults.get(key) ?? '');
-  if (!Number.isInteger(parsed) || parsed < 0) {
-    throw new ValidationError(`Missing runtime default "${key}"`);
-  }
-  return parsed;
-}
-
 export interface HeartbeatPayload {
   runtime_id: string;
-  playbook_id: string;
+  playbook_id?: string | null;
   pool_kind: PlaybookRuntimePoolKind;
   state: string;
   task_id?: string | null;
@@ -1456,7 +1418,7 @@ export interface HeartbeatPayload {
 
 export interface HeartbeatAck {
   runtime_id: string;
-  playbook_id: string;
+  playbook_id: string | null;
   pool_kind: PlaybookRuntimePoolKind;
   state: string;
   task_id: string | null;
@@ -1467,7 +1429,7 @@ interface HeartbeatRow {
   [key: string]: unknown;
   runtime_id: string;
   tenant_id: string;
-  playbook_id: string;
+  playbook_id: string | null;
   playbook_name: string;
   pool_kind: string;
   state: string;
@@ -1558,7 +1520,7 @@ export interface FleetEventRow {
 
 export interface HeartbeatListRow {
   runtime_id: string;
-  playbook_id: string;
+  playbook_id: string | null;
   pool_kind: PlaybookRuntimePoolKind;
   state: string;
   last_heartbeat_at: string;
@@ -1589,37 +1551,25 @@ function isPoolKind(value: string): value is PlaybookRuntimePoolKind {
   return VALID_POOL_KINDS.has(value);
 }
 
-function collectPlaybookRoleNames(rows: RuntimeTargetRow[]): string[] {
-  const names = new Set<string>();
-  for (const row of rows) {
-    const definition = parsePlaybookDefinition(row.definition);
-    for (const role of definition.roles) {
-      const normalized = role.trim();
-      if (normalized.length > 0) {
-        names.add(normalized);
-      }
-    }
+function heartbeatPlaybookKey(
+  playbookID: string | null,
+  poolKind: string,
+): string {
+  if ((isPoolKind(poolKind) ? poolKind : 'specialist') === 'specialist' && (!playbookID || playbookID.trim().length === 0)) {
+    return GENERIC_SPECIALIST_TARGET_ID;
   }
-  return [...names];
+  return playbookID?.trim() || GENERIC_SPECIALIST_TARGET_ID;
 }
 
-function resolvePlaybookCapabilityTags(
-  roles: string[],
-  roleCapabilities: Map<string, string[]>,
-): string[] {
-  const tags = new Set<string>();
-  for (const role of roles) {
-    const normalizedRole = role.trim();
-    if (normalizedRole.length === 0) {
-      continue;
-    }
-    tags.add(normalizedRole);
-    tags.add(`role:${normalizedRole}`);
-    for (const capability of roleCapabilities.get(normalizedRole) ?? []) {
-      tags.add(capability);
-    }
+function normalizeRuntimeHeartbeatPlaybookID(playbookID: string | null | undefined): string | null {
+  if (!playbookID) {
+    return null;
   }
-  return [...tags];
+  const normalized = playbookID.trim();
+  if (normalized === GENERIC_SPECIALIST_TARGET_ID) {
+    return null;
+  }
+  return normalized.length > 0 ? normalized : null;
 }
 
 function normalizeCapabilityList(values: string[] | null | undefined): string[] {

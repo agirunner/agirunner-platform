@@ -21,7 +21,6 @@ export function WorkspacesPage(): JSX.Element {
   const [selectedWorkspaceId, setSelectedWorkspaceId] = useState('');
   const [createName, setCreateName] = useState('');
   const [createSlug, setCreateSlug] = useState('');
-  const [createRepoUrl, setCreateRepoUrl] = useState('');
   const [createMessage, setCreateMessage] = useState<string | null>(null);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -66,13 +65,15 @@ export function WorkspacesPage(): JSX.Element {
       const created = await dashboardApi.createWorkspace({
         name: createName.trim(),
         slug: createSlug.trim(),
-        repository_url: createRepoUrl.trim() || undefined,
+        settings: {
+          workspace_storage_type: 'workspace_artifacts',
+          workspace_storage: {},
+        },
       });
       setCreateMessage(`Created workspace ${created.name}.`);
       setSelectedWorkspaceId(created.id);
       setCreateName('');
       setCreateSlug('');
-      setCreateRepoUrl('');
       await queryClient.invalidateQueries({ queryKey: ['workspaces'] });
     } catch (error) {
       setCreateError(String(error));
@@ -108,8 +109,6 @@ export function WorkspacesPage(): JSX.Element {
             <input id="workspace-name" className="input" value={createName} onChange={(event) => setCreateName(event.target.value)} />
             <label htmlFor="workspace-slug">Slug</label>
             <input id="workspace-slug" className="input" value={createSlug} onChange={(event) => setCreateSlug(event.target.value)} />
-            <label htmlFor="workspace-repo-url">Repository URL</label>
-            <input id="workspace-repo-url" className="input" value={createRepoUrl} onChange={(event) => setCreateRepoUrl(event.target.value)} />
             {createMessage ? <p style={{ color: '#16a34a' }}>{createMessage}</p> : null}
             {createError ? <p style={{ color: '#dc2626' }}>{createError}</p> : null}
             <div className="row" style={{ justifyContent: 'flex-end' }}>
@@ -131,7 +130,7 @@ export function WorkspacesPage(): JSX.Element {
                   name: selectedWorkspace.name,
                   slug: selectedWorkspace.slug,
                   description: selectedWorkspace.description,
-                  repository_url: selectedWorkspace.repository_url,
+                  storage: selectedWorkspace.settings?.workspace_storage_type ?? (selectedWorkspace.repository_url ? 'git_remote' : 'workspace_artifacts'),
                   is_active: selectedWorkspace.is_active,
                 }}
                 emptyMessage="No workspace details available."

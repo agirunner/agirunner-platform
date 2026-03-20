@@ -373,15 +373,32 @@ func parseMemoryLimit(limit string) int64 {
 	limit = strings.TrimSpace(strings.ToLower(limit))
 
 	multiplier := int64(1)
-	if strings.HasSuffix(limit, "g") {
-		multiplier = 1024 * 1024 * 1024
-		limit = strings.TrimSuffix(limit, "g")
-	} else if strings.HasSuffix(limit, "m") {
-		multiplier = 1024 * 1024
-		limit = strings.TrimSuffix(limit, "m")
-	} else if strings.HasSuffix(limit, "k") {
-		multiplier = 1024
-		limit = strings.TrimSuffix(limit, "k")
+	for _, suffix := range []struct {
+		unit       string
+		multiplier int64
+	}{
+		{unit: "tib", multiplier: 1024 * 1024 * 1024 * 1024},
+		{unit: "ti", multiplier: 1024 * 1024 * 1024 * 1024},
+		{unit: "tb", multiplier: 1024 * 1024 * 1024 * 1024},
+		{unit: "t", multiplier: 1024 * 1024 * 1024 * 1024},
+		{unit: "gib", multiplier: 1024 * 1024 * 1024},
+		{unit: "gi", multiplier: 1024 * 1024 * 1024},
+		{unit: "gb", multiplier: 1024 * 1024 * 1024},
+		{unit: "g", multiplier: 1024 * 1024 * 1024},
+		{unit: "mib", multiplier: 1024 * 1024},
+		{unit: "mi", multiplier: 1024 * 1024},
+		{unit: "mb", multiplier: 1024 * 1024},
+		{unit: "m", multiplier: 1024 * 1024},
+		{unit: "kib", multiplier: 1024},
+		{unit: "ki", multiplier: 1024},
+		{unit: "kb", multiplier: 1024},
+		{unit: "k", multiplier: 1024},
+	} {
+		if strings.HasSuffix(limit, suffix.unit) {
+			multiplier = suffix.multiplier
+			limit = strings.TrimSuffix(limit, suffix.unit)
+			break
+		}
 	}
 
 	val, err := strconv.ParseFloat(limit, 64)

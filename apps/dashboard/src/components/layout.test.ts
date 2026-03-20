@@ -51,6 +51,8 @@ describe('layout breadcrumbs', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Runtimes'");
     expect(source).not.toContain("label: 'Runtime Defaults'");
+    expect(source).not.toContain("label: 'Workers'");
+    expect(source).not.toContain("label: 'Warm Pools'");
   });
 
   it('has separate Orchestrator and Roles nav entries', () => {

@@ -2,16 +2,10 @@ import type { FieldDefinition, SectionDefinition } from './runtime-defaults.type
 
 export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
-    key: 'pool_management',
-    title: 'Warm pool defaults',
-    description:
-      'Control whether shared warm containers stay prefetched and which image/capacity they use.',
-  },
-  {
     key: 'runtime_throughput',
     title: 'Runtime throughput',
     description:
-      'Set how much queued work a runtime accepts and how many tasks it executes in parallel.',
+      'Set local queue and parallelism limits for a specialist runtime process.',
   },
   {
     key: 'process_logging',
@@ -44,11 +38,6 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     description: 'Bound runtime checks and container-copy/connect operations.',
   },
   {
-    key: 'container_reuse',
-    title: 'Container reuse',
-    description: 'Control how long warm containers may be reused before the runtime retires them.',
-  },
-  {
     key: 'lifecycle_timeouts',
     title: 'Lifecycle timeouts',
     description: 'Control health checks and task-container stop/destroy deadlines.',
@@ -63,7 +52,7 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
     key: 'connected_platform',
     title: 'Connected platform',
     description:
-      'Tune claim polling and drain behavior when runtimes are attached to the platform fleet.',
+      'Tune claim polling, bootstrap behavior, and manual drain handling when runtimes are attached to the platform fleet.',
   },
   {
     key: 'realtime_transport',
@@ -138,7 +127,6 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
 ];
 
 export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
-  ...buildPoolManagementFields(),
   ...buildRuntimeThroughputFields(),
   {
     key: 'log.level',
@@ -195,7 +183,6 @@ export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   ...buildToolTimeoutFields(),
   ...buildContainerTimeoutFields(),
-  ...buildContainerReuseFields(),
   ...buildLifecycleTimeoutFields(),
   {
     key: 'tasks.default_timeout_minutes',
@@ -384,33 +371,6 @@ function buildContainerTimeoutFields(): FieldDefinition[] {
   ];
 }
 
-function buildContainerReuseFields(): FieldDefinition[] {
-  return [
-    {
-      key: 'container.max_reuse_age_seconds',
-      label: 'Warm reuse age limit (seconds)',
-      description: 'Set to 0 to disable the age limit for warm container reuse.',
-      configType: 'number',
-      placeholder: '1800',
-      section: 'container_reuse',
-      inputMode: 'numeric',
-      min: 0,
-      step: 1,
-    },
-    {
-      key: 'container.max_reuse_tasks',
-      label: 'Warm reuse task limit',
-      description: 'Set to 0 to disable the task-count limit for warm container reuse.',
-      configType: 'number',
-      placeholder: '10',
-      section: 'container_reuse',
-      inputMode: 'numeric',
-      min: 0,
-      step: 1,
-    },
-  ];
-}
-
 function buildLifecycleTimeoutFields(): FieldDefinition[] {
   return [
     {
@@ -465,6 +425,30 @@ function buildLifecycleTimeoutFields(): FieldDefinition[] {
 
 function buildConnectedPlatformFields(): FieldDefinition[] {
   return [
+    {
+      key: 'specialist_runtime_bootstrap_claim_timeout_seconds',
+      label: 'Bootstrap claim timeout (seconds)',
+      description:
+        'How long a new generic specialist runtime waits for claimable work before it exits.',
+      configType: 'number',
+      placeholder: '30',
+      section: 'connected_platform',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'specialist_runtime_drain_grace_seconds',
+      label: 'Specialist runtime drain grace (seconds)',
+      description:
+        'Grace period used when a specialist runtime is explicitly drained or replaced.',
+      configType: 'number',
+      placeholder: '30',
+      section: 'connected_platform',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
     {
       key: 'platform.claim_poll_seconds',
       label: 'Claim poll interval (seconds)',
@@ -556,54 +540,6 @@ function buildConnectedPlatformFields(): FieldDefinition[] {
       configType: 'number',
       placeholder: '15',
       section: 'connected_platform',
-      inputMode: 'numeric',
-      min: 1,
-      step: 1,
-    },
-  ];
-}
-
-function buildPoolManagementFields(): FieldDefinition[] {
-  return [
-    {
-      key: 'pool.enabled',
-      label: 'Enable warm pool management',
-      description:
-        'Keep prefetched warm containers available for shared startup latency reduction.',
-      configType: 'boolean',
-      placeholder: 'false',
-      section: 'pool_management',
-      options: ['true', 'false'],
-    },
-    {
-      key: 'pool.pool_size',
-      label: 'Warm pool size',
-      description:
-        'Target number of prefetched containers for the shared default pool. Set to 0 to leave only targeted image or tenant pools active.',
-      configType: 'number',
-      placeholder: '0',
-      section: 'pool_management',
-      inputMode: 'numeric',
-      min: 0,
-      step: 1,
-    },
-    {
-      key: 'pool.default_image',
-      label: 'Warm pool default image',
-      description:
-        'Container image used when the shared warm pool is enabled and no image-specific override applies.',
-      configType: 'string',
-      placeholder: 'alpine/git:2.47.2',
-      section: 'pool_management',
-    },
-    {
-      key: 'pool.refresh_interval_seconds',
-      label: 'Pool refresh interval (seconds)',
-      description:
-        'How often the runtime refreshes pool state from the platform while managing worker pools.',
-      configType: 'number',
-      placeholder: '300',
-      section: 'pool_management',
       inputMode: 'numeric',
       min: 1,
       step: 1,

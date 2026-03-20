@@ -5,8 +5,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '.
 import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
-import { readWorkspaceRepositorySettings } from './workspace-settings.js';
-import { resolveRepositoryBranchContext } from './repository-branch-context.js';
+import { resolveWorkspaceStorageBinding, buildGitRemoteResourceBindings } from './workspace-storage.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
   TASK_LLM_MAX_RETRIES_RUNTIME_KEY,
@@ -443,58 +442,32 @@ export class TaskWriteService {
     }
 
     const workflow = result.rows[0];
-    const parameters = asRecord(workflow.parameters);
-    const workspaceRepository = readWorkspaceRepositorySettings(workflow.settings);
-    const environment = asRecord(input.environment);
-    const branchContext = resolveRepositoryBranchContext({
-      environment,
-      parameters,
-      workflowGitBranch: workflow.git_branch,
-      workspaceDefaultBranch: workspaceRepository.defaultBranch,
+    const storage = resolveWorkspaceStorageBinding({
+      repository_url: workflow.repository_url,
+      settings: workflow.settings,
     });
-    const repositoryURL =
-      asNullableString(environment.repository_url)
-      ?? asNullableString(parameters.repository_url)
-      ?? asNullableString(parameters.repo)
-      ?? asNullableString(workflow.repository_url);
-    const baseBranch = branchContext.baseBranch;
-    const branch = branchContext.branch;
-    const gitUserName =
-      asNullableString(environment.git_user_name)
-      ?? asNullableString(environment.gitUserName)
-      ?? asNullableString(parameters.git_user_name)
-      ?? asNullableString(parameters.gitUserName)
-      ?? workspaceRepository.gitUserName;
-    const gitUserEmail =
-      asNullableString(environment.git_user_email)
-      ?? asNullableString(environment.gitUserEmail)
-      ?? asNullableString(parameters.git_user_email)
-      ?? asNullableString(parameters.gitUserEmail)
-      ?? workspaceRepository.gitUserEmail;
-    const gitTokenSecretRef =
-      asNullableString(parameters.git_token_secret_ref)
-      ?? asNullableString(parameters.gitTokenSecretRef)
-      ?? workspaceRepository.gitTokenSecretRef;
-
-    const nextEnvironment: Record<string, unknown> = {
-      ...environment,
-      ...(repositoryURL ? { repository_url: repositoryURL } : {}),
-      ...(branch ? { branch } : {}),
-      ...(baseBranch ? { base_branch: baseBranch } : {}),
-      ...(gitUserName ? { git_user_name: gitUserName } : {}),
-      ...(gitUserEmail ? { git_user_email: gitUserEmail } : {}),
-    };
-    if (
-      repositoryURL
-      && !asNullableString(nextEnvironment.template)
-      && !asNullableString(nextEnvironment.image)
-    ) {
-      nextEnvironment.template = DEFAULT_REPOSITORY_TASK_TEMPLATE;
+    const nextEnvironment = stripWorkspaceStorageOverrides(asRecord(input.environment));
+    if (storage.type === 'git_remote') {
+      if (storage.repository_url) {
+        nextEnvironment.repository_url = storage.repository_url;
+      }
+      if (storage.default_branch) {
+        nextEnvironment.branch = storage.default_branch;
+        nextEnvironment.base_branch = storage.default_branch;
+      }
+      if (storage.git_user_name) {
+        nextEnvironment.git_user_name = storage.git_user_name;
+      }
+      if (storage.git_user_email) {
+        nextEnvironment.git_user_email = storage.git_user_email;
+      }
+      if (!asNullableString(nextEnvironment.template) && !asNullableString(nextEnvironment.image)) {
+        nextEnvironment.template = DEFAULT_REPOSITORY_TASK_TEMPLATE;
+      }
     }
-    const nextBindings = mergeWorkflowGitBinding(
+    const nextBindings = mergeWorkspaceStorageBindings(
       normalizeResourceBindings(input.resource_bindings),
-      repositoryURL,
-      gitTokenSecretRef,
+      storage,
     );
     const hasEnvironment = Object.keys(nextEnvironment).length > 0;
     const hasBindings = nextBindings.length > 0 || Array.isArray(input.resource_bindings);
@@ -894,29 +867,14 @@ function assertSupportedWorkflowRoleCapabilities(
   );
 }
 
-function mergeWorkflowGitBinding(
+function mergeWorkspaceStorageBindings(
   bindings: Record<string, unknown>[],
-  repositoryURL: string | null,
-  gitTokenSecretRef: string | null,
+  storage: ReturnType<typeof resolveWorkspaceStorageBinding>,
 ): Record<string, unknown>[] {
-  if (!repositoryURL || !gitTokenSecretRef) {
-    return bindings;
-  }
-  const patchedBindings = bindings.map((binding) =>
-    patchIncompleteGitRepositoryBinding(binding, repositoryURL, gitTokenSecretRef),
-  );
-  if (patchedBindings.some(hasUsableGitRepositoryBinding)) {
-    return patchedBindings;
-  }
+  const nonGitBindings = bindings.filter((binding) => !isGitRepositoryBinding(binding));
   return [
-    ...patchedBindings,
-    {
-      type: 'git_repository',
-      repository_url: repositoryURL,
-      credentials: {
-        token: gitTokenSecretRef,
-      },
-    },
+    ...nonGitBindings,
+    ...buildGitRemoteResourceBindings(storage),
   ];
 }
 
@@ -931,44 +889,20 @@ function isGitRepositoryBinding(binding: Record<string, unknown>): boolean {
   return asNullableString(binding.type) === 'git_repository';
 }
 
-function patchIncompleteGitRepositoryBinding(
-  binding: Record<string, unknown>,
-  repositoryURL: string,
-  gitTokenSecretRef: string,
+function stripWorkspaceStorageOverrides(
+  environment: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (!isGitRepositoryBinding(binding)) {
-    return binding;
-  }
-  if (hasUsableGitRepositoryBinding(binding)) {
-    return binding;
-  }
-  const credentials = asRecord(binding.credentials);
-  return {
-    ...binding,
-    repository_url: asNullableString(binding.repository_url) ?? repositoryURL,
-    credentials: {
-      ...credentials,
-      token: gitTokenSecretRef,
-    },
-  };
-}
-
-function hasUsableGitRepositoryBinding(binding: Record<string, unknown>): boolean {
-  if (!isGitRepositoryBinding(binding)) {
-    return false;
-  }
-  return hasUsableGitCredential(binding) || hasUsableGitCredential(asRecord(binding.credentials));
-}
-
-function hasUsableGitCredential(binding: Record<string, unknown>): boolean {
-  return [
-    binding.token,
-    binding.git_token,
-    binding.access_token,
-    binding.git_ssh_private_key,
-    binding.ssh_private_key,
-    binding.private_key,
-  ].some((value) => isUsableSecretValue(value));
+  const {
+    repository_url: _repositoryURL,
+    branch: _branch,
+    base_branch: _baseBranch,
+    git_user_name: _gitUserName,
+    gitUserName: _legacyGitUserName,
+    git_user_email: _gitUserEmail,
+    gitUserEmail: _legacyGitUserEmail,
+    ...rest
+  } = environment;
+  return rest;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -986,11 +920,6 @@ function isClosedPlannedStage(workItem: LinkedWorkItemRow) {
 
 function asNullableString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
-}
-
-function isUsableSecretValue(value: unknown): boolean {
-  const normalized = asNullableString(value);
-  return normalized !== null && !normalized.startsWith('redacted://');
 }
 
 function asNullableNumber(value: unknown): number | null {

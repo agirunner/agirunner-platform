@@ -10,9 +10,7 @@ export const runtimeHeartbeats = pgTable(
     tenantId: uuid('tenant_id')
       .notNull()
       .references(() => tenants.id),
-    playbookId: uuid('playbook_id')
-      .notNull()
-      .references(() => playbooks.id, { onDelete: 'cascade' }),
+    playbookId: uuid('playbook_id').references(() => playbooks.id, { onDelete: 'cascade' }),
     poolKind: text('pool_kind').notNull().default('specialist'),
     state: text('state').notNull().default('idle'),
     taskId: uuid('task_id'),

@@ -1411,17 +1411,9 @@ describe('WorkflowActivationDispatchService', () => {
               template: 'execution-workspace',
               repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
               branch: 'main',
-              git_user_name: 'Smoke Bot',
-              git_user_email: 'smoke@example.com',
             }),
           );
-          expect(params?.[10]).toBe(JSON.stringify([
-            {
-              type: 'git_repository',
-              repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-              credentials: { token: 'secret:GITHUB_PAT' },
-            },
-          ]));
+          expect(params?.[10]).toBe(JSON.stringify([]));
           return { rowCount: 1, rows: [{ id: 'task-1' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -1680,7 +1672,6 @@ describe('WorkflowActivationDispatchService', () => {
               repository: {
                 repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
                 base_branch: 'main',
-                feature_branch: 'smoke/feature-1',
                 git_user_name: 'Smoke Bot',
                 git_user_email: 'smoke@example.test',
               },
@@ -1709,7 +1700,7 @@ describe('WorkflowActivationDispatchService', () => {
     expect(taskId).toBe('task-repo');
   });
 
-  it('treats branch-only workflow input as a feature branch and preserves the workspace default as base branch', async () => {
+  it('ignores branch-only workflow input and keeps the workspace branch policy', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -1812,7 +1803,6 @@ describe('WorkflowActivationDispatchService', () => {
               repository: {
                 repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
                 base_branch: 'main',
-                feature_branch: 'feature/hello-world',
                 git_user_name: 'Smoke Bot',
                 git_user_email: 'smoke@example.test',
               },

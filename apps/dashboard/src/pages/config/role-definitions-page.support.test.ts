@@ -18,6 +18,12 @@ describe('role definitions support helpers', () => {
         allowedTools: ['git_diff', 'git_diff', ' file_read '],
         capabilities: ['architecture', ' architecture ', 'research'],
         isActive: false,
+        executionContainer: {
+          image: '',
+          cpu: '',
+          memory: '',
+          pullPolicy: '',
+        },
       }),
     ).toEqual({
       name: 'architect',
@@ -27,6 +33,34 @@ describe('role definitions support helpers', () => {
       capabilities: ['architecture', 'research'],
       isActive: false,
     });
+  });
+
+  it('includes execution container overrides only when a role sets them', () => {
+    expect(
+      buildRolePayload({
+        name: 'developer',
+        description: '',
+        systemPrompt: '',
+        allowedTools: ['file_read'],
+        capabilities: ['coding'],
+        isActive: true,
+        executionContainer: {
+          image: 'agirunner-runtime-execution:large',
+          cpu: '2',
+          memory: '4Gi',
+          pullPolicy: 'always',
+        },
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        executionContainerConfig: {
+          image: 'agirunner-runtime-execution:large',
+          cpu: '2',
+          memory: '4Gi',
+          pullPolicy: 'always',
+        },
+      }),
+    );
   });
 
   it('creates a duplicate form that clears the name and preserves all other role fields', () => {

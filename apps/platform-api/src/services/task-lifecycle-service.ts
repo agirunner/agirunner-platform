@@ -20,6 +20,7 @@ import { WorkflowStateService } from './workflow-state-service.js';
 import { applyOutputStateDeclarations } from './task-output-storage.js';
 import type { HandoffService } from './handoff-service.js';
 import type { WorkItemContinuityService } from './work-item-continuity-service.js';
+import type { ExecutionContainerLeaseService } from './execution-container-lease-service.js';
 import {
   calculateRetryBackoffSeconds,
   readPersistedLifecyclePolicy,
@@ -107,6 +108,7 @@ interface TaskLifecycleDependencies {
     'clearReviewExpectation' | 'recordReviewRejected' | 'recordTaskCompleted'
   >;
   handoffService?: Pick<HandoffService, 'assertRequiredTaskHandoffBeforeCompletion'>;
+  executionContainerLeaseService?: Pick<ExecutionContainerLeaseService, 'releaseForTask'>;
 }
 
 const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
@@ -478,6 +480,14 @@ export class TaskLifecycleService {
                status = (CASE WHEN status = 'inactive' THEN 'inactive' ELSE 'idle' END)::agent_status
            WHERE tenant_id = $1 AND id = $2`,
           [identity.tenantId, task.assigned_agent_id],
+        );
+      }
+
+      if (options.clearAssignment && !updatedTask.is_orchestrator_task) {
+        await this.deps.executionContainerLeaseService?.releaseForTask(
+          identity.tenantId,
+          taskId,
+          client,
         );
       }
 

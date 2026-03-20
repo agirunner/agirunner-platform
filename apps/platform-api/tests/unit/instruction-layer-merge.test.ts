@@ -147,6 +147,18 @@ describe('TaskClaimService merges instruction layers into role_config.system_pro
         if (key === 'agent.llm_max_retries') {
           return { rowCount: 1, rows: [{ config_value: '5' }] };
         }
+        if (key === 'specialist_execution_default_image') {
+          return { rowCount: 1, rows: [{ config_value: 'agirunner-runtime-execution:local' }] };
+        }
+        if (key === 'specialist_execution_default_cpu') {
+          return { rowCount: 1, rows: [{ config_value: '1' }] };
+        }
+        if (key === 'specialist_execution_default_memory') {
+          return { rowCount: 1, rows: [{ config_value: '1Gi' }] };
+        }
+        if (key === 'specialist_execution_default_pull_policy') {
+          return { rowCount: 1, rows: [{ config_value: 'if-not-present' }] };
+        }
         return { rowCount: 0, rows: [] };
       }
       if (sql.includes("SET state = 'claimed'")) {

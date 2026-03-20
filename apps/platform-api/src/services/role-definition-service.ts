@@ -15,6 +15,15 @@ const createRoleSchema = z.object({
   capabilities: z.array(z.string()).default([]),
   escalationTarget: z.string().max(100).nullable().optional(),
   maxEscalationDepth: z.number().int().min(1).max(10).default(5),
+  executionContainerConfig: z
+    .object({
+      image: z.string().min(1).optional(),
+      cpu: z.string().min(1).optional(),
+      memory: z.string().min(1).optional(),
+      pullPolicy: z.enum(['always', 'if-not-present', 'never']).optional(),
+    })
+    .strict()
+    .optional(),
   isBuiltIn: z.boolean().default(false),
   isActive: z.boolean().default(true),
 });
@@ -36,6 +45,7 @@ interface RoleDefinitionRow {
   fallback_model?: string | null;
   verification_strategy: string | null;
   capabilities: string[];
+  execution_container_config?: Record<string, unknown> | null;
   escalation_target: string | null;
   max_escalation_depth: number;
   is_built_in: boolean;
@@ -85,8 +95,9 @@ export class RoleDefinitionService {
       `INSERT INTO role_definitions (
         tenant_id, name, description, system_prompt, allowed_tools,
         model_preference, verification_strategy,
-        capabilities, escalation_target, max_escalation_depth, is_built_in, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        capabilities, execution_container_config, escalation_target,
+        max_escalation_depth, is_built_in, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         tenantId,
@@ -97,6 +108,7 @@ export class RoleDefinitionService {
         validated.modelPreference ?? null,
         validated.verificationStrategy ?? null,
         validated.capabilities,
+        normalizeExecutionContainerConfig(validated.executionContainerConfig),
         validated.escalationTarget ?? null,
         validated.maxEscalationDepth,
         validated.isBuiltIn,
@@ -110,6 +122,10 @@ export class RoleDefinitionService {
   async updateRole(tenantId: string, id: string, input: UpdateRoleInput): Promise<RoleDefinitionRow> {
     const validated = updateRoleSchema.parse(input);
     const current = await this.getRoleById(tenantId, id);
+    const executionContainerConfig =
+      validated.executionContainerConfig === undefined
+        ? undefined
+        : normalizeExecutionContainerConfig(validated.executionContainerConfig);
 
     const setClauses: string[] = [];
     const values: unknown[] = [tenantId, id];
@@ -123,6 +139,7 @@ export class RoleDefinitionService {
       ['model_preference', validated.modelPreference],
       ['verification_strategy', validated.verificationStrategy],
       ['capabilities', validated.capabilities],
+      ['execution_container_config', executionContainerConfig],
       ['escalation_target', validated.escalationTarget],
       ['max_escalation_depth', validated.maxEscalationDepth],
       ['is_active', validated.isActive],
@@ -203,4 +220,35 @@ function sanitizeRoleDefinitionRow(row: RoleDefinitionRow): RoleDefinitionRow {
   };
   delete sanitized.fallback_model;
   return sanitized;
+}
+
+function normalizeExecutionContainerConfig(
+  value:
+    | {
+        image?: string;
+        cpu?: string;
+        memory?: string;
+        pullPolicy?: 'always' | 'if-not-present' | 'never';
+      }
+    | undefined,
+): Record<string, unknown> | null {
+  if (!value) {
+    return null;
+  }
+
+  const normalized: Record<string, unknown> = {};
+  if (typeof value.image === 'string' && value.image.trim().length > 0) {
+    normalized.image = value.image.trim();
+  }
+  if (typeof value.cpu === 'string' && value.cpu.trim().length > 0) {
+    normalized.cpu = value.cpu.trim();
+  }
+  if (typeof value.memory === 'string' && value.memory.trim().length > 0) {
+    normalized.memory = value.memory.trim();
+  }
+  if (typeof value.pullPolicy === 'string' && value.pullPolicy.trim().length > 0) {
+    normalized.pull_policy = value.pullPolicy.trim();
+  }
+
+  return Object.keys(normalized).length > 0 ? normalized : null;
 }

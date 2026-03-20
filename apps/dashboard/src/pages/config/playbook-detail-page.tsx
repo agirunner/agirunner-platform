@@ -329,7 +329,7 @@ export function PlaybookDetailPage(): JSX.Element {
               </p>
             </div>
             <div className="rounded-xl border border-border/70 bg-muted/15 p-4 text-sm text-muted md:col-span-2 xl:col-span-2">
-              Shared prompts, role prompts, and runtime defaults are configured elsewhere. This
+              Shared prompts, role prompts, and container defaults are configured elsewhere. This
               page owns the playbook outcome, process instructions, mandatory workflow rules, and
               any advanced overrides for this family.
             </div>

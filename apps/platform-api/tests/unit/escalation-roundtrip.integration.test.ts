@@ -37,6 +37,9 @@ describe('V2 escalation round-trip integration', () => {
       ['tasks.default_timeout_minutes', '30'],
       ['agent.max_iterations', '10'],
       ['agent.llm_max_retries', '5'],
+      ['global_max_execution_containers', '20'],
+      ['specialist_runtime_bootstrap_claim_timeout_seconds', '60'],
+      ['specialist_runtime_drain_grace_seconds', '15'],
       ['platform.workflow_activation_delay_ms', '10000'],
       ['platform.workflow_activation_heartbeat_interval_ms', '900000'],
       ['platform.workflow_activation_stale_after_ms', '300000'],
@@ -56,6 +59,22 @@ describe('V2 escalation round-trip integration', () => {
         configKey,
         configValue,
         configType: 'number',
+      });
+    }
+    for (const [configKey, configValue] of [
+      ['specialist_runtime_default_image', 'agirunner-runtime:local'],
+      ['specialist_runtime_default_cpu', '1'],
+      ['specialist_runtime_default_memory', '512Mi'],
+      ['specialist_runtime_default_pull_policy', 'if-not-present'],
+      ['specialist_execution_default_image', 'agirunner-runtime-execution:local'],
+      ['specialist_execution_default_cpu', '1'],
+      ['specialist_execution_default_memory', '1Gi'],
+      ['specialist_execution_default_pull_policy', 'if-not-present'],
+    ] as const) {
+      await runtimeDefaultsService.createDefault(identity.tenantId, {
+        configKey,
+        configValue,
+        configType: 'string',
       });
     }
     const modelCatalogService = new ModelCatalogService(db.pool);

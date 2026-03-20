@@ -93,46 +93,80 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'default_runtime_image',
+    configKey: 'global_max_execution_containers',
+    configValue: '20',
+    configType: 'number',
+    description: 'Hard ceiling on concurrently leased specialist execution containers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'specialist_runtime_default_image',
     configValue: 'agirunner-runtime:local',
     configType: 'string',
-    description:
-      'Default Docker image for runtime containers when the playbook does not specify one',
+    description: 'Default Docker image for generic specialist runtime containers',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'default_cpu',
+    configKey: 'specialist_runtime_default_cpu',
     configValue: '1',
     configType: 'string',
-    description: 'CPU allocation per container. Use "0" for unlimited.',
+    description: 'CPU allocation per specialist runtime container',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'default_memory',
-    configValue: '256m',
+    configKey: 'specialist_runtime_default_memory',
+    configValue: '512m',
     configType: 'string',
-    description: 'Default memory allocation for runtime containers',
+    description: 'Memory allocation per specialist runtime container',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'default_pull_policy',
+    configKey: 'specialist_runtime_default_pull_policy',
     configValue: 'if-not-present',
     configType: 'string',
-    description: 'Default image pull policy for runtime containers',
+    description: 'Default image pull policy for specialist runtime containers',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'default_idle_timeout_seconds',
-    configValue: '300',
-    configType: 'number',
-    description: 'Default idle timeout in seconds before a warm runtime is eligible for cleanup',
-  });
-
-  await service.upsertDefault(DEFAULT_TENANT_ID, {
-    configKey: 'default_grace_period',
+    configKey: 'specialist_runtime_bootstrap_claim_timeout_seconds',
     configValue: '30',
     configType: 'number',
-    description: 'Default grace period in seconds before forced container shutdown',
+    description: 'How long a new specialist runtime waits for work before self-terminating',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'specialist_runtime_drain_grace_seconds',
+    configValue: '30',
+    configType: 'number',
+    description: 'Grace period before a draining specialist runtime is forced down',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'specialist_execution_default_image',
+    configValue: 'agirunner-runtime-execution:local',
+    configType: 'string',
+    description: 'Default Docker image for specialist execution containers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'specialist_execution_default_cpu',
+    configValue: '1',
+    configType: 'string',
+    description: 'Default CPU allocation for specialist execution containers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'specialist_execution_default_memory',
+    configValue: '1Gi',
+    configType: 'string',
+    description: 'Default memory allocation for specialist execution containers',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'specialist_execution_default_pull_policy',
+    configValue: 'if-not-present',
+    configType: 'string',
+    description: 'Default image pull policy for specialist execution containers',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {

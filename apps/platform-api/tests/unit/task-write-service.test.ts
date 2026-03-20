@@ -717,7 +717,7 @@ describe('TaskWriteService', () => {
     expect(created.llm_max_retries).toBe(5);
   });
 
-  it('defaults workflow task execution context from the workflow repository settings', async () => {
+  it('defaults workflow task execution context from workspace storage only', async () => {
     let insertedEnvironment: Record<string, unknown> | null = null;
     let insertedBindings: string | null = null;
     const pool = {
@@ -814,7 +814,7 @@ describe('TaskWriteService', () => {
     expect(insertedEnvironment).toEqual(
       expect.objectContaining({
         repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-        branch: 'smoke/test/fix',
+        branch: 'main',
         base_branch: 'main',
         git_user_name: 'Smoke Bot',
         git_user_email: 'smoke@example.com',
@@ -830,7 +830,7 @@ describe('TaskWriteService', () => {
     ]);
   });
 
-  it('treats branch-only workflow parameters as feature branch work while keeping the workspace default as base branch', async () => {
+  it('ignores branch-only workflow parameters and keeps the workspace branch policy', async () => {
     let insertedEnvironment: Record<string, unknown> | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -925,7 +925,7 @@ describe('TaskWriteService', () => {
     expect(insertedEnvironment).toEqual(
       expect.objectContaining({
         repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-        branch: 'feature/hello-world',
+        branch: 'main',
         base_branch: 'main',
         git_user_name: 'Smoke Bot',
         git_user_email: 'smoke@example.com',
@@ -1388,7 +1388,7 @@ describe('TaskWriteService', () => {
     );
   });
 
-  it('defaults workflow task repository execution context from workflow parameters', async () => {
+  it('does not inherit repository execution context from workflow parameters', async () => {
     let insertedEnvironment: Record<string, unknown> | null = null;
     let insertedBindings: string | null = null;
     const pool = {
@@ -1481,21 +1481,11 @@ describe('TaskWriteService', () => {
 
     expect(insertedEnvironment).toEqual({
       repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-      branch: 'smoke/test-branch',
+      branch: 'main',
       base_branch: 'main',
-      git_user_name: 'Smoke Bot',
-      git_user_email: 'smoke@example.test',
       template: 'execution-workspace',
     });
-    expect(JSON.parse(insertedBindings ?? '[]')).toEqual([
-      {
-        type: 'git_repository',
-        repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
-        credentials: {
-          token: 'secret:GITHUB_PAT',
-        },
-      },
-    ]);
+    expect(JSON.parse(insertedBindings ?? '[]')).toEqual([]);
     expect(result.environment).toEqual(insertedEnvironment);
   });
 

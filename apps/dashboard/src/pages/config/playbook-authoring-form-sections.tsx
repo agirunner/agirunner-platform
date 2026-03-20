@@ -27,12 +27,10 @@ import {
   type BoardColumnDraft,
   type ParameterDraft,
   type PlaybookAuthoringDraft,
-  type RuntimePoolDraft,
 } from './playbook-authoring-support.js';
 import { canMoveDraftItem, moveDraftItem } from './playbook-authoring-reorder.js';
 import {
   LabeledField,
-  RuntimePoolFields,
   SectionCard,
   ToggleField,
 } from './playbook-authoring-form-fields.js';
@@ -62,8 +60,6 @@ const PARAMETER_CATEGORY_OPTIONS = [
 
 const WORKSPACE_MAPPING_OPTIONS = [
   '',
-  'workspace.repository_url',
-  'workspace.settings.default_branch',
   'workspace.credentials.git_token',
 ];
 
@@ -971,48 +967,6 @@ export function LaunchInputsSection(
   );
 }
 
-export function RuntimeSection(props: SectionProps): JSX.Element {
-  return (
-    <SectionCard
-      id="playbook-runtime-section"
-      title="Specialist Runtime Override"
-      description="This is an uncommon advanced override. Leave it collapsed unless this workflow truly needs different specialist runtime posture."
-    >
-      <details>
-        <summary className="cursor-pointer text-sm font-medium text-foreground">
-          Specialist runtime override
-        </summary>
-        <div className="mt-4">
-          <RuntimePoolFields
-            title="Specialist runtime override"
-            pool={props.draft.runtime.specialist_pool}
-            canDisable
-            onEnabledChange={(enabled) =>
-              props.onChange((current) => ({
-                ...current,
-                runtime: {
-                  specialist_pool: { ...current.runtime.specialist_pool, enabled },
-                },
-              }))
-            }
-            onChange={(field, value) =>
-              props.onChange((current) => ({
-                ...current,
-                runtime: {
-                  specialist_pool: {
-                    ...current.runtime.specialist_pool,
-                    [field]: value,
-                  } as RuntimePoolDraft,
-                },
-              }))
-            }
-          />
-        </div>
-      </details>
-    </SectionCard>
-  );
-}
-
 export function WorkflowRulesSection(
   props: SectionProps & { availableRoleNames?: string[] },
 ): JSX.Element {
@@ -1031,7 +985,6 @@ export function AdvancedWorkflowSection(props: SectionProps): JSX.Element {
     <div className="space-y-4">
       <BoardColumnsSection draft={props.draft} onChange={props.onChange} />
       <OrchestratorSection draft={props.draft} onChange={props.onChange} />
-      <RuntimeSection draft={props.draft} onChange={props.onChange} />
     </div>
   );
 }

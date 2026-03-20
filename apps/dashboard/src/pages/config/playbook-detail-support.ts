@@ -2,7 +2,6 @@ import type { DashboardPlaybookRecord } from '../../lib/api.js';
 import {
   hydratePlaybookAuthoringDraft,
   type PlaybookAuthoringDraft,
-  type RuntimePoolDraft,
 } from './playbook-authoring-support.js';
 
 export interface PlaybookRevisionDiffRow {
@@ -17,7 +16,6 @@ export interface PlaybookControlSummary {
   process: string;
   rules: string;
   parallelism: string;
-  runtime: string;
   checkpoints: string;
   parameters: string;
 }
@@ -64,7 +62,6 @@ export function buildPlaybookRevisionDiff(
       formatParallelism(currentDraft),
       formatParallelism(comparedDraft),
     ),
-    diffRow('Runtime pools', formatRuntimePools(currentDraft), formatRuntimePools(comparedDraft)),
   ];
 }
 
@@ -77,7 +74,6 @@ export function summarizePlaybookControls(
     process: formatProcessInstructions(draft),
     rules: formatRules(draft),
     parallelism: formatParallelism(draft),
-    runtime: formatRuntimePools(draft),
     checkpoints: formatCheckpoints(draft),
     parameters: formatParameters(draft),
   };
@@ -221,18 +217,4 @@ function formatParallelism(draft: PlaybookAuthoringDraft): string {
       ? 'parallel work items on'
       : 'parallel work items off',
   ].join(' • ');
-}
-
-function formatRuntimePools(draft: PlaybookAuthoringDraft): string {
-  return `spec ${formatRuntimePool(draft.runtime.specialist_pool)}`;
-}
-
-function formatRuntimePool(pool: RuntimePoolDraft): string {
-  if (pool.enabled === false) {
-    return 'inherit';
-  }
-  const mode = pool.pool_mode || 'inherit';
-  const capacity = pool.max_runtimes || 'inherit';
-  const image = pool.image || 'default image';
-  return `${mode} • ${capacity} runtimes • ${image}`;
 }

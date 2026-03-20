@@ -152,7 +152,23 @@ export interface DashboardWorkspaceCredentialInput {
   webhook_secret_configured?: boolean;
 }
 
+export type DashboardWorkspaceStorageType =
+  | 'git_remote'
+  | 'host_directory'
+  | 'workspace_artifacts';
+
+export interface DashboardWorkspaceStorageRecord extends Record<string, unknown> {
+  repository_url?: string | null;
+  default_branch?: string | null;
+  git_user_name?: string | null;
+  git_user_email?: string | null;
+  host_path?: string | null;
+  read_only?: boolean | null;
+}
+
 export type DashboardWorkspaceSettingsRecord = Record<string, unknown> & {
+  workspace_storage_type?: DashboardWorkspaceStorageType | null;
+  workspace_storage?: DashboardWorkspaceStorageRecord;
   default_branch?: string | null;
   git_user_name?: string | null;
   git_user_email?: string | null;
@@ -162,6 +178,8 @@ export type DashboardWorkspaceSettingsRecord = Record<string, unknown> & {
 };
 
 export type DashboardWorkspaceSettingsInput = Record<string, unknown> & {
+  workspace_storage_type?: DashboardWorkspaceStorageType | null;
+  workspace_storage?: DashboardWorkspaceStorageRecord;
   default_branch?: string | null;
   git_user_name?: string | null;
   git_user_email?: string | null;

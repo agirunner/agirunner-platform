@@ -101,6 +101,18 @@ function runtimeDefaultQueryResult(sql: string, params?: unknown[]) {
   if (key === 'agent.llm_max_retries') {
     return { rowCount: 1, rows: [{ config_value: '5' }] };
   }
+  if (key === 'specialist_execution_default_image') {
+    return { rowCount: 1, rows: [{ config_value: 'agirunner-runtime-execution:local' }] };
+  }
+  if (key === 'specialist_execution_default_cpu') {
+    return { rowCount: 1, rows: [{ config_value: '1' }] };
+  }
+  if (key === 'specialist_execution_default_memory') {
+    return { rowCount: 1, rows: [{ config_value: '1Gi' }] };
+  }
+  if (key === 'specialist_execution_default_pull_policy') {
+    return { rowCount: 1, rows: [{ config_value: 'if-not-present' }] };
+  }
   return { rowCount: 0, rows: [] };
 }
 
@@ -189,12 +201,9 @@ describe('TaskClaimService', () => {
           };
         }
         if (sql.includes("FROM runtime_defaults")) {
-          const key = params?.[1];
-          if (key === 'agent.max_iterations') {
-            return { rowCount: 1, rows: [{ config_value: '100' }] };
-          }
-          if (key === 'agent.llm_max_retries') {
-            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+          if (runtimeDefault) {
+            return runtimeDefault;
           }
           return { rowCount: 0, rows: [] };
         }
@@ -252,6 +261,306 @@ describe('TaskClaimService', () => {
     expect(task?.max_iterations).toBe(100);
     expect(task?.llm_max_retries).toBe(5);
     expect(task?.loop_mode).toBe('reactive');
+  });
+
+  it('attaches the effective execution container contract to claimed specialist tasks', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-execution-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-execution-contract',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.execution_container).toEqual({
+      image: 'agirunner-runtime-execution:local',
+      cpu: '1',
+      memory: '1Gi',
+      pull_policy: 'if-not-present',
+    });
+  });
+
+  it('holds specialist tasks in ready state when execution-container capacity is full', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-cap-blocked',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const executionContainerLeaseService = {
+      reserveForTask: vi.fn(async () => ({
+        reserved: false,
+        active: 20,
+        limit: 20,
+        leaseId: null,
+      })),
+    };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      executionContainerLeaseService: executionContainerLeaseService as never,
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task).toBeNull();
+    expect(executionContainerLeaseService.reserveForTask).toHaveBeenCalledOnce();
+    expect(
+      client.query.mock.calls.some(
+        (call) =>
+          typeof call[0] === 'string'
+          && (call[0] as string).includes("SET state = 'claimed'"),
+      ),
+    ).toBe(false);
+  });
+
+  it('applies role execution-container overrides on top of specialist defaults', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-role-execution-override',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (
+          sql.includes('SELECT execution_container_config FROM role_definitions')
+          || sql.includes('SELECT execution_container_config')
+        ) {
+          return {
+            rowCount: 1,
+            rows: [{
+              execution_container_config: {
+                image: 'agirunner-runtime-execution:role',
+                cpu: '3',
+                pull_policy: 'never',
+              },
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-role-execution-override',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {},
+              metadata: {},
+              is_orchestrator_task: false,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      capabilities: ['coding'],
+    });
+
+    expect(task?.execution_container).toEqual({
+      image: 'agirunner-runtime-execution:role',
+      cpu: '3',
+      memory: '1Gi',
+      pull_policy: 'never',
+    });
   });
 
   it('attaches provider-native search mode when the role grants native_search on a supported model', async () => {
@@ -2444,12 +2753,9 @@ describe('TaskClaimService', () => {
           };
         }
         if (sql.includes("FROM runtime_defaults")) {
-          const key = params?.[1];
-          if (key === 'agent.max_iterations') {
-            return { rowCount: 1, rows: [{ config_value: '100' }] };
-          }
-          if (key === 'agent.llm_max_retries') {
-            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+          if (runtimeDefault) {
+            return runtimeDefault;
           }
           return { rowCount: 0, rows: [] };
         }
@@ -2593,12 +2899,9 @@ describe('TaskClaimService', () => {
           };
         }
         if (sql.includes("FROM runtime_defaults")) {
-          const key = params?.[1];
-          if (key === 'agent.max_iterations') {
-            return { rowCount: 1, rows: [{ config_value: '100' }] };
-          }
-          if (key === 'agent.llm_max_retries') {
-            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+          if (runtimeDefault) {
+            return runtimeDefault;
           }
           return { rowCount: 0, rows: [] };
         }
@@ -2706,12 +3009,9 @@ describe('TaskClaimService', () => {
           };
         }
         if (sql.includes("FROM runtime_defaults")) {
-          const key = params?.[1];
-          if (key === 'agent.max_iterations') {
-            return { rowCount: 1, rows: [{ config_value: '100' }] };
-          }
-          if (key === 'agent.llm_max_retries') {
-            return { rowCount: 1, rows: [{ config_value: '5' }] };
+          const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+          if (runtimeDefault) {
+            return runtimeDefault;
           }
           return { rowCount: 0, rows: [] };
         }

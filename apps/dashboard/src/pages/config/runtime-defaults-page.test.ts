@@ -9,12 +9,12 @@ function readSource(fileName: string) {
 }
 
 describe('runtime defaults page source', () => {
-  it('exposes the supported runtime configuration sections and agent fields through structured schema exports', () => {
+  it('exposes the three-container runtime schema through structured exports', () => {
     expect(SECTION_DEFINITIONS.map((section) => section.key)).toEqual([
-      'containers',
+      'runtime_containers',
+      'execution_containers',
       'task_limits',
-      'fleet',
-      'pool_management',
+      'capacity_limits',
       'runtime_throughput',
       'process_logging',
       'server_timeouts',
@@ -22,7 +22,6 @@ describe('runtime defaults page source', () => {
       'llm_transport',
       'tool_timeouts',
       'container_timeouts',
-      'container_reuse',
       'lifecycle_timeouts',
       'task_timeouts',
       'connected_platform',
@@ -42,85 +41,44 @@ describe('runtime defaults page source', () => {
       'orchestrator_context',
       'agent_safeguards',
     ]);
+
     expect(FIELD_DEFINITIONS.map((field) => field.key)).toEqual(
       expect.arrayContaining([
-        'default_runtime_image',
-        'default_idle_timeout_seconds',
-        'default_pull_policy',
-        'pool.enabled',
-        'pool.pool_size',
-        'pool.default_image',
+        'specialist_runtime_default_image',
+        'specialist_runtime_default_cpu',
+        'specialist_runtime_default_memory',
+        'specialist_runtime_default_pull_policy',
+        'specialist_execution_default_image',
+        'specialist_execution_default_cpu',
+        'specialist_execution_default_memory',
+        'specialist_execution_default_pull_policy',
+        'global_max_runtimes',
+        'global_max_execution_containers',
+        'specialist_runtime_bootstrap_claim_timeout_seconds',
+        'specialist_runtime_drain_grace_seconds',
         'queue.max_concurrency',
         'queue.max_depth',
-        'log.level',
-        'server.shutdown_timeout_seconds',
-        'api.events_heartbeat_seconds',
-        'llm.http_timeout_seconds',
-        'tools.git_push_timeout_seconds',
-        'tools.shell_exec_timeout_min_seconds',
-        'tools.shell_exec_timeout_max_seconds',
-        'lifecycle.healthcheck_retry_delay_seconds',
-        'tasks.default_timeout_minutes',
         'platform.claim_poll_seconds',
-        'platform.api_request_timeout_seconds',
-        'platform.log_ingest_timeout_seconds',
-        'platform.log_flush_interval_ms',
-        'platform.event_stream_keepalive_interval_ms',
-        'platform.worker_reconnect_min_ms',
-        'platform.worker_reconnect_max_ms',
-        'platform.worker_websocket_ping_interval_ms',
-        'platform.cancellation_report_timeout_seconds',
-        'platform.self_terminate_cleanup_timeout_seconds',
-        'container.max_reuse_age_seconds',
-        'container.max_reuse_tasks',
-        'platform.heartbeat_max_failures',
         'platform.drain_timeout_seconds',
-        'platform.workflow_activation_delay_ms',
-        'platform.task_cancel_signal_grace_period_ms',
-        'container_manager.reconcile_interval_seconds',
-        'container_manager.hung_runtime_stale_after_seconds',
-        'container_manager.hung_runtime_stop_grace_period_seconds',
-        'container_manager.log_flush_interval_ms',
-        'container_manager.docker_event_reconnect_backoff_ms',
-        'container_manager.crash_log_capture_timeout_seconds',
-        'container_manager.starvation_threshold_seconds',
-        'container_manager.runtime_orphan_grace_cycles',
-        'pool.refresh_interval_seconds',
-        'platform.worker_dispatch_ack_timeout_ms',
-        'platform.worker_key_expiry_ms',
-        'platform.agent_heartbeat_threshold_multiplier',
-        'platform.worker_offline_threshold_multiplier',
-        'platform.lifecycle_dispatch_loop_interval_ms',
-        'platform.heartbeat_prune_interval_ms',
-        'platform.webhook_max_attempts',
-        'platform.webhook_retry_base_delay_ms',
-        'workspace.clone_timeout_seconds',
-        'workspace.clone_max_retries',
-        'workspace.clone_backoff_base_seconds',
-        'workspace.snapshot_interval',
-        'workspace.snapshot_max_per_task',
-        'capture.push_retries',
-        'capture.push_timeout_seconds',
-        'secrets.vault_timeout_seconds',
-        'subagent.max_concurrent',
-        'subagent.max_total',
-        'subagent.max_depth',
-        'subagent.default_timeout_seconds',
-        'agent.history_max_messages',
-        'agent.context_compaction_threshold',
-        'agent.specialist_context_strategy',
-        'agent.specialist_context_warning_threshold',
-        'agent.specialist_prepare_for_compaction_enabled',
-        'agent.orchestrator_context_compaction_threshold',
-        'agent.orchestrator_context_strategy',
-        'agent.orchestrator_finish_checkpoint_enabled',
-        'agent.orchestrator_emergency_compaction_threshold',
         'agent.max_iterations',
         'agent.llm_max_retries',
       ]),
     );
+
     expect(FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
       expect.arrayContaining([
+        'default_runtime_image',
+        'default_cpu',
+        'default_memory',
+        'default_pull_policy',
+        'default_idle_timeout_seconds',
+        'default_grace_period',
+        'pool.enabled',
+        'pool.pool_size',
+        'pool.default_image',
+        'pool.refresh_interval_seconds',
+        'container.max_reuse_age_seconds',
+        'container.max_reuse_tasks',
         'tools.web_search_provider',
         'tools.web_search_base_url',
         'tools.web_search_api_key_secret_ref',
@@ -134,21 +92,19 @@ describe('runtime defaults page source', () => {
     expect(source).toContain('SECTION_DEFINITIONS.map');
     expect(source).toContain('expandedSections');
     expect(source).toContain('buildValidationErrors');
-    expect(source).toContain('summarizeRuntimeDefaults');
     expect(source).toContain('summarizeRuntimeDefaultSections');
     expect(source).toContain('sticky bottom-4');
     expect(source).toContain('Save runtime defaults');
-    expect(source).toContain('Saving defaults drains connected runtimes');
+    expect(source).toContain('New specialist runtimes and execution containers pick up updated defaults as they start.');
     expect(source).toContain('className="space-y-6 p-6"');
     expect(source).toContain('runtime-defaults-');
     expect(source).toContain('ActiveRuntimeImageCard');
     expect(source).toContain('BuildHistoryCard');
     expect(source).toContain('RuntimeManagementCard');
     expect(source).not.toContain('Save readiness');
-    expect(source).not.toContain('Section outline');
-    expect(source).not.toContain('max-w-7xl');
-    expect(source).not.toContain('xl:grid-cols-[minmax(0,1fr)_320px]');
-    expect(source).not.toContain('JSON.parse');
+    expect(source).not.toContain('Configured overrides');
+    expect(source).not.toContain('Save blockers');
+    expect(source).not.toContain('Warm pools');
   });
 
   it('guards against unsaved changes via beforeunload', () => {

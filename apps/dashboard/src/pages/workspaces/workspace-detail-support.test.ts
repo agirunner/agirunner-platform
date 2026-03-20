@@ -106,14 +106,14 @@ describe('workspace detail support', () => {
       expect.arrayContaining([
         expect.objectContaining({ label: 'Lifecycle', value: 'Active' }),
         expect.objectContaining({ label: 'Knowledge base', value: '5 entries' }),
-        expect.objectContaining({ label: 'Automation', value: 'Verified repo' }),
-        expect.objectContaining({ label: 'Repository', value: 'Linked' }),
+        expect.objectContaining({ label: 'Automation', value: 'Schedules only' }),
+        expect.objectContaining({ label: 'Storage', value: 'Git Remote' }),
         expect.objectContaining({ label: 'Delivery', value: '7 workflows' }),
       ]),
     );
     expect(overview.packets.map((packet) => packet.value)).not.toContain('Ready');
     expect(overview.packets.find((packet) => packet.label === 'Automation')?.detail).toContain(
-      'github',
+      'Inbound hooks',
     );
     expect(overview.packets.find((packet) => packet.label === 'Delivery')?.detail).toContain(
       '2 active',
@@ -156,12 +156,12 @@ describe('workspace detail support', () => {
 
     expect(headerState.mode).toBe('compact');
     expect(headerState.activeTab.label).toBe('Settings');
-    expect(headerState.description).toContain('repository defaults');
+    expect(headerState.description).toContain('storage configuration');
     expect(headerState.contextPills).toEqual([]);
     expect(headerState.quickActions).toEqual([]);
   });
 
-  it('builds a settings overview from workspace posture and repository defaults', () => {
+  it('builds a settings overview from workspace posture and storage defaults', () => {
     const overview = buildWorkspaceSettingsOverview({
       id: 'workspace-1',
       name: 'Release automation',
@@ -182,7 +182,7 @@ describe('workspace detail support', () => {
     expect(overview.packets).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ label: 'Stored settings', value: '3 entries' }),
-        expect.objectContaining({ label: 'Repository link', value: 'Linked' }),
+        expect.objectContaining({ label: 'Workspace storage', value: 'Git Remote' }),
       ]),
     );
     expect(overview.packets.map((packet) => packet.label)).not.toContain('Workspace Context');

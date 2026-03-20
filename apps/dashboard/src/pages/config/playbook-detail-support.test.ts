@@ -69,19 +69,11 @@ describe('playbook detail support', () => {
         ],
         parameters: [
           {
-            name: 'repository_url',
+            name: 'goal',
             type: 'string',
-            category: 'repository',
-            maps_to: 'workspace.repository_url',
+            category: 'input',
           },
         ],
-        runtime: {
-          specialist_pool: {
-            pool_mode: 'warm',
-            max_runtimes: 3,
-            image: 'agirunner-runtime:stable',
-          },
-        },
       },
     });
 
@@ -92,8 +84,6 @@ describe('playbook detail support', () => {
     expect(snapshot).toContain('"slug": "delivery-playbook"');
     expect(snapshot).toContain('"entry_column_id": "active"');
     expect(snapshot).toContain('"guidance": "Require a final human check"');
-    expect(snapshot).toContain('"maps_to": "workspace.repository_url"');
-    expect(snapshot).toContain('"image": "agirunner-runtime:stable"');
   });
 });
 
@@ -118,18 +108,6 @@ function createPlaybook(
       max_active_tasks: 4,
       max_active_tasks_per_work_item: 2,
       allow_parallel_work_items: true,
-    },
-    runtime: {
-      pool_mode: 'warm',
-      max_runtimes: 2,
-      orchestrator_pool: {
-        pool_mode: 'warm',
-        max_runtimes: 1,
-      },
-      specialist_pool: {
-        pool_mode: 'cold',
-        max_runtimes: 4,
-      },
     },
     parameters: [{ name: 'goal', type: 'string', required: true }],
   };
@@ -166,10 +144,6 @@ function mergeDefinition(
     orchestrator: {
       ...(base.orchestrator as Record<string, unknown>),
       ...((overrides.orchestrator as Record<string, unknown> | undefined) ?? {}),
-    },
-    runtime: {
-      ...(base.runtime as Record<string, unknown>),
-      ...((overrides.runtime as Record<string, unknown> | undefined) ?? {}),
     },
   };
 }

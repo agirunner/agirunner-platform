@@ -37,6 +37,8 @@ func TestParseMemoryLimit(t *testing.T) {
 		{name: "emptyReturnsZero", input: "", expected: 0},
 		{name: "megabytes", input: "512m", expected: 512 * 1024 * 1024},
 		{name: "gigabytes", input: "1g", expected: 1024 * 1024 * 1024},
+		{name: "gibibytes", input: "1Gi", expected: 1024 * 1024 * 1024},
+		{name: "mebibytes", input: "256Mi", expected: 256 * 1024 * 1024},
 		{name: "kilobytes", input: "1024k", expected: 1024 * 1024},
 		{name: "rawBytes", input: "1073741824", expected: 1073741824},
 		{name: "invalidReturnsZero", input: "xyz", expected: 0},

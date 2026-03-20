@@ -22,9 +22,17 @@ export const BOOLEAN_OPTIONS = ['true', 'false'] as const;
 
 const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
   {
-    key: 'containers',
-    title: 'Agent container defaults',
-    description: 'Default image and resource limits applied to agent containers.',
+    key: 'runtime_containers',
+    title: 'Runtime container defaults',
+    description:
+      'Default image and resource limits for short-lived specialist runtimes that host the agent loop.',
+    defaultExpanded: true,
+  },
+  {
+    key: 'execution_containers',
+    title: 'Execution container defaults',
+    description:
+      'Default image and resource limits for always-cold specialist execution containers.',
     defaultExpanded: true,
   },
   {
@@ -32,6 +40,13 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     title: 'Task limits',
     description:
       'Keep the default hard stop on task iterations visible so runaway loops are easy to catch early.',
+    defaultExpanded: true,
+  },
+  {
+    key: 'capacity_limits',
+    title: 'Capacity limits',
+    description:
+      'Global ceilings for specialist runtimes and specialist execution containers. When a cap is reached, new work waits for a free slot.',
     defaultExpanded: true,
   },
   {
@@ -52,69 +67,75 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
     description:
       'Control repetition detection, intervention limits, and hard iteration ceilings for agent loops.',
   },
-  {
-    key: 'fleet',
-    title: 'Fleet limits',
-    description: 'Global concurrency and capacity settings that affect all playbooks.',
-    defaultExpanded: true,
-  },
 ];
 
 const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
-    key: 'default_runtime_image',
-    label: 'Runtime image',
-    description: 'Docker image used for agent containers unless a playbook overrides it.',
+    key: 'specialist_runtime_default_image',
+    label: 'Specialist runtime image',
+    description: 'Docker image used for short-lived specialist runtimes.',
     configType: 'string',
     placeholder: 'agirunner-runtime:local',
-    section: 'containers',
+    section: 'runtime_containers',
   },
   {
-    key: 'default_cpu',
-    label: 'Default CPU allocation',
-    description: 'CPU allocation per container. Use 0 only when you intentionally want no limit.',
+    key: 'specialist_runtime_default_cpu',
+    label: 'Specialist runtime CPU',
+    description: 'CPU allocation per specialist runtime container.',
     configType: 'string',
     placeholder: '1',
-    section: 'containers',
+    section: 'runtime_containers',
   },
   {
-    key: 'default_memory',
-    label: 'Default memory allocation',
-    description: 'Memory allocation per container, for example 512m or 1g.',
+    key: 'specialist_runtime_default_memory',
+    label: 'Specialist runtime memory',
+    description: 'Memory allocation per specialist runtime container, for example 512m or 1Gi.',
     configType: 'string',
     placeholder: '512m',
-    section: 'containers',
+    section: 'runtime_containers',
   },
   {
-    key: 'default_pull_policy',
-    label: 'Image pull policy',
-    description: 'When the runtime should pull container images from the registry.',
+    key: 'specialist_runtime_default_pull_policy',
+    label: 'Specialist runtime pull policy',
+    description: 'When specialist runtime images should be pulled from the registry.',
     configType: 'string',
     placeholder: 'if-not-present',
-    section: 'containers',
+    section: 'runtime_containers',
     options: PULL_POLICY_OPTIONS,
   },
   {
-    key: 'default_idle_timeout_seconds',
-    label: 'Idle timeout (seconds)',
-    description: 'How long an idle warm runtime may sit before the fleet can clean it up.',
-    configType: 'number',
-    placeholder: '300',
-    section: 'containers',
-    inputMode: 'numeric',
-    min: 0,
-    step: 1,
+    key: 'specialist_execution_default_image',
+    label: 'Execution image',
+    description: 'Docker image used for always-cold specialist execution containers.',
+    configType: 'string',
+    placeholder: 'agirunner-runtime-execution:local',
+    section: 'execution_containers',
   },
   {
-    key: 'default_grace_period',
-    label: 'Grace period (seconds)',
-    description: 'How long a runtime gets to finish work before forced shutdown.',
-    configType: 'number',
-    placeholder: '30',
-    section: 'containers',
-    inputMode: 'numeric',
-    min: 1,
-    step: 1,
+    key: 'specialist_execution_default_cpu',
+    label: 'Execution CPU',
+    description: 'CPU allocation per specialist execution container.',
+    configType: 'string',
+    placeholder: '1',
+    section: 'execution_containers',
+  },
+  {
+    key: 'specialist_execution_default_memory',
+    label: 'Execution memory',
+    description:
+      'Memory allocation per specialist execution container, for example 1Gi or 2Gi.',
+    configType: 'string',
+    placeholder: '1Gi',
+    section: 'execution_containers',
+  },
+  {
+    key: 'specialist_execution_default_pull_policy',
+    label: 'Execution pull policy',
+    description: 'When specialist execution images should be pulled from the registry.',
+    configType: 'string',
+    placeholder: 'if-not-present',
+    section: 'execution_containers',
+    options: PULL_POLICY_OPTIONS,
   },
   {
     key: 'agent.history_max_messages',
@@ -407,11 +428,23 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'global_max_runtimes',
-    label: 'Global runtime cap',
-    description: 'Maximum concurrent agent containers across all playbooks.',
+    label: 'Max specialist runtimes',
+    description: 'Maximum concurrent short-lived specialist runtime containers.',
     configType: 'number',
     placeholder: '10',
-    section: 'fleet',
+    section: 'capacity_limits',
+    inputMode: 'numeric',
+    min: 1,
+    step: 1,
+  },
+  {
+    key: 'global_max_execution_containers',
+    label: 'Max execution containers',
+    description:
+      'Maximum concurrent leased specialist execution containers. New specialist work waits when this cap is full.',
+    configType: 'number',
+    placeholder: '20',
+    section: 'capacity_limits',
     inputMode: 'numeric',
     min: 1,
     step: 1,
@@ -419,16 +452,15 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
 ];
 
 export const SECTION_DEFINITIONS: SectionDefinition[] = [
-  ...BASE_SECTION_DEFINITIONS.slice(0, 2),
-  ...BASE_SECTION_DEFINITIONS.slice(5, 6),
+  ...BASE_SECTION_DEFINITIONS.slice(0, 4),
   ...RUNTIME_OPERATION_SECTION_DEFINITIONS,
-  ...BASE_SECTION_DEFINITIONS.slice(2, 5),
+  ...BASE_SECTION_DEFINITIONS.slice(4),
 ];
 
 export const FIELD_DEFINITIONS: FieldDefinition[] = [
-  ...BASE_FIELD_DEFINITIONS.slice(0, 5),
+  ...BASE_FIELD_DEFINITIONS.slice(0, 8),
   ...RUNTIME_OPERATION_FIELD_DEFINITIONS,
-  ...BASE_FIELD_DEFINITIONS.slice(5),
+  ...BASE_FIELD_DEFINITIONS.slice(8),
 ];
 
 export function fieldsForSection(sectionKey: FieldDefinition['section']): FieldDefinition[] {

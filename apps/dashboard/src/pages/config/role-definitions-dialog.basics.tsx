@@ -29,6 +29,8 @@ import type {
 } from './role-definitions-page.support.js';
 import { ReasoningControl } from './role-definitions-orchestrator.dialog-shared.js';
 
+const PULL_POLICY_OPTIONS = ['always', 'if-not-present', 'never'] as const;
+
 export function RoleBasicsSection(props: {
   form: RoleFormState;
   setForm: Dispatch<SetStateAction<RoleFormState>>;
@@ -173,6 +175,102 @@ export function RoleModelAssignmentSection(props: {
             ? `Model catalog unavailable: ${props.error}.`
             : 'Syncs with LLM Providers. Workflow and workspace overrides can supersede.'}
         </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+export function RoleExecutionContainerSection(props: {
+  form: RoleFormState;
+  setForm: Dispatch<SetStateAction<RoleFormState>>;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Execution container override</CardTitle>
+        <CardDescription>
+          Override the default specialist execution container for this role. Leave fields blank to inherit the system defaults from Runtimes.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4 md:grid-cols-2">
+        <label className="grid gap-2 text-sm md:col-span-2">
+          <span className="font-medium">Image</span>
+          <Input
+            value={props.form.executionContainer.image}
+            onChange={(event) =>
+              props.setForm((current) => ({
+                ...current,
+                executionContainer: {
+                  ...current.executionContainer,
+                  image: event.target.value,
+                },
+              }))
+            }
+            placeholder="agirunner-runtime-execution:local"
+          />
+          <span className="text-xs text-muted">
+            Blank means this role uses the default specialist execution image.
+          </span>
+        </label>
+        <label className="grid gap-2 text-sm">
+          <span className="font-medium">CPU</span>
+          <Input
+            value={props.form.executionContainer.cpu}
+            onChange={(event) =>
+              props.setForm((current) => ({
+                ...current,
+                executionContainer: {
+                  ...current.executionContainer,
+                  cpu: event.target.value,
+                },
+              }))
+            }
+            placeholder="1"
+          />
+        </label>
+        <label className="grid gap-2 text-sm">
+          <span className="font-medium">Memory</span>
+          <Input
+            value={props.form.executionContainer.memory}
+            onChange={(event) =>
+              props.setForm((current) => ({
+                ...current,
+                executionContainer: {
+                  ...current.executionContainer,
+                  memory: event.target.value,
+                },
+              }))
+            }
+            placeholder="1Gi"
+          />
+        </label>
+        <label className="grid gap-2 text-sm md:col-span-2">
+          <span className="font-medium">Pull policy</span>
+          <Select
+            value={props.form.executionContainer.pullPolicy || '__inherit__'}
+            onValueChange={(value) =>
+              props.setForm((current) => ({
+                ...current,
+                executionContainer: {
+                  ...current.executionContainer,
+                  pullPolicy: value === '__inherit__' ? '' : value,
+                },
+              }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Inherit system default" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__inherit__">Inherit system default</SelectItem>
+              {PULL_POLICY_OPTIONS.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
       </CardContent>
     </Card>
   );

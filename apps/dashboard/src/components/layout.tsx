@@ -14,7 +14,6 @@ import {
   FileText,
   FolderOpen,
   Gauge,
-  HardDrive,
   Key,
   LayoutDashboard,
   Link2,
@@ -134,10 +133,8 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Server,
     items: [
       { label: 'Runtimes', href: '/config/runtimes', icon: Server },
-      { label: 'Workers', href: '/fleet/workers', icon: Server },
       { label: 'Agents', href: '/fleet/agents', icon: Users },
       { label: 'Docker', href: '/fleet/docker', icon: Container },
-      { label: 'Warm Pools', href: '/fleet/warm-pools', icon: HardDrive },
     ],
   },
   {

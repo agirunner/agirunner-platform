@@ -24,6 +24,7 @@ import { WorkItemContinuityService } from './work-item-continuity-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowBudgetService } from './workflow-budget-service.js';
 import { HandoffService } from './handoff-service.js';
+import { ExecutionContainerLeaseService } from './execution-container-lease-service.js';
 
 export class TaskService {
   private readonly queryService: TaskQueryService;
@@ -159,6 +160,7 @@ export class TaskService {
     });
     const workItemContinuityService = new WorkItemContinuityService(pool, logService);
     const handoffService = new HandoffService(pool, logService);
+    const executionContainerLeaseService = new ExecutionContainerLeaseService(pool);
     this.lifecycleService = new TaskLifecycleService({
       pool,
       eventService,
@@ -187,6 +189,7 @@ export class TaskService {
       parallelismService,
       workItemContinuityService,
       handoffService,
+      executionContainerLeaseService,
     });
 
     const modelCatalog = new ModelCatalogService(pool);
@@ -198,6 +201,7 @@ export class TaskService {
       getTaskContext: this.queryService.getTaskContext.bind(this.queryService),
       resolveRoleConfig: modelCatalog.resolveRoleConfig.bind(modelCatalog),
       parallelismService,
+      executionContainerLeaseService,
       claimHandleSecret: config.WEBHOOK_ENCRYPTION_KEY ?? '',
     });
 

@@ -136,11 +136,13 @@ func (m *Manager) buildDCMEnvironment(target RuntimeTarget, runtimeID, workerNam
 		"AGIRUNNER_RUNTIME_PLATFORM_API_URL":              m.config.PlatformAPIURL,
 		"AGIRUNNER_RUNTIME_PLATFORM_ADMIN_API_KEY":        m.config.PlatformAdminAPIKey,
 		"AGIRUNNER_RUNTIME_PLATFORM_AGENT_EXECUTION_MODE": targetExecutionMode(target),
-		"AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER":      target.PlaybookID,
 		"AGIRUNNER_RUNTIME_PLATFORM_RUNTIME_ID":           runtimeID,
 		envRuntimeWorkerName:                              workerName,
 		"AGIRUNNER_RUNTIME_IMAGE":                         target.Image,
 		"DOCKER_HOST":                                     m.config.DockerHost,
+	}
+	if normalizePoolKind(target.PoolKind) != "specialist" && strings.TrimSpace(target.PlaybookID) != "" {
+		environment["AGIRUNNER_RUNTIME_PLATFORM_PLAYBOOK_FILTER"] = target.PlaybookID
 	}
 	if capabilityTags := joinCapabilityTags(target.CapabilityTags); capabilityTags != "" {
 		environment["AGIRUNNER_RUNTIME_PLATFORM_CAPABILITY_TAGS"] = capabilityTags

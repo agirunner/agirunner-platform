@@ -3,6 +3,7 @@ import type {
   DashboardWorkspaceRecord,
   DashboardWorkspaceSettingsInput,
   DashboardWorkspaceSettingsRecord,
+  DashboardWorkspaceStorageType,
 } from '../../lib/api.js';
 
 export type WorkspaceSecretMode = 'preserve' | 'replace' | 'clear';
@@ -14,9 +15,13 @@ export interface WorkspaceSecretDraft {
 }
 
 export interface WorkspaceSettingsState {
+  storageType: DashboardWorkspaceStorageType;
+  repositoryUrl: string;
   defaultBranch: string;
   gitUserName: string;
   gitUserEmail: string;
+  hostPath: string;
+  readOnly: boolean;
   settingsExtras: Record<string, unknown>;
   credentials: {
     gitToken: { configured: boolean };
@@ -27,11 +32,14 @@ export interface WorkspaceSettingsDraft {
   name: string;
   slug: string;
   description: string;
-  repositoryUrl: string;
+  storageType: DashboardWorkspaceStorageType;
   isActive: boolean;
+  repositoryUrl: string;
   defaultBranch: string;
   gitUserName: string;
   gitUserEmail: string;
+  hostPath: string;
+  readOnly: boolean;
   settingsExtras: Record<string, unknown>;
   credentials: {
     gitToken: WorkspaceSecretDraft;
@@ -40,7 +48,7 @@ export interface WorkspaceSettingsDraft {
 
 export interface WorkspaceSettingsValidation {
   isValid: boolean;
-  fieldErrors: Partial<Record<'name' | 'slug' | 'repositoryUrl' | 'gitUserEmail' | 'gitToken', string>>;
+  fieldErrors: Partial<Record<'name' | 'slug' | 'repositoryUrl' | 'gitUserEmail' | 'gitToken' | 'hostPath', string>>;
   blockingIssues: string[];
 }
 
@@ -49,7 +57,7 @@ export interface WorkspaceSettingsSurfaceSummary {
   configuredSecretLabel: string;
   stagedSecretChangeCount: number;
   stagedSecretChangeLabel: string;
-  repositoryLabel: string;
+  storageLabel: string;
   lifecycleLabel: string;
   blockingIssueCount: number;
   blockingTitle: string;
@@ -64,6 +72,8 @@ export interface WorkspaceSecretPostureSummary {
 
 const REDACTED_SECRET = 'redacted://workspace-settings-secret';
 const KNOWN_SETTING_KEYS = new Set([
+  'workspace_storage_type',
+  'workspace_storage',
   'default_branch',
   'git_user_name',
   'git_user_email',
@@ -74,10 +84,28 @@ const KNOWN_SETTING_KEYS = new Set([
 
 export function readWorkspaceSettings(workspace: DashboardWorkspaceRecord): WorkspaceSettingsState {
   const settings = readSettingsRecord(workspace.settings);
+  const storageType = readStorageType(settings, workspace.repository_url);
+  const storage = asRecord(settings.workspace_storage);
   return {
-    defaultBranch: readString(settings.default_branch),
-    gitUserName: readString(settings.git_user_name),
-    gitUserEmail: readString(settings.git_user_email),
+    storageType,
+    repositoryUrl:
+      storageType === 'git_remote'
+        ? readString(storage.repository_url) || readString(workspace.repository_url)
+        : '',
+    defaultBranch:
+      storageType === 'git_remote'
+        ? readString(storage.default_branch) || readString(settings.default_branch)
+        : '',
+    gitUserName:
+      storageType === 'git_remote'
+        ? readString(storage.git_user_name) || readString(settings.git_user_name)
+        : '',
+    gitUserEmail:
+      storageType === 'git_remote'
+        ? readString(storage.git_user_email) || readString(settings.git_user_email)
+        : '',
+    hostPath: storageType === 'host_directory' ? readString(storage.host_path) : '',
+    readOnly: storageType === 'host_directory' ? storage.read_only === true : false,
     settingsExtras: readSettingsExtras(settings),
     credentials: {
       gitToken: {
@@ -96,11 +124,14 @@ export function createWorkspaceSettingsDraft(workspace: DashboardWorkspaceRecord
     name: workspace.name,
     slug: workspace.slug,
     description: readString(workspace.description),
-    repositoryUrl: readString(workspace.repository_url),
+    storageType: settings.storageType,
     isActive: workspace.is_active !== false,
+    repositoryUrl: settings.repositoryUrl,
     defaultBranch: settings.defaultBranch,
     gitUserName: settings.gitUserName,
     gitUserEmail: settings.gitUserEmail,
+    hostPath: settings.hostPath,
+    readOnly: settings.readOnly,
     settingsExtras: settings.settingsExtras,
     credentials: {
       gitToken: createSecretDraft(settings.credentials.gitToken.configured),
@@ -122,17 +153,35 @@ export function validateWorkspaceSettingsDraft(
     fieldErrors.slug = 'Workspace slug is required.';
     blockingIssues.push(fieldErrors.slug);
   }
-  if (draft.repositoryUrl.trim() && !isValidUrl(draft.repositoryUrl.trim())) {
-    fieldErrors.repositoryUrl = 'Repository URL must be a valid URL.';
-    blockingIssues.push(fieldErrors.repositoryUrl);
+  if (draft.storageType === 'git_remote') {
+    if (!draft.repositoryUrl.trim()) {
+      fieldErrors.repositoryUrl = 'Repository URL is required for Git Remote.';
+      blockingIssues.push(fieldErrors.repositoryUrl);
+    } else if (!isValidUrl(draft.repositoryUrl.trim())) {
+      fieldErrors.repositoryUrl = 'Repository URL must be a valid URL.';
+      blockingIssues.push(fieldErrors.repositoryUrl);
+    }
   }
-  if (draft.gitUserEmail.trim() && !isValidEmail(draft.gitUserEmail.trim())) {
+  if (draft.storageType === 'git_remote' && draft.gitUserEmail.trim() && !isValidEmail(draft.gitUserEmail.trim())) {
     fieldErrors.gitUserEmail = 'Git identity email must be a valid email.';
     blockingIssues.push(fieldErrors.gitUserEmail);
   }
-  if (draft.credentials.gitToken.mode === 'replace' && !draft.credentials.gitToken.value.trim()) {
+  if (
+    draft.storageType === 'git_remote'
+    && draft.credentials.gitToken.mode === 'replace'
+    && !draft.credentials.gitToken.value.trim()
+  ) {
     fieldErrors.gitToken = 'Enter a new value for Git token before saving.';
     blockingIssues.push(fieldErrors.gitToken);
+  }
+  if (draft.storageType === 'host_directory') {
+    if (!draft.hostPath.trim()) {
+      fieldErrors.hostPath = 'Host path is required for Host Directory.';
+      blockingIssues.push(fieldErrors.hostPath);
+    } else if (!draft.hostPath.trim().startsWith('/')) {
+      fieldErrors.hostPath = 'Host path must be absolute.';
+      blockingIssues.push(fieldErrors.hostPath);
+    }
   }
 
   return {
@@ -152,13 +201,20 @@ export function buildWorkspaceSettingsPatch(
     name: draft.name.trim(),
     slug: draft.slug.trim(),
     description: emptyToUndefined(draft.description),
-    repository_url: emptyToUndefined(draft.repositoryUrl),
     is_active: draft.isActive,
     settings: {
       ...draft.settingsExtras,
-      default_branch: draft.defaultBranch.trim(),
-      git_user_name: draft.gitUserName.trim(),
-      git_user_email: draft.gitUserEmail.trim(),
+      workspace_storage_type: draft.storageType,
+      workspace_storage: buildWorkspaceStorageRecord(draft),
+      ...(draft.storageType === 'git_remote' && draft.defaultBranch.trim()
+        ? { default_branch: draft.defaultBranch.trim() }
+        : {}),
+      ...(draft.storageType === 'git_remote' && draft.gitUserName.trim()
+        ? { git_user_name: draft.gitUserName.trim() }
+        : {}),
+      ...(draft.storageType === 'git_remote' && draft.gitUserEmail.trim()
+        ? { git_user_email: draft.gitUserEmail.trim() }
+        : {}),
       credentials: {
         git_token: resolveSecretInput(
           draft.credentials.gitToken,
@@ -193,7 +249,7 @@ export function buildWorkspaceSettingsSurfaceSummary(
       stagedSecretChangeCount > 0
         ? `${stagedSecretChangeCount} ${pluralize(stagedSecretChangeCount, 'secret change')} staged`
         : 'No secret changes staged',
-    repositoryLabel: draft.repositoryUrl.trim() ? 'Repository linked' : 'Repository optional',
+    storageLabel: storageLabel(draft.storageType),
     lifecycleLabel: draft.isActive ? 'Active workspace' : 'Inactive workspace',
     blockingIssueCount: validation.blockingIssues.length,
     blockingTitle: 'Resolve before saving',
@@ -257,6 +313,7 @@ function readSettingsRecord(value: unknown): DashboardWorkspaceSettingsRecord {
   return {
     ...record,
     credentials: asRecord(record.credentials),
+    workspace_storage: asRecord(record.workspace_storage),
   } as DashboardWorkspaceSettingsRecord;
 }
 
@@ -290,6 +347,27 @@ function readConfigured(configuredValue: unknown, value: unknown): boolean {
   return Boolean(configuredValue) || readString(value).length > 0;
 }
 
+function buildWorkspaceStorageRecord(
+  draft: WorkspaceSettingsDraft,
+): NonNullable<DashboardWorkspaceSettingsInput['workspace_storage']> {
+  switch (draft.storageType) {
+    case 'git_remote':
+      return {
+        repository_url: emptyToUndefined(draft.repositoryUrl),
+        default_branch: emptyToUndefined(draft.defaultBranch),
+        git_user_name: emptyToUndefined(draft.gitUserName),
+        git_user_email: emptyToUndefined(draft.gitUserEmail),
+      };
+    case 'host_directory':
+      return {
+        host_path: emptyToUndefined(draft.hostPath),
+        read_only: draft.readOnly,
+      };
+    default:
+      return {};
+  }
+}
+
 function emptyToUndefined(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
@@ -297,6 +375,17 @@ function emptyToUndefined(value: string): string | undefined {
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function readStorageType(
+  settings: DashboardWorkspaceSettingsRecord,
+  repositoryUrl: string | null | undefined,
+): DashboardWorkspaceStorageType {
+  const configuredType = readString(settings.workspace_storage_type);
+  if (configuredType === 'git_remote' || configuredType === 'host_directory' || configuredType === 'workspace_artifacts') {
+    return configuredType;
+  }
+  return readString(repositoryUrl) ? 'git_remote' : 'workspace_artifacts';
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -320,4 +409,15 @@ function isValidEmail(value: string): boolean {
 
 function pluralize(count: number, singular: string): string {
   return count === 1 ? singular : `${singular}s`;
+}
+
+function storageLabel(value: DashboardWorkspaceStorageType): string {
+  switch (value) {
+    case 'git_remote':
+      return 'Git Remote';
+    case 'host_directory':
+      return 'Host Directory';
+    default:
+      return 'Workspace Artifacts';
+  }
 }

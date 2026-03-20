@@ -15,6 +15,7 @@ const REMOVED_RUNTIME_DEFAULT_KEYS = new Set([
   'tools.web_search_api_key_secret_ref',
   'tools.web_search_timeout_seconds',
 ]);
+const GENERIC_SPECIALIST_TARGET_ID = 'specialist';
 
 interface RuntimeConfigRole {
   name: string;
@@ -127,6 +128,14 @@ export class RuntimeConfigService {
       return playbookRuntimeTarget;
     }
 
+    const genericSpecialistRuntimeTarget = this.findGenericSpecialistRuntimeTarget(
+      workerName,
+      runtimeTarget,
+    );
+    if (genericSpecialistRuntimeTarget) {
+      return genericSpecialistRuntimeTarget;
+    }
+
     throw new NotFoundError(`Worker "${workerName}" not found`);
   }
 
@@ -210,6 +219,26 @@ export class RuntimeConfigService {
       capabilities: [],
       roleNames: resolveRuntimeTargetRoleNames(definition.roles, poolKind),
       allowAllRolesWhenEmpty: false,
+    };
+  }
+
+  private findGenericSpecialistRuntimeTarget(
+    workerName: string,
+    runtimeTarget: RuntimeTargetLookup,
+  ): WorkerConfigTarget | null {
+    const poolKind = normalizePoolKind(runtimeTarget.poolKind);
+    const playbookId = runtimeTarget.playbookId?.trim() ?? '';
+    if (poolKind !== 'specialist') {
+      return null;
+    }
+    if (playbookId.length > 0 && playbookId !== GENERIC_SPECIALIST_TARGET_ID) {
+      return null;
+    }
+    return {
+      name: workerName,
+      capabilities: [],
+      roleNames: [],
+      allowAllRolesWhenEmpty: true,
     };
   }
 

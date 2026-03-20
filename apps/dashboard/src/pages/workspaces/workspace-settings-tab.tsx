@@ -39,7 +39,13 @@ const SECRET_MODE_OPTIONS: Array<{ value: WorkspaceSecretMode; label: string }> 
   { value: 'clear', label: 'Clear on save' },
 ];
 
-type SettingsSectionKey = 'basics' | 'repository' | 'danger';
+const STORAGE_OPTIONS = [
+  { value: 'git_remote', label: 'Git Remote' },
+  { value: 'host_directory', label: 'Host Directory' },
+  { value: 'workspace_artifacts', label: 'Workspace Artifacts' },
+] as const;
+
+type SettingsSectionKey = 'basics' | 'storage' | 'danger';
 
 export function WorkspaceSettingsTab(props: {
   workspace: DashboardWorkspaceRecord;
@@ -67,7 +73,7 @@ export function WorkspaceSettingsTab(props: {
   });
 
   const basicsSummary = buildBasicsSummary(draft);
-  const repositorySummary = buildRepositorySummary(draft, surfaceSummary.repositoryLabel);
+  const storageSummary = buildStorageSummary(draft, surfaceSummary.storageLabel);
 
   function toggleSection(section: SettingsSectionKey) {
     setExpandedSection((current) => (current === section ? null : section));
@@ -94,7 +100,7 @@ export function WorkspaceSettingsTab(props: {
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="outline">{surfaceSummary.lifecycleLabel}</Badge>
-              <Badge variant="outline">{surfaceSummary.repositoryLabel}</Badge>
+              <Badge variant="outline">{surfaceSummary.storageLabel}</Badge>
               {surfaceSummary.blockingIssueCount > 0 ? (
                 <Badge variant="warning">
                   {surfaceSummary.blockingIssueCount}{' '}
@@ -103,8 +109,8 @@ export function WorkspaceSettingsTab(props: {
               ) : null}
             </div>
             <p className="text-sm leading-6 text-muted">
-              Open only the section you need. Repository configuration stays optional for workspaces
-              without source control.
+              Open only the section you need. Storage is explicit at the workspace level and lower-level
+              repo or path overrides are not used.
             </p>
           </div>
 
@@ -155,63 +161,118 @@ export function WorkspaceSettingsTab(props: {
       </SettingsDisclosureSection>
 
       <SettingsDisclosureSection
-        id="workspace-settings-repository"
-        title="Repository & Git Defaults"
-        description="Repository URL, default branch, author identity, and git token stay together."
-        summary={repositorySummary}
-        actionLabel={expandedSection === 'repository' ? 'Hide defaults' : 'Open defaults'}
-        isExpanded={expandedSection === 'repository'}
-        onToggle={() => toggleSection('repository')}
+        id="workspace-settings-storage"
+        title="Workspace Storage"
+        description="Choose the workspace storage type and configure only the fields that apply to it."
+        summary={storageSummary}
+        actionLabel={expandedSection === 'storage' ? 'Hide storage' : 'Open storage'}
+        isExpanded={expandedSection === 'storage'}
+        onToggle={() => toggleSection('storage')}
       >
         <div className="space-y-3">
-          <p className="text-sm leading-6 text-muted">
-            Repository optional. Leave this section untouched when the workspace does not depend on
-            source control.
-          </p>
-          <div className="grid gap-3 md:grid-cols-2">
-            <TextField
-              label="Repository URL"
-              value={draft.repositoryUrl}
-              error={validation.fieldErrors.repositoryUrl}
-              onChange={(value) => setDraft((current) => ({ ...current, repositoryUrl: value }))}
-            />
-            <TextField
-              label="Default branch"
-              value={draft.defaultBranch}
-              onChange={(value) => setDraft((current) => ({ ...current, defaultBranch: value }))}
-            />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <TextField
-              label="Git user name"
-              value={draft.gitUserName}
-              onChange={(value) => setDraft((current) => ({ ...current, gitUserName: value }))}
-            />
-            <TextField
-              label="Git user email"
-              value={draft.gitUserEmail}
-              error={validation.fieldErrors.gitUserEmail}
-              onChange={(value) => setDraft((current) => ({ ...current, gitUserEmail: value }))}
-            />
-          </div>
-          <div className="space-y-2">
-            <SecretDisclosureRow
-              label="Git token"
-              draft={draft.credentials.gitToken}
-              error={validation.fieldErrors.gitToken}
-              isExpanded={isGitTokenExpanded}
-              onToggle={() => setGitTokenExpanded((current) => !current)}
-              onChange={(next) =>
+          <label className="grid gap-1.5 text-sm sm:max-w-[240px]">
+            <span className="font-medium">Storage type</span>
+            <Select
+              value={draft.storageType}
+              onValueChange={(value) =>
                 setDraft((current) => ({
                   ...current,
-                  credentials: {
-                    ...current.credentials,
-                    gitToken: next,
-                  },
+                  storageType: value as WorkspaceSettingsDraft['storageType'],
                 }))
               }
-            />
-          </div>
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {STORAGE_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </label>
+
+          {draft.storageType === 'git_remote' ? (
+            <div className="space-y-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <TextField
+                  label="Repository URL"
+                  value={draft.repositoryUrl}
+                  error={validation.fieldErrors.repositoryUrl}
+                  onChange={(value) => setDraft((current) => ({ ...current, repositoryUrl: value }))}
+                />
+                <TextField
+                  label="Default branch"
+                  value={draft.defaultBranch}
+                  onChange={(value) => setDraft((current) => ({ ...current, defaultBranch: value }))}
+                />
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <TextField
+                  label="Git user name"
+                  value={draft.gitUserName}
+                  onChange={(value) => setDraft((current) => ({ ...current, gitUserName: value }))}
+                />
+                <TextField
+                  label="Git user email"
+                  value={draft.gitUserEmail}
+                  error={validation.fieldErrors.gitUserEmail}
+                  onChange={(value) => setDraft((current) => ({ ...current, gitUserEmail: value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <SecretDisclosureRow
+                  label="Git token"
+                  draft={draft.credentials.gitToken}
+                  error={validation.fieldErrors.gitToken}
+                  isExpanded={isGitTokenExpanded}
+                  onToggle={() => setGitTokenExpanded((current) => !current)}
+                  onChange={(next) =>
+                    setDraft((current) => ({
+                      ...current,
+                      credentials: {
+                        ...current.credentials,
+                        gitToken: next,
+                      },
+                    }))
+                  }
+                />
+              </div>
+            </div>
+          ) : null}
+
+          {draft.storageType === 'host_directory' ? (
+            <div className="space-y-3">
+              <TextField
+                label="Host path"
+                value={draft.hostPath}
+                error={validation.fieldErrors.hostPath}
+                onChange={(value) => setDraft((current) => ({ ...current, hostPath: value }))}
+              />
+              <p className="text-sm leading-6 text-muted">
+                The path must already exist. All runtimes are expected to mount the same path. Writes
+                happen as the task container user, which is currently `root`.
+              </p>
+              <ToggleCard
+                label="Read-only mount"
+                description="Leave this off for the v1 default shared read-write workspace."
+                checked={draft.readOnly}
+                checkedLabel="Read-only"
+                uncheckedLabel="Read-write"
+                onCheckedChange={(checked) => setDraft((current) => ({ ...current, readOnly: checked }))}
+              />
+            </div>
+          ) : null}
+
+          {draft.storageType === 'workspace_artifacts' ? (
+            <div className="rounded-xl border border-border/70 bg-muted/30 p-3 text-sm leading-6 text-muted">
+              Workspace persistence happens through uploaded artifacts. Prior artifacts are listed in
+              task context and can be fetched explicitly by tools, but they are not restored into the
+              working directory automatically.
+            </div>
+          ) : null}
         </div>
       </SettingsDisclosureSection>
       <SettingsDisclosureSection
@@ -452,16 +513,26 @@ function buildBasicsSummary(draft: WorkspaceSettingsDraft): string {
   return slugLabel;
 }
 
-function buildRepositorySummary(
+function buildStorageSummary(
   draft: WorkspaceSettingsDraft,
-  repositoryLabel: string,
+  storageLabel: string,
 ): string {
-  const gitTokenSummary = buildWorkspaceSecretPostureSummary(draft.credentials.gitToken);
-  if (!draft.repositoryUrl.trim()) {
-    return `${repositoryLabel} • Git token ${gitTokenSummary.postureLabel.toLowerCase()}`;
+  if (draft.storageType === 'host_directory') {
+    if (!draft.hostPath.trim()) {
+      return `${storageLabel} • Path required`;
+    }
+    return `${storageLabel} • ${draft.hostPath.trim()} • ${draft.readOnly ? 'Read-only' : 'Read-write'}`;
+  }
+  if (draft.storageType === 'workspace_artifacts') {
+    return `${storageLabel} • Explicit artifact persistence`;
   }
 
-  const details = [repositoryLabel];
+  const gitTokenSummary = buildWorkspaceSecretPostureSummary(draft.credentials.gitToken);
+  if (!draft.repositoryUrl.trim()) {
+    return `${storageLabel} • Repository required`;
+  }
+
+  const details = [storageLabel, draft.repositoryUrl.trim()];
   if (draft.defaultBranch.trim()) {
     details.push(`Branch ${draft.defaultBranch.trim()}`);
   }

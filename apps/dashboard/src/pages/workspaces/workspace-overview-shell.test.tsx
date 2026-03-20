@@ -14,6 +14,12 @@ describe('workspace overview shell', () => {
       description: 'Release automation workspace',
       is_active: true,
       repository_url: 'https://example.com/repo.git',
+      settings: {
+        workspace_storage_type: 'git_remote',
+        workspace_storage: {
+          repository_url: 'https://example.com/repo.git',
+        },
+      },
     });
 
     expect(markup).toContain('Where To Work Next');
@@ -21,6 +27,8 @@ describe('workspace overview shell', () => {
     expect(markup).toContain('Knowledge');
     expect(markup).toContain('Automation');
     expect(markup).toContain('Delivery');
+    expect(markup).toContain('Workspace basics, storage configuration, and lifecycle posture.');
+    expect(markup).toContain('Scheduled workflow triggers that stay on the workspace surface.');
     expect(markup).toContain('href="/workspaces/workspace-1?tab=settings"');
     expect(markup).toContain('href="/workspaces/workspace-1?tab=knowledge"');
     expect(markup).toContain('href="/workspaces/workspace-1?tab=automation"');
@@ -28,9 +36,11 @@ describe('workspace overview shell', () => {
     expect(markup).not.toContain('Focused explorers');
     expect(markup).not.toContain('Memory explorer');
     expect(markup).not.toContain('Artifact explorer');
+    expect(markup).not.toContain('repository defaults');
+    expect(markup).not.toContain('inbound hooks');
   });
 
-  it('treats repository guidance as optional when the workspace does not use source control', () => {
+  it('uses storage-aware delivery guidance instead of optional repository guidance', () => {
     const markup = renderOverview({
       id: 'workspace-2',
       name: 'Signals',
@@ -38,12 +48,19 @@ describe('workspace overview shell', () => {
       description: 'Signals workspace',
       is_active: true,
       repository_url: null,
+      settings: {
+        workspace_storage_type: 'host_directory',
+        workspace_storage: {
+          host_path: '/home/mark/coolrepo',
+        },
+      },
     });
 
     expect(markup).toContain(
-      'Repository setup is optional. Add it in Settings only when this workspace should map delivery or automation back to source control.',
+      'Delivery follows the configured Host Directory and saved outputs when a run needs filesystem-level follow-up.',
     );
     expect(markup).not.toContain('Needs attention');
+    expect(markup).not.toContain('Repository setup is optional');
   });
 });
 
@@ -63,8 +80,8 @@ function renderOverview(
             packets: [
               { label: 'Lifecycle', value: 'Active', detail: 'Last updated just now.' },
               { label: 'Coverage', value: '8 entries', detail: 'Knowledge posture is healthy.' },
-              { label: 'Automation', value: 'Verified repo', detail: 'Repository trust is ready.' },
-              { label: 'Repository', value: workspace.repository_url ? 'Linked' : 'Unlinked', detail: 'Repository posture.' },
+              { label: 'Automation', value: 'Schedules only', detail: 'Schedule posture.' },
+              { label: 'Storage', value: 'Workspace Artifacts', detail: 'Storage posture.' },
               { label: 'Delivery', value: '7 workflows', detail: '2 active · 5 completed.' },
             ],
           },

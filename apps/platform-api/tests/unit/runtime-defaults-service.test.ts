@@ -38,7 +38,7 @@ describe('RuntimeDefaultsService', () => {
     pool = createMockPool();
     fleetService = { drainAllRuntimesForTenant: vi.fn().mockResolvedValue(2) };
     eventService = { emit: vi.fn().mockResolvedValue(undefined) };
-    service = new RuntimeDefaultsService(pool as never, fleetService as never, eventService as never);
+    service = new RuntimeDefaultsService(pool as never, undefined, eventService as never);
   });
 
   describe('listDefaults', () => {
@@ -117,7 +117,7 @@ describe('RuntimeDefaultsService', () => {
       expect(result).toEqual(sampleDefault);
     });
 
-    it('drains connected runtimes and logs a rollout event after create', async () => {
+    it('does not request runtime drain or rollout events after create', async () => {
       pool.query
         .mockResolvedValueOnce({ rows: [], rowCount: 0 })
         .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 });
@@ -129,22 +129,8 @@ describe('RuntimeDefaultsService', () => {
         description: 'Maximum rework attempts',
       });
 
-      expect(fleetService.drainAllRuntimesForTenant).toHaveBeenCalledWith(TENANT_ID);
-      expect(eventService.emit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          tenantId: TENANT_ID,
-          type: 'runtime.defaults_rollout_requested',
-          entityType: 'system',
-          entityId: TENANT_ID,
-          actorType: 'system',
-          data: expect.objectContaining({
-            config_key: 'max_rework_attempts',
-            operation: 'create',
-            affected_runtimes: 2,
-            reason: 'runtime_defaults_changed',
-          }),
-        }),
-      );
+      expect(fleetService.drainAllRuntimesForTenant).not.toHaveBeenCalled();
+      expect(eventService.emit).not.toHaveBeenCalled();
     });
 
     it('throws ConflictError when key already exists', async () => {
@@ -202,6 +188,36 @@ describe('RuntimeDefaultsService', () => {
           configType: 'number',
         }),
       ).rejects.toThrow('agent.history_max_messages must be at least 1');
+    });
+
+    it('rejects invalid specialist runtime and execution capacity defaults', async () => {
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'specialist_runtime_bootstrap_claim_timeout_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow(
+        'specialist_runtime_bootstrap_claim_timeout_seconds must be at least 1',
+      );
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'specialist_runtime_drain_grace_seconds',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow(
+        'specialist_runtime_drain_grace_seconds must be at least 1',
+      );
+
+      await expect(
+        service.createDefault(TENANT_ID, {
+          configKey: 'global_max_execution_containers',
+          configValue: '0',
+          configType: 'number',
+        }),
+      ).rejects.toThrow('global_max_execution_containers must be at least 1');
     });
 
     it('rejects removed legacy web search runtime defaults', async () => {
@@ -632,7 +648,7 @@ describe('RuntimeDefaultsService', () => {
       expect(result.config_value).toBe('5');
     });
 
-    it('drains connected runtimes and logs a rollout event after update', async () => {
+    it('does not request runtime drain or rollout events after update', async () => {
       const updated = { ...sampleDefault, config_value: '5' };
       pool.query
         .mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 })
@@ -642,17 +658,8 @@ describe('RuntimeDefaultsService', () => {
         configValue: '5',
       });
 
-      expect(fleetService.drainAllRuntimesForTenant).toHaveBeenCalledWith(TENANT_ID);
-      expect(eventService.emit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'runtime.defaults_rollout_requested',
-          data: expect.objectContaining({
-            config_key: 'max_rework_attempts',
-            operation: 'update',
-            affected_runtimes: 2,
-          }),
-        }),
-      );
+      expect(fleetService.drainAllRuntimesForTenant).not.toHaveBeenCalled();
+      expect(eventService.emit).not.toHaveBeenCalled();
     });
 
     it('returns current default when no fields to update', async () => {
@@ -731,7 +738,7 @@ describe('RuntimeDefaultsService', () => {
       expect(sql).toContain('ON CONFLICT');
     });
 
-    it('drains connected runtimes and logs a rollout event after upsert', async () => {
+    it('does not request runtime drain or rollout events after upsert', async () => {
       pool.query.mockResolvedValueOnce({ rows: [sampleDefault], rowCount: 1 });
 
       await service.upsertDefault(TENANT_ID, {
@@ -741,17 +748,8 @@ describe('RuntimeDefaultsService', () => {
         description: 'Maximum rework attempts',
       });
 
-      expect(fleetService.drainAllRuntimesForTenant).toHaveBeenCalledWith(TENANT_ID);
-      expect(eventService.emit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'runtime.defaults_rollout_requested',
-          data: expect.objectContaining({
-            config_key: 'max_rework_attempts',
-            operation: 'upsert',
-            affected_runtimes: 2,
-          }),
-        }),
-      );
+      expect(fleetService.drainAllRuntimesForTenant).not.toHaveBeenCalled();
+      expect(eventService.emit).not.toHaveBeenCalled();
     });
   });
 
@@ -761,22 +759,13 @@ describe('RuntimeDefaultsService', () => {
       await expect(service.deleteDefault(TENANT_ID, DEFAULT_ID)).resolves.toBeUndefined();
     });
 
-    it('drains connected runtimes and logs a rollout event after delete', async () => {
+    it('does not request runtime drain or rollout events after delete', async () => {
       pool.query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
 
       await service.deleteDefault(TENANT_ID, DEFAULT_ID, 'max_rework_attempts');
 
-      expect(fleetService.drainAllRuntimesForTenant).toHaveBeenCalledWith(TENANT_ID);
-      expect(eventService.emit).toHaveBeenCalledWith(
-        expect.objectContaining({
-          type: 'runtime.defaults_rollout_requested',
-          data: expect.objectContaining({
-            config_key: 'max_rework_attempts',
-            operation: 'delete',
-            affected_runtimes: 2,
-          }),
-        }),
-      );
+      expect(fleetService.drainAllRuntimesForTenant).not.toHaveBeenCalled();
+      expect(eventService.emit).not.toHaveBeenCalled();
     });
 
     it('throws NotFoundError when default not found', async () => {

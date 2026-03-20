@@ -11,7 +11,7 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
     value: 'settings',
     label: 'Settings',
     description:
-      'Adjust workspace basics, repository defaults, and lifecycle posture.',
+      'Adjust workspace basics, storage configuration, and lifecycle posture.',
   },
   {
     value: 'knowledge',
@@ -22,7 +22,7 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
   {
     value: 'automation',
     label: 'Automation',
-    description: 'Use one control center for schedules, inbound hooks, and repository signatures.',
+    description: 'Use one control center for workspace schedules while inbound automation stays out of scope.',
   },
   {
     value: 'delivery',
@@ -91,7 +91,7 @@ export function buildWorkspaceOverview(
 
   return {
     summary:
-      'Use this snapshot to confirm lifecycle, knowledge coverage, automation setup, and delivery activity before switching workspaces.',
+      'Use this snapshot to confirm lifecycle, storage posture, knowledge coverage, automation setup, and delivery activity before switching workspaces.',
     packets: [
       {
         label: 'Lifecycle',
@@ -108,17 +108,13 @@ export function buildWorkspaceOverview(
       },
       {
         label: 'Automation',
-        value: workspace.git_webhook_provider ? 'Verified repo' : 'Needs setup',
-        detail: workspace.git_webhook_provider
-          ? `${workspace.git_webhook_provider} signatures are ready for inbound automation.`
-          : 'Set repository trust before operators depend on inbound automation.',
+        value: 'Schedules only',
+        detail: 'Schedule-based automation stays on this workspace surface. Inbound hooks and repository signatures are deferred.',
       },
       {
-        label: 'Repository',
-        value: workspace.repository_url ? 'Linked' : 'Unlinked',
-        detail: workspace.repository_url
-          ? 'A repository URL is already attached to this workspace.'
-          : 'Add a repository URL if delivery and automation should map back to source control.',
+        label: 'Storage',
+        value: readWorkspaceStorageLabel(workspace),
+        detail: describeWorkspaceStorage(workspace),
       },
       {
         label: 'Delivery',
@@ -164,19 +160,17 @@ export function buildWorkspaceSettingsOverview(
 
   return {
     summary:
-      'Settings is the workspace control plane: keep workspace basics, repository defaults, stored settings, and lifecycle posture together before execution.',
+      'Settings is the workspace control plane: keep workspace basics, storage configuration, stored settings, and lifecycle posture together before execution.',
     packets: [
       {
         label: 'Stored settings',
         value: `${countObjectEntries(settings)} entries`,
-        detail: 'Workspace-scoped settings saved on the record, including repository defaults and lifecycle configuration.',
+        detail: 'Workspace-scoped settings saved on the record, including storage configuration and lifecycle posture.',
       },
       {
-        label: 'Repository link',
-        value: workspace.repository_url ? 'Linked' : 'Unlinked',
-        detail: workspace.repository_url
-          ? 'The workspace record points back to a repository.'
-          : 'No repository link is saved on this workspace yet.',
+        label: 'Workspace storage',
+        value: readWorkspaceStorageLabel(workspace),
+        detail: describeWorkspaceStorage(workspace),
       },
     ],
   };
@@ -354,6 +348,40 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function readString(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+export function readWorkspaceStorageLabel(workspace: DashboardWorkspaceRecord): string {
+  const settings = asRecord(workspace.settings);
+  const storageType = readString(settings.workspace_storage_type);
+  switch (storageType) {
+    case 'git_remote':
+      return 'Git Remote';
+    case 'host_directory':
+      return 'Host Directory';
+    case 'workspace_artifacts':
+      return 'Workspace Artifacts';
+    default:
+      return workspace.repository_url ? 'Git Remote' : 'Workspace Artifacts';
+  }
+}
+
+function describeWorkspaceStorage(workspace: DashboardWorkspaceRecord): string {
+  const settings = asRecord(workspace.settings);
+  const storage = asRecord(settings.workspace_storage);
+  const storageLabel = readWorkspaceStorageLabel(workspace);
+  if (storageLabel === 'Git Remote') {
+    const repositoryUrl = readString(storage.repository_url) || readString(workspace.repository_url);
+    return repositoryUrl
+      ? `Repository execution is pinned to ${repositoryUrl}.`
+      : 'Repository execution is configured on the workspace.';
+  }
+  if (storageLabel === 'Host Directory') {
+    const hostPath = readString(storage.host_path);
+    return hostPath
+      ? `Task containers mount ${hostPath} directly from the runtime host.`
+      : 'Task containers mount a host directory configured on the workspace.';
+  }
+  return 'Persistence happens through uploaded workspace artifacts instead of a shared repository checkout.';
 }
 
 function buildWorkspaceDeliveryOverview(workspace: DashboardWorkspaceRecord): WorkspaceOverviewPacket {

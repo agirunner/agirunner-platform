@@ -67,9 +67,15 @@ describe('workspace settings support', () => {
       name: 'Release automation',
       slug: 'release-automation',
       description: 'Ship weekly with operator-ready controls.',
-      repository_url: 'https://example.com/repo.git',
       is_active: true,
       settings: {
+        workspace_storage_type: 'git_remote',
+        workspace_storage: {
+          repository_url: 'https://example.com/repo.git',
+          default_branch: 'release',
+          git_user_name: 'Release Bot',
+          git_user_email: 'release@example.test',
+        },
         default_branch: 'release',
         git_user_name: 'Release Bot',
         git_user_email: 'release@example.test',
@@ -147,13 +153,13 @@ describe('workspace settings support', () => {
     expect(summary.configuredSecretLabel).toBe('1 secret configured');
     expect(summary.stagedSecretChangeCount).toBe(0);
     expect(summary.stagedSecretChangeLabel).toBe('No secret changes staged');
-    expect(summary.repositoryLabel).toBe('Repository linked');
+    expect(summary.storageLabel).toBe('Git Remote');
     expect(summary.lifecycleLabel).toBe('Active workspace');
     expect(summary.blockingIssueCount).toBe(0);
     expect(summary.blockingTitle).toBe('Resolve before saving');
   });
 
-  it('treats repository links as optional in the compact settings summaries', () => {
+  it('defaults new workspaces to workspace artifacts in the compact settings summaries', () => {
     const workspace = {
       id: 'workspace-1',
       name: 'Release automation',
@@ -178,7 +184,7 @@ describe('workspace settings support', () => {
       validateWorkspaceSettingsDraft(draft),
     );
 
-    expect(summary.repositoryLabel).toBe('Repository optional');
+    expect(summary.storageLabel).toBe('Workspace Artifacts');
     expect(summary.lifecycleLabel).toBe('Inactive workspace');
     expect(summary.stagedSecretChangeCount).toBe(1);
     expect(summary.stagedSecretChangeLabel).toBe('1 secret change staged');

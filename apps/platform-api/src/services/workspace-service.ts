@@ -13,6 +13,7 @@ import {
   serializeWorkspaceSettings,
   type StoredWorkspaceSettings,
 } from './workspace-settings.js';
+import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
 import { encryptWebhookSecret, decryptWebhookSecret, isWebhookSecretEncrypted } from './webhook-secret-crypto.js';
 
@@ -130,6 +131,13 @@ export class WorkspaceService {
     const memory = sanitizeMemoryForPersistence(normalizeRecord(input.memory));
     const memorySizeBytes = byteLengthJson(memory);
     const settings = parseWorkspaceSettingsInput(input.settings);
+    const storage = resolveWorkspaceStorageBinding({
+      repository_url: input.repository_url,
+      settings,
+    });
+    if (storage.type === 'git_remote' && !storage.repository_url) {
+      throw new ValidationError('Git Remote workspace storage requires a repository URL');
+    }
 
     try {
       const result = await this.pool.query<Record<string, unknown>>(
@@ -142,7 +150,7 @@ export class WorkspaceService {
           input.name,
           input.slug,
           input.description ?? null,
-          input.repository_url ?? null,
+          storage.type === 'git_remote' ? storage.repository_url : null,
           settings,
           memory,
           memorySizeBytes,
@@ -235,6 +243,13 @@ export class WorkspaceService {
       input.settings !== undefined
         ? parseWorkspaceSettingsInput(input.settings, existingSettings)
         : existingSettings;
+    const storage = resolveWorkspaceStorageBinding({
+      repository_url: input.repository_url ?? existing.repository_url,
+      settings,
+    });
+    if (storage.type === 'git_remote' && !storage.repository_url) {
+      throw new ValidationError('Git Remote workspace storage requires a repository URL');
+    }
 
     try {
       const result = await this.pool.query<Record<string, unknown>>(
@@ -242,7 +257,7 @@ export class WorkspaceService {
          SET name = COALESCE($3, name),
              slug = COALESCE($4, slug),
              description = COALESCE($5, description),
-             repository_url = COALESCE($6, repository_url),
+             repository_url = $6,
              settings = $7,
              is_active = COALESCE($8, is_active),
              updated_at = now()
@@ -254,7 +269,7 @@ export class WorkspaceService {
           input.name ?? null,
           input.slug ?? null,
           input.description ?? null,
-          input.repository_url ?? null,
+          storage.type === 'git_remote' ? storage.repository_url : null,
           settings,
           input.is_active ?? null,
         ],

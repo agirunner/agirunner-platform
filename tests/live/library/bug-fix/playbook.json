@@ -32,13 +32,6 @@
         "type": "string",
         "category": "input",
         "description": "Bug severity"
-      },
-      {
-        "name": "repo",
-        "type": "string",
-        "category": "repository",
-        "maps_to": "workspace.repository_url",
-        "description": "Git repository URL"
       }
     ],
     "roles": [
@@ -95,11 +88,6 @@
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "runtime": {
-      "pool_mode": "warm",
-      "max_runtimes": 1,
-      "priority": 1
     }
   }
 }
