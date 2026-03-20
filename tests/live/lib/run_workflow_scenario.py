@@ -113,6 +113,14 @@ def now_timestamp() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def truncate(value: str, max_chars: int) -> str:
+    if len(value) <= max_chars:
+        return value
+    if max_chars <= 3:
+        return value[:max_chars]
+    return value[: max_chars - 3] + "..."
+
+
 def matches_approval_decision(item: dict[str, Any], decision: dict[str, Any]) -> bool:
     match = decision.get("match", {})
     if not isinstance(match, dict) or not match:
@@ -1071,6 +1079,12 @@ def build_run_result_payload(
     execution_logs: Any | None = None,
     efficiency: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
+    verification_payload = {} if verification is None else verification
+    efficiency_payload = {} if efficiency is None else efficiency
+    specialist_teardown = efficiency_payload.get("specialist_teardown")
+    if not isinstance(specialist_teardown, dict):
+        specialist_teardown = {}
+    brief_proof = build_brief_proof(workflow=workflow, logs=execution_logs)
     return {
         "workflow_id": workflow_id,
         "state": final_state,
@@ -1094,9 +1108,98 @@ def build_run_result_payload(
         "fleet": fleet,
         "fleet_peaks": fleet_peaks,
         "execution_logs": execution_logs,
-        "efficiency": efficiency,
-        "verification": {} if verification is None else verification,
+        "efficiency": efficiency_payload,
+        "verification": verification_payload,
+        "verification_passed": bool(verification_payload.get("passed")),
+        "harness_failure": False,
+        "workflow_duration_seconds": efficiency_payload.get("workflow_duration_seconds"),
+        "total_llm_turns": efficiency_payload.get("total_llm_turns"),
+        "total_tool_steps": efficiency_payload.get("total_tool_steps"),
+        "total_bursts": efficiency_payload.get("total_bursts"),
+        "orchestrator_max_llm_turns": efficiency_payload.get("orchestrator_max_llm_turns"),
+        "non_orchestrator_max_llm_turns": efficiency_payload.get("non_orchestrator_max_llm_turns"),
+        "specialist_teardown_lag_seconds": specialist_teardown.get("max_lag_seconds"),
+        "brief_proof": brief_proof,
     }
+
+
+def build_brief_proof(*, workflow: dict[str, Any], logs: Any) -> dict[str, Any]:
+    task_roles = {
+        str(task.get("id")): str(task.get("role") or "").strip()
+        for task in _workflow_tasks(workflow)
+        if isinstance(task, dict) and isinstance(task.get("id"), str)
+    }
+    task_orchestrator_flags = {
+        str(task.get("id")): bool(task.get("is_orchestrator_task"))
+        for task in _workflow_tasks(workflow)
+        if isinstance(task, dict) and isinstance(task.get("id"), str)
+    }
+    task_entries: list[dict[str, Any]] = []
+    seen_task_ids: set[str] = set()
+
+    for row in execution_log_rows(logs):
+        if row.get("operation") != "llm.chat_stream" or row.get("status") != "started":
+            continue
+        task_id = row.get("task_id")
+        if not isinstance(task_id, str) or task_id.strip() == "" or task_id in seen_task_ids:
+            continue
+        if task_orchestrator_flags.get(task_id):
+            continue
+        payload = row.get("payload")
+        if not isinstance(payload, dict):
+            continue
+        messages = payload.get("messages")
+        if not isinstance(messages, list):
+            continue
+        system_messages = [
+            str(message.get("content") or "")
+            for message in messages
+            if isinstance(message, dict) and message.get("role") == "system"
+        ]
+        execution_brief_message = next(
+            (
+                str(message.get("content") or "")
+                for message in messages
+                if isinstance(message, dict)
+                and message.get("role") == "user"
+                and "Authoritative specialist execution brief" in str(message.get("content") or "")
+            ),
+            "",
+        )
+        task_entries.append(
+            {
+                "task_id": task_id,
+                "role": task_roles.get(task_id) or None,
+                "execution_brief_present": bool(execution_brief_message),
+                "execution_brief_path": "/workspace/context/execution-brief.json",
+                "execution_brief_excerpt": truncate(execution_brief_message, 400) if execution_brief_message else None,
+                "system_prompt_contains_workflow_brief": any(
+                    "## Workflow Brief" in message for message in system_messages
+                ),
+                "system_prompt_contains_current_focus": any(
+                    "## Current Focus" in message for message in system_messages
+                ),
+                "system_prompt_contains_predecessor_context": any(
+                    "## Predecessor Context" in message for message in system_messages
+                ),
+            }
+        )
+        seen_task_ids.add(task_id)
+
+    return {
+        "task_count": len(task_entries),
+        "tasks": task_entries,
+    }
+
+
+def execution_log_rows(logs: Any) -> list[dict[str, Any]]:
+    if isinstance(logs, list):
+        return [row for row in logs if isinstance(row, dict)]
+    if isinstance(logs, dict):
+        rows = logs.get("data", [])
+        if isinstance(rows, list):
+            return [row for row in rows if isinstance(row, dict)]
+    return []
 
 
 def main() -> None:

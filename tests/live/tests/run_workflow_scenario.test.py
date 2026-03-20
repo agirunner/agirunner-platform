@@ -196,6 +196,33 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             artifacts={"ok": True},
             fleet={"ok": True},
             fleet_peaks={"peak_running": 1},
+            execution_logs={
+                "data": [
+                    {
+                        "task_id": "task-spec-1",
+                        "operation": "llm.chat_stream",
+                        "status": "started",
+                        "payload": {
+                            "messages": [
+                                {"role": "system", "content": "## Workflow Mode: planned\nDurable instructions only."},
+                                {
+                                    "role": "user",
+                                    "content": "Authoritative specialist execution brief.\n\n## Workflow Brief\nFocus on implementation.",
+                                },
+                            ]
+                        },
+                    }
+                ]
+            },
+            efficiency={
+                "workflow_duration_seconds": 12.5,
+                "total_llm_turns": 4,
+                "total_tool_steps": 6,
+                "total_bursts": 3,
+                "orchestrator_max_llm_turns": 1,
+                "non_orchestrator_max_llm_turns": 3,
+                "specialist_teardown": {"max_lag_seconds": 1.2},
+            },
             verification={"passed": True, "failures": [], "checks": []},
         )
 
@@ -203,6 +230,19 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual("sdlc-lite-approval-request-changes-then-approve", payload["scenario_name"])
         self.assertEqual("oauth", payload["provider_auth_mode"])
         self.assertEqual("completed", payload["workflow_state"])
+        self.assertTrue(payload["verification_passed"])
+        self.assertFalse(payload["harness_failure"])
+        self.assertEqual(12.5, payload["workflow_duration_seconds"])
+        self.assertEqual(4, payload["total_llm_turns"])
+        self.assertEqual(6, payload["total_tool_steps"])
+        self.assertEqual(3, payload["total_bursts"])
+        self.assertEqual(1, payload["orchestrator_max_llm_turns"])
+        self.assertEqual(3, payload["non_orchestrator_max_llm_turns"])
+        self.assertEqual(1.2, payload["specialist_teardown_lag_seconds"])
+        self.assertEqual(1, payload["brief_proof"]["task_count"])
+        self.assertTrue(payload["brief_proof"]["tasks"][0]["execution_brief_present"])
+        self.assertFalse(payload["brief_proof"]["tasks"][0]["system_prompt_contains_workflow_brief"])
+        self.assertIn("## Workflow Brief", payload["brief_proof"]["tasks"][0]["execution_brief_excerpt"])
 
     def test_build_run_result_payload_does_not_mark_expected_pending_ongoing_workflow_as_timed_out(
         self,
