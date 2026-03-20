@@ -1138,6 +1138,37 @@ def build_brief_proof(*, workflow: dict[str, Any], logs: Any) -> dict[str, Any]:
     seen_task_ids: set[str] = set()
 
     for row in execution_log_rows(logs):
+        if row.get("operation") == "task.execute" and row.get("status") == "started":
+            task_id = row.get("task_id")
+            if not isinstance(task_id, str) or task_id.strip() == "" or task_id in seen_task_ids:
+                continue
+            if task_orchestrator_flags.get(task_id):
+                continue
+            payload = row.get("payload")
+            if not isinstance(payload, dict):
+                continue
+            task_entries.append(
+                {
+                    "task_id": task_id,
+                    "role": task_roles.get(task_id) or None,
+                    "execution_brief_present": bool(payload.get("execution_brief_present")),
+                    "execution_brief_path": "/workspace/context/execution-brief.json",
+                    "execution_brief_excerpt": payload.get("execution_brief_excerpt"),
+                    "execution_brief_hash": payload.get("execution_brief_hash"),
+                    "execution_brief_refresh_key": payload.get("execution_brief_refresh_key"),
+                    "execution_brief_current_focus": payload.get("execution_brief_current_focus"),
+                    "execution_brief_predecessor_handoff_id": payload.get("execution_brief_predecessor_handoff_id"),
+                    "execution_brief_memory_ref_keys": payload.get("execution_brief_memory_ref_keys"),
+                    "execution_brief_artifact_paths": payload.get("execution_brief_artifact_paths"),
+                    "system_prompt_contains_workflow_brief": False,
+                    "system_prompt_contains_current_focus": False,
+                    "system_prompt_contains_predecessor_context": False,
+                    "source": "task.execute.started",
+                }
+            )
+            seen_task_ids.add(task_id)
+            continue
+
         if row.get("operation") != "llm.chat_stream" or row.get("status") != "started":
             continue
         task_id = row.get("task_id")
@@ -1173,6 +1204,12 @@ def build_brief_proof(*, workflow: dict[str, Any], logs: Any) -> dict[str, Any]:
                 "execution_brief_present": bool(execution_brief_message),
                 "execution_brief_path": "/workspace/context/execution-brief.json",
                 "execution_brief_excerpt": truncate(execution_brief_message, 400) if execution_brief_message else None,
+                "execution_brief_hash": None,
+                "execution_brief_refresh_key": None,
+                "execution_brief_current_focus": None,
+                "execution_brief_predecessor_handoff_id": None,
+                "execution_brief_memory_ref_keys": None,
+                "execution_brief_artifact_paths": None,
                 "system_prompt_contains_workflow_brief": any(
                     "## Workflow Brief" in message for message in system_messages
                 ),
@@ -1182,6 +1219,7 @@ def build_brief_proof(*, workflow: dict[str, Any], logs: Any) -> dict[str, Any]:
                 "system_prompt_contains_predecessor_context": any(
                     "## Predecessor Context" in message for message in system_messages
                 ),
+                "source": "llm.chat_stream.started",
             }
         )
         seen_task_ids.add(task_id)

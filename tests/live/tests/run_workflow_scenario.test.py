@@ -244,6 +244,60 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertFalse(payload["brief_proof"]["tasks"][0]["system_prompt_contains_workflow_brief"])
         self.assertIn("## Workflow Brief", payload["brief_proof"]["tasks"][0]["execution_brief_excerpt"])
 
+    def test_build_brief_proof_prefers_task_started_summary(self) -> None:
+        proof = run_workflow_scenario.build_brief_proof(
+            workflow={
+                "tasks": [
+                    {
+                        "id": "task-spec-1",
+                        "role": "developer",
+                        "is_orchestrator_task": False,
+                    }
+                ]
+            },
+            logs={
+                "data": [
+                    {
+                        "task_id": "task-spec-1",
+                        "operation": "task.execute",
+                        "status": "started",
+                        "payload": {
+                            "execution_brief_present": True,
+                            "execution_brief_hash": "brief-hash-1",
+                            "execution_brief_refresh_key": "refresh-key-1",
+                            "execution_brief_excerpt": "## Workflow Brief\nFocus on the implementation handoff.",
+                            "execution_brief_current_focus": {
+                                "lifecycle": "planned",
+                                "stage_name": "implementation",
+                            },
+                            "execution_brief_predecessor_handoff_id": "handoff-1",
+                            "execution_brief_memory_ref_keys": ["release_note"],
+                            "execution_brief_artifact_paths": ["docs/requirements.md"],
+                        },
+                    },
+                    {
+                        "task_id": "task-spec-1",
+                        "operation": "llm.chat_stream",
+                        "status": "started",
+                        "payload": {
+                            "messages": [
+                                {"role": "system", "content": "## Workflow Brief\nThis should not win."},
+                                {"role": "user", "content": "Authoritative specialist execution brief."},
+                            ]
+                        },
+                    },
+                ]
+            },
+        )
+
+        self.assertEqual(1, proof["task_count"])
+        self.assertEqual("task.execute.started", proof["tasks"][0]["source"])
+        self.assertEqual("brief-hash-1", proof["tasks"][0]["execution_brief_hash"])
+        self.assertEqual("refresh-key-1", proof["tasks"][0]["execution_brief_refresh_key"])
+        self.assertEqual(["release_note"], proof["tasks"][0]["execution_brief_memory_ref_keys"])
+        self.assertEqual(["docs/requirements.md"], proof["tasks"][0]["execution_brief_artifact_paths"])
+        self.assertFalse(proof["tasks"][0]["system_prompt_contains_workflow_brief"])
+
     def test_build_run_result_payload_does_not_mark_expected_pending_ongoing_workflow_as_timed_out(
         self,
     ) -> None:
