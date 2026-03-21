@@ -98,6 +98,26 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("exactly two concrete request-changes review verdicts", reviewer.get("systemPrompt", ""))
         self.assertIn("do not repeat the forced rejection after two real rework cycles", reviewer.get("systemPrompt", ""))
 
+    def test_review_reject_twice_profile_keys_forced_verdicts_to_formal_review_pass_titles(self) -> None:
+        roles_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "roles.json"
+        playbook_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "playbook.json"
+
+        roles = json.loads(roles_file.read_text())
+        playbook = json.loads(playbook_file.read_text())
+        reviewer = next(role for role in roles if role.get("name") == "live-test-reviewer")
+        combined_contract = "\n".join(
+            [
+                reviewer.get("systemPrompt", ""),
+                playbook.get("definition", {}).get("process_instructions", ""),
+                playbook.get("outcome", ""),
+            ]
+        )
+        self.assertIn("First formal review", combined_contract)
+        self.assertIn("Second formal review", combined_contract)
+        self.assertIn("Third formal review", combined_contract)
+        self.assertIn("must return `request_changes`", combined_contract)
+        self.assertIn("may approve", combined_contract)
+
     def test_review_reject_twice_profile_requires_structured_review_findings(self) -> None:
         roles_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "roles.json"
         payload = json.loads(roles_file.read_text())
