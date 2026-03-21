@@ -98,6 +98,40 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("exactly two concrete request-changes review verdicts", reviewer.get("systemPrompt", ""))
         self.assertIn("do not repeat the forced rejection after two real rework cycles", reviewer.get("systemPrompt", ""))
 
+    def test_review_reject_twice_profile_aligns_rework_findings_with_authored_scope(self) -> None:
+        scenario_file = SCENARIOS_DIR / "sdlc-review-reject-twice.json"
+        playbook_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "playbook.json"
+
+        scenario = json.loads(scenario_file.read_text())
+        playbook = json.loads(playbook_file.read_text())
+
+        workflow_goal = scenario.get("workflow", {}).get("goal", "")
+        process_instructions = playbook.get("definition", {}).get("process_instructions", "")
+        outcome = playbook.get("outcome", "")
+
+        expected_scope_snippets = (
+            "unsupported",
+            "usage",
+            "invalid-option",
+        )
+
+        for snippet in expected_scope_snippets:
+            self.assertIn(
+                snippet,
+                workflow_goal.lower(),
+                f"sdlc-review-reject-twice workflow goal must author '{snippet}' into scope",
+            )
+            self.assertIn(
+                snippet,
+                process_instructions.lower(),
+                f"sdlc-review-reject-twice process instructions must author '{snippet}' into scope",
+            )
+            self.assertIn(
+                snippet,
+                outcome.lower(),
+                f"sdlc-review-reject-twice outcome must author '{snippet}' into scope",
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
