@@ -27,6 +27,17 @@ class FakeClient:
                 "reasoning_config": {"type": "effort", "default": "low", "options": ["low", "medium"]},
             },
             {
+                "id": "model-gpt-5.4-mini",
+                "provider_id": "provider-oauth",
+                "model_id": "gpt-5.4-mini",
+                "endpoint_type": "responses",
+                "reasoning_config": {
+                    "type": "reasoning_effort",
+                    "default": "medium",
+                    "options": ["low", "medium", "high"],
+                },
+            },
+            {
                 "id": "model-gpt-5-codex-mini",
                 "provider_id": "provider-oauth",
                 "model_id": "gpt-5-codex-mini",
@@ -349,15 +360,15 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
             model_id="gpt-5.4",
             model_endpoint_type="responses",
             system_reasoning_effort="low",
-            specialist_model_id="gpt-5.4",
+            specialist_model_id="gpt-5.4-mini",
             specialist_endpoint_type="responses",
-            specialist_reasoning_effort="low",
+            specialist_reasoning_effort="medium",
             roles=roles,
         )
 
         self.assertEqual("provider-oauth", provider["id"])
         self.assertEqual("model-gpt-5.4", model["id"])
-        self.assertEqual("model-gpt-5.4", specialist_model["id"])
+        self.assertEqual("model-gpt-5.4-mini", specialist_model["id"])
         self.assertEqual(
             [
                 ("POST", "/api/v1/config/oauth/import-session"),
@@ -371,6 +382,10 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
         self.assertEqual(
             {"modelId": "model-gpt-5.4", "reasoningConfig": {"effort": "low", "reasoning_effort": "low"}},
             client.calls[2][2],
+        )
+        self.assertEqual(
+            {"primaryModelId": "model-gpt-5.4-mini", "reasoningConfig": {"effort": "medium", "reasoning_effort": "medium"}},
+            client.calls[3][2],
         )
 
 

@@ -167,7 +167,23 @@ describe('OAuth profiles', () => {
     expect(OPENAI_CODEX_PROFILE.staticModels.length).toBeGreaterThan(0);
     const modelIds = OPENAI_CODEX_PROFILE.staticModels.map((m) => m.modelId);
     expect(modelIds).toContain('gpt-5.4');
+    expect(modelIds).toContain('gpt-5.4-mini');
     expect(modelIds).toContain('gpt-5.3-codex');
+  });
+
+  it('openai-codex exposes gpt-5.4-mini with low medium high reasoning', () => {
+    const model = OPENAI_CODEX_PROFILE.staticModels.find((entry) => entry.modelId === 'gpt-5.4-mini');
+    expect(model).toBeDefined();
+    expect(model?.endpointType).toBe('responses');
+    expect(model?.supportsToolUse).toBe(true);
+    expect(model?.supportsVision).toBe(true);
+    expect(model?.contextWindow).toBe(400000);
+    expect(model?.maxOutputTokens).toBe(128000);
+    expect(model?.reasoningConfig).toEqual({
+      type: 'reasoning_effort',
+      options: ['low', 'medium', 'high'],
+      default: 'medium',
+    });
   });
 
   it('openai-codex profile uses responses endpoint', () => {
