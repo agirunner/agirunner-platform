@@ -23,9 +23,7 @@ import {
 import {
   buildDefaultsByKey,
   buildFormValues,
-  getFieldDefaultValue,
-  isAdvancedRuntimeOverrideField,
-  shouldDeleteRuntimeDefaultRow,
+  planRuntimeDefaultSaveAction,
 } from './runtime-defaults.form.js';
 import {
   FIELD_DEFINITIONS,
@@ -44,13 +42,16 @@ function buildSaveOperations(
   return FIELD_DEFINITIONS.flatMap((field) => {
     const value = (values[field.key] ?? '').trim();
     const existing = defaultsByKey.get(field.key);
-    const shouldDelete = shouldDeleteRuntimeDefaultRow({
+    const saveAction = planRuntimeDefaultSaveAction({
       field,
       currentValue: value,
       existingValue: existing?.config_value,
     });
-    if (shouldDelete) {
+    if (saveAction === 'delete') {
       return existing ? [deleteRuntimeDefault(existing.id)] : [];
+    }
+    if (saveAction === 'noop') {
+      return [];
     }
     return [
       upsertRuntimeDefault({

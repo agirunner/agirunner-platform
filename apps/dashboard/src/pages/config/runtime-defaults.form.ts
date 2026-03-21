@@ -45,19 +45,34 @@ export function shouldDeleteRuntimeDefaultRow(input: {
   currentValue: string;
   existingValue?: string | null;
 }): boolean {
+  return planRuntimeDefaultSaveAction(input) === 'delete';
+}
+
+export function planRuntimeDefaultSaveAction(input: {
+  field: FieldDefinition;
+  currentValue: string;
+  existingValue?: string | null;
+}): 'noop' | 'delete' | 'upsert' {
   const currentValue = input.currentValue.trim();
   const existingValue = input.existingValue?.trim() ?? '';
 
   if (!existingValue) {
-    return false;
+    return currentValue ? 'upsert' : 'noop';
   }
 
   if (!currentValue) {
     if (!isAdvancedRuntimeOverrideField(input.field)) {
-      return true;
+      return 'delete';
     }
-    return existingValue !== getFieldDefaultValue(input.field);
+    return existingValue === getFieldDefaultValue(input.field) ? 'noop' : 'delete';
   }
 
-  return isAdvancedRuntimeOverrideField(input.field) && currentValue === getFieldDefaultValue(input.field);
+  if (
+    isAdvancedRuntimeOverrideField(input.field) &&
+    currentValue === getFieldDefaultValue(input.field)
+  ) {
+    return existingValue === getFieldDefaultValue(input.field) ? 'noop' : 'delete';
+  }
+
+  return 'upsert';
 }

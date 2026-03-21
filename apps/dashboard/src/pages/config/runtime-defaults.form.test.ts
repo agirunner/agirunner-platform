@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildFormValues,
+  planRuntimeDefaultSaveAction,
   shouldDeleteRuntimeDefaultRow,
 } from './runtime-defaults.form.js';
 import { FIELD_DEFINITIONS } from './runtime-defaults.schema.js';
@@ -73,5 +74,31 @@ describe('runtime defaults form', () => {
         existingValue: '9',
       }),
     ).toBe(true);
+  });
+
+  it('treats blank inherited advanced defaults as a save no-op', () => {
+    const field = FIELD_DEFINITIONS.find((candidate) => candidate.key === 'queue.max_concurrency');
+
+    expect(field).toBeDefined();
+    expect(
+      planRuntimeDefaultSaveAction({
+        field: field!,
+        currentValue: '',
+        existingValue: '2',
+      }),
+    ).toBe('noop');
+  });
+
+  it('treats explicit advanced built-in defaults as a save no-op when the seeded row already exists', () => {
+    const field = FIELD_DEFINITIONS.find((candidate) => candidate.key === 'queue.max_concurrency');
+
+    expect(field).toBeDefined();
+    expect(
+      planRuntimeDefaultSaveAction({
+        field: field!,
+        currentValue: '2',
+        existingValue: '2',
+      }),
+    ).toBe('noop');
   });
 });
