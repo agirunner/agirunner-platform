@@ -75,8 +75,8 @@ describe('role definitions page source', () => {
     const source = readCombinedSource();
     expect(source).toContain('ImageReferenceField');
     expect(source).toContain('placeholder="2"');
-    expect(source).toContain('placeholder="128m"');
-    expect(source).toContain('placeholder="512m"');
+    expect(source).toContain('placeholder="256m"');
+    expect(source).toContain('placeholder="1g"');
   });
 
   it('provides an inline active toggle so operators skip the full dialog for status changes', () => {

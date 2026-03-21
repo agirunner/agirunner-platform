@@ -250,7 +250,7 @@ export function RoleExecutionContainerSection(props: {
                 },
               }))
             }
-            placeholder="512m"
+            placeholder="1g"
           />
           {props.validation.fieldErrors.executionContainerMemory ? (
             <span className="text-xs text-red-600 dark:text-red-400">

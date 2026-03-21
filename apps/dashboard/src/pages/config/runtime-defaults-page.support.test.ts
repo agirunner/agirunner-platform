@@ -65,7 +65,7 @@ describe('runtime defaults page support', () => {
         }),
         expect.objectContaining({
           key: 'specialist_runtime_default_memory',
-          placeholder: '128m',
+          placeholder: '256m',
         }),
       ]),
     );
@@ -77,7 +77,7 @@ describe('runtime defaults page support', () => {
         }),
         expect.objectContaining({
           key: 'specialist_execution_default_memory',
-          placeholder: '512m',
+          placeholder: '1g',
         }),
       ]),
     );

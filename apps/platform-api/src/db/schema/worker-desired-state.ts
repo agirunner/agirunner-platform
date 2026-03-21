@@ -14,7 +14,7 @@ export const workerDesiredState = pgTable(
     poolKind: text('pool_kind').notNull().default('specialist'),
     runtimeImage: text('runtime_image').notNull(),
     cpuLimit: text('cpu_limit').notNull().default('2'),
-    memoryLimit: text('memory_limit').notNull().default('128m'),
+    memoryLimit: text('memory_limit').notNull().default('256m'),
     networkPolicy: text('network_policy').notNull().default('restricted'),
     environment: jsonb('environment').default({}),
     llmProvider: text('llm_provider'),

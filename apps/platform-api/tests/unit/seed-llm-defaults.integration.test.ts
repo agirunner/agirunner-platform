@@ -115,9 +115,9 @@ describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', (
 
     expect(defaults.rows).toEqual([
       { config_key: 'specialist_execution_default_cpu', config_value: '2' },
-      { config_key: 'specialist_execution_default_memory', config_value: '512m' },
+      { config_key: 'specialist_execution_default_memory', config_value: '1g' },
       { config_key: 'specialist_runtime_default_cpu', config_value: '2' },
-      { config_key: 'specialist_runtime_default_memory', config_value: '128m' },
+      { config_key: 'specialist_runtime_default_memory', config_value: '256m' },
     ]);
 
     const orchestrator = await pool.query<{ cpu_limit: string; memory_limit: string }>(
@@ -129,6 +129,6 @@ describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', (
       [DEFAULT_TENANT_ID],
     );
 
-    expect(orchestrator.rows).toEqual([{ cpu_limit: '2', memory_limit: '128m' }]);
+    expect(orchestrator.rows).toEqual([{ cpu_limit: '2', memory_limit: '256m' }]);
   }, 120_000);
 });

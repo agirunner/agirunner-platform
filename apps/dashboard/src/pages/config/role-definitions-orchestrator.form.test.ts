@@ -34,7 +34,7 @@ describe('role definitions orchestrator form', () => {
       workerName: 'orchestrator-primary',
       runtimeImage: 'agirunner-runtime:local',
       cpuLimit: '2',
-      memoryLimit: '128m',
+      memoryLimit: '256m',
       replicas: '1',
       enabled: true,
     });

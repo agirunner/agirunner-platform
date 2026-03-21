@@ -176,7 +176,7 @@ export function OrchestratorPoolDialog(props: {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, memoryLimit: event.target.value }))
                 }
-                placeholder="128m"
+                placeholder="256m"
                 aria-invalid={validationErrors.memoryLimit ? 'true' : 'false'}
               />
               {validationErrors.memoryLimit ? (

@@ -130,7 +130,7 @@ describe('role definitions orchestrator support', () => {
           enabledWorkers: 0,
           runningContainers: 0,
           runtimeLabel: 'agirunner-runtime:local',
-          resourceLabel: '2 CPU · 128m memory',
+          resourceLabel: '2 CPU · 256m memory',
         },
       ),
     ).toEqual({
