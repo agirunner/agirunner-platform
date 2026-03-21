@@ -261,6 +261,32 @@ function hasMatchingReviewRejection(
 export class TaskLifecycleService {
   constructor(private readonly deps: TaskLifecycleDependencies) {}
 
+  private async clearOpenChildReviewWorkItemRouting(
+    tenantId: string,
+    task: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const workflowId = readOptionalText(task.workflow_id);
+    const workItemId = readOptionalText(task.work_item_id);
+    if (!workflowId || !workItemId) {
+      return;
+    }
+
+    await client.query(
+      `UPDATE workflow_work_items
+          SET next_expected_actor = NULL,
+              next_expected_action = NULL,
+              metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND parent_work_item_id = $3
+          AND stage_name = 'review'
+          AND completed_at IS NULL`,
+      [tenantId, workflowId, workItemId],
+    );
+  }
+
   private async logGovernanceTransition(
     tenantId: string,
     operation: string,
@@ -1285,6 +1311,7 @@ export class TaskLifecycleService {
           : {}),
       },
       afterUpdate: async (updatedTask, client) => {
+        await this.clearOpenChildReviewWorkItemRouting(identity.tenantId, updatedTask, client);
         await this.deps.workItemContinuityService?.recordReviewRejected(
           identity.tenantId,
           updatedTask,
