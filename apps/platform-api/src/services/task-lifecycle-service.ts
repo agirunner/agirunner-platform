@@ -168,6 +168,14 @@ function matchesReviewMetadata(
   );
 }
 
+function hasActiveReworkRequest(task: Record<string, unknown>): boolean {
+  const state = normalizeTaskState(task.state as string | null | undefined);
+  if (state !== 'ready' && state !== 'claimed' && state !== 'in_progress') {
+    return false;
+  }
+  return asRecord(task.metadata).review_action === 'request_changes';
+}
+
 function hasMatchingManualEscalation(
   task: Record<string, unknown>,
   payload: {
@@ -1195,6 +1203,9 @@ export class TaskLifecycleService {
     client?: DatabaseClient,
   ) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
+    if (hasActiveReworkRequest(task)) {
+      return this.deps.toTaskResponse(task);
+    }
     const nextInput = payload.override_input ?? {
       ...asRecord(task.input),
       review_feedback: payload.feedback,

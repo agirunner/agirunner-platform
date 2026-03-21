@@ -1188,6 +1188,57 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('treats a repeated request-changes action as idempotent once active rework is already in progress', async () => {
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-review-loop-active',
+      state: 'in_progress',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      input: {
+        review_feedback:
+          'Review task 8bf issued a request-changes verdict. Add explicit short-form coverage and resubmit.',
+      },
+      metadata: {
+        review_action: 'request_changes',
+        review_feedback:
+          'Review task 8bf issued a request-changes verdict. Add explicit short-form coverage and resubmit.',
+      },
+      rework_count: 1,
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-review-loop-active',
+      {
+        feedback:
+          'Reviewer task 8bf completed with a partial request-changes verdict. Add explicit short-form coverage and resubmit.',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   it('treats a repeated reject action as idempotent once the task already reflects the rejection', async () => {
     const client = {
       query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
