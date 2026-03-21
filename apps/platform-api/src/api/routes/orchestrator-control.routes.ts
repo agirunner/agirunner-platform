@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import type { ApiKeyIdentity } from '../../auth/api-key.js';
 import { authenticateApiKey, withScope } from '../../auth/fastify-auth-hook.js';
+import type { DatabaseQueryable } from '../../db/database.js';
 import { WorkflowActivationDispatchService } from '../../services/workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from '../../services/workflow-activation-service.js';
 import { WorkflowStateService } from '../../services/workflow-state-service.js';
@@ -698,23 +699,36 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         taskScope.workflow_id,
         'create_task',
         body.request_id,
-        (client) =>
-          app.taskService.createTask(
-            request.auth!,
-            {
-              ...normalizedBody,
-              workflow_id: taskScope.workflow_id,
-              workspace_id: taskScope.workspace_id ?? undefined,
-              activation_id: taskScope.activation_id ?? undefined,
-              is_orchestrator_task: false,
-              metadata: {
-                ...(normalizedBody.metadata ?? {}),
-                created_by_orchestrator_task_id: taskScope.id,
-                orchestrator_activation_id: taskScope.activation_id,
-              },
+        async (client) => {
+          const createInput = {
+            ...normalizedBody,
+            workflow_id: taskScope.workflow_id,
+            workspace_id: taskScope.workspace_id ?? undefined,
+            activation_id: taskScope.activation_id ?? undefined,
+            is_orchestrator_task: false,
+            metadata: {
+              ...(normalizedBody.metadata ?? {}),
+              created_by_orchestrator_task_id: taskScope.id,
+              orchestrator_activation_id: taskScope.activation_id,
             },
+          };
+
+          const existingReviewTaskId = await loadExistingReviewTaskForSameRevision(
             client,
-          ),
+            request.auth!.tenantId,
+            taskScope.workflow_id,
+            createInput,
+          );
+          if (existingReviewTaskId) {
+            return app.taskService.getTask(request.auth!.tenantId, existingReviewTaskId) as Promise<Record<string, unknown>>;
+          }
+
+          return app.taskService.createTask(
+            request.auth!,
+            createInput,
+            client,
+          );
+        },
       );
       return reply.status(201).send({ data: task });
     },
@@ -1332,6 +1346,15 @@ interface OrchestratorCreateWorkItemContext {
   payload: Record<string, unknown>;
 }
 
+interface ReviewedTaskContextRow {
+  id: string;
+  rework_count: number | null;
+}
+
+interface ExistingReviewTaskRow {
+  id: string;
+}
+
 async function normalizeOrchestratorWorkItemCreateInput(
   pool: FastifyInstance['pgPool'],
   tenantId: string,
@@ -1393,6 +1416,12 @@ async function normalizeOrchestratorTaskCreateInput(
   if (isReviewTaskCreate(stageAlignedBody)) {
     const explicitTaskID = readString(existingInput.task_id);
     if (explicitTaskID) {
+      const reviewTaskMetadata = await loadReviewedTaskMetadata(
+        pool,
+        tenantId,
+        taskScope.workflow_id,
+        explicitTaskID,
+      );
       return {
         ...stageAlignedBody,
         input: {
@@ -1402,6 +1431,7 @@ async function normalizeOrchestratorTaskCreateInput(
         metadata: {
           ...(stageAlignedBody.metadata ?? {}),
           reviewed_task_id_source: 'input_task_id_default',
+          ...reviewTaskMetadata,
         },
       };
     }
@@ -1414,6 +1444,13 @@ async function normalizeOrchestratorTaskCreateInput(
       return stageAlignedBody;
     }
 
+    const reviewTaskMetadata = await loadReviewedTaskMetadata(
+      pool,
+      tenantId,
+      taskScope.workflow_id,
+      reviewedTaskId,
+    );
+
     return {
       ...stageAlignedBody,
       input: {
@@ -1423,6 +1460,7 @@ async function normalizeOrchestratorTaskCreateInput(
       metadata: {
         ...(stageAlignedBody.metadata ?? {}),
         reviewed_task_id_source: 'activation_default',
+        ...reviewTaskMetadata,
       },
     };
   }
@@ -1452,6 +1490,69 @@ async function normalizeOrchestratorTaskCreateInput(
       reviewed_task_id_source: 'activation_lineage_default',
     },
   };
+}
+
+async function loadReviewedTaskMetadata(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  reviewedTaskId: string,
+) {
+  const result = await db.query<ReviewedTaskContextRow>(
+    `SELECT id, rework_count
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, reviewedTaskId],
+  );
+  const row = result.rows[0];
+  return {
+    reviewed_task_id: row?.id ?? reviewedTaskId,
+    reviewed_task_rework_count: row?.rework_count ?? 0,
+  };
+}
+
+async function loadExistingReviewTaskForSameRevision(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+) {
+  if (!isReviewTaskCreate(body) || !body.work_item_id) {
+    return null;
+  }
+
+  const reviewedTaskId = readReviewedTaskReference(body.input);
+  const reviewedTaskReworkCount = readInteger(body.metadata?.reviewed_task_rework_count);
+  if (!reviewedTaskId || reviewedTaskReworkCount === null) {
+    return null;
+  }
+
+  const result = await db.query<ExistingReviewTaskRow>(
+    `SELECT id
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND work_item_id = $3
+        AND role = $4
+        AND state = ANY($5::task_state[])
+        AND COALESCE(metadata->>'reviewed_task_id', '') = $6
+        AND COALESCE((metadata->>'reviewed_task_rework_count')::integer, -1) = $7
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [
+      tenantId,
+      workflowId,
+      body.work_item_id,
+      body.role,
+      ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
+      reviewedTaskId,
+      reviewedTaskReworkCount,
+    ],
+  );
+  return result.rows[0]?.id ?? null;
 }
 
 interface TaskCreateStageAlignedWorkItem {
@@ -1784,6 +1885,17 @@ function readStringArray(value: unknown): string[] {
 
 function readString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readInteger(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value !== 'string' || value.trim().length === 0) {
+    return null;
+  }
+  const parsed = Number.parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
 }
 
 function dedupeStrings(values: string[]): string[] {

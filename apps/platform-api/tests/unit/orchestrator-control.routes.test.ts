@@ -1820,6 +1820,18 @@ describe('orchestratorControlRoutes', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-review-1']);
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes("COALESCE(metadata->>'reviewed_task_id'")) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            reviewWorkItemId,
+            'reviewer',
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
+            'task-developer',
+            0,
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
           return { rowCount: 1, rows: [{ response: createdTask }] };
         }
@@ -1843,6 +1855,16 @@ describe('orchestratorControlRoutes', () => {
               assigned_agent_id: 'agent-1',
               is_orchestrator_task: true,
               state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('AND workflow_id = $2') && sql.includes('AND id = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-developer',
+              rework_count: 0,
             }],
           };
         }
@@ -1918,6 +1940,8 @@ describe('orchestratorControlRoutes', () => {
         }),
         metadata: expect.objectContaining({
           reviewed_task_id_source: 'activation_default',
+          reviewed_task_id: 'task-developer',
+          reviewed_task_rework_count: 0,
           created_by_orchestrator_task_id: 'task-orchestrator',
           orchestrator_activation_id: 'activation-review',
         }),
@@ -1925,6 +1949,155 @@ describe('orchestratorControlRoutes', () => {
       client,
     );
     expect(response.json().data).toEqual(createdTask);
+  });
+
+  it('returns the existing reviewer task when output_pending_review replays for the same reviewed task revision', async () => {
+    const reviewWorkItemId = '22222222-2222-4222-8222-222222222222';
+    const existingTask = {
+      id: 'task-reviewer-existing',
+      workflow_id: 'workflow-1',
+      work_item_id: reviewWorkItemId,
+      stage_name: 'review',
+      role: 'reviewer',
+      state: 'completed',
+      metadata: {
+        reviewed_task_id: 'task-developer',
+        reviewed_task_rework_count: 0,
+      },
+    };
+    const taskService = {
+      createTask: vi.fn(),
+      getTask: vi.fn().mockResolvedValue(existingTask),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-review-duplicate']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes("COALESCE(metadata->>'reviewed_task_id'")) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            reviewWorkItemId,
+            'reviewer',
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
+            'task-developer',
+            0,
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{ id: existingTask.id }],
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: existingTask }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: 'implementation-item',
+              stage_name: 'implementation',
+              activation_id: 'activation-review',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('AND workflow_id = $2') && sql.includes('AND id = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-developer',
+              rework_count: 0,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('LEFT JOIN workflow_work_items parent')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', reviewWorkItemId]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: reviewWorkItemId,
+              stage_name: 'review',
+              parent_work_item_id: 'implementation-item',
+              parent_id: 'implementation-item',
+              parent_stage_name: 'implementation',
+              workflow_lifecycle: 'planned',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workflow_activations wa')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-review']);
+          return {
+            rowCount: 1,
+            rows: [{
+              lifecycle: 'planned',
+              event_type: 'task.output_pending_review',
+              payload: {
+                task_id: 'task-developer',
+                work_item_id: 'implementation-item',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-review-duplicate',
+        title: 'Review hello world output',
+        description: 'Review the developer-delivered work.',
+        work_item_id: reviewWorkItemId,
+        stage_name: 'review',
+        role: 'reviewer',
+        type: 'review',
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(taskService.createTask).not.toHaveBeenCalled();
+    expect(taskService.getTask).toHaveBeenCalledWith('tenant-1', existingTask.id);
+    expect(response.json().data).toEqual(existingTask);
   });
 
   it('defaults verification task reviewed linkage from reviewer activation lineage', async () => {
@@ -2029,6 +2202,16 @@ describe('orchestratorControlRoutes', () => {
                 work_item_id: reviewWorkItemId,
                 stage_name: 'review',
               },
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('AND workflow_id = $2') && sql.includes('AND id = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-developer',
+              rework_count: 0,
             }],
           };
         }
@@ -2250,6 +2433,18 @@ describe('orchestratorControlRoutes', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-custom-review-1']);
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes("COALESCE(metadata->>'reviewed_task_id'")) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            reviewWorkItemId,
+            'live-test-reviewer',
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
+            'task-developer',
+            0,
+          ]);
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
           return { rowCount: 1, rows: [{ response: createdTask }] };
         }
@@ -2305,6 +2500,16 @@ describe('orchestratorControlRoutes', () => {
             }],
           };
         }
+        if (sql.includes('FROM tasks') && sql.includes('AND workflow_id = $2') && sql.includes('AND id = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-developer',
+              rework_count: 0,
+            }],
+          };
+        }
         throw new Error(`unexpected pool query: ${sql}`);
       }),
       connect: vi.fn(async () => client),
@@ -2350,6 +2555,8 @@ describe('orchestratorControlRoutes', () => {
         }),
         metadata: expect.objectContaining({
           reviewed_task_id_source: 'activation_default',
+          reviewed_task_id: 'task-developer',
+          reviewed_task_rework_count: 0,
           created_by_orchestrator_task_id: 'task-orchestrator',
           orchestrator_activation_id: 'activation-handoff-review',
         }),
