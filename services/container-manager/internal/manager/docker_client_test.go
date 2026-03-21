@@ -28,6 +28,28 @@ func TestParseCPULimit(t *testing.T) {
 	}
 }
 
+func TestClampCPULimitToHost(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		hostCPUs int64
+		expected int64
+	}{
+		{name: "emptyStaysZero", input: "", hostCPUs: 4, expected: 0},
+		{name: "withinHostLimit", input: "2", hostCPUs: 4, expected: 2_000_000_000},
+		{name: "floorsToHostLimit", input: "6", hostCPUs: 4, expected: 4_000_000_000},
+		{name: "invalidHostLeavesOriginal", input: "3", hostCPUs: 0, expected: 3_000_000_000},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := clampCPULimitToHost(parseCPULimit(tt.input), tt.hostCPUs)
+			if result != tt.expected {
+				t.Errorf("clampCPULimitToHost(%q, %d) = %d, want %d", tt.input, tt.hostCPUs, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestParseMemoryLimit(t *testing.T) {
 	tests := []struct {
 		name     string

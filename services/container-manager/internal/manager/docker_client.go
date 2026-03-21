@@ -103,9 +103,10 @@ func (d *RealDockerClient) CreateContainer(ctx context.Context, spec ContainerSp
 		Labels: spec.Labels,
 	}
 
+	hostCPUCount := d.hostCPUCount(ctx)
 	hostCfg := &container.HostConfig{
 		Resources: container.Resources{
-			NanoCPUs: parseCPULimit(spec.CPULimit),
+			NanoCPUs: clampCPULimitToHost(parseCPULimit(spec.CPULimit), hostCPUCount),
 			Memory:   parseMemoryLimit(spec.MemoryLimit),
 		},
 	}
@@ -380,6 +381,28 @@ func parseCPULimit(limit string) int64 {
 		return 0
 	}
 	return int64(val * 1e9)
+}
+
+func clampCPULimitToHost(requestedNanoCPUs int64, hostCPUCount int64) int64 {
+	if requestedNanoCPUs <= 0 || hostCPUCount <= 0 {
+		return requestedNanoCPUs
+	}
+	hostNanoCPUs := hostCPUCount * 1e9
+	if requestedNanoCPUs > hostNanoCPUs {
+		return hostNanoCPUs
+	}
+	return requestedNanoCPUs
+}
+
+func (d *RealDockerClient) hostCPUCount(ctx context.Context) int64 {
+	info, err := d.cli.Info(ctx)
+	if err != nil {
+		return 0
+	}
+	if info.NCPU <= 0 {
+		return 0
+	}
+	return int64(info.NCPU)
 }
 
 // parseMemoryLimit converts a memory limit string (e.g. "512m", "1g", "1073741824")
