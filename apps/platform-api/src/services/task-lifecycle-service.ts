@@ -295,6 +295,32 @@ export class TaskLifecycleService {
     );
   }
 
+  private async restoreOpenChildReviewWorkItemRouting(
+    tenantId: string,
+    task: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const workflowId = readOptionalText(task.workflow_id);
+    const workItemId = readOptionalText(task.work_item_id);
+    if (!workflowId || !workItemId) {
+      return;
+    }
+
+    await client.query(
+      `UPDATE workflow_work_items
+          SET next_expected_actor = COALESCE(owner_role, next_expected_actor),
+              next_expected_action = 'review',
+              metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND parent_work_item_id = $3
+          AND stage_name = 'review'
+          AND completed_at IS NULL`,
+      [tenantId, workflowId, workItemId],
+    );
+  }
+
   private async logGovernanceTransition(
     tenantId: string,
     operation: string,
@@ -559,6 +585,11 @@ export class TaskLifecycleService {
       }
       if (resolvedNextState === 'output_pending_review' && !updatedTask.is_orchestrator_task) {
         await this.deps.workItemContinuityService?.recordTaskCompleted(
+          identity.tenantId,
+          updatedTask,
+          client,
+        );
+        await this.restoreOpenChildReviewWorkItemRouting(
           identity.tenantId,
           updatedTask,
           client,

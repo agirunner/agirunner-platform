@@ -339,6 +339,124 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('re-arms an open child review work item for the reviewer when rework resubmission returns to output review', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-rework-resubmitted',
+              state: 'output_pending_review',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              role: 'developer',
+              rework_count: 1,
+              output: { summary: 'ready for re-review' },
+              metadata: {},
+            }],
+          };
+        }
+        if (
+          sql.includes('UPDATE workflow_work_items')
+          && sql.includes("parent_work_item_id = $3")
+          && sql.includes("stage_name = 'review'")
+        ) {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql === 'SELECT playbook_id FROM workflows WHERE tenant_id = $1 AND id = $2') {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rows: [{
+              id: 'activation-review-resubmitted',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-output_pending_review:task-rework-resubmitted:updated',
+              reason: 'task.output_pending_review',
+              event_type: 'task.output_pending_review',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'review',
+        nextExpectedActor: 'reviewer',
+        nextExpectedAction: 'review',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedReviewExpectation: false,
+      })),
+    };
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-rework-resubmitted',
+        state: 'in_progress',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+        role: 'developer',
+        requires_output_review: true,
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: null,
+        rework_count: 1,
+        role_config: {},
+      }),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: workItemContinuityService as never,
+    });
+
+    const result = await service.completeTask(
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'ak',
+      },
+      'task-rework-resubmitted',
+      {
+        output: { summary: 'ready for re-review' },
+        verification: { passed: true },
+      },
+    );
+
+    expect(result.state).toBe('output_pending_review');
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1'],
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining("next_expected_action = 'review'"),
+      ['tenant-1', 'workflow-1', 'work-item-1'],
+    );
+  });
+
   it('completes reviewer tasks immediately when the structured handoff approves the review outcome', async () => {
     const client = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
