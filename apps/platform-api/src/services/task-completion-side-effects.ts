@@ -21,6 +21,10 @@ interface ReviewedTaskCandidateLookup {
   parentWorkItemId: string | null;
 }
 
+interface ReviewedTaskCandidateOptions {
+  allowCompletedExplicitTask?: boolean;
+}
+
 type TaskCompletionContinuityEvent = 'task_completed' | 'review_rejected';
 
 interface TaskAttemptHandoffOutcome {
@@ -285,6 +289,7 @@ async function maybeRequestReviewedTaskChanges(
     workItemId,
     reviewTaskId,
     completedTask,
+    { allowCompletedExplicitTask: true },
   );
   if (candidates.result.rowCount !== 1) {
     return false;
@@ -633,20 +638,33 @@ async function loadReviewedTaskCandidates(
   workItemId: string,
   reviewTaskId: string,
   completedTask: Record<string, unknown>,
+  options?: ReviewedTaskCandidateOptions,
 ): Promise<ReviewedTaskCandidateLookup> {
   const explicitReviewedTaskId = readReviewedTaskId(completedTask);
   if (explicitReviewedTaskId) {
-    const exactMatch = await client.query<Record<string, unknown>>(
-      `SELECT *
-         FROM tasks
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND id = $3
-          AND state = 'output_pending_review'
-          AND id <> $4
-        LIMIT 1`,
-      [tenantId, workflowId, explicitReviewedTaskId, reviewTaskId],
-    );
+    const exactMatch = options?.allowCompletedExplicitTask
+      ? await client.query<Record<string, unknown>>(
+          `SELECT *
+             FROM tasks
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+              AND id = $3
+              AND state = ANY($4::task_state[])
+              AND id <> $5
+            LIMIT 1`,
+          [tenantId, workflowId, explicitReviewedTaskId, ['output_pending_review', 'completed'], reviewTaskId],
+        )
+      : await client.query<Record<string, unknown>>(
+          `SELECT *
+             FROM tasks
+            WHERE tenant_id = $1
+              AND workflow_id = $2
+              AND id = $3
+              AND state = 'output_pending_review'
+              AND id <> $4
+            LIMIT 1`,
+          [tenantId, workflowId, explicitReviewedTaskId, reviewTaskId],
+        );
     if ((exactMatch.rowCount ?? 0) > 0) {
       return {
         result: {

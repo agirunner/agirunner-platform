@@ -1379,37 +1379,64 @@ async function normalizeOrchestratorTaskCreateInput(
     taskScope.workflow_id,
     body,
   );
-  if (!isReviewTaskCreate(stageAlignedBody) || hasExplicitReviewedTaskReference(stageAlignedBody.input)) {
+  if (hasExplicitReviewedTaskReference(stageAlignedBody.input)) {
     return stageAlignedBody;
   }
 
   const existingInput = stageAlignedBody.input ?? {};
-  const explicitTaskID = readString(existingInput.task_id);
-  if (explicitTaskID) {
-    return {
-      ...stageAlignedBody,
-      input: {
-        ...existingInput,
-        developer_task_id: explicitTaskID,
-      },
-      metadata: {
-        ...(stageAlignedBody.metadata ?? {}),
-        reviewed_task_id_source: 'input_task_id_default',
-      },
-    };
-  }
-
   const context = await loadOrchestratorCreateWorkItemContext(
     pool,
     tenantId,
     taskScope.workflow_id,
     taskScope.activation_id,
   );
-  if (!isReviewLinkActivation(context.event_type)) {
-    return body;
+  if (isReviewTaskCreate(stageAlignedBody)) {
+    const explicitTaskID = readString(existingInput.task_id);
+    if (explicitTaskID) {
+      return {
+        ...stageAlignedBody,
+        input: {
+          ...existingInput,
+          developer_task_id: explicitTaskID,
+        },
+        metadata: {
+          ...(stageAlignedBody.metadata ?? {}),
+          reviewed_task_id_source: 'input_task_id_default',
+        },
+      };
+    }
+    if (!isReviewLinkActivation(context.event_type)) {
+      return body;
+    }
+
+    const reviewedTaskId = readString(context.payload.task_id);
+    if (!reviewedTaskId) {
+      return stageAlignedBody;
+    }
+
+    return {
+      ...stageAlignedBody,
+      input: {
+        ...(stageAlignedBody.input ?? {}),
+        developer_task_id: reviewedTaskId,
+      },
+      metadata: {
+        ...(stageAlignedBody.metadata ?? {}),
+        reviewed_task_id_source: 'activation_default',
+      },
+    };
   }
 
-  const reviewedTaskId = readString(context.payload.task_id);
+  if (!shouldDefaultActivationReviewedTaskLinkage(stageAlignedBody, context.event_type)) {
+    return stageAlignedBody;
+  }
+
+  const reviewedTaskId = await loadActivationReviewedTaskId(
+    pool,
+    tenantId,
+    taskScope.workflow_id,
+    readString(context.payload.task_id),
+  );
   if (!reviewedTaskId) {
     return stageAlignedBody;
   }
@@ -1417,12 +1444,12 @@ async function normalizeOrchestratorTaskCreateInput(
   return {
     ...stageAlignedBody,
     input: {
-      ...(stageAlignedBody.input ?? {}),
-      developer_task_id: reviewedTaskId,
+      ...existingInput,
+      reviewed_task_id: reviewedTaskId,
     },
     metadata: {
       ...(stageAlignedBody.metadata ?? {}),
-      reviewed_task_id_source: 'activation_default',
+      reviewed_task_id_source: 'activation_lineage_default',
     },
   };
 }
@@ -1556,8 +1583,41 @@ function isReviewTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) 
   return body.role === 'reviewer' || body.type === 'review';
 }
 
+function shouldDefaultActivationReviewedTaskLinkage(
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+  eventType: string | null,
+) {
+  return body.type === 'test' && isReviewLinkActivation(eventType);
+}
+
 function isReviewLinkActivation(eventType: string | null) {
   return eventType === 'task.output_pending_review' || eventType === 'task.handoff_submitted';
+}
+
+async function loadActivationReviewedTaskId(
+  pool: FastifyInstance['pgPool'],
+  tenantId: string,
+  workflowId: string,
+  activationTaskId: string | null,
+): Promise<string | null> {
+  if (!activationTaskId) {
+    return null;
+  }
+
+  const result = await pool.query<{ input: Record<string, unknown> | null }>(
+    `SELECT input
+       FROM tasks
+      WHERE tenant_id = $1
+        AND id = $2
+        AND workflow_id = $3
+      LIMIT 1`,
+    [tenantId, activationTaskId, workflowId],
+  );
+  if (!result.rowCount) {
+    return activationTaskId;
+  }
+
+  return readReviewedTaskReference(result.rows[0].input ?? undefined) ?? activationTaskId;
 }
 
 async function loadOrchestratorCreateWorkItemContext(
@@ -1618,13 +1678,17 @@ function shouldDefaultParentWorkItemId(
 }
 
 function hasExplicitReviewedTaskReference(input: Record<string, unknown> | undefined) {
+  return readReviewedTaskReference(input) !== null;
+}
+
+function readReviewedTaskReference(input: Record<string, unknown> | undefined) {
   if (!input) {
-    return false;
+    return null;
   }
-  return Boolean(
+  return (
     readString(input.developer_task_id)
     ?? readString(input.reviewed_task_id)
-    ?? readString(input.target_task_id),
+    ?? readString(input.target_task_id)
   );
 }
 
