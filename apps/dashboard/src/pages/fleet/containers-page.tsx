@@ -90,7 +90,7 @@ export function ContainersPage(): JSX.Element {
             <h1 className="text-2xl font-semibold">Containers</h1>
           </div>
           <p className="max-w-4xl text-sm text-muted-foreground">
-            Live container inventory from the platform API, showing image, CPU, and memory from the current Docker-inspected container configuration.
+            Live container inventory from the platform API, showing image, CPU, and memory of running and recently-active containers.
           </p>
         </div>
         <p className="text-sm text-muted-foreground">
