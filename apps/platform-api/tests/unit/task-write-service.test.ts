@@ -51,7 +51,7 @@ describe('TaskWriteService', () => {
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedTimeoutMinutes = (values?.[21] as number) ?? null;
+          insertedTimeoutMinutes = (values?.[20] as number) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -453,6 +453,9 @@ describe('TaskWriteService', () => {
             }],
           };
         }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -668,8 +671,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedMaxIterations = (values?.[26] as number | null) ?? null;
-          insertedLLMMaxRetries = (values?.[27] as number | null) ?? null;
+          insertedMaxIterations = (values?.[25] as number | null) ?? null;
+          insertedLLMMaxRetries = (values?.[26] as number | null) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -780,8 +783,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedMaxIterations = (values?.[26] as number | null) ?? null;
-          insertedLLMMaxRetries = (values?.[27] as number | null) ?? null;
+          insertedMaxIterations = (values?.[25] as number | null) ?? null;
+          insertedLLMMaxRetries = (values?.[26] as number | null) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -878,8 +881,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedEnvironment = (values?.[16] as Record<string, unknown>) ?? null;
-          insertedBindings = (values?.[17] as string) ?? null;
+          insertedEnvironment = (values?.[15] as Record<string, unknown>) ?? null;
+          insertedBindings = (values?.[16] as string) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -990,7 +993,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedEnvironment = (values?.[16] as Record<string, unknown>) ?? null;
+          insertedEnvironment = (values?.[15] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -999,7 +1002,7 @@ describe('TaskWriteService', () => {
               workflow_id: 'workflow-1',
               work_item_id: 'work-item-1',
               environment: insertedEnvironment,
-              resource_bindings: values?.[17] ?? null,
+              resource_bindings: values?.[16] ?? null,
             }],
           };
         }
@@ -1094,7 +1097,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedBindings = (values?.[17] as string | null) ?? null;
+          insertedBindings = (values?.[16] as string | null) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1199,7 +1202,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedEnvironment = (values?.[16] as Record<string, unknown>) ?? null;
+          insertedEnvironment = (values?.[15] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1394,8 +1397,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedEnvironment = (values?.[16] as Record<string, unknown>) ?? null;
-          insertedBindings = (values?.[17] as string | null) ?? null;
+          insertedEnvironment = (values?.[15] as Record<string, unknown>) ?? null;
+          insertedBindings = (values?.[16] as string | null) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1570,7 +1573,7 @@ describe('TaskWriteService', () => {
             'workflow-1',
             'work-item-1',
             'product-manager',
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'escalated'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'escalated', 'completed'],
           ]);
           return {
             rowCount: 1,
@@ -1623,6 +1626,133 @@ describe('TaskWriteService', () => {
     );
 
     expect(result.id).toBe('task-existing-active');
+    expect(eventService.emit).not.toHaveBeenCalled();
+  });
+
+  it('returns the existing completed task when the same work item receives an identical successor dispatch', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'verification' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes('workflow_id = $2')
+          && sql.includes('request_id = $3')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes('work_item_id = $3')
+          && sql.includes('role = $4')
+          && sql.includes('state = ANY($5::task_state[])')
+        ) {
+          expect(values).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'work-item-1',
+            'live-test-qa',
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'escalated', 'completed'],
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-existing-completed',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              workspace_id: null,
+              title: 'Validate named greeting and uppercase enhancement',
+              priority: 'normal',
+              request_id: 'request-existing-completed',
+              role: 'live-test-qa',
+              stage_name: 'verification',
+              state: 'completed',
+              depends_on: [],
+              requires_approval: false,
+              requires_output_review: false,
+              input: {
+                expected_commit: '3fea712',
+                review_handoff_id: 'handoff-1',
+              },
+              context: {},
+              role_config: null,
+              environment: {
+                template: 'execution-workspace',
+              },
+              resource_bindings: [],
+              activation_id: null,
+              is_orchestrator_task: false,
+              token_budget: null,
+              cost_cap_usd: null,
+              auto_retry: false,
+              max_retries: 0,
+              max_iterations: 500,
+              llm_max_retries: 5,
+              metadata: {
+                description: 'Run QA verification on the approved greeting CLI enhancement.',
+                task_type: 'test',
+              },
+            }],
+          };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          throw new Error('should not insert duplicate successor task');
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: eventService as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const result = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Validate named greeting and uppercase enhancement',
+        description: 'Run QA verification on the approved greeting CLI enhancement.',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-new-completed-duplicate',
+        role: 'live-test-qa',
+        stage_name: 'verification',
+        type: 'test',
+        environment: {
+          template: 'execution-workspace',
+        },
+        input: {
+          expected_commit: '3fea712',
+          review_handoff_id: 'handoff-1',
+        },
+      },
+    );
+
+    expect(result.id).toBe('task-existing-completed');
     expect(eventService.emit).not.toHaveBeenCalled();
   });
 
@@ -1688,7 +1818,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedTokenBudget = (values?.[22] as number) ?? null;
+          insertedTokenBudget = (values?.[21] as number) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -2194,6 +2324,9 @@ describe('TaskWriteService', () => {
               stage_gate_status: 'approved',
             }],
           };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),

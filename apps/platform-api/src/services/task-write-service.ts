@@ -69,6 +69,10 @@ const ACTIVE_TASK_DUPLICATE_GUARD_STATES = [
   'output_pending_review',
   'escalated',
 ] as const;
+const REUSABLE_TASK_DUPLICATE_GUARD_STATES = [
+  ...ACTIVE_TASK_DUPLICATE_GUARD_STATES,
+  'completed',
+] as const;
 
 export class TaskWriteService {
   constructor(private readonly deps: TaskWriteDependencies) {}
@@ -140,13 +144,15 @@ export class TaskWriteService {
         throw new NotFoundError('One or more dependency tasks were not found');
     }
 
-    const existingActiveTask = await this.findExistingActiveTaskForWorkItemRole(
+    const existingReusableTask = await this.findExistingReusableTaskForWorkItemRole(
       identity.tenantId,
       normalizedInput,
+      dependencies,
+      metadata,
       db,
     );
-    if (existingActiveTask) {
-      return this.deps.toTaskResponse(existingActiveTask);
+    if (existingReusableTask) {
+      return this.deps.toTaskResponse(existingReusableTask);
     }
 
     const initialState = await this.resolveInitialState(identity.tenantId, normalizedInput, dependencies.length);
@@ -244,9 +250,11 @@ export class TaskWriteService {
     );
   }
 
-  private async findExistingActiveTaskForWorkItemRole(
+  private async findExistingReusableTaskForWorkItemRole(
     tenantId: string,
     input: CreateTaskInput,
+    dependencies: string[],
+    metadata: Record<string, unknown>,
     db: DatabaseClient | DatabasePool,
   ) {
     if (
@@ -277,17 +285,33 @@ export class TaskWriteService {
             WHEN 'escalated' THEN 6
             ELSE 7
           END,
-          created_at ASC
-        LIMIT 1`,
+          created_at DESC`,
       [
         tenantId,
         input.workflow_id,
         input.work_item_id,
         input.role.trim(),
-        ACTIVE_TASK_DUPLICATE_GUARD_STATES,
+        REUSABLE_TASK_DUPLICATE_GUARD_STATES,
       ],
     );
-    return (result.rows[0] as Record<string, unknown> | undefined) ?? null;
+    if (!result.rowCount) {
+      return null;
+    }
+
+    const expectedIntent = buildExpectedCreateTaskIntent(input, dependencies, metadata);
+    for (const row of result.rows as Record<string, unknown>[]) {
+      if (
+        typeof row.state === 'string'
+        && (ACTIVE_TASK_DUPLICATE_GUARD_STATES as readonly string[]).includes(row.state)
+      ) {
+        return row;
+      }
+      if (matchesCreateTaskIntent(row, expectedIntent)) {
+        return row;
+      }
+    }
+
+    return null;
   }
 
   private async findExistingByRequestId(
@@ -985,6 +1009,38 @@ function buildExpectedCreateTaskReplay(
   };
 }
 
+function buildExpectedCreateTaskIntent(
+  input: CreateTaskInput,
+  dependencies: string[],
+  metadata: Record<string, unknown>,
+) {
+  return {
+    title: input.title,
+    priority: input.priority ?? 'normal',
+    input: input.input ?? {},
+    workflow_id: input.workflow_id ?? null,
+    work_item_id: input.work_item_id ?? null,
+    workspace_id: input.workspace_id ?? null,
+    role: input.role ?? null,
+    stage_name: input.stage_name ?? null,
+    depends_on: dependencies,
+    requires_approval: input.requires_approval ?? false,
+    requires_output_review: input.requires_output_review ?? false,
+    context: input.context ?? {},
+    role_config: input.role_config ?? null,
+    environment: input.environment ?? null,
+    resource_bindings: input.resource_bindings ?? [],
+    is_orchestrator_task: input.is_orchestrator_task ?? false,
+    token_budget: input.token_budget ?? null,
+    cost_cap_usd: input.cost_cap_usd ?? null,
+    auto_retry: input.auto_retry ?? false,
+    max_retries: input.max_retries ?? 0,
+    max_iterations: input.max_iterations ?? null,
+    llm_max_retries: input.llm_max_retries ?? null,
+    metadata: selectIntentStableMetadata(metadata),
+  };
+}
+
 function assertMatchingCreateTaskReplay(
   existing: Record<string, unknown>,
   expected: ReturnType<typeof buildExpectedCreateTaskReplay>,
@@ -1017,6 +1073,38 @@ function assertMatchingCreateTaskReplay(
   }
 }
 
+function matchesCreateTaskIntent(
+  existing: Record<string, unknown>,
+  expected: ReturnType<typeof buildExpectedCreateTaskIntent>,
+) {
+  const existingMetadata = asRecord(existing.metadata);
+  return (
+    (existing.title ?? null) === expected.title &&
+    (existing.priority ?? 'normal') === expected.priority &&
+    areJsonValuesEquivalent(asRecord(existing.input), expected.input) &&
+    (existing.workflow_id ?? null) === expected.workflow_id &&
+    (existing.work_item_id ?? null) === expected.work_item_id &&
+    (existing.workspace_id ?? null) === expected.workspace_id &&
+    (existing.role ?? null) === expected.role &&
+    (existing.stage_name ?? null) === expected.stage_name &&
+    areJsonValuesEquivalent(existing.depends_on ?? [], expected.depends_on) &&
+    Boolean(existing.requires_approval) === expected.requires_approval &&
+    Boolean(existing.requires_output_review) === expected.requires_output_review &&
+    areJsonValuesEquivalent(asRecord(existing.context), expected.context) &&
+    areJsonValuesEquivalent(existing.role_config ?? null, expected.role_config) &&
+    areJsonValuesEquivalent(existing.environment ?? null, expected.environment) &&
+    areJsonValuesEquivalent(normalizeResourceBindings(existing.resource_bindings), expected.resource_bindings) &&
+    Boolean(existing.is_orchestrator_task) === expected.is_orchestrator_task &&
+    (existing.token_budget ?? null) === expected.token_budget &&
+    asNullableNumber(existing.cost_cap_usd) === expected.cost_cap_usd &&
+    Boolean(existing.auto_retry) === expected.auto_retry &&
+    Number(existing.max_retries ?? 0) === expected.max_retries &&
+    asNullableNumber(existing.max_iterations) === expected.max_iterations &&
+    asNullableNumber(existing.llm_max_retries) === expected.llm_max_retries &&
+    hasMatchingCreateMetadata(existingMetadata, expected.metadata)
+  );
+}
+
 function hasMatchingCreateMetadata(
   existing: Record<string, unknown>,
   expected: Record<string, unknown>,
@@ -1027,6 +1115,16 @@ function hasMatchingCreateMetadata(
 function selectReplayStableMetadata(metadata: Record<string, unknown>) {
   const stable: Record<string, unknown> = {};
   for (const key of ['lifecycle_policy', 'task_type', 'credential_refs', 'review_prompt']) {
+    if (key in metadata) {
+      stable[key] = metadata[key];
+    }
+  }
+  return stable;
+}
+
+function selectIntentStableMetadata(metadata: Record<string, unknown>) {
+  const stable = selectReplayStableMetadata(metadata);
+  for (const key of ['description', 'parent_id']) {
     if (key in metadata) {
       stable[key] = metadata[key];
     }
