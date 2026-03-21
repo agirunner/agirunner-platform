@@ -239,7 +239,7 @@ describe('applyTaskCompletionSideEffects', () => {
     );
     expect(
       client.query.mock.calls.some(([sql]) => (sql as string).includes('INSERT INTO workflow_activations')),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('requests rework on the reviewed task when a reviewer handoff requests changes', async () => {
@@ -609,7 +609,7 @@ describe('applyTaskCompletionSideEffects', () => {
     expect(workItemContinuityService.recordReviewRejected).not.toHaveBeenCalled();
     expect(
       client.query.mock.calls.some(([sql]) => (sql as string).includes('INSERT INTO workflow_activations')),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it('dispatches the completion activation immediately when a playbook task finishes', async () => {
@@ -696,6 +696,83 @@ describe('applyTaskCompletionSideEffects', () => {
       'activation-complete-1',
       client,
     );
+  });
+
+  it('does not enqueue a completion activation when the completed task already submitted a handoff', async () => {
+    const activationDispatchService = {
+      dispatchActivation: vi.fn(async () => 'orchestrator-task-1'),
+    };
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          return {
+            rows: [{
+              completion: 'full',
+              resolution: null,
+              review_outcome: null,
+              summary: 'Implementation complete.',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          throw new Error('task.completed activation should not be enqueued when a handoff already exists');
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'reviewer',
+        nextExpectedAction: 'review',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedReviewExpectation: false,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-dev',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        role: 'developer',
+        stage_name: 'implementation',
+        is_orchestrator_task: false,
+        rework_count: 0,
+        output: { summary: 'done' },
+        updated_at: 'updated',
+      },
+      client as never,
+      activationDispatchService as never,
+    );
+
+    expect(activationDispatchService.dispatchActivation).not.toHaveBeenCalled();
+    expect(
+      client.query.mock.calls.some(([sql]) => (sql as string).includes('INSERT INTO workflow_activations')),
+    ).toBe(false);
   });
 
   it('treats late task completion activation enqueue as a no-op once the workflow is already completed', async () => {

@@ -231,28 +231,35 @@ export async function applyTaskCompletionSideEffects(
       asOptionalString(task.work_item_id),
       client,
     );
+    const latestHandoffOutcome = await loadLatestTaskAttemptHandoffOutcome(
+      client,
+      identity.tenantId,
+      task,
+    );
     if (!reviewReworkApplied) {
-      await enqueueAndDispatchImmediateWorkflowActivation(
-        client,
-        eventService,
-        activationDispatchService,
-        {
-        tenantId: identity.tenantId,
-        workflowId: String(task.workflow_id),
-        requestId: `task-completed:${task.id}:${String(task.updated_at ?? task.completed_at ?? '')}`,
-        reason: 'task.completed',
-        eventType: 'task.completed',
-        payload: {
-          task_id: task.id,
-          task_role: task.role ?? null,
-          task_title: task.title ?? null,
-          work_item_id: task.work_item_id ?? null,
-          stage_name: task.stage_name ?? null,
-        },
-        actorType: 'system',
-        actorId: 'task_completion_side_effects',
-        },
-      );
+      if (!latestHandoffOutcome) {
+        await enqueueAndDispatchImmediateWorkflowActivation(
+          client,
+          eventService,
+          activationDispatchService,
+          {
+            tenantId: identity.tenantId,
+            workflowId: String(task.workflow_id),
+            requestId: `task-completed:${task.id}:${String(task.updated_at ?? task.completed_at ?? '')}`,
+            reason: 'task.completed',
+            eventType: 'task.completed',
+            payload: {
+              task_id: task.id,
+              task_role: task.role ?? null,
+              task_title: task.title ?? null,
+              work_item_id: task.work_item_id ?? null,
+              stage_name: task.stage_name ?? null,
+            },
+            actorType: 'system',
+            actorId: 'task_completion_side_effects',
+          },
+        );
+      }
     }
     return;
   }
