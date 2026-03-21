@@ -9,6 +9,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import {
   formatContainerKindLabel,
+  isPendingChangeRow,
   isRecentlyChangedRow,
   type SessionContainerRow,
 } from './containers-page.support.js';
@@ -123,6 +124,9 @@ function formatLimit(value: string | null): string {
 }
 
 function resolveRowClassName(row: SessionContainerRow): string {
+  if (isPendingChangeRow(row)) {
+    return 'bg-border/10 hover:bg-border/15';
+  }
   const recentlyChanged = isRecentlyChangedRow(row);
   if (row.presence === 'inactive') {
     return recentlyChanged

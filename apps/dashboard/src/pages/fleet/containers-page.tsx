@@ -13,6 +13,7 @@ import {
 import { dashboardApi, type DashboardLiveContainerRecord } from '../../lib/api.js';
 import { ContainersTable } from './containers-table.js';
 import {
+  advanceSessionContainerRows,
   filterSessionContainerRows,
   mergeLiveContainerSessionRows,
   type ContainerKindFilter,
@@ -21,6 +22,7 @@ import {
 } from './containers-page.support.js';
 
 const LIVE_CONTAINERS_REFETCH_INTERVAL_MS = 5000;
+const SESSION_TRANSITION_TICK_MS = 250;
 
 export function ContainersPage(): JSX.Element {
   const [query, setQuery] = useState('');
@@ -43,6 +45,14 @@ export function ContainersPage(): JSX.Element {
       mergeLiveContainerSessionRows(previous, containersQuery.data ?? [], observedAt),
     );
   }, [containersQuery.data, containersQuery.dataUpdatedAt, containersQuery.isSuccess]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const observedAt = new Date().toISOString();
+      setSessionRows((previous) => advanceSessionContainerRows(previous, observedAt));
+    }, SESSION_TRANSITION_TICK_MS);
+    return () => window.clearInterval(timer);
+  }, []);
 
   const filteredRows = useMemo(
     () => filterSessionContainerRows(sessionRows, { query, kind, status }),
