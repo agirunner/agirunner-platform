@@ -8,8 +8,18 @@ import type { FleetService } from './fleet-service.js';
 
 const CONFIG_TYPES = ['string', 'number', 'boolean', 'json'] as const;
 const RUNTIME_DEFAULT_SECRET_REDACTION = 'redacted://runtime-default-secret';
-const runtimeDefaultSecretKeyPattern =
-  /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|webhook_url|known_hosts)/i;
+const SECRET_RUNTIME_DEFAULT_SEGMENTS = new Set([
+  'secret',
+  'secret_ref',
+  'api_key',
+  'api_key_secret_ref',
+  'password',
+  'credential',
+  'authorization',
+  'private_key',
+  'known_hosts',
+  'webhook_url',
+]);
 const INTEGER_DEFAULT_RULES = new Map([
   ['default_idle_timeout_seconds', { min: 0 }],
   ['default_grace_period', { min: 1 }],
@@ -338,7 +348,14 @@ function toPublicRuntimeDefaultRow(row: RuntimeDefaultRow): RuntimeDefaultRow {
 }
 
 function shouldRedactRuntimeDefault(configKey: string, configValue: string): boolean {
-  return runtimeDefaultSecretKeyPattern.test(configKey) && configValue.trim().length > 0;
+  return configValue.trim().length > 0 && hasSecretLikeRuntimeDefaultKey(configKey);
+}
+
+function hasSecretLikeRuntimeDefaultKey(configKey: string): boolean {
+  return configKey
+    .split('.')
+    .map((segment) => segment.trim().toLowerCase().replaceAll('-', '_'))
+    .some((segment) => SECRET_RUNTIME_DEFAULT_SEGMENTS.has(segment));
 }
 
 function validateKnownRuntimeDefault(input: CreateRuntimeDefaultInput): void {

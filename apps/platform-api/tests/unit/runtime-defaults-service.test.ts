@@ -28,6 +28,20 @@ const sampleSecretDefault = {
   description: 'Custom API key secret ref',
 };
 
+const sampleCharsPerTokenDefault = {
+  ...sampleDefault,
+  config_key: 'agent.context_compaction_chars_per_token',
+  config_value: '4',
+  description: 'Fallback character-per-token estimate',
+};
+
+const sampleVaultTimeoutDefault = {
+  ...sampleDefault,
+  config_key: 'secrets.vault_timeout_seconds',
+  config_value: '10',
+  description: 'Upper bound in seconds for Vault reads and revocation calls',
+};
+
 describe('RuntimeDefaultsService', () => {
   let pool: ReturnType<typeof createMockPool>;
   let fleetService: { drainAllRuntimesForTenant: ReturnType<typeof vi.fn> };
@@ -60,6 +74,17 @@ describe('RuntimeDefaultsService', () => {
         },
       ]);
     });
+
+    it('does not redact non-secret numeric defaults whose keys contain token or secrets substrings', async () => {
+      pool.query.mockResolvedValueOnce({
+        rows: [sampleCharsPerTokenDefault, sampleVaultTimeoutDefault],
+        rowCount: 2,
+      });
+
+      const result = await service.listDefaults(TENANT_ID);
+
+      expect(result).toEqual([sampleCharsPerTokenDefault, sampleVaultTimeoutDefault]);
+    });
   });
 
   describe('getDefault', () => {
@@ -85,6 +110,14 @@ describe('RuntimeDefaultsService', () => {
         ...sampleSecretDefault,
         config_value: 'redacted://runtime-default-secret',
       });
+    });
+
+    it('does not redact non-secret numeric defaults on single reads', async () => {
+      pool.query.mockResolvedValueOnce({ rows: [sampleCharsPerTokenDefault], rowCount: 1 });
+
+      const result = await service.getDefault(TENANT_ID, DEFAULT_ID);
+
+      expect(result).toEqual(sampleCharsPerTokenDefault);
     });
   });
 
