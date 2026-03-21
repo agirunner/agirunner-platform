@@ -282,8 +282,8 @@ describe('WorkItemService', () => {
                     { name: 'review', goal: 'Review the implementation' },
                     { name: 'release', goal: 'Release the change' },
                   ],
-                  review_rules: [
-                    { from_role: 'developer', reviewed_by: 'reviewer', checkpoint: 'implementation', required: true },
+                  assessment_rules: [
+                    { subject_role: 'developer', assessed_by: 'reviewer', checkpoint: 'implementation', required: true },
                   ],
                 },
               },
@@ -1455,7 +1455,7 @@ describe('WorkItemService', () => {
 
                 column_id: 'planned',
                 next_expected_actor: 'reviewer',
-                next_expected_action: 'review',
+                next_expected_action: 'assess',
                 rework_count: 2,
                 metadata: {
                   webhook_secret: 'plaintext-secret',
@@ -1504,7 +1504,7 @@ describe('WorkItemService', () => {
     expect((workItem as Record<string, any>).stage_name).toBe('triage');
     expect((workItem as Record<string, any>).current_checkpoint).toBeUndefined();
     expect((workItem as Record<string, any>).next_expected_actor).toBe('reviewer');
-    expect((workItem as Record<string, any>).next_expected_action).toBe('review');
+    expect((workItem as Record<string, any>).next_expected_action).toBe('assess');
     expect((workItem as Record<string, any>).rework_count).toBe(2);
     expect((event as Record<string, any>).data.api_key).toBe('redacted://work-item-secret');
     expect((event as Record<string, any>).data.secret_ref).toBe('redacted://work-item-secret');

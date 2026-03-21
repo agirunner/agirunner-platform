@@ -148,7 +148,7 @@ describe('FR-192: context versioning', () => {
             title: 'Implement feature',
             goal: 'Deliver the feature',
             next_expected_actor: 'reviewer',
-            next_expected_action: 'review',
+            next_expected_action: 'assess',
             rework_count: 1,
           }],
         });
@@ -208,7 +208,7 @@ describe('FR-192: context versioning', () => {
       expect.objectContaining({
         stage_name: 'build',
         next_expected_actor: 'reviewer',
-        next_expected_action: 'review',
+        next_expected_action: 'assess',
         rework_count: 1,
       }),
     );

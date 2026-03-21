@@ -109,7 +109,7 @@ interface TaskLifecycleDependencies {
   parallelismService?: PlaybookTaskParallelismService;
   workItemContinuityService?: Pick<
     WorkItemContinuityService,
-    'clearReviewExpectation' | 'recordReviewRejected' | 'recordTaskCompleted'
+    'clearAssessmentExpectation' | 'recordAssessmentRequestedChanges' | 'recordTaskCompleted'
   >;
   handoffService?: Pick<HandoffService, 'assertRequiredTaskHandoffBeforeCompletion'>;
   executionContainerLeaseService?: Pick<ExecutionContainerLeaseService, 'releaseForTask'>;
@@ -336,7 +336,7 @@ function hasMatchingReviewRejection(
 export class TaskLifecycleService {
   constructor(private readonly deps: TaskLifecycleDependencies) {}
 
-  private async clearOpenChildReviewWorkItemRouting(
+  private async clearOpenChildAssessmentWorkItemRouting(
     tenantId: string,
     task: Record<string, unknown>,
     client: DatabaseClient,
@@ -359,17 +359,17 @@ export class TaskLifecycleService {
           AND wi.completed_at IS NULL
           AND EXISTS (
             SELECT 1
-              FROM tasks review_task
-             WHERE review_task.tenant_id = wi.tenant_id
-               AND review_task.workflow_id = wi.workflow_id
-               AND review_task.work_item_id = wi.id
-               AND COALESCE(review_task.metadata->>'task_type', '') = 'review'
+              FROM tasks assessment_task
+             WHERE assessment_task.tenant_id = wi.tenant_id
+               AND assessment_task.workflow_id = wi.workflow_id
+               AND assessment_task.work_item_id = wi.id
+               AND COALESCE(assessment_task.metadata->>'task_kind', '') = 'assessment'
           )`,
       [tenantId, workflowId, workItemId],
     );
   }
 
-  private async restoreOpenChildReviewWorkItemRouting(
+  private async restoreOpenChildAssessmentWorkItemRouting(
     tenantId: string,
     task: Record<string, unknown>,
     client: DatabaseClient,
@@ -383,7 +383,7 @@ export class TaskLifecycleService {
     await client.query(
       `UPDATE workflow_work_items wi
           SET next_expected_actor = COALESCE(owner_role, next_expected_actor),
-              next_expected_action = 'review',
+              next_expected_action = 'assess',
               metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
               updated_at = now()
         WHERE wi.tenant_id = $1
@@ -392,11 +392,11 @@ export class TaskLifecycleService {
           AND wi.completed_at IS NULL
           AND EXISTS (
             SELECT 1
-              FROM tasks review_task
-             WHERE review_task.tenant_id = wi.tenant_id
-               AND review_task.workflow_id = wi.workflow_id
-               AND review_task.work_item_id = wi.id
-               AND COALESCE(review_task.metadata->>'task_type', '') = 'review'
+              FROM tasks assessment_task
+             WHERE assessment_task.tenant_id = wi.tenant_id
+               AND assessment_task.workflow_id = wi.workflow_id
+               AND assessment_task.work_item_id = wi.id
+               AND COALESCE(assessment_task.metadata->>'task_kind', '') = 'assessment'
           )`,
       [tenantId, workflowId, workItemId],
     );
@@ -786,7 +786,7 @@ export class TaskLifecycleService {
           updatedTask,
           client,
         );
-        await this.restoreOpenChildReviewWorkItemRouting(
+        await this.restoreOpenChildAssessmentWorkItemRouting(
           identity.tenantId,
           updatedTask,
           client,
@@ -1324,7 +1324,7 @@ export class TaskLifecycleService {
         review_updated_at: new Date().toISOString(),
       },
       afterUpdate: async (updatedTask, client) => {
-        await this.deps.workItemContinuityService?.clearReviewExpectation(
+        await this.deps.workItemContinuityService?.clearAssessmentExpectation(
           identity.tenantId,
           updatedTask,
           client,
@@ -1357,12 +1357,12 @@ export class TaskLifecycleService {
       },
       afterUpdate: async (updatedTask, client) => {
         await registerTaskOutputDocuments(client, identity.tenantId, updatedTask, updatedTask.output);
-        await this.deps.workItemContinuityService?.clearReviewExpectation(
+        await this.deps.workItemContinuityService?.clearAssessmentExpectation(
           identity.tenantId,
           updatedTask,
           client,
         );
-        await this.restoreOpenChildReviewWorkItemRouting(
+        await this.restoreOpenChildAssessmentWorkItemRouting(
           identity.tenantId,
           updatedTask,
           client,
@@ -1477,7 +1477,7 @@ export class TaskLifecycleService {
         review_updated_at: new Date().toISOString(),
       },
       afterUpdate: async (updatedTask, client) => {
-        await this.deps.workItemContinuityService?.recordReviewRejected(
+        await this.deps.workItemContinuityService?.recordAssessmentRequestedChanges(
           identity.tenantId,
           updatedTask,
           client,
@@ -1647,8 +1647,8 @@ export class TaskLifecycleService {
       },
       afterUpdate: async (updatedTask, client) => {
         await this.reopenCompletedWorkItemForRework(identity, updatedTask, client);
-        await this.clearOpenChildReviewWorkItemRouting(identity.tenantId, updatedTask, client);
-        await this.deps.workItemContinuityService?.recordReviewRejected(
+        await this.clearOpenChildAssessmentWorkItemRouting(identity.tenantId, updatedTask, client);
+        await this.deps.workItemContinuityService?.recordAssessmentRequestedChanges(
           identity.tenantId,
           updatedTask,
           client,

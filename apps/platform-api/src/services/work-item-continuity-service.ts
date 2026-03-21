@@ -34,7 +34,7 @@ interface NewerSpecialistHandoffRow {
 }
 
 export interface WorkItemCompletionOutcome extends PlaybookRuleEvaluationResult {
-  satisfiedReviewExpectation: boolean;
+  satisfiedAssessmentExpectation: boolean;
 }
 
 export interface OrchestratorFinishStateUpdate {
@@ -60,15 +60,15 @@ export class WorkItemContinuityService {
     return this.applyRuleOutcome(tenantId, task, 'task_completed', db);
   }
 
-  async recordReviewRejected(
+  async recordAssessmentRequestedChanges(
     tenantId: string,
     task: Record<string, unknown>,
     db: DatabaseClient | DatabasePool = this.pool,
   ) {
-    return this.applyRuleOutcome(tenantId, task, 'review_rejected', db);
+    return this.applyRuleOutcome(tenantId, task, 'assessment_requested_changes', db);
   }
 
-  async clearReviewExpectation(
+  async clearAssessmentExpectation(
     tenantId: string,
     task: Record<string, unknown>,
     db: DatabaseClient | DatabasePool = this.pool,
@@ -92,7 +92,7 @@ export class WorkItemContinuityService {
 
     await logWorkItemContinuityTransition(this.logService, {
       tenantId,
-      event: 'review_expectation_cleared',
+      event: 'assessment_expectation_cleared',
       task,
       stageName: context.stage_name,
       ownerRole: context.owner_role,
@@ -301,7 +301,7 @@ export class WorkItemContinuityService {
   private async applyRuleOutcome(
     tenantId: string,
     task: Record<string, unknown>,
-    event: 'task_completed' | 'review_rejected',
+    event: 'task_completed' | 'assessment_requested_changes',
     db: DatabaseClient | DatabasePool,
   ): Promise<WorkItemCompletionOutcome | null> {
     const context = await this.loadContext(tenantId, task, db);
@@ -329,7 +329,7 @@ export class WorkItemContinuityService {
       event === 'task_completed'
         ? gateApprovalTakesPrecedence(definition, checkpointName, evaluation)
         : evaluation;
-    const satisfiedReviewExpectation =
+    const satisfiedAssessmentExpectation =
       event === 'task_completed'
       && context.next_expected_action === 'assess'
       && context.next_expected_actor === role;
@@ -370,13 +370,13 @@ export class WorkItemContinuityService {
           : normalizedEvaluation.reworkDelta,
       matchedRuleType: normalizedEvaluation.matchedRuleType,
       requiresHumanApproval: normalizedEvaluation.requiresHumanApproval,
-      satisfiedReviewExpectation,
+      satisfiedAssessmentExpectation,
       reworkDelta: normalizedEvaluation.reworkDelta,
     });
 
     return {
       ...normalizedEvaluation,
-      satisfiedReviewExpectation,
+      satisfiedAssessmentExpectation,
     };
   }
 
@@ -384,11 +384,11 @@ export class WorkItemContinuityService {
     tenantId: string,
     context: WorkItemContinuityContextRow,
     role: string,
-    event: 'task_completed' | 'review_rejected',
+    event: 'task_completed' | 'assessment_requested_changes',
     evaluation: PlaybookRuleEvaluationResult,
     db: DatabaseClient | DatabasePool,
   ) {
-    if (event !== 'review_rejected' || evaluation.nextExpectedActor) {
+    if (event !== 'assessment_requested_changes' || evaluation.nextExpectedActor) {
       return evaluation;
     }
 

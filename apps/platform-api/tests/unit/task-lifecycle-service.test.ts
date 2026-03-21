@@ -370,10 +370,10 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       recordTaskCompleted: vi.fn(async () => ({
         matchedRuleType: 'review',
         nextExpectedActor: 'reviewer',
-        nextExpectedAction: 'review',
+        nextExpectedAction: 'assess',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
     const service = new TaskLifecycleService({
@@ -451,7 +451,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         if (
           sql.includes('UPDATE workflow_work_items')
           && sql.includes("parent_work_item_id = $3")
-          && sql.includes("COALESCE(review_task.metadata->>'task_type', '') = 'review'")
+          && sql.includes("COALESCE(assessment_task.metadata->>'task_kind', '') = 'assessment'")
         ) {
           return { rows: [], rowCount: 1 };
         }
@@ -489,10 +489,10 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       recordTaskCompleted: vi.fn(async () => ({
         matchedRuleType: 'review',
         nextExpectedActor: 'reviewer',
-        nextExpectedAction: 'review',
+        nextExpectedAction: 'assess',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
     const service = new TaskLifecycleService({
@@ -539,7 +539,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       ['tenant-1', 'workflow-1', 'work-item-1'],
     );
     expect(client.query).toHaveBeenCalledWith(
-      expect.stringContaining("next_expected_action = 'review'"),
+      expect.stringContaining("next_expected_action = 'assess'"),
       ['tenant-1', 'workflow-1', 'work-item-1'],
     );
   });
@@ -607,7 +607,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         assigned_worker_id: null,
         rework_count: 0,
         input: { reviewed_task_id: 'task-implementation' },
-        metadata: { task_type: 'review' },
+        metadata: { task_kind: 'assessment' },
         role_config: {},
       }),
       toTaskResponse: (task) => task,
@@ -911,7 +911,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         metadata: {},
       }),
       toTaskResponse: (task) => task,
-      workItemContinuityService: { clearReviewExpectation: vi.fn() } as never,
+      workItemContinuityService: { clearAssessmentExpectation: vi.fn() } as never,
     });
 
     const result = await service.approveTask(
@@ -1104,7 +1104,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         metadata: {},
       }),
       toTaskResponse: (task) => task,
-      workItemContinuityService: { recordReviewRejected: vi.fn() } as never,
+      workItemContinuityService: { recordAssessmentRequestedChanges: vi.fn() } as never,
     });
 
     const result = await service.requestTaskChanges(
@@ -1255,7 +1255,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       }),
       release: vi.fn(),
     };
-    const recordReviewRejected = vi.fn(async () => undefined);
+    const recordAssessmentRequestedChanges = vi.fn(async () => undefined);
 
     const service = new TaskLifecycleService({
       pool: { connect: vi.fn(async () => client) } as never,
@@ -1276,7 +1276,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         metadata: {},
       }),
       toTaskResponse: (task) => task,
-      workItemContinuityService: { recordReviewRejected } as never,
+      workItemContinuityService: { recordAssessmentRequestedChanges } as never,
     });
 
     await service.requestTaskChanges(
@@ -1294,7 +1294,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       },
     );
 
-    expect(recordReviewRejected).toHaveBeenCalledWith(
+    expect(recordAssessmentRequestedChanges).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
         id: 'task-impl',
@@ -1308,7 +1308,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         typeof sql === 'string'
         && sql.includes('UPDATE workflow_work_items wi')
         && sql.includes("parent_work_item_id = $3")
-        && sql.includes("COALESCE(review_task.metadata->>'task_type', '') = 'review'")
+        && sql.includes("COALESCE(assessment_task.metadata->>'task_kind', '') = 'assessment'")
         && sql.includes("metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state'"),
     ) as [string, unknown[]] | undefined;
 
@@ -1384,7 +1384,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         metadata: {},
       }),
       toTaskResponse: (task) => task,
-      workItemContinuityService: { recordReviewRejected: vi.fn() } as never,
+      workItemContinuityService: { recordAssessmentRequestedChanges: vi.fn() } as never,
     });
 
     const result = await service.requestTaskChanges(

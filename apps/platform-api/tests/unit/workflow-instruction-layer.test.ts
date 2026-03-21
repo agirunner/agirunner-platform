@@ -26,9 +26,9 @@ describe('buildWorkflowInstructionLayer', () => {
               { name: 'review', goal: 'Ensure reviewer sign-off', human_gate: true },
               { name: 'verification', goal: 'QA validates the change' },
             ],
-            review_rules: [
-              { from_role: 'developer', reviewed_by: 'reviewer', checkpoint: 'implementation', required: true },
-              { from_role: 'reviewer', reviewed_by: 'qa', checkpoint: 'review', required: true },
+            assessment_rules: [
+              { subject_role: 'developer', assessed_by: 'reviewer', checkpoint: 'implementation', required: true },
+              { subject_role: 'reviewer', assessed_by: 'qa', checkpoint: 'review', required: true },
             ],
             handoff_rules: [
               { from_role: 'developer', to_role: 'reviewer', checkpoint: 'implementation', required: true },
@@ -99,9 +99,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');
     expect(layer!.content).toContain('Human approval required before completion.');
-    expect(layer!.content).toContain('Required review: reviewer -> qa');
+    expect(layer!.content).toContain('Required assessment: reviewer -> qa');
     expect(layer!.content).not.toContain('Required handoff: reviewer -> qa');
-    expect(layer!.content).not.toContain('Required review: developer -> reviewer');
+    expect(layer!.content).not.toContain('Required assessment: developer -> reviewer');
     expect(layer!.content).not.toContain('Required handoff: developer -> reviewer');
     expect(layer!.content).toContain('## Handoff Semantics');
     expect(layer!.content).toContain('Planned-workflow handoff rules describe the structured handoff that must exist before successor-stage routing.');
@@ -138,8 +138,8 @@ describe('buildWorkflowInstructionLayer', () => {
               ],
             },
             checkpoints: [],
-            review_rules: [
-              { from_role: 'developer', reviewed_by: 'reviewer', required: true },
+            assessment_rules: [
+              { subject_role: 'developer', assessed_by: 'reviewer', required: true },
             ],
           },
         },
@@ -148,7 +148,7 @@ describe('buildWorkflowInstructionLayer', () => {
         column_id: 'review',
         owner_role: 'developer',
         next_expected_actor: 'reviewer',
-        next_expected_action: 'review',
+        next_expected_action: 'assess',
       },
       predecessorHandoff: {
         role: 'architect',
@@ -195,8 +195,8 @@ describe('buildWorkflowInstructionLayer', () => {
             checkpoints: [
               { name: 'implementation', goal: 'Build the requested deliverable' },
             ],
-            review_rules: [
-              { from_role: 'developer', reviewed_by: 'reviewer', checkpoint: 'implementation', required: true },
+            assessment_rules: [
+              { subject_role: 'developer', assessed_by: 'reviewer', checkpoint: 'implementation', required: true },
             ],
           },
         },
@@ -332,8 +332,8 @@ describe('buildWorkflowInstructionLayer', () => {
               { name: 'review', goal: 'Review the change' },
               { name: 'verification', goal: 'Verify the change' },
             ],
-            review_rules: [
-              { from_role: 'developer', reviewed_by: 'reviewer', checkpoint: 'implementation', required: true },
+            assessment_rules: [
+              { subject_role: 'developer', assessed_by: 'reviewer', checkpoint: 'implementation', required: true },
             ],
           },
         },
@@ -355,7 +355,7 @@ describe('buildWorkflowInstructionLayer', () => {
               stage_name: 'review',
               column_id: 'planned',
               next_expected_actor: 'reviewer',
-              next_expected_action: 'review',
+              next_expected_action: 'assess',
               rework_count: 0,
             },
           ],
@@ -364,7 +364,7 @@ describe('buildWorkflowInstructionLayer', () => {
               work_item_id: 'review-item',
               stage_name: 'review',
               actor: 'reviewer',
-              action: 'review',
+              action: 'assess',
               title: 'Review the change',
             },
           ],
@@ -374,8 +374,8 @@ describe('buildWorkflowInstructionLayer', () => {
 
     expect(layer).not.toBeNull();
     expect(layer!.content).toContain('## Pending Dispatches');
-    expect(layer!.content).toContain('Dispatch reviewer for review on work item review-item (review) titled "Review the change".');
+    expect(layer!.content).toContain('Dispatch reviewer for assess on work item review-item (review) titled "Review the change".');
     expect(layer!.content).toContain('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
-    expect(layer!.content).toContain('A predecessor task remaining in output_pending_review is expected while required review is pending and does not block dispatching the listed required review task.');
+    expect(layer!.content).toContain('A predecessor task remaining in output_pending_review is expected while required assessment is pending and does not block dispatching the listed required assessment task.');
   });
 });

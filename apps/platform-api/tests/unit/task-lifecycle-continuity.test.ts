@@ -30,7 +30,7 @@ describe('TaskLifecycleService continuity hooks', () => {
       release: vi.fn(),
     };
     const workItemContinuityService = {
-      recordReviewRejected: vi.fn(async () => null),
+      recordAssessmentRequestedChanges: vi.fn(async () => null),
     };
 
     const service = new TaskLifecycleService({
@@ -68,7 +68,7 @@ describe('TaskLifecycleService continuity hooks', () => {
       },
     );
 
-    expect(workItemContinuityService.recordReviewRejected).toHaveBeenCalledWith(
+    expect(workItemContinuityService.recordAssessmentRequestedChanges).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
         id: 'task-review-loop',
@@ -104,7 +104,7 @@ describe('TaskLifecycleService continuity hooks', () => {
         if (
           sql.includes('UPDATE workflow_work_items')
           && sql.includes("parent_work_item_id = $3")
-          && sql.includes("COALESCE(review_task.metadata->>'task_type', '') = 'review'")
+          && sql.includes("COALESCE(review_task.metadata->>'task_kind', '') = 'assessment'")
         ) {
           return { rows: [], rowCount: 1 };
         }
@@ -113,7 +113,7 @@ describe('TaskLifecycleService continuity hooks', () => {
       release: vi.fn(),
     };
     const workItemContinuityService = {
-      clearReviewExpectation: vi.fn(async () => null),
+      clearAssessmentExpectation: vi.fn(async () => null),
     };
 
     const service = new TaskLifecycleService({
@@ -147,7 +147,7 @@ describe('TaskLifecycleService continuity hooks', () => {
       'task-output-approval',
     );
 
-    expect(workItemContinuityService.clearReviewExpectation).toHaveBeenCalledWith(
+    expect(workItemContinuityService.clearAssessmentExpectation).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
         id: 'task-output-approval',
@@ -172,7 +172,7 @@ describe('TaskLifecycleService continuity hooks', () => {
       release: vi.fn(),
     };
     const workItemContinuityService = {
-      clearReviewExpectation: vi.fn(async () => null),
+      clearAssessmentExpectation: vi.fn(async () => null),
     };
     const completedTask = {
       id: 'task-output-approval-idempotent',
@@ -209,7 +209,7 @@ describe('TaskLifecycleService continuity hooks', () => {
 
     expect(result).toEqual(completedTask);
     expect(client.query).not.toHaveBeenCalled();
-    expect(workItemContinuityService.clearReviewExpectation).not.toHaveBeenCalled();
+    expect(workItemContinuityService.clearAssessmentExpectation).not.toHaveBeenCalled();
   });
 
   it('rejects agent-driven output approval for workflow specialist tasks', async () => {
@@ -240,7 +240,7 @@ describe('TaskLifecycleService continuity hooks', () => {
         metadata: {},
       }),
       toTaskResponse: (task) => task,
-      workItemContinuityService: { clearReviewExpectation: vi.fn() } as never,
+      workItemContinuityService: { clearAssessmentExpectation: vi.fn() } as never,
     });
 
     await expect(

@@ -5,7 +5,7 @@ import { evaluatePlaybookRules } from '../../src/services/playbook-rule-evaluati
 
 const sdlcDefinition = parsePlaybookDefinition({
   process_instructions:
-    'Product clarifies the work, architecture designs it, implementation is reviewed, verification follows review, and release requires human approval.',
+    'Product clarifies the work, architecture designs it, implementation is assessed, verification follows assessment, and release requires human approval.',
   roles: ['product-manager', 'architect', 'developer', 'reviewer', 'qa'],
   lifecycle: 'planned',
   board: {
@@ -20,15 +20,17 @@ const sdlcDefinition = parsePlaybookDefinition({
     { name: 'verification', goal: 'Verification is complete.' },
     { name: 'release', goal: 'Release is approved.', human_gate: true },
   ],
-  review_rules: [
+  assessment_rules: [
     {
-      from_role: 'developer',
-      reviewed_by: 'reviewer',
+      subject_role: 'developer',
+      assessed_by: 'reviewer',
       checkpoint: 'implementation',
       required: true,
-      on_reject: {
-        action: 'return_to_role',
-        role: 'developer',
+      outcome_actions: {
+        request_changes: {
+          action: 'route_to_role',
+          role: 'developer',
+        },
       },
     },
   ],
@@ -48,7 +50,7 @@ const sdlcDefinition = parsePlaybookDefinition({
 describe('evaluatePlaybookRules', () => {
   const definition = parsePlaybookDefinition({
     process_instructions:
-      'Developer implements. Reviewer reviews every code change. QA validates. Human approves requirements and verification.',
+      'Developer implements. Reviewer assesses every code change. QA validates. Human approves requirements and verification.',
     roles: ['product-manager', 'developer', 'reviewer', 'qa'],
     board: {
       entry_column_id: 'planned',
@@ -58,15 +60,17 @@ describe('evaluatePlaybookRules', () => {
       { name: 'requirements', goal: 'Requirements are approved.', human_gate: true },
       { name: 'verification', goal: 'Verification is complete.', human_gate: true },
     ],
-    review_rules: [
+    assessment_rules: [
       {
-        from_role: 'developer',
-        reviewed_by: 'reviewer',
+        subject_role: 'developer',
+        assessed_by: 'reviewer',
         checkpoint: 'implementation',
         required: true,
-        on_reject: {
-          action: 'return_to_role',
-          role: 'developer',
+        outcome_actions: {
+          request_changes: {
+            action: 'route_to_role',
+            role: 'developer',
+          },
         },
       },
     ],
@@ -93,7 +97,7 @@ describe('evaluatePlaybookRules', () => {
     ],
   });
 
-  it('requires mandatory review after a developer completion', () => {
+  it('requires mandatory assessment after a developer completion', () => {
     const result = evaluatePlaybookRules({
       definition,
       event: 'task_completed',
@@ -102,23 +106,23 @@ describe('evaluatePlaybookRules', () => {
     });
 
     expect(result).toMatchObject({
-      matchedRuleType: 'review',
+      matchedRuleType: 'assessment',
       nextExpectedActor: 'reviewer',
-      nextExpectedAction: 'review',
+      nextExpectedAction: 'assess',
       requiresHumanApproval: false,
     });
   });
 
-  it('routes review rejection back to the configured role', () => {
+  it('routes assessment request-changes back to the configured role', () => {
     const result = evaluatePlaybookRules({
       definition,
-      event: 'review_rejected',
+      event: 'assessment_requested_changes',
       role: 'developer',
       checkpointName: 'implementation',
     });
 
     expect(result).toMatchObject({
-      matchedRuleType: 'review',
+      matchedRuleType: 'assessment',
       nextExpectedActor: 'developer',
       nextExpectedAction: 'rework',
       reworkDelta: 1,
@@ -302,7 +306,7 @@ describe('evaluatePlaybookRules', () => {
       }),
       evaluatePlaybookRules({
         definition,
-        event: 'review_rejected',
+        event: 'assessment_requested_changes',
         role: 'developer',
         checkpointName: 'implementation',
       }),
@@ -343,12 +347,12 @@ describe('evaluatePlaybookRules', () => {
         nextExpectedAction: null,
       }),
       expect.objectContaining({
-        matchedRuleType: 'review',
+        matchedRuleType: 'assessment',
         nextExpectedActor: 'reviewer',
-        nextExpectedAction: 'review',
+        nextExpectedAction: 'assess',
       }),
       expect.objectContaining({
-        matchedRuleType: 'review',
+        matchedRuleType: 'assessment',
         nextExpectedActor: 'developer',
         nextExpectedAction: 'rework',
         reworkDelta: 1,

@@ -82,7 +82,7 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: true,
+        satisfiedAssessmentExpectation: true,
       })),
     };
 
@@ -189,15 +189,15 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: true,
+        satisfiedAssessmentExpectation: true,
       })),
-      recordReviewRejected: vi.fn(async () => ({
+      recordAssessmentRequestedChanges: vi.fn(async () => ({
         matchedRuleType: 'review',
         nextExpectedActor: 'developer',
         nextExpectedAction: 'rework',
         requiresHumanApproval: false,
         reworkDelta: 1,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
 
@@ -230,7 +230,7 @@ describe('applyTaskCompletionSideEffects', () => {
     );
 
     expect(workItemContinuityService.recordTaskCompleted).not.toHaveBeenCalled();
-    expect(workItemContinuityService.recordReviewRejected).toHaveBeenCalledWith(
+    expect(workItemContinuityService.recordAssessmentRequestedChanges).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
         id: 'task-review',
@@ -315,15 +315,15 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'rework',
         requiresHumanApproval: false,
         reworkDelta: 1,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
-      recordReviewRejected: vi.fn(async () => ({
+      recordAssessmentRequestedChanges: vi.fn(async () => ({
         matchedRuleType: 'review',
         nextExpectedActor: 'live-test-developer',
         nextExpectedAction: 'rework',
         requiresHumanApproval: false,
         reworkDelta: 1,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
     const reviewTaskChangeService = {
@@ -376,7 +376,7 @@ describe('applyTaskCompletionSideEffects', () => {
       }),
       client,
     );
-    expect(workItemContinuityService.recordReviewRejected).not.toHaveBeenCalled();
+    expect(workItemContinuityService.recordAssessmentRequestedChanges).not.toHaveBeenCalled();
   });
 
   it('requests rework on a completed reviewed task when a verification handoff requests changes', async () => {
@@ -450,15 +450,15 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: null,
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
-      recordReviewRejected: vi.fn(async () => ({
+      recordAssessmentRequestedChanges: vi.fn(async () => ({
         matchedRuleType: 'review',
         nextExpectedActor: 'live-test-developer',
         nextExpectedAction: 'rework',
         requiresHumanApproval: false,
         reworkDelta: 1,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
     const reviewTaskChangeService = {
@@ -511,7 +511,7 @@ describe('applyTaskCompletionSideEffects', () => {
       }),
       client,
     );
-    expect(workItemContinuityService.recordReviewRejected).not.toHaveBeenCalled();
+    expect(workItemContinuityService.recordAssessmentRequestedChanges).not.toHaveBeenCalled();
   });
 
   it('does not advance review continuity for a blocked reviewer handoff without a request-changes outcome', async () => {
@@ -568,15 +568,15 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: true,
+        satisfiedAssessmentExpectation: true,
       })),
-      recordReviewRejected: vi.fn(async () => ({
+      recordAssessmentRequestedChanges: vi.fn(async () => ({
         matchedRuleType: 'review',
         nextExpectedActor: 'developer',
         nextExpectedAction: 'rework',
         requiresHumanApproval: false,
         reworkDelta: 1,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
 
@@ -609,7 +609,7 @@ describe('applyTaskCompletionSideEffects', () => {
     );
 
     expect(workItemContinuityService.recordTaskCompleted).not.toHaveBeenCalled();
-    expect(workItemContinuityService.recordReviewRejected).not.toHaveBeenCalled();
+    expect(workItemContinuityService.recordAssessmentRequestedChanges).not.toHaveBeenCalled();
     expect(
       client.query.mock.calls.some(([sql]) => (sql as string).includes('INSERT INTO workflow_activations')),
     ).toBe(false);
@@ -661,10 +661,10 @@ describe('applyTaskCompletionSideEffects', () => {
       recordTaskCompleted: vi.fn(async () => ({
         matchedRuleType: 'handoff',
         nextExpectedActor: 'reviewer',
-        nextExpectedAction: 'review',
+        nextExpectedAction: 'assess',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
 
@@ -737,10 +737,10 @@ describe('applyTaskCompletionSideEffects', () => {
       recordTaskCompleted: vi.fn(async () => ({
         matchedRuleType: 'handoff',
         nextExpectedActor: 'reviewer',
-        nextExpectedAction: 'review',
+        nextExpectedAction: 'assess',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
 
@@ -823,10 +823,10 @@ describe('applyTaskCompletionSideEffects', () => {
       recordTaskCompleted: vi.fn(async () => ({
         matchedRuleType: 'handoff',
         nextExpectedActor: 'reviewer',
-        nextExpectedAction: 'review',
+        nextExpectedAction: 'assess',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
 
@@ -946,7 +946,7 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: true,
+        satisfiedAssessmentExpectation: true,
       })),
     };
 
@@ -1201,7 +1201,7 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: true,
+        satisfiedAssessmentExpectation: true,
       })),
     };
 
@@ -1332,7 +1332,7 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: true,
+        satisfiedAssessmentExpectation: true,
       })),
     };
 
@@ -1466,7 +1466,7 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
 
@@ -1528,7 +1528,7 @@ describe('applyTaskCompletionSideEffects', () => {
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
         reworkDelta: 0,
-        satisfiedReviewExpectation: false,
+        satisfiedAssessmentExpectation: false,
       })),
     };
 

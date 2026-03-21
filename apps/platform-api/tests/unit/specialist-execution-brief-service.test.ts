@@ -26,8 +26,8 @@ describe('buildSpecialistExecutionBrief', () => {
             checkpoints: [
               { name: 'implementation', goal: 'Build the refresh-token fix' },
             ],
-            review_rules: [
-              { from_role: 'developer', reviewed_by: 'reviewer', checkpoint: 'implementation', required: true },
+            assessment_rules: [
+              { subject_role: 'developer', assessed_by: 'reviewer', checkpoint: 'implementation', required: true },
             ],
           },
         },
@@ -72,7 +72,7 @@ describe('buildSpecialistExecutionBrief', () => {
         goal: 'Review the refresh-token implementation before release',
         acceptance_criteria: ['Reviewer confirms the fix and flags any regressions.'],
         next_expected_actor: 'reviewer',
-        next_expected_action: 'review',
+        next_expected_action: 'assess',
         latest_handoff_completion: 'partial',
         unresolved_findings: ['Check release note wording.'],
         review_focus: ['Refresh-token expiry path'],

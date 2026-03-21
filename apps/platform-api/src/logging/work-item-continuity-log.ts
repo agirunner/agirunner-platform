@@ -8,8 +8,8 @@ interface WorkItemContinuityTransitionInput {
   tenantId: string;
   event:
     | 'task_completed'
-    | 'review_rejected'
-    | 'review_expectation_cleared'
+    | 'assessment_requested_changes'
+    | 'assessment_expectation_cleared'
     | 'finish_state_persisted'
     | 'finish_state_skipped';
   task: Record<string, unknown>;
@@ -23,7 +23,7 @@ interface WorkItemContinuityTransitionInput {
   nextReworkCount: number | null;
   matchedRuleType?: string | null;
   requiresHumanApproval?: boolean | null;
-  satisfiedReviewExpectation?: boolean | null;
+  satisfiedAssessmentExpectation?: boolean | null;
   reworkDelta?: number | null;
   statusSummary?: string | null;
   nextExpectedEvent?: string | null;
@@ -36,8 +36,8 @@ const CONTINUITY_OPERATION_BY_EVENT: Record<
   string
 > = {
   task_completed: 'work_item.continuity.task_completed',
-  review_rejected: 'work_item.continuity.review_rejected',
-  review_expectation_cleared: 'work_item.continuity.review_expectation_cleared',
+  assessment_requested_changes: 'work_item.continuity.assessment_requested_changes',
+  assessment_expectation_cleared: 'work_item.continuity.assessment_expectation_cleared',
   finish_state_persisted: 'work_item.continuity.finish_state_persisted',
   finish_state_skipped: 'work_item.continuity.finish_state_skipped',
 };
@@ -79,9 +79,9 @@ export async function logWorkItemContinuityTransition(
           typeof input.requiresHumanApproval === 'boolean'
             ? input.requiresHumanApproval
             : null,
-        satisfied_review_expectation:
-          typeof input.satisfiedReviewExpectation === 'boolean'
-            ? input.satisfiedReviewExpectation
+        satisfied_assessment_expectation:
+          typeof input.satisfiedAssessmentExpectation === 'boolean'
+            ? input.satisfiedAssessmentExpectation
             : null,
         rework_delta: typeof input.reworkDelta === 'number' ? input.reworkDelta : null,
         status_summary: input.statusSummary ?? null,

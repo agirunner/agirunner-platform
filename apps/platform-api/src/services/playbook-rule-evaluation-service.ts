@@ -2,8 +2,7 @@ import type { PlaybookDefinition } from '../orchestration/playbook-model.js';
 
 export type PlaybookRuleEvent =
   | 'task_completed'
-  | 'review_rejected'
-  | 'review_approved'
+  | 'assessment_requested_changes'
   | 'checkpoint_reached'
   | 'completion_requested';
 
@@ -74,7 +73,7 @@ function evaluateAssessmentRule(
 
   const requestChanges = rule.outcome_actions?.request_changes;
   if (
-    input.event === 'review_rejected' &&
+    input.event === 'assessment_requested_changes' &&
     requestChanges?.action === 'route_to_role' &&
     requestChanges.role
   ) {

@@ -367,7 +367,7 @@ export class TaskWriteService {
           `in stage '${input.stage_name}' before creating tasks for that stage.`,
       );
     }
-    this.assertChildReviewWorkItemOwnership(input, linkedWorkItem);
+    this.assertChildAssessmentWorkItemOwnership(input, linkedWorkItem);
     await this.assertPlannedStageRoleMembership(tenantId, input, linkedWorkItem, db);
     if (
       input.role
@@ -390,7 +390,7 @@ export class TaskWriteService {
     }
   }
 
-  private assertChildReviewWorkItemOwnership(
+  private assertChildAssessmentWorkItemOwnership(
     input: CreateTaskInput,
     linkedWorkItem: LinkedWorkItemRow,
   ) {
@@ -398,7 +398,7 @@ export class TaskWriteService {
       linkedWorkItem.workflow_lifecycle !== 'planned'
       || input.is_orchestrator_task
       || !linkedWorkItem.parent_work_item_id
-      || linkedWorkItem.next_expected_action !== 'review'
+      || linkedWorkItem.next_expected_action !== 'assess'
       || !input.role?.trim()
     ) {
       return;
@@ -410,8 +410,8 @@ export class TaskWriteService {
     }
 
     throw new ValidationError(
-      `Role '${input.role.trim()}' cannot run on child review work item '${input.work_item_id}'. ` +
-        `Child review work items stay owned by configured review role '${ownerRole}', and any requested rework ` +
+      `Role '${input.role.trim()}' cannot run on child assessment work item '${input.work_item_id}'. ` +
+        `Child assessment work items stay owned by configured assessment role '${ownerRole}', and any requested rework ` +
         `must continue on the parent work item '${linkedWorkItem.parent_work_item_id}'.`,
     );
   }

@@ -29,7 +29,7 @@ interface ReviewedTaskCandidateOptions {
   allowCompletedExplicitTask?: boolean;
 }
 
-type TaskCompletionContinuityEvent = 'task_completed' | 'review_rejected';
+type TaskCompletionContinuityEvent = 'task_completed' | 'assessment_requested_changes';
 
 interface TaskAttemptHandoffOutcome {
   completion: string | null;
@@ -104,7 +104,7 @@ export async function applyTaskCompletionSideEffects(
   workItemContinuityService:
     | (
       Pick<WorkItemContinuityService, 'recordTaskCompleted'>
-      & Partial<Pick<WorkItemContinuityService, 'recordReviewRejected'>>
+      & Partial<Pick<WorkItemContinuityService, 'recordAssessmentRequestedChanges'>>
     )
     | undefined,
   identity: ApiKeyIdentity,
@@ -198,7 +198,7 @@ export async function applyTaskCompletionSideEffects(
       task,
     );
     const reviewReworkApplied =
-      continuityEvent === 'review_rejected'
+      continuityEvent === 'assessment_requested_changes'
         ? await maybeRequestReviewedTaskChanges(
             reviewTaskChangeService,
             eventService,
@@ -379,7 +379,7 @@ async function resolveTaskCompletionContinuityEvent(
     latestHandoffOutcome.completion === 'full'
     && readsReviewRequestChangesOutcome(completedTask, latestHandoffOutcome)
   ) {
-    return 'review_rejected';
+    return 'assessment_requested_changes';
   }
 
   if (latestHandoffOutcome.completion === 'full') {
@@ -393,7 +393,7 @@ async function applyTaskCompletionContinuityEvent(
   workItemContinuityService:
     | (
       Pick<WorkItemContinuityService, 'recordTaskCompleted'>
-      & Partial<Pick<WorkItemContinuityService, 'recordReviewRejected'>>
+      & Partial<Pick<WorkItemContinuityService, 'recordAssessmentRequestedChanges'>>
     )
     | undefined,
   tenantId: string,
@@ -405,8 +405,8 @@ async function applyTaskCompletionContinuityEvent(
     return null;
   }
 
-  if (event === 'review_rejected') {
-    return workItemContinuityService?.recordReviewRejected?.(
+  if (event === 'assessment_requested_changes') {
+    return workItemContinuityService?.recordAssessmentRequestedChanges?.(
       tenantId,
       task,
       client,
@@ -440,7 +440,7 @@ async function maybeResolveReviewedOutput(
         task_type: asOptionalString(asRecord(completedTask.metadata).task_type),
         explicit_reviewed_task_id: readReviewedTaskId(completedTask),
         matched_rule_type: continuityResult?.matchedRuleType ?? null,
-        satisfied_review_expectation: continuityResult?.satisfiedReviewExpectation ?? false,
+        satisfied_assessment_expectation: continuityResult?.satisfiedAssessmentExpectation ?? false,
       };
       await eventService.emit(
         {
@@ -843,7 +843,7 @@ function resolveReviewResolutionGate(
   completedTask: Record<string, unknown>,
   continuityResult: WorkItemCompletionOutcome | null,
 ) {
-  if (continuityResult?.satisfiedReviewExpectation) {
+  if (continuityResult?.satisfiedAssessmentExpectation) {
     return { shouldAttempt: true, reason: 'continuity_expectation' } as const;
   }
 

@@ -101,7 +101,7 @@ describe('buildOrchestratorTaskContext', () => {
                 stage_name: 'implementation',
 
                 next_expected_actor: 'reviewer',
-                next_expected_action: 'review',
+                next_expected_action: 'assess',
                 rework_count: 1,
                 completed_at: null,
               },
@@ -182,7 +182,7 @@ describe('buildOrchestratorTaskContext', () => {
           id: 'wi-1',
           stage_name: 'implementation',
           next_expected_actor: 'reviewer',
-          next_expected_action: 'review',
+          next_expected_action: 'assess',
           rework_count: 1,
         }),
       ]),
@@ -339,7 +339,7 @@ describe('buildOrchestratorTaskContext', () => {
                 column_id: 'planned',
                 owner_role: 'reviewer',
                 next_expected_actor: 'reviewer',
-                next_expected_action: 'review',
+                next_expected_action: 'assess',
                 rework_count: 0,
                 priority: 'normal',
                 completed_at: null,
@@ -398,7 +398,7 @@ describe('buildOrchestratorTaskContext', () => {
         work_item_id: 'review-item',
         stage_name: 'review',
         actor: 'reviewer',
-        action: 'review',
+        action: 'assess',
       }),
     ]);
   });
@@ -437,7 +437,7 @@ describe('buildOrchestratorTaskContext', () => {
                 column_id: 'planned',
                 owner_role: 'developer',
                 next_expected_actor: 'reviewer',
-                next_expected_action: 'review',
+                next_expected_action: 'assess',
                 rework_count: 1,
                 priority: 'normal',
                 completed_at: null,
@@ -453,7 +453,7 @@ describe('buildOrchestratorTaskContext', () => {
                 column_id: 'planned',
                 owner_role: 'reviewer',
                 next_expected_actor: 'reviewer',
-                next_expected_action: 'review',
+                next_expected_action: 'assess',
                 rework_count: 0,
                 priority: 'normal',
                 completed_at: null,
@@ -512,7 +512,7 @@ describe('buildOrchestratorTaskContext', () => {
         work_item_id: 'review-item',
         stage_name: 'review',
         actor: 'reviewer',
-        action: 'review',
+        action: 'assess',
       }),
     ]);
   });

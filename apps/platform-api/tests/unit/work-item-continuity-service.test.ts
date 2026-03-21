@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkItemContinuityService } from '../../src/services/work-item-continuity-service.js';
 
 describe('WorkItemContinuityService', () => {
-  it('records next expected review actor after a task completion', async () => {
+  it('records next expected assessment actor after a task completion', async () => {
     const pool = {
       query: vi
         .fn()
@@ -16,11 +16,11 @@ describe('WorkItemContinuityService', () => {
             next_expected_actor: null,
             next_expected_action: null,
             definition: {
-              process_instructions: 'Developer implements and reviewer reviews.',
+              process_instructions: 'Developer implements and reviewer assesses.',
               roles: ['developer', 'reviewer'],
               board: { columns: [{ id: 'planned', label: 'Planned' }] },
               checkpoints: [{ name: 'implementation', goal: 'Implement work', human_gate: false }],
-              review_rules: [{ from_role: 'developer', reviewed_by: 'reviewer', required: true }],
+              assessment_rules: [{ subject_role: 'developer', assessed_by: 'reviewer', required: true }],
             },
           }],
           rowCount: 1,
@@ -38,18 +38,18 @@ describe('WorkItemContinuityService', () => {
     });
 
     expect(result).toMatchObject({
-      matchedRuleType: 'review',
+      matchedRuleType: 'assessment',
       nextExpectedActor: 'reviewer',
-      nextExpectedAction: 'review',
-      satisfiedReviewExpectation: false,
+      nextExpectedAction: 'assess',
+      satisfiedAssessmentExpectation: false,
     });
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
-      ['tenant-1', 'workflow-1', 'work-item-1', 'reviewer', 'review', 0],
+      ['tenant-1', 'workflow-1', 'work-item-1', 'reviewer', 'assess', 0],
     );
   });
 
-  it('increments work-item rework count and routes review rejection back to the source role', async () => {
+  it('increments work-item rework count and routes assessment request-changes back to the source role', async () => {
     const pool = {
       query: vi
         .fn()
@@ -62,15 +62,17 @@ describe('WorkItemContinuityService', () => {
             next_expected_actor: null,
             next_expected_action: null,
             definition: {
-              process_instructions: 'Developer implements and reviewer reviews.',
+              process_instructions: 'Developer implements and reviewer assesses.',
               roles: ['developer', 'reviewer'],
               board: { columns: [{ id: 'planned', label: 'Planned' }] },
               checkpoints: [{ name: 'implementation', goal: 'Implement work', human_gate: false }],
-              review_rules: [{
-                from_role: 'developer',
-                reviewed_by: 'reviewer',
+              assessment_rules: [{
+                subject_role: 'developer',
+                assessed_by: 'reviewer',
                 required: true,
-                on_reject: { action: 'return_to_role', role: 'developer' },
+                outcome_actions: {
+                  request_changes: { action: 'route_to_role', role: 'developer' },
+                },
               }],
             },
           }],
@@ -81,7 +83,7 @@ describe('WorkItemContinuityService', () => {
 
     const service = new WorkItemContinuityService(pool as never);
 
-    const result = await service.recordReviewRejected('tenant-1', {
+    const result = await service.recordAssessmentRequestedChanges('tenant-1', {
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       role: 'developer',
@@ -89,7 +91,7 @@ describe('WorkItemContinuityService', () => {
     });
 
     expect(result).toMatchObject({
-      matchedRuleType: 'review',
+      matchedRuleType: 'assessment',
       nextExpectedActor: 'developer',
       nextExpectedAction: 'rework',
       reworkDelta: 1,
@@ -100,7 +102,7 @@ describe('WorkItemContinuityService', () => {
     );
   });
 
-  it('falls back to the predecessor handoff role when a reviewer rejection has no direct on_reject rule', async () => {
+  it('falls back to the predecessor handoff role when an assessment request-changes outcome has no direct rule', async () => {
     const pool = {
       query: vi
         .fn()
@@ -113,15 +115,17 @@ describe('WorkItemContinuityService', () => {
             next_expected_actor: null,
             next_expected_action: null,
             definition: {
-              process_instructions: 'Developer implements, reviewer reviews, rejected review returns to developer.',
+              process_instructions: 'Developer implements, reviewer assesses, request changes returns to developer.',
               roles: ['developer', 'reviewer'],
               board: { columns: [{ id: 'review', label: 'Review' }] },
               checkpoints: [{ name: 'review', goal: 'Review the change', human_gate: false }],
-              review_rules: [{
-                from_role: 'developer',
-                reviewed_by: 'reviewer',
+              assessment_rules: [{
+                subject_role: 'developer',
+                assessed_by: 'reviewer',
                 required: true,
-                on_reject: { action: 'return_to_role', role: 'developer' },
+                outcome_actions: {
+                  request_changes: { action: 'route_to_role', role: 'developer' },
+                },
               }],
             },
           }],
@@ -136,7 +140,7 @@ describe('WorkItemContinuityService', () => {
 
     const service = new WorkItemContinuityService(pool as never);
 
-    const result = await service.recordReviewRejected('tenant-1', {
+    const result = await service.recordAssessmentRequestedChanges('tenant-1', {
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       role: 'reviewer',
@@ -144,7 +148,7 @@ describe('WorkItemContinuityService', () => {
     });
 
     expect(result).toMatchObject({
-      matchedRuleType: 'review',
+      matchedRuleType: 'assessment',
       nextExpectedActor: 'developer',
       nextExpectedAction: 'rework',
       reworkDelta: 1,
@@ -166,7 +170,7 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'implementation',
             owner_role: 'developer',
             next_expected_actor: 'reviewer',
-            next_expected_action: 'review',
+            next_expected_action: 'assess',
             definition: { process_instructions: 'Developer implements.' },
           }],
           rowCount: 1,
@@ -176,7 +180,7 @@ describe('WorkItemContinuityService', () => {
 
     const service = new WorkItemContinuityService(pool as never);
 
-    await service.clearReviewExpectation('tenant-1', {
+    await service.clearAssessmentExpectation('tenant-1', {
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       stage_name: 'implementation',
@@ -234,7 +238,7 @@ describe('WorkItemContinuityService', () => {
     );
   });
 
-  it('flags when a task completion satisfies the active review expectation', async () => {
+  it('flags when a task completion satisfies the active assessment expectation', async () => {
     const pool = {
       query: vi
         .fn()
@@ -245,7 +249,7 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'implementation',
             owner_role: 'developer',
             next_expected_actor: 'reviewer',
-            next_expected_action: 'review',
+            next_expected_action: 'assess',
             definition: {
               process_instructions: 'Developer implements, reviewer approves, then QA validates.',
               roles: ['developer', 'reviewer', 'qa'],
@@ -273,7 +277,7 @@ describe('WorkItemContinuityService', () => {
       matchedRuleType: 'handoff',
       nextExpectedActor: 'qa',
       nextExpectedAction: 'handoff',
-      satisfiedReviewExpectation: true,
+      satisfiedAssessmentExpectation: true,
     });
   });
 
@@ -288,7 +292,7 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'implementation',
             owner_role: 'developer',
             next_expected_actor: 'reviewer',
-            next_expected_action: 'review',
+            next_expected_action: 'assess',
             definition: {
               process_instructions: 'Developer implements and QA validates next.',
               roles: ['developer', 'qa'],
@@ -334,11 +338,11 @@ describe('WorkItemContinuityService', () => {
           event: 'task_completed',
           stage_name: 'implementation',
           previous_next_expected_actor: 'reviewer',
-          previous_next_expected_action: 'review',
+          previous_next_expected_action: 'assess',
           next_expected_actor: 'qa',
           next_expected_action: 'handoff',
           matched_rule_type: 'handoff',
-          satisfied_review_expectation: false,
+      satisfied_assessment_expectation: false,
           rework_delta: 0,
         }),
       }),
@@ -347,7 +351,7 @@ describe('WorkItemContinuityService', () => {
     expect(payload).not.toHaveProperty('checkpoint_name');
   });
 
-  it('clears planned-workflow continuity after reviewer approval instead of routing qa on the review work item', async () => {
+  it('clears planned-workflow continuity after assessor approval instead of routing qa on the review work item', async () => {
     const pool = {
       query: vi
         .fn()
@@ -359,7 +363,7 @@ describe('WorkItemContinuityService', () => {
             rework_count: 1,
             owner_role: 'reviewer',
             next_expected_actor: 'reviewer',
-            next_expected_action: 'review',
+            next_expected_action: 'assess',
             definition: {
               process_instructions: 'Reviewer approves before QA validates in the next planned stage.',
               roles: ['reviewer', 'qa'],
@@ -390,7 +394,7 @@ describe('WorkItemContinuityService', () => {
       matchedRuleType: null,
       nextExpectedActor: null,
       nextExpectedAction: null,
-      satisfiedReviewExpectation: true,
+      satisfiedAssessmentExpectation: true,
     });
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
@@ -398,7 +402,7 @@ describe('WorkItemContinuityService', () => {
     );
   });
 
-  it('emits a continuity transition log when review rejection routes work back for rework', async () => {
+  it('emits a continuity transition log when assessment request-changes routes work back for rework', async () => {
     const pool = {
       query: vi
         .fn()
@@ -409,17 +413,19 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'review',
             owner_role: 'reviewer',
             next_expected_actor: 'reviewer',
-            next_expected_action: 'review',
+            next_expected_action: 'assess',
             definition: {
-              process_instructions: 'Developer implements, reviewer rejects to developer on issues.',
+              process_instructions: 'Developer implements, reviewer requests changes back to developer on issues.',
               roles: ['developer', 'reviewer'],
               board: { columns: [{ id: 'review', label: 'Review' }] },
               checkpoints: [{ name: 'review', goal: 'Review the change', human_gate: false }],
-              review_rules: [{
-                from_role: 'developer',
-                reviewed_by: 'reviewer',
+              assessment_rules: [{
+                subject_role: 'developer',
+                assessed_by: 'reviewer',
                 required: true,
-                on_reject: { action: 'return_to_role', role: 'developer' },
+                outcome_actions: {
+                  request_changes: { action: 'route_to_role', role: 'developer' },
+                },
               }],
             },
           }],
@@ -433,7 +439,7 @@ describe('WorkItemContinuityService', () => {
 
     const service = new WorkItemContinuityService(pool as never, logService as never);
 
-    await service.recordReviewRejected('tenant-1', {
+    await service.recordAssessmentRequestedChanges('tenant-1', {
       id: 'task-2',
       title: 'Review implementation',
       workflow_id: 'workflow-1',
@@ -444,15 +450,15 @@ describe('WorkItemContinuityService', () => {
 
     expect(logService.insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        operation: 'work_item.continuity.review_rejected',
+        operation: 'work_item.continuity.assessment_requested_changes',
         payload: expect.objectContaining({
-          event: 'review_rejected',
+          event: 'assessment_requested_changes',
           stage_name: 'review',
           previous_next_expected_actor: 'reviewer',
-          previous_next_expected_action: 'review',
+          previous_next_expected_action: 'assess',
           next_expected_actor: 'developer',
           next_expected_action: 'rework',
-          matched_rule_type: 'review',
+          matched_rule_type: 'assessment',
           rework_delta: 1,
         }),
       }),
@@ -461,7 +467,7 @@ describe('WorkItemContinuityService', () => {
     expect(payload).not.toHaveProperty('checkpoint_name');
   });
 
-  it('emits a continuity transition log when review expectation is cleared after approval', async () => {
+  it('emits a continuity transition log when assessment expectation is cleared after approval', async () => {
     const pool = {
       query: vi
         .fn()
@@ -472,7 +478,7 @@ describe('WorkItemContinuityService', () => {
             stage_name: 'implementation',
             owner_role: 'developer',
             next_expected_actor: 'reviewer',
-            next_expected_action: 'review',
+            next_expected_action: 'assess',
             definition: { process_instructions: 'Developer implements.' },
           }],
           rowCount: 1,
@@ -485,7 +491,7 @@ describe('WorkItemContinuityService', () => {
 
     const service = new WorkItemContinuityService(pool as never, logService as never);
 
-    await service.clearReviewExpectation('tenant-1', {
+    await service.clearAssessmentExpectation('tenant-1', {
       id: 'task-3',
       title: 'Approve implementation',
       workflow_id: 'workflow-1',
@@ -496,12 +502,12 @@ describe('WorkItemContinuityService', () => {
 
     expect(logService.insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        operation: 'work_item.continuity.review_expectation_cleared',
+        operation: 'work_item.continuity.assessment_expectation_cleared',
         payload: expect.objectContaining({
-          event: 'review_expectation_cleared',
+          event: 'assessment_expectation_cleared',
           stage_name: 'implementation',
           previous_next_expected_actor: 'reviewer',
-          previous_next_expected_action: 'review',
+          previous_next_expected_action: 'assess',
           next_expected_actor: null,
           next_expected_action: null,
         }),
@@ -583,12 +589,12 @@ describe('WorkItemContinuityService', () => {
           rowCount: 1,
           rows: [{
             next_expected_actor: 'reviewer',
-            next_expected_action: 'review',
+            next_expected_action: 'assess',
             parent_work_item_id: 'implementation-item',
             metadata: {
               keep_me: true,
               orchestrator_finish_state: {
-                status_summary: 'Implementation is ready for the next review pass.',
+                status_summary: 'Implementation is ready for the next assessment pass.',
                 next_expected_event: 'task.output_pending_review',
               },
             },
@@ -616,15 +622,15 @@ describe('WorkItemContinuityService', () => {
     }, {
       next_expected_actor: 'developer',
       next_expected_action: 'rework',
-      status_summary: 'Route the first review rejection back to implementation.',
+      status_summary: 'Route the first assessment request-changes outcome back to implementation.',
       next_expected_event: 'task.handoff_submitted',
     });
 
     expect(result).toEqual({
       nextExpectedActor: 'reviewer',
-      nextExpectedAction: 'review',
+      nextExpectedAction: 'assess',
       continuity: {
-        status_summary: 'Implementation is ready for the next review pass.',
+        status_summary: 'Implementation is ready for the next assessment pass.',
         next_expected_event: 'task.output_pending_review',
       },
     });

@@ -510,7 +510,7 @@ describe('TaskWriteService', () => {
               parent_work_item_id: 'implementation-item',
               owner_role: 'live-test-reviewer',
               next_expected_actor: null,
-              next_expected_action: 'review',
+              next_expected_action: 'assess',
             }],
           };
         }

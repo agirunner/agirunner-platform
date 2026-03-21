@@ -272,7 +272,7 @@ function derivePendingDispatches(
     if (!workItemId || !actor || !action || actor === 'human') {
       return [];
     }
-    if (action === 'review' && hasOpenChildReviewDispatchOwner(workItems, workItemId, actor)) {
+    if (action === 'assess' && hasOpenChildAssessmentDispatchOwner(workItems, workItemId, actor)) {
       return [];
     }
 
@@ -297,7 +297,7 @@ function derivePendingDispatches(
   });
 }
 
-function hasOpenChildReviewDispatchOwner(
+function hasOpenChildAssessmentDispatchOwner(
   workItems: Record<string, unknown>[],
   parentWorkItemId: string,
   actor: string,
@@ -306,7 +306,7 @@ function hasOpenChildReviewDispatchOwner(
     (workItem) =>
       workItem.completed_at == null
       && readOptionalString(workItem.parent_work_item_id) === parentWorkItemId
-      && readOptionalString(workItem.next_expected_action) === 'review'
+      && readOptionalString(workItem.next_expected_action) === 'assess'
       && readOptionalString(workItem.next_expected_actor) === actor,
   );
 }
