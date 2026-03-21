@@ -387,14 +387,6 @@ describe('operator information architecture', () => {
     expect(source).toContain('StructuredRecordView data={toolsQuery.data?.data}');
   });
 
-  it('integrations page exposes integration lifecycle controls', () => {
-    const source = readComponent('pages/config/integrations-page.tsx');
-    expect(source).toContain('export function IntegrationsPage');
-    expect(source).toContain('createIntegration');
-    expect(source).toContain('updateIntegration');
-    expect(source).toContain('deleteIntegration');
-  });
-
   it('governance page exposes retention controls', () => {
     const source = readComponent('pages/governance-page.tsx');
     expect(source).toContain('export function GovernancePage');

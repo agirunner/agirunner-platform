@@ -233,9 +233,6 @@ export function resolveSuggestionDestination(path: string): SuggestionDestinatio
   if (normalized.startsWith('playbook.') || normalized.startsWith('workflow.')) {
     return { href: '/config/playbooks', label: 'Open playbooks' };
   }
-  if (normalized.startsWith('integration.')) {
-    return { href: '/config/integrations', label: 'Open integrations' };
-  }
   if (normalized.startsWith('webhook.')) {
     return { href: '/config/webhooks', label: 'Open webhooks' };
   }

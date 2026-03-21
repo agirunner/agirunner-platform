@@ -269,26 +269,6 @@ export interface DashboardToolTagUpdateInput {
   category: string;
 }
 
-export interface DashboardOutboundWebhookRecord {
-  id: string;
-  url: string;
-  event_types: string[];
-  is_active: boolean;
-  created_at?: string;
-}
-
-export interface DashboardOutboundWebhookCreateInput {
-  url: string;
-  event_types: string[];
-  secret?: string;
-}
-
-export interface DashboardOutboundWebhookUpdateInput {
-  url?: string;
-  event_types?: string[];
-  is_active?: boolean;
-}
-
 export interface DashboardRuntimeDefaultRecord {
   id: string;
   config_key: string;
@@ -878,53 +858,6 @@ export interface DashboardWorkspaceToolCatalog {
   available?: unknown[];
   blocked?: unknown[];
   [key: string]: unknown;
-}
-
-export interface DashboardWebhookWorkItemTriggerRecord {
-  id: string;
-  name: string;
-  source: string;
-  workspace_id?: string | null;
-  workflow_id: string;
-  event_header?: string | null;
-  event_types?: string[];
-  signature_header: string;
-  signature_mode: 'hmac_sha256' | 'shared_secret';
-  field_mappings?: Record<string, unknown>;
-  defaults?: Record<string, unknown>;
-  is_active: boolean;
-  secret_configured?: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface DashboardScheduledWorkItemTriggerRecord {
-  id: string;
-  name: string;
-  source: string;
-  workspace_id?: string | null;
-  workflow_id: string;
-  schedule_type: 'interval' | 'daily_time';
-  cadence_minutes: number | null;
-  daily_time?: string | null;
-  timezone?: string | null;
-  defaults?: Record<string, unknown>;
-  is_active: boolean;
-  last_fired_at?: string | null;
-  next_fire_at: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface DashboardIntegrationRecord {
-  id: string;
-  kind: 'webhook' | 'slack' | 'otlp_http' | 'github_issues';
-  workflow_id?: string | null;
-  subscriptions: string[];
-  is_active: boolean;
-  config: Record<string, unknown>;
-  created_at?: string;
-  updated_at?: string;
 }
 
 export interface DashboardCostSummaryRecord {
@@ -1571,70 +1504,6 @@ export interface DashboardApi {
     workspaceId: string,
     payload: { provider: string; secret: string },
   ): Promise<Record<string, unknown>>;
-  listWebhookWorkItemTriggers(): Promise<{ data: DashboardWebhookWorkItemTriggerRecord[] }>;
-  createWebhookWorkItemTrigger(payload: {
-    name: string;
-    source: string;
-    workspace_id?: string;
-    workflow_id: string;
-    event_header?: string;
-    event_types?: string[];
-    signature_header: string;
-    signature_mode: 'hmac_sha256' | 'shared_secret';
-    secret: string;
-    field_mappings?: Record<string, unknown>;
-    defaults?: Record<string, unknown>;
-    is_active?: boolean;
-  }): Promise<DashboardWebhookWorkItemTriggerRecord>;
-  updateWebhookWorkItemTrigger(
-    triggerId: string,
-    payload: Partial<{
-      name: string;
-      source: string;
-      workspace_id: string | null;
-      workflow_id: string;
-      event_header: string | null;
-      event_types: string[];
-      signature_header: string;
-      signature_mode: 'hmac_sha256' | 'shared_secret';
-      secret: string;
-      field_mappings: Record<string, unknown>;
-      defaults: Record<string, unknown>;
-      is_active: boolean;
-    }>,
-  ): Promise<DashboardWebhookWorkItemTriggerRecord>;
-  deleteWebhookWorkItemTrigger(triggerId: string): Promise<void>;
-  listScheduledWorkItemTriggers(): Promise<{ data: DashboardScheduledWorkItemTriggerRecord[] }>;
-  createScheduledWorkItemTrigger(payload: {
-    name: string;
-    source?: string;
-    workspace_id?: string;
-    workflow_id: string;
-    schedule_type?: 'interval' | 'daily_time';
-    cadence_minutes?: number | null;
-    daily_time?: string | null;
-    timezone?: string | null;
-    defaults?: Record<string, unknown>;
-    is_active?: boolean;
-    next_fire_at?: string;
-  }): Promise<DashboardScheduledWorkItemTriggerRecord>;
-  updateScheduledWorkItemTrigger(
-    triggerId: string,
-    payload: Partial<{
-      name: string;
-      source: string | null;
-      workspace_id: string | null;
-      workflow_id: string;
-      schedule_type: 'interval' | 'daily_time';
-      cadence_minutes: number | null;
-      daily_time: string | null;
-      timezone: string | null;
-      defaults: Record<string, unknown>;
-      is_active: boolean;
-      next_fire_at: string;
-    }>,
-  ): Promise<DashboardScheduledWorkItemTriggerRecord>;
-  deleteScheduledWorkItemTrigger(triggerId: string): Promise<void>;
   getWorkflow(id: string): Promise<DashboardWorkflowRecord>;
   getWorkflowBudget(workflowId: string): Promise<DashboardWorkflowBudgetRecord>;
   getWorkflowModelOverrides(workflowId: string): Promise<DashboardWorkflowModelOverridesResponse>;
@@ -1726,15 +1595,6 @@ export interface DashboardApi {
     payload: DashboardToolTagUpdateInput,
   ): Promise<DashboardToolTagRecord>;
   deleteToolTag(toolId: string): Promise<void>;
-  listWebhooks(): Promise<DashboardOutboundWebhookRecord[]>;
-  createWebhook(
-    payload: DashboardOutboundWebhookCreateInput,
-  ): Promise<DashboardOutboundWebhookRecord>;
-  updateWebhook(
-    id: string,
-    payload: DashboardOutboundWebhookUpdateInput,
-  ): Promise<DashboardOutboundWebhookRecord>;
-  deleteWebhook(id: string): Promise<void>;
   listRuntimeDefaults(): Promise<DashboardRuntimeDefaultRecord[]>;
   upsertRuntimeDefault(input: DashboardRuntimeDefaultUpsertInput): Promise<void>;
   deleteRuntimeDefault(id: string): Promise<void>;
@@ -1963,23 +1823,7 @@ export interface DashboardApi {
   listRoleDefinitions(): Promise<
     Array<{ id: string; name: string; description: string | null; is_active: boolean }>
   >;
-  listIntegrations(): Promise<DashboardIntegrationRecord[]>;
   getCostSummary(): Promise<DashboardCostSummaryRecord>;
-  createIntegration(payload: {
-    kind: DashboardIntegrationRecord['kind'];
-    workflow_id?: string;
-    subscriptions?: string[];
-    config: Record<string, unknown>;
-  }): Promise<DashboardIntegrationRecord>;
-  updateIntegration(
-    integrationId: string,
-    payload: {
-      subscriptions?: string[];
-      is_active?: boolean;
-      config?: Record<string, unknown>;
-    },
-  ): Promise<DashboardIntegrationRecord>;
-  deleteIntegration(integrationId: string): Promise<void>;
   getRetentionPolicy(): Promise<DashboardGovernanceRetentionPolicy>;
   updateRetentionPolicy(
     payload: Partial<DashboardGovernanceRetentionPolicy>,
@@ -2486,73 +2330,6 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           body: payload as Record<string, unknown>,
         }),
       ),
-    listWebhookWorkItemTriggers: () =>
-      withRefresh(() =>
-        requestJson<{ data: DashboardWebhookWorkItemTriggerRecord[] }>(
-          '/api/v1/work-item-triggers',
-          {
-            method: 'GET',
-          },
-        ),
-      ),
-    createWebhookWorkItemTrigger: (payload) =>
-      withRefresh(() =>
-        requestData<DashboardWebhookWorkItemTriggerRecord>('/api/v1/work-item-triggers', {
-          method: 'POST',
-          body: payload as Record<string, unknown>,
-        }),
-      ),
-    updateWebhookWorkItemTrigger: (triggerId, payload) =>
-      withRefresh(() =>
-        requestData<DashboardWebhookWorkItemTriggerRecord>(
-          `/api/v1/work-item-triggers/${triggerId}`,
-          {
-            method: 'PATCH',
-            body: payload as Record<string, unknown>,
-          },
-        ),
-      ),
-    deleteWebhookWorkItemTrigger: (triggerId) =>
-      withRefresh(() =>
-        requestJson<Record<string, never>>(`/api/v1/work-item-triggers/${triggerId}`, {
-          method: 'DELETE',
-        }).then(() => undefined),
-      ),
-    listScheduledWorkItemTriggers: () =>
-      withRefresh(() =>
-        requestJson<{ data: DashboardScheduledWorkItemTriggerRecord[] }>(
-          '/api/v1/scheduled-work-item-triggers',
-          {
-            method: 'GET',
-          },
-        ),
-      ),
-    createScheduledWorkItemTrigger: (payload) =>
-      withRefresh(() =>
-        requestData<DashboardScheduledWorkItemTriggerRecord>(
-          '/api/v1/scheduled-work-item-triggers',
-          {
-            method: 'POST',
-            body: payload as Record<string, unknown>,
-          },
-        ),
-      ),
-    updateScheduledWorkItemTrigger: (triggerId, payload) =>
-      withRefresh(() =>
-        requestData<DashboardScheduledWorkItemTriggerRecord>(
-          `/api/v1/scheduled-work-item-triggers/${triggerId}`,
-          {
-            method: 'PATCH',
-            body: payload as Record<string, unknown>,
-          },
-        ),
-      ),
-    deleteScheduledWorkItemTrigger: (triggerId) =>
-      withRefresh(() =>
-        requestJson<Record<string, never>>(`/api/v1/scheduled-work-item-triggers/${triggerId}`, {
-          method: 'DELETE',
-        }).then(() => undefined),
-      ),
     getWorkflow: (id) => withRefresh(() => client.getWorkflow(id)),
     getWorkflowBudget: (workflowId) =>
       withRefresh(() =>
@@ -3046,29 +2823,6 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'DELETE',
         });
       }),
-    listWebhooks: () =>
-      withRefresh(() =>
-        requestData<DashboardOutboundWebhookRecord[]>('/api/v1/webhooks', {
-          method: 'GET',
-        }),
-      ),
-    createWebhook: (payload) =>
-      withRefresh(() =>
-        requestData<DashboardOutboundWebhookRecord>('/api/v1/webhooks', {
-          body: payload as unknown as Record<string, unknown>,
-        }),
-      ),
-    updateWebhook: (id, payload) =>
-      withRefresh(() =>
-        requestData<DashboardOutboundWebhookRecord>(`/api/v1/webhooks/${id}`, {
-          method: 'PATCH',
-          body: payload as unknown as Record<string, unknown>,
-        }),
-      ),
-    deleteWebhook: (id) =>
-      withRefresh(async () => {
-        await requestJson(`/api/v1/webhooks/${id}`, { method: 'DELETE' });
-      }),
     listRuntimeDefaults: () =>
       withRefresh(() =>
         requestData<DashboardRuntimeDefaultRecord[]>('/api/v1/config/runtime-defaults', {
@@ -3183,35 +2937,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'POST',
         });
       }),
-    listIntegrations: () =>
-      withRefresh(() =>
-        requestData<DashboardIntegrationRecord[]>('/api/v1/integrations', {
-          method: 'GET',
-        }),
-      ),
     getCostSummary: () =>
       withRefresh(() =>
         requestData<DashboardCostSummaryRecord>('/api/v1/metering/summary', {
           method: 'GET',
         }),
       ),
-    createIntegration: (payload) =>
-      withRefresh(() =>
-        requestData<DashboardIntegrationRecord>('/api/v1/integrations', {
-          body: payload as Record<string, unknown>,
-        }),
-      ),
-    updateIntegration: (integrationId, payload) =>
-      withRefresh(() =>
-        requestData<DashboardIntegrationRecord>(`/api/v1/integrations/${integrationId}`, {
-          method: 'PATCH',
-          body: payload as Record<string, unknown>,
-        }),
-      ),
-    deleteIntegration: (integrationId) =>
-      withRefresh(async () => {
-        await requestJson(`/api/v1/integrations/${integrationId}`, { method: 'DELETE' });
-      }),
     getRetentionPolicy: () =>
       withRefresh(() =>
         requestData<DashboardGovernanceRetentionPolicy>('/api/v1/governance/retention-policy', {

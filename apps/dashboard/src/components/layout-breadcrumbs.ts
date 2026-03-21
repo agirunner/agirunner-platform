@@ -40,7 +40,6 @@ const ROUTABLE_PATHS: ReadonlySet<string> = new Set([
   '/config/roles',
   '/config/llm',
   '/config/runtimes',
-  '/config/integrations',
   '/config/instructions',
   '/config/tools',
   '/config/webhooks',

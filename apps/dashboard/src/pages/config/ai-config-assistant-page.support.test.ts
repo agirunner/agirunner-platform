@@ -69,10 +69,7 @@ describe('ai config assistant support', () => {
       href: '/config/llm',
       label: 'Open LLM Providers',
     });
-    expect(resolveSuggestionDestination('integration.github.token')).toEqual({
-      href: '/config/integrations',
-      label: 'Open integrations',
-    });
+    expect(resolveSuggestionDestination('integration.github.token')).toBeNull();
     expect(resolveSuggestionDestination('tool.shell_exec')).toEqual({
       href: '/config/tools',
       label: 'Open tools',
