@@ -314,16 +314,17 @@ function SettingsDisclosureSection(props: {
     <Card id={props.id} className="border-border/70 shadow-none">
       <button
         type="button"
-        className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-4 text-left"
+        className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
         aria-expanded={props.isExpanded}
         onClick={props.onToggle}
       >
-        <div className="min-w-0 space-y-1.5">
+        <div className="min-w-0 flex-1 space-y-1">
           <div className="text-base font-semibold text-foreground">{props.title}</div>
-          <p className="text-sm leading-6 text-muted">{props.description}</p>
-          <p className="text-sm leading-5 text-muted">{props.summary}</p>
+          <p className="text-sm leading-6 text-muted">
+            {props.description} {props.summary}
+          </p>
         </div>
-        <div className="flex items-center justify-self-end pt-0.5">
+        <div className="flex items-center pt-0.5">
           <span className="sr-only">{props.actionLabel}</span>
           <ChevronDown
             className={cn(
