@@ -73,6 +73,10 @@ class FakeWorkflowClient:
 
 
 class RunWorkflowScenarioTests(unittest.TestCase):
+    def test_default_final_settle_window_covers_one_minute(self) -> None:
+        self.assertEqual(60, run_workflow_scenario.DEFAULT_FINAL_SETTLE_ATTEMPTS)
+        self.assertEqual(1, run_workflow_scenario.DEFAULT_FINAL_SETTLE_DELAY_SECONDS)
+
     def test_emit_run_result_writes_directly_to_tmp_file_when_configured(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "workflow-run.json.tmp"

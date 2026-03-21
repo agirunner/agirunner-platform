@@ -19,7 +19,7 @@ from workflow_efficiency import (
 )
 
 TERMINAL_STATES = {"completed", "failed", "cancelled"}
-DEFAULT_FINAL_SETTLE_ATTEMPTS = 20
+DEFAULT_FINAL_SETTLE_ATTEMPTS = 60
 DEFAULT_FINAL_SETTLE_DELAY_SECONDS = 1
 
 
