@@ -135,7 +135,7 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
-  it('records review rejection continuity for a partial reviewer handoff that requests changes', async () => {
+  it('records review rejection continuity for a full reviewer handoff that requests changes', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -147,8 +147,8 @@ describe('applyTaskCompletionSideEffects', () => {
         if (sql.includes('FROM task_handoffs')) {
           return {
             rows: [{
-              completion: 'partial',
-              role_data: { review_outcome: 'request_changes' },
+              completion: 'full',
+              resolution: 'request_changes',
             }],
             rowCount: 1,
           };
@@ -242,7 +242,7 @@ describe('applyTaskCompletionSideEffects', () => {
     ).toBe(true);
   });
 
-  it('does not advance review continuity for a partial reviewer handoff without a request-changes outcome', async () => {
+  it('does not advance review continuity for a blocked reviewer handoff without a request-changes outcome', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -254,8 +254,8 @@ describe('applyTaskCompletionSideEffects', () => {
         if (sql.includes('FROM task_handoffs')) {
           return {
             rows: [{
-              completion: 'partial',
-              role_data: {},
+              completion: 'blocked',
+              resolution: null,
             }],
             rowCount: 1,
           };

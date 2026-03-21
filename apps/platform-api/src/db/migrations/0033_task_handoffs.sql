@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS task_handoffs (
   sequence integer NOT NULL DEFAULT 0,
   summary text NOT NULL,
   completion text NOT NULL DEFAULT 'full',
+  resolution text,
   changes jsonb NOT NULL DEFAULT '[]'::jsonb,
   decisions jsonb NOT NULL DEFAULT '[]'::jsonb,
   remaining_items jsonb NOT NULL DEFAULT '[]'::jsonb,
@@ -23,7 +24,9 @@ CREATE TABLE IF NOT EXISTS task_handoffs (
   artifact_ids uuid[] NOT NULL DEFAULT '{}'::uuid[],
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT task_handoffs_completion_check
-    CHECK (completion IN ('full', 'partial', 'blocked'))
+    CHECK (completion IN ('full', 'blocked')),
+  CONSTRAINT task_handoffs_resolution_check
+    CHECK (resolution IS NULL OR resolution IN ('approved', 'request_changes', 'rejected'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_task_handoffs_work_item

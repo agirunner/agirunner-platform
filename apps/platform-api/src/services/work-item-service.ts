@@ -56,6 +56,7 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   next_expected_action: string | null;
   rework_count: number;
   latest_handoff_completion?: string | null;
+  latest_handoff_resolution?: string | null;
   unresolved_findings?: string[];
   review_focus?: string[];
   known_risks?: string[];
@@ -501,6 +502,16 @@ export class WorkItemService {
           `Wait for the checkpoint specialist to complete and submit the handoff first.`,
       );
     }
+    if (
+      predecessor.latest_handoff_resolution === 'request_changes'
+      || predecessor.latest_handoff_resolution === 'rejected'
+    ) {
+      throw new ValidationError(
+        `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}) still requires follow-up after a resolution of ` +
+          `'${predecessor.latest_handoff_resolution}'.`,
+      );
+    }
 
     const nonTerminalTaskStates = await this.loadNonTerminalWorkItemTaskStateCounts(
       tenantId,
@@ -695,6 +706,7 @@ export class WorkItemService {
       human_gate: boolean;
       gate_status: string;
       latest_handoff_completion: string | null;
+      latest_handoff_resolution: string | null;
     }>(
       `SELECT wi.id,
               wi.title,
@@ -703,14 +715,16 @@ export class WorkItemService {
               wi.completed_at,
               COALESCE(ws.human_gate, false) AS human_gate,
               COALESCE(ws.gate_status, 'not_requested') AS gate_status,
-              latest_handoff.latest_handoff_completion
+              latest_handoff.latest_handoff_completion,
+              latest_handoff.latest_handoff_resolution
          FROM workflow_work_items wi
          LEFT JOIN workflow_stages ws
            ON ws.tenant_id = wi.tenant_id
           AND ws.workflow_id = wi.workflow_id
           AND ws.name = wi.stage_name
          LEFT JOIN LATERAL (
-           SELECT th.completion AS latest_handoff_completion
+           SELECT th.completion AS latest_handoff_completion,
+                  COALESCE(th.resolution, th.role_data->>'review_outcome') AS latest_handoff_resolution
              FROM task_handoffs th
             WHERE th.tenant_id = wi.tenant_id
               AND th.workflow_id = wi.workflow_id
@@ -856,6 +870,7 @@ export class WorkItemService {
               COUNT(DISTINCT child.id)::int AS children_count,
               COUNT(DISTINCT child.id) FILTER (WHERE child.completed_at IS NOT NULL)::int AS children_completed,
               latest_handoff.latest_handoff_completion,
+              latest_handoff.latest_handoff_resolution,
               latest_handoff.unresolved_findings,
               latest_handoff.review_focus,
               latest_handoff.known_risks,
@@ -875,6 +890,7 @@ export class WorkItemService {
           AND ws.name = wi.stage_name
          LEFT JOIN LATERAL (
            SELECT th.completion AS latest_handoff_completion,
+                  COALESCE(th.resolution, th.role_data->>'review_outcome') AS latest_handoff_resolution,
                   array_cat(
                     COALESCE(
                       ARRAY(SELECT jsonb_array_elements_text(COALESCE(th.remaining_items, '[]'::jsonb))),
@@ -908,6 +924,7 @@ export class WorkItemService {
         WHERE ${conditions.join(' AND ')}
         GROUP BY wi.id,
                  latest_handoff.latest_handoff_completion,
+                 latest_handoff.latest_handoff_resolution,
                  latest_handoff.unresolved_findings,
                  latest_handoff.review_focus,
                  latest_handoff.known_risks,
@@ -1055,6 +1072,10 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     latest_handoff_completion:
       typeof sanitizedRow.latest_handoff_completion === 'string'
         ? sanitizedRow.latest_handoff_completion
+        : null,
+    latest_handoff_resolution:
+      typeof sanitizedRow.latest_handoff_resolution === 'string'
+        ? sanitizedRow.latest_handoff_resolution
         : null,
     unresolved_findings: completedWorkItem ? [] : readStringArray(sanitizedRow.unresolved_findings),
     review_focus: completedWorkItem ? [] : readStringArray(sanitizedRow.review_focus),

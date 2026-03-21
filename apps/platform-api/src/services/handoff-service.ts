@@ -23,7 +23,8 @@ const TASK_LOCAL_HANDOFF_PATH_PATTERNS = [
 export interface SubmitTaskHandoffInput {
   request_id?: string;
   summary: string;
-  completion: 'full' | 'partial' | 'blocked';
+  completion: 'full' | 'blocked';
+  resolution?: 'approved' | 'request_changes' | 'rejected';
   changes?: unknown[];
   decisions?: unknown[];
   remaining_items?: unknown[];
@@ -62,6 +63,7 @@ interface TaskHandoffRow extends Record<string, unknown> {
   sequence: number;
   summary: string;
   completion: string;
+  resolution: string | null;
   changes: unknown[];
   decisions: unknown[];
   remaining_items: unknown[];
@@ -171,12 +173,12 @@ export class HandoffService {
     const result = await db.query<TaskHandoffRow>(
       `INSERT INTO task_handoffs (
          tenant_id, workflow_id, work_item_id, task_id, task_rework_count, request_id, role, team_name, stage_name, sequence,
-         summary, completion, changes, decisions, remaining_items, blockers, review_focus,
+         summary, completion, resolution, changes, decisions, remaining_items, blockers, review_focus,
          known_risks, successor_context, role_data, artifact_ids
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-         $11, $12, $13::jsonb, $14::jsonb, $15::jsonb, $16::jsonb, $17::text[],
-         $18::text[], $19, $20::jsonb, $21::uuid[]
+         $11, $12, $13, $14::jsonb, $15::jsonb, $16::jsonb, $17::jsonb, $18::text[],
+         $19::text[], $20, $21::jsonb, $22::uuid[]
        )
        ON CONFLICT DO NOTHING
        RETURNING *`,
@@ -193,6 +195,7 @@ export class HandoffService {
         sequence,
         payload.summary,
         payload.completion,
+        payload.resolution,
         serializeJsonb(payload.changes),
         serializeJsonb(payload.decisions),
         serializeJsonb(payload.remaining_items),
@@ -252,6 +255,7 @@ export class HandoffService {
           role: task.role,
           stage_name: task.stage_name,
           completion: payload.completion,
+          resolution: payload.resolution,
           handoff_request_id: payload.request_id,
         },
         actorType: 'system',
@@ -315,6 +319,7 @@ export class HandoffService {
         handoff_request_id: payload.request_id,
         task_rework_count: payload.task_rework_count,
         completion: payload.completion,
+        resolution: payload.resolution,
         sequence: readInteger(handoff.sequence),
         artifact_ids: Array.isArray(handoff.artifact_ids) ? handoff.artifact_ids : [],
       },
@@ -458,15 +463,16 @@ export class HandoffService {
               stage_name = $5,
               summary = $6,
               completion = $7,
-              changes = $8::jsonb,
-              decisions = $9::jsonb,
-              remaining_items = $10::jsonb,
-              blockers = $11::jsonb,
-              review_focus = $12::text[],
-              known_risks = $13::text[],
-              successor_context = $14,
-              role_data = $15::jsonb,
-              artifact_ids = $16::uuid[]
+              resolution = $8,
+              changes = $9::jsonb,
+              decisions = $10::jsonb,
+              remaining_items = $11::jsonb,
+              blockers = $12::jsonb,
+              review_focus = $13::text[],
+              known_risks = $14::text[],
+              successor_context = $15,
+              role_data = $16::jsonb,
+              artifact_ids = $17::uuid[]
         WHERE id = $1
         RETURNING *`,
       [
@@ -477,6 +483,7 @@ export class HandoffService {
         payload.stage_name,
         payload.summary,
         payload.completion,
+        payload.resolution,
         serializeJsonb(payload.changes),
         serializeJsonb(payload.decisions),
         serializeJsonb(payload.remaining_items),
@@ -505,6 +512,7 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     stage_name: task.stage_name?.trim() || null,
     summary: typeof summary === 'string' ? summary : input.summary.trim(),
     completion: input.completion,
+    resolution: normalizeHandoffResolution(input.resolution ?? input.role_data?.review_outcome),
     changes: normalizeArray(sanitizeHandoffValue(input.changes)),
     decisions: normalizeArray(sanitizeHandoffValue(input.decisions)),
     remaining_items: normalizeArray(sanitizeHandoffValue(input.remaining_items)),
@@ -538,6 +546,7 @@ function matchesHandoffReplay(
     (existing.stage_name ?? null) !== expected.stage_name ||
     existing.summary !== expected.summary ||
     existing.completion !== expected.completion ||
+    (existing.resolution ?? null) !== expected.resolution ||
     !areJsonValuesEquivalent(existing.changes, expected.changes) ||
     !areJsonValuesEquivalent(existing.decisions, expected.decisions) ||
     !areJsonValuesEquivalent(existing.remaining_items, expected.remaining_items) ||
@@ -548,6 +557,16 @@ function matchesHandoffReplay(
     !areJsonValuesEquivalent(existing.role_data, expected.role_data) ||
     !areJsonValuesEquivalent(existing.artifact_ids, expected.artifact_ids)
   );
+}
+
+function normalizeHandoffResolution(value: unknown): 'approved' | 'request_changes' | 'rejected' | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'approved' || normalized === 'request_changes' || normalized === 'rejected'
+    ? normalized
+    : null;
 }
 
 function toTaskHandoffResponse(row: TaskHandoffRow) {

@@ -25,6 +25,7 @@ type TaskCompletionContinuityEvent = 'task_completed' | 'review_rejected';
 
 interface TaskAttemptHandoffOutcome {
   completion: string | null;
+  resolution: string | null;
   reviewOutcome: string | null;
 }
 
@@ -240,15 +241,15 @@ async function resolveTaskCompletionContinuityEvent(
     return 'task_completed';
   }
 
-  if (latestHandoffOutcome.completion === 'full') {
-    return 'task_completed';
-  }
-
   if (
-    latestHandoffOutcome.completion === 'partial'
+    latestHandoffOutcome.completion === 'full'
     && readsReviewRequestChangesOutcome(completedTask, latestHandoffOutcome)
   ) {
     return 'review_rejected';
+  }
+
+  if (latestHandoffOutcome.completion === 'full') {
+    return 'task_completed';
   }
 
   return null;
@@ -623,8 +624,9 @@ async function loadLatestTaskAttemptHandoffOutcome(
     return null;
   }
 
-  const result = await client.query<{ completion: string | null; review_outcome: string | null }>(
+  const result = await client.query<{ completion: string | null; resolution: string | null; review_outcome: string | null }>(
     `SELECT completion,
+            resolution,
             role_data->>'review_outcome' AS review_outcome
        FROM task_handoffs
       WHERE tenant_id = $1
@@ -640,6 +642,7 @@ async function loadLatestTaskAttemptHandoffOutcome(
   }
   return {
     completion: asOptionalString(row.completion),
+    resolution: normalizeReviewOutcome(row.resolution),
     reviewOutcome: asOptionalString(row.review_outcome),
   } satisfies TaskAttemptHandoffOutcome;
 }
@@ -648,6 +651,10 @@ function readsReviewRequestChangesOutcome(
   completedTask: Record<string, unknown>,
   latestHandoffOutcome: TaskAttemptHandoffOutcome,
 ) {
+  if (latestHandoffOutcome.resolution === 'request_changes') {
+    return true;
+  }
+
   const handoffReviewOutcome = normalizeReviewOutcome(latestHandoffOutcome.reviewOutcome);
   if (handoffReviewOutcome === 'request_changes') {
     return true;

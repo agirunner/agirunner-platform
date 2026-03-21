@@ -925,7 +925,7 @@ export class TaskLifecycleService {
 
     try {
       const result = await queryClient.query<{ review_outcome: unknown }>(
-        `SELECT role_data->>'review_outcome' AS review_outcome
+        `SELECT COALESCE(resolution, role_data->>'review_outcome') AS review_outcome
          FROM task_handoffs
         WHERE tenant_id = $1
           AND task_id = $2

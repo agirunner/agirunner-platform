@@ -367,7 +367,7 @@ describe('HandoffService', () => {
           stage_name: 'implementation',
           sequence: 0,
           summary: 'Captured implementation handoff.',
-          completion: 'partial',
+          completion: 'full',
           changes: ['requirements summary'],
           decisions: [{ owner: 'developer' }],
           remaining_items: ['review findings'],
@@ -387,7 +387,7 @@ describe('HandoffService', () => {
     await service.submitTaskHandoff('tenant-1', 'task-1', {
       request_id: 'req-2',
       summary: 'Captured implementation handoff.',
-      completion: 'partial',
+      completion: 'full',
       changes: ['requirements summary'],
       decisions: [{ owner: 'developer' }],
       remaining_items: ['review findings'],
@@ -400,11 +400,11 @@ describe('HandoffService', () => {
 
     const insertParams = query.mock.calls[4][1] as unknown[];
     expect(insertParams[4]).toBe(0);
-    expect(insertParams[12]).toBe(JSON.stringify(['requirements summary']));
-    expect(insertParams[13]).toBe(JSON.stringify([{ owner: 'developer' }]));
-    expect(insertParams[14]).toBe(JSON.stringify(['review findings']));
-    expect(insertParams[15]).toBe(JSON.stringify(['Need human scope confirmation']));
-    expect(insertParams[19]).toBe(JSON.stringify({ branch: 'feature/hello-world' }));
+    expect(insertParams[13]).toBe(JSON.stringify(['requirements summary']));
+    expect(insertParams[14]).toBe(JSON.stringify([{ owner: 'developer' }]));
+    expect(insertParams[15]).toBe(JSON.stringify(['review findings']));
+    expect(insertParams[16]).toBe(JSON.stringify(['Need human scope confirmation']));
+    expect(insertParams[20]).toBe(JSON.stringify({ branch: 'feature/hello-world' }));
   });
 
   it('treats late handoff activation enqueue as a no-op once the workflow is already completed', async () => {
@@ -549,7 +549,7 @@ describe('HandoffService', () => {
           stage_name: 'implementation',
           sequence: 0,
           summary: 'sk-runtime-secret',
-          completion: 'partial',
+          completion: 'full',
           changes: [{ api_key: 'sk-runtime-secret' }],
           decisions: [{ authorization: 'Bearer handoff-secret' }],
           remaining_items: ['sk-runtime-secret'],
@@ -569,7 +569,7 @@ describe('HandoffService', () => {
     const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
       request_id: 'req-secret-1',
       summary: 'sk-runtime-secret',
-      completion: 'partial',
+      completion: 'full',
       changes: [{ api_key: 'sk-runtime-secret' }],
       decisions: [{ authorization: 'Bearer handoff-secret' }],
       remaining_items: ['sk-runtime-secret'],
@@ -582,16 +582,16 @@ describe('HandoffService', () => {
 
     const insertParams = query.mock.calls[4][1] as unknown[];
     expect(insertParams[10]).toBe('redacted://handoff-secret');
-    expect(insertParams[12]).toBe(JSON.stringify([{ api_key: 'redacted://handoff-secret' }]));
-    expect(insertParams[13]).toBe(
+    expect(insertParams[13]).toBe(JSON.stringify([{ api_key: 'redacted://handoff-secret' }]));
+    expect(insertParams[14]).toBe(
       JSON.stringify([{ authorization: 'redacted://handoff-secret' }]),
     );
-    expect(insertParams[14]).toBe(JSON.stringify(['redacted://handoff-secret']));
-    expect(insertParams[15]).toBe(JSON.stringify([{ token: 'redacted://handoff-secret' }]));
-    expect(insertParams[16]).toEqual(['redacted://handoff-secret']);
+    expect(insertParams[15]).toBe(JSON.stringify(['redacted://handoff-secret']));
+    expect(insertParams[16]).toBe(JSON.stringify([{ token: 'redacted://handoff-secret' }]));
     expect(insertParams[17]).toEqual(['redacted://handoff-secret']);
-    expect(insertParams[18]).toBe('redacted://handoff-secret');
-    expect(insertParams[19]).toBe(
+    expect(insertParams[18]).toEqual(['redacted://handoff-secret']);
+    expect(insertParams[19]).toBe('redacted://handoff-secret');
+    expect(insertParams[20]).toBe(
       JSON.stringify({ api_key: 'redacted://handoff-secret' }),
     );
 

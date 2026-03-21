@@ -42,6 +42,7 @@ export interface SpecialistExecutionBrief {
   } | null;
   work_item_continuity_summary: {
     latest_handoff_completion: string | null;
+    latest_handoff_resolution: string | null;
     unresolved_findings: string[];
     review_focus: string[];
     known_risks: string[];
@@ -223,6 +224,7 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
 function continuitySummaryFrom(workItem: Record<string, unknown>) {
   return {
     latest_handoff_completion: readString(workItem.latest_handoff_completion),
+    latest_handoff_resolution: readString(workItem.latest_handoff_resolution),
     unresolved_findings: readStringArray(workItem.unresolved_findings),
     review_focus: readStringArray(workItem.review_focus),
     known_risks: readStringArray(workItem.known_risks),

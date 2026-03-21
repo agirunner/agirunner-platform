@@ -87,7 +87,7 @@ class LiveTestCatalogTests(unittest.TestCase):
                 f"sdlc-review-rework-once reviewer must stay review-only, not mutate via {forbidden_tool}",
             )
         self.assertIn("orchestrator performs task-state mutations", reviewer.get("systemPrompt", ""))
-        self.assertIn("structured handoff completion MUST be `partial`", reviewer.get("systemPrompt", ""))
+        self.assertIn("MUST set `resolution` to `request_changes`", reviewer.get("systemPrompt", ""))
         self.assertIn("Do not fix the code yourself", reviewer.get("systemPrompt", ""))
 
 

@@ -170,6 +170,91 @@ describe('WorkItemService', () => {
     ).rejects.toThrowError(ValidationError);
   });
 
+  it('rejects planned successor work-item creation when the predecessor full handoff requests changes', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'review',
+                lifecycle: 'planned',
+                definition: {
+                  roles: ['developer', 'reviewer', 'qa'],
+                  lifecycle: 'planned',
+                  board: { columns: [{ id: 'planned', label: 'Planned' }, { id: 'done', label: 'Done', is_terminal: true }] },
+                  stages: [
+                    { name: 'implementation', goal: 'Ship the change' },
+                    { name: 'review', goal: 'Review the implementation' },
+                    { name: 'verification', goal: 'Verify the change' },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-review-1']);
+          return {
+            rows: [
+              {
+                id: 'wi-review-1',
+                title: 'Review checkpoint',
+                stage_name: 'review',
+                completed_at: null,
+                human_gate: false,
+                gate_status: 'not_requested',
+                latest_handoff_completion: 'full',
+                latest_handoff_resolution: 'request_changes',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes("state NOT IN ('completed', 'failed', 'cancelled')")) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-review-1']);
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          throw new Error('successor work item insert should not run while predecessor handoff requests changes');
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    await expect(
+      service.createWorkItem(
+        {
+          id: 'admin:1',
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          ownerType: 'tenant',
+          ownerId: 'tenant-1',
+          keyPrefix: 'admin-key',
+        },
+        'workflow-1',
+        {
+          request_id: 'req-next-1',
+          parent_work_item_id: 'wi-review-1',
+          stage_name: 'verification',
+          title: 'Verification checkpoint',
+        },
+      ),
+    ).rejects.toThrowError(ValidationError);
+  });
+
   it('allows the immediate review successor when the predecessor output is pending review with a full handoff', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

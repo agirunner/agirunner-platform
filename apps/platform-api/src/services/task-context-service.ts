@@ -379,6 +379,7 @@ async function loadWorkItemContext(
             rework_count,
             metadata,
             latest_handoff.latest_handoff_completion,
+            latest_handoff.latest_handoff_resolution,
             latest_handoff.unresolved_findings,
             latest_handoff.review_focus,
             latest_handoff.known_risks,
@@ -387,6 +388,7 @@ async function loadWorkItemContext(
        FROM workflow_work_items
        LEFT JOIN LATERAL (
          SELECT th.completion AS latest_handoff_completion,
+                COALESCE(th.resolution, th.role_data->>'review_outcome') AS latest_handoff_resolution,
                 array_cat(
                   COALESCE(
                     ARRAY(SELECT jsonb_array_elements_text(COALESCE(th.remaining_items, '[]'::jsonb))),

@@ -28,6 +28,7 @@ export const taskHandoffs = pgTable(
     sequence: integer('sequence').notNull().default(0),
     summary: text('summary').notNull(),
     completion: text('completion').notNull().default('full'),
+    resolution: text('resolution'),
     changes: jsonb('changes').notNull().default([]),
     decisions: jsonb('decisions').notNull().default([]),
     remainingItems: jsonb('remaining_items').notNull().default([]),
