@@ -248,4 +248,49 @@ describe('mergeLiveContainerSessionRows', () => {
     expect(hasRecentlyChangedField(advanced[0], 'task', Date.parse('2026-03-21T18:35:01.500Z'))).toBe(false);
     expect(isRecentlyChangedRow(advanced[0], Date.parse('2026-03-21T18:35:01.500Z'))).toBe(true);
   });
+
+  it('drops inactive rows after five minutes', () => {
+    const previous = [
+      createRow({
+        presence: 'inactive',
+        inactive_at: '2026-03-21T18:30:00.000Z',
+        changed_at: '2026-03-21T18:30:01.000Z',
+      }),
+    ];
+
+    const merged = mergeLiveContainerSessionRows(previous, [], '2026-03-21T18:35:01.000Z');
+
+    expect(merged).toEqual([]);
+  });
+
+  it('keeps only the 10 most recent inactive rows in the current session', () => {
+    const previous = Array.from({ length: 12 }, (_, index) =>
+      createRow({
+        id: `task:task-${index}`,
+        container_id: `task-container-${index}`,
+        name: `task-${index}`,
+        task_id: `task-${index}`,
+        task_title: `Task ${index}`,
+        presence: 'inactive',
+        inactive_at: `2026-03-21T18:11:${String(index).padStart(2, '0')}.000Z`,
+        changed_at: `2026-03-21T18:11:${String(index).padStart(2, '0')}.500Z`,
+      }),
+    );
+
+    const merged = mergeLiveContainerSessionRows(previous, [], '2026-03-21T18:12:00.000Z');
+
+    expect(merged).toHaveLength(10);
+    expect(merged.map((row) => row.id)).toEqual([
+      'task:task-11',
+      'task:task-10',
+      'task:task-9',
+      'task:task-8',
+      'task:task-7',
+      'task:task-6',
+      'task:task-5',
+      'task:task-4',
+      'task:task-3',
+      'task:task-2',
+    ]);
+  });
 });
