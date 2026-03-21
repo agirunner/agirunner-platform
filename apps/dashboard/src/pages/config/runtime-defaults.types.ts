@@ -12,6 +12,7 @@ export interface FieldDefinition {
   description: string;
   configType: 'string' | 'number' | 'boolean';
   placeholder: string;
+  defaultValue?: string;
   section:
     | 'runtime_containers'
     | 'execution_containers'

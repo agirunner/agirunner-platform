@@ -33,5 +33,9 @@ export function isAdvancedRuntimeOverrideField(field: FieldDefinition): boolean 
 }
 
 function shouldClearAdvancedOverride(field: FieldDefinition, value: string): boolean {
-  return isAdvancedRuntimeOverrideField(field) && value.trim() === field.placeholder;
+  return isAdvancedRuntimeOverrideField(field) && value.trim() === getFieldDefaultValue(field);
+}
+
+export function getFieldDefaultValue(field: FieldDefinition): string {
+  return field.defaultValue ?? field.placeholder;
 }

@@ -23,6 +23,7 @@ import {
 import {
   buildDefaultsByKey,
   buildFormValues,
+  getFieldDefaultValue,
   isAdvancedRuntimeOverrideField,
 } from './runtime-defaults.form.js';
 import {
@@ -43,7 +44,7 @@ function buildSaveOperations(
     const value = (values[field.key] ?? '').trim();
     const existing = defaultsByKey.get(field.key);
     const shouldDelete =
-      !value || (isAdvancedRuntimeOverrideField(field) && value === field.placeholder);
+      !value || (isAdvancedRuntimeOverrideField(field) && value === getFieldDefaultValue(field));
     if (shouldDelete) {
       return existing ? [deleteRuntimeDefault(existing.id)] : [];
     }
