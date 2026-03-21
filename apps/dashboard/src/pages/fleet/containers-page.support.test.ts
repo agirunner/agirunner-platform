@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  isRecentlyChangedRow,
   mergeLiveContainerSessionRows,
   type SessionContainerRow,
 } from './containers-page.support.js';
@@ -28,6 +29,7 @@ function createRow(overrides: Partial<SessionContainerRow> = {}): SessionContain
     activity_state: 'in_progress',
     presence: 'running',
     inactive_at: null,
+    changed_at: null,
     ...overrides,
   };
 }
@@ -61,6 +63,7 @@ describe('mergeLiveContainerSessionRows', () => {
       id: 'task:task-1',
       presence: 'inactive',
       inactive_at: '2026-03-21T18:31:00.000Z',
+      changed_at: '2026-03-21T18:31:00.000Z',
       cpu_limit: '1',
       memory_limit: '768m',
       workflow_name: 'Fix login bug',
@@ -83,6 +86,34 @@ describe('mergeLiveContainerSessionRows', () => {
       id: 'task:task-1',
       presence: 'running',
       inactive_at: null,
+      changed_at: '2026-03-21T18:32:00.000Z',
     });
+  });
+
+  it('marks newly observed or changed live rows as recently changed', () => {
+    const previous = [
+      createRow({
+        changed_at: null,
+      }),
+    ];
+
+    const merged = mergeLiveContainerSessionRows(
+      previous,
+      [
+        createRow({
+          status: 'Up 2 minutes',
+        }),
+      ],
+      '2026-03-21T18:33:00.000Z',
+    );
+
+    expect(merged[0]).toMatchObject({
+      id: 'task:task-1',
+      presence: 'running',
+      changed_at: '2026-03-21T18:33:00.000Z',
+      status: 'Up 2 minutes',
+    });
+    expect(isRecentlyChangedRow(merged[0], Date.parse('2026-03-21T18:33:04.000Z'))).toBe(true);
+    expect(isRecentlyChangedRow(merged[0], Date.parse('2026-03-21T18:33:20.000Z'))).toBe(false);
   });
 });

@@ -24,7 +24,9 @@ describe('containers page source', () => {
     expect(pageSource).toContain("SelectItem value=\"inactive\"");
     expect(pageSource).not.toContain('Running now');
     expect(pageSource).not.toContain('Recently inactive');
-    expect(tableSource).toContain('Task role');
+    expect(tableSource).toContain('<TableHead>Role</TableHead>');
+    expect(tableSource).toContain('<TableHead>Stage</TableHead>');
+    expect(tableSource).not.toContain('<TableHead>Container</TableHead>');
     expect(supportSource).toContain('Orchestrator worker');
     expect(supportSource).toContain('Task execution');
     expect(tableSource).not.toContain('Orchestrator Pool');

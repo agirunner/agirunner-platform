@@ -2,6 +2,7 @@ import type { DashboardLiveContainerRecord } from '../../lib/api.js';
 
 const MAX_RECENT_INACTIVE_ROWS = 20;
 const INACTIVE_RETENTION_MS = 10 * 60 * 1000;
+const RECENT_CHANGE_MS = 8 * 1000;
 const KIND_ORDER: Record<DashboardLiveContainerRecord['kind'], number> = {
   orchestrator: 0,
   runtime: 1,
@@ -14,6 +15,7 @@ export type ContainerKindFilter = 'all' | DashboardLiveContainerRecord['kind'];
 export interface SessionContainerRow extends DashboardLiveContainerRecord {
   presence: 'running' | 'inactive';
   inactive_at: string | null;
+  changed_at: string | null;
 }
 
 export function formatContainerKindLabel(kind: DashboardLiveContainerRecord['kind']): string {
@@ -34,11 +36,17 @@ export function mergeLiveContainerSessionRows(
   liveRows: DashboardLiveContainerRecord[],
   observedAt: string,
 ): SessionContainerRow[] {
-  const runningRows = liveRows.map((row) => ({
-    ...row,
-    presence: 'running' as const,
-    inactive_at: null,
-  }));
+  const previousById = new Map(previous.map((row) => [row.id, row] as const));
+  const runningRows = liveRows.map((row) => {
+    const prior = previousById.get(row.id);
+    const changedAt = shouldMarkRunningRowChanged(prior, row) ? observedAt : prior?.changed_at ?? null;
+    return {
+      ...row,
+      presence: 'running' as const,
+      inactive_at: null,
+      changed_at: changedAt,
+    };
+  });
   const liveIds = new Set(runningRows.map((row) => row.id));
   const recentInactiveRows = previous
     .filter((row) => !liveIds.has(row.id))
@@ -46,12 +54,24 @@ export function mergeLiveContainerSessionRows(
       ...row,
       presence: 'inactive' as const,
       inactive_at: row.inactive_at ?? observedAt,
+      changed_at: row.presence === 'inactive' ? row.changed_at : observedAt,
     }))
     .filter((row) => !isExpiredInactiveRow(row, observedAt))
     .sort(compareSessionContainerRows)
     .slice(0, MAX_RECENT_INACTIVE_ROWS);
 
   return [...runningRows, ...recentInactiveRows].sort(compareSessionContainerRows);
+}
+
+export function isRecentlyChangedRow(row: SessionContainerRow, now = Date.now()): boolean {
+  if (!row.changed_at) {
+    return false;
+  }
+  const changedAt = Date.parse(row.changed_at);
+  if (!Number.isFinite(changedAt)) {
+    return false;
+  }
+  return now-changedAt <= RECENT_CHANGE_MS;
 }
 
 export function filterSessionContainerRows(
@@ -88,6 +108,7 @@ function buildSearchableFields(row: SessionContainerRow): string[] {
     row.playbook_name ?? '',
     row.workflow_name ?? '',
     row.task_title ?? '',
+    row.stage_name ?? '',
     row.activity_state ?? '',
     row.status ?? '',
   ]
@@ -130,4 +151,41 @@ function isExpiredInactiveRow(row: SessionContainerRow, observedAt: string): boo
   const inactiveAt = Date.parse(row.inactive_at);
   const cutoff = Date.parse(observedAt) - INACTIVE_RETENTION_MS;
   return Number.isFinite(inactiveAt) && inactiveAt < cutoff;
+}
+
+function shouldMarkRunningRowChanged(
+  prior: SessionContainerRow | undefined,
+  next: DashboardLiveContainerRecord,
+): boolean {
+  if (!prior) {
+    return true;
+  }
+  if (prior.presence !== 'running') {
+    return true;
+  }
+  return hasMaterialContainerDifference(prior, next);
+}
+
+function hasMaterialContainerDifference(
+  left: DashboardLiveContainerRecord,
+  right: DashboardLiveContainerRecord,
+): boolean {
+  return (
+    left.state !== right.state
+    || left.status !== right.status
+    || left.image !== right.image
+    || left.cpu_limit !== right.cpu_limit
+    || left.memory_limit !== right.memory_limit
+    || left.started_at !== right.started_at
+    || left.last_seen_at !== right.last_seen_at
+    || left.role_name !== right.role_name
+    || left.playbook_id !== right.playbook_id
+    || left.playbook_name !== right.playbook_name
+    || left.workflow_id !== right.workflow_id
+    || left.workflow_name !== right.workflow_name
+    || left.task_id !== right.task_id
+    || left.task_title !== right.task_title
+    || left.stage_name !== right.stage_name
+    || left.activity_state !== right.activity_state
+  );
 }

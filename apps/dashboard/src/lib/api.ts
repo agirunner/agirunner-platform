@@ -1439,6 +1439,7 @@ export interface DashboardLiveContainerRecord {
   workflow_name?: string | null;
   task_id?: string | null;
   task_title?: string | null;
+  stage_name?: string | null;
   activity_state?: string | null;
 }
 

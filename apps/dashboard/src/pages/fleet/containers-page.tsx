@@ -75,9 +75,8 @@ export function ContainersPage(): JSX.Element {
             <Container className="h-6 w-6 text-muted-foreground" />
             <h1 className="text-2xl font-semibold">Containers</h1>
           </div>
-          <p className="max-w-3xl text-sm text-muted-foreground">
-            Live container inventory from the platform API. Image, CPU, and memory come from the
-            current Docker-inspected container configuration, not desired-state guesses.
+          <p className="max-w-4xl text-sm text-muted-foreground">
+            Live container inventory from the platform API, showing image, CPU, and memory from the current Docker-inspected container configuration.
           </p>
         </div>
         <p className="text-sm text-muted-foreground">
@@ -99,7 +98,7 @@ export function ContainersPage(): JSX.Element {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="pl-9"
-            placeholder="Search containers, roles, workflows, tasks, or images"
+            placeholder="Search kinds, roles, workflows, stages, tasks, or images"
           />
         </div>
         <Select value={kind} onValueChange={(value) => setKind(value as ContainerKindFilter)}>
