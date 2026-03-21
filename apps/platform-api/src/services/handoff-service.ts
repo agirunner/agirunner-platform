@@ -139,6 +139,8 @@ export class HandoffService {
       throw new ValidationError('Task must belong to a workflow to submit a handoff');
     }
 
+    assertHandoffResolutionAllowed(task, input);
+
     const payload = buildNormalizedHandoffPayload(task, input);
     const replayMatch = await this.loadExistingHandoff(
       tenantId,
@@ -502,6 +504,17 @@ export class HandoffService {
   }
 }
 
+function assertHandoffResolutionAllowed(task: TaskContextRow, input: SubmitTaskHandoffInput) {
+  const resolution = normalizeHandoffResolution(input.resolution ?? input.role_data?.review_outcome);
+  if (!resolution) {
+    return;
+  }
+  if (allowsHandoffResolution(task)) {
+    return;
+  }
+  throw new ValidationError('handoff resolution is only allowed for review tasks');
+}
+
 function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHandoffInput) {
   const summary = sanitizeHandoffValue(input.summary.trim());
   const payload = {
@@ -567,6 +580,10 @@ function normalizeHandoffResolution(value: unknown): 'approved' | 'request_chang
   return normalized === 'approved' || normalized === 'request_changes' || normalized === 'rejected'
     ? normalized
     : null;
+}
+
+function allowsHandoffResolution(task: TaskContextRow) {
+  return (task.stage_name ?? '').trim().toLowerCase() === 'review';
 }
 
 function toTaskHandoffResponse(row: TaskHandoffRow) {
