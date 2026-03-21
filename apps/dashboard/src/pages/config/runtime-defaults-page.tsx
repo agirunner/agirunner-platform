@@ -25,6 +25,7 @@ import {
   buildFormValues,
   getFieldDefaultValue,
   isAdvancedRuntimeOverrideField,
+  shouldDeleteRuntimeDefaultRow,
 } from './runtime-defaults.form.js';
 import {
   FIELD_DEFINITIONS,
@@ -43,8 +44,11 @@ function buildSaveOperations(
   return FIELD_DEFINITIONS.flatMap((field) => {
     const value = (values[field.key] ?? '').trim();
     const existing = defaultsByKey.get(field.key);
-    const shouldDelete =
-      !value || (isAdvancedRuntimeOverrideField(field) && value === getFieldDefaultValue(field));
+    const shouldDelete = shouldDeleteRuntimeDefaultRow({
+      field,
+      currentValue: value,
+      existingValue: existing?.config_value,
+    });
     if (shouldDelete) {
       return existing ? [deleteRuntimeDefault(existing.id)] : [];
     }

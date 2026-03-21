@@ -39,3 +39,25 @@ function shouldClearAdvancedOverride(field: FieldDefinition, value: string): boo
 export function getFieldDefaultValue(field: FieldDefinition): string {
   return field.defaultValue ?? field.placeholder;
 }
+
+export function shouldDeleteRuntimeDefaultRow(input: {
+  field: FieldDefinition;
+  currentValue: string;
+  existingValue?: string | null;
+}): boolean {
+  const currentValue = input.currentValue.trim();
+  const existingValue = input.existingValue?.trim() ?? '';
+
+  if (!existingValue) {
+    return false;
+  }
+
+  if (!currentValue) {
+    if (!isAdvancedRuntimeOverrideField(input.field)) {
+      return true;
+    }
+    return existingValue !== getFieldDefaultValue(input.field);
+  }
+
+  return isAdvancedRuntimeOverrideField(input.field) && currentValue === getFieldDefaultValue(input.field);
+}
