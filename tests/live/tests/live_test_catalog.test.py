@@ -74,8 +74,21 @@ class LiveTestCatalogTests(unittest.TestCase):
             reviewer.get("allowedTools", []),
             "sdlc-review-rework-once reviewer must not rely on an unavailable task-mutation tool",
         )
+        for forbidden_tool in (
+            "file_write",
+            "file_edit",
+            "git_commit",
+            "git_push",
+            "memory_write",
+        ):
+            self.assertNotIn(
+                forbidden_tool,
+                reviewer.get("allowedTools", []),
+                f"sdlc-review-rework-once reviewer must stay review-only, not mutate via {forbidden_tool}",
+            )
         self.assertIn("orchestrator performs task-state mutations", reviewer.get("systemPrompt", ""))
         self.assertIn("structured handoff completion MUST be `partial`", reviewer.get("systemPrompt", ""))
+        self.assertIn("Do not fix the code yourself", reviewer.get("systemPrompt", ""))
 
 
 if __name__ == "__main__":
