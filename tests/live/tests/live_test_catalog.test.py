@@ -98,6 +98,49 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("exactly two concrete request-changes review verdicts", reviewer.get("systemPrompt", ""))
         self.assertIn("do not repeat the forced rejection after two real rework cycles", reviewer.get("systemPrompt", ""))
 
+    def test_review_reject_twice_profile_requires_structured_review_findings(self) -> None:
+        roles_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "roles.json"
+        payload = json.loads(roles_file.read_text())
+        reviewer = next(role for role in payload if role.get("name") == "live-test-reviewer")
+        developer = next(role for role in payload if role.get("name") == "live-test-developer")
+
+        self.assertIn("remaining_items", reviewer.get("systemPrompt", ""))
+        self.assertIn("review_focus", reviewer.get("systemPrompt", ""))
+        self.assertIn("Treat predecessor review remaining_items and review_focus as blocking acceptance criteria", developer.get("systemPrompt", ""))
+
+    def test_review_reject_twice_profile_authors_concrete_invalid_option_closure(self) -> None:
+        scenario_file = SCENARIOS_DIR / "sdlc-review-reject-twice.json"
+        playbook_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "playbook.json"
+        roles_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "roles.json"
+
+        scenario = json.loads(scenario_file.read_text())
+        playbook = json.loads(playbook_file.read_text())
+        roles = json.loads(roles_file.read_text())
+        developer = next(role for role in roles if role.get("name") == "live-test-developer")
+        reviewer = next(role for role in roles if role.get("name") == "live-test-reviewer")
+
+        authored_snippets = (
+            "two distinct unsupported long-option cases",
+            "no stdout output",
+        )
+
+        content = "\n".join(
+            [
+                scenario.get("workflow", {}).get("goal", ""),
+                playbook.get("definition", {}).get("process_instructions", ""),
+                playbook.get("outcome", ""),
+                developer.get("systemPrompt", ""),
+                reviewer.get("systemPrompt", ""),
+            ]
+        ).lower()
+
+        for snippet in authored_snippets:
+            self.assertIn(
+                snippet,
+                content,
+                f"sdlc-review-reject-twice must author '{snippet}' into the test contract",
+            )
+
     def test_review_reject_twice_profile_aligns_rework_findings_with_authored_scope(self) -> None:
         scenario_file = SCENARIOS_DIR / "sdlc-review-reject-twice.json"
         playbook_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "playbook.json"

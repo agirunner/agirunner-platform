@@ -3,7 +3,7 @@
   "profile": "sdlc-review-reject-twice",
   "workflow": {
     "name": "SDLC Review Reject Twice",
-    "goal": "Add support for named greetings and uppercase output while preserving the default greeting, reject unsupported flags with a usage error, and update docs plus regression tests including invalid-option coverage."
+    "goal": "Add support for named greetings and uppercase output while preserving the default greeting, reject unsupported flags with a usage error, and update docs plus regression tests including invalid-option coverage. For this profile, invalid-option coverage means at least two distinct unsupported long-option cases, each proving the exact usage message on stderr, a non-zero exit, and no stdout output."
   },
   "workspace": {
     "repo": true,
