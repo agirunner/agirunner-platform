@@ -132,6 +132,9 @@ function buildOrchestratorSections(params: {
   }
 
   sections.push(`## Rule Results\n${formatRuleResults(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem)}`);
+  if (params.lifecycle === 'planned') {
+    sections.push(`## Handoff Semantics\n${formatPlannedHandoffSemantics()}`);
+  }
   sections.push(
     '## Activation Discipline\nAfter you dispatch required specialist work, request a gate, or detect active subordinate work with no new routing decision to make, finish this activation and wait for the next workflow event. Do not poll running tasks in a loop. If no subordinate work is active and the workflow should progress, perform the workflow mutation now. A recommendation without the required workflow mutation does not complete the activation.',
   );
@@ -339,11 +342,13 @@ function formatRuleResults(
     }
     lines.push(`Required review: ${rule.from_role} -> ${rule.reviewed_by}`);
   }
-  for (const rule of definition.handoff_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
-    if (rule.required === false) {
-      continue;
+  if (definition.lifecycle !== 'planned') {
+    for (const rule of definition.handoff_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
+      if (rule.required === false) {
+        continue;
+      }
+      lines.push(`Required handoff: ${rule.from_role} -> ${rule.to_role}`);
     }
-    lines.push(`Required handoff: ${rule.from_role} -> ${rule.to_role}`);
   }
   for (const rule of definition.approval_rules.filter((entry) => approvalRuleAppliesToCheckpoint(entry, checkpointName))) {
     if (rule.required === false) {
@@ -356,6 +361,14 @@ function formatRuleResults(
     lines.push(`Human approval: required at checkpoint "${rule.checkpoint}"`);
   }
   return lines.join('\n') || 'No mandatory routing is pending.';
+}
+
+function formatPlannedHandoffSemantics() {
+  return [
+    'Planned-workflow handoff rules describe the structured handoff that must exist before successor-stage routing.',
+    'They do not authorize dispatching successor-role tasks on the current stage work item.',
+    'Create or move successor work into the next stage before dispatching successor-role specialists.',
+  ].join('\n');
 }
 
 function formatReviewExpectations(

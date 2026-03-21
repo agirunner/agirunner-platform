@@ -97,9 +97,13 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Next expected action: approve');
     expect(layer!.content).toContain('Human approval required before completion.');
     expect(layer!.content).toContain('Required review: reviewer -> qa');
-    expect(layer!.content).toContain('Required handoff: reviewer -> qa');
+    expect(layer!.content).not.toContain('Required handoff: reviewer -> qa');
     expect(layer!.content).not.toContain('Required review: developer -> reviewer');
     expect(layer!.content).not.toContain('Required handoff: developer -> reviewer');
+    expect(layer!.content).toContain('## Handoff Semantics');
+    expect(layer!.content).toContain('Planned-workflow handoff rules describe the structured handoff that must exist before successor-stage routing.');
+    expect(layer!.content).toContain('They do not authorize dispatching successor-role tasks on the current stage work item.');
+    expect(layer!.content).toContain('Create or move successor work into the next stage before dispatching successor-role specialists.');
     expect(layer!.content).toContain('## Activation Discipline');
     expect(layer!.content).toContain('finish this activation and wait for the next workflow event');
     expect(layer!.content).toContain('Do not poll running tasks in a loop.');

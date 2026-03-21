@@ -100,9 +100,43 @@ describe('evaluatePlaybookRules', () => {
     });
   });
 
-  it('falls through to a required handoff when no review rule applies', () => {
+  it('does not derive same-stage handoff continuity for planned workflows', () => {
     const result = evaluatePlaybookRules({
       definition,
+      event: 'task_completed',
+      role: 'reviewer',
+      checkpointName: 'verification',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: null,
+      nextExpectedActor: null,
+      nextExpectedAction: null,
+    });
+  });
+
+  it('preserves same-stage handoff continuity for ongoing workflows', () => {
+    const ongoing = parsePlaybookDefinition({
+      process_instructions: 'Reviewer hands work to QA inside the same ongoing work item.',
+      roles: ['reviewer', 'qa'],
+      board: {
+        entry_column_id: 'planned',
+        columns: [{ id: 'planned', label: 'Planned' }],
+      },
+      checkpoints: [{ name: 'verification', goal: 'Verification is completed.' }],
+      handoff_rules: [
+        {
+          from_role: 'reviewer',
+          to_role: 'qa',
+          checkpoint: 'verification',
+          required: true,
+        },
+      ],
+      lifecycle: 'ongoing',
+    });
+
+    const result = evaluatePlaybookRules({
+      definition: ongoing,
       event: 'task_completed',
       role: 'reviewer',
       checkpointName: 'verification',
@@ -181,7 +215,7 @@ describe('evaluatePlaybookRules', () => {
     });
   });
 
-  it('enforces the mandatory reviewer to qa handoff in the built-in sdlc playbook', () => {
+  it('does not expose reviewer to qa handoff continuity in the built-in planned sdlc playbook', () => {
     const sdlc = BUILT_IN_PLAYBOOKS.find((playbook) => playbook.slug === 'sdlc-v2');
     expect(sdlc).toBeDefined();
 
@@ -193,9 +227,9 @@ describe('evaluatePlaybookRules', () => {
     });
 
     expect(result).toMatchObject({
-      matchedRuleType: 'handoff',
-      nextExpectedActor: 'qa',
-      nextExpectedAction: 'handoff',
+      matchedRuleType: null,
+      nextExpectedActor: null,
+      nextExpectedAction: null,
     });
   });
 
@@ -257,9 +291,9 @@ describe('evaluatePlaybookRules', () => {
 
     expect(checkpoints).toEqual([
       expect.objectContaining({
-        matchedRuleType: 'handoff',
-        nextExpectedActor: 'architect',
-        nextExpectedAction: 'handoff',
+        matchedRuleType: null,
+        nextExpectedActor: null,
+        nextExpectedAction: null,
       }),
       expect.objectContaining({
         matchedRuleType: 'approval',
@@ -267,9 +301,9 @@ describe('evaluatePlaybookRules', () => {
         nextExpectedAction: 'approve',
       }),
       expect.objectContaining({
-        matchedRuleType: 'handoff',
-        nextExpectedActor: 'developer',
-        nextExpectedAction: 'handoff',
+        matchedRuleType: null,
+        nextExpectedActor: null,
+        nextExpectedAction: null,
       }),
       expect.objectContaining({
         matchedRuleType: 'review',
@@ -283,14 +317,14 @@ describe('evaluatePlaybookRules', () => {
         reworkDelta: 1,
       }),
       expect.objectContaining({
-        matchedRuleType: 'handoff',
-        nextExpectedActor: 'qa',
-        nextExpectedAction: 'handoff',
+        matchedRuleType: null,
+        nextExpectedActor: null,
+        nextExpectedAction: null,
       }),
       expect.objectContaining({
-        matchedRuleType: 'handoff',
-        nextExpectedActor: 'product-manager',
-        nextExpectedAction: 'handoff',
+        matchedRuleType: null,
+        nextExpectedActor: null,
+        nextExpectedAction: null,
       }),
       expect.objectContaining({
         matchedRuleType: 'approval',

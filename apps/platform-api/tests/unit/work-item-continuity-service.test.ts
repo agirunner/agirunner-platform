@@ -252,6 +252,7 @@ describe('WorkItemContinuityService', () => {
               board: { columns: [{ id: 'planned', label: 'Planned' }] },
               checkpoints: [{ name: 'implementation', goal: 'Implementation is reviewed', human_gate: false }],
               handoff_rules: [{ from_role: 'reviewer', to_role: 'qa', required: true }],
+              lifecycle: 'ongoing',
             },
           }],
           rowCount: 1,
@@ -294,6 +295,7 @@ describe('WorkItemContinuityService', () => {
               board: { columns: [{ id: 'implementation', label: 'Implementation' }] },
               checkpoints: [{ name: 'implementation', goal: 'Implement work', human_gate: false }],
               handoff_rules: [{ from_role: 'developer', to_role: 'qa', required: true }],
+              lifecycle: 'ongoing',
             },
           }],
           rowCount: 1,
@@ -343,6 +345,57 @@ describe('WorkItemContinuityService', () => {
     );
     const payload = (logService.insert as ReturnType<typeof vi.fn>).mock.calls[0][0].payload as Record<string, unknown>;
     expect(payload).not.toHaveProperty('checkpoint_name');
+  });
+
+  it('clears planned-workflow continuity after reviewer approval instead of routing qa on the review work item', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            rework_count: 1,
+            owner_role: 'reviewer',
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            definition: {
+              process_instructions: 'Reviewer approves before QA validates in the next planned stage.',
+              roles: ['reviewer', 'qa'],
+              board: { columns: [{ id: 'review', label: 'Review' }] },
+              checkpoints: [
+                { name: 'review', goal: 'Review is approved', human_gate: false },
+                { name: 'verification', goal: 'QA validates the approved change', human_gate: false },
+              ],
+              handoff_rules: [{ from_role: 'reviewer', to_role: 'qa', checkpoint: 'review', required: true }],
+              lifecycle: 'planned',
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordTaskCompleted('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'reviewer',
+      stage_name: 'review',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: null,
+      nextExpectedActor: null,
+      nextExpectedAction: null,
+      satisfiedReviewExpectation: true,
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', null, null, 0],
+    );
   });
 
   it('emits a continuity transition log when review rejection routes work back for rework', async () => {

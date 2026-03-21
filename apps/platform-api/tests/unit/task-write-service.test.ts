@@ -16,7 +16,7 @@ vi.mock('../../src/services/runtime-default-values.js', async () => {
   };
 });
 
-import { ConflictError } from '../../src/errors/domain-errors.js';
+import { ConflictError, ValidationError } from '../../src/errors/domain-errors.js';
 import { TaskWriteService } from '../../src/services/task-write-service.js';
 
 const DEFAULT_RUNTIME_DEFAULTS: Record<string, number> = {
@@ -2169,6 +2169,96 @@ describe('TaskWriteService', () => {
       ),
     ).rejects.toThrow(
       /create or move a work item in stage 'implementation' before creating tasks for that stage/i,
+    );
+  });
+
+  it('rejects creating a planned-stage task for a role that belongs to the successor stage', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_id: 'workflow-1',
+              stage_name: 'review',
+              workflow_lifecycle: 'planned',
+              stage_status: 'active',
+              stage_gate_status: 'not_requested',
+              owner_role: 'live-test-reviewer',
+              next_expected_actor: null,
+              next_expected_action: null,
+            }],
+          };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                process_instructions: 'Reviewer approves in review; QA validates in verification.',
+                roles: ['live-test-reviewer', 'live-test-qa'],
+                board: {
+                  columns: [
+                    { id: 'review', label: 'Review' },
+                    { id: 'verification', label: 'Verification' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                  entry_column_id: 'review',
+                },
+                checkpoints: [
+                  { name: 'review', goal: 'Reviewer sign-off' },
+                  { name: 'verification', goal: 'QA validation' },
+                ],
+                stages: [
+                  { name: 'review', goal: 'Reviewer sign-off', involves: ['live-test-reviewer'] },
+                  { name: 'verification', goal: 'QA validation', involves: ['live-test-qa'] },
+                ],
+                review_rules: [],
+                approval_rules: [],
+                handoff_rules: [{ from_role: 'live-test-reviewer', to_role: 'live-test-qa', checkpoint: 'review', required: true }],
+                lifecycle: 'planned',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        {
+          title: 'QA validate greeting enhancement after review approval',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          request_id: 'wrong-stage-qa-1',
+          role: 'live-test-qa',
+          stage_name: 'review',
+        },
+      ),
+    ).rejects.toThrow(
+      /Route successor work into stage 'verification' before dispatching role 'live-test-qa'/i,
     );
   });
 });

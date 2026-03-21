@@ -119,6 +119,9 @@ function evaluateHandoffRule(
   if (input.event !== 'task_completed') {
     return null;
   }
+  if (input.definition.lifecycle === 'planned') {
+    return null;
+  }
 
   const rule = input.definition.handoff_rules.find(
     (candidate) =>

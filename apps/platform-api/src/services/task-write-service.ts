@@ -337,6 +337,7 @@ export class TaskWriteService {
           `in stage '${input.stage_name}' before creating tasks for that stage.`,
       );
     }
+    await this.assertPlannedStageRoleMembership(tenantId, input, linkedWorkItem, db);
     if (
       input.role
       && linkedWorkItem.next_expected_actor
@@ -356,6 +357,54 @@ export class TaskWriteService {
         `Cannot create new tasks for planned workflow stage '${linkedWorkItem.stage_name}' after it has been approved or completed`,
       );
     }
+  }
+
+  private async assertPlannedStageRoleMembership(
+    tenantId: string,
+    input: CreateTaskInput,
+    linkedWorkItem: LinkedWorkItemRow,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (
+      linkedWorkItem.workflow_lifecycle !== 'planned'
+      || input.is_orchestrator_task
+      || !input.role?.trim()
+    ) {
+      return;
+    }
+
+    const definition = await this.loadWorkflowPlaybookDefinition(
+      tenantId,
+      linkedWorkItem.workflow_id,
+      db,
+    );
+    if (!definition) {
+      return;
+    }
+
+    const stage = definition.stages.find((entry) => entry.name === linkedWorkItem.stage_name);
+    const allowedRoles = stage?.involves ?? [];
+    if (allowedRoles.length === 0 || allowedRoles.includes(input.role.trim())) {
+      return;
+    }
+
+    const successorStageName = findNextStageForRole(
+      definition.stages,
+      linkedWorkItem.stage_name,
+      input.role.trim(),
+    );
+    if (successorStageName) {
+      throw new ValidationError(
+        `Role '${input.role.trim()}' is not allowed on planned workflow stage ` +
+          `'${linkedWorkItem.stage_name}'. Route successor work into stage ` +
+          `'${successorStageName}' before dispatching role '${input.role.trim()}'.`,
+      );
+    }
+
+    throw new ValidationError(
+      `Role '${input.role.trim()}' is not allowed on planned workflow stage ` +
+        `'${linkedWorkItem.stage_name}'.`,
+    );
   }
 
   private async applyLinkedWorkItemDefaults(
@@ -837,6 +886,25 @@ function isClosedPlannedStage(workItem: LinkedWorkItemRow) {
     return false;
   }
   return workItem.stage_status === 'completed' || workItem.stage_gate_status === 'approved';
+}
+
+function findNextStageForRole(
+  stages: Array<{ name: string; involves?: string[] }>,
+  currentStageName: string,
+  role: string,
+) {
+  const currentStageIndex = stages.findIndex((entry) => entry.name === currentStageName);
+  if (currentStageIndex < 0) {
+    return null;
+  }
+
+  for (const stage of stages.slice(currentStageIndex + 1)) {
+    if (stage.involves?.includes(role)) {
+      return stage.name;
+    }
+  }
+
+  return null;
 }
 
 function asNullableString(value: unknown): string | null {
