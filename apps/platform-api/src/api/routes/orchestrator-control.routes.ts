@@ -20,6 +20,13 @@ import { HandoffService } from '../../services/handoff-service.js';
 import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
 import { readWorkerDispatchAckTimeoutMs } from '../../services/platform-timing-defaults.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
+import {
+  buildAssessmentSubjectInput,
+  buildAssessmentSubjectMetadata,
+  hasExplicitAssessmentSubjectLinkage,
+  readAssessmentSubjectLinkage,
+  readWorkflowTaskKind,
+} from '../../services/assessment-subject-service.js';
 
 const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'review', 'test', 'docs', 'custom']);
 const credentialRefsSchema = z.record(z.string().min(1).max(255)).refine(
@@ -1462,7 +1469,7 @@ async function normalizeOrchestratorTaskCreateInput(
     taskScope.workflow_id,
     body,
   );
-  if (hasExplicitReviewedTaskReference(stageAlignedBody.input)) {
+  if (hasExplicitReviewedTaskReference(stageAlignedBody.input, stageAlignedBody.metadata)) {
     return stageAlignedBody;
   }
 
@@ -1484,15 +1491,8 @@ async function normalizeOrchestratorTaskCreateInput(
       );
       return {
         ...stageAlignedBody,
-        input: {
-          ...existingInput,
-          reviewed_task_id: explicitTaskID,
-        },
-        metadata: {
-          ...(stageAlignedBody.metadata ?? {}),
-          reviewed_task_id_source: 'input_task_id_default',
-          ...reviewTaskMetadata,
-        },
+        input: buildAssessmentSubjectInput(existingInput, reviewTaskMetadata),
+        metadata: buildAssessmentSubjectMetadata(stageAlignedBody.metadata, reviewTaskMetadata, 'input_task_id_default'),
       };
     }
     if (!isReviewLinkActivation(context.event_type)) {
@@ -1513,15 +1513,8 @@ async function normalizeOrchestratorTaskCreateInput(
 
     return {
       ...stageAlignedBody,
-      input: {
-        ...(stageAlignedBody.input ?? {}),
-        reviewed_task_id: reviewedTaskId,
-      },
-      metadata: {
-        ...(stageAlignedBody.metadata ?? {}),
-        reviewed_task_id_source: 'activation_default',
-        ...reviewTaskMetadata,
-      },
+      input: buildAssessmentSubjectInput(stageAlignedBody.input, reviewTaskMetadata),
+      metadata: buildAssessmentSubjectMetadata(stageAlignedBody.metadata, reviewTaskMetadata, 'activation_default'),
     };
   }
 
@@ -1548,15 +1541,8 @@ async function normalizeOrchestratorTaskCreateInput(
 
   return {
     ...stageAlignedBody,
-    input: {
-      ...existingInput,
-      reviewed_task_id: reviewedTaskId,
-    },
-    metadata: {
-      ...(stageAlignedBody.metadata ?? {}),
-      reviewed_task_id_source: 'activation_lineage_default',
-      ...reviewedTaskMetadata,
-    },
+    input: buildAssessmentSubjectInput(existingInput, reviewedTaskMetadata),
+    metadata: buildAssessmentSubjectMetadata(stageAlignedBody.metadata, reviewedTaskMetadata, 'activation_lineage_default'),
   };
 }
 
@@ -1577,8 +1563,10 @@ async function loadReviewedTaskMetadata(
   );
   const row = result.rows[0];
   return {
-    reviewed_task_id: row?.id ?? reviewedTaskId,
-    reviewed_task_rework_count: row?.rework_count ?? 0,
+    subjectTaskId: row?.id ?? reviewedTaskId,
+    subjectWorkItemId: null,
+    subjectHandoffId: null,
+    subjectRevision: (row?.rework_count ?? 0) + 1,
   };
 }
 
@@ -1593,7 +1581,7 @@ async function loadExistingReviewTaskForSameRevision(
   }
 
   const reviewedTaskId = readReviewedTaskReference(body.input);
-  const reviewedTaskReworkCount = readInteger(body.metadata?.reviewed_task_rework_count);
+  const reviewedTaskReworkCount = readInteger(body.metadata?.subject_revision);
   if (!reviewedTaskId || reviewedTaskReworkCount === null) {
     return null;
   }
@@ -1606,8 +1594,8 @@ async function loadExistingReviewTaskForSameRevision(
         AND work_item_id = $3
         AND role = $4
         AND state = ANY($5::task_state[])
-        AND COALESCE(metadata->>'reviewed_task_id', '') = $6
-        AND COALESCE((metadata->>'reviewed_task_rework_count')::integer, -1) = $7
+        AND COALESCE(metadata->>'subject_task_id', '') = $6
+        AND COALESCE((metadata->>'subject_revision')::integer, -1) = $7
       ORDER BY created_at DESC
       LIMIT 1`,
     [
@@ -1909,14 +1897,14 @@ function shouldDefaultCrossStageParentWorkItemId(
 }
 
 function isReviewTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) {
-  return body.type === 'review';
+  return readWorkflowTaskKind(body.metadata) === 'assessment';
 }
 
 function shouldDefaultActivationReviewedTaskLinkage(
   body: z.infer<typeof orchestratorTaskCreateSchema>,
   eventType: string | null,
 ) {
-  return body.type === 'test' && isReviewLinkActivation(eventType);
+  return readWorkflowTaskKind(body.metadata) !== 'orchestrator' && isReviewLinkActivation(eventType);
 }
 
 function isReviewLinkActivation(eventType: string | null) {
@@ -2010,18 +1998,15 @@ function shouldDefaultParentWorkItemId(
   ]).has(eventType);
 }
 
-function hasExplicitReviewedTaskReference(input: Record<string, unknown> | undefined) {
-  return readReviewedTaskReference(input) !== null;
+function hasExplicitReviewedTaskReference(
+  input: Record<string, unknown> | undefined,
+  metadata?: Record<string, unknown> | undefined,
+) {
+  return hasExplicitAssessmentSubjectLinkage(input, metadata);
 }
 
 function readReviewedTaskReference(input: Record<string, unknown> | undefined) {
-  if (!input) {
-    return null;
-  }
-  return (
-    readString(input.reviewed_task_id)
-    ?? readString(input.target_task_id)
-  );
+  return readAssessmentSubjectLinkage(input).subjectTaskId;
 }
 
 interface ChildWorkflowLinkage {

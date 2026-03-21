@@ -1820,7 +1820,7 @@ describe('orchestratorControlRoutes', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-review-1']);
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes("COALESCE(metadata->>'reviewed_task_id'")) {
+        if (sql.includes("COALESCE(metadata->>'subject_task_id'")) {
           expect(params).toEqual([
             'tenant-1',
             'workflow-1',
@@ -1828,7 +1828,7 @@ describe('orchestratorControlRoutes', () => {
             'reviewer',
             ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
             'task-developer',
-            0,
+            1,
           ]);
           return { rowCount: 0, rows: [] };
         }
@@ -1841,6 +1841,20 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT input') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'task-developer', 'workflow-1']);
+          return {
+            rowCount: 1,
+            rows: [{ input: {} }],
+          };
+        }
+        if (sql.includes('SELECT id, rework_count') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{ id: 'task-developer', rework_count: 0 }],
+          };
+        }
         if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orchestrator']);
           return {
@@ -1927,6 +1941,7 @@ describe('orchestratorControlRoutes', () => {
         stage_name: 'review',
         role: 'reviewer',
         type: 'review',
+        metadata: { task_kind: 'assessment' },
       },
     });
 
@@ -1936,12 +1951,14 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({
         role: 'reviewer',
         input: expect.objectContaining({
-          reviewed_task_id: 'task-developer',
+          subject_task_id: 'task-developer',
+          subject_revision: 1,
         }),
         metadata: expect.objectContaining({
-          reviewed_task_id_source: 'activation_default',
-          reviewed_task_id: 'task-developer',
-          reviewed_task_rework_count: 0,
+          subject_linkage_source: 'activation_default',
+          subject_task_id: 'task-developer',
+          subject_revision: 1,
+          task_kind: 'assessment',
           created_by_orchestrator_task_id: 'task-orchestrator',
           orchestrator_activation_id: 'activation-review',
         }),
@@ -1961,8 +1978,9 @@ describe('orchestratorControlRoutes', () => {
       role: 'reviewer',
       state: 'completed',
       metadata: {
-        reviewed_task_id: 'task-developer',
-        reviewed_task_rework_count: 0,
+        subject_task_id: 'task-developer',
+        subject_revision: 1,
+        task_kind: 'assessment',
       },
     };
     const taskService = {
@@ -1981,7 +1999,7 @@ describe('orchestratorControlRoutes', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-review-duplicate']);
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes("COALESCE(metadata->>'reviewed_task_id'")) {
+        if (sql.includes("COALESCE(metadata->>'subject_task_id'")) {
           expect(params).toEqual([
             'tenant-1',
             'workflow-1',
@@ -1989,7 +2007,7 @@ describe('orchestratorControlRoutes', () => {
             'reviewer',
             ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
             'task-developer',
-            0,
+            1,
           ]);
           return {
             rowCount: 1,
@@ -2005,6 +2023,20 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT input') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'task-developer', 'workflow-1']);
+          return {
+            rowCount: 1,
+            rows: [{ input: {} }],
+          };
+        }
+        if (sql.includes('SELECT id, rework_count') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{ id: 'task-developer', rework_count: 0 }],
+          };
+        }
         if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orchestrator']);
           return {
@@ -2091,6 +2123,7 @@ describe('orchestratorControlRoutes', () => {
         stage_name: 'review',
         role: 'reviewer',
         type: 'review',
+        metadata: { task_kind: 'assessment' },
       },
     });
 
@@ -2329,7 +2362,8 @@ describe('orchestratorControlRoutes', () => {
                 workflow_id: 'workflow-1',
                 role: 'live-test-reviewer',
                 input: {
-                  reviewed_task_id: 'task-developer',
+                  subject_task_id: 'task-developer',
+                  subject_revision: 1,
                 },
               }],
             };
@@ -2423,12 +2457,13 @@ describe('orchestratorControlRoutes', () => {
         role: 'live-test-qa',
         type: 'test',
         input: expect.objectContaining({
-          reviewed_task_id: 'task-developer',
+          subject_task_id: 'task-developer',
+          subject_revision: 1,
         }),
         metadata: expect.objectContaining({
-          reviewed_task_id: 'task-developer',
-          reviewed_task_rework_count: 0,
-          reviewed_task_id_source: 'activation_lineage_default',
+          subject_task_id: 'task-developer',
+          subject_revision: 1,
+          subject_linkage_source: 'activation_lineage_default',
           stage_aligned_work_item_id_source: 'child_stage_match',
           created_by_orchestrator_task_id: 'task-orchestrator',
           orchestrator_activation_id: 'activation-handoff-review',
@@ -2568,7 +2603,8 @@ describe('orchestratorControlRoutes', () => {
         role: 'live-test-qa',
         type: 'test',
         input: {
-          reviewed_task_id: 'task-developer',
+          subject_task_id: 'task-developer',
+          subject_revision: 1,
         },
       },
     });
@@ -2665,6 +2701,20 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT input') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'task-developer', 'workflow-1']);
+          return {
+            rowCount: 1,
+            rows: [{ input: {} }],
+          };
+        }
+        if (sql.includes('SELECT id, rework_count') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{ id: 'task-developer', rework_count: 0 }],
+          };
+        }
         if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orchestrator']);
           return {
@@ -2929,7 +2979,7 @@ describe('orchestratorControlRoutes', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-custom-review-1']);
           return { rowCount: 0, rows: [] };
         }
-        if (sql.includes("COALESCE(metadata->>'reviewed_task_id'")) {
+        if (sql.includes("COALESCE(metadata->>'subject_task_id'")) {
           expect(params).toEqual([
             'tenant-1',
             'workflow-1',
@@ -2937,7 +2987,7 @@ describe('orchestratorControlRoutes', () => {
             'live-test-reviewer',
             ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
             'task-developer',
-            0,
+            1,
           ]);
           return { rowCount: 0, rows: [] };
         }
@@ -3037,6 +3087,7 @@ describe('orchestratorControlRoutes', () => {
         stage_name: 'review',
         role: 'live-test-reviewer',
         type: 'review',
+        metadata: { task_kind: 'assessment' },
       },
     });
 
@@ -3047,12 +3098,14 @@ describe('orchestratorControlRoutes', () => {
         role: 'live-test-reviewer',
         type: 'review',
         input: expect.objectContaining({
-          reviewed_task_id: 'task-developer',
+          subject_task_id: 'task-developer',
+          subject_revision: 1,
         }),
         metadata: expect.objectContaining({
-          reviewed_task_id_source: 'activation_default',
-          reviewed_task_id: 'task-developer',
-          reviewed_task_rework_count: 0,
+          subject_linkage_source: 'activation_default',
+          subject_task_id: 'task-developer',
+          subject_revision: 1,
+          task_kind: 'assessment',
           created_by_orchestrator_task_id: 'task-orchestrator',
           orchestrator_activation_id: 'activation-handoff-review',
         }),

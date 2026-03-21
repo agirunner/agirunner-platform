@@ -1,0 +1,91 @@
+export type WorkflowTaskKind = 'delivery' | 'assessment' | 'approval' | 'orchestrator';
+
+export interface AssessmentSubjectLinkage {
+  subjectTaskId: string | null;
+  subjectWorkItemId: string | null;
+  subjectHandoffId: string | null;
+  subjectRevision: number | null;
+}
+
+export function readWorkflowTaskKind(
+  metadata: unknown,
+  isOrchestratorTask = false,
+): WorkflowTaskKind {
+  const taskKind = readString(asRecord(metadata).task_kind);
+  if (taskKind === 'assessment' || taskKind === 'approval' || taskKind === 'orchestrator' || taskKind === 'delivery') {
+    return taskKind;
+  }
+  if (isOrchestratorTask) {
+    return 'orchestrator';
+  }
+  return 'delivery';
+}
+
+export function readAssessmentSubjectLinkage(
+  input: unknown,
+  metadata?: unknown,
+): AssessmentSubjectLinkage {
+  const source = asRecord(input);
+  const meta = asRecord(metadata);
+  return {
+    subjectTaskId: readString(source.subject_task_id) ?? readString(meta.subject_task_id),
+    subjectWorkItemId: readString(source.subject_work_item_id) ?? readString(meta.subject_work_item_id),
+    subjectHandoffId: readString(source.subject_handoff_id) ?? readString(meta.subject_handoff_id),
+    subjectRevision: readInteger(source.subject_revision) ?? readInteger(meta.subject_revision),
+  };
+}
+
+export function hasExplicitAssessmentSubjectLinkage(
+  input: unknown,
+  metadata?: unknown,
+): boolean {
+  const linkage = readAssessmentSubjectLinkage(input, metadata);
+  return Boolean(linkage.subjectTaskId || linkage.subjectWorkItemId || linkage.subjectHandoffId);
+}
+
+export function buildAssessmentSubjectInput(
+  input: Record<string, unknown> | undefined,
+  linkage: AssessmentSubjectLinkage,
+): Record<string, unknown> {
+  const nextInput = { ...(input ?? {}) };
+  if (linkage.subjectTaskId) {
+    nextInput.subject_task_id = linkage.subjectTaskId;
+  }
+  if (linkage.subjectWorkItemId) {
+    nextInput.subject_work_item_id = linkage.subjectWorkItemId;
+  }
+  if (linkage.subjectHandoffId) {
+    nextInput.subject_handoff_id = linkage.subjectHandoffId;
+  }
+  if (linkage.subjectRevision !== null) {
+    nextInput.subject_revision = linkage.subjectRevision;
+  }
+  return nextInput;
+}
+
+export function buildAssessmentSubjectMetadata(
+  metadata: Record<string, unknown> | undefined,
+  linkage: AssessmentSubjectLinkage,
+  source: string,
+): Record<string, unknown> {
+  return {
+    ...(metadata ?? {}),
+    ...(linkage.subjectTaskId ? { subject_task_id: linkage.subjectTaskId } : {}),
+    ...(linkage.subjectRevision !== null ? { subject_revision: linkage.subjectRevision } : {}),
+    subject_linkage_source: source,
+  };
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) ? value : null;
+}

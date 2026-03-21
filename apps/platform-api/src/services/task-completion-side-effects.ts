@@ -5,6 +5,10 @@ import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
 import type { TaskState } from '../orchestration/task-state-machine.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
+import {
+  readAssessmentSubjectLinkage,
+  readWorkflowTaskKind,
+} from './assessment-subject-service.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from './planned-work-item-auto-close.js';
 import type {
@@ -30,7 +34,6 @@ type TaskCompletionContinuityEvent = 'task_completed' | 'review_rejected';
 interface TaskAttemptHandoffOutcome {
   completion: string | null;
   resolution: string | null;
-  reviewOutcome: string | null;
   summary: string | null;
 }
 
@@ -749,11 +752,7 @@ async function loadReviewedTaskCandidates(
 }
 
 function readReviewedTaskId(completedTask: Record<string, unknown>) {
-  const input = asRecord(completedTask.input);
-  return (
-    asOptionalString(input.reviewed_task_id)
-    ?? asOptionalString(input.target_task_id)
-  );
+  return readAssessmentSubjectLinkage(completedTask.input, completedTask.metadata).subjectTaskId;
 }
 
 async function loadLatestTaskAttemptHandoffOutcome(
@@ -767,10 +766,9 @@ async function loadLatestTaskAttemptHandoffOutcome(
     return null;
   }
 
-  const result = await client.query<{ completion: string | null; resolution: string | null; review_outcome: string | null }>(
+  const result = await client.query<{ completion: string | null; resolution: string | null; summary: string | null }>(
     `SELECT completion,
             resolution,
-            role_data->>'review_outcome' AS review_outcome,
             summary
        FROM task_handoffs
       WHERE tenant_id = $1
@@ -787,7 +785,6 @@ async function loadLatestTaskAttemptHandoffOutcome(
   return {
     completion: asOptionalString(row.completion),
     resolution: normalizeReviewOutcome(row.resolution),
-    reviewOutcome: asOptionalString(row.review_outcome),
     summary: asOptionalString((row as { summary?: string | null }).summary),
   } satisfies TaskAttemptHandoffOutcome;
 }
@@ -812,14 +809,9 @@ function readsReviewRequestChangesOutcome(
     return true;
   }
 
-  const handoffReviewOutcome = normalizeReviewOutcome(latestHandoffOutcome.reviewOutcome);
-  if (handoffReviewOutcome === 'request_changes') {
-    return true;
-  }
-
   const output = asRecord(completedTask.output);
   return (
-    normalizeReviewOutcome(output.review_outcome) === 'request_changes'
+    normalizeReviewOutcome(output.resolution) === 'request_changes'
     || normalizeReviewOutcome(output.verdict) === 'request_changes'
   );
 }
@@ -872,9 +864,8 @@ function isReviewTaskCandidate(completedTask: Record<string, unknown>) {
 }
 
 function readReviewTaskReason(completedTask: Record<string, unknown>) {
-  const taskType = asOptionalString(asRecord(completedTask.metadata).task_type);
-  if (taskType === 'review') {
-    return 'review_task_type' as const;
+  if (readWorkflowTaskKind(completedTask.metadata, Boolean(completedTask.is_orchestrator_task)) === 'assessment') {
+    return 'assessment_task_kind' as const;
   }
 
   return null;
