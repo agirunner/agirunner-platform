@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   advanceSessionContainerRows,
+  hasPendingField,
+  hasRecentlyChangedField,
   isRecentlyChangedRow,
   isPendingChangeRow,
   mergeLiveContainerSessionRows,
@@ -33,13 +35,31 @@ function createRow(overrides: Partial<SessionContainerRow> = {}): SessionContain
     presence: 'running',
     inactive_at: null,
     changed_at: null,
+    changed_fields: [],
     pending_state: null,
     pending_flip_at: null,
+    pending_fields: [],
     ...overrides,
   };
 }
 
 describe('mergeLiveContainerSessionRows', () => {
+  it('treats the first successful snapshot as baseline instead of highlighting every row', () => {
+    const merged = mergeLiveContainerSessionRows([], [createRow()], '2026-03-21T18:29:00.000Z');
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({
+      id: 'task:task-1',
+      presence: 'running',
+      changed_at: null,
+      changed_fields: [],
+      pending_state: null,
+      pending_flip_at: null,
+      pending_fields: [],
+    });
+    expect(isRecentlyChangedRow(merged[0], Date.parse('2026-03-21T18:29:01.000Z'))).toBe(false);
+  });
+
   it('keeps rows seen in the current session and flips missing ones to inactive after a successful refresh', () => {
     const previous = [
       createRow(),
@@ -97,9 +117,18 @@ describe('mergeLiveContainerSessionRows', () => {
     expect(merged).toHaveLength(1);
     expect(merged[0]).toMatchObject({
       id: 'task:task-1',
+      presence: 'inactive',
+      inactive_at: '2026-03-21T18:31:00.000Z',
+      changed_at: null,
+    });
+    expect(isPendingChangeRow(merged[0], Date.parse('2026-03-21T18:32:00.500Z'))).toBe(true);
+
+    const advanced = advanceSessionContainerRows(merged, '2026-03-21T18:32:01.100Z');
+    expect(advanced[0]).toMatchObject({
       presence: 'running',
       inactive_at: null,
-      changed_at: '2026-03-21T18:32:00.000Z',
+      changed_at: '2026-03-21T18:32:01.000Z',
+      changed_fields: ['status'],
     });
   });
 
@@ -133,8 +162,30 @@ describe('mergeLiveContainerSessionRows', () => {
       changed_at: '2026-03-21T18:33:01.000Z',
       task_title: 'Investigate auth timeout in review',
     });
-    expect(isRecentlyChangedRow(advanced[0], Date.parse('2026-03-21T18:33:04.000Z'))).toBe(true);
-    expect(isRecentlyChangedRow(advanced[0], Date.parse('2026-03-21T18:33:20.000Z'))).toBe(false);
+    expect(hasRecentlyChangedField(advanced[0], 'task', Date.parse('2026-03-21T18:33:01.500Z'))).toBe(true);
+    expect(hasRecentlyChangedField(advanced[0], 'status', Date.parse('2026-03-21T18:33:01.500Z'))).toBe(false);
+    expect(isRecentlyChangedRow(advanced[0], Date.parse('2026-03-21T18:33:01.500Z'))).toBe(true);
+    expect(isRecentlyChangedRow(advanced[0], Date.parse('2026-03-21T18:33:02.200Z'))).toBe(false);
+  });
+
+  it('highlights a truly new row that appears after the baseline snapshot', () => {
+    const merged = mergeLiveContainerSessionRows(
+      [createRow({ id: 'runtime:runtime-1', kind: 'runtime', container_id: 'runtime-container-1' })],
+      [
+        createRow({ id: 'runtime:runtime-1', kind: 'runtime', container_id: 'runtime-container-1' }),
+        createRow(),
+      ],
+      '2026-03-21T18:33:00.000Z',
+    );
+
+    expect(merged[1]).toMatchObject({
+      id: 'task:task-1',
+      presence: 'running',
+      changed_at: '2026-03-21T18:33:00.000Z',
+    });
+    expect(hasRecentlyChangedField(merged[1], 'image', Date.parse('2026-03-21T18:33:00.500Z'))).toBe(true);
+    expect(hasRecentlyChangedField(merged[1], 'task', Date.parse('2026-03-21T18:33:00.500Z'))).toBe(true);
+    expect(isRecentlyChangedRow(merged[1], Date.parse('2026-03-21T18:33:01.000Z'))).toBe(true);
   });
 
   it('keeps the old row briefly before flipping visible content changes to the new state', () => {
@@ -156,6 +207,9 @@ describe('mergeLiveContainerSessionRows', () => {
       changed_at: null,
     });
     expect(isPendingChangeRow(merged[0], Date.parse('2026-03-21T18:34:00.500Z'))).toBe(true);
+    expect(hasPendingField(merged[0], 'task', Date.parse('2026-03-21T18:34:00.500Z'))).toBe(true);
+    expect(hasPendingField(merged[0], 'stage', Date.parse('2026-03-21T18:34:00.500Z'))).toBe(true);
+    expect(hasPendingField(merged[0], 'status', Date.parse('2026-03-21T18:34:00.500Z'))).toBe(false);
 
     const advanced = advanceSessionContainerRows(merged, '2026-03-21T18:34:01.100Z');
     expect(advanced[0]).toMatchObject({
@@ -165,6 +219,8 @@ describe('mergeLiveContainerSessionRows', () => {
       changed_at: '2026-03-21T18:34:01.000Z',
     });
     expect(isPendingChangeRow(advanced[0], Date.parse('2026-03-21T18:34:01.100Z'))).toBe(false);
+    expect(hasRecentlyChangedField(advanced[0], 'task', Date.parse('2026-03-21T18:34:01.500Z'))).toBe(true);
+    expect(hasRecentlyChangedField(advanced[0], 'stage', Date.parse('2026-03-21T18:34:01.500Z'))).toBe(true);
     expect(isRecentlyChangedRow(advanced[0], Date.parse('2026-03-21T18:34:01.500Z'))).toBe(true);
   });
 
@@ -188,6 +244,8 @@ describe('mergeLiveContainerSessionRows', () => {
       inactive_at: '2026-03-21T18:35:00.000Z',
       changed_at: '2026-03-21T18:35:01.000Z',
     });
+    expect(hasRecentlyChangedField(advanced[0], 'status', Date.parse('2026-03-21T18:35:01.500Z'))).toBe(true);
+    expect(hasRecentlyChangedField(advanced[0], 'task', Date.parse('2026-03-21T18:35:01.500Z'))).toBe(false);
     expect(isRecentlyChangedRow(advanced[0], Date.parse('2026-03-21T18:35:01.500Z'))).toBe(true);
   });
 });

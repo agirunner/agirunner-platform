@@ -3,28 +3,57 @@ import type { DashboardLiveContainerRecord } from '../../lib/api.js';
 const MAX_RECENT_INACTIVE_ROWS = 20;
 const INACTIVE_RETENTION_MS = 10 * 60 * 1000;
 const PENDING_TRANSITION_MS = 1_000;
-const RECENT_CHANGE_MS = 8 * 1000;
+const RECENT_CHANGE_MS = 1_000;
 const KIND_ORDER: Record<DashboardLiveContainerRecord['kind'], number> = {
   orchestrator: 0,
   runtime: 1,
   task: 2,
 };
 
+const ALL_DIFF_FIELDS: ContainerDiffField[] = [
+  'status',
+  'kind',
+  'role',
+  'playbook',
+  'workflow',
+  'stage',
+  'task',
+  'image',
+  'cpu',
+  'memory',
+  'started',
+];
+
 export type ContainerStatusFilter = 'all' | 'running' | 'inactive';
 export type ContainerKindFilter = 'all' | DashboardLiveContainerRecord['kind'];
+export type ContainerDiffField =
+  | 'status'
+  | 'kind'
+  | 'role'
+  | 'playbook'
+  | 'workflow'
+  | 'stage'
+  | 'task'
+  | 'image'
+  | 'cpu'
+  | 'memory'
+  | 'started';
 
 interface PendingSessionState {
   record: DashboardLiveContainerRecord;
   presence: 'running' | 'inactive';
   inactive_at: string | null;
+  changed_fields: ContainerDiffField[];
 }
 
 export interface SessionContainerRow extends DashboardLiveContainerRecord {
   presence: 'running' | 'inactive';
   inactive_at: string | null;
   changed_at: string | null;
+  changed_fields: ContainerDiffField[];
   pending_state: PendingSessionState | null;
   pending_flip_at: string | null;
+  pending_fields: ContainerDiffField[];
 }
 
 export function formatContainerKindLabel(kind: DashboardLiveContainerRecord['kind']): string {
@@ -44,10 +73,14 @@ export function mergeLiveContainerSessionRows(
   previous: SessionContainerRow[],
   liveRows: DashboardLiveContainerRecord[],
   observedAt: string,
+  options?: { hasBaselineSnapshot?: boolean },
 ): SessionContainerRow[] {
   const stablePrevious = advanceSessionContainerRows(previous, observedAt);
+  const hasBaselineSnapshot = options?.hasBaselineSnapshot ?? stablePrevious.length > 0;
   const previousById = new Map(stablePrevious.map((row) => [row.id, row] as const));
-  const runningRows = liveRows.map((row) => buildRunningSessionRow(previousById.get(row.id), row, observedAt));
+  const runningRows = liveRows.map((row) =>
+    buildRunningSessionRow(previousById.get(row.id), row, observedAt, hasBaselineSnapshot),
+  );
   const liveIds = new Set(runningRows.map((row) => row.id));
   const recentInactiveRows = stablePrevious
     .filter((row) => !liveIds.has(row.id))
@@ -96,7 +129,23 @@ export function isRecentlyChangedRow(row: SessionContainerRow, now = Date.now())
   if (!Number.isFinite(changedAt)) {
     return false;
   }
-  return now-changedAt <= RECENT_CHANGE_MS;
+  return now - changedAt <= RECENT_CHANGE_MS;
+}
+
+export function hasPendingField(
+  row: SessionContainerRow,
+  field: ContainerDiffField,
+  now = Date.now(),
+): boolean {
+  return isPendingChangeRow(row, now) && row.pending_fields.includes(field);
+}
+
+export function hasRecentlyChangedField(
+  row: SessionContainerRow,
+  field: ContainerDiffField,
+  now = Date.now(),
+): boolean {
+  return isRecentlyChangedRow(row, now) && row.changed_fields.includes(field);
 }
 
 export function filterSessionContainerRows(
@@ -178,88 +227,60 @@ function isExpiredInactiveRow(row: SessionContainerRow, observedAt: string): boo
   return Number.isFinite(inactiveAt) && inactiveAt < cutoff;
 }
 
-function shouldMarkRunningRowChanged(
-  prior: SessionContainerRow | undefined,
-  next: DashboardLiveContainerRecord,
-): boolean {
-  if (!prior) {
-    return true;
-  }
-  if (prior.presence !== 'running') {
-    return true;
-  }
-  return hasMaterialContainerDifference(prior, next);
-}
-
-function hasMaterialContainerDifference(
-  left: DashboardLiveContainerRecord,
-  right: DashboardLiveContainerRecord,
-): boolean {
-  return (
-    left.kind !== right.kind
-    || left.name !== right.name
-    || left.state !== right.state
-    || left.image !== right.image
-    || left.cpu_limit !== right.cpu_limit
-    || left.memory_limit !== right.memory_limit
-    || left.started_at !== right.started_at
-    || left.role_name !== right.role_name
-    || left.playbook_id !== right.playbook_id
-    || left.playbook_name !== right.playbook_name
-    || left.workflow_id !== right.workflow_id
-    || left.workflow_name !== right.workflow_name
-    || left.task_id !== right.task_id
-    || left.task_title !== right.task_title
-    || left.stage_name !== right.stage_name
-    || left.activity_state !== right.activity_state
-  );
-}
-
 function buildRunningSessionRow(
   prior: SessionContainerRow | undefined,
   next: DashboardLiveContainerRecord,
   observedAt: string,
+  hasBaselineSnapshot: boolean,
 ): SessionContainerRow {
   if (!prior) {
-    return buildStableSessionRow(next, 'running', null, observedAt);
+    return buildStableSessionRow(
+      next,
+      'running',
+      null,
+      hasBaselineSnapshot ? observedAt : null,
+      hasBaselineSnapshot ? visibleFieldsForNewRow(next) : [],
+    );
   }
-  if (prior.presence !== 'running') {
-    return buildStableSessionRow(next, 'running', null, observedAt);
-  }
-  if (isPendingChangeRow(prior, Date.parse(observedAt))) {
-    if (!hasMaterialContainerDifference(prior, next)) {
-      return {
-        ...buildStableSessionRow(next, 'running', null, prior.changed_at),
-        changed_at: prior.changed_at,
-      };
-    }
+
+  const changedFields = diffVisibleFields(extractLiveRecord(prior), prior.presence, next, 'running');
+  if (changedFields.length === 0) {
     return {
-      ...prior,
-      pending_state: buildPendingState(next, 'running', null),
-    };
-  }
-  if (!shouldMarkRunningRowChanged(prior, next)) {
-    return {
-      ...buildStableSessionRow(next, 'running', null, prior.changed_at),
+      ...buildStableSessionRow(next, 'running', null, prior.changed_at, prior.changed_fields),
       changed_at: prior.changed_at,
     };
   }
-  return buildPendingTransitionRow(prior, buildPendingState(next, 'running', null), observedAt);
+
+  if (isPendingChangeRow(prior, Date.parse(observedAt))) {
+    return {
+      ...prior,
+      pending_state: buildPendingState(next, 'running', null, changedFields),
+      pending_fields: changedFields,
+    };
+  }
+
+  return buildPendingTransitionRow(
+    prior,
+    buildPendingState(next, 'running', null, changedFields),
+    observedAt,
+  );
 }
 
 function buildMissingSessionRow(row: SessionContainerRow, observedAt: string): SessionContainerRow {
   if (row.presence === 'inactive' && !row.pending_state) {
     return row;
   }
+  const changedFields: ContainerDiffField[] = ['status'];
   if (isPendingChangeRow(row, Date.parse(observedAt))) {
     return {
       ...row,
-      pending_state: buildPendingState(extractLiveRecord(row), 'inactive', observedAt),
+      pending_state: buildPendingState(extractLiveRecord(row), 'inactive', observedAt, changedFields),
+      pending_fields: changedFields,
     };
   }
   return buildPendingTransitionRow(
     row,
-    buildPendingState(extractLiveRecord(row), 'inactive', observedAt),
+    buildPendingState(extractLiveRecord(row), 'inactive', observedAt, changedFields),
     observedAt,
   );
 }
@@ -269,14 +290,17 @@ function buildStableSessionRow(
   presence: 'running' | 'inactive',
   inactiveAt: string | null,
   changedAt: string | null,
+  changedFields: ContainerDiffField[],
 ): SessionContainerRow {
   return {
     ...row,
     presence,
     inactive_at: inactiveAt,
     changed_at: changedAt,
+    changed_fields: changedFields,
     pending_state: null,
     pending_flip_at: null,
+    pending_fields: [],
   };
 }
 
@@ -290,6 +314,7 @@ function buildPendingTransitionRow(
     changed_at: null,
     pending_state: pendingState,
     pending_flip_at: new Date(Date.parse(observedAt) + PENDING_TRANSITION_MS).toISOString(),
+    pending_fields: pendingState.changed_fields,
   };
 }
 
@@ -297,11 +322,13 @@ function buildPendingState(
   row: DashboardLiveContainerRecord,
   presence: 'running' | 'inactive',
   inactiveAt: string | null,
+  changedFields: ContainerDiffField[],
 ): PendingSessionState {
   return {
     record: row,
     presence,
     inactive_at: inactiveAt,
+    changed_fields: changedFields,
   };
 }
 
@@ -319,7 +346,90 @@ function advancePendingSessionRow(row: SessionContainerRow, observedAt: string):
     row.pending_state.presence,
     row.pending_state.inactive_at,
     row.pending_flip_at,
+    row.pending_state.changed_fields,
   );
+}
+
+function visibleFieldsForNewRow(row: DashboardLiveContainerRecord): ContainerDiffField[] {
+  const fields: ContainerDiffField[] = ['status', 'kind', 'image', 'cpu', 'memory', 'started'];
+  if (row.role_name?.trim()) {
+    fields.push('role');
+  }
+  if (row.playbook_id || row.playbook_name?.trim()) {
+    fields.push('playbook');
+  }
+  if (row.workflow_id || row.workflow_name?.trim()) {
+    fields.push('workflow');
+  }
+  if (row.stage_name?.trim()) {
+    fields.push('stage');
+  }
+  if (row.task_id || row.task_title?.trim()) {
+    fields.push('task');
+  }
+  return fields;
+}
+
+function diffVisibleFields(
+  left: DashboardLiveContainerRecord,
+  leftPresence: 'running' | 'inactive',
+  right: DashboardLiveContainerRecord,
+  rightPresence: 'running' | 'inactive',
+): ContainerDiffField[] {
+  const changed = new Set<ContainerDiffField>();
+
+  if (
+    leftPresence !== rightPresence
+    || normalizeText(left.state) !== normalizeText(right.state)
+    || normalizeText(left.activity_state) !== normalizeText(right.activity_state)
+  ) {
+    changed.add('status');
+  }
+  if (left.kind !== right.kind || normalizeText(left.name) !== normalizeText(right.name)) {
+    changed.add('kind');
+  }
+  if (normalizeText(left.role_name) !== normalizeText(right.role_name)) {
+    changed.add('role');
+  }
+  if (
+    normalizeText(left.playbook_id) !== normalizeText(right.playbook_id)
+    || normalizeText(left.playbook_name) !== normalizeText(right.playbook_name)
+  ) {
+    changed.add('playbook');
+  }
+  if (
+    normalizeText(left.workflow_id) !== normalizeText(right.workflow_id)
+    || normalizeText(left.workflow_name) !== normalizeText(right.workflow_name)
+  ) {
+    changed.add('workflow');
+  }
+  if (normalizeText(left.stage_name) !== normalizeText(right.stage_name)) {
+    changed.add('stage');
+  }
+  if (
+    normalizeText(left.task_id) !== normalizeText(right.task_id)
+    || normalizeText(left.task_title) !== normalizeText(right.task_title)
+  ) {
+    changed.add('task');
+  }
+  if (normalizeText(left.image) !== normalizeText(right.image)) {
+    changed.add('image');
+  }
+  if (normalizeText(left.cpu_limit) !== normalizeText(right.cpu_limit)) {
+    changed.add('cpu');
+  }
+  if (normalizeText(left.memory_limit) !== normalizeText(right.memory_limit)) {
+    changed.add('memory');
+  }
+  if (normalizeText(left.started_at) !== normalizeText(right.started_at)) {
+    changed.add('started');
+  }
+
+  return ALL_DIFF_FIELDS.filter((field) => changed.has(field));
+}
+
+function normalizeText(value: string | null | undefined): string {
+  return value?.trim() ?? '';
 }
 
 function extractLiveRecord(row: SessionContainerRow): DashboardLiveContainerRecord {

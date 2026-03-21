@@ -29,6 +29,7 @@ export function ContainersPage(): JSX.Element {
   const [kind, setKind] = useState<ContainerKindFilter>('all');
   const [status, setStatus] = useState<ContainerStatusFilter>('all');
   const [sessionRows, setSessionRows] = useState<SessionContainerRow[]>([]);
+  const [hasObservedSnapshot, setHasObservedSnapshot] = useState(false);
 
   const containersQuery = useQuery<DashboardLiveContainerRecord[]>({
     queryKey: ['live-containers'],
@@ -42,9 +43,12 @@ export function ContainersPage(): JSX.Element {
     }
     const observedAt = new Date(containersQuery.dataUpdatedAt || Date.now()).toISOString();
     setSessionRows((previous) =>
-      mergeLiveContainerSessionRows(previous, containersQuery.data ?? [], observedAt),
+      mergeLiveContainerSessionRows(previous, containersQuery.data ?? [], observedAt, {
+        hasBaselineSnapshot: hasObservedSnapshot,
+      }),
     );
-  }, [containersQuery.data, containersQuery.dataUpdatedAt, containersQuery.isSuccess]);
+    setHasObservedSnapshot(true);
+  }, [containersQuery.data, containersQuery.dataUpdatedAt, containersQuery.isSuccess, hasObservedSnapshot]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {

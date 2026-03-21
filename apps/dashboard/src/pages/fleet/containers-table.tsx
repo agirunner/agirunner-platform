@@ -9,8 +9,9 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import {
   formatContainerKindLabel,
-  isPendingChangeRow,
-  isRecentlyChangedRow,
+  hasPendingField,
+  hasRecentlyChangedField,
+  type ContainerDiffField,
   type SessionContainerRow,
 } from './containers-page.support.js';
 
@@ -48,7 +49,7 @@ export function ContainersTable(props: {
         <TableBody>
           {props.rows.map((row) => (
             <TableRow key={row.id} className={resolveRowClassName(row)}>
-              <TableCell className="min-w-36 py-3">
+              <DiffCell row={row} field="status" className="min-w-36 py-3">
                 <div className="space-y-1">
                   <OperatorStatusBadge status={row.presence === 'inactive' ? 'inactive' : row.state} />
                   <p className="text-xs text-muted-foreground">
@@ -57,42 +58,42 @@ export function ContainersTable(props: {
                       : `${formatOperatorStatusLabel(row.activity_state ?? row.state)} • ${row.status}`}
                   </p>
                 </div>
-              </TableCell>
-              <TableCell className="min-w-40 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="kind" className="min-w-40 py-3">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">{formatContainerKindLabel(row.kind)}</p>
                   <p className="text-xs text-muted-foreground">{row.name}</p>
                 </div>
-              </TableCell>
-              <TableCell className="min-w-28 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="role" className="min-w-28 py-3">
                 <span className="text-sm text-foreground">{row.role_name ?? 'Unassigned'}</span>
-              </TableCell>
-              <TableCell className="min-w-40 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="playbook" className="min-w-40 py-3">
                 <CellText>{row.playbook_name ?? '-'}</CellText>
-              </TableCell>
-              <TableCell className="min-w-48 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="workflow" className="min-w-48 py-3">
                 {renderEntityLink(row.workflow_id, row.workflow_name, '/work/boards')}
-              </TableCell>
-              <TableCell className="min-w-32 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="stage" className="min-w-32 py-3">
                 <CellText>{row.stage_name ?? '-'}</CellText>
-              </TableCell>
-              <TableCell className="min-w-56 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="task" className="min-w-56 py-3">
                 {renderEntityLink(row.task_id, row.task_title, '/work/tasks')}
-              </TableCell>
-              <TableCell className="min-w-64 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="image" className="min-w-64 py-3">
                 <code className="block truncate text-xs text-foreground" title={row.image}>
                   {row.image}
                 </code>
-              </TableCell>
-              <TableCell className="min-w-24 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="cpu" className="min-w-24 py-3">
                 <CellText>{formatLimit(row.cpu_limit)}</CellText>
-              </TableCell>
-              <TableCell className="min-w-24 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="memory" className="min-w-24 py-3">
                 <CellText>{formatLimit(row.memory_limit)}</CellText>
-              </TableCell>
-              <TableCell className="min-w-28 py-3">
+              </DiffCell>
+              <DiffCell row={row} field="started" className="min-w-28 py-3">
                 <RelativeTimestamp value={row.started_at ?? row.last_seen_at} />
-              </TableCell>
+              </DiffCell>
               <TableCell className="min-w-28 py-3">
                 <RelativeTimestamp value={row.inactive_at ?? row.last_seen_at} />
               </TableCell>
@@ -108,7 +109,30 @@ function CellText(props: { children: ReactNode }): JSX.Element {
   return <span className="block text-sm text-foreground">{props.children}</span>;
 }
 
+function DiffCell(props: {
+  row: SessionContainerRow;
+  field: ContainerDiffField;
+  className: string;
+  children: ReactNode;
+}): JSX.Element {
+  const toneClassName = resolveDiffCellTone(props.row, props.field);
+  if (!toneClassName) {
+    return <TableCell className={props.className}>{props.children}</TableCell>;
+  }
+
+  return (
+    <TableCell className={props.className}>
+      <div className={`${toneClassName} -mx-2 -my-1 rounded-md px-2 py-1`}>
+        {props.children}
+      </div>
+    </TableCell>
+  );
+}
+
 function renderEntityLink(id: string | null, label: string | null, hrefBase: string): ReactNode {
+  if (isSyntheticContainerContextLabel(label)) {
+    return <span className="text-sm text-muted-foreground">-</span>;
+  }
   if (!id) {
     return <span className="text-sm text-muted-foreground">-</span>;
   }
@@ -123,17 +147,23 @@ function formatLimit(value: string | null): string {
   return value?.trim() ? value : 'Docker default';
 }
 
+function isSyntheticContainerContextLabel(value: string | null): boolean {
+  return value?.trim().toLowerCase() === 'specialist runtimes';
+}
+
 function resolveRowClassName(row: SessionContainerRow): string {
-  if (isPendingChangeRow(row)) {
-    return 'bg-success/8 ring-1 ring-inset ring-success/20 hover:bg-success/12';
+  return row.presence === 'inactive' ? 'bg-muted/6 hover:bg-muted/10' : 'hover:bg-background/60';
+}
+
+function resolveDiffCellTone(row: SessionContainerRow, field: ContainerDiffField): string {
+  if (hasPendingField(row, field)) {
+    return 'bg-success/10 ring-1 ring-inset ring-success/20';
   }
-  const recentlyChanged = isRecentlyChangedRow(row);
-  if (row.presence === 'inactive') {
-    return recentlyChanged
-      ? 'bg-warning/14 ring-1 ring-inset ring-warning/25 hover:bg-warning/18'
-      : 'bg-muted/8 hover:bg-muted/14';
+  if (!hasRecentlyChangedField(row, field)) {
+    return '';
   }
-  return recentlyChanged
-    ? 'bg-success/14 ring-1 ring-inset ring-success/25 hover:bg-success/18'
-    : 'hover:bg-background/60';
+  if (field === 'status' && row.presence === 'inactive') {
+    return 'bg-warning/14 ring-1 ring-inset ring-warning/25';
+  }
+  return 'bg-success/14 ring-1 ring-inset ring-success/25';
 }
