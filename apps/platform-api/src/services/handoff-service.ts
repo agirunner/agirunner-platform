@@ -46,6 +46,7 @@ interface TaskContextRow {
   state: string | null;
   rework_count: number | null;
   is_orchestrator_task: boolean;
+  input: Record<string, unknown> | null;
   metadata: Record<string, unknown> | null;
 }
 
@@ -357,7 +358,7 @@ export class HandoffService {
   ) {
     const result = await db.query<TaskContextRow>(
       `SELECT id, tenant_id, workflow_id, work_item_id, role, stage_name, state, rework_count,
-              is_orchestrator_task, metadata
+              is_orchestrator_task, input, metadata
          FROM tasks
         WHERE tenant_id = $1
           AND id = $2
@@ -512,7 +513,7 @@ function assertHandoffResolutionAllowed(task: TaskContextRow, input: SubmitTaskH
   if (allowsHandoffResolution(task)) {
     return;
   }
-  throw new ValidationError('handoff resolution is only allowed for review tasks');
+  throw new ValidationError('resolution is only allowed on review-linked task handoffs');
 }
 
 function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHandoffInput) {
@@ -583,7 +584,26 @@ function normalizeHandoffResolution(value: unknown): 'approved' | 'request_chang
 }
 
 function allowsHandoffResolution(task: TaskContextRow) {
-  return (task.stage_name ?? '').trim().toLowerCase() === 'review';
+  if ((task.stage_name ?? '').trim().toLowerCase() === 'review') {
+    return true;
+  }
+  if ((task.role ?? '').trim().toLowerCase() === 'reviewer') {
+    return true;
+  }
+  const metadata = normalizeRecord(task.metadata);
+  if ((readOptionalString(metadata.task_type) ?? '').trim().toLowerCase() === 'review') {
+    return true;
+  }
+  return readReviewedTaskLinkage(task) !== null;
+}
+
+function readReviewedTaskLinkage(task: TaskContextRow) {
+  const input = normalizeRecord(task.input);
+  return (
+    readOptionalString(input.developer_task_id)
+    ?? readOptionalString(input.reviewed_task_id)
+    ?? readOptionalString(input.target_task_id)
+  );
 }
 
 function toTaskHandoffResponse(row: TaskHandoffRow) {

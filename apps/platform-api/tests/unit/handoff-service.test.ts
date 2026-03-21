@@ -111,6 +111,114 @@ describe('HandoffService', () => {
     );
   });
 
+  it('allows resolution on review-linked verification handoffs', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-qa-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-verify-1',
+            role: 'live-test-qa',
+            stage_name: 'verification',
+            state: 'in_progress',
+            rework_count: 0,
+            is_orchestrator_task: false,
+            input: { reviewed_task_id: 'task-dev-1' },
+            metadata: { task_type: 'test', team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 1 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-qa-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-verify-1',
+            task_id: 'task-qa-1',
+            task_rework_count: 0,
+            request_id: 'req-qa-1',
+            role: 'live-test-qa',
+            team_name: 'delivery',
+            stage_name: 'verification',
+            sequence: 1,
+            summary: 'Request changes: verification found an environment gap.',
+            completion: 'full',
+            resolution: 'request_changes',
+            changes: [],
+            decisions: [],
+            remaining_items: ['Make the documented test command runnable in the supported environment.'],
+            blockers: [],
+            review_focus: ['Verification command contract'],
+            known_risks: [],
+            successor_context: 'Check the repository test command before approving.',
+            role_data: {},
+            artifact_ids: [],
+            created_at: new Date('2026-03-21T18:22:48Z'),
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+    const result = await service.submitTaskHandoff('tenant-1', 'task-qa-1', {
+      request_id: 'req-qa-1',
+      summary: 'Request changes: verification found an environment gap.',
+      completion: 'full',
+      resolution: 'request_changes',
+      remaining_items: ['Make the documented test command runnable in the supported environment.'],
+      review_focus: ['Verification command contract'],
+      successor_context: 'Check the repository test command before approving.',
+    });
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'handoff-qa-1',
+        resolution: 'request_changes',
+        stage_name: 'verification',
+      }),
+    );
+  });
+
+  it('rejects resolution on ordinary non-review-linked tasks', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 0,
+            is_orchestrator_task: false,
+            input: {},
+            metadata: { team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-1',
+      summary: 'Implemented auth flow.',
+      completion: 'full',
+      resolution: 'approved',
+    })).rejects.toThrowError(new ValidationError('resolution is only allowed on review-linked task handoffs'));
+
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
   it('enqueues and dispatches an immediate workflow activation when a playbook handoff is submitted', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const logService = { insert: vi.fn(async () => undefined) };
