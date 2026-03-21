@@ -1731,6 +1731,36 @@ describe('dashboard api auth/session behavior', () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
+            data: [
+              {
+                id: 'runtime:runtime-1',
+                kind: 'runtime',
+                container_id: 'runtime-container-1',
+                name: 'runtime-specialist-1',
+                state: 'running',
+                status: 'Up 4 minutes',
+                image: 'ghcr.io/agirunner/runtime:local',
+                cpu_limit: '2',
+                memory_limit: '1536m',
+                started_at: '2026-03-21T18:24:00.000Z',
+                last_seen_at: '2026-03-21T18:30:00.000Z',
+                role_name: 'developer',
+                playbook_id: 'playbook-1',
+                playbook_name: 'Bug Investigation',
+                workflow_id: 'workflow-1',
+                workflow_name: 'Fix login bug',
+                task_id: 'task-1',
+                task_title: 'Investigate auth timeout',
+                activity_state: 'executing',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
             data: {
               entries: [
                 {
@@ -2126,6 +2156,36 @@ describe('dashboard api auth/session behavior', () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
+            data: [
+              {
+                id: 'runtime:runtime-1',
+                kind: 'runtime',
+                container_id: 'runtime-container-1',
+                name: 'runtime-specialist-1',
+                state: 'running',
+                status: 'Up 4 minutes',
+                image: 'ghcr.io/agirunner/runtime:local',
+                cpu_limit: '2',
+                memory_limit: '1536m',
+                started_at: '2026-03-21T18:24:00.000Z',
+                last_seen_at: '2026-03-21T18:30:00.000Z',
+                role_name: 'developer',
+                playbook_id: 'playbook-1',
+                playbook_name: 'Bug Investigation',
+                workflow_id: 'workflow-1',
+                workflow_name: 'Fix login bug',
+                task_id: 'task-1',
+                task_title: 'Investigate auth timeout',
+                activity_state: 'executing',
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
             data: {
               id: 'worker-2',
               worker_name: 'specialist-1',
@@ -2207,6 +2267,7 @@ describe('dashboard api auth/session behavior', () => {
 
     const status = await api.fetchFleetStatus();
     const workers = await api.fetchFleetWorkers();
+    const liveContainers = await api.fetchLiveContainers();
     const created = await api.createFleetWorker({
       workerName: 'specialist-1',
       role: 'developer',
@@ -2233,21 +2294,25 @@ describe('dashboard api auth/session behavior', () => {
     expect(status.worker_pools[0]?.pool_kind).toBe('orchestrator');
     expect(status.by_playbook_pool[0]?.pool_kind).toBe('orchestrator');
     expect(workers[0]?.pool_kind).toBe('orchestrator');
+    expect(liveContainers[0]?.kind).toBe('runtime');
     expect(created.pool_kind).toBe('specialist');
     expect(updated.llm_api_key_secret_ref_configured).toBe(true);
     expect(vi.mocked(fetcher).mock.calls[0][0]).toBe('http://localhost:8080/api/v1/fleet/status');
     expect(vi.mocked(fetcher).mock.calls[1][0]).toBe('http://localhost:8080/api/v1/fleet/workers');
-    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe('http://localhost:8080/api/v1/fleet/workers');
+    expect(vi.mocked(fetcher).mock.calls[2][0]).toBe('http://localhost:8080/api/v1/fleet/live-containers');
     expect(vi.mocked(fetcher).mock.calls[3][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/workers/worker-2',
+      'http://localhost:8080/api/v1/fleet/workers',
     );
     expect(vi.mocked(fetcher).mock.calls[4][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/workers/worker-2/restart',
+      'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
     expect(vi.mocked(fetcher).mock.calls[5][0]).toBe(
-      'http://localhost:8080/api/v1/fleet/workers/worker-2/drain',
+      'http://localhost:8080/api/v1/fleet/workers/worker-2/restart',
     );
     expect(vi.mocked(fetcher).mock.calls[6][0]).toBe(
+      'http://localhost:8080/api/v1/fleet/workers/worker-2/drain',
+    );
+    expect(vi.mocked(fetcher).mock.calls[7][0]).toBe(
       'http://localhost:8080/api/v1/fleet/workers/worker-2',
     );
   });
@@ -2480,7 +2545,7 @@ describe('dashboard global search', () => {
     expect(results[1].href).toBe('/work/tasks/task-1');
     expect(results[2].href).toBe('/workspaces/workspace-1');
     expect(results[3].href).toBe('/config/playbooks/playbook-1');
-    expect(results[4].href).toBe('/fleet/agents');
+    expect(results[4].href).toBe('/fleet/containers');
   });
 
   it('search() merges matches from all dashboard resources', async () => {

@@ -83,8 +83,7 @@ const WebhooksPage = lazyWithRetry(() => import('../pages/config/webhooks-page.j
 const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/config/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
 const AgentProtocolsPage = lazyWithRetry(() => import('../pages/config/agent-protocols-page.js').then((m) => ({ default: m.AgentProtocolsPage })));
 
-const AgentListPage = lazyWithRetry(() => import('../pages/fleet/agent-list-page.js').then((m) => ({ default: m.AgentListPage })));
-const DockerPage = lazyWithRetry(() => import('../pages/fleet/docker-page.js').then((m) => ({ default: m.DockerPage })));
+const ContainersPage = lazyWithRetry(() => import('../pages/fleet/containers-page.js').then((m) => ({ default: m.ContainersPage })));
 
 const ApiKeyPage = lazyWithRetry(() => import('../pages/governance/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
 const UserManagementPage = lazyWithRetry(() => import('../pages/governance/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
@@ -227,8 +226,7 @@ export function App(): JSX.Element {
             <Route path="/config/work-item-triggers" element={<Navigate to="/config/triggers" replace />} />
 
             {/* Fleet */}
-            <Route path="/fleet/agents" element={<AgentListPage />} />
-            <Route path="/fleet/docker" element={<DockerPage />} />
+            <Route path="/fleet/containers" element={<ContainersPage />} />
 
             {/* Governance */}
             <Route path="/governance/settings" element={<SettingsPage />} />

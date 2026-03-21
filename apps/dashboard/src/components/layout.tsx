@@ -132,8 +132,7 @@ const NAV_SECTIONS: NavSection[] = [
     icon: Server,
     items: [
       { label: 'Runtimes', href: '/config/runtimes', icon: Server },
-      { label: 'Agents', href: '/fleet/agents', icon: Users },
-      { label: 'Docker', href: '/fleet/docker', icon: Container },
+      { label: 'Containers', href: '/fleet/containers', icon: Container },
     ],
   },
   {

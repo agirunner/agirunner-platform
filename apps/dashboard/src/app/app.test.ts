@@ -48,18 +48,20 @@ describe('app trigger routes source', () => {
     expect(source).toContain('Navigate to="/config/runtimes" replace');
   });
 
-  it('removes deprecated worker fleet pages while keeping agent and docker routes', () => {
+  it('removes deprecated worker, agent, and docker pages in favor of the containers route', () => {
     const source = readSource();
-    expect(source).toContain("../pages/fleet/agent-list-page.js");
-    expect(source).toContain("../pages/fleet/docker-page.js");
-    expect(source).toContain('path="/fleet/agents"');
-    expect(source).toContain('path="/fleet/docker"');
+    expect(source).toContain("../pages/fleet/containers-page.js");
+    expect(source).toContain('path="/fleet/containers"');
     expect(source).not.toContain("../pages/fleet/worker-list-page.js");
     expect(source).not.toContain("../pages/fleet/warm-pools-page.js");
     expect(source).not.toContain("../pages/fleet/fleet-status-page.js");
+    expect(source).not.toContain("../pages/fleet/agent-list-page.js");
+    expect(source).not.toContain("../pages/fleet/docker-page.js");
     expect(source).not.toContain('path="/fleet/workers"');
     expect(source).not.toContain('path="/fleet/warm-pools"');
     expect(source).not.toContain('path="/fleet/status"');
+    expect(source).not.toContain('path="/fleet/agents"');
+    expect(source).not.toContain('path="/fleet/docker"');
   });
 
   it('removes the deprecated orchestrator grants dashboard route', () => {

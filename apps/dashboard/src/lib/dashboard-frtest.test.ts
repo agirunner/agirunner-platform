@@ -84,8 +84,7 @@ describe('FR-030: modern SPA structure', () => {
     expect(source).toContain('/config/playbooks');
     expect(source).not.toContain('/config/templates');
     expect(source).not.toContain('/fleet/workers');
-    expect(source).toContain('/fleet/agents');
-    expect(source).toContain('/fleet/docker');
+    expect(source).toContain('/fleet/containers');
     expect(source).toContain('/governance/api-keys');
     expect(source).toContain('/login');
   });
@@ -358,8 +357,7 @@ describe('FR-427: dashboard navigation and layout', () => {
     expect(source).toContain('Configuration');
     expect(source).toContain("label: 'Fleet'");
     expect(source).toContain("href: '/config/runtimes'");
-    expect(source).toContain("href: '/fleet/agents'");
-    expect(source).toContain("href: '/fleet/docker'");
+    expect(source).toContain("href: '/fleet/containers'");
     expect(source).not.toContain("href: '/fleet/workers'");
     expect(source).not.toContain("href: '/fleet/warm-pools'");
     expect(source).not.toContain("href: '/fleet/status'");

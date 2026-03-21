@@ -47,15 +47,13 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("href: '/config/triggers'");
   });
 
-  it('keeps fleet navigation for runtimes, agents, and docker only', () => {
+  it('keeps fleet navigation for runtimes and live containers only', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'Fleet'");
     expect(source).toContain("label: 'Runtimes'");
     expect(source).toContain("href: '/config/runtimes'");
-    expect(source).toContain("label: 'Agents'");
-    expect(source).toContain("href: '/fleet/agents'");
-    expect(source).toContain("label: 'Docker'");
-    expect(source).toContain("href: '/fleet/docker'");
+    expect(source).toContain("label: 'Containers'");
+    expect(source).toContain("href: '/fleet/containers'");
     expect(source).not.toContain("label: 'Runtime Defaults'");
     expect(source).not.toContain("href: '/fleet/workers'");
     expect(source).not.toContain("href: '/fleet/warm-pools'");

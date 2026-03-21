@@ -1383,20 +1383,6 @@ export interface LogActorRecord {
   count: number;
 }
 
-export interface FleetContainerRecord {
-  id: string;
-  container_id: string | null;
-  name: string;
-  status: string;
-  image: string;
-  worker_role: string;
-  pool_kind?: 'orchestrator' | 'specialist' | null;
-  cpu_usage_percent: number | null;
-  memory_usage_bytes: number | null;
-  started_at: string | null;
-  last_updated: string;
-}
-
 export interface FleetWorkerActualRecord {
   id: string;
   desired_state_id: string;
@@ -1434,12 +1420,26 @@ export interface FleetWorkerRecord {
   actual: FleetWorkerActualRecord[];
 }
 
-export interface FleetImageRecord {
-  repository: string;
-  tag: string | null;
-  digest: string | null;
-  size_bytes: number | null;
-  last_seen: string;
+export interface DashboardLiveContainerRecord {
+  id: string;
+  kind: 'orchestrator' | 'runtime' | 'task';
+  container_id: string;
+  name: string;
+  state: string;
+  status: string;
+  image: string;
+  cpu_limit: string | null;
+  memory_limit: string | null;
+  started_at: string | null;
+  last_seen_at: string;
+  role_name?: string | null;
+  playbook_id?: string | null;
+  playbook_name?: string | null;
+  workflow_id?: string | null;
+  workflow_name?: string | null;
+  task_id?: string | null;
+  task_title?: string | null;
+  activity_state?: string | null;
 }
 
 export interface DashboardApi {
@@ -1881,13 +1881,7 @@ export interface DashboardApi {
   restartFleetWorker(workerId: string): Promise<unknown>;
   drainFleetWorker(workerId: string): Promise<unknown>;
   deleteFleetWorker(workerId: string): Promise<void>;
-  fetchFleetContainers(): Promise<FleetContainerRecord[]>;
-  fetchFleetImages(): Promise<FleetImageRecord[]>;
-  pruneFleetContainers(): Promise<{ removed: number }>;
-  pullFleetImage(payload: {
-    repository: string;
-    tag: string;
-  }): Promise<{ repository: string; tag: string }>;
+  fetchLiveContainers(): Promise<DashboardLiveContainerRecord[]>;
   fetchQueueDepth(playbookId?: string): Promise<QueueDepthResponse>;
   getMetrics(): Promise<string>;
   getCustomizationStatus(): Promise<DashboardCustomizationStatusResponse>;
@@ -3075,28 +3069,10 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           method: 'DELETE',
         }).then(() => undefined),
       ),
-    fetchFleetContainers: () =>
+    fetchLiveContainers: () =>
       withRefresh(() =>
-        requestData<FleetContainerRecord[]>('/api/v1/fleet/containers', {
+        requestData<DashboardLiveContainerRecord[]>('/api/v1/fleet/live-containers', {
           method: 'GET',
-        }),
-      ),
-    fetchFleetImages: () =>
-      withRefresh(() =>
-        requestData<FleetImageRecord[]>('/api/v1/fleet/images', {
-          method: 'GET',
-        }),
-      ),
-    pruneFleetContainers: () =>
-      withRefresh(() =>
-        requestData<{ removed: number }>('/api/v1/fleet/containers/prune', {
-          method: 'POST',
-        }),
-      ),
-    pullFleetImage: (payload) =>
-      withRefresh(() =>
-        requestData<{ repository: string; tag: string }>('/api/v1/fleet/images/pull', {
-          body: payload as unknown as Record<string, unknown>,
         }),
       ),
     fetchQueueDepth: (playbookId) =>
@@ -3311,7 +3287,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'agent',
-    href: '/fleet/agents',
+    href: '/fleet/containers',
   }));
 
   const workspaceMatches = filterRecords(collections.workspaces, normalizedQuery).map((item) => ({
