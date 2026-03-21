@@ -395,8 +395,8 @@ export class TaskWriteService {
     if (
       linkedWorkItem.workflow_lifecycle !== 'planned'
       || input.is_orchestrator_task
-      || linkedWorkItem.stage_name !== 'review'
       || !linkedWorkItem.parent_work_item_id
+      || linkedWorkItem.next_expected_action !== 'review'
       || !input.role?.trim()
     ) {
       return;
@@ -409,7 +409,7 @@ export class TaskWriteService {
 
     throw new ValidationError(
       `Role '${input.role.trim()}' cannot run on child review work item '${input.work_item_id}'. ` +
-        `Child review work items stay owned by reviewer role '${ownerRole}', and any requested rework ` +
+        `Child review work items stay owned by configured review role '${ownerRole}', and any requested rework ` +
         `must continue on the parent work item '${linkedWorkItem.parent_work_item_id}'.`,
     );
   }

@@ -104,7 +104,7 @@ describe('TaskLifecycleService continuity hooks', () => {
         if (
           sql.includes('UPDATE workflow_work_items')
           && sql.includes("parent_work_item_id = $3")
-          && sql.includes("stage_name = 'review'")
+          && sql.includes("COALESCE(review_task.metadata->>'task_type', '') = 'review'")
         ) {
           return { rows: [], rowCount: 1 };
         }

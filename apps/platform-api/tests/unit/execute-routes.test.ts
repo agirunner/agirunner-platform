@@ -91,9 +91,10 @@ describe('execute route impossible-scope policy alignment', () => {
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({
       execution_mode: 'simulated-not-executed',
-      role: 'developer',
+      role: 'unspecified',
       simulated: true,
       authenticity_gate_hint: 'NOT_PASS',
+      scenario: 'generic',
     });
   });
 
@@ -239,7 +240,10 @@ describe('execute route impossible-scope policy alignment', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const requestBody = JSON.parse(String(requestInit.body)) as Record<string, unknown>;
+    const userPrompt = String((requestBody.messages as Array<{ role: string; content: string }>)[1]?.content ?? '');
     expect(requestBody.model).toBe('gpt-5.4-medium');
+    expect(userPrompt).not.toContain('SDLC');
+    expect(userPrompt).toContain('You are executing one workflow task inside an autonomous workflow runtime.');
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe('https://example.invalid/v1/chat/completions');
     expect(response.statusCode).toBe(200);
     const body = response.json();

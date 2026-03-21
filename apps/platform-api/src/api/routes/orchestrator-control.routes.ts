@@ -740,6 +740,17 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             return app.taskService.getTask(request.auth!.tenantId, existingReviewTaskId) as Promise<Record<string, unknown>>;
           }
 
+          const duplicateAppliedReviewRequestNoop = await buildRecoverableCreateTaskNoopIfReviewRequestAlreadyApplied(
+            client,
+            request.auth!.tenantId,
+            taskScope.workflow_id,
+            createTaskContext,
+            createInput,
+          );
+          if (duplicateAppliedReviewRequestNoop) {
+            return duplicateAppliedReviewRequestNoop;
+          }
+
           const verificationNotReadyNoop = await buildRecoverableCreateTaskNoopIfNotReady(
             client,
             request.auth!.tenantId,
@@ -1390,6 +1401,20 @@ interface ExistingReworkTaskRow {
   id: string;
 }
 
+interface ActivationTaskReviewRequestStateRow {
+  id: string;
+  role: string | null;
+  work_item_id: string | null;
+  stage_name: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+interface ReviewRequestTaskContextRow {
+  id: string;
+  work_item_id: string | null;
+  stage_name: string | null;
+}
+
 async function normalizeOrchestratorWorkItemCreateInput(
   pool: FastifyInstance['pgPool'],
   tenantId: string,
@@ -1461,7 +1486,7 @@ async function normalizeOrchestratorTaskCreateInput(
         ...stageAlignedBody,
         input: {
           ...existingInput,
-          developer_task_id: explicitTaskID,
+          reviewed_task_id: explicitTaskID,
         },
         metadata: {
           ...(stageAlignedBody.metadata ?? {}),
@@ -1490,7 +1515,7 @@ async function normalizeOrchestratorTaskCreateInput(
       ...stageAlignedBody,
       input: {
         ...(stageAlignedBody.input ?? {}),
-        developer_task_id: reviewedTaskId,
+        reviewed_task_id: reviewedTaskId,
       },
       metadata: {
         ...(stageAlignedBody.metadata ?? {}),
@@ -1631,7 +1656,7 @@ async function buildRecoverableCreateTaskNoopIfNotReady(
     noop: true,
     ready: false,
     reason_code: 'reviewed_task_not_ready',
-    message: `Cannot create verification task while reviewed task '${reviewedTaskId}' is still '${reviewedTask.state ?? 'unknown'}'. Wait for the current review/rework cycle to resolve before dispatching verification.`,
+    message: `Cannot create a follow-up task that depends on reviewed output while reviewed task '${reviewedTaskId}' is still '${reviewedTask.state ?? 'unknown'}'. Wait for the current review/rework cycle to resolve before dispatching the follow-up task.`,
     blocked_on: [
       `reviewed_task_state:${reviewedTask.state ?? 'unknown'}`,
     ],
@@ -1640,6 +1665,84 @@ async function buildRecoverableCreateTaskNoopIfNotReady(
     reviewed_task_id: reviewedTask.id ?? reviewedTaskId,
     reviewed_task_rework_count: reviewedTask.rework_count ?? 0,
     reviewed_task_state: reviewedTask.state ?? null,
+  };
+}
+
+async function buildRecoverableCreateTaskNoopIfReviewRequestAlreadyApplied(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  context: OrchestratorCreateWorkItemContext,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+): Promise<Record<string, unknown> | null> {
+  if (context.event_type !== 'task.output_pending_review') {
+    return null;
+  }
+
+  const activationTaskRole = readString(context.payload.task_role);
+  if (!activationTaskRole || activationTaskRole !== body.role) {
+    return null;
+  }
+
+  const activationTaskId = readString(context.payload.task_id);
+  if (!activationTaskId) {
+    return null;
+  }
+
+  const activationTaskResult = await db.query<ActivationTaskReviewRequestStateRow>(
+    `SELECT id, role, work_item_id, stage_name, metadata
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, activationTaskId],
+  );
+  const activationTask = activationTaskResult.rows[0];
+  if (!activationTask) {
+    return null;
+  }
+  if (!activationTask.role || activationTask.role !== body.role) {
+    return null;
+  }
+  if (!activationTask.work_item_id || activationTask.work_item_id === body.work_item_id) {
+    return null;
+  }
+
+  const reviewRequestTaskId = readString(asRecord(activationTask.metadata).last_applied_review_request_task_id);
+  if (!reviewRequestTaskId) {
+    return null;
+  }
+
+  const reviewRequestTaskResult = await db.query<ReviewRequestTaskContextRow>(
+    `SELECT id, work_item_id, stage_name
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, reviewRequestTaskId],
+  );
+  const reviewRequestTask = reviewRequestTaskResult.rows[0];
+  if (!reviewRequestTask?.work_item_id || reviewRequestTask.work_item_id !== body.work_item_id) {
+    return null;
+  }
+
+  return {
+    noop: true,
+    ready: false,
+    reason_code: 'review_request_already_applied',
+    message: `Cannot create '${body.role}' task on work item '${body.work_item_id}' because review request '${reviewRequestTask.id}' was already applied to reopened task '${activationTask.id}'. Continue routing from the reopened task instead of spawning a sibling rework task.`,
+    blocked_on: [
+      `review_request_already_applied:${reviewRequestTask.id}`,
+    ],
+    work_item_id: body.work_item_id,
+    stage_name: body.stage_name,
+    reviewed_task_id: activationTask.id,
+    reviewed_task_stage_name: activationTask.stage_name,
+    review_request_task_id: reviewRequestTask.id,
+    review_request_work_item_id: reviewRequestTask.work_item_id,
+    review_request_stage_name: reviewRequestTask.stage_name,
   };
 }
 
@@ -1806,7 +1909,7 @@ function shouldDefaultCrossStageParentWorkItemId(
 }
 
 function isReviewTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) {
-  return body.role === 'reviewer' || body.type === 'review';
+  return body.type === 'review';
 }
 
 function shouldDefaultActivationReviewedTaskLinkage(
@@ -1916,8 +2019,7 @@ function readReviewedTaskReference(input: Record<string, unknown> | undefined) {
     return null;
   }
   return (
-    readString(input.developer_task_id)
-    ?? readString(input.reviewed_task_id)
+    readString(input.reviewed_task_id)
     ?? readString(input.target_task_id)
   );
 }

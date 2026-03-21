@@ -751,8 +751,7 @@ async function loadReviewedTaskCandidates(
 function readReviewedTaskId(completedTask: Record<string, unknown>) {
   const input = asRecord(completedTask.input);
   return (
-    asOptionalString(input.developer_task_id)
-    ?? asOptionalString(input.reviewed_task_id)
+    asOptionalString(input.reviewed_task_id)
     ?? asOptionalString(input.target_task_id)
   );
 }
@@ -873,11 +872,6 @@ function isReviewTaskCandidate(completedTask: Record<string, unknown>) {
 }
 
 function readReviewTaskReason(completedTask: Record<string, unknown>) {
-  const role = asOptionalString(completedTask.role);
-  if (role === 'reviewer') {
-    return 'reviewer_role' as const;
-  }
-
   const taskType = asOptionalString(asRecord(completedTask.metadata).task_type);
   if (taskType === 'review') {
     return 'review_task_type' as const;

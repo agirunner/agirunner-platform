@@ -364,7 +364,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         if (
           sql.includes('UPDATE workflow_work_items')
           && sql.includes("parent_work_item_id = $3")
-          && sql.includes("stage_name = 'review'")
+          && sql.includes("COALESCE(review_task.metadata->>'task_type', '') = 'review'")
         ) {
           return { rows: [], rowCount: 1 };
         }
@@ -519,6 +519,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         rework_count: 0,
+        input: { reviewed_task_id: 'task-implementation' },
+        metadata: { task_type: 'review' },
         role_config: {},
       }),
       toTaskResponse: (task) => task,
@@ -1217,9 +1219,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const reviewResetCall = client.query.mock.calls.find(
       ([sql]) =>
         typeof sql === 'string'
-        && sql.includes('UPDATE workflow_work_items')
+        && sql.includes('UPDATE workflow_work_items wi')
         && sql.includes("parent_work_item_id = $3")
-        && sql.includes("stage_name = 'review'")
+        && sql.includes("COALESCE(review_task.metadata->>'task_type', '') = 'review'")
         && sql.includes("metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state'"),
     ) as [string, unknown[]] | undefined;
 

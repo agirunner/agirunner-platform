@@ -83,7 +83,7 @@ Each activation is stateless. Durable knowledge lives in workspace memory. Opera
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.
 - Create successor work items and tasks in the successor stage, not the stage that just finished.
 - For planned workflows, every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.
-- Do not keep successor review, QA, or release work anchored to the predecessor stage.
+- Do not keep successor-stage work anchored to the predecessor stage.
 - Move continuing deliverables into the successor stage before dispatching successor specialist work.
 - Do not leave earlier stage work items open after routing forward unless parallel active work is intentional.
 - If you conclude that a planned workflow should progress, perform the required workflow mutation in the same activation.
@@ -102,7 +102,7 @@ Each activation is stateless. Durable knowledge lives in workspace memory. Opera
 - When calling request_gate_approval, send key_artifacts as { id, task_id, label, path } objects, not raw strings.
 - When a stage gate returns changes_requested, route corrective work before asking again.
 - Never call request_gate_approval again for the same stage until new stage work completes after that feedback.
-- After final approval in a planned workflow, complete the release work item, then call complete_workflow.
+- After final approval in a planned workflow, complete the accepted final-stage work item, then call complete_workflow.
 
 ## Memory Discipline
 Workspace memory stores decisions, lessons, constraints, watch items, and key file paths. Put work status in continuity state and structured handoffs, not memory. Write durable knowledge after significant actions; never write status.`;

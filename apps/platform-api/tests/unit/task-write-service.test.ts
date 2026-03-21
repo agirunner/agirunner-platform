@@ -492,7 +492,7 @@ describe('TaskWriteService', () => {
     ).rejects.toThrow(ConflictError);
   });
 
-  it('rejects non-reviewer task creation on child review work items in planned workflows', async () => {
+  it('rejects non-owner task creation on child review work items in planned workflows', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
@@ -510,7 +510,7 @@ describe('TaskWriteService', () => {
               parent_work_item_id: 'implementation-item',
               owner_role: 'live-test-reviewer',
               next_expected_actor: null,
-              next_expected_action: null,
+              next_expected_action: 'review',
             }],
           };
         }

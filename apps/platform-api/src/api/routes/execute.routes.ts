@@ -42,7 +42,7 @@ function deriveRole(payload: ExecuteRequestBody): string {
   return (
     readString(task.role) ??
     readString(context.role) ??
-    'developer'
+    'unspecified'
   );
 }
 
@@ -59,7 +59,7 @@ function deriveWorkflowId(payload: ExecuteRequestBody): string | null {
 }
 
 function deriveScenario(payload: ExecuteRequestBody): string {
-  return readString(asRecord(payload.context).scenario) ?? 'sdlc-happy';
+  return readString(asRecord(payload.context).scenario) ?? 'generic';
 }
 
 function buildSimulatedExecutionOutput(payload: ExecuteRequestBody): Record<string, unknown> {
@@ -353,7 +353,7 @@ async function buildExecutionBackedOutput(
   }
 
   const prompt = [
-    'You are executing one SDLC task inside an autonomous software delivery workflow.',
+    'You are executing one workflow task inside an autonomous workflow runtime.',
     'Return strict JSON only.',
     'Be concrete, implementation-focused, and evidence-backed.',
     'Do not use placeholders, TODO/TBD text, template tokens like {{...}}, or mock/dummy language.',

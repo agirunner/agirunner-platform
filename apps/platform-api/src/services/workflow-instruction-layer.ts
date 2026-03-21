@@ -311,7 +311,7 @@ function formatPendingDispatches(
     return `- Dispatch ${entry.actor} for ${entry.action} on ${workItemLabel}${titleSuffix}.`;
   });
   if (pendingDispatches.some((entry) => entry.action === 'review')) {
-    lines.push('A predecessor task remaining in output_pending_review is expected while required review is pending and does not block dispatching the listed reviewer task.');
+    lines.push('A predecessor task remaining in output_pending_review is expected while required review is pending and does not block dispatching the listed required review task.');
   }
   lines.push('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
   return lines.join('\n');
@@ -464,7 +464,7 @@ function formatStageRouting(
   if (!successorStageName) {
     return [
       `Current stage: ${currentStageName}`,
-      'This is the final planned stage. After the stage deliverable is accepted and any required human approval is satisfied, complete the release work item and then complete the workflow.',
+      'This is the final planned stage. After the stage deliverable is accepted and any required human approval is satisfied, complete the accepted final-stage work item and then complete the workflow.',
     ].join('\n');
   }
 
@@ -477,6 +477,7 @@ function formatStageRouting(
     'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_review is the only allowed carryover, and only for a required review checkpoint.',
     'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',
     'Planned-workflow tasks must stay attached to a work item in the same stage as the task itself.',
+    'If a request_changes handoff already reopened the reviewed task, do not create another same-role rework task on the requester work item; wait for the reopened task to resubmit and then route it back through the required follow-up step.',
   ].join('\n');
 }
 

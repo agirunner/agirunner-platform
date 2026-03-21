@@ -1936,7 +1936,7 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({
         role: 'reviewer',
         input: expect.objectContaining({
-          developer_task_id: 'task-developer',
+          reviewed_task_id: 'task-developer',
         }),
         metadata: expect.objectContaining({
           reviewed_task_id_source: 'activation_default',
@@ -2329,7 +2329,7 @@ describe('orchestratorControlRoutes', () => {
                 workflow_id: 'workflow-1',
                 role: 'live-test-reviewer',
                 input: {
-                  developer_task_id: 'task-developer',
+                  reviewed_task_id: 'task-developer',
                 },
               }],
             };
@@ -2585,6 +2585,184 @@ describe('orchestratorControlRoutes', () => {
         reviewed_task_id: 'task-developer',
         reviewed_task_rework_count: 1,
         reviewed_task_state: 'output_pending_review',
+      }),
+    );
+  });
+
+  it('returns a structured no-op when a review request was already applied to the triggering task', async () => {
+    const implementationWorkItemId = '44444444-4444-4444-8444-444444444444';
+    const verificationWorkItemId = '55555555-5555-4555-8555-555555555555';
+    const taskService = {
+      createTask: vi.fn(),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-qa-rework-duplicate']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('SELECT id, role, work_item_id, stage_name, metadata')
+          && sql.includes('FROM tasks')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-developer',
+              role: 'live-test-developer',
+              work_item_id: implementationWorkItemId,
+              stage_name: 'implementation',
+              metadata: {
+                last_applied_review_request_task_id: 'task-qa',
+                last_applied_review_request_handoff_id: 'handoff-qa-1',
+              },
+            }],
+          };
+        }
+        if (
+          sql.includes('SELECT id, work_item_id, stage_name')
+          && sql.includes('FROM tasks')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-qa']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-qa',
+              work_item_id: verificationWorkItemId,
+              stage_name: 'verification',
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                noop: true,
+                ready: false,
+                reason_code: 'review_request_already_applied',
+                work_item_id: verificationWorkItemId,
+                stage_name: 'verification',
+                reviewed_task_id: 'task-developer',
+                reviewed_task_stage_name: 'implementation',
+                review_request_task_id: 'task-qa',
+                review_request_work_item_id: verificationWorkItemId,
+                review_request_stage_name: 'verification',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: implementationWorkItemId,
+              stage_name: 'implementation',
+              activation_id: 'activation-dev-output',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('LEFT JOIN workflow_work_items parent')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', verificationWorkItemId]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: verificationWorkItemId,
+              stage_name: 'verification',
+              parent_work_item_id: 'review-item',
+              parent_id: 'review-item',
+              parent_stage_name: 'review',
+              workflow_lifecycle: 'planned',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workflow_activations wa')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-dev-output']);
+          return {
+            rowCount: 1,
+            rows: [{
+              lifecycle: 'planned',
+              event_type: 'task.output_pending_review',
+              payload: {
+                task_id: 'task-developer',
+                task_role: 'live-test-developer',
+                work_item_id: implementationWorkItemId,
+                stage_name: 'implementation',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-qa-rework-duplicate',
+        title: 'Address QA findings for greeting CLI verification',
+        description: 'Implement QA-requested rework after the developer task was already reopened.',
+        work_item_id: verificationWorkItemId,
+        stage_name: 'verification',
+        role: 'live-test-developer',
+        type: 'code',
+        input: {
+          qa_findings: ['Tighten invalid invocation assertions.'],
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(taskService.createTask).not.toHaveBeenCalled();
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        noop: true,
+        ready: false,
+        reason_code: 'review_request_already_applied',
+        work_item_id: verificationWorkItemId,
+        stage_name: 'verification',
+        reviewed_task_id: 'task-developer',
+        reviewed_task_stage_name: 'implementation',
+        review_request_task_id: 'task-qa',
+        review_request_work_item_id: verificationWorkItemId,
+        review_request_stage_name: 'verification',
       }),
     );
   });
@@ -2869,7 +3047,7 @@ describe('orchestratorControlRoutes', () => {
         role: 'live-test-reviewer',
         type: 'review',
         input: expect.objectContaining({
-          developer_task_id: 'task-developer',
+          reviewed_task_id: 'task-developer',
         }),
         metadata: expect.objectContaining({
           reviewed_task_id_source: 'activation_default',

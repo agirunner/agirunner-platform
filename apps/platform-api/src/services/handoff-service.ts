@@ -589,12 +589,6 @@ function normalizeHandoffResolution(value: unknown): 'approved' | 'request_chang
 }
 
 function allowsHandoffResolution(task: TaskContextRow) {
-  if ((task.stage_name ?? '').trim().toLowerCase() === 'review') {
-    return true;
-  }
-  if ((task.role ?? '').trim().toLowerCase() === 'reviewer') {
-    return true;
-  }
   const metadata = normalizeRecord(task.metadata);
   if ((readOptionalString(metadata.task_type) ?? '').trim().toLowerCase() === 'review') {
     return true;
@@ -605,8 +599,7 @@ function allowsHandoffResolution(task: TaskContextRow) {
 function readReviewedTaskLinkage(task: TaskContextRow) {
   const input = normalizeRecord(task.input);
   return (
-    readOptionalString(input.developer_task_id)
-    ?? readOptionalString(input.reviewed_task_id)
+    readOptionalString(input.reviewed_task_id)
     ?? readOptionalString(input.target_task_id)
   );
 }

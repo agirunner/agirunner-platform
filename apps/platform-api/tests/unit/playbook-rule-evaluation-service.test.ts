@@ -1,8 +1,49 @@
 import { describe, expect, it } from 'vitest';
 
-import { BUILT_IN_PLAYBOOKS } from '../../src/catalogs/built-in-playbooks.js';
 import { parsePlaybookDefinition } from '../../src/orchestration/playbook-model.js';
 import { evaluatePlaybookRules } from '../../src/services/playbook-rule-evaluation-service.js';
+
+const sdlcDefinition = parsePlaybookDefinition({
+  process_instructions:
+    'Product clarifies the work, architecture designs it, implementation is reviewed, verification follows review, and release requires human approval.',
+  roles: ['product-manager', 'architect', 'developer', 'reviewer', 'qa'],
+  lifecycle: 'planned',
+  board: {
+    entry_column_id: 'planned',
+    columns: [{ id: 'planned', label: 'Planned' }],
+  },
+  checkpoints: [
+    { name: 'requirements', goal: 'Requirements are approved.', human_gate: true },
+    { name: 'design', goal: 'Design is complete.' },
+    { name: 'implementation', goal: 'Implementation is complete.' },
+    { name: 'review', goal: 'Review is complete.' },
+    { name: 'verification', goal: 'Verification is complete.' },
+    { name: 'release', goal: 'Release is approved.', human_gate: true },
+  ],
+  review_rules: [
+    {
+      from_role: 'developer',
+      reviewed_by: 'reviewer',
+      checkpoint: 'implementation',
+      required: true,
+      on_reject: {
+        action: 'return_to_role',
+        role: 'developer',
+      },
+    },
+  ],
+  approval_rules: [
+    { on: 'checkpoint', checkpoint: 'requirements', approved_by: 'human', required: true },
+    { on: 'checkpoint', checkpoint: 'release', approved_by: 'human', required: true },
+  ],
+  handoff_rules: [
+    { from_role: 'product-manager', to_role: 'architect', checkpoint: 'requirements', required: true },
+    { from_role: 'architect', to_role: 'developer', checkpoint: 'design', required: true },
+    { from_role: 'developer', to_role: 'reviewer', checkpoint: 'implementation', required: true },
+    { from_role: 'reviewer', to_role: 'qa', checkpoint: 'review', required: true },
+    { from_role: 'qa', to_role: 'product-manager', checkpoint: 'verification', required: true },
+  ],
+});
 
 describe('evaluatePlaybookRules', () => {
   const definition = parsePlaybookDefinition({
@@ -153,6 +194,7 @@ describe('evaluatePlaybookRules', () => {
     const requirementOnly = parsePlaybookDefinition({
       process_instructions: 'Requirements route from product manager to architect; release does not.',
       roles: ['product-manager', 'architect'],
+      lifecycle: 'ongoing',
       board: {
         entry_column_id: 'planned',
         columns: [{ id: 'planned', label: 'Planned' }],
@@ -215,12 +257,9 @@ describe('evaluatePlaybookRules', () => {
     });
   });
 
-  it('does not expose reviewer to qa handoff continuity in the built-in planned sdlc playbook', () => {
-    const sdlc = BUILT_IN_PLAYBOOKS.find((playbook) => playbook.slug === 'sdlc-v2');
-    expect(sdlc).toBeDefined();
-
+  it('does not expose reviewer to qa handoff continuity in a planned sdlc-style playbook', () => {
     const result = evaluatePlaybookRules({
-      definition: parsePlaybookDefinition(sdlc!.definition),
+      definition: sdlcDefinition,
       event: 'task_completed',
       role: 'reviewer',
       checkpointName: 'review',
@@ -233,10 +272,8 @@ describe('evaluatePlaybookRules', () => {
     });
   });
 
-  it('supports the seeded sdlc hello world rule chain from requirements through release', () => {
-    const sdlc = BUILT_IN_PLAYBOOKS.find((playbook) => playbook.slug === 'sdlc-v2');
-    expect(sdlc).toBeDefined();
-    const definition = parsePlaybookDefinition(sdlc!.definition);
+  it('supports an sdlc-style rule chain from requirements through release', () => {
+    const definition = sdlcDefinition;
 
     const checkpoints = [
       evaluatePlaybookRules({

@@ -1114,23 +1114,23 @@ describe('HandoffService', () => {
     );
   });
 
-  it('updates the existing handoff for the same active task attempt when the payload changes', async () => {
+  it('updates the existing handoff for the same active custom review task attempt when the payload changes', async () => {
     const query = vi
       .fn()
       .mockResolvedValueOnce({
-        rows: [{
-          id: 'task-1',
-          tenant_id: 'tenant-1',
-          workflow_id: 'workflow-1',
-          work_item_id: 'work-item-1',
-          role: 'reviewer',
-          stage_name: 'implementation',
-          state: 'in_progress',
-          rework_count: 0,
-          metadata: { team_name: 'delivery' },
-        }],
-        rowCount: 1,
-      })
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'security-review',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 0,
+            metadata: { team_name: 'delivery', task_type: 'review' },
+          }],
+          rowCount: 1,
+        })
       .mockResolvedValueOnce({ rows: [], rowCount: 0 })
       .mockResolvedValueOnce({
         rows: [{
@@ -1141,7 +1141,7 @@ describe('HandoffService', () => {
           task_id: 'task-1',
           task_rework_count: 0,
           request_id: 'req-1',
-          role: 'reviewer',
+          role: 'security-review',
           team_name: 'delivery',
           stage_name: 'implementation',
           sequence: 0,
@@ -1170,7 +1170,7 @@ describe('HandoffService', () => {
           task_id: 'task-1',
           task_rework_count: 0,
           request_id: 'req-2',
-          role: 'reviewer',
+          role: 'security-review',
           team_name: 'delivery',
           stage_name: 'implementation',
           sequence: 0,

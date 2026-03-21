@@ -327,16 +327,23 @@ export class TaskLifecycleService {
     }
 
     await client.query(
-      `UPDATE workflow_work_items
+      `UPDATE workflow_work_items wi
           SET next_expected_actor = NULL,
               next_expected_action = NULL,
               metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
               updated_at = now()
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND parent_work_item_id = $3
-          AND stage_name = 'review'
-          AND completed_at IS NULL`,
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = $2
+          AND wi.parent_work_item_id = $3
+          AND wi.completed_at IS NULL
+          AND EXISTS (
+            SELECT 1
+              FROM tasks review_task
+             WHERE review_task.tenant_id = wi.tenant_id
+               AND review_task.workflow_id = wi.workflow_id
+               AND review_task.work_item_id = wi.id
+               AND COALESCE(review_task.metadata->>'task_type', '') = 'review'
+          )`,
       [tenantId, workflowId, workItemId],
     );
   }
@@ -353,16 +360,23 @@ export class TaskLifecycleService {
     }
 
     await client.query(
-      `UPDATE workflow_work_items
+      `UPDATE workflow_work_items wi
           SET next_expected_actor = COALESCE(owner_role, next_expected_actor),
               next_expected_action = 'review',
               metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
               updated_at = now()
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND parent_work_item_id = $3
-          AND stage_name = 'review'
-          AND completed_at IS NULL`,
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = $2
+          AND wi.parent_work_item_id = $3
+          AND wi.completed_at IS NULL
+          AND EXISTS (
+            SELECT 1
+              FROM tasks review_task
+             WHERE review_task.tenant_id = wi.tenant_id
+               AND review_task.workflow_id = wi.workflow_id
+               AND review_task.work_item_id = wi.id
+               AND COALESCE(review_task.metadata->>'task_type', '') = 'review'
+          )`,
       [tenantId, workflowId, workItemId],
     );
   }
@@ -1069,7 +1083,7 @@ export class TaskLifecycleService {
     task: Record<string, unknown>,
     db?: DatabaseClient,
   ) {
-    if (readOptionalText(task.role) !== 'reviewer') {
+    if (!isReviewSemanticTask(task)) {
       return false;
     }
 
@@ -2653,6 +2667,20 @@ export class TaskLifecycleService {
       TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
     );
   }
+}
+
+function isReviewSemanticTask(task: Record<string, unknown>) {
+  const metadata = asRecord(task.metadata);
+  const taskType = readOptionalText(metadata.task_type);
+  if (taskType?.trim().toLowerCase() === 'review') {
+    return true;
+  }
+
+  const input = asRecord(task.input);
+  return (
+    readOptionalText(input.reviewed_task_id) !== null
+    || readOptionalText(input.target_task_id) !== null
+  );
 }
 
 interface FailureClassification {

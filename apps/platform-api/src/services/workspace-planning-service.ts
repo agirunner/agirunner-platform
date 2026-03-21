@@ -1,8 +1,4 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
-import {
-  BUILT_IN_PLAYBOOKS,
-  WORKSPACE_PLANNING_PLAYBOOK_SLUG,
-} from '../catalogs/built-in-playbooks.js';
 import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { WorkflowService } from './workflow-service.js';
@@ -27,7 +23,7 @@ export class WorkspacePlanningService {
     }
 
     const workspace = workspaceResult.rows[0] as Record<string, unknown>;
-    const playbookId = await this.ensurePlanningPlaybook(identity.tenantId);
+    const playbookId = await this.loadConfiguredPlanningPlaybookId(identity.tenantId, workspace);
 
     await this.pool.query(
       `UPDATE workspaces
@@ -60,46 +56,40 @@ export class WorkspacePlanningService {
     });
   }
 
-  private async ensurePlanningPlaybook(tenantId: string): Promise<string> {
+  private async loadConfiguredPlanningPlaybookId(
+    tenantId: string,
+    workspace: Record<string, unknown>,
+  ): Promise<string> {
+    const workspaceSettings = asRecord(workspace.settings);
+    const configuredPlaybookId = readString(workspaceSettings.planning_playbook_id);
+    if (!configuredPlaybookId) {
+      throw new NotFoundError('Workspace planning playbook is not configured');
+    }
+
     const existing = await this.pool.query(
       `SELECT id
          FROM playbooks
         WHERE tenant_id = $1
-          AND slug = $2
+          AND id = $2
           AND is_active = true
-        ORDER BY version DESC, created_at DESC
         LIMIT 1`,
-      [tenantId, WORKSPACE_PLANNING_PLAYBOOK_SLUG],
+      [tenantId, configuredPlaybookId],
     );
     if (existing.rowCount) {
       return String(existing.rows[0].id);
     }
 
-    const builtIn = BUILT_IN_PLAYBOOKS.find(
-      (playbook) => playbook.slug === WORKSPACE_PLANNING_PLAYBOOK_SLUG,
-    );
-    if (!builtIn) {
-      throw new NotFoundError('Built-in planning playbook is not configured');
-    }
-
-    const created = await this.pool.query(
-      `INSERT INTO playbooks (
-         tenant_id, name, slug, description, outcome, lifecycle, version, definition, is_active
-       ) VALUES (
-         $1, $2, $3, $4, $5, $6, 1, $7, true
-       )
-       RETURNING id`,
-      [
-        tenantId,
-        builtIn.name,
-        builtIn.slug,
-        builtIn.description,
-        builtIn.outcome,
-        builtIn.lifecycle,
-        builtIn.definition,
-      ],
-    );
-
-    return String(created.rows[0].id);
+    throw new NotFoundError(`Workspace planning playbook '${configuredPlaybookId}' was not found`);
   }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
 }

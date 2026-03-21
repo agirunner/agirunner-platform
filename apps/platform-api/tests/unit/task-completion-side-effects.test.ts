@@ -222,6 +222,8 @@ describe('applyTaskCompletionSideEffects', () => {
         is_orchestrator_task: false,
         rework_count: 0,
         updated_at: 'updated',
+        input: { reviewed_task_id: 'task-dev' },
+        metadata: { task_type: 'review' },
         output: { verdict: 'request_changes' },
       },
       client as never,
@@ -357,7 +359,7 @@ describe('applyTaskCompletionSideEffects', () => {
         is_orchestrator_task: false,
         rework_count: 0,
         updated_at: 'updated',
-        input: { developer_task_id: 'task-dev' },
+        input: { reviewed_task_id: 'task-dev' },
         output: { verdict: 'request_changes' },
       },
       client as never,
@@ -600,6 +602,8 @@ describe('applyTaskCompletionSideEffects', () => {
         is_orchestrator_task: false,
         rework_count: 0,
         updated_at: 'updated',
+        input: { reviewed_task_id: 'task-dev' },
+        metadata: { task_type: 'review' },
         output: { verdict: 'approved' },
       },
       client as never,
@@ -861,7 +865,7 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
-  it('auto-completes the reviewed task across separate review work items using developer_task_id', async () => {
+  it('auto-completes the reviewed task across separate review work items using reviewed_task_id', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -967,7 +971,7 @@ describe('applyTaskCompletionSideEffects', () => {
         role: 'reviewer',
         stage_name: 'review',
         is_orchestrator_task: false,
-        input: { developer_task_id: 'task-dev' },
+        input: { reviewed_task_id: 'task-dev' },
         output: { verdict: 'approved' },
       },
       client as never,
@@ -1221,7 +1225,7 @@ describe('applyTaskCompletionSideEffects', () => {
         role: 'reviewer',
         stage_name: 'review',
         is_orchestrator_task: false,
-        input: { developer_task_id: 'task-dev' },
+        input: { reviewed_task_id: 'task-dev' },
         output: { verdict: 'approved' },
       },
       client as never,
@@ -1484,7 +1488,7 @@ describe('applyTaskCompletionSideEffects', () => {
         role: 'reviewer',
         stage_name: 'review',
         is_orchestrator_task: false,
-        input: { developer_task_id: 'task-dev' },
+        input: { reviewed_task_id: 'task-dev' },
         metadata: { task_type: 'review' },
         output: { verdict: 'approved' },
       },
