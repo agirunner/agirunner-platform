@@ -136,7 +136,7 @@ export function WorkspaceSettingsTab(props: {
       <SettingsDisclosureSection
         id="workspace-settings-basics"
         title="Workspace Basics"
-        description="Name and slug for this workspace."
+        description="Name and slug."
         summary={basicsSummary}
         actionLabel={expandedSection === 'basics' ? 'Hide basics' : 'Open basics'}
         isExpanded={expandedSection === 'basics'}
@@ -163,7 +163,7 @@ export function WorkspaceSettingsTab(props: {
       <SettingsDisclosureSection
         id="workspace-settings-storage"
         title="Workspace Storage"
-        description="Choose the storage type and only the fields that apply."
+        description="Storage type and settings."
         summary={storageSummary}
         actionLabel={expandedSection === 'storage' ? 'Hide storage' : 'Open storage'}
         isExpanded={expandedSection === 'storage'}
@@ -277,7 +277,7 @@ export function WorkspaceSettingsTab(props: {
       <SettingsDisclosureSection
         id="workspace-settings-danger"
         title="Danger"
-        description="Delete this workspace permanently for this tenant."
+        description="Permanent delete."
         summary="Workspace deletion is destructive. Leave this closed unless you intentionally need to remove the workspace."
         actionLabel={expandedSection === 'danger' ? 'Hide danger' : 'Open danger'}
         isExpanded={expandedSection === 'danger'}
@@ -314,7 +314,7 @@ function SettingsDisclosureSection(props: {
     <Card id={props.id} className="border-border/70 shadow-none">
       <button
         type="button"
-        className="grid w-full gap-3 px-4 py-4 text-left sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
+        className="grid w-full grid-cols-[minmax(0,1fr)_auto] gap-3 px-4 py-4 text-left"
         aria-expanded={props.isExpanded}
         onClick={props.onToggle}
       >
@@ -323,8 +323,8 @@ function SettingsDisclosureSection(props: {
           <p className="text-sm leading-6 text-muted">{props.description}</p>
           <p className="text-sm leading-5 text-muted">{props.summary}</p>
         </div>
-        <div className="flex items-center gap-2 pt-0.5 sm:justify-self-end">
-          <span className="text-xs font-medium text-muted">{props.actionLabel}</span>
+        <div className="flex items-center justify-self-end pt-0.5">
+          <span className="sr-only">{props.actionLabel}</span>
           <ChevronDown
             className={cn(
               'h-4 w-4 shrink-0 text-muted transition-transform',
