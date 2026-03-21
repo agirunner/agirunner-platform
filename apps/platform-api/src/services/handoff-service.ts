@@ -507,13 +507,18 @@ export class HandoffService {
 
 function assertHandoffResolutionAllowed(task: TaskContextRow, input: SubmitTaskHandoffInput) {
   const resolution = normalizeHandoffResolution(input.resolution ?? input.role_data?.review_outcome);
+  if (!allowsHandoffResolution(task)) {
+    if (!resolution) {
+      return;
+    }
+    throw new ValidationError('resolution is only allowed on review-linked task handoffs');
+  }
+  if (input.completion === 'full' && !resolution) {
+    throw new ValidationError('resolution is required on full review-linked task handoffs');
+  }
   if (!resolution) {
     return;
   }
-  if (allowsHandoffResolution(task)) {
-    return;
-  }
-  throw new ValidationError('resolution is only allowed on review-linked task handoffs');
 }
 
 function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHandoffInput) {
