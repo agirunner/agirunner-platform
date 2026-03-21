@@ -111,7 +111,7 @@ describe('HandoffService', () => {
     );
   });
 
-  it('allows resolution on review-linked verification handoffs', async () => {
+  it('allows resolution on assessment task handoffs', async () => {
     const pool = {
       query: vi
         .fn()
@@ -126,8 +126,8 @@ describe('HandoffService', () => {
             state: 'in_progress',
             rework_count: 0,
             is_orchestrator_task: false,
-            input: { reviewed_task_id: 'task-dev-1' },
-            metadata: { task_type: 'test', team_name: 'delivery' },
+            input: { subject_task_id: 'task-dev-1', subject_revision: 1 },
+            metadata: { task_kind: 'assessment', team_name: 'delivery' },
           }],
           rowCount: 1,
         })
@@ -185,7 +185,7 @@ describe('HandoffService', () => {
     );
   });
 
-  it('requires resolution on successful review-linked handoffs', async () => {
+  it('requires resolution on successful assessment handoffs', async () => {
     const pool = {
       query: vi
         .fn()
@@ -200,8 +200,8 @@ describe('HandoffService', () => {
             state: 'in_progress',
             rework_count: 0,
             is_orchestrator_task: false,
-            input: { reviewed_task_id: 'task-dev-1' },
-            metadata: { task_type: 'test', team_name: 'delivery' },
+            input: { subject_task_id: 'task-dev-1', subject_revision: 1 },
+            metadata: { task_kind: 'assessment', team_name: 'delivery' },
           }],
           rowCount: 1,
         }),
@@ -214,13 +214,13 @@ describe('HandoffService', () => {
       summary: 'Verified the fix and collected evidence.',
       completion: 'full',
     })).rejects.toThrowError(
-      new ValidationError('resolution is required on full review-linked task handoffs'),
+      new ValidationError('resolution is required on full assessment or approval handoffs'),
     );
 
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
-  it('allows blocked review-linked handoffs without resolution', async () => {
+  it('allows blocked assessment handoffs without resolution', async () => {
     const pool = {
       query: vi
         .fn()
@@ -235,8 +235,8 @@ describe('HandoffService', () => {
             state: 'in_progress',
             rework_count: 0,
             is_orchestrator_task: false,
-            input: { reviewed_task_id: 'task-dev-1' },
-            metadata: { task_type: 'test', team_name: 'delivery' },
+            input: { subject_task_id: 'task-dev-1', subject_revision: 1 },
+            metadata: { task_kind: 'assessment', team_name: 'delivery' },
           }],
           rowCount: 1,
         })
@@ -292,7 +292,7 @@ describe('HandoffService', () => {
     );
   });
 
-  it('rejects resolution on ordinary non-review-linked tasks', async () => {
+  it('rejects resolution on ordinary delivery task handoffs', async () => {
     const pool = {
       query: vi
         .fn()
@@ -321,7 +321,7 @@ describe('HandoffService', () => {
       summary: 'Implemented auth flow.',
       completion: 'full',
       resolution: 'approved',
-    })).rejects.toThrowError(new ValidationError('resolution is only allowed on review-linked task handoffs'));
+    })).rejects.toThrowError(new ValidationError('resolution is only allowed on assessment or approval handoffs'));
 
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
@@ -1114,7 +1114,7 @@ describe('HandoffService', () => {
     );
   });
 
-  it('updates the existing handoff for the same active custom review task attempt when the payload changes', async () => {
+  it('updates the existing handoff for the same active assessment task attempt when the payload changes', async () => {
     const query = vi
       .fn()
       .mockResolvedValueOnce({
@@ -1127,7 +1127,7 @@ describe('HandoffService', () => {
             stage_name: 'implementation',
             state: 'in_progress',
             rework_count: 0,
-            metadata: { team_name: 'delivery', task_type: 'review' },
+            metadata: { team_name: 'delivery', task_kind: 'assessment' },
           }],
           rowCount: 1,
         })

@@ -506,15 +506,15 @@ export class HandoffService {
 }
 
 function assertHandoffResolutionAllowed(task: TaskContextRow, input: SubmitTaskHandoffInput) {
-  const resolution = normalizeHandoffResolution(input.resolution ?? input.role_data?.review_outcome);
+  const resolution = normalizeHandoffResolution(input.resolution ?? input.role_data?.resolution);
   if (!allowsHandoffResolution(task)) {
     if (!resolution) {
       return;
     }
-    throw new ValidationError('resolution is only allowed on review-linked task handoffs');
+    throw new ValidationError('resolution is only allowed on assessment or approval handoffs');
   }
   if (input.completion === 'full' && !resolution) {
-    throw new ValidationError('resolution is required on full review-linked task handoffs');
+    throw new ValidationError('resolution is required on full assessment or approval handoffs');
   }
   if (!resolution) {
     return;
@@ -531,7 +531,7 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     stage_name: task.stage_name?.trim() || null,
     summary: typeof summary === 'string' ? summary : input.summary.trim(),
     completion: input.completion,
-    resolution: normalizeHandoffResolution(input.resolution ?? input.role_data?.review_outcome),
+    resolution: normalizeHandoffResolution(input.resolution ?? input.role_data?.resolution),
     changes: normalizeArray(sanitizeHandoffValue(input.changes)),
     decisions: normalizeArray(sanitizeHandoffValue(input.decisions)),
     remaining_items: normalizeArray(sanitizeHandoffValue(input.remaining_items)),
@@ -590,17 +590,19 @@ function normalizeHandoffResolution(value: unknown): 'approved' | 'request_chang
 
 function allowsHandoffResolution(task: TaskContextRow) {
   const metadata = normalizeRecord(task.metadata);
-  if ((readOptionalString(metadata.task_type) ?? '').trim().toLowerCase() === 'review') {
+  const taskKind = readOptionalString(metadata.task_kind);
+  if (taskKind === 'assessment' || taskKind === 'approval') {
     return true;
   }
-  return readReviewedTaskLinkage(task) !== null;
+  return readSubjectLinkage(task) !== null;
 }
 
-function readReviewedTaskLinkage(task: TaskContextRow) {
+function readSubjectLinkage(task: TaskContextRow) {
   const input = normalizeRecord(task.input);
   return (
-    readOptionalString(input.reviewed_task_id)
-    ?? readOptionalString(input.target_task_id)
+    readOptionalString(input.subject_task_id)
+    ?? readOptionalString(input.subject_work_item_id)
+    ?? readOptionalString(input.subject_handoff_id)
   );
 }
 
