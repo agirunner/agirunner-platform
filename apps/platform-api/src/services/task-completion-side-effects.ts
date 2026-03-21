@@ -21,6 +21,13 @@ interface ReviewedTaskCandidateLookup {
   parentWorkItemId: string | null;
 }
 
+type TaskCompletionContinuityEvent = 'task_completed' | 'review_rejected';
+
+interface TaskAttemptHandoffOutcome {
+  completion: string | null;
+  reviewOutcome: string | null;
+}
+
 export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
   const errors: string[] = [];
   if (!schema || typeof schema !== 'object') {
@@ -71,7 +78,12 @@ export function validateOutputSchema(output: unknown, schema: Record<string, unk
 export async function applyTaskCompletionSideEffects(
   eventService: EventService,
   parallelismService: PlaybookTaskParallelismService | undefined,
-  workItemContinuityService: Pick<WorkItemContinuityService, 'recordTaskCompleted'> | undefined,
+  workItemContinuityService:
+    | (
+      Pick<WorkItemContinuityService, 'recordTaskCompleted'>
+      & Partial<Pick<WorkItemContinuityService, 'recordReviewRejected'>>
+    )
+    | undefined,
   identity: ApiKeyIdentity,
   task: Record<string, unknown>,
   client: DatabaseClient,
@@ -156,19 +168,19 @@ export async function applyTaskCompletionSideEffects(
     [identity.tenantId, task.workflow_id],
   );
   if (workflowResult.rows[0]?.playbook_id) {
-    const shouldAdvanceCompletionContinuity = await shouldAdvanceTaskCompletionContinuity(
+    const continuityEvent = await resolveTaskCompletionContinuityEvent(
       client,
       identity.tenantId,
       task,
     );
-    const continuityResult = shouldAdvanceCompletionContinuity
-      ? await workItemContinuityService?.recordTaskCompleted(
-          identity.tenantId,
-          task,
-          client,
-        )
-      : null;
-    if (shouldAdvanceCompletionContinuity) {
+    const continuityResult = await applyTaskCompletionContinuityEvent(
+      workItemContinuityService,
+      identity.tenantId,
+      task,
+      continuityEvent,
+      client,
+    );
+    if (continuityEvent === 'task_completed') {
       await maybeResolveReviewedOutput(
         eventService,
         identity,
@@ -210,25 +222,67 @@ export async function applyTaskCompletionSideEffects(
   }
 }
 
-async function shouldAdvanceTaskCompletionContinuity(
+async function resolveTaskCompletionContinuityEvent(
   client: DatabaseClient,
   tenantId: string,
   completedTask: Record<string, unknown>,
-) {
+): Promise<TaskCompletionContinuityEvent | null> {
   if (!isReviewTaskCandidate(completedTask)) {
-    return true;
+    return 'task_completed';
   }
 
-  const latestHandoffCompletion = await loadLatestTaskAttemptHandoffCompletion(
+  const latestHandoffOutcome = await loadLatestTaskAttemptHandoffOutcome(
     client,
     tenantId,
     completedTask,
   );
-  if (!latestHandoffCompletion) {
-    return true;
+  if (!latestHandoffOutcome) {
+    return 'task_completed';
   }
 
-  return latestHandoffCompletion === 'full';
+  if (latestHandoffOutcome.completion === 'full') {
+    return 'task_completed';
+  }
+
+  if (
+    latestHandoffOutcome.completion === 'partial'
+    && readsReviewRequestChangesOutcome(completedTask, latestHandoffOutcome)
+  ) {
+    return 'review_rejected';
+  }
+
+  return null;
+}
+
+async function applyTaskCompletionContinuityEvent(
+  workItemContinuityService:
+    | (
+      Pick<WorkItemContinuityService, 'recordTaskCompleted'>
+      & Partial<Pick<WorkItemContinuityService, 'recordReviewRejected'>>
+    )
+    | undefined,
+  tenantId: string,
+  task: Record<string, unknown>,
+  event: TaskCompletionContinuityEvent | null,
+  client: DatabaseClient,
+) {
+  if (!event) {
+    return null;
+  }
+
+  if (event === 'review_rejected') {
+    return workItemContinuityService?.recordReviewRejected?.(
+      tenantId,
+      task,
+      client,
+    ) ?? null;
+  }
+
+  return workItemContinuityService?.recordTaskCompleted(
+    tenantId,
+    task,
+    client,
+  ) ?? null;
 }
 
 async function maybeResolveReviewedOutput(
@@ -558,7 +612,7 @@ function readReviewedTaskId(completedTask: Record<string, unknown>) {
   );
 }
 
-async function loadLatestTaskAttemptHandoffCompletion(
+async function loadLatestTaskAttemptHandoffOutcome(
   client: DatabaseClient,
   tenantId: string,
   completedTask: Record<string, unknown>,
@@ -569,8 +623,9 @@ async function loadLatestTaskAttemptHandoffCompletion(
     return null;
   }
 
-  const result = await client.query<{ completion: string | null }>(
-    `SELECT completion
+  const result = await client.query<{ completion: string | null; review_outcome: string | null }>(
+    `SELECT completion,
+            role_data->>'review_outcome' AS review_outcome
        FROM task_handoffs
       WHERE tenant_id = $1
         AND task_id = $2
@@ -579,7 +634,35 @@ async function loadLatestTaskAttemptHandoffCompletion(
       LIMIT 1`,
     [tenantId, taskId, taskReworkCount],
   );
-  return asOptionalString(result.rows[0]?.completion);
+  const row = result.rows[0];
+  if (!row) {
+    return null;
+  }
+  return {
+    completion: asOptionalString(row.completion),
+    reviewOutcome: asOptionalString(row.review_outcome),
+  } satisfies TaskAttemptHandoffOutcome;
+}
+
+function readsReviewRequestChangesOutcome(
+  completedTask: Record<string, unknown>,
+  latestHandoffOutcome: TaskAttemptHandoffOutcome,
+) {
+  const handoffReviewOutcome = normalizeReviewOutcome(latestHandoffOutcome.reviewOutcome);
+  if (handoffReviewOutcome === 'request_changes') {
+    return true;
+  }
+
+  const output = asRecord(completedTask.output);
+  return (
+    normalizeReviewOutcome(output.review_outcome) === 'request_changes'
+    || normalizeReviewOutcome(output.verdict) === 'request_changes'
+  );
+}
+
+function normalizeReviewOutcome(value: unknown) {
+  const normalized = asOptionalString(value)?.toLowerCase();
+  return normalized === 'approved' || normalized === 'request_changes' ? normalized : null;
 }
 
 async function loadParentWorkItemId(
