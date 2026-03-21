@@ -797,7 +797,6 @@ CREATE TABLE public.role_definitions (
     model_preference text,
     fallback_model text,
     verification_strategy text,
-    is_built_in boolean DEFAULT false,
     escalation_target text DEFAULT NULL,
     max_escalation_depth integer NOT NULL DEFAULT 5,
     is_active boolean DEFAULT true,
