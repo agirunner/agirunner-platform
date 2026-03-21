@@ -1066,7 +1066,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
 
   it('clears stale child review work item routing when request-changes reopens implementation rework', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
         if (sql.startsWith('UPDATE tasks SET')) {
           return {
@@ -1084,6 +1084,52 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               metadata: { review_action: 'request_changes' },
               rework_count: 1,
               updated_at: new Date('2026-03-21T02:10:00Z'),
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM workflow_work_items wi')
+          && sql.includes('JOIN workflows w')
+          && sql.includes('JOIN playbooks p')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_id: 'workflow-1',
+              work_item_id: 'implementation-item',
+              stage_name: 'implementation',
+              column_id: 'done',
+              completed_at: new Date('2026-03-21T02:05:00Z'),
+              definition: {
+                roles: ['developer', 'reviewer'],
+                lifecycle: 'planned',
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [
+                  { name: 'implementation', goal: 'Implement the change' },
+                  { name: 'review', goal: 'Review the change' },
+                ],
+              },
+            }],
+          };
+        }
+        if (
+          sql.includes('UPDATE workflow_work_items')
+          && sql.includes('SET column_id = $4')
+          && sql.includes('completed_at = NULL')
+          && sql.includes('id = $3')
+          && sql.includes('completed_at IS NOT NULL')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item', 'planned']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'implementation-item',
             }],
           };
         }
@@ -1181,6 +1227,23 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'tenant-1',
       'workflow-1',
       'implementation-item',
+    ]);
+
+    const reopenCall = client.query.mock.calls.find(
+      ([sql]) =>
+        typeof sql === 'string'
+        && sql.includes('UPDATE workflow_work_items')
+        && sql.includes('SET column_id = $4')
+        && sql.includes('completed_at = NULL')
+        && sql.includes('id = $3')
+        && sql.includes('completed_at IS NOT NULL'),
+    ) as [string, unknown[]] | undefined;
+
+    expect(reopenCall?.[1]).toEqual([
+      'tenant-1',
+      'workflow-1',
+      'implementation-item',
+      'planned',
     ]);
   });
 

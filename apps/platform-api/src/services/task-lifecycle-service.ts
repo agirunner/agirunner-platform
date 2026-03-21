@@ -10,6 +10,10 @@ import {
   toStoredTaskState,
   type TaskState,
 } from '../orchestration/task-state-machine.js';
+import {
+  defaultColumnId,
+  parsePlaybookDefinition,
+} from '../orchestration/playbook-model.js';
 import type { ArtifactService } from './artifact-service.js';
 import { applyTaskCompletionSideEffects } from './task-completion-side-effects.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
@@ -109,6 +113,15 @@ interface TaskLifecycleDependencies {
   >;
   handoffService?: Pick<HandoffService, 'assertRequiredTaskHandoffBeforeCompletion'>;
   executionContainerLeaseService?: Pick<ExecutionContainerLeaseService, 'releaseForTask'>;
+}
+
+interface ReworkWorkItemContextRow {
+  workflow_id: string;
+  work_item_id: string;
+  stage_name: string | null;
+  column_id: string | null;
+  completed_at: Date | null;
+  definition: unknown;
 }
 
 const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
@@ -318,6 +331,118 @@ export class TaskLifecycleService {
           AND stage_name = 'review'
           AND completed_at IS NULL`,
       [tenantId, workflowId, workItemId],
+    );
+  }
+
+  private async reopenCompletedWorkItemForRework(
+    identity: ApiKeyIdentity,
+    task: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const workflowId = readOptionalText(task.workflow_id);
+    const workItemId = readOptionalText(task.work_item_id);
+    if (!workflowId || !workItemId) {
+      return;
+    }
+
+    const workItemResult = await client.query<ReworkWorkItemContextRow>(
+      `SELECT wi.workflow_id,
+              wi.id AS work_item_id,
+              wi.stage_name,
+              wi.column_id,
+              wi.completed_at,
+              p.definition
+         FROM workflow_work_items wi
+         JOIN workflows w
+           ON w.tenant_id = wi.tenant_id
+          AND w.id = wi.workflow_id
+         JOIN playbooks p
+           ON p.tenant_id = w.tenant_id
+          AND p.id = w.playbook_id
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = $2
+          AND wi.id = $3
+        LIMIT 1
+        FOR UPDATE OF wi`,
+      [identity.tenantId, workflowId, workItemId],
+    );
+    const workItem = workItemResult.rows[0];
+    if (!workItem?.completed_at) {
+      return;
+    }
+
+    const definition = parsePlaybookDefinition(workItem.definition);
+    const reopenColumnId = defaultColumnId(definition) ?? workItem.column_id;
+    if (!reopenColumnId) {
+      return;
+    }
+
+    const reopenedAt = new Date();
+    const reopenResult = await client.query<{ id: string }>(
+      `UPDATE workflow_work_items
+          SET column_id = $4,
+              completed_at = NULL,
+              next_expected_actor = NULL,
+              next_expected_action = NULL,
+              metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+          AND completed_at IS NOT NULL
+      RETURNING id`,
+      [identity.tenantId, workflowId, workItemId, reopenColumnId],
+    );
+    if (!reopenResult.rowCount) {
+      return;
+    }
+
+    const eventData = {
+      workflow_id: workflowId,
+      work_item_id: workItemId,
+      stage_name: workItem.stage_name,
+      previous_column_id: workItem.column_id,
+      column_id: reopenColumnId,
+      previous_completed_at: workItem.completed_at.toISOString(),
+      reopened_at: reopenedAt.toISOString(),
+    };
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'work_item.updated',
+        entityType: 'work_item',
+        entityId: workItemId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: eventData,
+      },
+      client,
+    );
+    if (workItem.column_id !== reopenColumnId) {
+      await this.deps.eventService.emit(
+        {
+          tenantId: identity.tenantId,
+          type: 'work_item.moved',
+          entityType: 'work_item',
+          entityId: workItemId,
+          actorType: identity.scope,
+          actorId: identity.keyPrefix,
+          data: eventData,
+        },
+        client,
+      );
+    }
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'work_item.reopened',
+        entityType: 'work_item',
+        entityId: workItemId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: eventData,
+      },
+      client,
     );
   }
 
@@ -1362,6 +1487,7 @@ export class TaskLifecycleService {
           : {}),
       },
       afterUpdate: async (updatedTask, client) => {
+        await this.reopenCompletedWorkItemForRework(identity, updatedTask, client);
         await this.clearOpenChildReviewWorkItemRouting(identity.tenantId, updatedTask, client);
         await this.deps.workItemContinuityService?.recordReviewRejected(
           identity.tenantId,
