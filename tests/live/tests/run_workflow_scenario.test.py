@@ -1538,6 +1538,213 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertTrue(verification["passed"])
 
+    def test_evaluate_expectations_requires_specialist_rework_between_review_events(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "task_rework_sequences": [
+                    {
+                        "stage_name": "implementation",
+                        "request_event_type": "task.review_requested_changes",
+                        "resume_event_type": "task.approved",
+                        "required_role": "live-test-developer",
+                    }
+                ]
+            },
+            workflow={"state": "completed"},
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={
+                "data": {
+                    "data": [
+                        {
+                            "type": "task.review_requested_changes",
+                            "created_at": "2026-03-19T04:00:00Z",
+                            "data": {"stage_name": "implementation", "task_role": "live-test-reviewer"},
+                        },
+                        {
+                            "type": "task.handoff_submitted",
+                            "created_at": "2026-03-19T04:05:00Z",
+                            "data": {"stage_name": "implementation", "role": "live-test-developer"},
+                        },
+                        {
+                            "type": "task.approved",
+                            "created_at": "2026-03-19T04:10:00Z",
+                            "data": {"stage_name": "implementation", "task_role": "live-test-reviewer"},
+                        },
+                    ]
+                }
+            },
+        )
+
+        self.assertTrue(verification["passed"])
+
+    def test_evaluate_expectations_accepts_continuity_backed_rework_sequence(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "continuity_rework_sequences": [
+                    {
+                        "stage_name": "implementation",
+                        "required_role": "live-test-developer",
+                    }
+                ]
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-dev-1",
+                        "stage_name": "implementation",
+                        "role": "live-test-developer",
+                        "completed_at": "2026-03-19T04:20:00Z",
+                    }
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={
+                "data": {
+                    "data": [
+                        {
+                            "id": "wi-impl-1",
+                            "stage_name": "implementation",
+                            "rework_count": 1,
+                        },
+                        {
+                            "id": "wi-review-1",
+                            "stage_name": "review",
+                            "parent_work_item_id": "wi-impl-1",
+                            "task_count": 2,
+                        },
+                    ]
+                }
+            },
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            execution_logs={
+                "data": [
+                    {
+                        "operation": "work_item.continuity.review_rejected",
+                        "work_item_id": "wi-impl-1",
+                        "created_at": "2026-03-19T04:10:00Z",
+                    }
+                ]
+            },
+        )
+
+        self.assertTrue(verification["passed"])
+
+    def test_evaluate_expectations_fails_when_review_is_reapproved_without_specialist_rework(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "task_rework_sequences": [
+                    {
+                        "stage_name": "implementation",
+                        "request_event_type": "task.review_requested_changes",
+                        "resume_event_type": "task.approved",
+                        "required_role": "live-test-developer",
+                    }
+                ]
+            },
+            workflow={"state": "completed"},
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={
+                "data": {
+                    "data": [
+                        {
+                            "type": "task.review_requested_changes",
+                            "created_at": "2026-03-19T04:00:00Z",
+                            "data": {"stage_name": "implementation", "task_role": "live-test-reviewer"},
+                        },
+                        {
+                            "type": "task.approved",
+                            "created_at": "2026-03-19T04:10:00Z",
+                            "data": {"stage_name": "implementation", "task_role": "live-test-reviewer"},
+                        },
+                    ]
+                }
+            },
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertEqual(
+            [
+                "expected specialist rework for stage 'implementation' between "
+                "'task.review_requested_changes' and 'task.approved'"
+            ],
+            verification["failures"],
+        )
+
+    def test_evaluate_expectations_fails_when_continuity_rework_is_missing(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "continuity_rework_sequences": [
+                    {
+                        "stage_name": "implementation",
+                        "required_role": "live-test-developer",
+                    }
+                ]
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-dev-1",
+                        "stage_name": "implementation",
+                        "role": "live-test-developer",
+                        "completed_at": "2026-03-19T04:05:00Z",
+                    }
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={
+                "data": {
+                    "data": [
+                        {
+                            "id": "wi-impl-1",
+                            "stage_name": "implementation",
+                            "rework_count": 1,
+                        },
+                        {
+                            "id": "wi-review-1",
+                            "stage_name": "review",
+                            "parent_work_item_id": "wi-impl-1",
+                            "task_count": 1,
+                        },
+                    ]
+                }
+            },
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            execution_logs={
+                "data": [
+                    {
+                        "operation": "work_item.continuity.review_rejected",
+                        "work_item_id": "wi-impl-1",
+                        "created_at": "2026-03-19T04:10:00Z",
+                    }
+                ]
+            },
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertEqual(
+            [
+                "expected continuity-backed rework for stage 'implementation' "
+                "with role 'live-test-developer'"
+            ],
+            verification["failures"],
+        )
+
     def test_collect_workflow_events_pages_until_has_more_is_false(self) -> None:
         client = FakePagedClient(
             [

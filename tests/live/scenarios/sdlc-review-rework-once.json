@@ -1,0 +1,39 @@
+{
+  "name": "sdlc-review-rework-once",
+  "profile": "sdlc-review-rework-once",
+  "workflow": {
+    "name": "SDLC Review Rework Once",
+    "goal": "Add support for named greetings and uppercase output while preserving the default greeting, with updated docs and regression tests."
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {
+      "review_cycle_goal": "This scenario must exercise one reviewer request-changes cycle before final approval."
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 6
+    },
+    "continuity_rework_sequences": [
+      {
+        "stage_name": "implementation",
+        "required_role": "live-test-developer"
+      }
+    ],
+    "efficiency": {
+      "non_orchestrator_max_llm_turns_lte": 35,
+      "orchestrator_max_llm_turns_lte": 14,
+      "orphan_cleanup_events_eq": 0
+    }
+  }
+}

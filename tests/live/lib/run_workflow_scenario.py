@@ -272,6 +272,11 @@ def _workflow_tasks(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     return tasks if isinstance(tasks, list) else []
 
 
+def _execution_log_rows(snapshot: Any) -> list[dict[str, Any]]:
+    data = _nested_data(snapshot)
+    return data if isinstance(data, list) else []
+
+
 def _completed_work_item_count(work_items_snapshot: Any) -> int:
     return sum(1 for item in _work_items(work_items_snapshot) if item.get("column_id") == "done")
 
@@ -380,6 +385,157 @@ def _parse_timestamp(value: Any) -> datetime | None:
     return parsed
 
 
+def _event_role(data: dict[str, Any]) -> Any:
+    role = data.get("role")
+    if role is not None:
+        return role
+    return data.get("task_role")
+
+
+def _matches_rework_sequence(
+    *,
+    event_list: list[dict[str, Any]],
+    workflow_tasks: list[dict[str, Any]],
+    stage_name: str,
+    request_event_type: str,
+    resume_event_type: str,
+    required_event_type: str,
+    required_role: Any,
+    require_non_orchestrator: bool,
+) -> bool:
+    request_event = next(
+        (
+            actual
+            for actual in event_list
+            if actual.get("type") == request_event_type
+            and isinstance(actual.get("data"), dict)
+            and actual["data"].get("stage_name") == stage_name
+        ),
+        None,
+    )
+    request_index = event_list.index(request_event) if request_event in event_list else None
+    resume_event = next(
+        (
+            actual
+            for index, actual in enumerate(event_list)
+            if request_index is not None
+            and index > request_index
+            and actual.get("type") == resume_event_type
+            and isinstance(actual.get("data"), dict)
+            and actual["data"].get("stage_name") == stage_name
+        ),
+        None,
+    )
+    resume_index = event_list.index(resume_event) if resume_event in event_list else None
+
+    if request_index is not None and resume_index is not None:
+        for actual in event_list[request_index + 1 : resume_index]:
+            data = actual.get("data")
+            if not isinstance(data, dict):
+                continue
+            if actual.get("type") != required_event_type or data.get("stage_name") != stage_name:
+                continue
+            role = _event_role(data)
+            if require_non_orchestrator and role == "orchestrator":
+                continue
+            if required_role is not None and role != required_role:
+                continue
+            return True
+
+    if request_event is None or resume_event is None:
+        return False
+    request_at = _parse_timestamp(request_event.get("created_at"))
+    resume_at = _parse_timestamp(resume_event.get("created_at"))
+    if request_at is None or resume_at is None:
+        return False
+
+    for task in workflow_tasks:
+        if not isinstance(task, dict):
+            continue
+        if task.get("stage_name") != stage_name:
+            continue
+        role = task.get("role")
+        if require_non_orchestrator and role == "orchestrator":
+            continue
+        if required_role is not None and role != required_role:
+            continue
+        completed_at = _parse_timestamp(task.get("completed_at"))
+        if completed_at is None:
+            continue
+        if request_at < completed_at < resume_at:
+            return True
+    return False
+
+
+def _matches_continuity_rework_sequence(
+    *,
+    work_items_snapshot: Any,
+    execution_logs: Any,
+    workflow_tasks: list[dict[str, Any]],
+    stage_name: str,
+    required_role: str,
+    minimum_rework_count: int,
+    review_stage_name: str,
+    review_task_min_count: int,
+) -> bool:
+    work_items_list = _work_items(work_items_snapshot)
+    log_rows = sorted(
+        _execution_log_rows(execution_logs),
+        key=lambda row: _parse_timestamp(row.get("created_at"))
+        or datetime.min.replace(tzinfo=timezone.utc),
+    )
+    candidate_work_items = [
+        item
+        for item in work_items_list
+        if isinstance(item, dict)
+        and item.get("stage_name") == stage_name
+        and int(item.get("rework_count") or 0) >= minimum_rework_count
+    ]
+    if not candidate_work_items:
+        return False
+
+    for stage_item in candidate_work_items:
+        work_item_id = stage_item.get("id")
+        if not isinstance(work_item_id, str) or work_item_id.strip() == "":
+            continue
+
+        rejection_at = next(
+            (
+                _parse_timestamp(row.get("created_at"))
+                for row in log_rows
+                if row.get("operation") == "work_item.continuity.review_rejected"
+                and row.get("work_item_id") == work_item_id
+            ),
+            None,
+        )
+        if rejection_at is None:
+            continue
+
+        review_children = [
+            item
+            for item in work_items_list
+            if isinstance(item, dict)
+            and item.get("parent_work_item_id") == work_item_id
+            and item.get("stage_name") == review_stage_name
+            and int(item.get("task_count") or 0) >= review_task_min_count
+        ]
+        if not review_children:
+            continue
+
+        reworked_task_completed = any(
+            isinstance(task, dict)
+            and task.get("stage_name") == stage_name
+            and task.get("role") == required_role
+            and (_parse_timestamp(task.get("completed_at")) or datetime.min.replace(tzinfo=timezone.utc))
+            > rejection_at
+            for task in workflow_tasks
+        )
+        if reworked_task_completed:
+            return True
+
+    return False
+
+
 def evaluate_expectations(
     expectations: dict[str, Any],
     *,
@@ -394,6 +550,7 @@ def evaluate_expectations(
     playbook_id: str = "",
     fleet_peaks: dict[str, int] | None = None,
     efficiency: dict[str, Any] | None = None,
+    execution_logs: Any | None = None,
 ) -> dict[str, Any]:
     failures: list[str] = []
     checks: list[dict[str, Any]] = []
@@ -762,6 +919,78 @@ def evaluate_expectations(
                 failures.append(
                     f"expected {required_event_type!r} for stage {stage_name!r} between "
                     f"stage.gate.{request_action} and stage.gate.{resume_action}"
+                )
+
+    task_rework_sequences = expectations.get("task_rework_sequences", [])
+    if isinstance(task_rework_sequences, list):
+        event_list = sorted(
+            _workflow_events(events),
+            key=lambda entry: _parse_timestamp(entry.get("created_at")) or datetime.min.replace(tzinfo=timezone.utc),
+        )
+        workflow_tasks = _workflow_tasks(workflow)
+        for entry in task_rework_sequences:
+            if not isinstance(entry, dict):
+                continue
+            stage_name = entry.get("stage_name")
+            if not isinstance(stage_name, str) or stage_name.strip() == "":
+                continue
+            request_event_type = str(entry.get("request_event_type", "task.review_requested_changes"))
+            resume_event_type = str(entry.get("resume_event_type", "task.approved"))
+            required_event_type = str(entry.get("required_event_type", "task.handoff_submitted"))
+            required_role = entry.get("required_role")
+            require_non_orchestrator = bool(entry.get("require_non_orchestrator", True))
+
+            matched = _matches_rework_sequence(
+                event_list=event_list,
+                workflow_tasks=workflow_tasks,
+                stage_name=stage_name,
+                request_event_type=request_event_type,
+                resume_event_type=resume_event_type,
+                required_event_type=required_event_type,
+                required_role=required_role,
+                require_non_orchestrator=require_non_orchestrator,
+            )
+            check_name = (
+                f"task_rework_sequences:{stage_name}:{request_event_type}->{required_event_type}->{resume_event_type}"
+            )
+            checks.append({"name": check_name, "passed": matched})
+            if not matched:
+                failures.append(
+                    f"expected specialist rework for stage {stage_name!r} between "
+                    f"{request_event_type!r} and {resume_event_type!r}"
+                )
+
+    continuity_rework_sequences = expectations.get("continuity_rework_sequences", [])
+    if isinstance(continuity_rework_sequences, list):
+        workflow_tasks = _workflow_tasks(workflow)
+        for entry in continuity_rework_sequences:
+            if not isinstance(entry, dict):
+                continue
+            stage_name = entry.get("stage_name")
+            required_role = entry.get("required_role")
+            if not isinstance(stage_name, str) or stage_name.strip() == "":
+                continue
+            if not isinstance(required_role, str) or required_role.strip() == "":
+                continue
+            minimum_rework_count = int(entry.get("minimum_rework_count", 1))
+            review_stage_name = str(entry.get("review_stage_name", "review"))
+            review_task_min_count = int(entry.get("review_task_min_count", 2))
+            matched = _matches_continuity_rework_sequence(
+                work_items_snapshot=work_items,
+                execution_logs=execution_logs,
+                workflow_tasks=workflow_tasks,
+                stage_name=stage_name,
+                required_role=required_role,
+                minimum_rework_count=minimum_rework_count,
+                review_stage_name=review_stage_name,
+                review_task_min_count=review_task_min_count,
+            )
+            check_name = f"continuity_rework_sequences:{stage_name}:{required_role}"
+            checks.append({"name": check_name, "passed": matched})
+            if not matched:
+                failures.append(
+                    f"expected continuity-backed rework for stage {stage_name!r} "
+                    f"with role {required_role!r}"
                 )
 
     efficiency_expectations = expectations.get("efficiency", {})
@@ -1442,6 +1671,7 @@ def main() -> None:
                 playbook_id=playbook_id,
                 fleet_peaks=fleet_peaks,
                 efficiency=None,
+                execution_logs=None,
             )
             if progress_verification["passed"]:
                 timed_out = False
@@ -1519,6 +1749,7 @@ def main() -> None:
         playbook_id=playbook_id,
         fleet_peaks=fleet_peaks,
         efficiency=efficiency_summary,
+        execution_logs=execution_logs_snapshot,
     )
     emit_run_result(
         build_run_result_payload(

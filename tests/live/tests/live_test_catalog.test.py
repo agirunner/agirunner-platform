@@ -18,6 +18,7 @@ import scenario_config  # noqa: E402
 
 EXPECTED_SCENARIOS = {
     "sdlc-baseline",
+    "sdlc-review-rework-once",
     "sdlc-lite-approval-approve",
     "sdlc-lite-approval-request-changes-then-approve",
     "bug-fix-positive",
