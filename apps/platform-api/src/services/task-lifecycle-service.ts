@@ -1275,6 +1275,11 @@ export class TaskLifecycleService {
     if (currentTask.state === 'completed') {
       return this.deps.toTaskResponse(currentTask);
     }
+    if (identity.scope === 'agent' && !currentTask.is_orchestrator_task && currentTask.workflow_id) {
+      throw new ConflictError(
+        'Agent-driven task output approval is not allowed for workflow specialist tasks; use formal review resolution instead.',
+      );
+    }
 
     return this.applyStateTransition(identity, taskId, 'completed', {
       expectedStates: ['output_pending_review'],

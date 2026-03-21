@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
+import { ConflictError } from '../../src/errors/domain-errors.js';
 import { TaskLifecycleService } from '../../src/services/task-lifecycle-service.js';
 
 describe('TaskLifecycleService continuity hooks', () => {
@@ -209,5 +210,53 @@ describe('TaskLifecycleService continuity hooks', () => {
     expect(result).toEqual(completedTask);
     expect(client.query).not.toHaveBeenCalled();
     expect(workItemContinuityService.clearReviewExpectation).not.toHaveBeenCalled();
+  });
+
+  it('rejects agent-driven output approval for workflow specialist tasks', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-output-agent-blocked',
+        state: 'output_pending_review',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+        role: 'developer',
+        requires_output_review: true,
+        is_orchestrator_task: false,
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: { clearReviewExpectation: vi.fn() } as never,
+    });
+
+    await expect(
+      service.approveTaskOutput(
+        {
+          id: 'agent-key',
+          tenantId: 'tenant-1',
+          scope: 'agent',
+          ownerType: 'agent',
+          ownerId: 'agent-1',
+          keyPrefix: 'ak',
+        },
+        'task-output-agent-blocked',
+      ),
+    ).rejects.toThrowError(ConflictError);
+
+    expect(client.query).not.toHaveBeenCalled();
   });
 });

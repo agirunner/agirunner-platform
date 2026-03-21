@@ -1747,7 +1747,6 @@ function buildActivationRoleConfig(): Record<string, unknown> {
       'create_workflow',
       'request_gate_approval',
       'approve_task',
-      'approve_task_output',
       'request_rework',
       'advance_stage',
       'complete_workflow',

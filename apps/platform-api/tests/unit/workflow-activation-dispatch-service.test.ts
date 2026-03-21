@@ -3920,7 +3920,7 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[8]).toEqual(
+          expect(params?.[7]).toEqual(
             expect.objectContaining({
               tools: expect.arrayContaining([
                 'list_work_items',
@@ -3944,14 +3944,14 @@ describe('WorkflowActivationDispatchService', () => {
               ]),
             }),
           );
-          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('web_search');
-          expect((params?.[8] as Record<string, unknown>).tools).toContain('advance_stage');
-          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('advance_checkpoint');
-          expect((params?.[8] as Record<string, unknown>).tools).toContain('approve_task');
-          expect((params?.[8] as Record<string, unknown>).tools).toContain('approve_task_output');
-          expect((params?.[8] as Record<string, unknown>).tools).toContain('request_rework');
-          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('request_task_changes');
-          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('escalate_to_human');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('web_search');
+          expect((params?.[7] as Record<string, unknown>).tools).toContain('advance_stage');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('advance_checkpoint');
+          expect((params?.[7] as Record<string, unknown>).tools).toContain('approve_task');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('approve_task_output');
+          expect((params?.[7] as Record<string, unknown>).tools).toContain('request_rework');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('request_task_changes');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('escalate_to_human');
           return { rowCount: 1, rows: [{ id: 'task-tools' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
