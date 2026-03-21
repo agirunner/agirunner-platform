@@ -34,10 +34,28 @@ require_live_test_value() {
 load_live_test_env() {
   local env_file="$1"
   require_live_test_file "${env_file}" "live test env file"
-  set -a
-  # shellcheck disable=SC1090
-  source "${env_file}"
-  set +a
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    [[ -z "${line}" || "${line}" =~ ^[[:space:]]*# ]] && continue
+    if [[ "${line}" != *=* ]]; then
+      continue
+    fi
+
+    local name="${line%%=*}"
+    name="${name#"${name%%[![:space:]]*}"}"
+    name="${name%"${name##*[![:space:]]}"}"
+    [[ -z "${name}" ]] && continue
+
+    if [[ ! "${name}" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+      echo "[tests/live] invalid env key in ${env_file}: ${name}" >&2
+      exit 1
+    fi
+
+    if [[ -v "${name}" ]]; then
+      continue
+    fi
+
+    eval "export ${line}"
+  done <"${env_file}"
 }
 
 derive_live_test_database_url() {

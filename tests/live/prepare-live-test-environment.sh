@@ -8,6 +8,8 @@ REPO_ROOT="$(cd "${LIVE_TEST_ROOT}/../.." && pwd)"
 source "${LIVE_TEST_ROOT}/lib/common.sh"
 
 LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
+load_live_test_env "${LIVE_TEST_ENV_FILE}"
+
 LIVE_TEST_ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
 LIVE_TEST_BOOTSTRAP_DIR="${LIVE_TEST_BOOTSTRAP_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/bootstrap}"
 LIVE_TEST_BOOTSTRAP_CONTEXT_FILE="${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE:-${LIVE_TEST_BOOTSTRAP_DIR}/context.json}"
@@ -53,7 +55,6 @@ require_live_test_dir "${LIVE_TEST_PLATFORM_ROOT}/apps/platform-api" "platform a
 require_live_test_file "${LIVE_TEST_COMPOSE_FILE}" "platform docker compose file"
 require_live_test_dir "${LIVE_TEST_LIBRARY_ROOT}" "live test library"
 require_live_test_file "${RUNTIME_REPO_PATH}/Dockerfile.execution" "execution Dockerfile"
-load_live_test_env "${LIVE_TEST_ENV_FILE}"
 
 require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
 
