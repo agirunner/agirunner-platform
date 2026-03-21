@@ -120,8 +120,8 @@ SELECT COUNT(*)::int FROM upserted
 
 const LIST_CURRENT_CONTAINERS_SQL = `
 WITH active_worker_tasks AS (
-  SELECT DISTINCT ON (was.desired_state_id)
-         was.desired_state_id,
+  SELECT DISTINCT ON (was.container_id)
+         was.container_id,
          t.id AS active_task_id
     FROM worker_actual_state was
     JOIN workers w
@@ -133,7 +133,7 @@ WITH active_worker_tasks AS (
      AND t.assigned_worker_id = w.id
      AND t.state = ANY($2::task_state[])
    WHERE was.desired_state_id IS NOT NULL
-   ORDER BY was.desired_state_id ASC, t.updated_at DESC
+   ORDER BY was.container_id ASC, t.updated_at DESC
 ),
 live_rows AS (
   SELECT
@@ -160,7 +160,7 @@ live_rows AS (
     rh.state AS heartbeat_state
   FROM live_container_inventory live
   LEFT JOIN active_worker_tasks awt
-    ON awt.desired_state_id = live.desired_state_id
+    ON awt.container_id = live.container_id
   LEFT JOIN runtime_heartbeats rh
     ON rh.tenant_id = live.tenant_id
    AND rh.runtime_id::text = live.runtime_id
@@ -194,6 +194,7 @@ SELECT
   w.name AS workflow_name,
   COALESCE(t.id, live.live_task_id, live.heartbeat_task_id, live.active_task_id) AS task_id,
   t.title AS task_title,
+  t.stage_name AS stage_name,
   CASE
     WHEN live.kind = 'runtime' THEN COALESCE(NULLIF(BTRIM(live.heartbeat_state), ''), t.state::text)
     ELSE t.state::text
@@ -253,6 +254,7 @@ export interface LiveContainerInventoryRow {
   workflow_name: string | null;
   task_id: string | null;
   task_title: string | null;
+  stage_name: string | null;
   activity_state: string | null;
 }
 

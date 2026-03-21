@@ -84,6 +84,7 @@ describe('ContainerInventoryService', () => {
           workflow_name: 'Fix login bug',
           task_id: '00000000-0000-0000-0000-000000000333',
           task_title: 'Coordinate workflow',
+          stage_name: 'Intake',
           activity_state: 'claimed',
         },
         {
@@ -104,6 +105,7 @@ describe('ContainerInventoryService', () => {
           workflow_name: 'Fix login bug',
           task_id: '00000000-0000-0000-0000-000000000111',
           task_title: 'Investigate auth timeout',
+          stage_name: 'Implement',
           activity_state: 'executing',
         },
         {
@@ -124,6 +126,7 @@ describe('ContainerInventoryService', () => {
           workflow_name: 'Fix login bug',
           task_id: '00000000-0000-0000-0000-000000000111',
           task_title: 'Investigate auth timeout',
+          stage_name: 'Implement',
           activity_state: 'in_progress',
         },
       ],
@@ -152,6 +155,7 @@ describe('ContainerInventoryService', () => {
       kind: 'task',
       image: 'agirunner-runtime-execution:local',
       task_title: 'Investigate auth timeout',
+      stage_name: 'Implement',
     });
 
     const replaceQuery = pool.query.mock.calls[0]?.[0] as string;
@@ -163,6 +167,7 @@ describe('ContainerInventoryService', () => {
     expect(listQuery).toContain('FROM live_container_inventory live');
     expect(listQuery).toContain('LEFT JOIN runtime_heartbeats rh');
     expect(listQuery).toContain('LEFT JOIN tasks t');
+    expect(listQuery).toContain('t.stage_name AS stage_name');
     expect(listQuery).toContain('LEFT JOIN workflows w');
   });
 
@@ -210,5 +215,18 @@ describe('ContainerInventoryService', () => {
     expect(listQuery).toContain('rh.runtime_id::text = live.runtime_id');
     expect(listQuery).not.toContain('rh.runtime_id = live.runtime_id');
     expect(listQuery).toContain("COALESCE(p.id::text, NULLIF(BTRIM(live.live_playbook_id), ''))");
+  });
+
+  it('maps active desired-state work by container instance instead of shared desired state', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await service.listCurrentContainers(TENANT_ID);
+
+    const listQuery = pool.query.mock.calls[0]?.[0] as string;
+    expect(listQuery).toContain('SELECT DISTINCT ON (was.container_id)');
+    expect(listQuery).toContain('was.container_id,');
+    expect(listQuery).toContain('ON awt.container_id = live.container_id');
+    expect(listQuery).not.toContain('SELECT DISTINCT ON (was.desired_state_id)');
+    expect(listQuery).not.toContain('ON awt.desired_state_id = live.desired_state_id');
   });
 });
