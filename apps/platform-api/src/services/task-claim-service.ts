@@ -938,9 +938,6 @@ export class TaskClaimService {
     task: Record<string, unknown>,
     db: DatabaseClient,
   ): Promise<ExecutionContainerContract | null> {
-    if (task.is_orchestrator_task === true) {
-      return null;
-    }
     const defaults = await readSpecialistExecutionDefaults(db, tenantId);
     const override = await this.readRoleExecutionContainerOverride(
       tenantId,
