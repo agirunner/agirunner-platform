@@ -100,6 +100,13 @@ describe('TaskLifecycleService continuity hooks', () => {
             }],
           };
         }
+        if (
+          sql.includes('UPDATE workflow_work_items')
+          && sql.includes("parent_work_item_id = $3")
+          && sql.includes("stage_name = 'review'")
+        ) {
+          return { rows: [], rowCount: 1 };
+        }
         return { rows: [], rowCount: 0 };
       }),
       release: vi.fn(),
@@ -146,6 +153,10 @@ describe('TaskLifecycleService continuity hooks', () => {
         work_item_id: 'work-item-1',
       }),
       client,
+    );
+    expect(client.query).toHaveBeenCalledWith(
+      expect.stringContaining("parent_work_item_id = $3"),
+      ['tenant-1', 'workflow-1', 'work-item-1'],
     );
   });
 

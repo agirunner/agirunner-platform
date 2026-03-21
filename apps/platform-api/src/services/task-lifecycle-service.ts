@@ -1106,6 +1106,11 @@ export class TaskLifecycleService {
           updatedTask,
           client,
         );
+        await this.restoreOpenChildReviewWorkItemRouting(
+          identity.tenantId,
+          updatedTask,
+          client,
+        );
       },
       reason: 'output_review_approved',
     }, client);
