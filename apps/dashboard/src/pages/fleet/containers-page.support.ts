@@ -16,6 +16,19 @@ export interface SessionContainerRow extends DashboardLiveContainerRecord {
   inactive_at: string | null;
 }
 
+export function formatContainerKindLabel(kind: DashboardLiveContainerRecord['kind']): string {
+  switch (kind) {
+    case 'orchestrator':
+      return 'Orchestrator worker';
+    case 'runtime':
+      return 'Runtime';
+    case 'task':
+      return 'Task execution';
+    default:
+      return kind;
+  }
+}
+
 export function mergeLiveContainerSessionRows(
   previous: SessionContainerRow[],
   liveRows: DashboardLiveContainerRecord[],
