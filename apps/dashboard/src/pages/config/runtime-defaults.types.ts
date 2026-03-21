@@ -19,7 +19,6 @@ export interface FieldDefinition {
     | 'task_limits'
     | 'capacity_limits'
     | 'runtime_throughput'
-    | 'process_logging'
     | 'server_timeouts'
     | 'runtime_api'
     | 'llm_transport'

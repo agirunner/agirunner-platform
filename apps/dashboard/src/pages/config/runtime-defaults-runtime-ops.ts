@@ -8,11 +8,6 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
       'Set local queue and parallelism limits for a specialist runtime process.',
   },
   {
-    key: 'process_logging',
-    title: 'Process logging',
-    description: 'Control the runtime process log verbosity applied after platform config loads.',
-  },
-  {
     key: 'server_timeouts',
     title: 'Server timeouts',
     description: 'Bound runtime HTTP server shutdown and request-header handling.',
@@ -128,15 +123,6 @@ export const RUNTIME_OPERATION_SECTION_DEFINITIONS: SectionDefinition[] = [
 
 export const RUNTIME_OPERATION_FIELD_DEFINITIONS: FieldDefinition[] = [
   ...buildRuntimeThroughputFields(),
-  {
-    key: 'log.level',
-    label: 'Runtime log level',
-    description: 'Verbosity for runtime process logs after connected configuration is applied.',
-    configType: 'string',
-    placeholder: 'info',
-    section: 'process_logging',
-    options: ['debug', 'info', 'warn', 'error'],
-  },
   {
     key: 'server.shutdown_timeout_seconds',
     label: 'Shutdown timeout (seconds)',

@@ -123,7 +123,7 @@ export function RuntimeAdvancedSettingsSection({
               className={cn(index > 0 && 'border-t border-border/70 pt-6')}
             >
               <div className="space-y-1">
-                <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
+                <h3 className="text-base font-semibold text-foreground">{section.title}</h3>
                 <p className="text-sm leading-6 text-muted">
                   {section.description}{' '}
                   {buildSectionStatus(

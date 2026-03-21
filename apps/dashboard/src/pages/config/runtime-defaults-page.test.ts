@@ -16,7 +16,6 @@ describe('runtime defaults page source', () => {
       'task_limits',
       'capacity_limits',
       'runtime_throughput',
-      'process_logging',
       'server_timeouts',
       'runtime_api',
       'llm_transport',
@@ -70,6 +69,10 @@ describe('runtime defaults page source', () => {
     );
 
     expect(FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
+      expect.arrayContaining(['log.level']),
+    );
+
+    expect(FIELD_DEFINITIONS.map((field) => field.key)).not.toEqual(
       expect.arrayContaining([
         'default_runtime_image',
         'default_cpu',
@@ -111,6 +114,8 @@ describe('runtime defaults page source', () => {
     expect(pageSource).not.toContain('Save blockers');
     expect(pageSource).not.toContain('Warm pools');
     expect(fieldsSource).toContain('Advanced Settings');
+    expect(fieldsSource).toContain('text-base font-semibold text-foreground');
+    expect(fieldsSource).not.toContain('Runtime log level');
     expect(fieldsSource).not.toContain('Show');
     expect(fieldsSource).not.toContain('Hide');
   });
