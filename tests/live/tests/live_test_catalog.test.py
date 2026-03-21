@@ -20,6 +20,7 @@ EXPECTED_SCENARIOS = {
     "sdlc-baseline",
     "sdlc-review-rework-once",
     "sdlc-review-reject-twice",
+    "sdlc-qa-fails-once",
     "sdlc-lite-approval-approve",
     "sdlc-lite-approval-request-changes-then-approve",
     "bug-fix-positive",
@@ -204,6 +205,51 @@ class LiveTestCatalogTests(unittest.TestCase):
             efficiency.get("orchestrator_max_llm_turns_lte"),
             "sdlc-review-reject-twice should allow enough orchestrator headroom for two full reject-and-reroute cycles",
         )
+
+    def test_qa_fails_once_profile_forces_verification_request_changes_not_reviewer_rejection(self) -> None:
+        roles_file = LIBRARY_DIR / "sdlc-qa-fails-once" / "roles.json"
+        playbook_file = LIBRARY_DIR / "sdlc-qa-fails-once" / "playbook.json"
+
+        roles = json.loads(roles_file.read_text())
+        playbook = json.loads(playbook_file.read_text())
+        reviewer = next(role for role in roles if role.get("name") == "live-test-reviewer")
+        qa = next(role for role in roles if role.get("name") == "live-test-qa")
+
+        self.assertNotIn("exactly one concrete request-changes review verdict", reviewer.get("systemPrompt", ""))
+        self.assertIn("Approve the implementation when it satisfies the authored bar", reviewer.get("systemPrompt", ""))
+        self.assertIn("exactly one concrete request-changes verification verdict", qa.get("systemPrompt", ""))
+        self.assertIn("MUST set `resolution` to `request_changes`", qa.get("systemPrompt", ""))
+        self.assertIn("first verification pass after reviewer approval", playbook.get("definition", {}).get("process_instructions", ""))
+
+    def test_qa_fails_once_profile_keeps_qa_review_only(self) -> None:
+        roles_file = LIBRARY_DIR / "sdlc-qa-fails-once" / "roles.json"
+        payload = json.loads(roles_file.read_text())
+        qa = next(role for role in payload if role.get("name") == "live-test-qa")
+        self.assertNotIn("request_rework", qa.get("allowedTools", []))
+        for forbidden_tool in (
+            "file_write",
+            "file_edit",
+            "git_commit",
+            "git_push",
+            "memory_write",
+        ):
+            self.assertNotIn(
+                forbidden_tool,
+                qa.get("allowedTools", []),
+                f"sdlc-qa-fails-once QA must stay verification-only, not mutate via {forbidden_tool}",
+            )
+        self.assertIn("Do not fix the code yourself", qa.get("systemPrompt", ""))
+
+    def test_qa_fails_once_profile_proves_verification_child_rework_not_review_child_rework(self) -> None:
+        scenario_file = SCENARIOS_DIR / "sdlc-qa-fails-once.json"
+        scenario = json.loads(scenario_file.read_text())
+        expectations = scenario.get("expect", {})
+        sequences = expectations.get("continuity_rework_sequences", [])
+        self.assertEqual(1, len(sequences))
+        self.assertEqual("implementation", sequences[0].get("stage_name"))
+        self.assertEqual("live-test-developer", sequences[0].get("required_role"))
+        self.assertEqual("verification", sequences[0].get("review_stage_name"))
+        self.assertEqual(2, sequences[0].get("review_task_min_count"))
 
 
 if __name__ == "__main__":

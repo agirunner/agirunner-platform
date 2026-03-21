@@ -1,0 +1,41 @@
+{
+  "name": "sdlc-qa-fails-once",
+  "profile": "sdlc-qa-fails-once",
+  "workflow": {
+    "name": "SDLC QA Fails Once",
+    "goal": "Add support for named greetings and uppercase output while preserving the default greeting, with updated docs and regression tests."
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {
+      "verification_cycle_goal": "This scenario must exercise one QA request-changes cycle after reviewer approval."
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 7
+    },
+    "continuity_rework_sequences": [
+      {
+        "stage_name": "implementation",
+        "required_role": "live-test-developer",
+        "review_stage_name": "verification",
+        "review_task_min_count": 2
+      }
+    ],
+    "efficiency": {
+      "non_orchestrator_max_llm_turns_lte": 35,
+      "orchestrator_max_llm_turns_lte": 24,
+      "orphan_cleanup_events_eq": 0
+    }
+  }
+}
