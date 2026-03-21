@@ -106,6 +106,7 @@ export class TaskWriteService {
     normalizedInput = await this.applyPlaybookTaskExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.materializeTaskLoopExecutionDefaults(identity.tenantId, normalizedInput, db);
     normalizedInput = await this.applyPlaybookRuleDerivedTaskReviewPolicy(identity.tenantId, normalizedInput, db);
+    normalizedInput = normalizeTaskContractInput(normalizedInput);
     const dependencies = normalizedInput.depends_on ?? [];
     const metadata = {
       ...(normalizedInput.metadata ?? {}),
@@ -114,6 +115,7 @@ export class TaskWriteService {
         : {}),
       ...(normalizedInput.description ? { description: normalizedInput.description } : {}),
       ...(normalizedInput.type ? { task_type: normalizedInput.type } : {}),
+      ...(normalizedInput.task_kind ? { task_kind: normalizedInput.task_kind } : {}),
       ...(normalizedInput.credentials ? { credential_refs: normalizedInput.credentials } : {}),
       ...(normalizedInput.parent_id ? { parent_id: normalizedInput.parent_id } : {}),
       ...(normalizedInput.review_prompt ? { review_prompt: normalizedInput.review_prompt } : {}),
@@ -963,6 +965,104 @@ function asRecord(value: unknown): Record<string, unknown> {
     : {};
 }
 
+function normalizeTaskContractInput(input: CreateTaskInput): CreateTaskInput {
+  const taskKind = resolveTaskKind(input);
+  const persistedTaskKind = shouldPersistTaskKind(input, taskKind) ? taskKind : undefined;
+  assertTaskKindIsValidForInput(taskKind, input);
+  return {
+    ...input,
+    task_kind: persistedTaskKind,
+    input: mergeSubjectLinkageIntoInput(input),
+  };
+}
+
+function resolveTaskKind(input: CreateTaskInput): NonNullable<CreateTaskInput['task_kind']> {
+  if (input.is_orchestrator_task) {
+    return 'orchestrator';
+  }
+  if (input.task_kind) {
+    return input.task_kind;
+  }
+  return 'delivery';
+}
+
+function shouldPersistTaskKind(
+  input: CreateTaskInput,
+  taskKind: NonNullable<CreateTaskInput['task_kind']>,
+) {
+  return input.task_kind !== undefined || taskKind === 'orchestrator';
+}
+
+function assertTaskKindIsValidForInput(
+  taskKind: NonNullable<CreateTaskInput['task_kind']>,
+  input: CreateTaskInput,
+) {
+  if (taskKind === 'orchestrator' && !input.is_orchestrator_task) {
+    throw new ValidationError('task_kind orchestrator requires is_orchestrator_task=true');
+  }
+  if (taskKind !== 'orchestrator' && input.is_orchestrator_task) {
+    throw new ValidationError('orchestrator tasks must declare task_kind orchestrator');
+  }
+
+  const subjectTaskId = readOptionalSubjectString(input.subject_task_id)
+    ?? readOptionalSubjectString(input.input?.subject_task_id);
+  const subjectWorkItemId = readOptionalSubjectString(input.subject_work_item_id)
+    ?? readOptionalSubjectString(input.input?.subject_work_item_id);
+  const subjectHandoffId = readOptionalSubjectString(input.subject_handoff_id)
+    ?? readOptionalSubjectString(input.input?.subject_handoff_id);
+  const subjectRevision = readOptionalPositiveInteger(input.subject_revision)
+    ?? readOptionalPositiveInteger(input.input?.subject_revision);
+
+  if (taskKind === 'assessment') {
+    if (!subjectTaskId) {
+      throw new ValidationError('subject_task_id is required for assessment tasks');
+    }
+    if (subjectRevision === null) {
+      throw new ValidationError('subject_revision is required for assessment tasks');
+    }
+  }
+
+  if (taskKind === 'approval') {
+    if (!subjectTaskId && !subjectWorkItemId && !subjectHandoffId) {
+      throw new ValidationError('approval tasks require explicit subject linkage');
+    }
+    if (subjectRevision === null) {
+      throw new ValidationError('subject_revision is required for approval tasks');
+    }
+  }
+}
+
+function mergeSubjectLinkageIntoInput(input: CreateTaskInput): Record<string, unknown> {
+  const nextInput = {
+    ...(input.input ?? {}),
+  };
+  const subjectTaskId = readOptionalSubjectString(input.subject_task_id);
+  const subjectWorkItemId = readOptionalSubjectString(input.subject_work_item_id);
+  const subjectHandoffId = readOptionalSubjectString(input.subject_handoff_id);
+  const subjectRevision = readOptionalPositiveInteger(input.subject_revision);
+  if (subjectTaskId) {
+    nextInput.subject_task_id = subjectTaskId;
+  }
+  if (subjectWorkItemId) {
+    nextInput.subject_work_item_id = subjectWorkItemId;
+  }
+  if (subjectHandoffId) {
+    nextInput.subject_handoff_id = subjectHandoffId;
+  }
+  if (subjectRevision !== null) {
+    nextInput.subject_revision = subjectRevision;
+  }
+  return nextInput;
+}
+
+function readOptionalSubjectString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readOptionalPositiveInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0 ? value : null;
+}
+
 function isClosedPlannedStage(workItem: LinkedWorkItemRow) {
   if (workItem.workflow_lifecycle !== 'planned') {
     return false;
@@ -1143,7 +1243,7 @@ function hasMatchingCreateMetadata(
 
 function selectReplayStableMetadata(metadata: Record<string, unknown>) {
   const stable: Record<string, unknown> = {};
-  for (const key of ['lifecycle_policy', 'task_type', 'credential_refs', 'review_prompt']) {
+  for (const key of ['lifecycle_policy', 'task_type', 'task_kind', 'credential_refs', 'review_prompt']) {
     if (key in metadata) {
       stable[key] = metadata[key];
     }

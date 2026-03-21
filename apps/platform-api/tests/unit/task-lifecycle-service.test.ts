@@ -162,6 +162,93 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(result.metrics).toMatchObject({ duration_seconds: 4 });
   });
 
+  it('records delivery output revision metadata when a delivery task completes', async () => {
+    let metadataPatch: Record<string, unknown> | null = null;
+    const client = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          metadataPatch = ((values ?? []).find(
+            (value) => value && typeof value === 'object' && !Array.isArray(value)
+              && ('verification' in (value as Record<string, unknown>) || 'output_revision' in (value as Record<string, unknown>)),
+          ) as Record<string, unknown> | undefined) ?? null;
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-delivery',
+                state: 'completed',
+                workflow_id: 'workflow-1',
+                work_item_id: 'work-item-1',
+                assigned_agent_id: null,
+                assigned_worker_id: null,
+                rework_count: 0,
+                output: { ok: true },
+                metadata: {
+                  task_kind: 'delivery',
+                  output_revision: 1,
+                  verification: { passed: true },
+                },
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client), query: client.query } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-delivery',
+        state: 'in_progress',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        assigned_agent_id: 'agent-1',
+        assigned_worker_id: 'worker-1',
+        role_config: {},
+        rework_count: 0,
+        metadata: { task_kind: 'delivery' },
+      }),
+      toTaskResponse: (task) => task,
+      handoffService: {
+        assertRequiredTaskHandoffBeforeCompletion: vi.fn(async () => undefined),
+      } as never,
+    });
+
+    const result = await service.completeTask(
+      {
+        id: 'worker-key',
+        tenantId: 'tenant-1',
+        scope: 'worker',
+        ownerType: 'worker',
+        ownerId: 'worker-1',
+        keyPrefix: 'wk',
+      },
+      'task-delivery',
+      {
+        output: { ok: true },
+        verification: { passed: true },
+      },
+    );
+
+    expect(metadataPatch).toEqual(
+      expect.objectContaining({
+        verification: { passed: true },
+        output_revision: 1,
+      }),
+    );
+    expect(result.metadata).toMatchObject({
+      task_kind: 'delivery',
+      output_revision: 1,
+      verification: { passed: true },
+    });
+  });
+
   it('moves completion to output_pending_review when output schema validation fails', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {

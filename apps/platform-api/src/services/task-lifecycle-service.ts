@@ -163,6 +163,27 @@ function readInteger(value: unknown): number | null {
   return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
 
+function readTaskKind(task: Record<string, unknown>): 'delivery' | 'assessment' | 'approval' | 'orchestrator' {
+  const taskKind = readOptionalText(asRecord(task.metadata).task_kind);
+  if (taskKind === 'assessment' || taskKind === 'approval' || taskKind === 'orchestrator' || taskKind === 'delivery') {
+    return taskKind;
+  }
+  if (task.is_orchestrator_task === true) {
+    return 'orchestrator';
+  }
+  return 'delivery';
+}
+
+function buildOutputRevisionMetadataPatch(task: Record<string, unknown>) {
+  const taskKind = readTaskKind(task);
+  if (taskKind === 'assessment' || taskKind === 'approval' || taskKind === 'orchestrator') {
+    return undefined;
+  }
+  return {
+    output_revision: (readInteger(task.rework_count) ?? 0) + 1,
+  };
+}
+
 function normalizeReviewOutcome(value: unknown): 'approved' | null {
   return readOptionalText(value) === 'approved' ? 'approved' : null;
 }
@@ -1026,6 +1047,7 @@ export class TaskLifecycleService {
     const safeVerification = payload.verification
       ? sanitizeSecretLikeRecord(payload.verification)
       : undefined;
+    const outputRevisionMetadataPatch = buildOutputRevisionMetadataPatch(task);
 
     const shouldMoveToOutputReview =
       (Boolean(task.requires_output_review) && !approvedReviewerHandoff)
@@ -1041,6 +1063,7 @@ export class TaskLifecycleService {
             metrics: safeMetrics,
             gitInfo: safeGitInfo,
             verification: safeVerification,
+            metadataPatch: outputRevisionMetadataPatch,
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
             clearEscalationMetadata: true,
@@ -1057,6 +1080,7 @@ export class TaskLifecycleService {
             metrics: safeMetrics,
             gitInfo: safeGitInfo,
             verification: safeVerification,
+            metadataPatch: outputRevisionMetadataPatch,
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
             clearEscalationMetadata: true,

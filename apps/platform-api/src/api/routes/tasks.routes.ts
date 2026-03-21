@@ -15,6 +15,7 @@ import {
 const taskCreateSchema = z.object({
   title: z.string().min(1).max(500),
   type: z.enum(['analysis', 'code', 'review', 'test', 'docs', 'orchestration', 'custom']),
+  task_kind: z.enum(['delivery', 'assessment', 'approval', 'orchestrator']).optional(),
   description: z.string().max(5000).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
   workflow_id: z.string().uuid().optional(),
@@ -26,6 +27,10 @@ const taskCreateSchema = z.object({
   is_orchestrator_task: z.boolean().optional(),
   parent_id: z.string().uuid().optional(),
   role: z.string().max(120).optional(),
+  subject_task_id: z.string().uuid().optional(),
+  subject_work_item_id: z.string().uuid().optional(),
+  subject_handoff_id: z.string().uuid().optional(),
+  subject_revision: z.number().int().min(1).optional(),
   input: z.record(z.unknown()).optional(),
   context: z.record(z.unknown()).optional(),
   depends_on: z.array(z.string().uuid()).optional(),

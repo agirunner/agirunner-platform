@@ -5,6 +5,7 @@ export interface CreateTaskInput {
   title: string;
   description?: string;
   type?: 'analysis' | 'code' | 'review' | 'test' | 'docs' | 'orchestration' | 'custom';
+  task_kind?: 'delivery' | 'assessment' | 'approval' | 'orchestrator';
   priority?: string;
   workflow_id?: string;
   work_item_id?: string;
@@ -15,6 +16,10 @@ export interface CreateTaskInput {
   is_orchestrator_task?: boolean;
   parent_id?: string;
   role?: string;
+  subject_task_id?: string;
+  subject_work_item_id?: string;
+  subject_handoff_id?: string;
+  subject_revision?: number;
   credentials?: Record<string, string>;
   input?: Record<string, unknown>;
   context?: Record<string, unknown>;

@@ -215,10 +215,10 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements, reviewer reviews, QA validates.',
                 roles: ['developer', 'reviewer', 'qa'],
-                review_rules: [
+                assessment_rules: [
                   {
-                    from_role: 'developer',
-                    reviewed_by: 'reviewer',
+                    subject_role: 'developer',
+                    assessed_by: 'reviewer',
                     required: true,
                   },
                 ],
@@ -338,10 +338,10 @@ describe('TaskWriteService', () => {
             rows: [{
               definition: {
                 roles: ['live-test-developer', 'live-test-qa', 'live-test-reviewer'],
-                review_rules: [
+                assessment_rules: [
                   {
-                    from_role: 'live-test-developer',
-                    reviewed_by: 'live-test-qa',
+                    subject_role: 'live-test-developer',
+                    assessed_by: 'live-test-qa',
                     checkpoint: 'test',
                     required: true,
                   },
@@ -521,7 +521,7 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements and reviewer reviews.',
                 roles: ['live-test-developer', 'live-test-reviewer'],
-                review_rules: [],
+                assessment_rules: [],
                 approval_rules: [],
                 handoff_rules: [],
                 checkpoints: [],
@@ -639,7 +639,7 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements and reviewer checks it.',
                 roles: ['developer', 'reviewer'],
-                review_rules: [],
+                assessment_rules: [],
                 approval_rules: [],
                 handoff_rules: [],
                 checkpoints: [],
@@ -755,7 +755,7 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements and reviewer checks it.',
                 roles: ['developer', 'reviewer'],
-                review_rules: [],
+                assessment_rules: [],
                 approval_rules: [],
                 handoff_rules: [],
                 checkpoints: [],
@@ -866,7 +866,7 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements and reviewer checks it.',
                 roles: ['developer', 'reviewer'],
-                review_rules: [],
+                assessment_rules: [],
                 approval_rules: [],
                 handoff_rules: [],
                 checkpoints: [],
@@ -957,6 +957,170 @@ describe('TaskWriteService', () => {
         },
       }),
     );
+  });
+
+  it('persists generic assessment task kind and subject linkage metadata', async () => {
+    let insertedInput: Record<string, unknown> | null = null;
+    let insertedMetadata: Record<string, unknown> | null = null;
+    const pool = {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'verification' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('role = $4') && sql.includes('state = ANY($5::task_state[])')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          insertedInput = (values?.[12] as Record<string, unknown>) ?? null;
+          insertedMetadata = (values?.[27] as Record<string, unknown>) ?? null;
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-assessment-1',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              input: insertedInput,
+              metadata: insertedMetadata,
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    const created = await service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Assess implementation output',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-assessment-contract',
+        role: 'qa',
+        type: 'test',
+        task_kind: 'assessment',
+        subject_task_id: 'task-delivery-1',
+        subject_work_item_id: 'work-item-implementation-1',
+        subject_handoff_id: 'handoff-delivery-1',
+        subject_revision: 2,
+      },
+    );
+
+    expect(insertedMetadata).toEqual(
+      expect.objectContaining({
+        task_type: 'test',
+        task_kind: 'assessment',
+      }),
+    );
+    expect(insertedInput).toEqual(
+      expect.objectContaining({
+        subject_task_id: 'task-delivery-1',
+        subject_work_item_id: 'work-item-implementation-1',
+        subject_handoff_id: 'handoff-delivery-1',
+        subject_revision: 2,
+      }),
+    );
+    expect(created.metadata).toEqual(expect.objectContaining({ task_kind: 'assessment' }));
+    expect(created.input).toEqual(
+      expect.objectContaining({
+        subject_task_id: 'task-delivery-1',
+        subject_work_item_id: 'work-item-implementation-1',
+        subject_handoff_id: 'handoff-delivery-1',
+        subject_revision: 2,
+      }),
+    );
+  });
+
+  it('rejects assessment tasks that omit the required subject task linkage', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{ workflow_id: 'workflow-1', stage_name: 'verification' }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('role = $4') && sql.includes('state = ANY($5::task_state[])')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql === 'SELECT id FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return { rowCount: 0, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await expect(service.createTask(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        keyPrefix: 'admin-key',
+      } as never,
+      {
+        title: 'Assess implementation output',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        request_id: 'request-assessment-missing-subject',
+        role: 'qa',
+        type: 'test',
+        task_kind: 'assessment',
+        subject_revision: 1,
+      },
+    )).rejects.toThrow('subject_task_id is required for assessment tasks');
   });
 
   it('defaults workflow task execution context from workspace storage only', async () => {
@@ -2588,7 +2752,7 @@ describe('TaskWriteService', () => {
                   { name: 'review', goal: 'Reviewer sign-off', involves: ['live-test-reviewer'] },
                   { name: 'verification', goal: 'QA validation', involves: ['live-test-qa'] },
                 ],
-                review_rules: [],
+                assessment_rules: [],
                 approval_rules: [],
                 handoff_rules: [{ from_role: 'live-test-reviewer', to_role: 'live-test-qa', checkpoint: 'review', required: true }],
                 lifecycle: 'planned',
