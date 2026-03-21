@@ -12,7 +12,10 @@ import {
   TASK_DEFAULT_TIMEOUT_MINUTES_RUNTIME_KEY,
   TASK_MAX_ITERATIONS_RUNTIME_KEY,
 } from './runtime-default-values.js';
-import { readTemplateLifecyclePolicy } from './task-lifecycle-policy.js';
+import {
+  mergeLifecyclePolicy,
+  readTemplateLifecyclePolicy,
+} from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
 
 interface TaskWriteDependencies {
@@ -623,10 +626,36 @@ export class TaskWriteService {
     if (!definition?.orchestrator) {
       return input;
     }
+    const existingMetadata = asRecord(input.metadata);
+    const existingLifecyclePolicy = readTemplateLifecyclePolicy(
+      existingMetadata.lifecycle_policy,
+      'metadata.lifecycle_policy',
+    );
+    const playbookLifecyclePolicy = definition.orchestrator.max_rework_iterations != null
+      && definition.orchestrator.max_rework_iterations > 0
+      ? {
+          rework: {
+            max_cycles: definition.orchestrator.max_rework_iterations,
+          },
+        }
+      : undefined;
+    const mergedLifecyclePolicy = mergeLifecyclePolicy(
+      playbookLifecyclePolicy,
+      existingLifecyclePolicy,
+    );
+
     return {
       ...input,
       max_iterations: input.max_iterations ?? definition.orchestrator.max_iterations,
       llm_max_retries: input.llm_max_retries ?? definition.orchestrator.llm_max_retries,
+      ...(mergedLifecyclePolicy
+        ? {
+            metadata: {
+              ...existingMetadata,
+              lifecycle_policy: mergedLifecyclePolicy,
+            },
+          }
+        : {}),
     };
   }
 

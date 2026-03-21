@@ -1420,6 +1420,68 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('does not reapply the same reviewer request-changes handoff after the developer resubmits output', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_work_items review_wi') && sql.includes('COALESCE(th.resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+          return {
+            rowCount: 1,
+            rows: [{
+              handoff_id: 'handoff-review-1',
+              review_task_id: 'review-task-1',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-review-loop-consumed',
+      state: 'output_pending_review',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      input: {
+        review_feedback: 'Earlier review feedback',
+      },
+      metadata: {
+        review_action: 'request_changes',
+        review_feedback: 'Earlier review feedback',
+        last_applied_review_request_handoff_id: 'handoff-review-1',
+        last_applied_review_request_task_id: 'review-task-1',
+      },
+      rework_count: 1,
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-review-loop-consumed',
+      {
+        feedback: 'The same stale review verdict was replayed.',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).toHaveBeenCalledTimes(1);
+  });
+
   it('treats a repeated reject action as idempotent once the task already reflects the rejection', async () => {
     const client = {
       query: vi.fn(async () => ({ rows: [], rowCount: 0 })),

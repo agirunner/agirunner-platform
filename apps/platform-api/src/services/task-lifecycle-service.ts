@@ -124,6 +124,11 @@ interface ReworkWorkItemContextRow {
   definition: unknown;
 }
 
+interface LatestReviewRequestHandoffRow {
+  handoff_id: string;
+  review_task_id: string;
+}
+
 const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
   'ready',
   'claimed',
@@ -187,6 +192,18 @@ function hasActiveReworkRequest(task: Record<string, unknown>): boolean {
     return false;
   }
   return asRecord(task.metadata).review_action === 'request_changes';
+}
+
+function hasAppliedLatestReviewRequest(
+  task: Record<string, unknown>,
+  latestReviewRequest: LatestReviewRequestHandoffRow | null,
+): boolean {
+  if (!latestReviewRequest) {
+    return false;
+  }
+
+  return readOptionalText(asRecord(task.metadata).last_applied_review_request_handoff_id)
+    === latestReviewRequest.handoff_id;
 }
 
 function hasMatchingManualEscalation(
@@ -1072,6 +1089,49 @@ export class TaskLifecycleService {
     }
   }
 
+  private async loadLatestReviewRequestHandoff(
+    tenantId: string,
+    task: Record<string, unknown>,
+    db?: DatabaseClient,
+  ): Promise<LatestReviewRequestHandoffRow | null> {
+    const workflowId = readOptionalText(task.workflow_id);
+    const workItemId = readOptionalText(task.work_item_id);
+    if (!workflowId || !workItemId) {
+      return null;
+    }
+
+    const queryClient = db
+      ?? ('query' in this.deps.pool && typeof this.deps.pool.query === 'function'
+        ? this.deps.pool
+        : await this.deps.pool.connect());
+    const ownsClient = db == null && queryClient !== this.deps.pool;
+
+    try {
+      const result = await queryClient.query<LatestReviewRequestHandoffRow>(
+        `SELECT th.id AS handoff_id,
+                th.task_id AS review_task_id
+           FROM workflow_work_items review_wi
+           JOIN task_handoffs th
+             ON th.tenant_id = review_wi.tenant_id
+            AND th.workflow_id = review_wi.workflow_id
+            AND th.work_item_id = review_wi.id
+          WHERE review_wi.tenant_id = $1
+            AND review_wi.workflow_id = $2
+            AND review_wi.parent_work_item_id = $3
+            AND review_wi.stage_name = 'review'
+            AND COALESCE(th.resolution, th.role_data->>'review_outcome') = 'request_changes'
+          ORDER BY th.sequence DESC, th.created_at DESC
+          LIMIT 1`,
+        [tenantId, workflowId, workItemId],
+      );
+      return result.rows[0] ?? null;
+    } finally {
+      if (ownsClient && 'release' in queryClient && typeof queryClient.release === 'function') {
+        queryClient.release();
+      }
+    }
+  }
+
   async failTask(
     identity: ApiKeyIdentity,
     taskId: string,
@@ -1371,6 +1431,14 @@ export class TaskLifecycleService {
     if (hasActiveReworkRequest(task)) {
       return this.deps.toTaskResponse(task);
     }
+    const latestReviewRequest = await this.loadLatestReviewRequestHandoff(
+      identity.tenantId,
+      task,
+      client,
+    );
+    if (hasAppliedLatestReviewRequest(task, latestReviewRequest)) {
+      return this.deps.toTaskResponse(task);
+    }
     const nextInput = payload.override_input ?? {
       ...asRecord(task.input),
       review_feedback: payload.feedback,
@@ -1409,6 +1477,12 @@ export class TaskLifecycleService {
           review_action: 'request_changes',
           review_updated_at: new Date().toISOString(),
           max_rework_exceeded_at: new Date().toISOString(),
+          ...(latestReviewRequest
+            ? {
+                last_applied_review_request_handoff_id: latestReviewRequest.handoff_id,
+                last_applied_review_request_task_id: latestReviewRequest.review_task_id,
+              }
+            : {}),
           ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
           ...(payload.preferred_worker_id
             ? { preferred_worker_id: payload.preferred_worker_id }
@@ -1481,6 +1555,12 @@ export class TaskLifecycleService {
         review_feedback: payload.feedback,
         review_action: 'request_changes',
         review_updated_at: new Date().toISOString(),
+        ...(latestReviewRequest
+          ? {
+              last_applied_review_request_handoff_id: latestReviewRequest.handoff_id,
+              last_applied_review_request_task_id: latestReviewRequest.review_task_id,
+            }
+          : {}),
         ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
         ...(payload.preferred_worker_id
           ? { preferred_worker_id: payload.preferred_worker_id }
