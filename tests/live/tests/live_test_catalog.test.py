@@ -195,6 +195,16 @@ class LiveTestCatalogTests(unittest.TestCase):
                 f"sdlc-review-reject-twice outcome must author '{snippet}' into scope",
             )
 
+    def test_review_reject_twice_profile_sets_realistic_orchestrator_efficiency_budget(self) -> None:
+        scenario_file = SCENARIOS_DIR / "sdlc-review-reject-twice.json"
+        scenario = json.loads(scenario_file.read_text())
+        efficiency = scenario.get("expect", {}).get("efficiency", {})
+        self.assertEqual(
+            36,
+            efficiency.get("orchestrator_max_llm_turns_lte"),
+            "sdlc-review-reject-twice should allow enough orchestrator headroom for two full reject-and-reroute cycles",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
