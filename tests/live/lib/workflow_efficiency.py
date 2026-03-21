@@ -80,8 +80,40 @@ def summarize_efficiency(
         "total_bursts": sum(summary["burst_count"] for summary in task_summaries.values()),
         "orchestrator_max_llm_turns": max(orchestrator_llm_turns, default=0),
         "non_orchestrator_max_llm_turns": max(specialist_llm_turns, default=0),
+        "orchestrator_max_llm_turns_per_attempt": max(
+            (
+                summary["llm_turns_per_attempt"]
+                for summary in task_summaries.values()
+                if summary["is_orchestrator_task"]
+            ),
+            default=0,
+        ),
+        "non_orchestrator_max_llm_turns_per_attempt": max(
+            (
+                summary["llm_turns_per_attempt"]
+                for summary in task_summaries.values()
+                if not summary["is_orchestrator_task"]
+            ),
+            default=0,
+        ),
         "orchestrator_max_tool_steps": max(orchestrator_tool_steps, default=0),
         "non_orchestrator_max_tool_steps": max(specialist_tool_steps, default=0),
+        "orchestrator_max_tool_steps_per_attempt": max(
+            (
+                summary["tool_steps_per_attempt"]
+                for summary in task_summaries.values()
+                if summary["is_orchestrator_task"]
+            ),
+            default=0,
+        ),
+        "non_orchestrator_max_tool_steps_per_attempt": max(
+            (
+                summary["tool_steps_per_attempt"]
+                for summary in task_summaries.values()
+                if not summary["is_orchestrator_task"]
+            ),
+            default=0,
+        ),
         "tasks": task_summaries,
         "approval_metrics": approval_metrics,
         "specialist_teardown": specialist_teardown,
@@ -101,8 +133,10 @@ def evaluate_efficiency_expectations(
     scalar_fields = (
         ("workflow_duration_seconds_lte", "workflow_duration_seconds"),
         ("non_orchestrator_max_llm_turns_lte", "non_orchestrator_max_llm_turns"),
+        ("non_orchestrator_max_llm_turns_per_attempt_lte", "non_orchestrator_max_llm_turns_per_attempt"),
         ("orchestrator_max_llm_turns_lte", "orchestrator_max_llm_turns"),
         ("non_orchestrator_max_tool_steps_lte", "non_orchestrator_max_tool_steps"),
+        ("non_orchestrator_max_tool_steps_per_attempt_lte", "non_orchestrator_max_tool_steps_per_attempt"),
         ("orchestrator_max_tool_steps_lte", "orchestrator_max_tool_steps"),
     )
     for expectation_key, metric_key in scalar_fields:
@@ -216,6 +250,7 @@ def build_task_efficiency_summary(workflow: dict[str, Any], log_rows: list[dict[
             "role": task.get("role"),
             "is_orchestrator_task": bool(task.get("is_orchestrator_task")),
             "state": task.get("state"),
+            "attempt_count": max(1, _read_int(task.get("rework_count")) + 1),
             "llm_turns": 0,
             "tool_steps": 0,
             "burst_ids": set(),
@@ -241,6 +276,7 @@ def build_task_efficiency_summary(workflow: dict[str, Any], log_rows: list[dict[
                 "role": row.get("role"),
                 "is_orchestrator_task": bool(row.get("is_orchestrator_task")),
                 "state": None,
+                "attempt_count": 1,
                 "llm_turns": 0,
                 "tool_steps": 0,
                 "burst_ids": set(),
@@ -293,7 +329,11 @@ def build_task_efficiency_summary(workflow: dict[str, Any], log_rows: list[dict[
             summary["teardown_completed_at"] = _latest_time(summary["teardown_completed_at"], created_at)
 
     for summary in task_summaries.values():
+        attempt_count = max(1, _read_int(summary.get("attempt_count")) or 1)
+        summary["attempt_count"] = attempt_count
         summary["burst_count"] = len(summary["burst_ids"])
+        summary["llm_turns_per_attempt"] = round(summary["llm_turns"] / attempt_count, 3)
+        summary["tool_steps_per_attempt"] = round(summary["tool_steps"] / attempt_count, 3)
         summary.pop("burst_ids", None)
         terminal_at = summary.get("task_terminal_at")
         removed_at = summary.get("container_removed_at")

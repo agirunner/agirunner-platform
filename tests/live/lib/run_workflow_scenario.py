@@ -1347,6 +1347,12 @@ def build_run_result_payload(
         "total_bursts": efficiency_payload.get("total_bursts"),
         "orchestrator_max_llm_turns": efficiency_payload.get("orchestrator_max_llm_turns"),
         "non_orchestrator_max_llm_turns": efficiency_payload.get("non_orchestrator_max_llm_turns"),
+        "orchestrator_max_llm_turns_per_attempt": efficiency_payload.get(
+            "orchestrator_max_llm_turns_per_attempt"
+        ),
+        "non_orchestrator_max_llm_turns_per_attempt": efficiency_payload.get(
+            "non_orchestrator_max_llm_turns_per_attempt"
+        ),
         "specialist_teardown_lag_seconds": specialist_teardown.get("max_lag_seconds"),
         "brief_proof": brief_proof,
     }

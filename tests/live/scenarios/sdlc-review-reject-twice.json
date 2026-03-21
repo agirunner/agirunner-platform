@@ -33,7 +33,7 @@
       }
     ],
     "efficiency": {
-      "non_orchestrator_max_llm_turns_lte": 45,
+      "non_orchestrator_max_llm_turns_per_attempt_lte": 22,
       "orchestrator_max_llm_turns_lte": 28,
       "orphan_cleanup_events_eq": 0
     }

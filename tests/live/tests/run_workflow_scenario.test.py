@@ -246,6 +246,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "total_bursts": 3,
                 "orchestrator_max_llm_turns": 1,
                 "non_orchestrator_max_llm_turns": 3,
+                "non_orchestrator_max_llm_turns_per_attempt": 1.5,
                 "specialist_teardown": {"max_lag_seconds": 1.2},
             },
             verification={"passed": True, "failures": [], "checks": []},
@@ -258,6 +259,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertTrue(payload["verification_passed"])
         self.assertFalse(payload["harness_failure"])
         self.assertEqual(12.5, payload["workflow_duration_seconds"])
+        self.assertEqual(1.5, payload["non_orchestrator_max_llm_turns_per_attempt"])
         self.assertEqual(4, payload["total_llm_turns"])
         self.assertEqual(6, payload["total_tool_steps"])
         self.assertEqual(3, payload["total_bursts"])
@@ -561,12 +563,94 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             summary["approval_metrics"][0]["decision_to_continuation_completed_seconds"],
         )
 
+    def test_summarize_efficiency_normalizes_reused_task_turns_by_attempt_count(self) -> None:
+        workflow = {
+            "id": "wf-1",
+            "state": "completed",
+            "created_at": "2026-03-20T09:59:50Z",
+            "completed_at": "2026-03-20T10:00:20Z",
+            "tasks": [
+                {
+                    "id": "task-dev-1",
+                    "role": "developer",
+                    "is_orchestrator_task": False,
+                    "state": "completed",
+                    "rework_count": 2,
+                }
+            ],
+        }
+        logs = {
+            "data": [
+                {
+                    "id": "log-1",
+                    "task_id": "task-dev-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {"burst_id": 1},
+                    "created_at": "2026-03-20T09:59:55Z",
+                },
+                {
+                    "id": "log-2",
+                    "task_id": "task-dev-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {"burst_id": 1},
+                    "created_at": "2026-03-20T09:59:56Z",
+                },
+                {
+                    "id": "log-3",
+                    "task_id": "task-dev-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {"burst_id": 2},
+                    "created_at": "2026-03-20T09:59:57Z",
+                },
+                {
+                    "id": "log-4",
+                    "task_id": "task-dev-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {"burst_id": 2},
+                    "created_at": "2026-03-20T09:59:58Z",
+                },
+                {
+                    "id": "log-5",
+                    "task_id": "task-dev-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {"burst_id": 3},
+                    "created_at": "2026-03-20T09:59:59Z",
+                },
+                {
+                    "id": "log-6",
+                    "task_id": "task-dev-1",
+                    "operation": "llm.chat_stream",
+                    "status": "completed",
+                    "payload": {"burst_id": 3},
+                    "created_at": "2026-03-20T10:00:00Z",
+                },
+            ]
+        }
+
+        summary = run_workflow_scenario.summarize_efficiency(
+            workflow=workflow,
+            logs=logs,
+            events={"ok": True, "data": []},
+            approval_actions=[],
+        )
+
+        self.assertEqual(6, summary["tasks"]["task-dev-1"]["llm_turns"])
+        self.assertEqual(3, summary["tasks"]["task-dev-1"]["attempt_count"])
+        self.assertEqual(2.0, summary["tasks"]["task-dev-1"]["llm_turns_per_attempt"])
+        self.assertEqual(2.0, summary["non_orchestrator_max_llm_turns_per_attempt"])
+
     def test_evaluate_expectations_checks_efficiency_thresholds(self) -> None:
         result = run_workflow_scenario.evaluate_expectations(
             {
                 "efficiency": {
                     "workflow_duration_seconds_lte": 60,
                     "non_orchestrator_max_llm_turns_lte": 3,
+                    "non_orchestrator_max_llm_turns_per_attempt_lte": 2,
                     "non_orchestrator_max_tool_steps_lte": 4,
                     "approval_decision_to_continuation_started_seconds_lte": 2,
                     "approval_decision_to_continuation_completed_seconds_lte": 3,
@@ -585,6 +669,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             efficiency={
                 "workflow_duration_seconds": 30.0,
                 "non_orchestrator_max_llm_turns": 2,
+                "non_orchestrator_max_llm_turns_per_attempt": 2.0,
                 "non_orchestrator_max_tool_steps": 2,
                 "approval_metrics": [
                     {
@@ -600,6 +685,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         check_names = {entry["name"] for entry in result["checks"]}
         self.assertIn("efficiency.workflow_duration_seconds_lte", check_names)
         self.assertIn("efficiency.non_orchestrator_max_llm_turns_lte", check_names)
+        self.assertIn("efficiency.non_orchestrator_max_llm_turns_per_attempt_lte", check_names)
         self.assertIn("efficiency.specialist_teardown_lag_seconds_lte", check_names)
 
     def test_summarize_efficiency_uses_runtime_teardown_completion_without_container_remove(self) -> None:
