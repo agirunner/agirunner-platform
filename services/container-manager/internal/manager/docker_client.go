@@ -57,16 +57,34 @@ func (d *RealDockerClient) ListContainers(ctx context.Context) ([]ContainerInfo,
 		if !isAgirunnerManagedContainer(c.Labels) {
 			continue
 		}
+		inspect, err := d.cli.ContainerInspect(ctx, c.ID)
+		if err != nil {
+			return nil, fmt.Errorf("docker inspect container %s: %w", c.ID, err)
+		}
 		name := ""
 		if len(c.Names) > 0 {
 			name = strings.TrimPrefix(c.Names[0], "/")
 		}
+		startedAt := time.Time{}
+		if inspect.State != nil {
+			startedAt = parseDockerStartedAt(inspect.State.StartedAt)
+		}
+		cpuLimit := ""
+		memoryLimit := ""
+		if inspect.HostConfig != nil {
+			cpuLimit = formatNanoCPULimit(inspect.HostConfig.Resources.NanoCPUs)
+			memoryLimit = formatMemoryByteLimit(inspect.HostConfig.Memory)
+		}
 		result = append(result, ContainerInfo{
-			ID:     c.ID,
-			Name:   name,
-			Image:  c.Image,
-			Status: c.Status,
-			Labels: c.Labels,
+			ID:          c.ID,
+			Name:        name,
+			Image:       c.Image,
+			State:       c.State,
+			Status:      c.Status,
+			CPULimit:    cpuLimit,
+			MemoryLimit: memoryLimit,
+			StartedAt:   startedAt,
+			Labels:      c.Labels,
 		})
 	}
 	return result, nil
@@ -406,6 +424,51 @@ func parseMemoryLimit(limit string) int64 {
 		return 0
 	}
 	return int64(val * float64(multiplier))
+}
+
+func formatNanoCPULimit(limit int64) string {
+	if limit <= 0 {
+		return ""
+	}
+	cpuUnits := float64(limit) / 1e9
+	formatted := strconv.FormatFloat(cpuUnits, 'f', 3, 64)
+	formatted = strings.TrimRight(strings.TrimRight(formatted, "0"), ".")
+	if formatted == "" {
+		return ""
+	}
+	return formatted
+}
+
+func formatMemoryByteLimit(limit int64) string {
+	if limit <= 0 {
+		return ""
+	}
+	type unit struct {
+		suffix string
+		value  int64
+	}
+	for _, candidate := range []unit{
+		{suffix: "g", value: 1024 * 1024 * 1024},
+		{suffix: "m", value: 1024 * 1024},
+		{suffix: "k", value: 1024},
+	} {
+		if limit%candidate.value == 0 {
+			return strconv.FormatInt(limit/candidate.value, 10) + candidate.suffix
+		}
+	}
+	return strconv.FormatInt(limit, 10) + "b"
+}
+
+func parseDockerStartedAt(value string) time.Time {
+	trimmed := strings.TrimSpace(value)
+	if trimmed == "" || trimmed == "0001-01-01T00:00:00Z" {
+		return time.Time{}
+	}
+	startedAt, err := time.Parse(time.RFC3339Nano, trimmed)
+	if err != nil {
+		return time.Time{}
+	}
+	return startedAt.UTC()
 }
 
 // parseRepoTag splits a "repository:tag" string into its parts.

@@ -11,6 +11,7 @@ import type { EventService } from './services/event-service.js';
 import type { FleetService } from './services/fleet-service.js';
 import type { GovernanceService } from './services/governance-service.js';
 import type { ModelCatalogService } from './services/model-catalog-service.js';
+import type { ContainerInventoryService } from './services/container-inventory-service.js';
 import type { WorkspaceService } from './services/workspace-service.js';
 import type { WorkspaceArtifactFileService } from './services/workspace-artifact-file-service.js';
 import type { PlaybookService } from './services/playbook-service.js';
@@ -39,6 +40,7 @@ declare module 'fastify' {
     logStreamService: LogStreamService;
     eventService: EventService;
     eventStreamService: EventStreamService;
+    containerInventoryService: ContainerInventoryService;
     workerConnectionHub: WorkerConnectionHub;
     workerService: WorkerService;
     governanceService: GovernanceService;

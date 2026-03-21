@@ -189,6 +189,7 @@ type mockPlatformClient struct {
 	fetchHBCalls    int
 	fetchSnapCalls  int
 	reportedStates  []ActualState
+	reportedLiveContainers []LiveContainerReport
 	reportedImages  []ContainerImage
 	reportedEvents  []FleetEvent
 	failedTasks     []failedTaskRecord
@@ -236,6 +237,11 @@ func (m *mockPlatformClient) ReportActualState(state ActualState) error {
 		return m.reportStateErr
 	}
 	m.reportedStates = append(m.reportedStates, state)
+	return nil
+}
+
+func (m *mockPlatformClient) ReportLiveContainerInventory(containers []LiveContainerReport) error {
+	m.reportedLiveContainers = append(m.reportedLiveContainers, containers...)
 	return nil
 }
 

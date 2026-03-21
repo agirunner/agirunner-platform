@@ -312,6 +312,57 @@ func TestFetchReconcileSnapshotUsesSharedFleetEndpoint(t *testing.T) {
 	}
 }
 
+func TestReportLiveContainerInventoryPostsDockerTruth(t *testing.T) {
+	var payload struct {
+		Containers []LiveContainerReport `json:"containers"`
+	}
+
+	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
+		if req.URL.Path != "/api/v1/fleet/live-containers" {
+			t.Errorf("expected path /api/v1/fleet/live-containers, got %s", req.URL.Path)
+		}
+		if req.Method != http.MethodPost {
+			t.Errorf("expected POST, got %s", req.Method)
+		}
+		if req.Header.Get("Content-Type") != "application/json" {
+			t.Errorf("expected Content-Type application/json, got %s", req.Header.Get("Content-Type"))
+		}
+		if err := json.NewDecoder(req.Body).Decode(&payload); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		return jsonResponse(http.StatusNoContent, ""), nil
+	})
+
+	err := client.ReportLiveContainerInventory([]LiveContainerReport{
+		{
+			ContainerID: "task-container-1",
+			Name:        "task-3d749b2c",
+			Kind:        "task",
+			State:       "running",
+			Status:      "Up 90 seconds",
+			Image:       "agirunner-runtime-execution:local",
+			CPULimit:    "1",
+			MemoryLimit: "768m",
+			RuntimeID:   "runtime-1",
+			TaskID:      "task-1",
+			WorkflowID:  "workflow-1",
+			RoleName:    "developer",
+		},
+	})
+	if err != nil {
+		t.Fatalf("expected no error, got %v", err)
+	}
+	if capture.authorization != "Bearer test-key" {
+		t.Fatalf("expected Authorization Bearer test-key, got %s", capture.authorization)
+	}
+	if len(payload.Containers) != 1 {
+		t.Fatalf("expected one reported container, got %d", len(payload.Containers))
+	}
+	if payload.Containers[0].CPULimit != "1" || payload.Containers[0].MemoryLimit != "768m" {
+		t.Fatalf("expected docker truth cpu/memory in payload, got cpu=%q memory=%q", payload.Containers[0].CPULimit, payload.Containers[0].MemoryLimit)
+	}
+}
+
 func TestAcknowledgeWorkerRestartPostsToAPI(t *testing.T) {
 	client, capture := newTestPlatformClient(t, func(req *http.Request) (*http.Response, error) {
 		if req.URL.Path != "/api/v1/fleet/workers/worker-1/restart/ack" {

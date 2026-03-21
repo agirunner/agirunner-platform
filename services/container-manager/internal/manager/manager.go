@@ -33,11 +33,15 @@ type DockerClient interface {
 
 // ContainerInfo represents a running container as reported by Docker.
 type ContainerInfo struct {
-	ID     string
-	Name   string
-	Image  string
-	Status string
-	Labels map[string]string
+	ID          string
+	Name        string
+	Image       string
+	State       string
+	Status      string
+	CPULimit    string
+	MemoryLimit string
+	StartedAt   time.Time
+	Labels      map[string]string
 }
 
 // ContainerSpec describes how to create a new container.
@@ -80,6 +84,7 @@ type PlatformAPI interface {
 	FetchDesiredState() ([]DesiredState, error)
 	FetchReconcileSnapshot() (*ReconcileSnapshot, error)
 	ReportActualState(state ActualState) error
+	ReportLiveContainerInventory(containers []LiveContainerReport) error
 	PruneActualState(desiredStateID string, activeContainerIDs []string) error
 	ReportImage(image ContainerImage) error
 	FetchRuntimeTargets() ([]RuntimeTarget, error)
@@ -251,6 +256,13 @@ func (m *Manager) runReconcileCycle(ctx context.Context) {
 				m.logger.Error("DCM reconcile cycle failed", "error", dcmErr)
 			}
 		}
+	}
+	if inventoryErr := m.reportLiveContainerInventory(ctx); inventoryErr != nil {
+		m.logger.Error("live container inventory report failed", "error", inventoryErr)
+		m.emitLogError("container", "inventory.report", map[string]any{
+			"action": "report_live_inventory",
+			"cycle":  m.cycleCount,
+		}, inventoryErr.Error())
 	}
 
 	elapsed := time.Since(start)

@@ -158,6 +158,27 @@ type FleetEvent struct {
 	Payload     map[string]interface{} `json:"payload,omitempty"`
 }
 
+// LiveContainerReport captures the current Docker-inspected state of a managed
+// container so platform surfaces can show what is actually running.
+type LiveContainerReport struct {
+	ContainerID    string    `json:"container_id"`
+	Name           string    `json:"name"`
+	Kind           string    `json:"kind"`
+	State          string    `json:"state"`
+	Status         string    `json:"status"`
+	Image          string    `json:"image"`
+	CPULimit       string    `json:"cpu_limit,omitempty"`
+	MemoryLimit    string    `json:"memory_limit,omitempty"`
+	StartedAt      time.Time `json:"started_at,omitempty"`
+	DesiredStateID string    `json:"desired_state_id,omitempty"`
+	RuntimeID      string    `json:"runtime_id,omitempty"`
+	TaskID         string    `json:"task_id,omitempty"`
+	WorkflowID     string    `json:"workflow_id,omitempty"`
+	RoleName       string    `json:"role_name,omitempty"`
+	PlaybookID     string    `json:"playbook_id,omitempty"`
+	PlaybookName   string    `json:"playbook_name,omitempty"`
+}
+
 func (t RuntimeTarget) TargetKey() string {
 	return runtimeTargetKey(t.PlaybookID, t.PoolKind)
 }

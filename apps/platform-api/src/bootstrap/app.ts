@@ -20,6 +20,7 @@ import { createArtifactStorage } from '../content/storage-factory.js';
 import { AcpSessionService } from '../services/acp-session-service.js';
 import { AgentService } from '../services/agent-service.js';
 import { ApiKeyService } from '../services/api-key-service.js';
+import { ContainerInventoryService } from '../services/container-inventory-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
 import { FleetService } from '../services/fleet-service.js';
@@ -118,6 +119,7 @@ export async function buildApp() {
   const eventService = new EventService(pool);
   const eventStreamService = new EventStreamService(pool);
   await eventStreamService.start();
+  const containerInventoryService = new ContainerInventoryService(pool);
 
   const logService = new LogService(pool);
   const logLevelCache = new LogLevelCache(pool, startupLogLevel);
@@ -167,6 +169,10 @@ export async function buildApp() {
   app.decorate('logStreamService', logStreamService);
   app.decorate('eventService', eventService);
   app.decorate('eventStreamService', eventStreamService);
+  app.decorate(
+    'containerInventoryService',
+    createLoggedService(containerInventoryService, 'ContainerInventoryService', logService),
+  );
   app.decorate('workerConnectionHub', workerConnectionHub);
   app.decorate('workerService', createLoggedService(workerService, 'WorkerService', logService));
   app.decorate('governanceService', createLoggedService(governanceService, 'GovernanceService', logService));

@@ -148,6 +148,37 @@ func (c *PlatformClient) ReportActualState(state ActualState) error {
 	return nil
 }
 
+// ReportLiveContainerInventory replaces the tenant's current live container
+// snapshot with Docker-inspected managed containers from the latest reconcile.
+func (c *PlatformClient) ReportLiveContainerInventory(containers []LiveContainerReport) error {
+	body, err := json.Marshal(map[string]any{
+		"containers": containers,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal live container inventory: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/fleet/live-containers", c.baseURL)
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(body))
+	if err != nil {
+		return fmt.Errorf("create live container inventory request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("live container inventory request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 300 {
+		respBody, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("live container inventory API returned HTTP %d: %s", resp.StatusCode, string(respBody))
+	}
+	return nil
+}
+
 // PruneActualState removes actual-state rows for containers no longer running.
 func (c *PlatformClient) PruneActualState(desiredStateID string, activeContainerIDs []string) error {
 	payload := map[string]interface{}{

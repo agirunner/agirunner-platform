@@ -33,6 +33,7 @@ import { fleetRoutes } from '../api/routes/fleet.routes.js';
 import { userRoutes } from '../api/routes/users.routes.js';
 import { meteringRoutes } from '../api/routes/metering.routes.js';
 import { circuitBreakerRoutes } from '../api/routes/circuit-breaker.routes.js';
+import { containerRoutes } from '../api/routes/containers.routes.js';
 import { oauthRoutes } from '../api/routes/oauth.routes.js';
 import { playbookRoutes } from '../api/routes/playbooks.routes.js';
 import { orchestratorControlRoutes } from '../api/routes/orchestrator-control.routes.js';
@@ -72,6 +73,7 @@ export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(userRoutes);
   await app.register(meteringRoutes);
   await app.register(circuitBreakerRoutes);
+  await app.register(containerRoutes);
   await app.register(oauthRoutes);
   await app.register(executionLogRoutes);
 }

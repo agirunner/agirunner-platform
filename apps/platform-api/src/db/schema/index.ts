@@ -36,3 +36,4 @@ export * from './runtime-heartbeats.js';
 export * from './fleet-events.js';
 export * from './oauth-states.js';
 export * from './execution-logs.js';
+export * from './live-container-inventory.js';
