@@ -19,6 +19,7 @@ import scenario_config  # noqa: E402
 EXPECTED_SCENARIOS = {
     "sdlc-baseline",
     "sdlc-review-rework-once",
+    "sdlc-review-reject-twice",
     "sdlc-lite-approval-approve",
     "sdlc-lite-approval-request-changes-then-approve",
     "bug-fix-positive",
@@ -89,6 +90,13 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("orchestrator performs task-state mutations", reviewer.get("systemPrompt", ""))
         self.assertIn("MUST set `resolution` to `request_changes`", reviewer.get("systemPrompt", ""))
         self.assertIn("Do not fix the code yourself", reviewer.get("systemPrompt", ""))
+
+    def test_review_reject_twice_profile_forces_two_request_changes_cycles(self) -> None:
+        roles_file = LIBRARY_DIR / "sdlc-review-reject-twice" / "roles.json"
+        payload = json.loads(roles_file.read_text())
+        reviewer = next(role for role in payload if role.get("name") == "live-test-reviewer")
+        self.assertIn("exactly two concrete request-changes review verdicts", reviewer.get("systemPrompt", ""))
+        self.assertIn("do not repeat the forced rejection after two real rework cycles", reviewer.get("systemPrompt", ""))
 
 
 if __name__ == "__main__":

@@ -1,0 +1,41 @@
+{
+  "name": "sdlc-review-reject-twice",
+  "profile": "sdlc-review-reject-twice",
+  "workflow": {
+    "name": "SDLC Review Reject Twice",
+    "goal": "Add support for named greetings and uppercase output while preserving the default greeting, with updated docs and regression tests."
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {
+      "review_cycle_goal": "This scenario must exercise two reviewer request-changes cycles before final approval."
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "expect": {
+    "state": "completed",
+    "work_items": {
+      "all_terminal": true
+    },
+    "board": {
+      "blocked_count": 0
+    },
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 7
+    },
+    "continuity_rework_sequences": [
+      {
+        "stage_name": "implementation",
+        "required_role": "live-test-developer",
+        "minimum_rework_count": 2,
+        "review_task_min_count": 3
+      }
+    ],
+    "efficiency": {
+      "non_orchestrator_max_llm_turns_lte": 45,
+      "orchestrator_max_llm_turns_lte": 28,
+      "orphan_cleanup_events_eq": 0
+    }
+  }
+}

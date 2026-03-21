@@ -1641,6 +1641,69 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertTrue(verification["passed"])
 
+    def test_evaluate_expectations_accepts_continuity_backed_double_rework_sequence(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "continuity_rework_sequences": [
+                    {
+                        "stage_name": "implementation",
+                        "required_role": "live-test-developer",
+                        "minimum_rework_count": 2,
+                        "review_task_min_count": 3,
+                    }
+                ]
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-dev-1",
+                        "stage_name": "implementation",
+                        "role": "live-test-developer",
+                        "completed_at": "2026-03-19T04:20:00Z",
+                    }
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={
+                "data": {
+                    "data": [
+                        {
+                            "id": "wi-impl-1",
+                            "stage_name": "implementation",
+                            "rework_count": 2,
+                        },
+                        {
+                            "id": "wi-review-1",
+                            "stage_name": "review",
+                            "parent_work_item_id": "wi-impl-1",
+                            "task_count": 3,
+                        },
+                    ]
+                }
+            },
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            execution_logs={
+                "data": [
+                    {
+                        "operation": "work_item.continuity.review_rejected",
+                        "work_item_id": "wi-impl-1",
+                        "created_at": "2026-03-19T04:10:00Z",
+                    },
+                    {
+                        "operation": "work_item.continuity.review_rejected",
+                        "work_item_id": "wi-impl-1",
+                        "created_at": "2026-03-19T04:15:00Z",
+                    }
+                ]
+            },
+        )
+
+        self.assertTrue(verification["passed"])
+
     def test_evaluate_expectations_fails_when_review_is_reapproved_without_specialist_rework(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {
