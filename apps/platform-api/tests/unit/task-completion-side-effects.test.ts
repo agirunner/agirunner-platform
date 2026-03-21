@@ -135,6 +135,108 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
+  it('does not advance review continuity for a partial reviewer handoff', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          return {
+            rows: [{
+              completion: 'partial',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-completed:task-review:updated',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'review',
+        nextExpectedActor: 'qa',
+        nextExpectedAction: 'handoff',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedReviewExpectation: true,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-review',
+        workflow_id: 'workflow-1',
+        work_item_id: 'review-item',
+        role: 'reviewer',
+        stage_name: 'review',
+        is_orchestrator_task: false,
+        rework_count: 0,
+        updated_at: 'updated',
+        output: { verdict: 'request_changes' },
+      },
+      client as never,
+    );
+
+    expect(workItemContinuityService.recordTaskCompleted).not.toHaveBeenCalled();
+    expect(eventService.emit).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.review_resolution_applied',
+      }),
+      client,
+    );
+    expect(eventService.emit).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.state_changed',
+        actorId: 'review_resolver',
+      }),
+      client,
+    );
+    expect(
+      client.query.mock.calls.some(([sql]) => (sql as string).includes('INSERT INTO workflow_activations')),
+    ).toBe(true);
+  });
+
   it('dispatches the completion activation immediately when a playbook task finishes', async () => {
     const activationDispatchService = {
       dispatchActivation: vi.fn(async () => 'orchestrator-task-1'),

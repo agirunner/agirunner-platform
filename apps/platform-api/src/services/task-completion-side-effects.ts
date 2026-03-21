@@ -156,19 +156,28 @@ export async function applyTaskCompletionSideEffects(
     [identity.tenantId, task.workflow_id],
   );
   if (workflowResult.rows[0]?.playbook_id) {
-    const continuityResult = await workItemContinuityService?.recordTaskCompleted(
+    const shouldAdvanceCompletionContinuity = await shouldAdvanceTaskCompletionContinuity(
+      client,
       identity.tenantId,
       task,
-      client,
     );
-    await maybeResolveReviewedOutput(
-      eventService,
-      identity,
-      task,
-      continuityResult ?? null,
-      client,
-      logService,
-    );
+    const continuityResult = shouldAdvanceCompletionContinuity
+      ? await workItemContinuityService?.recordTaskCompleted(
+          identity.tenantId,
+          task,
+          client,
+        )
+      : null;
+    if (shouldAdvanceCompletionContinuity) {
+      await maybeResolveReviewedOutput(
+        eventService,
+        identity,
+        task,
+        continuityResult ?? null,
+        client,
+        logService,
+      );
+    }
     await maybeAutoCloseCompletedPlannedPredecessorWorkItem(
       eventService,
       identity,
@@ -199,6 +208,27 @@ export async function applyTaskCompletionSideEffects(
     );
     return;
   }
+}
+
+async function shouldAdvanceTaskCompletionContinuity(
+  client: DatabaseClient,
+  tenantId: string,
+  completedTask: Record<string, unknown>,
+) {
+  if (!isReviewTaskCandidate(completedTask)) {
+    return true;
+  }
+
+  const latestHandoffCompletion = await loadLatestTaskAttemptHandoffCompletion(
+    client,
+    tenantId,
+    completedTask,
+  );
+  if (!latestHandoffCompletion) {
+    return true;
+  }
+
+  return latestHandoffCompletion === 'full';
 }
 
 async function maybeResolveReviewedOutput(
@@ -528,6 +558,30 @@ function readReviewedTaskId(completedTask: Record<string, unknown>) {
   );
 }
 
+async function loadLatestTaskAttemptHandoffCompletion(
+  client: DatabaseClient,
+  tenantId: string,
+  completedTask: Record<string, unknown>,
+) {
+  const taskId = asOptionalString(completedTask.id);
+  const taskReworkCount = readInteger(completedTask.rework_count) ?? 0;
+  if (!taskId) {
+    return null;
+  }
+
+  const result = await client.query<{ completion: string | null }>(
+    `SELECT completion
+       FROM task_handoffs
+      WHERE tenant_id = $1
+        AND task_id = $2
+        AND task_rework_count = $3
+      ORDER BY sequence DESC, created_at DESC
+      LIMIT 1`,
+    [tenantId, taskId, taskReworkCount],
+  );
+  return asOptionalString(result.rows[0]?.completion);
+}
+
 async function loadParentWorkItemId(
   client: DatabaseClient,
   tenantId: string,
@@ -558,13 +612,30 @@ function resolveReviewResolutionGate(
     return { shouldAttempt: true, reason: 'explicit_reviewed_task_id' } as const;
   }
 
-  const role = asOptionalString(completedTask.role);
-  const taskType = asOptionalString(asRecord(completedTask.metadata).task_type);
-  if (role === 'reviewer' || taskType === 'review') {
-    return { shouldAttempt: true, reason: role === 'reviewer' ? 'reviewer_role' : 'review_task_type' } as const;
+  const reviewTaskReason = readReviewTaskReason(completedTask);
+  if (reviewTaskReason) {
+    return { shouldAttempt: true, reason: reviewTaskReason } as const;
   }
 
   return { shouldAttempt: false, reason: 'not_review_candidate' } as const;
+}
+
+function isReviewTaskCandidate(completedTask: Record<string, unknown>) {
+  return readReviewTaskReason(completedTask) !== null || readReviewedTaskId(completedTask) !== null;
+}
+
+function readReviewTaskReason(completedTask: Record<string, unknown>) {
+  const role = asOptionalString(completedTask.role);
+  if (role === 'reviewer') {
+    return 'reviewer_role' as const;
+  }
+
+  const taskType = asOptionalString(asRecord(completedTask.metadata).task_type);
+  if (taskType === 'review') {
+    return 'review_task_type' as const;
+  }
+
+  return null;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {
@@ -598,4 +669,8 @@ async function shouldQueueDependentTask(
 
 function asOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readInteger(value: unknown) {
+  return typeof value === 'number' && Number.isInteger(value) ? value : null;
 }
