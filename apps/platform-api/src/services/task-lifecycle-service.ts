@@ -581,6 +581,10 @@ export class TaskLifecycleService {
           client,
           this.deps.activationDispatchService,
           this.deps.logService,
+          {
+            requestTaskChanges: (nextIdentity, managedTaskId, payload, nextClient) =>
+              this.requestTaskChanges(nextIdentity, managedTaskId, payload, nextClient),
+          },
         );
       }
       if (resolvedNextState === 'output_pending_review' && !updatedTask.is_orchestrator_task) {

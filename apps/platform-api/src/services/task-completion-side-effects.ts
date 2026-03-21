@@ -27,6 +27,21 @@ interface TaskAttemptHandoffOutcome {
   completion: string | null;
   resolution: string | null;
   reviewOutcome: string | null;
+  summary: string | null;
+}
+
+interface ReviewTaskChangeService {
+  requestTaskChanges: (
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: {
+      feedback: string;
+      override_input?: Record<string, unknown>;
+      preferred_agent_id?: string;
+      preferred_worker_id?: string;
+    },
+    client?: DatabaseClient,
+  ) => Promise<Record<string, unknown>>;
 }
 
 export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
@@ -90,6 +105,7 @@ export async function applyTaskCompletionSideEffects(
   client: DatabaseClient,
   activationDispatchService?: ImmediateWorkflowActivationDispatcher,
   logService?: LogService,
+  reviewTaskChangeService?: ReviewTaskChangeService,
 ) {
   const outputSchema = asRecord((task.metadata as Record<string, unknown> | null)?.output_schema);
   if (Object.keys(outputSchema).length > 0 && task.output) {
@@ -174,13 +190,26 @@ export async function applyTaskCompletionSideEffects(
       identity.tenantId,
       task,
     );
-    const continuityResult = await applyTaskCompletionContinuityEvent(
-      workItemContinuityService,
-      identity.tenantId,
-      task,
-      continuityEvent,
-      client,
-    );
+    const reviewReworkApplied =
+      continuityEvent === 'review_rejected'
+        ? await maybeRequestReviewedTaskChanges(
+            reviewTaskChangeService,
+            eventService,
+            identity,
+            task,
+            client,
+            logService,
+          )
+        : false;
+    const continuityResult = reviewReworkApplied
+      ? null
+      : await applyTaskCompletionContinuityEvent(
+          workItemContinuityService,
+          identity.tenantId,
+          task,
+          continuityEvent,
+          client,
+        );
     if (continuityEvent === 'task_completed') {
       await maybeResolveReviewedOutput(
         eventService,
@@ -198,29 +227,119 @@ export async function applyTaskCompletionSideEffects(
       asOptionalString(task.work_item_id),
       client,
     );
-    await enqueueAndDispatchImmediateWorkflowActivation(
-      client,
-      eventService,
-      activationDispatchService,
-      {
-      tenantId: identity.tenantId,
-      workflowId: String(task.workflow_id),
-      requestId: `task-completed:${task.id}:${String(task.updated_at ?? task.completed_at ?? '')}`,
-      reason: 'task.completed',
-      eventType: 'task.completed',
-      payload: {
-        task_id: task.id,
-        task_role: task.role ?? null,
-        task_title: task.title ?? null,
-        work_item_id: task.work_item_id ?? null,
-        stage_name: task.stage_name ?? null,
-      },
-      actorType: 'system',
-      actorId: 'task_completion_side_effects',
-      },
-    );
+    if (!reviewReworkApplied) {
+      await enqueueAndDispatchImmediateWorkflowActivation(
+        client,
+        eventService,
+        activationDispatchService,
+        {
+        tenantId: identity.tenantId,
+        workflowId: String(task.workflow_id),
+        requestId: `task-completed:${task.id}:${String(task.updated_at ?? task.completed_at ?? '')}`,
+        reason: 'task.completed',
+        eventType: 'task.completed',
+        payload: {
+          task_id: task.id,
+          task_role: task.role ?? null,
+          task_title: task.title ?? null,
+          work_item_id: task.work_item_id ?? null,
+          stage_name: task.stage_name ?? null,
+        },
+        actorType: 'system',
+        actorId: 'task_completion_side_effects',
+        },
+      );
+    }
     return;
   }
+}
+
+async function maybeRequestReviewedTaskChanges(
+  reviewTaskChangeService: ReviewTaskChangeService | undefined,
+  eventService: EventService,
+  identity: ApiKeyIdentity,
+  completedTask: Record<string, unknown>,
+  client: DatabaseClient,
+  logService?: LogService,
+) {
+  if (!reviewTaskChangeService) {
+    return false;
+  }
+
+  const resolutionGate = resolveReviewResolutionGate(completedTask, null);
+  if (!resolutionGate.shouldAttempt) {
+    return false;
+  }
+
+  const workflowId = asOptionalString(completedTask.workflow_id);
+  const workItemId = asOptionalString(completedTask.work_item_id);
+  const reviewTaskId = asOptionalString(completedTask.id);
+  if (!workflowId || !workItemId || !reviewTaskId) {
+    return false;
+  }
+
+  const candidates = await loadReviewedTaskCandidates(
+    client,
+    identity.tenantId,
+    workflowId,
+    workItemId,
+    reviewTaskId,
+    completedTask,
+  );
+  if (candidates.result.rowCount !== 1) {
+    return false;
+  }
+
+  const reviewedTaskId = asOptionalString(candidates.result.rows[0]?.id);
+  if (!reviewedTaskId) {
+    return false;
+  }
+
+  const latestHandoffOutcome = await loadLatestTaskAttemptHandoffOutcome(
+    client,
+    identity.tenantId,
+    completedTask,
+  );
+  const feedback = readReviewRequestChangesFeedback(completedTask, latestHandoffOutcome);
+  await reviewTaskChangeService.requestTaskChanges(
+    identity,
+    reviewedTaskId,
+    { feedback },
+    client,
+  );
+
+  const payload = {
+    event_type: 'task.review_rework_applied',
+    workflow_id: workflowId,
+    review_task_id: reviewTaskId,
+    review_task_work_item_id: workItemId,
+    reviewed_task_id: reviewedTaskId,
+    resolution_source: candidates.resolutionSource,
+    resolution_gate: resolutionGate.reason,
+    explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
+    parent_work_item_id: candidates.parentWorkItemId,
+  };
+  await eventService.emit(
+    {
+      tenantId: identity.tenantId,
+      type: 'task.review_rework_applied',
+      entityType: 'task',
+      entityId: reviewTaskId,
+      actorType: 'system',
+      actorId: 'review_resolver',
+      data: payload,
+    },
+    client,
+  );
+  await logTaskGovernanceTransition(logService, {
+    tenantId: identity.tenantId,
+    operation: 'task.review_rework.applied',
+    executor: client,
+    task: completedTask,
+    payload,
+  });
+
+  return true;
 }
 
 async function resolveTaskCompletionContinuityEvent(
@@ -627,7 +746,8 @@ async function loadLatestTaskAttemptHandoffOutcome(
   const result = await client.query<{ completion: string | null; resolution: string | null; review_outcome: string | null }>(
     `SELECT completion,
             resolution,
-            role_data->>'review_outcome' AS review_outcome
+            role_data->>'review_outcome' AS review_outcome,
+            summary
        FROM task_handoffs
       WHERE tenant_id = $1
         AND task_id = $2
@@ -644,7 +764,20 @@ async function loadLatestTaskAttemptHandoffOutcome(
     completion: asOptionalString(row.completion),
     resolution: normalizeReviewOutcome(row.resolution),
     reviewOutcome: asOptionalString(row.review_outcome),
+    summary: asOptionalString((row as { summary?: string | null }).summary),
   } satisfies TaskAttemptHandoffOutcome;
+}
+
+function readReviewRequestChangesFeedback(
+  completedTask: Record<string, unknown>,
+  latestHandoffOutcome: TaskAttemptHandoffOutcome | null,
+) {
+  return (
+    asOptionalString(latestHandoffOutcome?.summary)
+    ?? asOptionalString(asRecord(completedTask.output).review_feedback)
+    ?? asOptionalString(asRecord(completedTask.output).summary)
+    ?? 'Reviewer requested changes.'
+  );
 }
 
 function readsReviewRequestChangesOutcome(

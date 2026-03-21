@@ -242,6 +242,141 @@ describe('applyTaskCompletionSideEffects', () => {
     ).toBe(true);
   });
 
+  it('requests rework on the reviewed task when a reviewer handoff requests changes', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          return {
+            rows: [{
+              completion: 'full',
+              resolution: 'request_changes',
+              review_outcome: null,
+              summary: 'Add malformed-input regression coverage before approval.',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_review'") && sql.includes('AND id = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', 'task-review']);
+          return {
+            rows: [{
+              id: 'task-dev',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'implementation-item',
+              role: 'developer',
+              state: 'output_pending_review',
+              output: { summary: 'done' },
+              metadata: {},
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-completed:task-review:updated',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'review',
+        nextExpectedActor: 'live-test-developer',
+        nextExpectedAction: 'rework',
+        requiresHumanApproval: false,
+        reworkDelta: 1,
+        satisfiedReviewExpectation: false,
+      })),
+      recordReviewRejected: vi.fn(async () => ({
+        matchedRuleType: 'review',
+        nextExpectedActor: 'live-test-developer',
+        nextExpectedAction: 'rework',
+        requiresHumanApproval: false,
+        reworkDelta: 1,
+        satisfiedReviewExpectation: false,
+      })),
+    };
+    const reviewTaskChangeService = {
+      requestTaskChanges: vi.fn(async () => ({
+        id: 'task-dev',
+        state: 'ready',
+        metadata: {
+          review_action: 'request_changes',
+          review_feedback: 'Add malformed-input regression coverage before approval.',
+        },
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-review',
+        workflow_id: 'workflow-1',
+        work_item_id: 'review-item',
+        role: 'reviewer',
+        stage_name: 'review',
+        is_orchestrator_task: false,
+        rework_count: 0,
+        updated_at: 'updated',
+        input: { developer_task_id: 'task-dev' },
+        output: { verdict: 'request_changes' },
+      },
+      client as never,
+      undefined,
+      undefined,
+      reviewTaskChangeService as never,
+    );
+
+    expect(reviewTaskChangeService.requestTaskChanges).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-dev',
+      expect.objectContaining({
+        feedback: 'Add malformed-input regression coverage before approval.',
+      }),
+      client,
+    );
+    expect(workItemContinuityService.recordReviewRejected).not.toHaveBeenCalled();
+  });
+
   it('does not advance review continuity for a blocked reviewer handoff without a request-changes outcome', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
