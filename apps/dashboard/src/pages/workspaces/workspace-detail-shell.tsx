@@ -29,7 +29,6 @@ interface WorkspaceDetailShellProps {
   overviewContent: ReactNode;
   settingsContent: ReactNode;
   knowledgeContent: ReactNode;
-  automationContent: ReactNode;
 }
 
 export function WorkspaceDetailShell(props: WorkspaceDetailShellProps): JSX.Element {
@@ -48,7 +47,6 @@ export function WorkspaceDetailShell(props: WorkspaceDetailShellProps): JSX.Elem
         <TabsContent value="overview">{props.overviewContent}</TabsContent>
         <TabsContent value="settings">{props.settingsContent}</TabsContent>
         <TabsContent value="knowledge">{props.knowledgeContent}</TabsContent>
-        <TabsContent value="automation">{props.automationContent}</TabsContent>
       </Tabs>
     </div>
   );

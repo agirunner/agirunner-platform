@@ -125,6 +125,7 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Integrations', href: '/config/integrations', icon: Link2 },
       { label: 'Webhooks', href: '/config/webhooks', icon: Webhook },
       { label: 'Triggers', href: '/config/triggers', icon: Zap },
+      { label: 'Agent Protocols', href: '/config/agent-protocols', icon: Bot },
     ],
   },
   {

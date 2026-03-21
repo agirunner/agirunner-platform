@@ -58,15 +58,7 @@ describe('workspace detail support', () => {
       'overview',
       'settings',
       'knowledge',
-      'automation',
-      'delivery',
     ]);
-    expect(
-      WORKSPACE_DETAIL_TAB_OPTIONS.find((option) => option.value === 'automation')?.description,
-    ).toContain('control center');
-    expect(
-      WORKSPACE_DETAIL_TAB_OPTIONS.find((option) => option.value === 'delivery')?.description,
-    ).toContain('what ran');
     expect(normalizeWorkspaceDetailTab('knowledge')).toBe('knowledge');
     expect(normalizeWorkspaceDetailTab('unknown')).toBe('overview');
     expect(normalizeWorkspaceDetailTab(null)).toBe('overview');
@@ -99,21 +91,12 @@ describe('workspace detail support', () => {
       expect.arrayContaining([
         expect.objectContaining({ label: 'Lifecycle', value: 'Active' }),
         expect.objectContaining({ label: 'Shared memory', value: '2 entries' }),
-        expect.objectContaining({ label: 'Automation', value: 'Schedules only' }),
         expect.objectContaining({ label: 'Storage', value: 'Git Remote' }),
-        expect.objectContaining({ label: 'Delivery', value: '7 workflows' }),
       ]),
     );
     expect(overview.packets.map((packet) => packet.value)).not.toContain('Ready');
-    expect(overview.packets.find((packet) => packet.label === 'Automation')?.detail).toContain(
-      'Inbound hooks',
-    );
-    expect(overview.packets.find((packet) => packet.label === 'Delivery')?.detail).toContain(
-      '2 active',
-    );
-    expect(overview.packets.find((packet) => packet.label === 'Delivery')?.detail).toContain(
-      '5 completed',
-    );
+    expect(overview.packets.map((packet) => packet.label)).not.toContain('Automation');
+    expect(overview.packets.map((packet) => packet.label)).not.toContain('Delivery');
   });
 
   it('builds an expanded overview header state without redundant quick actions', () => {

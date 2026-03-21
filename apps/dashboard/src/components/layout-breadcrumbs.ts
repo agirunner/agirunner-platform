@@ -45,6 +45,7 @@ const ROUTABLE_PATHS: ReadonlySet<string> = new Set([
   '/config/tools',
   '/config/webhooks',
   '/config/triggers',
+  '/config/agent-protocols',
   '/config/assistant',
   '/fleet/agents',
   '/fleet/docker',

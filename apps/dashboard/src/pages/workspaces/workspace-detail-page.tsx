@@ -12,7 +12,6 @@ import {
   normalizeWorkspaceDetailTab,
   type WorkspaceDetailTabValue,
 } from './workspace-detail-support.js';
-import { WorkspaceAutomationTab } from './workspace-automation-tab.js';
 import { WorkspaceDetailShell } from './workspace-detail-shell.js';
 import { WorkspaceKnowledgeTab } from './workspace-knowledge-tab.js';
 import { WorkspaceOverviewShell } from './workspace-overview-shell.js';
@@ -66,12 +65,11 @@ export function WorkspaceDetailPage(): JSX.Element {
       activeTab={activeTab}
       headerState={headerState}
       onTabChange={handleTabChange}
-      overviewContent={<WorkspaceOverviewShell workspace={workspace} overview={workspaceOverview} />}
+      overviewContent={<WorkspaceOverviewShell overview={workspaceOverview} />}
       settingsContent={
         <WorkspaceSettingsTab workspace={workspace} overview={settingsOverview} />
       }
       knowledgeContent={<WorkspaceKnowledgeTab workspaceId={workspace.id} overview={knowledgeOverview} />}
-      automationContent={<WorkspaceAutomationTab workspace={workspace} />}
     />
   );
 }

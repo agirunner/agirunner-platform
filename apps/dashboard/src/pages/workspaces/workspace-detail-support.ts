@@ -5,7 +5,7 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
     value: 'overview',
     label: 'Overview',
     description:
-      'Start with workspace posture, knowledge depth, and automation readiness.',
+      'Start with workspace posture, knowledge depth, and storage readiness.',
   },
   {
     value: 'settings',
@@ -18,11 +18,6 @@ export const WORKSPACE_DETAIL_TAB_OPTIONS = [
     label: 'Knowledge',
     description:
       'Group workspace artifacts and shared memory in one surface.',
-  },
-  {
-    value: 'automation',
-    label: 'Automation',
-    description: 'Use one control center for workspace schedules while inbound automation stays out of scope.',
   },
 ] as const;
 
@@ -78,11 +73,10 @@ export function buildWorkspaceOverview(
 ): WorkspaceOverview {
   const memoryCount = countObjectEntries(workspace.memory);
   const updatedLabel = formatWorkspaceDateTime(workspace.updated_at);
-  const deliveryOverview = buildWorkspaceDeliveryOverview(workspace);
 
   return {
     summary:
-      'Use this snapshot to confirm lifecycle, storage posture, shared memory, automation setup, and delivery activity before switching workspaces.',
+      'Use this snapshot to confirm lifecycle, storage posture, and shared memory before switching workspaces.',
     packets: [
       {
         label: 'Lifecycle',
@@ -101,19 +95,9 @@ export function buildWorkspaceOverview(
             : 'No workspace memory entries are saved yet.',
       },
       {
-        label: 'Automation',
-        value: 'Schedules only',
-        detail: 'Schedule-based automation stays on this workspace surface. Inbound hooks and repository signatures are deferred.',
-      },
-      {
         label: 'Storage',
         value: readWorkspaceStorageLabel(workspace),
         detail: describeWorkspaceStorage(workspace),
-      },
-      {
-        label: 'Delivery',
-        value: deliveryOverview.value,
-        detail: deliveryOverview.detail,
       },
     ],
   };
@@ -129,7 +113,7 @@ export function buildWorkspaceDetailHeaderState(
       mode: 'expanded',
       title: workspace.name,
       description:
-        'Use this workspace to move between settings, knowledge, and automation without losing context.',
+        'Use this workspace to move between settings and knowledge without losing context.',
       activeTab: activeTabOption,
       contextPills: [],
       quickActions: [],
@@ -357,42 +341,6 @@ function describeWorkspaceStorage(workspace: DashboardWorkspaceRecord): string {
       : 'Task containers mount a host directory configured on the workspace.';
   }
   return 'Persistence happens through uploaded workspace artifacts instead of a shared repository checkout.';
-}
-
-function buildWorkspaceDeliveryOverview(workspace: DashboardWorkspaceRecord): WorkspaceOverviewPacket {
-  const totalWorkflowCount = workspace.summary?.total_workflow_count ?? 0;
-  const activeWorkflowCount = workspace.summary?.active_workflow_count ?? 0;
-  const completedWorkflowCount = workspace.summary?.completed_workflow_count ?? 0;
-  const attentionWorkflowCount = workspace.summary?.attention_workflow_count ?? 0;
-  const detailParts: string[] = [];
-
-  if (activeWorkflowCount > 0) {
-    detailParts.push(`${activeWorkflowCount} active`);
-  }
-  if (completedWorkflowCount > 0) {
-    detailParts.push(`${completedWorkflowCount} completed`);
-  }
-  if (attentionWorkflowCount > 0) {
-    detailParts.push(`${attentionWorkflowCount} need attention`);
-  }
-
-  if (totalWorkflowCount === 0) {
-    return {
-      label: 'Delivery',
-      value: 'No workflows yet',
-      detail:
-        'Delivery stays empty until the first workflow lands, then this tab becomes the run timeline and hand-off view.',
-    };
-  }
-
-  return {
-    label: 'Delivery',
-    value: `${totalWorkflowCount} workflow${totalWorkflowCount === 1 ? '' : 's'}`,
-    detail:
-      detailParts.length > 0
-        ? `${detailParts.join(' • ')}. Open Delivery for the full timeline.`
-        : 'Open Delivery for the full timeline.',
-  };
 }
 
 function formatWorkspaceDateTime(value?: string | null): string {
