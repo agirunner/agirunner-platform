@@ -125,15 +125,15 @@ function formatLimit(value: string | null): string {
 
 function resolveRowClassName(row: SessionContainerRow): string {
   if (isPendingChangeRow(row)) {
-    return 'bg-border/10 hover:bg-border/15';
+    return 'bg-success/8 ring-1 ring-inset ring-success/20 hover:bg-success/12';
   }
   const recentlyChanged = isRecentlyChangedRow(row);
   if (row.presence === 'inactive') {
     return recentlyChanged
-      ? 'bg-warning/12 hover:bg-warning/18'
+      ? 'bg-warning/14 ring-1 ring-inset ring-warning/25 hover:bg-warning/18'
       : 'bg-muted/8 hover:bg-muted/14';
   }
   return recentlyChanged
-    ? 'bg-accent/12 hover:bg-accent/18'
-    : 'bg-success/6 hover:bg-success/12';
+    ? 'bg-success/14 ring-1 ring-inset ring-success/25 hover:bg-success/18'
+    : 'hover:bg-background/60';
 }

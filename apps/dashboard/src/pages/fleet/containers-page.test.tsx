@@ -27,6 +27,9 @@ describe('containers page source', () => {
     expect(tableSource).toContain('<TableHead>Role</TableHead>');
     expect(tableSource).toContain('<TableHead>Stage</TableHead>');
     expect(tableSource).not.toContain('<TableHead>Container</TableHead>');
+    expect(tableSource).toContain('bg-success/14');
+    expect(tableSource).toContain('ring-success/25');
+    expect(tableSource).not.toContain('bg-accent/14');
     expect(supportSource).toContain('Orchestrator worker');
     expect(supportSource).toContain('Task execution');
     expect(tableSource).not.toContain('Orchestrator Pool');
