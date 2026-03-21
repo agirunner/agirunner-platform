@@ -373,5 +373,6 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Pending Dispatches');
     expect(layer!.content).toContain('Dispatch reviewer for review on work item review-item (review) titled "Review the change".');
     expect(layer!.content).toContain('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
+    expect(layer!.content).toContain('A predecessor task remaining in output_pending_review is expected while required review is pending and does not block dispatching the listed reviewer task.');
   });
 });

@@ -402,4 +402,118 @@ describe('buildOrchestratorTaskContext', () => {
       }),
     ]);
   });
+
+  it('suppresses parent review dispatches when an open child review work item already owns the review loop', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w')) {
+          return {
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              lifecycle: 'planned',
+              metadata: {},
+              playbook_name: 'Linear Flow',
+              playbook_outcome: 'Ship work',
+              playbook_definition: {
+                lifecycle: 'planned',
+                checkpoints: [
+                  { name: 'implementation', goal: 'Build the work' },
+                  { name: 'review', goal: 'Review the work' },
+                ],
+              },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return {
+            rows: [
+              {
+                id: 'implementation-item',
+                parent_work_item_id: null,
+                stage_name: 'implementation',
+                title: 'Implement the change',
+                goal: 'Build the work',
+                column_id: 'planned',
+                owner_role: 'developer',
+                next_expected_actor: 'reviewer',
+                next_expected_action: 'review',
+                rework_count: 1,
+                priority: 'normal',
+                completed_at: null,
+                notes: null,
+                metadata: {},
+              },
+              {
+                id: 'review-item',
+                parent_work_item_id: 'implementation-item',
+                stage_name: 'review',
+                title: 'Review the change',
+                goal: 'Review the work',
+                column_id: 'planned',
+                owner_role: 'reviewer',
+                next_expected_actor: 'reviewer',
+                next_expected_action: 'review',
+                rework_count: 0,
+                priority: 'normal',
+                completed_at: null,
+                notes: null,
+                metadata: {},
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM tasks')) {
+          return {
+            rows: [
+              {
+                id: 'developer-task',
+                title: 'Implement the change',
+                role: 'developer',
+                state: 'output_pending_review',
+                work_item_id: 'implementation-item',
+                stage_name: 'implementation',
+                activation_id: null,
+                assigned_agent_id: null,
+                claimed_at: null,
+                started_at: null,
+                completed_at: null,
+                is_orchestrator_task: false,
+              },
+              {
+                id: 'review-task-1',
+                title: 'First review pass',
+                role: 'reviewer',
+                state: 'completed',
+                work_item_id: 'review-item',
+                stage_name: 'review',
+                activation_id: null,
+                assigned_agent_id: null,
+                claimed_at: null,
+                started_at: null,
+                completed_at: '2026-03-21T13:10:00.000Z',
+                is_orchestrator_task: false,
+              },
+            ],
+          };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildOrchestratorTaskContext(db as never, 'tenant-1', {
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: true,
+    });
+
+    expect(context?.board.pending_dispatches).toEqual([
+      expect.objectContaining({
+        work_item_id: 'review-item',
+        stage_name: 'review',
+        actor: 'reviewer',
+        action: 'review',
+      }),
+    ]);
+  });
 });

@@ -272,6 +272,9 @@ function derivePendingDispatches(
     if (!workItemId || !actor || !action || actor === 'human') {
       return [];
     }
+    if (action === 'review' && hasOpenChildReviewDispatchOwner(workItems, workItemId, actor)) {
+      return [];
+    }
 
     const hasOpenMatchingTask = tasks.some(
       (task) =>
@@ -292,6 +295,20 @@ function derivePendingDispatches(
       title: readOptionalString(workItem.title),
     }];
   });
+}
+
+function hasOpenChildReviewDispatchOwner(
+  workItems: Record<string, unknown>[],
+  parentWorkItemId: string,
+  actor: string,
+): boolean {
+  return workItems.some(
+    (workItem) =>
+      workItem.completed_at == null
+      && readOptionalString(workItem.parent_work_item_id) === parentWorkItemId
+      && readOptionalString(workItem.next_expected_action) === 'review'
+      && readOptionalString(workItem.next_expected_actor) === actor,
+  );
 }
 
 function isOpenSpecialistTask(task: Record<string, unknown>): boolean {

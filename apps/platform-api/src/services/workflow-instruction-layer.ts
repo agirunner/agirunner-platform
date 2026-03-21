@@ -310,6 +310,9 @@ function formatPendingDispatches(
     const titleSuffix = entry.title ? ` titled "${entry.title}"` : '';
     return `- Dispatch ${entry.actor} for ${entry.action} on ${workItemLabel}${titleSuffix}.`;
   });
+  if (pendingDispatches.some((entry) => entry.action === 'review')) {
+    lines.push('A predecessor task remaining in output_pending_review is expected while required review is pending and does not block dispatching the listed reviewer task.');
+  }
   lines.push('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
   return lines.join('\n');
 }
