@@ -6,7 +6,12 @@ import { getRequestContext } from '../observability/request-context.js';
 
 interface WorkItemContinuityTransitionInput {
   tenantId: string;
-  event: 'task_completed' | 'review_rejected' | 'review_expectation_cleared' | 'finish_state_persisted';
+  event:
+    | 'task_completed'
+    | 'review_rejected'
+    | 'review_expectation_cleared'
+    | 'finish_state_persisted'
+    | 'finish_state_skipped';
   task: Record<string, unknown>;
   stageName: string | null;
   ownerRole: string | null;
@@ -34,6 +39,7 @@ const CONTINUITY_OPERATION_BY_EVENT: Record<
   review_rejected: 'work_item.continuity.review_rejected',
   review_expectation_cleared: 'work_item.continuity.review_expectation_cleared',
   finish_state_persisted: 'work_item.continuity.finish_state_persisted',
+  finish_state_skipped: 'work_item.continuity.finish_state_skipped',
 };
 
 export async function logWorkItemContinuityTransition(

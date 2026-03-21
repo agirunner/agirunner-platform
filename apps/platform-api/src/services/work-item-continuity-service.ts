@@ -18,6 +18,21 @@ interface WorkItemContinuityContextRow {
   definition: unknown;
 }
 
+interface CurrentFinishStateRow {
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
+  parent_work_item_id: string | null;
+  metadata: Record<string, unknown> | null;
+}
+
+interface WorkflowActivationQueuedAtRow {
+  queued_at: Date | null;
+}
+
+interface NewerSpecialistHandoffRow {
+  has_newer_specialist_handoff: boolean;
+}
+
 export interface WorkItemCompletionOutcome extends PlaybookRuleEvaluationResult {
   satisfiedReviewExpectation: boolean;
 }
@@ -108,12 +123,54 @@ export class WorkItemContinuityService {
       return null;
     }
 
+    const current = await this.loadCurrentFinishState(tenantId, workflowId, workItemId, db);
+    if (!current) {
+      return null;
+    }
+
     const continuityMetadata = compactRecord({
       status_summary: readOptionalString(update.status_summary),
       next_expected_event: readOptionalString(update.next_expected_event),
       blocked_on: normalizeStringList(update.blocked_on),
       active_subordinate_tasks: normalizeStringList(update.active_subordinate_tasks),
     });
+    const currentContinuity = readFinishStateContinuity(current.metadata);
+    if (
+      await this.hasNewerSpecialistHandoffSinceActivation(
+        tenantId,
+        workflowId,
+        workItemId,
+        current.parent_work_item_id,
+        readOptionalString(task.activation_id),
+        db,
+      )
+    ) {
+      await logWorkItemContinuityTransition(this.logService, {
+        tenantId,
+        event: 'finish_state_skipped',
+        task,
+        stageName: readOptionalString(task.stage_name),
+        ownerRole: readOptionalString(task.role),
+        previousNextExpectedActor: current.next_expected_actor,
+        previousNextExpectedAction: current.next_expected_action,
+        nextExpectedActor: current.next_expected_actor,
+        nextExpectedAction: current.next_expected_action,
+        previousReworkCount: null,
+        nextReworkCount: null,
+        statusSummary: readOptionalString(currentContinuity.status_summary),
+        nextExpectedEvent: readOptionalString(currentContinuity.next_expected_event),
+        blockedOn: normalizeStringList(currentContinuity.blocked_on) ?? null,
+        activeSubordinateTasks:
+          normalizeStringList(currentContinuity.active_subordinate_tasks) ?? null,
+      });
+
+      return {
+        nextExpectedActor: current.next_expected_actor,
+        nextExpectedAction: current.next_expected_action,
+        continuity: currentContinuity,
+      };
+    }
+
     const metadataPatch = {
       orchestrator_finish_state: continuityMetadata,
     };
@@ -169,6 +226,76 @@ export class WorkItemContinuityService {
       nextExpectedAction: stored.next_expected_action,
       continuity: continuityMetadata,
     };
+  }
+
+  private async loadCurrentFinishState(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const result = await db.query<CurrentFinishStateRow>(
+      `SELECT next_expected_actor,
+              next_expected_action,
+              parent_work_item_id,
+              metadata
+         FROM workflow_work_items
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+        LIMIT 1`,
+      [tenantId, workflowId, workItemId],
+    );
+    return result.rows[0] ?? null;
+  }
+
+  private async hasNewerSpecialistHandoffSinceActivation(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    parentWorkItemId: string | null,
+    activationId: string | null,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (!activationId) {
+      return false;
+    }
+
+    const activationResult = await db.query<WorkflowActivationQueuedAtRow>(
+      `SELECT queued_at
+         FROM workflow_activations
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+        LIMIT 1`,
+      [tenantId, workflowId, activationId],
+    );
+    const queuedAt = activationResult.rows[0]?.queued_at;
+    if (!(queuedAt instanceof Date)) {
+      return false;
+    }
+
+    const scopedWorkItemIds = [workItemId];
+    if (parentWorkItemId) {
+      scopedWorkItemIds.push(parentWorkItemId);
+    }
+
+    const handoffResult = await db.query<NewerSpecialistHandoffRow>(
+      `SELECT EXISTS (
+          SELECT 1
+            FROM task_handoffs h
+            JOIN tasks t
+              ON t.tenant_id = h.tenant_id
+             AND t.id = h.task_id
+           WHERE h.tenant_id = $1
+             AND h.workflow_id = $2
+             AND h.created_at > $3
+             AND COALESCE(t.role, '') <> 'orchestrator'
+             AND h.work_item_id = ANY($4::uuid[])
+        ) AS has_newer_specialist_handoff`,
+      [tenantId, workflowId, queuedAt, scopedWorkItemIds],
+    );
+    return handoffResult.rows[0]?.has_newer_specialist_handoff ?? false;
   }
 
   private async applyRuleOutcome(
@@ -363,6 +490,23 @@ function normalizeStringList(values: string[] | undefined): string[] | undefined
     .map((value) => (typeof value === 'string' ? value.trim() : ''))
     .filter((value) => value.length > 0);
   return filtered.length > 0 ? filtered : undefined;
+}
+
+function readFinishStateContinuity(metadata: Record<string, unknown> | null | undefined) {
+  const raw = compactRecord(asRecord(asRecord(metadata).orchestrator_finish_state));
+  return compactRecord({
+    status_summary: readOptionalString(raw.status_summary),
+    next_expected_event: readOptionalString(raw.next_expected_event),
+    blocked_on: normalizeStringList(raw.blocked_on as string[] | undefined),
+    active_subordinate_tasks: normalizeStringList(raw.active_subordinate_tasks as string[] | undefined),
+  });
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+  return value as Record<string, unknown>;
 }
 
 function compactRecord<T extends Record<string, unknown>>(value: T): T {

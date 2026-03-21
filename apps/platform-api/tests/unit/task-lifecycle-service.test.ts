@@ -1430,6 +1430,20 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
             rows: [{
               handoff_id: 'handoff-review-1',
               review_task_id: 'review-task-1',
+              created_at: new Date('2026-03-21T16:52:24.000Z'),
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM task_handoffs')
+          && sql.includes('task_id = $2')
+          && sql.includes('task_rework_count = $3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'task-review-loop-consumed', 1]);
+          return {
+            rowCount: 1,
+            rows: [{
+              created_at: new Date('2026-03-21T16:53:16.000Z'),
             }],
           };
         }
@@ -1479,7 +1493,81 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
 
     expect(result).toEqual(existingTask);
-    expect(client.query).toHaveBeenCalledTimes(1);
+    expect(client.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores a stale request-changes replay once a newer developer handoff already exists', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflow_work_items review_wi') && sql.includes('COALESCE(th.resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+          return {
+            rowCount: 1,
+            rows: [{
+              handoff_id: 'handoff-review-1',
+              review_task_id: 'review-task-1',
+              created_at: new Date('2026-03-21T16:52:24.000Z'),
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM task_handoffs')
+          && sql.includes('task_id = $2')
+          && sql.includes('task_rework_count = $3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'task-review-loop-superseded', 1]);
+          return {
+            rowCount: 1,
+            rows: [{
+              created_at: new Date('2026-03-21T16:53:16.000Z'),
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-review-loop-superseded',
+      state: 'output_pending_review',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      input: {
+        review_feedback: 'Earlier review feedback',
+      },
+      metadata: {},
+      rework_count: 1,
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-review-loop-superseded',
+      {
+        feedback: 'The same stale review verdict was replayed after a fresh developer submission.',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).toHaveBeenCalledTimes(2);
   });
 
   it('treats a repeated reject action as idempotent once the task already reflects the rejection', async () => {

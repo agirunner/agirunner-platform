@@ -574,4 +574,64 @@ describe('WorkItemContinuityService', () => {
       ],
     );
   });
+
+  it('skips stale orchestrator finish-state writes once a newer specialist handoff exists', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{
+            next_expected_actor: 'reviewer',
+            next_expected_action: 'review',
+            parent_work_item_id: 'implementation-item',
+            metadata: {
+              keep_me: true,
+              orchestrator_finish_state: {
+                status_summary: 'Implementation is ready for the next review pass.',
+                next_expected_event: 'task.output_pending_review',
+              },
+            },
+          }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ queued_at: new Date('2026-03-21T16:52:26.000Z') }],
+        })
+        .mockResolvedValueOnce({
+          rowCount: 1,
+          rows: [{ has_newer_specialist_handoff: true }],
+        }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.persistOrchestratorFinishState('tenant-1', {
+      id: 'orch-task-1',
+      workflow_id: 'workflow-1',
+      work_item_id: 'review-item',
+      activation_id: 'activation-1',
+      role: 'orchestrator',
+      stage_name: 'review',
+    }, {
+      next_expected_actor: 'developer',
+      next_expected_action: 'rework',
+      status_summary: 'Route the first review rejection back to implementation.',
+      next_expected_event: 'task.handoff_submitted',
+    });
+
+    expect(result).toEqual({
+      nextExpectedActor: 'reviewer',
+      nextExpectedAction: 'review',
+      continuity: {
+        status_summary: 'Implementation is ready for the next review pass.',
+        next_expected_event: 'task.output_pending_review',
+      },
+    });
+    expect(pool.query).toHaveBeenCalledTimes(3);
+    expect(pool.query).not.toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      expect.anything(),
+    );
+  });
 });

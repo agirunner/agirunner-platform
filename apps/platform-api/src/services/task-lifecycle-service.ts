@@ -127,6 +127,7 @@ interface ReworkWorkItemContextRow {
 interface LatestReviewRequestHandoffRow {
   handoff_id: string;
   review_task_id: string;
+  created_at: Date | null;
 }
 
 const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
@@ -204,6 +205,21 @@ function hasAppliedLatestReviewRequest(
 
   return readOptionalText(asRecord(task.metadata).last_applied_review_request_handoff_id)
     === latestReviewRequest.handoff_id;
+}
+
+function hasSupersedingTaskHandoffAfterReviewRequest(
+  task: Record<string, unknown>,
+  latestReviewRequest: LatestReviewRequestHandoffRow | null,
+  latestTaskHandoffCreatedAt: Date | null,
+) {
+  const state = normalizeTaskState(task.state as string | null | undefined);
+  if (state !== 'output_pending_review' && state !== 'completed') {
+    return false;
+  }
+  if (!(latestReviewRequest?.created_at instanceof Date) || !(latestTaskHandoffCreatedAt instanceof Date)) {
+    return false;
+  }
+  return latestTaskHandoffCreatedAt.getTime() > latestReviewRequest.created_at.getTime();
 }
 
 function hasMatchingManualEscalation(
@@ -1109,7 +1125,8 @@ export class TaskLifecycleService {
     try {
       const result = await queryClient.query<LatestReviewRequestHandoffRow>(
         `SELECT th.id AS handoff_id,
-                th.task_id AS review_task_id
+                th.task_id AS review_task_id,
+                th.created_at
            FROM workflow_work_items review_wi
            JOIN task_handoffs th
              ON th.tenant_id = review_wi.tenant_id
@@ -1441,6 +1458,14 @@ export class TaskLifecycleService {
       task,
       client,
     );
+    const latestTaskHandoffCreatedAt = await this.loadLatestTaskAttemptHandoffCreatedAt(
+      identity.tenantId,
+      task,
+      client,
+    );
+    if (hasSupersedingTaskHandoffAfterReviewRequest(task, latestReviewRequest, latestTaskHandoffCreatedAt)) {
+      return this.deps.toTaskResponse(task);
+    }
     if (hasAppliedLatestReviewRequest(task, latestReviewRequest)) {
       return this.deps.toTaskResponse(task);
     }
@@ -1582,6 +1607,42 @@ export class TaskLifecycleService {
       },
       reason: 'review_requested_changes',
     }, client);
+  }
+
+  private async loadLatestTaskAttemptHandoffCreatedAt(
+    tenantId: string,
+    task: Record<string, unknown>,
+    db?: DatabaseClient,
+  ): Promise<Date | null> {
+    const taskId = readOptionalText(task.id);
+    const taskReworkCount = readInteger(task.rework_count) ?? 0;
+    if (!taskId) {
+      return null;
+    }
+
+    const queryClient = db
+      ?? ('query' in this.deps.pool && typeof this.deps.pool.query === 'function'
+        ? this.deps.pool
+        : await this.deps.pool.connect());
+    const ownsClient = db == null && queryClient !== this.deps.pool;
+
+    try {
+      const result = await queryClient.query<{ created_at: Date | null }>(
+        `SELECT created_at
+           FROM task_handoffs
+          WHERE tenant_id = $1
+            AND task_id = $2
+            AND task_rework_count = $3
+          ORDER BY sequence DESC, created_at DESC
+          LIMIT 1`,
+        [tenantId, taskId, taskReworkCount],
+      );
+      return result.rows[0]?.created_at ?? null;
+    } finally {
+      if (ownsClient && 'release' in queryClient && typeof queryClient.release === 'function') {
+        queryClient.release();
+      }
+    }
   }
 
   async skipTask(identity: ApiKeyIdentity, taskId: string, payload: { reason: string }) {
