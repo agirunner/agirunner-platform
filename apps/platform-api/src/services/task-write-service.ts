@@ -42,6 +42,7 @@ interface ParentTaskRow {
 
 interface LinkedWorkItemRow {
   workflow_id: string;
+  parent_work_item_id: string | null;
   stage_name: string;
   workflow_lifecycle: string | null;
   stage_status: string | null;
@@ -337,6 +338,7 @@ export class TaskWriteService {
           `in stage '${input.stage_name}' before creating tasks for that stage.`,
       );
     }
+    this.assertChildReviewWorkItemOwnership(input, linkedWorkItem);
     await this.assertPlannedStageRoleMembership(tenantId, input, linkedWorkItem, db);
     if (
       input.role
@@ -357,6 +359,32 @@ export class TaskWriteService {
         `Cannot create new tasks for planned workflow stage '${linkedWorkItem.stage_name}' after it has been approved or completed`,
       );
     }
+  }
+
+  private assertChildReviewWorkItemOwnership(
+    input: CreateTaskInput,
+    linkedWorkItem: LinkedWorkItemRow,
+  ) {
+    if (
+      linkedWorkItem.workflow_lifecycle !== 'planned'
+      || input.is_orchestrator_task
+      || linkedWorkItem.stage_name !== 'review'
+      || !linkedWorkItem.parent_work_item_id
+      || !input.role?.trim()
+    ) {
+      return;
+    }
+
+    const ownerRole = linkedWorkItem.owner_role?.trim();
+    if (!ownerRole || input.role.trim() === ownerRole) {
+      return;
+    }
+
+    throw new ValidationError(
+      `Role '${input.role.trim()}' cannot run on child review work item '${input.work_item_id}'. ` +
+        `Child review work items stay owned by reviewer role '${ownerRole}', and any requested rework ` +
+        `must continue on the parent work item '${linkedWorkItem.parent_work_item_id}'.`,
+    );
   }
 
   private async assertPlannedStageRoleMembership(
@@ -430,6 +458,7 @@ export class TaskWriteService {
   ): Promise<LinkedWorkItemRow> {
     const result = await db.query<LinkedWorkItemRow>(
       `SELECT wi.workflow_id,
+              wi.parent_work_item_id,
               wi.stage_name,
               wi.owner_role,
               wi.next_expected_actor,

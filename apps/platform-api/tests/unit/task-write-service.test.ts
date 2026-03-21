@@ -489,6 +489,121 @@ describe('TaskWriteService', () => {
     ).rejects.toThrow(ConflictError);
   });
 
+  it('rejects non-reviewer task creation on child review work items in planned workflows', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_id: 'workflow-1',
+              stage_name: 'review',
+              workflow_lifecycle: 'planned',
+              stage_status: 'active',
+              stage_gate_status: 'not_requested',
+              parent_work_item_id: 'implementation-item',
+              owner_role: 'live-test-reviewer',
+              next_expected_actor: null,
+              next_expected_action: null,
+            }],
+          };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                process_instructions: 'Developer implements and reviewer reviews.',
+                roles: ['live-test-developer', 'live-test-reviewer'],
+                review_rules: [],
+                approval_rules: [],
+                handoff_rules: [],
+                checkpoints: [],
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                  entry_column_id: 'planned',
+                },
+                lifecycle: 'planned',
+                stages: [
+                  {
+                    name: 'review',
+                    goal: 'Review the implementation',
+                    involves: ['live-test-reviewer', 'live-test-developer'],
+                  },
+                ],
+              },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workspaces p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              repository_url: null,
+              settings: {},
+              git_branch: null,
+              parameters: {},
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM tasks') &&
+          sql.includes('work_item_id = $3') &&
+          sql.includes('role = $4') &&
+          sql.includes('state = ANY($5::task_state[])')
+        ) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.startsWith('INSERT INTO tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-review-rework',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'agent',
+          keyPrefix: 'agent-key',
+        } as never,
+        {
+          title: 'Fix implementation after review feedback',
+          workflow_id: 'workflow-1',
+          work_item_id: 'review-item-1',
+          request_id: 'request-review-child-rework',
+          role: 'live-test-developer',
+          stage_name: 'review',
+          type: 'code',
+        },
+      ),
+    ).rejects.toThrow(ValidationError);
+  });
+
   it('applies playbook task loop defaults when workflow tasks do not override them', async () => {
     let insertedMaxIterations: number | null = null;
     let insertedLLMMaxRetries: number | null = null;
