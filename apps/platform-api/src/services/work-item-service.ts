@@ -307,6 +307,20 @@ export class WorkItemService {
           input.parent_work_item_id ?? null,
           client,
         );
+        const reusableWorkItem = await this.reuseOpenPlannedChildCheckpoint(
+          identity.tenantId,
+          workflowId,
+          input.parent_work_item_id ?? null,
+          stageName,
+          input.owner_role ?? null,
+          client,
+        );
+        if (reusableWorkItem) {
+          if (ownsClient) {
+            await client.query('COMMIT');
+          }
+          return toWorkItemReadModel(reusableWorkItem);
+        }
       }
 
       const result = await client.query(
@@ -614,6 +628,56 @@ export class WorkItemService {
       },
       client,
     );
+  }
+
+  private async reuseOpenPlannedChildCheckpoint(
+    tenantId: string,
+    workflowId: string,
+    parentWorkItemId: string | null,
+    stageName: string,
+    ownerRole: string | null,
+    client: DatabaseClient,
+  ): Promise<Record<string, unknown> | null> {
+    if (!parentWorkItemId) {
+      return null;
+    }
+
+    const existing = await client.query(
+      `SELECT ${workItemColumnList()}
+         FROM workflow_work_items
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND parent_work_item_id = $3
+          AND stage_name = $4
+          AND COALESCE(owner_role, '') = COALESCE($5, '')
+          AND completed_at IS NULL
+        ORDER BY created_at ASC
+        LIMIT 1
+        FOR UPDATE`,
+      [tenantId, workflowId, parentWorkItemId, stageName, ownerRole],
+    );
+    if (!existing.rowCount) {
+      return null;
+    }
+
+    const workItem = existing.rows[0] as Record<string, unknown>;
+    if (!shouldResetReusableChildCheckpoint(workItem)) {
+      return workItem;
+    }
+
+    const reset = await client.query(
+      `UPDATE workflow_work_items
+          SET next_expected_actor = NULL,
+              next_expected_action = NULL,
+              metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state',
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+      RETURNING ${workItemColumnList()}`,
+      [tenantId, workflowId, workItem.id],
+    );
+    return (reset.rows[0] as Record<string, unknown> | undefined) ?? workItem;
   }
 
   private async loadCheckpointPredecessor(
@@ -1087,4 +1151,13 @@ function assertMatchingCreateWorkItemReplay(
   ) {
     throw new ConflictError('work item request_id replay does not match the existing work item');
   }
+}
+
+function shouldResetReusableChildCheckpoint(workItem: Record<string, unknown>) {
+  const metadata = asRecord(workItem.metadata);
+  return Boolean(
+    (typeof workItem.next_expected_actor === 'string' && workItem.next_expected_actor.length > 0)
+    || (typeof workItem.next_expected_action === 'string' && workItem.next_expected_action.length > 0)
+    || metadata.orchestrator_finish_state,
+  );
 }

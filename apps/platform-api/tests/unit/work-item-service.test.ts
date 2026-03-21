@@ -235,6 +235,15 @@ describe('WorkItemService', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-impl-1']);
           return { rows: [{ count: 1 }], rowCount: 1 };
         }
+        if (
+          sql.includes('FROM workflow_work_items')
+          && sql.includes('parent_work_item_id = $3')
+          && sql.includes('stage_name = $4')
+          && sql.includes('completed_at IS NULL')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-impl-1', 'review', null]);
+          return { rows: [], rowCount: 0 };
+        }
         if (sql.includes('INSERT INTO workflow_work_items')) {
           expect(params?.[2]).toBe('wi-impl-1');
           expect(params?.[4]).toBe('review');
@@ -447,6 +456,198 @@ describe('WorkItemService', () => {
         },
       ),
     ).rejects.toThrowError(ValidationError);
+  });
+
+  it('reuses an open planned child checkpoint in the same stage after rework instead of inserting a duplicate', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          expect(sql).toContain('FOR UPDATE OF w');
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'review',
+                lifecycle: 'planned',
+                definition: {
+                  roles: ['developer', 'reviewer', 'qa'],
+                  lifecycle: 'planned',
+                  board: {
+                    columns: [
+                      { id: 'planned', label: 'Planned' },
+                      { id: 'done', label: 'Done', is_terminal: true },
+                    ],
+                  },
+                  stages: [
+                    { name: 'implementation', goal: 'Ship the change' },
+                    { name: 'review', goal: 'Review the change' },
+                    { name: 'verification', goal: 'Verify the change' },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          return {
+            rows: [
+              {
+                id: 'implementation-item',
+                title: 'Implementation checkpoint',
+                stage_name: 'implementation',
+                column_id: 'done',
+                completed_at: new Date('2026-03-21T04:00:00Z'),
+                human_gate: false,
+                gate_status: 'not_requested',
+                latest_handoff_completion: 'full',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.startsWith('SELECT COUNT(*)::int AS count') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          return {
+            rows: [{ count: 0 }],
+            rowCount: 1,
+          };
+        }
+        if (
+          sql.includes('FROM workflow_work_items')
+          && sql.includes('parent_work_item_id = $3')
+          && sql.includes('stage_name = $4')
+          && sql.includes('completed_at IS NULL')
+        ) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'implementation-item',
+            'review',
+            'reviewer',
+          ]);
+          return {
+            rows: [
+              {
+                id: 'review-item-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: 'implementation-item',
+                request_id: 'req-review-1',
+                stage_name: 'review',
+                title: 'Review checkpoint',
+                goal: 'Review the implementation',
+                acceptance_criteria: 'Review and approve the change.',
+                column_id: 'planned',
+                owner_role: 'reviewer',
+                next_expected_actor: 'developer',
+                next_expected_action: 'rework',
+                rework_count: 0,
+                priority: 'normal',
+                notes: 'Open review item awaiting resubmission',
+                created_by: 'system',
+                metadata: {
+                  orchestrator_finish_state: {
+                    next_expected_actor: 'developer',
+                    next_expected_action: 'rework',
+                  },
+                },
+                completed_at: null,
+                created_at: new Date('2026-03-21T03:54:36Z'),
+                updated_at: new Date('2026-03-21T03:58:32Z'),
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (
+          sql.includes('UPDATE workflow_work_items')
+          && sql.includes("metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state'")
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'review-item-1']);
+          return {
+            rows: [
+              {
+                id: 'review-item-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: 'implementation-item',
+                request_id: 'req-review-1',
+                stage_name: 'review',
+                title: 'Review checkpoint',
+                goal: 'Review the implementation',
+                acceptance_criteria: 'Review and approve the change.',
+                column_id: 'planned',
+                owner_role: 'reviewer',
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                priority: 'normal',
+                notes: 'Open review item awaiting resubmission',
+                created_by: 'system',
+                metadata: {},
+                completed_at: null,
+                created_at: new Date('2026-03-21T03:54:36Z'),
+                updated_at: new Date('2026-03-21T04:00:00Z'),
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          throw new Error('duplicate review checkpoint should not be inserted');
+        }
+        if (sql.includes('UPDATE workflow_stages') || sql.includes('UPDATE workflows')) {
+          throw new Error(`Unexpected SQL: ${sql}`);
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
+    const activationService = { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) };
+    const activationDispatchService = { dispatchActivation: vi.fn().mockResolvedValue(undefined) };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      eventService as never,
+      activationService as never,
+      activationDispatchService as never,
+    );
+
+    const result = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-review-2',
+        parent_work_item_id: 'implementation-item',
+        stage_name: 'review',
+        owner_role: 'reviewer',
+        title: 'Review checkpoint',
+      },
+    );
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'review-item-1',
+        parent_work_item_id: 'implementation-item',
+        stage_name: 'review',
+        owner_role: 'reviewer',
+        next_expected_actor: null,
+        next_expected_action: null,
+      }),
+    );
+    expect(eventService.emit).not.toHaveBeenCalled();
+    expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(activationDispatchService.dispatchActivation).not.toHaveBeenCalled();
   });
 
   it('uses the playbook default stage for planned work items when stage_name is omitted', async () => {
