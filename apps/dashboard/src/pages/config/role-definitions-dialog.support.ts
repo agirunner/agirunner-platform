@@ -58,15 +58,15 @@ function buildFieldErrors(
     errors.name = 'Choose a unique role name.';
   }
 
-  const imageError = validateContainerImage(form.executionContainer.image, 'Execution container image', {
+  const imageError = validateContainerImage(form.executionContainer.image, 'Image', {
     emptyValueHint: 'Clear the field to inherit the system default image.',
   });
   if (imageError) {
     errors.executionContainerImage = imageError;
   }
 
-  const cpuError = validateContainerCpu(form.executionContainer.cpu, 'Execution container CPU', {
-    emptyValueHint: 'Clear the field to inherit the system default CPU limit.',
+  const cpuError = validateContainerCpu(form.executionContainer.cpu, 'CPU', {
+    emptyValueHint: 'Clear the field to inherit the system default CPU allocation.',
   });
   if (cpuError) {
     errors.executionContainerCpu = cpuError;
@@ -74,9 +74,9 @@ function buildFieldErrors(
 
   const memoryError = validateContainerMemory(
     form.executionContainer.memory,
-    'Execution container memory',
+    'Memory',
     {
-      emptyValueHint: 'Clear the field to inherit the system default memory limit.',
+      emptyValueHint: 'Clear the field to inherit the system default memory allocation.',
     },
   );
   if (memoryError) {

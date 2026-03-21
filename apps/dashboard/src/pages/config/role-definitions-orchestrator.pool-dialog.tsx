@@ -144,7 +144,7 @@ export function OrchestratorPoolDialog(props: {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Runtime image</label>
+              <label className="text-sm font-medium">Image</label>
               <ImageReferenceField
                 value={draft.runtimeImage}
                 onChange={(value) => setDraft((current) => ({ ...current, runtimeImage: value }))}
@@ -156,7 +156,7 @@ export function OrchestratorPoolDialog(props: {
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">CPU limit</label>
+              <label className="text-sm font-medium">CPU</label>
               <Input
                 value={draft.cpuLimit}
                 onChange={(event) =>
@@ -170,7 +170,7 @@ export function OrchestratorPoolDialog(props: {
               ) : null}
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Memory limit</label>
+              <label className="text-sm font-medium">Memory</label>
               <Input
                 value={draft.memoryLimit}
                 onChange={(event) =>

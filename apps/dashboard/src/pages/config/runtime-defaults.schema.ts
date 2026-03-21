@@ -72,7 +72,7 @@ const BASE_SECTION_DEFINITIONS: SectionDefinition[] = [
 const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   {
     key: 'specialist_runtime_default_image',
-    label: 'Specialist runtime image',
+    label: 'Image',
     description: 'Docker image used for short-lived specialist runtimes.',
     configType: 'string',
     placeholder: 'agirunner-runtime:local',
@@ -80,7 +80,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'specialist_runtime_default_cpu',
-    label: 'Specialist runtime CPU',
+    label: 'CPU',
     description: 'CPU allocation per specialist runtime container.',
     configType: 'string',
     placeholder: '1',
@@ -88,7 +88,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'specialist_runtime_default_memory',
-    label: 'Specialist runtime memory',
+    label: 'Memory',
     description: 'Memory allocation per specialist runtime container, for example 512m or 1Gi.',
     configType: 'string',
     placeholder: '512m',
@@ -96,7 +96,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'specialist_runtime_default_pull_policy',
-    label: 'Specialist runtime pull policy',
+    label: 'Pull policy',
     description: 'When specialist runtime images should be pulled from the registry.',
     configType: 'string',
     placeholder: 'if-not-present',
@@ -105,7 +105,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'specialist_execution_default_image',
-    label: 'Execution image',
+    label: 'Image',
     description: 'Docker image used for always-cold specialist execution containers.',
     configType: 'string',
     placeholder: 'agirunner-runtime-execution:local',
@@ -113,7 +113,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'specialist_execution_default_cpu',
-    label: 'Execution CPU',
+    label: 'CPU',
     description: 'CPU allocation per specialist execution container.',
     configType: 'string',
     placeholder: '1',
@@ -121,7 +121,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'specialist_execution_default_memory',
-    label: 'Execution memory',
+    label: 'Memory',
     description:
       'Memory allocation per specialist execution container, for example 1Gi or 2Gi.',
     configType: 'string',
@@ -130,7 +130,7 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
   },
   {
     key: 'specialist_execution_default_pull_policy',
-    label: 'Execution pull policy',
+    label: 'Pull policy',
     description: 'When specialist execution images should be pulled from the registry.',
     configType: 'string',
     placeholder: 'if-not-present',

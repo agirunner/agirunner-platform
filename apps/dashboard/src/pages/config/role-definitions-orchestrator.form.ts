@@ -117,9 +117,9 @@ export function validateOrchestratorPoolDraft(draft: OrchestratorPoolDraft): {
   cpuLimit?: string;
   memoryLimit?: string;
 } {
-  const runtimeImageError = validateContainerImage(draft.runtimeImage, 'Runtime image');
-  const cpuLimitError = validateContainerCpu(draft.cpuLimit, 'CPU limit');
-  const memoryLimitError = validateContainerMemory(draft.memoryLimit, 'Memory limit');
+  const runtimeImageError = validateContainerImage(draft.runtimeImage, 'Image');
+  const cpuLimitError = validateContainerCpu(draft.cpuLimit, 'CPU');
+  const memoryLimitError = validateContainerMemory(draft.memoryLimit, 'Memory');
 
   return {
     ...(runtimeImageError ? { runtimeImage: runtimeImageError } : {}),
