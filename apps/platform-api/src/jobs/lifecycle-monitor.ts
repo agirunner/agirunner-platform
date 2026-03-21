@@ -6,7 +6,6 @@ import { AgentService } from '../services/agent-service.js';
 import { FleetService } from '../services/fleet-service.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { readLifecycleMonitorTimingDefaults } from '../services/platform-timing-defaults.js';
-import { ScheduledWorkItemTriggerService } from '../services/scheduled-work-item-trigger-service.js';
 import { TaskService } from '../services/task-service.js';
 import { WorkerService } from '../services/worker-service.js';
 import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
@@ -66,14 +65,7 @@ export async function runWorkerDispatchTick(workerService: WorkerService): Promi
 export async function runWorkflowActivationDispatchTick(
   logger: FastifyBaseLogger,
   workflowActivationDispatchService?: WorkflowActivationDispatchService,
-  scheduledWorkItemTriggerService?: ScheduledWorkItemTriggerService,
 ): Promise<void> {
-  if (scheduledWorkItemTriggerService) {
-    const scheduled = await scheduledWorkItemTriggerService.fireDueTriggers();
-    if (scheduled.claimed > 0 || scheduled.fired > 0 || scheduled.duplicates > 0 || scheduled.failed > 0) {
-      logger.info(scheduled, 'scheduled_work_item_triggers_processed');
-    }
-  }
   if (!workflowActivationDispatchService) {
     return;
   }
@@ -100,13 +92,11 @@ export async function runDispatchTick(
   logger: FastifyBaseLogger,
   workerService: WorkerService,
   workflowActivationDispatchService?: WorkflowActivationDispatchService,
-  scheduledWorkItemTriggerService?: ScheduledWorkItemTriggerService,
 ): Promise<void> {
   await runWorkerDispatchTick(workerService);
   await runWorkflowActivationDispatchTick(
     logger,
     workflowActivationDispatchService,
-    scheduledWorkItemTriggerService,
   );
 }
 
@@ -145,7 +135,6 @@ export function startLifecycleMonitor(
   taskService: TaskService,
   workerService: WorkerService,
   workflowActivationDispatchService?: WorkflowActivationDispatchService,
-  scheduledWorkItemTriggerService?: ScheduledWorkItemTriggerService,
   fleetService?: FleetService,
   governanceService?: GovernanceService,
 ): LifecycleMonitor {
@@ -188,7 +177,6 @@ export function startLifecycleMonitor(
           logger,
           workerService,
           workflowActivationDispatchService,
-          scheduledWorkItemTriggerService,
         );
       } catch (error) {
         logger.error({ err: error }, 'worker_dispatch_monitor_failed');

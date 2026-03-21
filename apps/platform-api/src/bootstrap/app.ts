@@ -23,15 +23,11 @@ import { ApiKeyService } from '../services/api-key-service.js';
 import { EventStreamService } from '../services/event-stream-service.js';
 import { EventService } from '../services/event-service.js';
 import { FleetService } from '../services/fleet-service.js';
-import { IntegrationActionService } from '../services/integration-action-service.js';
-import { IntegrationAdapterService } from '../services/integration-adapter-service.js';
-import { startIntegrationDispatcher } from '../services/integration-dispatcher.js';
 import { GovernanceService } from '../services/governance-service.js';
 import { OAuthService } from '../services/oauth-service.js';
 import { OrchestratorConfigService } from '../services/orchestrator-config-service.js';
 import { OrchestratorGrantService } from '../services/orchestrator-grant-service.js';
 import { ToolTagService } from '../services/tool-tag-service.js';
-import { WebhookWorkItemTriggerService } from '../services/webhook-work-item-trigger-service.js';
 import { ModelCatalogService } from '../services/model-catalog-service.js';
 import { WorkspaceArtifactFileService } from '../services/workspace-artifact-file-service.js';
 import { WorkspaceService } from '../services/workspace-service.js';
@@ -39,12 +35,10 @@ import { PlaybookService } from '../services/playbook-service.js';
 import { RoleDefinitionService } from '../services/role-definition-service.js';
 import { readPlatformTransportTimingDefaults } from '../services/platform-timing-defaults.js';
 import { RuntimeDefaultsService } from '../services/runtime-defaults-service.js';
-import { ScheduledWorkItemTriggerService } from '../services/scheduled-work-item-trigger-service.js';
 import { TaskService } from '../services/task-service.js';
 import { UserService } from '../services/user-service.js';
 import { WorkerConnectionHub } from '../services/worker-connection-hub.js';
 import { WorkerService } from '../services/worker-service.js';
-import { WebhookService } from '../services/webhook-service.js';
 import { WorkflowService } from '../services/workflow-service.js';
 import { WorkflowActivationService } from '../services/workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from '../services/workflow-activation-dispatch-service.js';
@@ -133,20 +127,11 @@ export async function buildApp() {
 
   const workerConnectionHub = new WorkerConnectionHub();
   const workerService = new WorkerService(pool, eventService, workerConnectionHub, appConfig);
-  const webhookService = new WebhookService(pool, appConfig);
-  const migratedWebhookSecrets = await webhookService.migratePlaintextSecrets();
   const taskService = new TaskService(pool, eventService, appConfig, workerConnectionHub, logService);
   await applyDefaultTenantLoggingLevel({
     governanceService,
     logger: app.log,
   });
-  const integrationActionService = new IntegrationActionService(pool, taskService, appConfig);
-  const integrationAdapterService = new IntegrationAdapterService(
-    pool,
-    appConfig,
-    undefined,
-    integrationActionService,
-  );
   const workspaceService = new WorkspaceService(pool, eventService, appConfig);
   const workspaceArtifactFileService = new WorkspaceArtifactFileService(
     pool,
@@ -174,17 +159,6 @@ export async function buildApp() {
   const toolTagService = new ToolTagService(pool);
   const agentService = new AgentService(pool, eventService);
   const acpSessionService = new AcpSessionService(pool, eventService);
-  const webhookWorkItemTriggerService = new WebhookWorkItemTriggerService(
-    pool,
-    eventService,
-    workflowService,
-    appConfig.WEBHOOK_ENCRYPTION_KEY,
-  );
-  const scheduledWorkItemTriggerService = new ScheduledWorkItemTriggerService(
-    pool,
-    eventService,
-    workflowService,
-  );
 
   app.decorate('config', appConfig);
   app.decorate('pgPool', pool);
@@ -193,11 +167,8 @@ export async function buildApp() {
   app.decorate('logStreamService', logStreamService);
   app.decorate('eventService', eventService);
   app.decorate('eventStreamService', eventStreamService);
-  app.decorate('integrationActionService', integrationActionService);
-  app.decorate('integrationAdapterService', createLoggedService(integrationAdapterService, 'IntegrationAdapterService', logService));
   app.decorate('workerConnectionHub', workerConnectionHub);
   app.decorate('workerService', createLoggedService(workerService, 'WorkerService', logService));
-  app.decorate('webhookService', createLoggedService(webhookService, 'WebhookService', logService));
   app.decorate('governanceService', createLoggedService(governanceService, 'GovernanceService', logService));
   app.decorate('workspaceService', createLoggedService(workspaceService, 'WorkspaceService', logService));
   app.decorate(
@@ -219,13 +190,7 @@ export async function buildApp() {
   app.decorate('orchestratorGrantService', createLoggedService(orchestratorGrantService, 'OrchestratorGrantService', logService));
   app.decorate('acpSessionService', createLoggedService(acpSessionService, 'AcpSessionService', logService));
   app.decorate('toolTagService', createLoggedService(toolTagService, 'ToolTagService', logService));
-  app.decorate('webhookWorkItemTriggerService', createLoggedService(webhookWorkItemTriggerService, 'WebhookWorkItemTriggerService', logService));
-  app.decorate('scheduledWorkItemTriggerService', createLoggedService(scheduledWorkItemTriggerService, 'ScheduledWorkItemTriggerService', logService));
   app.decorate('agentService', createLoggedService(agentService, 'AgentService', logService));
-
-  if (migratedWebhookSecrets > 0) {
-    app.log.info({ migratedWebhookSecrets }, 'webhook_secrets_migrated_to_encrypted_storage');
-  }
 
   registerRequestContext(app);
   registerErrorHandler(app);
@@ -233,12 +198,6 @@ export async function buildApp() {
   await registerPlugins(app);
   await registerRoutes(app);
   registerWebsocketGateway(app);
-
-  eventStreamService.subscribeAll({}, (event) => {
-    void webhookService.deliverEvent(event).catch((error) => {
-      app.log.error({ err: error, eventId: event.id, tenantId: event.tenant_id }, 'webhook_delivery_failed');
-    });
-  });
 
   const lifecycleMonitor = startLifecycleMonitor(
     app.log,
@@ -248,18 +207,11 @@ export async function buildApp() {
     app.taskService,
     app.workerService,
     workflowActivationDispatchService,
-    app.scheduledWorkItemTriggerService,
     app.fleetService,
     app.governanceService,
   );
-  const integrationDispatcher = startIntegrationDispatcher(
-    app.log,
-    app.integrationAdapterService,
-    eventStreamService,
-  );
 
   app.addHook('onClose', async () => {
-    integrationDispatcher.stop();
     lifecycleMonitor.stop();
     await eventStreamService.stop();
     await logStreamService.stop();

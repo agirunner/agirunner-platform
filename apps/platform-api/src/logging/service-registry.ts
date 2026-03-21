@@ -132,20 +132,6 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
     ignoreFields: [],
     ignoreMethods: ['getRetentionPolicy'],
   },
-  WebhookService: {
-    entityType: 'webhook',
-    category: 'config',
-    nameField: 'url',
-    ignoreFields: ['updatedAt', 'createdAt', 'secret'],
-    ignoreMethods: ['listWebhooks'],
-  },
-  IntegrationAdapterService: {
-    entityType: 'integration',
-    category: 'config',
-    nameField: 'name',
-    ignoreFields: ['updatedAt', 'createdAt'],
-    ignoreMethods: ['listAdapters'],
-  },
   OAuthService: {
     entityType: 'oauth_connection',
     category: 'auth',
@@ -174,21 +160,6 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
     nameField: 'name',
     ignoreFields: [],
     ignoreMethods: ['listToolTags'],
-  },
-  WebhookWorkItemTriggerService: {
-    entityType: 'work_item_trigger',
-    category: 'config',
-    nameField: 'name',
-    ignoreFields: ['secret'],
-    ignoreMethods: ['listTriggers'],
-    logMethods: ['invokeTrigger'],
-  },
-  ScheduledWorkItemTriggerService: {
-    entityType: 'scheduled_work_item_trigger',
-    category: 'config',
-    nameField: 'name',
-    ignoreFields: ['updatedAt', 'createdAt', 'defaults', 'next_fire_at'],
-    ignoreMethods: ['listTriggers', 'fireDueTriggers'],
   },
   WorkflowActivationService: {
     entityType: 'workflow_activation',

@@ -68,15 +68,6 @@ describe('startLifecycleMonitor', () => {
       enqueueHeartbeatActivations: vi.fn(async () => 2),
       dispatchQueuedActivations: vi.fn(async () => 0),
     };
-    const scheduledWorkItemTriggerService = {
-      fireDueTriggers: vi.fn(async () => ({
-        claimed: 1,
-        fired: 1,
-        duplicates: 0,
-        failed: 0,
-      })),
-    };
-
     const monitor = startLifecycleMonitor(
       logger as never,
       { query: vi.fn() } as never,
@@ -91,16 +82,10 @@ describe('startLifecycleMonitor', () => {
       taskService as never,
       workerService as never,
       workflowActivationDispatchService as never,
-      scheduledWorkItemTriggerService as never,
     );
 
     await vi.advanceTimersByTimeAsync(1_000);
 
-    expect(scheduledWorkItemTriggerService.fireDueTriggers).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith(
-      { claimed: 1, fired: 1, duplicates: 0, failed: 0 },
-      'scheduled_work_item_triggers_processed',
-    );
     expect(workflowActivationDispatchService.recoverStaleActivations).toHaveBeenCalledTimes(1);
     expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(1);
     expect(logger.info).toHaveBeenCalledWith(
@@ -211,29 +196,10 @@ describe('startLifecycleMonitor', () => {
       enqueueHeartbeatActivations: vi.fn(async () => 1),
       dispatchQueuedActivations: vi.fn(async () => 1),
     };
-    const scheduledWorkItemTriggerService = {
-      fireDueTriggers: vi.fn(async () => ({
-        claimed: 0,
-        fired: 2,
-        duplicates: 0,
-        failed: 0,
-      })),
-    };
-
-    await runWorkflowActivationDispatchTick(
-      logger as never,
-      workflowActivationDispatchService as never,
-      scheduledWorkItemTriggerService as never,
-    );
-
-    expect(scheduledWorkItemTriggerService.fireDueTriggers).toHaveBeenCalledTimes(1);
+    await runWorkflowActivationDispatchTick(logger as never, workflowActivationDispatchService as never);
     expect(workflowActivationDispatchService.recoverStaleActivations).toHaveBeenCalledTimes(1);
     expect(workflowActivationDispatchService.enqueueHeartbeatActivations).toHaveBeenCalledTimes(1);
     expect(workflowActivationDispatchService.dispatchQueuedActivations).toHaveBeenCalledTimes(1);
-    expect(logger.info).toHaveBeenCalledWith(
-      { claimed: 0, fired: 2, duplicates: 0, failed: 0 },
-      'scheduled_work_item_triggers_processed',
-    );
     expect(logger.info).toHaveBeenCalledWith(
       { enqueued: 1 },
       'workflow_activation_heartbeats_enqueued',
