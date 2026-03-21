@@ -266,6 +266,7 @@ test_oauth_mode_exports_session_from_current_db_when_not_provided() {
 DEFAULT_ADMIN_API_KEY=test-admin-key
 LIVE_TEST_PROVIDER_AUTH_MODE=oauth
 LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_OAUTH_SESSION_SOURCE=current_db
 LIVE_TEST_GITHUB_TOKEN=test-github-token
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner
@@ -312,7 +313,8 @@ test_baseline_seed_force_resets_remote_fixture_repo() {
 
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
-LIVE_TEST_PROVIDER_API_KEY=test-provider-key
+LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh","authorizedAt":"2026-03-19T00:00:00.000Z"}}'
 LIVE_TEST_GITHUB_TOKEN=test-github-token
 POSTGRES_DB=agirunner
 POSTGRES_USER=agirunner

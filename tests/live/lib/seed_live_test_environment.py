@@ -596,10 +596,10 @@ def main() -> None:
     scenario = load_scenario(scenario_file) if scenario_file else None
     workspace_config = {"repo": True} if scenario is None else scenario["workspace"]
     workspace_storage = resolve_workspace_storage(workspace_config)
-    provider_auth_mode = env("LIVE_TEST_PROVIDER_AUTH_MODE", "api_key")
-    provider_name = env("LIVE_TEST_PROVIDER_NAME", "OpenAI")
+    provider_auth_mode = env("LIVE_TEST_PROVIDER_AUTH_MODE", "oauth")
+    provider_name = env("LIVE_TEST_PROVIDER_NAME", "OpenAI (Subscription)")
     provider_type = env("LIVE_TEST_PROVIDER_TYPE", "openai")
-    provider_base_url = env("LIVE_TEST_PROVIDER_BASE_URL", "https://api.openai.com/v1")
+    provider_base_url = env("LIVE_TEST_PROVIDER_BASE_URL", "https://chatgpt.com/backend-api")
     provider_api_key = env("LIVE_TEST_PROVIDER_API_KEY") or None
     oauth_profile_id = env("LIVE_TEST_OAUTH_PROFILE_ID") or None
     oauth_session_json = env("LIVE_TEST_OAUTH_SESSION_JSON")
