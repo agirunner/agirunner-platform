@@ -75,6 +75,7 @@ class LiveTestCatalogTests(unittest.TestCase):
             "sdlc-review-rework-once reviewer must not rely on an unavailable task-mutation tool",
         )
         self.assertIn("orchestrator performs task-state mutations", reviewer.get("systemPrompt", ""))
+        self.assertIn("structured handoff completion MUST be `partial`", reviewer.get("systemPrompt", ""))
 
 
 if __name__ == "__main__":
