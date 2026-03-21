@@ -692,6 +692,12 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         taskScope,
         body,
       );
+      const createTaskContext = await loadOrchestratorCreateWorkItemContext(
+        app.pgPool,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        taskScope.activation_id,
+      );
       const task = await runIdempotentMutation(
         app,
         toolResultService,
@@ -712,6 +718,17 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
               orchestrator_activation_id: taskScope.activation_id,
             },
           };
+
+          const existingReworkTaskId = await loadExistingReworkTaskForRequestedChanges(
+            client,
+            request.auth!.tenantId,
+            taskScope.workflow_id,
+            createTaskContext,
+            createInput,
+          );
+          if (existingReworkTaskId) {
+            return app.taskService.getTask(request.auth!.tenantId, existingReworkTaskId) as Promise<Record<string, unknown>>;
+          }
 
           const existingReviewTaskId = await loadExistingReviewTaskForSameRevision(
             client,
@@ -1355,6 +1372,10 @@ interface ExistingReviewTaskRow {
   id: string;
 }
 
+interface ExistingReworkTaskRow {
+  id: string;
+}
+
 async function normalizeOrchestratorWorkItemCreateInput(
   pool: FastifyInstance['pgPool'],
   tenantId: string,
@@ -1555,6 +1576,43 @@ async function loadExistingReviewTaskForSameRevision(
   return result.rows[0]?.id ?? null;
 }
 
+async function loadExistingReworkTaskForRequestedChanges(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  context: OrchestratorCreateWorkItemContext,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+) {
+  if (context.event_type !== 'task.review_requested_changes') {
+    return null;
+  }
+
+  const reviewedTaskId = readString(context.payload.task_id);
+  const reviewedTaskRole = readString(context.payload.task_role);
+  if (!reviewedTaskId || !reviewedTaskRole || body.role !== reviewedTaskRole) {
+    return null;
+  }
+
+  const result = await db.query<ExistingReworkTaskRow>(
+    `SELECT id
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND id = $3
+        AND role = $4
+        AND state = ANY($5::task_state[])
+      LIMIT 1`,
+    [
+      tenantId,
+      workflowId,
+      reviewedTaskId,
+      reviewedTaskRole,
+      ['pending', 'ready', 'claimed', 'in_progress', 'output_pending_review'],
+    ],
+  );
+  return result.rows[0]?.id ?? null;
+}
+
 interface TaskCreateStageAlignedWorkItem {
   work_item_id: string;
   source: 'parent_stage_match' | 'child_stage_match' | null;
@@ -1722,7 +1780,7 @@ async function loadActivationReviewedTaskId(
 }
 
 async function loadOrchestratorCreateWorkItemContext(
-  pool: FastifyInstance['pgPool'],
+  db: DatabaseQueryable,
   tenantId: string,
   workflowId: string,
   activationId: string | null,
@@ -1735,7 +1793,7 @@ async function loadOrchestratorCreateWorkItemContext(
     };
   }
 
-  const result = await pool.query<OrchestratorCreateWorkItemContext>(
+  const result = await db.query<OrchestratorCreateWorkItemContext>(
     `SELECT w.lifecycle,
             wa.event_type,
             COALESCE(wa.payload, '{}'::jsonb) AS payload
