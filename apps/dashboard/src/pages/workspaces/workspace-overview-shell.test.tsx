@@ -32,7 +32,6 @@ describe('workspace overview shell', () => {
 });
 
 function renderOverview(
-  workspace: Parameters<typeof WorkspaceOverviewShell>[0]['workspace'],
 ): string {
   const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
   try {
@@ -41,7 +40,6 @@ function renderOverview(
         MemoryRouter,
         undefined,
         createElement(WorkspaceOverviewShell, {
-          workspace,
           overview: {
             summary: 'Use this snapshot before switching workspaces.',
             packets: [

@@ -137,9 +137,9 @@ function WorkspaceDetailTabBar(props: {
         </Select>
       </div>
 
-      <TabsList className="hidden h-auto w-full flex-wrap gap-1 rounded-xl bg-border/30 p-1 sm:inline-flex">
+      <TabsList className="hidden h-auto w-full grid-cols-3 gap-1 rounded-xl bg-border/30 p-1 sm:grid">
         {WORKSPACE_DETAIL_TAB_OPTIONS.map((option) => (
-          <TabsTrigger key={option.value} value={option.value} className="flex-1">
+          <TabsTrigger key={option.value} value={option.value} className="min-w-0">
             {option.label}
           </TabsTrigger>
         ))}

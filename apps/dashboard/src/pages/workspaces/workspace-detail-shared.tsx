@@ -35,7 +35,7 @@ export function WorkspaceMetricCard(props: {
   detail: string;
 }): JSX.Element {
   return (
-    <div className="rounded-xl border border-border/70 bg-background/70 p-3">
+    <div className="h-full rounded-xl border border-border/70 bg-background/70 p-3">
       <div className="text-[11px] font-medium uppercase tracking-[0.16em] text-muted">
         {props.label}
       </div>

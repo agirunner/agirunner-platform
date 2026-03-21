@@ -136,7 +136,7 @@ export function WorkspaceSettingsTab(props: {
       <SettingsDisclosureSection
         id="workspace-settings-basics"
         title="Workspace Basics"
-        description="Name and slug."
+        description="Name and slug for this workspace."
         summary={basicsSummary}
         actionLabel={expandedSection === 'basics' ? 'Hide basics' : 'Open basics'}
         isExpanded={expandedSection === 'basics'}
@@ -163,7 +163,7 @@ export function WorkspaceSettingsTab(props: {
       <SettingsDisclosureSection
         id="workspace-settings-storage"
         title="Workspace Storage"
-        description="Choose the workspace storage type and configure only the fields that apply to it."
+        description="Choose the storage type and only the fields that apply."
         summary={storageSummary}
         actionLabel={expandedSection === 'storage' ? 'Hide storage' : 'Open storage'}
         isExpanded={expandedSection === 'storage'}
@@ -277,7 +277,7 @@ export function WorkspaceSettingsTab(props: {
       <SettingsDisclosureSection
         id="workspace-settings-danger"
         title="Danger"
-        description="Delete this workspace only when the workspace should be removed permanently for this tenant."
+        description="Delete this workspace permanently for this tenant."
         summary="Workspace deletion is destructive. Leave this closed unless you intentionally need to remove the workspace."
         actionLabel={expandedSection === 'danger' ? 'Hide danger' : 'Open danger'}
         isExpanded={expandedSection === 'danger'}
@@ -314,16 +314,16 @@ function SettingsDisclosureSection(props: {
     <Card id={props.id} className="border-border/70 shadow-none">
       <button
         type="button"
-        className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left"
+        className="grid w-full gap-3 px-4 py-4 text-left sm:grid-cols-[minmax(0,1fr)_auto] sm:items-start"
         aria-expanded={props.isExpanded}
         onClick={props.onToggle}
       >
-        <div className="space-y-1.5">
+        <div className="min-w-0 space-y-1.5">
           <div className="text-base font-semibold text-foreground">{props.title}</div>
           <p className="text-sm leading-6 text-muted">{props.description}</p>
-          <p className="max-w-3xl text-sm leading-5 text-muted">{props.summary}</p>
+          <p className="text-sm leading-5 text-muted">{props.summary}</p>
         </div>
-        <div className="flex items-center gap-2 pt-0.5">
+        <div className="flex items-center gap-2 pt-0.5 sm:justify-self-end">
           <span className="text-xs font-medium text-muted">{props.actionLabel}</span>
           <ChevronDown
             className={cn(

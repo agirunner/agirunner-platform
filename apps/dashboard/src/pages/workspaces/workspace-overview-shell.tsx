@@ -13,7 +13,7 @@ export function WorkspaceOverviewShell(props: WorkspaceOverviewShellProps): JSX.
         <CardTitle className="text-base">Workspace Snapshot</CardTitle>
         <CardDescription>{props.overview.summary}</CardDescription>
       </CardHeader>
-      <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+      <CardContent className="grid gap-3 md:grid-cols-3">
         {props.overview.packets.map((packet) => (
           <WorkspaceMetricCard key={packet.label} label={packet.label} value={packet.value} detail={packet.detail} />
         ))}
