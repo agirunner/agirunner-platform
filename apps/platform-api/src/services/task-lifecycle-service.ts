@@ -1124,18 +1124,29 @@ export class TaskLifecycleService {
 
     try {
       const result = await queryClient.query<LatestReviewRequestHandoffRow>(
-        `SELECT th.id AS handoff_id,
-                th.task_id AS review_task_id,
-                th.created_at
-           FROM workflow_work_items review_wi
+        `WITH RECURSIVE descendant_work_items AS (
+            SELECT id
+              FROM workflow_work_items
+             WHERE tenant_id = $1
+               AND workflow_id = $2
+               AND id = $3
+            UNION ALL
+            SELECT child.id
+              FROM workflow_work_items child
+              JOIN descendant_work_items parent
+                ON parent.id = child.parent_work_item_id
+             WHERE child.tenant_id = $1
+               AND child.workflow_id = $2
+          )
+          SELECT th.id AS handoff_id,
+                 th.task_id AS review_task_id,
+                 th.created_at
+           FROM descendant_work_items review_wi
            JOIN task_handoffs th
-             ON th.tenant_id = review_wi.tenant_id
-            AND th.workflow_id = review_wi.workflow_id
+             ON th.tenant_id = $1
+            AND th.workflow_id = $2
             AND th.work_item_id = review_wi.id
-          WHERE review_wi.tenant_id = $1
-            AND review_wi.workflow_id = $2
-            AND review_wi.parent_work_item_id = $3
-            AND review_wi.stage_name = 'review'
+          WHERE review_wi.id <> $3
             AND COALESCE(th.resolution, th.role_data->>'review_outcome') = 'request_changes'
           ORDER BY th.sequence DESC, th.created_at DESC
           LIMIT 1`,

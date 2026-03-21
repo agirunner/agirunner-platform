@@ -1423,7 +1423,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
   it('does not reapply the same reviewer request-changes handoff after the developer resubmits output', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('FROM workflow_work_items review_wi') && sql.includes('COALESCE(th.resolution')) {
+        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes('COALESCE(th.resolution')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
           return {
             rowCount: 1,
@@ -1502,7 +1502,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('FROM workflow_work_items review_wi') && sql.includes('COALESCE(th.resolution')) {
+        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes('COALESCE(th.resolution')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
           return {
             rowCount: 1,
@@ -1563,6 +1563,77 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'task-review-loop-superseded',
       {
         feedback: 'The same stale review verdict was replayed after a fresh developer submission.',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('ignores a stale QA request-changes replay once a newer developer handoff already exists', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes('COALESCE(th.resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          return {
+            rowCount: 1,
+            rows: [{
+              handoff_id: 'handoff-qa-1',
+              review_task_id: 'task-qa-1',
+              created_at: new Date('2026-03-21T20:09:52.000Z'),
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM task_handoffs')
+          && sql.includes('task_id = $2')
+          && sql.includes('task_rework_count = $3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'task-qa-rework-superseded', 1]);
+          return {
+            rowCount: 1,
+            rows: [{
+              created_at: new Date('2026-03-21T20:11:09.000Z'),
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-qa-rework-superseded',
+      state: 'output_pending_review',
+      workflow_id: 'workflow-1',
+      work_item_id: 'implementation-item',
+      input: {
+        review_feedback: 'Earlier QA feedback',
+      },
+      metadata: {},
+      rework_count: 1,
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-qa-rework-superseded',
+      {
+        feedback: 'The same QA request-changes verdict was replayed after a fresh developer submission.',
       },
     );
 
