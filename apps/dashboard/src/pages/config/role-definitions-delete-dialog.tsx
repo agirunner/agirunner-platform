@@ -28,7 +28,7 @@ export function DeleteRoleDialog(props: {
         <DialogHeader>
           <DialogTitle>Delete role definition?</DialogTitle>
           <DialogDescription>
-            Remove this custom role from the tenant catalog. This action is irreversible.
+            Remove this role definition from the workspace configuration. This action is irreversible.
           </DialogDescription>
         </DialogHeader>
 
@@ -38,9 +38,6 @@ export function DeleteRoleDialog(props: {
               <p className="text-sm font-semibold text-foreground">{props.role.name}</p>
               <Badge variant={props.role.is_active === false ? 'warning' : 'success'}>
                 {props.role.is_active === false ? 'Inactive' : 'Active'}
-              </Badge>
-              <Badge variant={props.role.is_built_in ? 'secondary' : 'outline'}>
-                {props.role.is_built_in ? 'Built-in' : 'Custom'}
               </Badge>
             </div>
             <p className="text-sm text-muted">
@@ -65,7 +62,7 @@ export function DeleteRoleDialog(props: {
             type="button"
             variant="destructive"
             onClick={props.onConfirm}
-            disabled={props.isDeleting || props.role.is_built_in === true}
+            disabled={props.isDeleting}
           >
             {props.isDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
             Delete Role

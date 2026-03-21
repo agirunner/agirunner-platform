@@ -28,13 +28,12 @@ const createRoleSchema = z.object({
     })
     .strict()
     .optional(),
-  isBuiltIn: z.boolean().default(false),
   isActive: z.boolean().default(true),
 }).strict();
 
 const DEFAULT_PULL_POLICY = 'if-not-present' as const;
 
-const updateRoleSchema = createRoleSchema.partial().omit({ isBuiltIn: true });
+const updateRoleSchema = createRoleSchema.partial();
 
 export type CreateRoleInput = z.input<typeof createRoleSchema>;
 export type UpdateRoleInput = z.input<typeof updateRoleSchema>;
@@ -53,7 +52,6 @@ interface RoleDefinitionRow {
   execution_container_config?: Record<string, unknown> | null;
   escalation_target: string | null;
   max_escalation_depth: number;
-  is_built_in: boolean;
   is_active: boolean;
   version: number;
   created_at: Date;
@@ -102,8 +100,8 @@ export class RoleDefinitionService {
         tenant_id, name, description, system_prompt, allowed_tools,
         model_preference, verification_strategy,
         execution_container_config, escalation_target,
-        max_escalation_depth, is_built_in, is_active
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        max_escalation_depth, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
       RETURNING *`,
       [
         tenantId,
@@ -116,7 +114,6 @@ export class RoleDefinitionService {
         normalizeExecutionContainerConfig(validated.executionContainerConfig),
         validated.escalationTarget ?? null,
         validated.maxEscalationDepth,
-        validated.isBuiltIn,
         validated.isActive,
       ],
     );
@@ -176,7 +173,6 @@ export class RoleDefinitionService {
 
   async deleteRole(tenantId: string, id: string): Promise<void> {
     const role = await this.getRoleById(tenantId, id);
-    if (role.is_built_in) throw new ConflictError('Cannot delete built-in role');
 
     const playbooks = await this.findPlaybooksUsingRole(tenantId, role.name);
     if (playbooks.length > 0) {
@@ -249,6 +245,7 @@ function sanitizeRoleDefinitionRow(row: RoleDefinitionRow): RoleDefinitionRow {
     ) as string | null,
   };
   delete sanitized.fallback_model;
+  delete (sanitized as Record<string, unknown>).is_built_in;
   return sanitized;
 }
 

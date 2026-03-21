@@ -18,13 +18,16 @@ export interface LogIterationGroupProps {
   onFilterTrace: (traceId: string) => void;
 }
 
-const STAGE_STYLES: Record<string, string> = {
-  triage: 'bg-slate-100 text-slate-700',
-  planning: 'bg-blue-100 text-blue-700',
-  implementation: 'bg-emerald-100 text-emerald-700',
-  review: 'bg-amber-100 text-amber-700',
-  verification: 'bg-teal-100 text-teal-700',
-};
+const STAGE_STYLE_PALETTE = [
+  'bg-slate-100 text-slate-700',
+  'bg-blue-100 text-blue-700',
+  'bg-emerald-100 text-emerald-700',
+  'bg-amber-100 text-amber-700',
+  'bg-teal-100 text-teal-700',
+  'bg-rose-100 text-rose-700',
+  'bg-violet-100 text-violet-700',
+  'bg-cyan-100 text-cyan-700',
+] as const;
 
 function computeTotalDuration(entries: LogEntry[]): number {
   let total = 0;
@@ -40,6 +43,18 @@ function formatDuration(ms: number): string {
   if (ms < 1) return '<1ms';
   if (ms < 1000) return `${Math.round(ms)}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
+}
+
+function stageStyle(stageName: string): string {
+  const normalized = stageName.trim().toLowerCase();
+  if (!normalized) {
+    return 'bg-gray-100 text-gray-600';
+  }
+  let hash = 0;
+  for (let index = 0; index < normalized.length; index += 1) {
+    hash = (hash * 31 + normalized.charCodeAt(index)) >>> 0;
+  }
+  return STAGE_STYLE_PALETTE[hash % STAGE_STYLE_PALETTE.length];
 }
 
 function IterationHeader({
@@ -85,7 +100,7 @@ function IterationHeader({
                 key={stage}
                 className={cn(
                   'rounded px-1.5 py-px text-[10px] font-medium capitalize',
-                  STAGE_STYLES[stage.toLowerCase()] ?? 'bg-gray-100 text-gray-600',
+                  stageStyle(stage),
                 )}
               >
                 {stage}

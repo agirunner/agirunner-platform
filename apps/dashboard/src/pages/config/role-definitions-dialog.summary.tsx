@@ -88,7 +88,7 @@ export function RoleDialogFooter(props: {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-muted">
           {props.validation.isValid
-            ? 'All required fields are ready. Save keeps the role catalog and orchestration posture in sync.'
+            ? 'All required fields are ready. Save keeps role definitions and orchestration posture in sync.'
             : `${props.validation.blockingIssues.length} save blocker${props.validation.blockingIssues.length === 1 ? '' : 's'} remaining.`}
         </p>
         <div className="flex flex-wrap justify-end gap-2">

@@ -255,11 +255,11 @@ export function summarizeOrchestratorControlSurfaces(
     {
       id: 'specialists',
       title: 'Specialist prompts and escalation',
-      summary: 'Managed in the role catalog below',
+      summary: 'Managed in the role definitions below',
       detail:
         'Role prompts, tool grants, verification strategy, fallback routing, and escalation targets are edited on this page in the specialist role editor.',
-      href: '#specialist-role-catalog',
-      label: 'Jump to role catalog',
+      href: '#specialist-role-definitions',
+      label: 'Jump to role definitions',
     },
   ];
 }

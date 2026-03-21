@@ -82,9 +82,6 @@ export function RoleRow(props: {
                 <Badge variant={props.role.is_active === false ? 'secondary' : 'success'}>
                   {props.role.is_active === false ? 'Inactive' : 'Active'}
                 </Badge>
-                <Badge variant={props.role.is_built_in ? 'secondary' : 'outline'}>
-                  {props.role.is_built_in ? 'Built-in' : 'Custom'}
-                </Badge>
               </div>
               <div className="text-sm text-muted">
                 {props.role.description ?? 'No description provided.'}

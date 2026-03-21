@@ -14,7 +14,6 @@ export interface RoleDefinition {
     memory?: string | null;
     pull_policy?: 'always' | 'if-not-present' | 'never' | null;
   } | null;
-  is_built_in?: boolean;
   is_active?: boolean;
   version?: number;
   updated_at?: string | null;
@@ -210,10 +209,9 @@ export function countRoleStateSummary(roles: RoleDefinition[]) {
     (summary, role) => ({
       total: summary.total + 1,
       active: summary.active + (role.is_active === false ? 0 : 1),
-      builtIn: summary.builtIn + (role.is_built_in ? 1 : 0),
-      custom: summary.custom + (role.is_built_in ? 0 : 1),
+      inactive: summary.inactive + (role.is_active === false ? 1 : 0),
     }),
-    { total: 0, active: 0, builtIn: 0, custom: 0 },
+    { total: 0, active: 0, inactive: 0 },
   );
 }
 

@@ -98,7 +98,6 @@ describe('role definitions support helpers', () => {
       description: 'System design specialist',
       system_prompt: 'Think about architecture deeply.',
       allowed_tools: ['file_read', 'git_diff'],
-      is_built_in: true,
       is_active: false,
     });
 

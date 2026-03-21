@@ -126,11 +126,10 @@ export function RoleDefinitionsPage(): JSX.Element {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <MetricCard label="Total roles" value={summary.total} />
         <MetricCard label="Active roles" value={summary.active} tone="success" />
-        <MetricCard label="Built-in roles" value={summary.builtIn} />
-        <MetricCard label="Custom roles" value={summary.custom} tone="warning" />
+        <MetricCard label="Inactive roles" value={summary.inactive} tone="warning" />
       </div>
 
       {roles.length === 0 ? (
@@ -146,9 +145,9 @@ export function RoleDefinitionsPage(): JSX.Element {
           </Button>
         </div>
       ) : (
-        <Card id="specialist-role-catalog">
+        <Card id="specialist-role-definitions">
           <CardHeader>
-            <CardTitle>Specialist role catalog</CardTitle>
+            <CardTitle>Specialist role definitions</CardTitle>
             <CardDescription>Review roles at a glance, then expand any row for the full prompt and tool details.</CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">

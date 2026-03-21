@@ -955,7 +955,7 @@ function WorkItemOperatorSection(props: {
                       value={props.childNotes}
                       onChange={(event) => props.onChildNotesChange(event.target.value)}
                       className="min-h-[124px]"
-                      placeholder="Capture implementation notes or operator guidance for the child item."
+                      placeholder="Capture operator guidance or notes for the child item."
                     />
                   </label>
                 </div>

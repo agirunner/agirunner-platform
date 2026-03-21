@@ -6,23 +6,17 @@ import {
 } from './role-definitions-lifecycle.js';
 
 describe('role definitions lifecycle helpers', () => {
-  it('blocks deletion for built-in roles', () => {
-    expect(canDeleteRole({ is_built_in: true })).toBe(false);
+  it('allows deletion for active roles and warns to update dependent workflows first', () => {
+    expect(canDeleteRole({ is_active: true })).toBe(true);
     expect(
-      describeRoleLifecyclePolicy({ is_built_in: true, is_active: true }),
-    ).toContain('Built-in roles are protected');
+      describeRoleLifecyclePolicy({ is_active: true }),
+    ).toContain('Update any playbooks that still reference it before deletion');
   });
 
-  it('allows deletion for inactive custom roles', () => {
-    expect(canDeleteRole({ is_built_in: false })).toBe(true);
+  it('allows deletion for inactive roles', () => {
+    expect(canDeleteRole({ is_active: false })).toBe(true);
     expect(
-      describeRoleLifecyclePolicy({ is_built_in: false, is_active: false }),
+      describeRoleLifecyclePolicy({ is_active: false }),
     ).toContain('can be deleted');
-  });
-
-  it('warns before deleting active custom roles', () => {
-    expect(
-      describeRoleLifecyclePolicy({ is_built_in: false, is_active: true }),
-    ).toContain('Update playbooks before deleting');
   });
 });

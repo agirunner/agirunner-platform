@@ -800,7 +800,7 @@ function readReviewRequestChangesFeedback(
     asOptionalString(latestHandoffOutcome?.summary)
     ?? asOptionalString(asRecord(completedTask.output).review_feedback)
     ?? asOptionalString(asRecord(completedTask.output).summary)
-    ?? 'Reviewer requested changes.'
+    ?? 'Review requested changes.'
   );
 }
 

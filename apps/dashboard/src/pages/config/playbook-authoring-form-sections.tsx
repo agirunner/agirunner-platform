@@ -80,7 +80,7 @@ export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
             }))
           }
           className="min-h-[180px]"
-          placeholder="Example: Product manager clarifies the objective. Developer implements. Reviewer must review every code change. Rejected review returns to developer with findings. Human approval is required before completion."
+          placeholder="Example: Clarify the objective, route delivery to the appropriate role, require review where needed, return requested changes with findings, and require human approval before completion."
         />
         <p className="text-sm text-muted">
           This is operator-authored guidance for the orchestrator. Mandatory rules below are still
@@ -105,7 +105,7 @@ export function TeamRolesSection(
     >
       <div className="space-y-3">
         <p className="text-sm text-muted">
-          Playbooks use active role definitions from the shared role catalog.
+          Playbooks use active role definitions from the shared workspace configuration.
         </p>
         {props.draft.roles.map((role, index) => (
           <div key={`role-${index}`} className="grid gap-1.5">
@@ -255,7 +255,7 @@ export function ReviewRulesSection(
               }
             />
             <RoleSelectField
-              label="Reviewer"
+              label="Reviewed by"
               value={rule.reviewed_by}
               availableRoleNames={availableRoleNames}
               inline
@@ -866,8 +866,8 @@ export function OrchestratorSection(props: SectionProps): JSX.Element {
             }
           />
           <p className="text-xs text-muted">
-            In an SDLC workflow, a value of 2 lets one feature run implementation and QA in
-            parallel without monopolizing all capacity.
+            A value of 2 lets one work item run two concurrent specialist tasks without
+            monopolizing all available capacity.
           </p>
         </LabeledField>
         <ToggleField

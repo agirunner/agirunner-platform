@@ -723,7 +723,7 @@ function readReviewRuleError(rule: ReviewRuleDraft, roleNames: Set<string>): str
     return undefined;
   }
   if (!rule.from_role.trim() || !rule.reviewed_by.trim()) {
-    return 'Review rules must define both the source role and the reviewer.';
+    return 'Review rules must define both the source role and the review role.';
   }
   if (!roleNames.has(rule.from_role.trim()) || !roleNames.has(rule.reviewed_by.trim())) {
     return 'Review rules must use roles selected in the team section.';

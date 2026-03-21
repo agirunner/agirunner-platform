@@ -34,7 +34,6 @@ const INSPECTOR_ACRONYMS: Record<string, string> = {
   api: 'API',
   git: 'Git',
   llm: 'LLM',
-  qa: 'QA',
   sse: 'SSE',
   ui: 'UI',
 };

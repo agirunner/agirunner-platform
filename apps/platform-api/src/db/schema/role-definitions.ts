@@ -17,7 +17,6 @@ export const roleDefinitions = pgTable(
     fallbackModel: text('fallback_model'),
     verificationStrategy: text('verification_strategy'),
     executionContainerConfig: jsonb('execution_container_config'),
-    isBuiltIn: boolean('is_built_in').notNull().default(false),
     escalationTarget: text('escalation_target'),
     maxEscalationDepth: integer('max_escalation_depth').notNull().default(5),
     isActive: boolean('is_active').notNull().default(true),

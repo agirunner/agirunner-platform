@@ -149,12 +149,12 @@ describe('role definitions page source', () => {
     expect(source).toContain('mt-auto flex flex-wrap gap-2 pt-1');
   });
 
-  it('exposes a first-class delete role flow for custom roles with built-in protection', () => {
+  it('exposes a first-class delete role flow for role definitions', () => {
     const source = readCombinedSource();
     expect(source).toContain('dashboardApi.deleteRoleDefinition');
     expect(source).toContain('DeleteRoleDialog');
     expect(source).toContain('Delete Role');
-    expect(source).toContain('Built-in roles are protected and can only be deactivated.');
+    expect(source).toContain('Update any playbooks that still reference it before deletion.');
     expect(source).toContain('onDelete={setDeletingRole}');
   });
 

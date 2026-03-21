@@ -1,6 +1,5 @@
 import type { Dispatch, SetStateAction } from 'react';
 
-import { Badge } from '../../components/ui/badge.js';
 import { ImageReferenceField } from '../../components/forms/image-reference-field.js';
 import {
   Card,
@@ -48,9 +47,6 @@ export function RoleBasicsSection(props: {
           </CardDescription>
         </div>
         <div className="flex items-center gap-3">
-          {props.role?.is_built_in ? (
-            <Badge variant="secondary">Built-in</Badge>
-          ) : null}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted">Active</span>
             <Switch
