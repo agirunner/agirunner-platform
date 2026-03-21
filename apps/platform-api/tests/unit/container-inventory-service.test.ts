@@ -164,4 +164,50 @@ describe('ContainerInventoryService', () => {
     expect(listQuery).toContain('LEFT JOIN tasks t');
     expect(listQuery).toContain('LEFT JOIN workflows w');
   });
+
+  it('deduplicates live snapshot rows by container id before replacing the tenant snapshot', async () => {
+    const snapshot: LiveContainerInventoryInput[] = [
+      {
+        container_id: 'runtime-container-1',
+        name: 'runtime-specialist-1',
+        kind: 'runtime',
+        state: 'running',
+        status: 'Up 30 seconds',
+        image: 'agirunner-runtime:old',
+      },
+      {
+        container_id: 'runtime-container-1',
+        name: 'runtime-specialist-1',
+        kind: 'runtime',
+        state: 'running',
+        status: 'Up 45 seconds',
+        image: 'agirunner-runtime:new',
+      },
+    ];
+
+    pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await service.replaceLiveSnapshot(TENANT_ID, snapshot);
+
+    const params = pool.query.mock.calls[0]?.[1] as [string, string];
+    const payload = JSON.parse(params[1]) as LiveContainerInventoryInput[];
+
+    expect(payload).toHaveLength(1);
+    expect(payload[0]).toMatchObject({
+      container_id: 'runtime-container-1',
+      status: 'Up 45 seconds',
+      image: 'agirunner-runtime:new',
+    });
+  });
+
+  it('joins runtime heartbeats without comparing uuid values to text container labels', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await service.listCurrentContainers(TENANT_ID);
+
+    const listQuery = pool.query.mock.calls[0]?.[0] as string;
+    expect(listQuery).toContain('rh.runtime_id::text = live.runtime_id');
+    expect(listQuery).not.toContain('rh.runtime_id = live.runtime_id');
+    expect(listQuery).toContain("COALESCE(p.id::text, NULLIF(BTRIM(live.live_playbook_id), ''))");
+  });
 });

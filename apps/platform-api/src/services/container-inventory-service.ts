@@ -135,7 +135,7 @@ live_rows AS (
     ON awt.desired_state_id = live.desired_state_id
   LEFT JOIN runtime_heartbeats rh
     ON rh.tenant_id = live.tenant_id
-   AND rh.runtime_id = live.runtime_id
+   AND rh.runtime_id::text = live.runtime_id
   WHERE live.tenant_id = $1
 )
 SELECT
@@ -232,7 +232,7 @@ export class ContainerInventoryService {
   constructor(private readonly pool: DatabaseQueryable) {}
 
   async replaceLiveSnapshot(tenantId: string, snapshot: LiveContainerInventoryInput[]): Promise<void> {
-    const normalizedSnapshot = snapshot.map(normalizeLiveContainerInput);
+    const normalizedSnapshot = normalizeLiveSnapshot(snapshot);
     await this.pool.query(REPLACE_LIVE_SNAPSHOT_SQL, [tenantId, JSON.stringify(normalizedSnapshot)]);
   }
 
@@ -264,6 +264,15 @@ function normalizeLiveContainerInput(input: LiveContainerInventoryInput): LiveCo
     playbook_id: normalizeOptionalText(input.playbook_id),
     playbook_name: normalizeOptionalText(input.playbook_name),
   };
+}
+
+function normalizeLiveSnapshot(snapshot: LiveContainerInventoryInput[]): LiveContainerInventoryInput[] {
+  const dedupedSnapshot = new Map<string, LiveContainerInventoryInput>();
+  for (const rawInput of snapshot) {
+    const normalizedInput = normalizeLiveContainerInput(rawInput);
+    dedupedSnapshot.set(normalizedInput.container_id, normalizedInput);
+  }
+  return [...dedupedSnapshot.values()];
 }
 
 function normalizeOptionalText(value: string | null | undefined): string | null {
