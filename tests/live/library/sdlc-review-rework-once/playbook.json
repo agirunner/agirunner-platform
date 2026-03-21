@@ -5,7 +5,7 @@
   "outcome": "Production-ready software with one deliberate review rework cycle, tests, and documentation.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "The live-test product manager clarifies the goal and acceptance criteria. The live-test architect produces the technical design before implementation. The live-test developer implements the change. The live-test reviewer MUST request changes exactly once on the first implementation review with concrete actionable feedback, then approve the corrected resubmission if it addresses the findings. The live-test QA role validates evidence after reviewer approval. This flow has no human approval gates. When a checkpoint deliverable is accepted and the next checkpoint begins, complete the finished checkpoint work item instead of leaving it open.",
+    "process_instructions": "The live-test product manager clarifies the goal and acceptance criteria. The live-test architect produces the technical design before implementation. The live-test developer implements the change. On the first implementation review, the live-test reviewer MUST produce one concrete request-changes verdict with actionable feedback in the review output and handoff, then approve the corrected resubmission if it addresses the findings. The orchestrator is responsible for routing the resulting rework back to the developer task. The live-test QA role validates evidence after reviewer approval. This flow has no human approval gates. When a checkpoint deliverable is accepted and the next checkpoint begins, complete the finished checkpoint work item instead of leaving it open.",
     "parameters": [
       {
         "name": "goal",

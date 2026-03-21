@@ -65,15 +65,16 @@ class LiveTestCatalogTests(unittest.TestCase):
                     f"{playbook_file} still overrides workspace storage: {sorted(mapped_targets & forbidden_targets)}",
                 )
 
-    def test_review_rework_profile_exposes_request_rework_to_reviewer(self) -> None:
+    def test_review_rework_profile_uses_handoff_verdict_not_task_mutation_tool(self) -> None:
         roles_file = LIBRARY_DIR / "sdlc-review-rework-once" / "roles.json"
         payload = json.loads(roles_file.read_text())
         reviewer = next(role for role in payload if role.get("name") == "live-test-reviewer")
-        self.assertIn(
+        self.assertNotIn(
             "request_rework",
             reviewer.get("allowedTools", []),
-            "sdlc-review-rework-once reviewer must be able to issue request_rework",
+            "sdlc-review-rework-once reviewer must not rely on an unavailable task-mutation tool",
         )
+        self.assertIn("orchestrator performs task-state mutations", reviewer.get("systemPrompt", ""))
 
 
 if __name__ == "__main__":
