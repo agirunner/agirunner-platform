@@ -157,6 +157,7 @@ describe('ContainerInventoryService', () => {
     const replaceQuery = pool.query.mock.calls[0]?.[0] as string;
     expect(replaceQuery).toContain('DELETE FROM live_container_inventory');
     expect(replaceQuery).toContain('INSERT INTO live_container_inventory');
+    expect(replaceQuery).toContain('ON CONFLICT (tenant_id, container_id) DO UPDATE');
 
     const listQuery = pool.query.mock.calls[1]?.[0] as string;
     expect(listQuery).toContain('FROM live_container_inventory live');

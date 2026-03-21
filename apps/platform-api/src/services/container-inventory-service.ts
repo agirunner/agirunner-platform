@@ -4,11 +4,7 @@ const ACTIVE_WORKER_TASK_STATES = ['claimed', 'in_progress'] as const;
 const ZERO_TIME_ISO = '0001-01-01T00:00:00Z';
 
 const REPLACE_LIVE_SNAPSHOT_SQL = `
-WITH cleared AS (
-  DELETE FROM live_container_inventory
-   WHERE tenant_id = $1
-),
-incoming AS (
+WITH incoming AS (
   SELECT
     BTRIM(entry.container_id) AS container_id,
     BTRIM(entry.name) AS name,
@@ -47,47 +43,79 @@ incoming AS (
     playbook_id text,
     playbook_name text
   )
+),
+pruned AS (
+  DELETE FROM live_container_inventory live
+   WHERE live.tenant_id = $1
+     AND NOT EXISTS (
+       SELECT 1
+         FROM incoming
+        WHERE incoming.container_id = live.container_id
+     )
+  RETURNING live.container_id
+),
+upserted AS (
+  INSERT INTO live_container_inventory (
+    tenant_id,
+    container_id,
+    name,
+    kind,
+    state,
+    status,
+    image,
+    cpu_limit,
+    memory_limit,
+    started_at,
+    desired_state_id,
+    runtime_id,
+    task_id,
+    workflow_id,
+    role_name,
+    playbook_id,
+    playbook_name,
+    last_seen_at
+  )
+  SELECT
+    $1,
+    incoming.container_id,
+    incoming.name,
+    incoming.kind,
+    incoming.state,
+    incoming.status,
+    incoming.image,
+    incoming.cpu_limit,
+    incoming.memory_limit,
+    incoming.started_at,
+    incoming.desired_state_id,
+    incoming.runtime_id,
+    incoming.task_id,
+    incoming.workflow_id,
+    incoming.role_name,
+    incoming.playbook_id,
+    incoming.playbook_name,
+    now()
+  FROM incoming
+  ON CONFLICT (tenant_id, container_id) DO UPDATE
+  SET
+    name = EXCLUDED.name,
+    kind = EXCLUDED.kind,
+    state = EXCLUDED.state,
+    status = EXCLUDED.status,
+    image = EXCLUDED.image,
+    cpu_limit = EXCLUDED.cpu_limit,
+    memory_limit = EXCLUDED.memory_limit,
+    started_at = EXCLUDED.started_at,
+    desired_state_id = EXCLUDED.desired_state_id,
+    runtime_id = EXCLUDED.runtime_id,
+    task_id = EXCLUDED.task_id,
+    workflow_id = EXCLUDED.workflow_id,
+    role_name = EXCLUDED.role_name,
+    playbook_id = EXCLUDED.playbook_id,
+    playbook_name = EXCLUDED.playbook_name,
+    last_seen_at = EXCLUDED.last_seen_at
+  RETURNING container_id
 )
-INSERT INTO live_container_inventory (
-  tenant_id,
-  container_id,
-  name,
-  kind,
-  state,
-  status,
-  image,
-  cpu_limit,
-  memory_limit,
-  started_at,
-  desired_state_id,
-  runtime_id,
-  task_id,
-  workflow_id,
-  role_name,
-  playbook_id,
-  playbook_name,
-  last_seen_at
-)
-SELECT
-  $1,
-  incoming.container_id,
-  incoming.name,
-  incoming.kind,
-  incoming.state,
-  incoming.status,
-  incoming.image,
-  incoming.cpu_limit,
-  incoming.memory_limit,
-  incoming.started_at,
-  incoming.desired_state_id,
-  incoming.runtime_id,
-  incoming.task_id,
-  incoming.workflow_id,
-  incoming.role_name,
-  incoming.playbook_id,
-  incoming.playbook_name,
-  now()
-FROM incoming
+SELECT COUNT(*)::int FROM upserted
 `;
 
 const LIST_CURRENT_CONTAINERS_SQL = `
