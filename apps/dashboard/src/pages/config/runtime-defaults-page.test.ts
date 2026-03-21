@@ -90,25 +90,29 @@ describe('runtime defaults page source', () => {
     );
   });
 
-  it('composes the page from schema, validation, shared fields, and runtime status cards', () => {
-    const source = readSource('./runtime-defaults-page.tsx');
-    expect(source).toContain('RuntimeDefaultsSection');
-    expect(source).toContain('SECTION_DEFINITIONS.map');
-    expect(source).toContain('expandedSections');
-    expect(source).toContain('buildValidationErrors');
-    expect(source).toContain('summarizeRuntimeDefaultSections');
-    expect(source).toContain('sticky bottom-4');
-    expect(source).toContain('Save runtime defaults');
-    expect(source).toContain('New specialist runtimes and execution containers pick up updated defaults as they start.');
-    expect(source).toContain('className="space-y-6 p-6"');
-    expect(source).toContain('runtime-defaults-');
-    expect(source).toContain('ActiveRuntimeImageCard');
-    expect(source).toContain('BuildHistoryCard');
-    expect(source).toContain('RuntimeManagementCard');
-    expect(source).not.toContain('Save readiness');
-    expect(source).not.toContain('Configured overrides');
-    expect(source).not.toContain('Save blockers');
-    expect(source).not.toContain('Warm pools');
+  it('centers the page on top-level defaults and a single advanced settings container', () => {
+    const pageSource = readSource('./runtime-defaults-page.tsx');
+    const fieldsSource = readSource('./runtime-defaults-fields.tsx');
+    expect(pageSource).toContain('RuntimeDefaultsSection');
+    expect(pageSource).toContain('RuntimeAdvancedSettingsSection');
+    expect(pageSource).toContain('Reset changes');
+    expect(pageSource).toContain('Save');
+    expect(pageSource).toContain('buildValidationErrors');
+    expect(pageSource).toContain('summarizeRuntimeDefaultSections');
+    expect(pageSource).toContain('PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS');
+    expect(pageSource).toContain('className="space-y-6 p-6"');
+    expect(pageSource).not.toContain('sticky bottom-4');
+    expect(pageSource).not.toContain('Save runtime defaults');
+    expect(pageSource).not.toContain('ActiveRuntimeImageCard');
+    expect(pageSource).not.toContain('BuildHistoryCard');
+    expect(pageSource).not.toContain('RuntimeManagementCard');
+    expect(pageSource).not.toContain('Save readiness');
+    expect(pageSource).not.toContain('Configured overrides');
+    expect(pageSource).not.toContain('Save blockers');
+    expect(pageSource).not.toContain('Warm pools');
+    expect(fieldsSource).toContain('Advanced Settings');
+    expect(fieldsSource).not.toContain('Show');
+    expect(fieldsSource).not.toContain('Hide');
   });
 
   it('guards against unsaved changes via beforeunload', () => {

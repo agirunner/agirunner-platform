@@ -505,6 +505,11 @@ export const SECTION_DEFINITIONS: SectionDefinition[] = [
   ...BASE_SECTION_DEFINITIONS.slice(4),
 ];
 
+export const PRIMARY_RUNTIME_DEFAULT_SECTION_KEYS = [
+  'runtime_containers',
+  'execution_containers',
+] as const;
+
 export const FIELD_DEFINITIONS: FieldDefinition[] = [
   ...BASE_FIELD_DEFINITIONS.slice(0, 8),
   ...RUNTIME_OPERATION_FIELD_DEFINITIONS,

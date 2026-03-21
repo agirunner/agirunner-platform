@@ -17,10 +17,12 @@ import {
 } from '../../components/ui/select.js';
 import { cn } from '../../lib/utils.js';
 import { ConfigField } from './config-form-controls.js';
-import {
-  PLATFORM_DEFAULT_SELECT_VALUE,
-} from './runtime-defaults.schema.js';
-import type { FieldDefinition, FormValues } from './runtime-defaults.types.js';
+import { PLATFORM_DEFAULT_SELECT_VALUE } from './runtime-defaults.schema.js';
+import type {
+  FieldDefinition,
+  FormValues,
+  SectionDefinition,
+} from './runtime-defaults.types.js';
 
 export function RuntimeDefaultsSection({
   title,
@@ -31,8 +33,6 @@ export function RuntimeDefaultsSection({
   configuredCount,
   fieldCount,
   errorCount,
-  isExpanded,
-  onToggle,
   onChange,
 }: {
   title: string;
@@ -43,10 +43,57 @@ export function RuntimeDefaultsSection({
   configuredCount: number;
   fieldCount: number;
   errorCount: number;
+  onChange: (key: string, value: string) => void;
+}): JSX.Element {
+  return (
+    <Card className="h-full">
+      <CardHeader className="space-y-2">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription className="text-sm leading-6">
+          {description} {buildSectionStatus(configuredCount, fieldCount, errorCount)}
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="grid gap-4">
+        {fields.map((field) => (
+          <RuntimeField
+            key={field.key}
+            field={field}
+            value={values[field.key] ?? ''}
+            error={errors[field.key]}
+            onChange={(nextValue) => onChange(field.key, nextValue)}
+          />
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+export function RuntimeAdvancedSettingsSection({
+  sections,
+  values,
+  errors,
+  isExpanded,
+  onToggle,
+  onChange,
+}: {
+  sections: Array<
+    SectionDefinition & {
+      fields: FieldDefinition[];
+      configuredCount: number;
+      fieldCount: number;
+      errorCount: number;
+    }
+  >;
+  values: FormValues;
+  errors: Record<string, string>;
   isExpanded: boolean;
   onToggle(): void;
   onChange: (key: string, value: string) => void;
-}) {
+}): JSX.Element {
+  const configuredCount = sections.reduce((total, section) => total + section.configuredCount, 0);
+  const fieldCount = sections.reduce((total, section) => total + section.fieldCount, 0);
+  const errorCount = sections.reduce((total, section) => total + section.errorCount, 0);
+
   return (
     <Card>
       <button
@@ -55,29 +102,49 @@ export function RuntimeDefaultsSection({
         aria-expanded={isExpanded}
         onClick={onToggle}
       >
-        <CardHeader className="p-0">
-          <CardTitle className="text-lg">{title}</CardTitle>
-          <CardDescription>{description}</CardDescription>
+        <div className="min-w-0 flex-1 space-y-1">
+          <div className="text-base font-semibold text-foreground">Advanced Settings</div>
           <p className="text-sm leading-6 text-muted">
-            {configuredCount}/{fieldCount} configured
-            {errorCount > 0 ? ` · ${errorCount} validation blocker${errorCount === 1 ? '' : 's'}` : ' · No validation blockers'}
+            Clear any field to inherit the built-in default. Only explicit values stay overridden.{' '}
+            {buildSectionStatus(configuredCount, fieldCount, errorCount)}
           </p>
-        </CardHeader>
-        <span className="flex items-center gap-2 pt-1 text-xs font-medium uppercase tracking-[0.18em] text-muted">
-          {isExpanded ? 'Hide' : 'Show'}
-          <ChevronDown className={cn('h-4 w-4 transition-transform', isExpanded && 'rotate-180')} />
-        </span>
+        </div>
+        <div className="flex items-center pt-0.5">
+          <ChevronDown
+            className={cn('h-4 w-4 shrink-0 text-muted transition-transform', isExpanded && 'rotate-180')}
+          />
+        </div>
       </button>
       {isExpanded ? (
-        <CardContent className="grid gap-5 border-t border-border/70 md:grid-cols-2">
-          {fields.map((field) => (
-            <RuntimeField
-              key={field.key}
-              field={field}
-              value={values[field.key] ?? ''}
-              error={errors[field.key]}
-              onChange={(nextValue) => onChange(field.key, nextValue)}
-            />
+        <CardContent className="space-y-6 border-t border-border/70 pt-6">
+          {sections.map((section, index) => (
+            <div
+              key={section.key}
+              className={cn(index > 0 && 'border-t border-border/70 pt-6')}
+            >
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold text-foreground">{section.title}</h3>
+                <p className="text-sm leading-6 text-muted">
+                  {section.description}{' '}
+                  {buildSectionStatus(
+                    section.configuredCount,
+                    section.fieldCount,
+                    section.errorCount,
+                  )}
+                </p>
+              </div>
+              <div className="mt-4 grid gap-4">
+                {section.fields.map((field) => (
+                  <RuntimeField
+                    key={field.key}
+                    field={field}
+                    value={values[field.key] ?? ''}
+                    error={errors[field.key]}
+                    onChange={(nextValue) => onChange(field.key, nextValue)}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </CardContent>
       ) : null}
@@ -173,4 +240,16 @@ function renderSelectField(
       </SelectContent>
     </Select>
   );
+}
+
+function buildSectionStatus(
+  configuredCount: number,
+  fieldCount: number,
+  errorCount: number,
+): string {
+  if (errorCount > 0) {
+    return `${configuredCount}/${fieldCount} configured · ${errorCount} blocker${errorCount === 1 ? '' : 's'}.`;
+  }
+
+  return `${configuredCount}/${fieldCount} configured.`;
 }
