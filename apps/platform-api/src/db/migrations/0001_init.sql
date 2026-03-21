@@ -692,7 +692,7 @@ CREATE TABLE public.worker_desired_state (
     role text NOT NULL,
     runtime_image text NOT NULL,
     cpu_limit text DEFAULT '2'::text,
-    memory_limit text DEFAULT '2g'::text,
+    memory_limit text DEFAULT '128m'::text,
     network_policy text DEFAULT 'restricted'::text,
     environment jsonb DEFAULT '{}'::jsonb,
     llm_provider text,

@@ -91,4 +91,44 @@ describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', (
 
     expect(defaults.rows).toEqual([]);
   }, 120_000);
+
+  it('seeds authoritative orchestrator, runtime, and execution container defaults', async () => {
+    expect(db).not.toBeNull();
+    const pool = db!.pool;
+
+    await seedDefaultTenant(pool, { DEFAULT_ADMIN_API_KEY } as NodeJS.ProcessEnv);
+    await seedConfigTables(pool);
+
+    const defaults = await pool.query<{ config_key: string; config_value: string }>(
+      `SELECT config_key, config_value
+         FROM runtime_defaults
+        WHERE tenant_id = $1
+          AND config_key IN (
+            'specialist_runtime_default_cpu',
+            'specialist_runtime_default_memory',
+            'specialist_execution_default_cpu',
+            'specialist_execution_default_memory'
+          )
+        ORDER BY config_key ASC`,
+      [DEFAULT_TENANT_ID],
+    );
+
+    expect(defaults.rows).toEqual([
+      { config_key: 'specialist_execution_default_cpu', config_value: '2' },
+      { config_key: 'specialist_execution_default_memory', config_value: '512m' },
+      { config_key: 'specialist_runtime_default_cpu', config_value: '2' },
+      { config_key: 'specialist_runtime_default_memory', config_value: '128m' },
+    ]);
+
+    const orchestrator = await pool.query<{ cpu_limit: string; memory_limit: string }>(
+      `SELECT cpu_limit, memory_limit
+         FROM worker_desired_state
+        WHERE tenant_id = $1
+          AND worker_name = 'orchestrator-primary'
+        LIMIT 1`,
+      [DEFAULT_TENANT_ID],
+    );
+
+    expect(orchestrator.rows).toEqual([{ cpu_limit: '2', memory_limit: '128m' }]);
+  }, 120_000);
 });

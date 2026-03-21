@@ -108,14 +108,14 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_default_cpu',
-    configValue: '1',
+    configValue: '2',
     configType: 'string',
     description: 'CPU allocation per specialist runtime container',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_runtime_default_memory',
-    configValue: '512m',
+    configValue: '128m',
     configType: 'string',
     description: 'Memory allocation per specialist runtime container',
   });
@@ -157,14 +157,14 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_execution_default_cpu',
-    configValue: '1',
+    configValue: '2',
     configType: 'string',
     description: 'Default CPU allocation for specialist execution containers',
   });
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_execution_default_memory',
-    configValue: '1Gi',
+    configValue: '512m',
     configType: 'string',
     description: 'Default memory allocation for specialist execution containers',
   });
@@ -1054,7 +1054,7 @@ async function seedOrchestratorWorker(db: DatabaseQueryable): Promise<void> {
         enabled,
         pool_kind
       )
-     VALUES ($1, 'orchestrator-primary', 'orchestrator', 'agirunner-runtime:local', '1', '512m', 1, true, 'orchestrator')
+     VALUES ($1, 'orchestrator-primary', 'orchestrator', 'agirunner-runtime:local', '2', '128m', 1, true, 'orchestrator')
      ON CONFLICT DO NOTHING`,
     [DEFAULT_TENANT_ID],
   );

@@ -162,7 +162,7 @@ export function OrchestratorPoolDialog(props: {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, cpuLimit: event.target.value }))
                 }
-                placeholder="1"
+                placeholder="2"
                 aria-invalid={validationErrors.cpuLimit ? 'true' : 'false'}
               />
               {validationErrors.cpuLimit ? (
@@ -176,7 +176,7 @@ export function OrchestratorPoolDialog(props: {
                 onChange={(event) =>
                   setDraft((current) => ({ ...current, memoryLimit: event.target.value }))
                 }
-                placeholder="512m"
+                placeholder="128m"
                 aria-invalid={validationErrors.memoryLimit ? 'true' : 'false'}
               />
               {validationErrors.memoryLimit ? (

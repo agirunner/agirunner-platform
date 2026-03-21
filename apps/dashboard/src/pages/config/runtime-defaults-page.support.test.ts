@@ -57,6 +57,30 @@ describe('runtime defaults page support', () => {
       'global_max_runtimes',
       'global_max_execution_containers',
     ]);
+    expect(fieldsForSection('runtime_containers')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'specialist_runtime_default_cpu',
+          placeholder: '2',
+        }),
+        expect.objectContaining({
+          key: 'specialist_runtime_default_memory',
+          placeholder: '128m',
+        }),
+      ]),
+    );
+    expect(fieldsForSection('execution_containers')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'specialist_execution_default_cpu',
+          placeholder: '2',
+        }),
+        expect.objectContaining({
+          key: 'specialist_execution_default_memory',
+          placeholder: '512m',
+        }),
+      ]),
+    );
     expect(fieldsForSection('agent_safeguards').map((field) => field.key)).toEqual([
       'agent.loop_detection_repeat',
       'agent.response_repeat_threshold',

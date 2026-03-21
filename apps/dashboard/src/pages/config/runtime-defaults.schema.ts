@@ -83,15 +83,15 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     label: 'CPU',
     description: 'CPU allocation per specialist runtime container.',
     configType: 'string',
-    placeholder: '1',
+    placeholder: '2',
     section: 'runtime_containers',
   },
   {
     key: 'specialist_runtime_default_memory',
     label: 'Memory',
-    description: 'Memory allocation per specialist runtime container, for example 512m or 1Gi.',
+    description: 'Memory allocation per specialist runtime container, for example 128m or 1Gi.',
     configType: 'string',
-    placeholder: '512m',
+    placeholder: '128m',
     section: 'runtime_containers',
   },
   {
@@ -116,16 +116,16 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     label: 'CPU',
     description: 'CPU allocation per specialist execution container.',
     configType: 'string',
-    placeholder: '1',
+    placeholder: '2',
     section: 'execution_containers',
   },
   {
     key: 'specialist_execution_default_memory',
     label: 'Memory',
     description:
-      'Memory allocation per specialist execution container, for example 1Gi or 2Gi.',
+      'Memory allocation per specialist execution container, for example 512m or 2Gi.',
     configType: 'string',
-    placeholder: '1Gi',
+    placeholder: '512m',
     section: 'execution_containers',
   },
   {

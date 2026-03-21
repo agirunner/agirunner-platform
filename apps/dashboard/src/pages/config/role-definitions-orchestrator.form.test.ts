@@ -28,6 +28,18 @@ describe('role definitions orchestrator form', () => {
     });
   });
 
+  it('uses platform-owned orchestrator defaults when no worker exists yet', () => {
+    expect(buildOrchestratorPoolDraft([])).toEqual({
+      workerId: null,
+      workerName: 'orchestrator-primary',
+      runtimeImage: 'agirunner-runtime:local',
+      cpuLimit: '2',
+      memoryLimit: '128m',
+      replicas: '1',
+      enabled: true,
+    });
+  });
+
   it('chooses the strongest enabled orchestrator worker as the quick-edit pool draft', () => {
     const workers: FleetWorkerRecord[] = [
       createWorker({
@@ -49,7 +61,7 @@ describe('role definitions orchestrator form', () => {
       workerId: 'worker-primary',
       workerName: 'orch-primary',
       runtimeImage: 'agirunner-runtime:local',
-      cpuLimit: '1',
+      cpuLimit: '2',
       memoryLimit: '2Gi',
       replicas: '3',
       enabled: true,
@@ -76,7 +88,7 @@ function createWorker(overrides: Partial<FleetWorkerRecord>): FleetWorkerRecord 
     role: 'orchestrator',
     pool_kind: 'orchestrator',
     runtime_image: 'agirunner-runtime:local',
-    cpu_limit: '1',
+    cpu_limit: '2',
     memory_limit: '2Gi',
     network_policy: 'default',
     environment: {},

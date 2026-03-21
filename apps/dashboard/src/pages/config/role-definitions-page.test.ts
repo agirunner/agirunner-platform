@@ -74,6 +74,9 @@ describe('role definitions page source', () => {
   it('reuses the shared image reference field across roles and orchestrator posture editing', () => {
     const source = readCombinedSource();
     expect(source).toContain('ImageReferenceField');
+    expect(source).toContain('placeholder="2"');
+    expect(source).toContain('placeholder="128m"');
+    expect(source).toContain('placeholder="512m"');
   });
 
   it('provides an inline active toggle so operators skip the full dialog for status changes', () => {

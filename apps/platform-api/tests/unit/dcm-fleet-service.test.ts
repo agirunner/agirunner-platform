@@ -15,8 +15,8 @@ function createRuntimeTargetDefaultRows(overrides: Record<string, string> = {}) 
     global_max_runtimes: '12',
     global_max_execution_containers: '20',
     specialist_runtime_default_image: 'agirunner-runtime:local',
-    specialist_runtime_default_cpu: '1',
-    specialist_runtime_default_memory: '512m',
+    specialist_runtime_default_cpu: '2',
+    specialist_runtime_default_memory: '128m',
     specialist_runtime_default_pull_policy: 'if-not-present',
     specialist_runtime_bootstrap_claim_timeout_seconds: '30',
     specialist_runtime_drain_grace_seconds: '30',
@@ -128,7 +128,7 @@ describe('FleetService DCM', () => {
         grace_period_seconds: 30,
         image: 'agirunner-runtime:local',
         pull_policy: 'if-not-present',
-        cpu: '1',
+        cpu: '2',
         memory: '1Gi',
         pending_tasks: 3,
         active_workflows: 0,
@@ -186,7 +186,7 @@ describe('FleetService DCM', () => {
 
       const result = await service.getRuntimeTargets(TENANT_ID);
 
-      expect(result[0].cpu).toBe('1');
+      expect(result[0].cpu).toBe('2');
       expect(result[0].memory).toBe('768m');
       expect(result[0].pull_policy).toBe('always');
       expect(result[0].idle_timeout_seconds).toBe(0);
@@ -432,8 +432,8 @@ describe('FleetService DCM', () => {
               { config_key: 'global_max_runtimes', config_value: '12' },
               { config_key: 'global_max_execution_containers', config_value: '20' },
               { config_key: 'specialist_runtime_default_image', config_value: 'agirunner-runtime:local' },
-              { config_key: 'specialist_runtime_default_cpu', config_value: '1' },
-              { config_key: 'specialist_runtime_default_memory', config_value: '512m' },
+              { config_key: 'specialist_runtime_default_cpu', config_value: '2' },
+              { config_key: 'specialist_runtime_default_memory', config_value: '128m' },
               { config_key: 'specialist_runtime_default_pull_policy', config_value: 'if-not-present' },
               { config_key: 'specialist_runtime_bootstrap_claim_timeout_seconds', config_value: '30' },
               { config_key: 'specialist_runtime_drain_grace_seconds', config_value: '30' },

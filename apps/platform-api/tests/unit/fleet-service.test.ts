@@ -280,8 +280,8 @@ describe('FleetService', () => {
       });
 
       const params = pool.query.mock.calls[0][1] as unknown[];
-      expect(params).toContain('1');
-      expect(params).toContain('512m');
+      expect(params).toContain('2');
+      expect(params).toContain('128m');
     });
 
     it('rejects plaintext llm api keys in desired state writes', async () => {

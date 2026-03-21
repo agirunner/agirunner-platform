@@ -84,7 +84,7 @@ describe('role definitions orchestrator support', () => {
             role: 'orchestrator',
             pool_kind: 'orchestrator',
             runtime_image: 'ghcr.io/agirunner/orchestrator:latest',
-            cpu_limit: '1',
+            cpu_limit: '2',
             memory_limit: '2Gi',
             network_policy: 'default',
             environment: {},
@@ -108,7 +108,7 @@ describe('role definitions orchestrator support', () => {
       enabledWorkers: 2,
       runningContainers: 3,
       runtimeLabel: 'ghcr.io/agirunner/orchestrator:latest',
-      resourceLabel: '1 CPU · 2Gi memory',
+      resourceLabel: '2 CPU · 2Gi memory',
     });
   });
 
@@ -130,7 +130,7 @@ describe('role definitions orchestrator support', () => {
           enabledWorkers: 0,
           runningContainers: 0,
           runtimeLabel: 'agirunner-runtime:local',
-          resourceLabel: '1 CPU · 512m memory',
+          resourceLabel: '2 CPU · 128m memory',
         },
       ),
     ).toEqual({

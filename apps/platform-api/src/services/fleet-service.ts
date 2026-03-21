@@ -18,9 +18,9 @@ const VALID_POOL_KINDS = new Set(['orchestrator', 'specialist']);
 const FLEET_ENV_SECRET_REDACTION = 'redacted://fleet-environment-secret';
 const FLEET_EVENT_SECRET_REDACTION = 'redacted://fleet-event-secret';
 const DEFAULT_SPECIALIST_CPU_LIMIT = '2';
-const DEFAULT_SPECIALIST_MEMORY_LIMIT = '2g';
-const DEFAULT_ORCHESTRATOR_CPU_LIMIT = '1';
-const DEFAULT_ORCHESTRATOR_MEMORY_LIMIT = '512m';
+const DEFAULT_SPECIALIST_MEMORY_LIMIT = '128m';
+const DEFAULT_ORCHESTRATOR_CPU_LIMIT = '2';
+const DEFAULT_ORCHESTRATOR_MEMORY_LIMIT = '128m';
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts)/i;
 const secretLikeValuePattern =
   /(?:^enc:v\d+:|^secret:|^redacted:\/\/|^Bearer\s+\S+|^sk-[A-Za-z0-9_-]+|^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)/i;

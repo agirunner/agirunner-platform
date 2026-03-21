@@ -228,7 +228,7 @@ export function RoleExecutionContainerSection(props: {
                 },
               }))
             }
-            placeholder="1"
+            placeholder="2"
           />
           {props.validation.fieldErrors.executionContainerCpu ? (
             <span className="text-xs text-red-600 dark:text-red-400">
@@ -250,7 +250,7 @@ export function RoleExecutionContainerSection(props: {
                 },
               }))
             }
-            placeholder="1Gi"
+            placeholder="512m"
           />
           {props.validation.fieldErrors.executionContainerMemory ? (
             <span className="text-xs text-red-600 dark:text-red-400">
