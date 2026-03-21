@@ -389,6 +389,8 @@ export class TaskLifecycleService {
 
       if (resolvedNextState === 'completed') {
         updateFragments.push('completed_at = now()', 'error = NULL');
+      } else {
+        updateFragments.push('completed_at = NULL');
       }
 
       if (options.output !== undefined) {

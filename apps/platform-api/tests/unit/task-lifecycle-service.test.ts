@@ -946,6 +946,82 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('clears completed_at when request-changes reopens a previously completed task', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-review-reopen',
+              state: 'ready',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              role: 'developer',
+              title: 'Implement change',
+              is_orchestrator_task: false,
+              input: { review_feedback: 'Address the reviewer findings' },
+              metadata: { review_action: 'request_changes' },
+              rework_count: 1,
+              completed_at: null,
+            }],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-review-reopen',
+        state: 'completed',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'implementation',
+        role: 'developer',
+        title: 'Implement change',
+        is_orchestrator_task: false,
+        input: { summary: 'already shipped once' },
+        rework_count: 0,
+        completed_at: '2026-03-20T20:00:00.000Z',
+        metadata: {},
+      }),
+      toTaskResponse: (task) => task,
+      workItemContinuityService: { recordReviewRejected: vi.fn() } as never,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-review-reopen',
+      {
+        feedback: 'Address the reviewer findings',
+      },
+    );
+
+    expect(result.state).toBe('ready');
+    expect(result.completed_at).toBeNull();
+
+    const updateCall = client.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.startsWith('UPDATE tasks SET'),
+    ) as [string, unknown[]] | undefined;
+
+    expect(updateCall?.[0]).toContain('completed_at = NULL');
+  });
+
   it('treats a repeated request-changes action as idempotent once the task already reflects it', async () => {
     const client = {
       query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
