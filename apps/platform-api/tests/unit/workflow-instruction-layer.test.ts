@@ -307,4 +307,71 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('Current rework count: 1');
     expect(layer!.content).not.toContain('Current rework count: 0');
   });
+
+  it('surfaces pending dispatches when a different open work item is waiting for a specialist task', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        active_stages: ['implementation', 'review'],
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions: 'Implement, review, and verify the change.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            checkpoints: [
+              { name: 'implementation', goal: 'Build the change' },
+              { name: 'review', goal: 'Review the change' },
+              { name: 'verification', goal: 'Verify the change' },
+            ],
+            review_rules: [
+              { from_role: 'developer', reviewed_by: 'reviewer', checkpoint: 'implementation', required: true },
+            ],
+          },
+        },
+      },
+      orchestratorContext: {
+        activation: { payload: { work_item_id: 'implementation-item', stage_name: 'implementation' } },
+        board: {
+          work_items: [
+            {
+              id: 'implementation-item',
+              stage_name: 'implementation',
+              column_id: 'planned',
+              next_expected_actor: 'developer',
+              next_expected_action: 'rework',
+              rework_count: 2,
+            },
+            {
+              id: 'review-item',
+              stage_name: 'review',
+              column_id: 'planned',
+              next_expected_actor: 'reviewer',
+              next_expected_action: 'review',
+              rework_count: 0,
+            },
+          ],
+          pending_dispatches: [
+            {
+              work_item_id: 'review-item',
+              stage_name: 'review',
+              actor: 'reviewer',
+              action: 'review',
+              title: 'Review the change',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Pending Dispatches');
+    expect(layer!.content).toContain('Dispatch reviewer for review on work item review-item (review) titled "Review the change".');
+    expect(layer!.content).toContain('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
+  });
 });

@@ -70,6 +70,7 @@ export function buildWorkflowInstructionLayer(
         boardColumn,
         focusedWorkItem,
         activeStages: readStringArray(workflowInstructionContext.active_stages),
+        pendingDispatches: readPendingDispatches(input.orchestratorContext),
         repoBacked,
       })
     : buildSpecialistSections({
@@ -101,6 +102,7 @@ function buildOrchestratorSections(params: {
   boardColumn?: { label: string } | null;
   focusedWorkItem: Record<string, unknown>;
   activeStages: string[];
+  pendingDispatches: Array<{ work_item_id: string; stage_name: string | null; actor: string; action: string; title: string | null }>;
   repoBacked: boolean;
 }) {
   const sections = [
@@ -132,6 +134,9 @@ function buildOrchestratorSections(params: {
   }
 
   sections.push(`## Rule Results\n${formatRuleResults(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem)}`);
+  if (params.pendingDispatches.length > 0) {
+    sections.push(`## Pending Dispatches\n${formatPendingDispatches(params.pendingDispatches)}`);
+  }
   if (params.lifecycle === 'planned') {
     sections.push(`## Handoff Semantics\n${formatPlannedHandoffSemantics()}`);
   }
@@ -269,12 +274,44 @@ function readOrchestratorRoleCatalog(
     .filter((entry) => entry.name.length > 0);
 }
 
+function readPendingDispatches(
+  orchestratorContext: Record<string, unknown> | null | undefined,
+): Array<{ work_item_id: string; stage_name: string | null; actor: string; action: string; title: string | null }> {
+  const pendingDispatches = Array.isArray(asRecord(asRecord(orchestratorContext).board).pending_dispatches)
+    ? asRecord(asRecord(orchestratorContext).board).pending_dispatches as unknown[]
+    : [];
+  return pendingDispatches
+    .map((entry) => asRecord(entry))
+    .map((entry) => ({
+      work_item_id: readString(entry.work_item_id) ?? '',
+      stage_name: readString(entry.stage_name),
+      actor: readString(entry.actor) ?? '',
+      action: readString(entry.action) ?? '',
+      title: readString(entry.title),
+    }))
+    .filter((entry) => entry.work_item_id.length > 0 && entry.actor.length > 0 && entry.action.length > 0);
+}
+
 function formatRoleCatalog(
   roles: Array<{ name: string; description: string | null }>,
 ): string {
   return roles
     .map((role) => `- ${role.name}: ${role.description ?? 'No description configured.'}`)
     .join('\n');
+}
+
+function formatPendingDispatches(
+  pendingDispatches: Array<{ work_item_id: string; stage_name: string | null; actor: string; action: string; title: string | null }>,
+): string {
+  const lines = pendingDispatches.map((entry) => {
+    const workItemLabel = entry.stage_name
+      ? `work item ${entry.work_item_id} (${entry.stage_name})`
+      : `work item ${entry.work_item_id}`;
+    const titleSuffix = entry.title ? ` titled "${entry.title}"` : '';
+    return `- Dispatch ${entry.actor} for ${entry.action} on ${workItemLabel}${titleSuffix}.`;
+  });
+  lines.push('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
+  return lines.join('\n');
 }
 
 function isSecretLikeKey(key: string) {

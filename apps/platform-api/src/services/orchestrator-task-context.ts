@@ -40,6 +40,14 @@ interface PlaybookRoleDefinitionRow {
   description: string | null;
 }
 
+interface PendingDispatch {
+  work_item_id: string;
+  stage_name: string | null;
+  actor: string;
+  action: string;
+  title: string | null;
+}
+
 export async function buildOrchestratorTaskContext(
   db: DatabaseQueryable,
   tenantId: string,
@@ -159,6 +167,9 @@ export async function buildOrchestratorTaskContext(
     openWorkItemStageNames: activeStageNames(workItemsRes.rows),
     definition: workflow.playbook_definition,
   });
+  const serializedWorkItems = workItemsRes.rows.map(serializeWorkItem);
+  const serializedTasks = tasksRes.rows.map(serializeDates);
+  const pendingDispatches = derivePendingDispatches(serializedWorkItems, serializedTasks);
   const workflowContext = {
     id: workflow.id,
     name: workflow.name,
@@ -184,9 +195,10 @@ export async function buildOrchestratorTaskContext(
         : null,
     workflow: workflowContext,
     board: {
-      work_items: workItemsRes.rows.map(serializeWorkItem),
+      work_items: serializedWorkItems,
       stages: stageRows,
-      tasks: tasksRes.rows.map(serializeDates),
+      tasks: serializedTasks,
+      pending_dispatches: pendingDispatches,
       queued_activations: queuedActivationsRes.rows.map(serializeDates),
     },
   };
@@ -245,10 +257,60 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
   );
 }
 
+function derivePendingDispatches(
+  workItems: Record<string, unknown>[],
+  tasks: Record<string, unknown>[],
+): PendingDispatch[] {
+  return workItems.flatMap((workItem) => {
+    if (workItem.completed_at !== null && workItem.completed_at !== undefined) {
+      return [];
+    }
+
+    const workItemId = readOptionalString(workItem.id);
+    const actor = readOptionalString(workItem.next_expected_actor);
+    const action = readOptionalString(workItem.next_expected_action);
+    if (!workItemId || !actor || !action || actor === 'human') {
+      return [];
+    }
+
+    const hasOpenMatchingTask = tasks.some(
+      (task) =>
+        task.is_orchestrator_task !== true
+        && readOptionalString(task.work_item_id) === workItemId
+        && readOptionalString(task.role) === actor
+        && isOpenSpecialistTask(task),
+    );
+    if (hasOpenMatchingTask) {
+      return [];
+    }
+
+    return [{
+      work_item_id: workItemId,
+      stage_name: readOptionalString(workItem.stage_name),
+      actor,
+      action,
+      title: readOptionalString(workItem.title),
+    }];
+  });
+}
+
+function isOpenSpecialistTask(task: Record<string, unknown>): boolean {
+  const state = readOptionalString(task.state);
+  return state === 'ready'
+    || state === 'claimed'
+    || state === 'in_progress'
+    || state === 'awaiting_approval'
+    || state === 'output_pending_review';
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
     : {};
+}
+
+function readOptionalString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
 async function loadPlaybookRoleDefinitions(
