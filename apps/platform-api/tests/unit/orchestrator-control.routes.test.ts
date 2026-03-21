@@ -2282,6 +2282,17 @@ describe('orchestratorControlRoutes', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-qa-1']);
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('SELECT id, state, rework_count') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-developer',
+              state: 'completed',
+              rework_count: 0,
+            }],
+          };
+        }
         if (sql.includes('INSERT INTO workflow_tool_results')) {
           return { rowCount: 1, rows: [{ response: createdTask }] };
         }
@@ -2415,6 +2426,8 @@ describe('orchestratorControlRoutes', () => {
           reviewed_task_id: 'task-developer',
         }),
         metadata: expect.objectContaining({
+          reviewed_task_id: 'task-developer',
+          reviewed_task_rework_count: 0,
           reviewed_task_id_source: 'activation_lineage_default',
           stage_aligned_work_item_id_source: 'child_stage_match',
           created_by_orchestrator_task_id: 'task-orchestrator',
@@ -2424,6 +2437,156 @@ describe('orchestratorControlRoutes', () => {
       client,
     );
     expect(response.json().data).toEqual(createdTask);
+  });
+
+  it('returns a structured no-op when verification is requested before the reviewed task is ready', async () => {
+    const verificationWorkItemId = '55555555-5555-4555-8555-555555555555';
+    const taskService = {
+      createTask: vi.fn(),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'create_task', 'create-qa-not-ready']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, state, rework_count') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-developer']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-developer',
+              state: 'output_pending_review',
+              rework_count: 1,
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                noop: true,
+                ready: false,
+                reason_code: 'reviewed_task_not_ready',
+                work_item_id: verificationWorkItemId,
+                stage_name: 'verification',
+                reviewed_task_id: 'task-developer',
+                reviewed_task_rework_count: 1,
+                reviewed_task_state: 'output_pending_review',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: verificationWorkItemId,
+              stage_name: 'verification',
+              activation_id: 'activation-qa-stale',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('LEFT JOIN workflow_work_items parent')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', verificationWorkItemId]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: verificationWorkItemId,
+              stage_name: 'verification',
+              parent_work_item_id: 'review-item',
+              parent_id: 'review-item',
+              parent_stage_name: 'review',
+              workflow_lifecycle: 'planned',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('LEFT JOIN workflow_activations wa')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-qa-stale']);
+          return {
+            rowCount: 1,
+            rows: [{
+              lifecycle: 'planned',
+              event_type: 'task.handoff_submitted',
+              payload: {
+                task_id: 'task-reviewer',
+                work_item_id: 'review-item',
+                stage_name: 'review',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'create-qa-not-ready',
+        title: 'Validate the reviewed implementation',
+        description: 'Run QA only after the reviewed work is ready.',
+        work_item_id: verificationWorkItemId,
+        stage_name: 'verification',
+        role: 'live-test-qa',
+        type: 'test',
+        input: {
+          reviewed_task_id: 'task-developer',
+        },
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(taskService.createTask).not.toHaveBeenCalled();
+    expect(response.json().data).toEqual(
+      expect.objectContaining({
+        noop: true,
+        ready: false,
+        reason_code: 'reviewed_task_not_ready',
+        work_item_id: verificationWorkItemId,
+        stage_name: 'verification',
+        reviewed_task_id: 'task-developer',
+        reviewed_task_rework_count: 1,
+        reviewed_task_state: 'output_pending_review',
+      }),
+    );
   });
 
   it('rebinds create_task to the unique child work item in the requested stage for planned workflows', async () => {

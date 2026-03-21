@@ -740,6 +740,16 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             return app.taskService.getTask(request.auth!.tenantId, existingReviewTaskId) as Promise<Record<string, unknown>>;
           }
 
+          const verificationNotReadyNoop = await buildRecoverableCreateTaskNoopIfNotReady(
+            client,
+            request.auth!.tenantId,
+            taskScope.workflow_id,
+            createInput,
+          );
+          if (verificationNotReadyNoop) {
+            return verificationNotReadyNoop;
+          }
+
           return app.taskService.createTask(
             request.auth!,
             createInput,
@@ -747,7 +757,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           );
         },
       );
-      return reply.status(201).send({ data: task });
+      return reply.status(task.noop === true ? 200 : 201).send({ data: task });
     },
   );
 
@@ -1368,6 +1378,10 @@ interface ReviewedTaskContextRow {
   rework_count: number | null;
 }
 
+interface ReviewedTaskReadinessRow extends ReviewedTaskContextRow {
+  state: string | null;
+}
+
 interface ExistingReviewTaskRow {
   id: string;
 }
@@ -1500,6 +1514,13 @@ async function normalizeOrchestratorTaskCreateInput(
     return stageAlignedBody;
   }
 
+  const reviewedTaskMetadata = await loadReviewedTaskMetadata(
+    pool,
+    tenantId,
+    taskScope.workflow_id,
+    reviewedTaskId,
+  );
+
   return {
     ...stageAlignedBody,
     input: {
@@ -1509,6 +1530,7 @@ async function normalizeOrchestratorTaskCreateInput(
     metadata: {
       ...(stageAlignedBody.metadata ?? {}),
       reviewed_task_id_source: 'activation_lineage_default',
+      ...reviewedTaskMetadata,
     },
   };
 }
@@ -1574,6 +1596,51 @@ async function loadExistingReviewTaskForSameRevision(
     ],
   );
   return result.rows[0]?.id ?? null;
+}
+
+async function buildRecoverableCreateTaskNoopIfNotReady(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+): Promise<Record<string, unknown> | null> {
+  if (!isVerificationTaskCreate(body)) {
+    return null;
+  }
+
+  const reviewedTaskId = readReviewedTaskReference(body.input);
+  if (!reviewedTaskId) {
+    return null;
+  }
+
+  const result = await db.query<ReviewedTaskReadinessRow>(
+    `SELECT id, state, rework_count
+       FROM tasks
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, reviewedTaskId],
+  );
+  const reviewedTask = result.rows[0];
+  if (!reviewedTask || reviewedTask.state === 'completed') {
+    return null;
+  }
+
+  return {
+    noop: true,
+    ready: false,
+    reason_code: 'reviewed_task_not_ready',
+    message: `Cannot create verification task while reviewed task '${reviewedTaskId}' is still '${reviewedTask.state ?? 'unknown'}'. Wait for the current review/rework cycle to resolve before dispatching verification.`,
+    blocked_on: [
+      `reviewed_task_state:${reviewedTask.state ?? 'unknown'}`,
+    ],
+    work_item_id: body.work_item_id,
+    stage_name: body.stage_name,
+    reviewed_task_id: reviewedTask.id ?? reviewedTaskId,
+    reviewed_task_rework_count: reviewedTask.rework_count ?? 0,
+    reviewed_task_state: reviewedTask.state ?? null,
+  };
 }
 
 async function loadExistingReworkTaskForRequestedChanges(
@@ -1751,6 +1818,10 @@ function shouldDefaultActivationReviewedTaskLinkage(
 
 function isReviewLinkActivation(eventType: string | null) {
   return eventType === 'task.output_pending_review' || eventType === 'task.handoff_submitted';
+}
+
+function isVerificationTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) {
+  return body.type === 'test';
 }
 
 async function loadActivationReviewedTaskId(
