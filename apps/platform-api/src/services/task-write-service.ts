@@ -599,10 +599,10 @@ export class TaskWriteService {
       return input;
     }
     const taskStageName = input.stage_name?.trim() || null;
-    const requiresOutputReview = definition.review_rules.some(
+    const requiresOutputReview = definition.assessment_rules.some(
       (rule) =>
         rule.required !== false
-        && rule.from_role === roleName
+        && rule.subject_role === roleName
         && (!rule.checkpoint || rule.checkpoint === taskStageName),
     );
     return {

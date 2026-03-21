@@ -15,9 +15,9 @@ export interface EvaluatePlaybookRulesInput {
 }
 
 export interface PlaybookRuleEvaluationResult {
-  matchedRuleType: 'review' | 'approval' | 'handoff' | null;
+  matchedRuleType: 'assessment' | 'approval' | 'handoff' | null;
   nextExpectedActor: string | 'human' | null;
-  nextExpectedAction: 'review' | 'rework' | 'approve' | 'handoff' | null;
+  nextExpectedAction: 'assess' | 'rework' | 'approve' | 'handoff' | null;
   requiresHumanApproval: boolean;
   reworkDelta: number;
 }
@@ -25,9 +25,9 @@ export interface PlaybookRuleEvaluationResult {
 export function evaluatePlaybookRules(
   input: EvaluatePlaybookRulesInput,
 ): PlaybookRuleEvaluationResult {
-  const reviewResult = evaluateReviewRule(input);
-  if (reviewResult) {
-    return reviewResult;
+  const assessmentResult = evaluateAssessmentRule(input);
+  if (assessmentResult) {
+    return assessmentResult;
   }
 
   const approvalResult = evaluateApprovalRule(input);
@@ -49,13 +49,13 @@ export function evaluatePlaybookRules(
   };
 }
 
-function evaluateReviewRule(
+function evaluateAssessmentRule(
   input: EvaluatePlaybookRulesInput,
 ): PlaybookRuleEvaluationResult | null {
-  const rule = input.definition.review_rules.find(
+  const rule = input.definition.assessment_rules.find(
     (candidate) =>
       candidate.required !== false
-      && candidate.from_role === input.role
+      && candidate.subject_role === input.role
       && matchesCheckpoint(candidate.checkpoint, input.checkpointName),
   );
   if (!rule) {
@@ -64,18 +64,23 @@ function evaluateReviewRule(
 
   if (input.event === 'task_completed') {
     return {
-      matchedRuleType: 'review',
-      nextExpectedActor: rule.reviewed_by,
-      nextExpectedAction: 'review',
+      matchedRuleType: 'assessment',
+      nextExpectedActor: rule.assessed_by,
+      nextExpectedAction: 'assess',
       requiresHumanApproval: false,
       reworkDelta: 0,
     };
   }
 
-  if (input.event === 'review_rejected' && rule.on_reject?.action === 'return_to_role') {
+  const requestChanges = rule.outcome_actions?.request_changes;
+  if (
+    input.event === 'review_rejected' &&
+    requestChanges?.action === 'route_to_role' &&
+    requestChanges.role
+  ) {
     return {
-      matchedRuleType: 'review',
-      nextExpectedActor: rule.on_reject.role,
+      matchedRuleType: 'assessment',
+      nextExpectedActor: requestChanges.role,
       nextExpectedAction: 'rework',
       requiresHumanApproval: false,
       reworkDelta: 1,

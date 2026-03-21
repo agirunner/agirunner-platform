@@ -11,20 +11,46 @@ import {
 } from './playbook-authoring-support.js';
 
 describe('playbook authoring support', () => {
+  it('starts new drafts blank except for suggested board lanes', () => {
+    const draft = createDefaultAuthoringDraft('planned');
+
+    expect(draft.roles).toEqual([]);
+    expect(draft.checkpoints).toEqual([]);
+    expect(draft.assessment_rules).toEqual([]);
+    expect(draft.approval_rules).toEqual([]);
+    expect(draft.handoff_rules).toEqual([]);
+    expect(draft.columns).toHaveLength(5);
+  });
+
   it('builds a process-first definition payload that matches the redesign contract', () => {
     const draft = createDefaultAuthoringDraft('planned');
     draft.roles = [{ value: 'architect' }, { value: 'developer' }, { value: 'reviewer' }];
     draft.process_instructions =
-      'Architect plans the change, developer implements it, reviewer checks every code change, and human approval is required before completion.';
+      'Architect plans the change, developer implements it, reviewer assesses every code change, and human approval is required before completion.';
     draft.entry_column_id = 'active';
     draft.columns[0].description = 'New work waiting for orchestration';
-    draft.checkpoints[0].entry_criteria = 'Objective and acceptance criteria are clear.';
-    draft.review_rules = [
+    draft.checkpoints = [
       {
-        from_role: 'developer',
-        reviewed_by: 'reviewer',
+        name: 'plan',
+        goal: 'Clarify the objective and produce an execution plan.',
+        human_gate: false,
+        entry_criteria: 'Objective and acceptance criteria are clear.',
+      },
+      {
+        name: 'deliver',
+        goal: 'Deliver and approve the bounded outcome.',
+        human_gate: true,
+        entry_criteria: '',
+      },
+    ];
+    draft.assessment_rules = [
+      {
+        subject_role: 'developer',
+        assessed_by: 'reviewer',
+        checkpoint: '',
         required: true,
-        reject_role: 'developer',
+        request_changes_target: 'developer',
+        rejected_target: '',
       },
     ];
     draft.approval_rules = [{ on: 'checkpoint', checkpoint: 'deliver', required: true }];
@@ -55,7 +81,7 @@ describe('playbook authoring support', () => {
         value: expect.objectContaining({
           lifecycle: 'planned',
           process_instructions:
-            'Architect plans the change, developer implements it, reviewer checks every code change, and human approval is required before completion.',
+            'Architect plans the change, developer implements it, reviewer assesses every code change, and human approval is required before completion.',
           roles: ['architect', 'developer', 'reviewer'],
           board: expect.objectContaining({
             entry_column_id: 'active',
@@ -78,12 +104,14 @@ describe('playbook authoring support', () => {
               human_gate: true,
             }),
           ]),
-          review_rules: expect.arrayContaining([
+          assessment_rules: expect.arrayContaining([
             expect.objectContaining({
-              from_role: 'developer',
-              reviewed_by: 'reviewer',
+              subject_role: 'developer',
+              assessed_by: 'reviewer',
               required: true,
-              on_reject: { action: 'return_to_role', role: 'developer' },
+              outcome_actions: expect.objectContaining({
+                request_changes: { action: 'route_to_role', role: 'developer' },
+              }),
             }),
           ]),
           approval_rules: expect.arrayContaining([
@@ -302,7 +330,7 @@ describe('playbook authoring support', () => {
 
   it('hydrates a structured authoring draft from an existing playbook definition', () => {
     const draft = hydratePlaybookAuthoringDraft('ongoing', {
-      process_instructions: 'Clarify, implement, review, and complete the work.',
+      process_instructions: 'Clarify, implement, assess, and complete the work.',
       roles: ['developer', 'reviewer'],
       board: {
         columns: [
@@ -319,12 +347,14 @@ describe('playbook authoring support', () => {
           entry_criteria: 'The inbound request is captured.',
         },
       ],
-      review_rules: [
+      assessment_rules: [
         {
-          from_role: 'developer',
-          reviewed_by: 'reviewer',
+          subject_role: 'developer',
+          assessed_by: 'reviewer',
           required: true,
-          on_reject: { action: 'return_to_role', role: 'developer' },
+          outcome_actions: {
+            request_changes: { action: 'route_to_role', role: 'developer' },
+          },
         },
       ],
       approval_rules: [{ on: 'completion', approved_by: 'human', required: true }],
@@ -347,7 +377,7 @@ describe('playbook authoring support', () => {
     });
 
     expect(draft.roles).toEqual([{ value: 'developer' }, { value: 'reviewer' }]);
-    expect(draft.process_instructions).toBe('Clarify, implement, review, and complete the work.');
+    expect(draft.process_instructions).toBe('Clarify, implement, assess, and complete the work.');
     expect(draft.columns[0]).toEqual(
       expect.objectContaining({ id: 'triage', label: 'Triage' }),
     );
@@ -355,11 +385,12 @@ describe('playbook authoring support', () => {
     expect(draft.checkpoints[0]).toEqual(
       expect.objectContaining({ name: 'triage', entry_criteria: 'The inbound request is captured.' }),
     );
-    expect(draft.review_rules[0]).toEqual(
+    expect(draft.assessment_rules[0]).toEqual(
       expect.objectContaining({
-        from_role: 'developer',
-        reviewed_by: 'reviewer',
-        reject_role: 'developer',
+        subject_role: 'developer',
+        assessed_by: 'reviewer',
+        request_changes_target: 'developer',
+        rejected_target: '',
       }),
     );
     expect(draft.approval_rules[0]).toEqual(
@@ -407,16 +438,21 @@ describe('playbook authoring support', () => {
 
   it('summarizes process, rules, and inputs for guided review', () => {
     const draft = createDefaultAuthoringDraft('ongoing');
-    draft.process_instructions = 'Triage, implement, review, and complete the work.';
+    draft.process_instructions = 'Triage, implement, assess, and complete the work.';
     draft.roles = [{ value: 'architect' }, { value: 'developer' }];
     draft.columns[0].is_blocked = true;
-    draft.checkpoints[1].human_gate = true;
-    draft.review_rules = [
+    draft.checkpoints = [
+      { name: 'triage', goal: 'Clarify incoming work.', human_gate: false, entry_criteria: '' },
+      { name: 'delivery', goal: 'Deliver the requested outcome.', human_gate: true, entry_criteria: '' },
+    ];
+    draft.assessment_rules = [
       {
-        from_role: 'developer',
-        reviewed_by: 'reviewer',
+        subject_role: 'developer',
+        assessed_by: 'reviewer',
+        checkpoint: '',
         required: true,
-        reject_role: 'developer',
+        request_changes_target: 'developer',
+        rejected_target: '',
       },
     ];
     draft.approval_rules = [{ on: 'completion', checkpoint: '', required: true }];
@@ -458,8 +494,8 @@ describe('playbook authoring support', () => {
       terminalColumnCount: 1,
       checkpointCount: 2,
       gatedCheckpointCount: 1,
-      reviewRuleCount: 1,
-      requiredReviewRuleCount: 1,
+      assessmentRuleCount: 1,
+      requiredAssessmentRuleCount: 1,
       approvalRuleCount: 1,
       handoffRuleCount: 1,
       parameterCount: 2,

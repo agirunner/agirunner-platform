@@ -232,7 +232,7 @@ export function summarizePlaybookStructure(playbook: DashboardPlaybookRecord): {
 export function summarizePlaybookProcess(playbook: DashboardPlaybookRecord): {
   processInstructions: string;
   roleCount: number;
-  reviewRuleCount: number;
+  assessmentRuleCount: number;
   approvalRuleCount: number;
   handoffRuleCount: number;
   checkpointCount: number;
@@ -242,7 +242,7 @@ export function summarizePlaybookProcess(playbook: DashboardPlaybookRecord): {
   return {
     processInstructions: readDefinitionString(definition, 'process_instructions'),
     roleCount: readDefinitionArray(definition, 'roles').length,
-    reviewRuleCount: readDefinitionArray(definition, 'review_rules').length,
+    assessmentRuleCount: readDefinitionArray(definition, 'assessment_rules').length,
     approvalRuleCount: readDefinitionArray(definition, 'approval_rules').length,
     handoffRuleCount: readDefinitionArray(definition, 'handoff_rules').length,
     checkpointCount: readDefinitionArray(definition, 'checkpoints').length,

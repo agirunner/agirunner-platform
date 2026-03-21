@@ -1013,7 +1013,7 @@ function checkpointRequiresMandatoryReview(
   if (!checkpointName) {
     return false;
   }
-  return definition.review_rules.some(
+  return definition.assessment_rules.some(
     (rule) => rule.required !== false && (!rule.checkpoint || rule.checkpoint === checkpointName),
   );
 }

@@ -25,15 +25,30 @@ const checkpointSchema = z.object({
   entry_criteria: z.string().max(4000).optional(),
 });
 
-const reviewRuleSchema = z.object({
-  from_role: z.string().min(1).max(120),
-  reviewed_by: z.string().min(1).max(120),
+const assessmentOutcomeActionSchema = z.object({
+  action: z.enum(['continue', 'reopen_subject', 'route_to_role', 'block_subject', 'escalate']),
+  role: z.string().min(1).max(120).optional(),
+}).superRefine((value, context) => {
+  if (value.action === 'route_to_role' && !value.role) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'Assessment outcome action route_to_role requires a role',
+      path: ['role'],
+    });
+  }
+});
+
+const assessmentRuleSchema = z.object({
+  subject_role: z.string().min(1).max(120),
+  assessed_by: z.string().min(1).max(120),
   checkpoint: z.string().min(1).max(120).optional(),
   required: z.boolean().optional(),
-  on_reject: z
+  optional: z.boolean().optional(),
+  outcome_actions: z
     .object({
-      action: z.enum(['return_to_role']),
-      role: z.string().min(1).max(120),
+      approved: assessmentOutcomeActionSchema.optional(),
+      request_changes: assessmentOutcomeActionSchema.optional(),
+      rejected: assessmentOutcomeActionSchema.optional(),
     })
     .optional(),
 });
@@ -78,7 +93,7 @@ const playbookDefinitionSchema = z.object({
   }),
   checkpoints: z.array(checkpointSchema).default([]),
   stages: z.array(stageSchema).default([]),
-  review_rules: z.array(reviewRuleSchema).default([]),
+  assessment_rules: z.array(assessmentRuleSchema).default([]),
   approval_rules: z.array(approvalRuleSchema).default([]),
   handoff_rules: z.array(handoffRuleSchema).default([]),
   lifecycle: z.enum(['planned', 'ongoing']).default('planned'),
@@ -109,6 +124,7 @@ export interface PlaybookRuntimePoolTarget {
 }
 
 export function parsePlaybookDefinition(value: unknown): PlaybookDefinition {
+  assertNoLegacyReviewRules(value);
   const parsed = playbookDefinitionSchema.safeParse(value);
   if (!parsed.success) {
     throw new SchemaValidationFailedError('Invalid playbook definition', {
@@ -122,7 +138,6 @@ export function parsePlaybookDefinition(value: unknown): PlaybookDefinition {
   assertBoardEntryColumn(normalized);
   assertUniqueIds(normalized.stages.map((stage) => stage.name), 'stage');
   assertUniqueIds(normalized.checkpoints.map((checkpoint) => checkpoint.name), 'checkpoint');
-  assertRuleConflicts(normalized);
   return normalized;
 }
 
@@ -231,9 +246,10 @@ function normalizePlaybookDefinition(definition: PlaybookDefinition): PlaybookDe
       buildLegacyProcessInstructions(stages),
     checkpoints,
     stages,
-    review_rules: definition.review_rules.map((rule) => ({
+    assessment_rules: definition.assessment_rules.map((rule) => ({
       ...rule,
-      required: rule.required ?? true,
+      required: rule.optional === true ? false : (rule.required ?? true),
+      optional: rule.optional === true ? true : (rule.required === false),
     })),
     approval_rules: definition.approval_rules.map((rule) => ({
       ...rule,
@@ -248,7 +264,7 @@ function normalizePlaybookDefinition(definition: PlaybookDefinition): PlaybookDe
 
 function buildLegacyProcessInstructions(stages: PlaybookDefinition['stages']): string {
   if (stages.length === 0) {
-    return 'Move work forward through the defined board lanes and complete required reviews and approvals before finishing.';
+    return 'Move work forward through the defined board lanes and complete required assessments and approvals before finishing.';
   }
 
   return stages
@@ -259,20 +275,16 @@ function buildLegacyProcessInstructions(stages: PlaybookDefinition['stages']): s
     .join('\n');
 }
 
-function assertRuleConflicts(definition: PlaybookDefinition): void {
-  const mandatoryReviewers = new Map<string, string>();
-  for (const rule of definition.review_rules) {
-    if (rule.required === false) {
-      continue;
-    }
-    const key = `${rule.from_role}::${rule.checkpoint ?? '*'}`;
-    const existing = mandatoryReviewers.get(key);
-    if (existing && existing !== rule.reviewed_by) {
-      throw new SchemaValidationFailedError(
-        `Conflicting mandatory review rules for role '${rule.from_role}'`,
-      );
-    }
-    mandatoryReviewers.set(key, rule.reviewed_by);
+function assertNoLegacyReviewRules(value: unknown): void {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return;
+  }
+  if ('review_rules' in (value as Record<string, unknown>)) {
+    throw new SchemaValidationFailedError('Invalid playbook definition', {
+      issues: {
+        formErrors: ['review_rules is not supported; use assessment_rules'],
+      },
+    });
   }
 }
 

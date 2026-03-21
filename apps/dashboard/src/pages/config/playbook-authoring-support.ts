@@ -21,11 +21,13 @@ export interface CheckpointDraft {
   entry_criteria: string;
 }
 
-export interface ReviewRuleDraft {
-  from_role: string;
-  reviewed_by: string;
+export interface AssessmentRuleDraft {
+  subject_role: string;
+  assessed_by: string;
+  checkpoint: string;
   required: boolean;
-  reject_role: string;
+  request_changes_target: string;
+  rejected_target: string;
 }
 
 export interface ApprovalRuleDraft {
@@ -60,7 +62,7 @@ export interface PlaybookAuthoringDraft {
   columns: BoardColumnDraft[];
   entry_column_id: string;
   checkpoints: CheckpointDraft[];
-  review_rules: ReviewRuleDraft[];
+  assessment_rules: AssessmentRuleDraft[];
   approval_rules: ApprovalRuleDraft[];
   handoff_rules: HandoffRuleDraft[];
   parameters: ParameterDraft[];
@@ -79,8 +81,8 @@ export interface PlaybookAuthoringSummary {
   roleCount: number;
   checkpointCount: number;
   gatedCheckpointCount: number;
-  reviewRuleCount: number;
-  requiredReviewRuleCount: number;
+  assessmentRuleCount: number;
+  requiredAssessmentRuleCount: number;
   approvalRuleCount: number;
   handoffRuleCount: number;
   columnCount: number;
@@ -107,7 +109,7 @@ export interface WorkflowRuleValidationResult {
     name?: string;
     goal?: string;
   }>;
-  reviewRuleErrors: Array<string | undefined>;
+  assessmentRuleErrors: Array<string | undefined>;
   approvalRuleErrors: Array<string | undefined>;
   handoffRuleErrors: Array<string | undefined>;
   blockingIssues: string[];
@@ -134,16 +136,15 @@ export function createDefaultAuthoringDraft(
   lifecycle: PlaybookLifecycle,
   availableRoleNames: string[] = [],
 ): PlaybookAuthoringDraft {
-  const roles = Array.from(
-    new Set(availableRoleNames.map((value) => value.trim()).filter(Boolean)),
-  ).map((value) => ({ value }));
+  void lifecycle;
+  void availableRoleNames;
 
   return {
     process_instructions:
       lifecycle === 'ongoing'
-        ? 'Keep this workflow open, clarify new work as it arrives, require the expected reviews and handoffs, and always leave the next actor with a clear next step.'
-        : 'Run this workflow as a bounded plan, move each work item through the required checkpoints, require the expected reviews and approvals, and finish only after the outcome is delivered.',
-    roles,
+        ? 'Keep this workflow open, clarify new work as it arrives, require the expected assessments and handoffs, and always leave the next actor with a clear next step.'
+        : 'Run this workflow as a bounded plan, move each work item through the required checkpoints, require the expected assessments and approvals, and finish only after the outcome is delivered.',
+    roles: [],
     columns: [
       { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
       { id: 'active', label: 'Active', description: '', is_blocked: false, is_terminal: false },
@@ -152,41 +153,9 @@ export function createDefaultAuthoringDraft(
       { id: 'done', label: 'Done', description: '', is_blocked: false, is_terminal: true },
     ],
     entry_column_id: 'inbox',
-    checkpoints:
-      lifecycle === 'ongoing'
-        ? [
-            {
-              name: 'triage',
-              goal: 'Clarify new work and decide the next actor.',
-              human_gate: false,
-              entry_criteria: 'A work item has been created or updated.',
-            },
-            {
-              name: 'delivery',
-              goal: 'Deliver the requested outcome with the required review path.',
-              human_gate: false,
-              entry_criteria: 'The work item has enough context to begin execution.',
-            },
-          ]
-        : [
-            {
-              name: 'plan',
-              goal: 'Clarify the objective and produce an execution plan.',
-              human_gate: false,
-              entry_criteria: 'The workflow objective and source context are available.',
-            },
-            {
-              name: 'deliver',
-              goal: 'Deliver and approve the bounded outcome.',
-              human_gate: true,
-              entry_criteria: 'The plan is clear enough to execute.',
-            },
-          ],
-    review_rules: [],
-    approval_rules:
-      lifecycle === 'planned'
-        ? [{ on: 'completion', checkpoint: '', required: true }]
-        : [],
+    checkpoints: [],
+    assessment_rules: [],
+    approval_rules: [],
     handoff_rules: [],
     parameters: [],
     orchestrator: {
@@ -216,8 +185,15 @@ export function createEmptyStageDraft(): CheckpointDraft {
   return createEmptyCheckpointDraft();
 }
 
-export function createEmptyReviewRuleDraft(): ReviewRuleDraft {
-  return { from_role: '', reviewed_by: '', required: true, reject_role: '' };
+export function createEmptyAssessmentRuleDraft(): AssessmentRuleDraft {
+  return {
+    subject_role: '',
+    assessed_by: '',
+    checkpoint: '',
+    required: true,
+    request_changes_target: '',
+    rejected_target: '',
+  };
 }
 
 export function createEmptyApprovalRuleDraft(): ApprovalRuleDraft {
@@ -253,7 +229,7 @@ export function hydratePlaybookAuthoringDraft(
   const roles = readStringArray(record.roles).map((value) => ({ value }));
   const columns = readBoardColumns(record.board);
   const checkpoints = readCheckpoints(record);
-  const reviewRules = readReviewRules(record.review_rules);
+  const assessmentRules = readAssessmentRules(record.assessment_rules);
   const approvalRules = readApprovalRules(record.approval_rules);
   const handoffRules = readHandoffRules(record.handoff_rules);
 
@@ -266,7 +242,7 @@ export function hydratePlaybookAuthoringDraft(
     columns: columns.length > 0 ? columns : fallback.columns,
     entry_column_id: readBoardEntryColumnId(record.board, columns, fallback.entry_column_id),
     checkpoints: checkpoints.length > 0 ? checkpoints : fallback.checkpoints,
-    review_rules: reviewRules.length > 0 ? reviewRules : fallback.review_rules,
+    assessment_rules: assessmentRules.length > 0 ? assessmentRules : fallback.assessment_rules,
     approval_rules: approvalRules.length > 0 ? approvalRules : fallback.approval_rules,
     handoff_rules: handoffRules.length > 0 ? handoffRules : fallback.handoff_rules,
     parameters: readParameters(record.parameters),
@@ -282,7 +258,7 @@ export function buildPlaybookDefinition(
   const roles = draft.roles.map((entry) => entry.value.trim()).filter(Boolean);
   const columns = buildBoardColumns(draft.columns);
   const checkpoints = buildCheckpoints(draft.checkpoints);
-  const reviewRules = buildReviewRules(draft.review_rules);
+  const assessmentRules = buildAssessmentRules(draft.assessment_rules);
   const approvalRules = buildApprovalRules(draft.approval_rules);
   const handoffRules = buildHandoffRules(draft.handoff_rules);
   const parameters = buildParameters(draft.parameters);
@@ -332,8 +308,8 @@ export function buildPlaybookDefinition(
     ),
   };
 
-  if (reviewRules.length > 0) {
-    definition.review_rules = reviewRules.map((rule) =>
+  if (assessmentRules.length > 0) {
+    definition.assessment_rules = assessmentRules.map((rule) =>
       compactRecord(rule as unknown as Record<string, unknown>),
     );
   }
@@ -415,7 +391,7 @@ export function validateBoardColumnsDraft(
 export function validateWorkflowRulesDraft(
   draft: Pick<
     PlaybookAuthoringDraft,
-    'roles' | 'checkpoints' | 'review_rules' | 'approval_rules' | 'handoff_rules'
+    'roles' | 'checkpoints' | 'assessment_rules' | 'approval_rules' | 'handoff_rules'
   >,
 ): WorkflowRuleValidationResult {
   const roleNames = new Set(draft.roles.map((entry) => entry.value.trim()).filter(Boolean));
@@ -432,7 +408,9 @@ export function validateWorkflowRulesDraft(
     name: readCheckpointNameError(checkpoint, duplicateCheckpointNames),
     goal: readCheckpointGoalError(checkpoint),
   }));
-  const reviewRuleErrors = draft.review_rules.map((rule) => readReviewRuleError(rule, roleNames));
+  const assessmentRuleErrors = draft.assessment_rules.map((rule) =>
+    readAssessmentRuleError(rule, roleNames, checkpointNames)
+  );
   const approvalRuleErrors = draft.approval_rules.map((rule) =>
     readApprovalRuleError(rule, checkpointNames),
   );
@@ -444,7 +422,7 @@ export function validateWorkflowRulesDraft(
         ...checkpointErrors.flatMap((entry) =>
           [entry.name, entry.goal].filter((value): value is string => Boolean(value)),
         ),
-        ...reviewRuleErrors.filter((value): value is string => Boolean(value)),
+        ...assessmentRuleErrors.filter((value): value is string => Boolean(value)),
         ...approvalRuleErrors.filter((value): value is string => Boolean(value)),
         ...handoffRuleErrors.filter((value): value is string => Boolean(value)),
       ],
@@ -453,7 +431,7 @@ export function validateWorkflowRulesDraft(
 
   return {
     checkpointErrors,
-    reviewRuleErrors,
+    assessmentRuleErrors,
     approvalRuleErrors,
     handoffRuleErrors,
     blockingIssues,
@@ -510,7 +488,7 @@ export function summarizePlaybookAuthoringDraft(
 ): PlaybookAuthoringSummary {
   const roles = draft.roles.map((entry) => entry.value.trim()).filter(Boolean);
   const checkpoints = buildCheckpoints(draft.checkpoints);
-  const reviewRules = draft.review_rules.filter(hasReviewRuleValue);
+  const assessmentRules = draft.assessment_rules.filter(hasAssessmentRuleValue);
   const approvalRules = draft.approval_rules.filter(hasApprovalRuleValue);
   const handoffRules = draft.handoff_rules.filter(hasHandoffRuleValue);
   const columns = buildBoardColumns(draft.columns);
@@ -521,8 +499,8 @@ export function summarizePlaybookAuthoringDraft(
     roleCount: roles.length,
     checkpointCount: checkpoints.length,
     gatedCheckpointCount: checkpoints.filter((checkpoint) => checkpoint.human_gate).length,
-    reviewRuleCount: reviewRules.length,
-    requiredReviewRuleCount: reviewRules.filter((rule) => rule.required !== false).length,
+    assessmentRuleCount: assessmentRules.length,
+    requiredAssessmentRuleCount: assessmentRules.filter((rule) => rule.required !== false).length,
     approvalRuleCount: approvalRules.length,
     handoffRuleCount: handoffRules.length,
     columnCount: columns.length,
@@ -571,19 +549,36 @@ function buildCheckpoints(checkpoints: CheckpointDraft[]): CheckpointDraft[] {
     );
 }
 
-function buildReviewRules(reviewRules: ReviewRuleDraft[]) {
-  return reviewRules
-    .map((rule) => ({
-      from_role: rule.from_role.trim(),
-      reviewed_by: rule.reviewed_by.trim(),
-      required: rule.required,
-      on_reject:
-        readReviewRejectRole(rule).length > 0
-          ? { action: 'return_to_role' as const, role: readReviewRejectRole(rule) }
-          : undefined,
-    }))
+function buildAssessmentRules(assessmentRules: AssessmentRuleDraft[]) {
+  return assessmentRules
+    .map((rule) => {
+      const subjectRole = readString(rule.subject_role).trim();
+      const assessedBy = readString(rule.assessed_by).trim();
+      const checkpoint = readString(rule.checkpoint).trim();
+      const requestChangesTarget = readString(rule.request_changes_target).trim();
+      const rejectedTarget = readString(rule.rejected_target).trim();
+      return {
+        subject_role: subjectRole,
+        assessed_by: assessedBy,
+        checkpoint,
+        required: rule.required,
+        outcome_actions: compactRecord({
+          request_changes: requestChangesTarget
+            ? { action: 'route_to_role' as const, role: requestChangesTarget }
+            : { action: 'reopen_subject' as const },
+          rejected: rejectedTarget
+            ? { action: 'route_to_role' as const, role: rejectedTarget }
+            : { action: 'block_subject' as const },
+        }),
+      };
+    })
     .filter(
-      (rule) => rule.from_role || rule.reviewed_by || rule.required !== true || rule.on_reject,
+      (rule) =>
+        rule.subject_role ||
+        rule.assessed_by ||
+        rule.checkpoint ||
+        rule.required !== true ||
+        Object.keys(rule.outcome_actions).length > 0,
     );
 }
 
@@ -717,34 +712,46 @@ function hasCheckpointValue(checkpoint: CheckpointDraft): boolean {
   );
 }
 
-function readReviewRuleError(rule: ReviewRuleDraft, roleNames: Set<string>): string | undefined {
-  const rejectRole = readReviewRejectRole(rule);
-  if (!hasReviewRuleValue(rule)) {
+function readAssessmentRuleError(
+  rule: AssessmentRuleDraft,
+  roleNames: Set<string>,
+  checkpointNames: Set<string>,
+): string | undefined {
+  if (!hasAssessmentRuleValue(rule)) {
     return undefined;
   }
-  if (!rule.from_role.trim() || !rule.reviewed_by.trim()) {
-    return 'Review rules must define both the source role and the review role.';
+  const subjectRole = readString(rule.subject_role).trim();
+  const assessedBy = readString(rule.assessed_by).trim();
+  const checkpoint = readString(rule.checkpoint).trim();
+  const requestChangesTarget = readString(rule.request_changes_target).trim();
+  const rejectedTarget = readString(rule.rejected_target).trim();
+  if (!subjectRole || !assessedBy) {
+    return 'Assessment rules must define both the subject role and the assessor role.';
   }
-  if (!roleNames.has(rule.from_role.trim()) || !roleNames.has(rule.reviewed_by.trim())) {
-    return 'Review rules must use roles selected in the team section.';
+  if (!roleNames.has(subjectRole) || !roleNames.has(assessedBy)) {
+    return 'Assessment rules must use roles selected in the team section.';
   }
-  if (rejectRole && !roleNames.has(rejectRole)) {
-    return 'Rejected review work must route back to a selected team role.';
+  if (checkpoint && !checkpointNames.has(checkpoint)) {
+    return 'Assessment rules must reference an existing checkpoint when one is selected.';
+  }
+  if (requestChangesTarget && !roleNames.has(requestChangesTarget)) {
+    return 'Requested changes must route to a selected team role when a role target is set.';
+  }
+  if (rejectedTarget && !roleNames.has(rejectedTarget)) {
+    return 'Rejected work must route to a selected team role when a role target is set.';
   }
   return undefined;
 }
 
-function hasReviewRuleValue(rule: ReviewRuleDraft): boolean {
+function hasAssessmentRuleValue(rule: AssessmentRuleDraft): boolean {
   return (
-    rule.from_role.trim().length > 0 ||
-    rule.reviewed_by.trim().length > 0 ||
-    readReviewRejectRole(rule).length > 0 ||
+    readString(rule.subject_role).trim().length > 0 ||
+    readString(rule.assessed_by).trim().length > 0 ||
+    readString(rule.checkpoint).trim().length > 0 ||
+    readString(rule.request_changes_target).trim().length > 0 ||
+    readString(rule.rejected_target).trim().length > 0 ||
     rule.required === false
   );
-}
-
-function readReviewRejectRole(rule: ReviewRuleDraft): string {
-  return readString((rule as ReviewRuleDraft & { reject_role?: string }).reject_role).trim();
 }
 
 function readApprovalRuleError(
@@ -914,23 +921,28 @@ function readCheckpointList(value: unknown): CheckpointDraft[] {
     : [];
 }
 
-function readReviewRules(value: unknown): ReviewRuleDraft[] {
+function readAssessmentRules(value: unknown): AssessmentRuleDraft[] {
   return Array.isArray(value)
     ? value
         .map((entry) => {
           const record = asRecord(entry);
-          const onReject = asRecord(record.on_reject);
+          const outcomeActions = asRecord(record.outcome_actions);
+          const requestChanges = asRecord(outcomeActions.request_changes);
+          const rejected = asRecord(outcomeActions.rejected);
           return {
-            from_role: readString(record.from_role),
-            reviewed_by: readString(record.reviewed_by),
+            subject_role: readString(record.subject_role),
+            assessed_by: readString(record.assessed_by),
+            checkpoint: readString(record.checkpoint),
             required: typeof record.required === 'boolean' ? record.required : true,
-            reject_role:
-              readString(record.reject_role) ||
-              readString((record as { on_reject_role?: unknown }).on_reject_role) ||
-              readString(onReject.role),
+            request_changes_target:
+              readString((record as { request_changes_target?: unknown }).request_changes_target) ||
+              readString(requestChanges.role),
+            rejected_target:
+              readString((record as { rejected_target?: unknown }).rejected_target) ||
+              readString(rejected.role),
           };
         })
-        .filter(hasReviewRuleValue)
+        .filter(hasAssessmentRuleValue)
     : [];
 }
 

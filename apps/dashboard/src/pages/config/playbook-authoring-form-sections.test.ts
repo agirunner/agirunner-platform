@@ -20,7 +20,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('className="min-w-0 flex-1"');
     expect(source).toContain('className="shrink-0 whitespace-nowrap px-3"');
     expect(source).toContain('Process Instructions');
-    expect(source).toContain('Review Rules');
+    expect(source).toContain('Assessment Rules');
     expect(source).toContain('Approval Rules');
     expect(source).toContain('Handoff Rules');
     expect(source).toContain('Workflow Checkpoints');
@@ -33,7 +33,8 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Blocked lane');
     expect(source).toContain('Terminal lane');
     expect(source).toContain('Playbooks use active role definitions from the shared workspace configuration.');
-    expect(source).toContain('Before completion');
+    expect(source).toContain('On changes requested');
+    expect(source).toContain('On rejected');
     expect(source).toContain('the next specialist always receives the right predecessor context');
     expect(source).toContain('workspace.credentials.git_token');
     expect(source).toContain('Help text');
@@ -58,7 +59,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).not.toContain('type="checkbox"');
   });
 
-  it('renders review, approval, and handoff rules through a compact inline row shell', () => {
+  it('renders assessment, approval, and handoff rules through a compact inline row shell', () => {
     const source = readSource();
     expect(source).toContain('function InlineRuleRow(');
     expect(source).toContain('function InlineRuleField(');
@@ -68,7 +69,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('xl:shrink-0');
     expect(source).toContain('flex flex-col gap-3 xl:flex-row xl:items-center');
     expect(source).toContain('flex flex-col gap-1 lg:flex-row lg:items-center');
-    expect(source).not.toContain('title={`Review rule ${index + 1}`}');
+    expect(source).not.toContain('title={`Assessment rule ${index + 1}`}');
     expect(source).not.toContain('title={`Approval rule ${index + 1}`}');
     expect(source).not.toContain('title={`Handoff rule ${index + 1}`}');
   });

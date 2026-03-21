@@ -376,11 +376,11 @@ function formatRuleResults(
   if (requiresHumanApproval(definition, checkpointName)) {
     lines.push('Human approval required before completion.');
   }
-  for (const rule of definition.review_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
+  for (const rule of definition.assessment_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
     if (rule.required === false) {
       continue;
     }
-    lines.push(`Required review: ${rule.from_role} -> ${rule.reviewed_by}`);
+    lines.push(`Required assessment: ${rule.subject_role} -> ${rule.assessed_by}`);
   }
   if (definition.lifecycle !== 'planned') {
     for (const rule of definition.handoff_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
@@ -419,19 +419,19 @@ function formatReviewExpectations(
 ) {
   const lines: string[] = [];
   const roleName = role ?? readString(workItem.owner_role);
-  const incomingReviewRule = definition.review_rules.find(
-    (entry) => entry.reviewed_by === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition),
+  const incomingAssessmentRule = definition.assessment_rules.find(
+    (entry) => entry.assessed_by === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition),
   );
-  if (incomingReviewRule && incomingReviewRule.required !== false && roleName) {
-    lines.push(`Review required from ${roleName}`);
-    lines.push(`Mandatory review: ${roleName} should review the current output before completion.`);
+  if (incomingAssessmentRule && incomingAssessmentRule.required !== false && roleName) {
+    lines.push(`Assessment required from ${roleName}`);
+    lines.push(`Mandatory assessment: ${roleName} should assess the current output before completion.`);
   } else {
-    const outgoingReviewRule = definition.review_rules.find(
-      (entry) => entry.from_role === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition),
+    const outgoingAssessmentRule = definition.assessment_rules.find(
+      (entry) => entry.subject_role === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition),
     );
-    if (outgoingReviewRule && outgoingReviewRule.required !== false) {
-      lines.push(`Review required from ${outgoingReviewRule.reviewed_by}`);
-      lines.push(`Mandatory review: ${outgoingReviewRule.reviewed_by} should review the current output before completion.`);
+    if (outgoingAssessmentRule && outgoingAssessmentRule.required !== false) {
+      lines.push(`Assessment required from ${outgoingAssessmentRule.assessed_by}`);
+      lines.push(`Mandatory assessment: ${outgoingAssessmentRule.assessed_by} should assess the current output before completion.`);
     }
   }
   if (readString(workItem.next_expected_actor)) {
@@ -447,7 +447,7 @@ function formatReviewExpectations(
   if (reworkCount !== null) {
     lines.push(`Current rework count: ${reworkCount}`);
   }
-  return lines.join('\n') || 'No mandatory review or approval is pending.';
+  return lines.join('\n') || 'No mandatory assessment or approval is pending.';
 }
 
 function requiresHumanApproval(

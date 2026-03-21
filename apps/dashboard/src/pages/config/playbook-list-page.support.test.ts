@@ -115,9 +115,9 @@ describe('playbook list support', () => {
       summarizePlaybookProcess({
         ...PLAYBOOKS[0],
         definition: {
-          process_instructions: 'Developer implements. Reviewer checks. Human approves.',
+          process_instructions: 'Developer implements. Reviewer assesses. Human approves.',
           roles: ['developer', 'reviewer'],
-          review_rules: [{}],
+          assessment_rules: [{}],
           approval_rules: [{}],
           handoff_rules: [{}],
           checkpoints: [{}, {}],
@@ -125,9 +125,9 @@ describe('playbook list support', () => {
         },
       }),
     ).toEqual({
-      processInstructions: 'Developer implements. Reviewer checks. Human approves.',
+      processInstructions: 'Developer implements. Reviewer assesses. Human approves.',
       roleCount: 2,
-      reviewRuleCount: 1,
+      assessmentRuleCount: 1,
       approvalRuleCount: 1,
       handoffRuleCount: 1,
       checkpointCount: 2,

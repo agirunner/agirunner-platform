@@ -91,7 +91,7 @@ describe('playbook model runtime pools', () => {
   it('requires process instructions and exposes checkpoints plus stages', () => {
     const definition = parsePlaybookDefinition({
       process_instructions:
-        'Developer implements. Reviewer must review every code change. QA validates before completion.',
+        'Developer implements. Reviewer must assess every code change. QA validates before completion.',
       roles: ['developer', 'reviewer', 'qa'],
       board: { entry_column_id: 'planned', columns: [{ id: 'planned', label: 'Planned' }] },
       checkpoints: [
@@ -102,15 +102,17 @@ describe('playbook model runtime pools', () => {
           entry_criteria: 'Requirements are clear and work is underway.',
         },
       ],
-      review_rules: [
+      assessment_rules: [
         {
-          from_role: 'developer',
-          reviewed_by: 'reviewer',
+          subject_role: 'developer',
+          assessed_by: 'reviewer',
           checkpoint: 'implementation-complete',
           required: true,
-          on_reject: {
-            action: 'return_to_role',
-            role: 'developer',
+          outcome_actions: {
+            request_changes: {
+              action: 'route_to_role',
+              role: 'developer',
+            },
           },
         },
       ],
@@ -132,7 +134,7 @@ describe('playbook model runtime pools', () => {
       lifecycle: 'planned',
     });
 
-    expect(definition.process_instructions).toContain('Reviewer must review');
+    expect(definition.process_instructions).toContain('Reviewer must assess');
     expect(definition.checkpoints).toHaveLength(1);
     expect(definition.stages).toHaveLength(1);
     expect(definition.stages[0]).toMatchObject({
@@ -140,8 +142,8 @@ describe('playbook model runtime pools', () => {
       goal: 'Implementation is complete and ready for review.',
       human_gate: false,
     });
-    expect(definition.review_rules[0]?.reviewed_by).toBe('reviewer');
-    expect(definition.review_rules[0]?.checkpoint).toBe('implementation-complete');
+    expect(definition.assessment_rules[0]?.assessed_by).toBe('reviewer');
+    expect(definition.assessment_rules[0]?.checkpoint).toBe('implementation-complete');
     expect(definition.handoff_rules[0]?.checkpoint).toBe('implementation-complete');
     expect(defaultCheckpointName(definition)).toBe('implementation-complete');
   });
@@ -180,21 +182,38 @@ describe('playbook model runtime pools', () => {
     ]);
   });
 
-  it('rejects conflicting mandatory review rules for the same role transition', () => {
+  it('allows multiple required assessment rules for the same subject role', () => {
+    const definition = parsePlaybookDefinition({
+      process_instructions: 'All developer work is assessed before completion.',
+      roles: ['developer', 'reviewer', 'qa'],
+      board: { columns: [{ id: 'planned', label: 'Planned' }] },
+      assessment_rules: [
+        {
+          subject_role: 'developer',
+          assessed_by: 'reviewer',
+          required: true,
+        },
+        {
+          subject_role: 'developer',
+          assessed_by: 'qa',
+          required: true,
+        },
+      ],
+    });
+
+    expect(definition.assessment_rules.map((rule) => rule.assessed_by)).toEqual(['reviewer', 'qa']);
+  });
+
+  it('rejects legacy authored review_rules payloads', () => {
     expect(() =>
       parsePlaybookDefinition({
-        process_instructions: 'All developer work is reviewed before completion.',
-        roles: ['developer', 'reviewer', 'qa'],
+        process_instructions: 'All developer work is assessed before completion.',
+        roles: ['developer', 'reviewer'],
         board: { columns: [{ id: 'planned', label: 'Planned' }] },
         review_rules: [
           {
             from_role: 'developer',
             reviewed_by: 'reviewer',
-            required: true,
-          },
-          {
-            from_role: 'developer',
-            reviewed_by: 'qa',
             required: true,
           },
         ],

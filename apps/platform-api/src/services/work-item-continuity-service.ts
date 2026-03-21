@@ -331,7 +331,7 @@ export class WorkItemContinuityService {
         : evaluation;
     const satisfiedReviewExpectation =
       event === 'task_completed'
-      && context.next_expected_action === 'review'
+      && context.next_expected_action === 'assess'
       && context.next_expected_actor === role;
 
     await db.query(
@@ -403,7 +403,7 @@ export class WorkItemContinuityService {
     }
 
     return {
-      matchedRuleType: evaluation.matchedRuleType ?? 'review',
+      matchedRuleType: evaluation.matchedRuleType ?? 'assessment',
       nextExpectedActor: predecessorRole,
       nextExpectedAction: 'rework',
       requiresHumanApproval: false,

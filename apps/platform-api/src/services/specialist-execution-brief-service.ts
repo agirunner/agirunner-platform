@@ -165,19 +165,19 @@ function buildReviewOutputExpectations(
 ): string[] {
   const roleName = role ?? readString(workItem.owner_role);
   const lines: string[] = [];
-  const incomingReviewRule = definition.review_rules.find(
-    (entry) => entry.reviewed_by === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName),
+  const incomingAssessmentRule = definition.assessment_rules.find(
+    (entry) => entry.assessed_by === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName),
   );
-  if (incomingReviewRule && incomingReviewRule.required !== false && roleName) {
-    lines.push(`Review required from ${roleName}.`);
-    lines.push(`${roleName} should review the current output before completion.`);
+  if (incomingAssessmentRule && incomingAssessmentRule.required !== false && roleName) {
+    lines.push(`Assessment required from ${roleName}.`);
+    lines.push(`${roleName} should assess the current output before completion.`);
   } else {
-    const outgoingReviewRule = definition.review_rules.find(
-      (entry) => entry.from_role === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName),
+    const outgoingAssessmentRule = definition.assessment_rules.find(
+      (entry) => entry.subject_role === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName),
     );
-    if (outgoingReviewRule && outgoingReviewRule.required !== false) {
-      lines.push(`Review required from ${outgoingReviewRule.reviewed_by}.`);
-      lines.push(`${outgoingReviewRule.reviewed_by} should review the current output before completion.`);
+    if (outgoingAssessmentRule && outgoingAssessmentRule.required !== false) {
+      lines.push(`Assessment required from ${outgoingAssessmentRule.assessed_by}.`);
+      lines.push(`${outgoingAssessmentRule.assessed_by} should assess the current output before completion.`);
     }
   }
   lines.push(

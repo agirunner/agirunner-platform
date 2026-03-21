@@ -148,7 +148,7 @@ function formatProcessInstructions(draft: PlaybookAuthoringDraft): string {
 
 function formatRules(draft: PlaybookAuthoringDraft): string {
   return [
-    `${draft.review_rules.filter((rule) => rule.from_role.trim() && rule.reviewed_by.trim()).length} reviews`,
+    `${draft.assessment_rules.filter((rule) => rule.subject_role.trim() && rule.assessed_by.trim()).length} assessments`,
     `${draft.approval_rules.filter((rule) => rule.on === 'completion' || rule.checkpoint.trim()).length} approvals`,
     `${draft.handoff_rules.filter((rule) => rule.from_role.trim() && rule.to_role.trim()).length} handoffs`,
   ].join(' • ');

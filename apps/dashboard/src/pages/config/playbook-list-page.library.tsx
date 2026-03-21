@@ -149,7 +149,7 @@ export function PlaybookFamilyCard(props: {
           </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">
             <CheckCheck className="h-3.5 w-3.5" />
-            {family.process.reviewRuleCount} reviews
+            {family.process.assessmentRuleCount} assessments
             {family.process.approvalRuleCount > 0 ? ` / ${family.process.approvalRuleCount} approvals` : ''}
           </span>
           <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/20 px-3 py-1">

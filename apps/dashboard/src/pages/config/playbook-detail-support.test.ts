@@ -85,6 +85,24 @@ describe('playbook detail support', () => {
     expect(snapshot).toContain('"entry_column_id": "active"');
     expect(snapshot).toContain('"guidance": "Require a final human check"');
   });
+
+  it('summarizes assessment rules instead of review rules', () => {
+    const playbook = createPlaybook(4, {
+      definition: {
+        assessment_rules: [
+          {
+            subject_role: 'developer',
+            assessed_by: 'reviewer',
+            outcome_actions: {
+              request_changes: { action: 'route_to_role', role: 'developer' },
+            },
+          },
+        ],
+      },
+    });
+
+    expect(summarizePlaybookControls(playbook).rules).toContain('1 assessments');
+  });
 });
 
 function createPlaybook(

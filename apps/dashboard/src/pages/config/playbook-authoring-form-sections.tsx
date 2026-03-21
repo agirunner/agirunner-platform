@@ -14,11 +14,11 @@ import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import {
   createEmptyApprovalRuleDraft,
+  createEmptyAssessmentRuleDraft,
   createEmptyCheckpointDraft,
   createEmptyColumnDraft,
   createEmptyHandoffRuleDraft,
   createEmptyParameterDraft,
-  createEmptyReviewRuleDraft,
   createEmptyRoleDraft,
   validateBoardColumnsDraft,
   validateParameterDrafts,
@@ -68,7 +68,7 @@ export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
     <SectionCard
       id="playbook-process-instructions"
       title="Process Instructions"
-      description="Tell the orchestrator how this workflow must run, what must be reviewed, and when humans must approve."
+      description="Tell the orchestrator how this workflow must run, what must be assessed, and when humans must approve."
     >
       <div className="space-y-2">
         <Textarea
@@ -80,7 +80,7 @@ export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
             }))
           }
           className="min-h-[180px]"
-          placeholder="Example: Clarify the objective, route delivery to the appropriate role, require review where needed, return requested changes with findings, and require human approval before completion."
+          placeholder="Example: Clarify the objective, route delivery to the appropriate role, require assessment where needed, return requested changes with findings, and require human approval before completion."
         />
         <p className="text-sm text-muted">
           This is operator-authored guidance for the orchestrator. Mandatory rules below are still
@@ -185,7 +185,7 @@ export function TeamRolesSection(
   );
 }
 
-export function ReviewRulesSection(
+export function AssessmentRulesSection(
   props: SectionProps & { availableRoleNames?: string[] },
 ): JSX.Element {
   const availableRoleNames = normalizedRoleOptions(props.availableRoleNames ?? []);
@@ -193,49 +193,49 @@ export function ReviewRulesSection(
 
   return (
     <SectionCard
-      id="playbook-review-rules"
-      title="Review Rules"
-      description="Use explicit review rules for mandatory review paths instead of hoping the orchestrator infers them."
+      id="playbook-assessment-rules"
+      title="Assessment Rules"
+      description="Use explicit assessment rules for specialist checks instead of hoping the orchestrator infers them."
     >
       <div className="space-y-4">
-        {props.draft.review_rules.map((rule, index) => (
+        {props.draft.assessment_rules.map((rule, index) => (
           <InlineRuleRow
-            key={`review-rule-${index}`}
-            fieldsClassName="md:grid-cols-2 xl:grid-cols-3"
-            error={ruleValidation.reviewRuleErrors[index]}
+            key={`assessment-rule-${index}`}
+            fieldsClassName="md:grid-cols-2 xl:grid-cols-5"
+            error={ruleValidation.assessmentRuleErrors[index]}
             actions={
               <InlineRuleActions
                 required={rule.required}
                 onRequiredChange={(checked) =>
                   props.onChange((current) => ({
                     ...current,
-                    review_rules: current.review_rules.map((entry, entryIndex) =>
+                    assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
                       entryIndex === index ? { ...entry, required: checked } : entry,
                     ),
                   }))
                 }
                 onMoveEarlier={
-                  canMoveDraftItem(index, props.draft.review_rules.length, 'earlier')
+                  canMoveDraftItem(index, props.draft.assessment_rules.length, 'earlier')
                     ? () =>
                         props.onChange((current) => ({
                           ...current,
-                          review_rules: moveDraftItem(current.review_rules, index, 'earlier'),
+                          assessment_rules: moveDraftItem(current.assessment_rules, index, 'earlier'),
                         }))
                     : undefined
                 }
                 onMoveLater={
-                  canMoveDraftItem(index, props.draft.review_rules.length, 'later')
+                  canMoveDraftItem(index, props.draft.assessment_rules.length, 'later')
                     ? () =>
                         props.onChange((current) => ({
                           ...current,
-                          review_rules: moveDraftItem(current.review_rules, index, 'later'),
+                          assessment_rules: moveDraftItem(current.assessment_rules, index, 'later'),
                         }))
                     : undefined
                 }
                 onRemove={() =>
                   props.onChange((current) => ({
                     ...current,
-                    review_rules: current.review_rules.filter(
+                    assessment_rules: current.assessment_rules.filter(
                       (_, entryIndex) => entryIndex !== index,
                     ),
                   }))
@@ -244,38 +244,60 @@ export function ReviewRulesSection(
             }
           >
             <RoleSelectField
-              label="From"
-              value={rule.from_role}
+              label="Assess output from"
+              value={rule.subject_role}
               availableRoleNames={availableRoleNames}
               inline
               className="min-w-0"
               triggerClassName="min-w-0"
               onValueChange={(value) =>
-                updateReviewRule(props.onChange, index, 'from_role', value)
+                updateAssessmentRule(props.onChange, index, 'subject_role', value)
               }
             />
             <RoleSelectField
-              label="Reviewed by"
-              value={rule.reviewed_by}
+              label="Assessed by"
+              value={rule.assessed_by}
               availableRoleNames={availableRoleNames}
               inline
               className="min-w-0"
               triggerClassName="min-w-0"
               onValueChange={(value) =>
-                updateReviewRule(props.onChange, index, 'reviewed_by', value)
+                updateAssessmentRule(props.onChange, index, 'assessed_by', value)
               }
             />
+            <InlineRuleField label="Checkpoint" className="min-w-0">
+              <Input
+                value={rule.checkpoint}
+                onChange={(event) =>
+                  updateAssessmentRule(props.onChange, index, 'checkpoint', event.target.value)
+                }
+                placeholder="Optional checkpoint"
+              />
+            </InlineRuleField>
             <RoleSelectField
-              label="Reject to"
-              value={rule.reject_role}
+              label="On changes requested"
+              value={rule.request_changes_target}
               availableRoleNames={availableRoleNames}
-              placeholder="Optional rework role"
+              placeholder="Reopen subject"
               allowUnset
               inline
               className="min-w-0"
               triggerClassName="min-w-0"
               onValueChange={(value) =>
-                updateReviewRule(props.onChange, index, 'reject_role', value)
+                updateAssessmentRule(props.onChange, index, 'request_changes_target', value)
+              }
+            />
+            <RoleSelectField
+              label="On rejected"
+              value={rule.rejected_target}
+              availableRoleNames={availableRoleNames}
+              placeholder="Block subject"
+              allowUnset
+              inline
+              className="min-w-0"
+              triggerClassName="min-w-0"
+              onValueChange={(value) =>
+                updateAssessmentRule(props.onChange, index, 'rejected_target', value)
               }
             />
           </InlineRuleRow>
@@ -286,12 +308,12 @@ export function ReviewRulesSection(
           onClick={() =>
             props.onChange((current) => ({
               ...current,
-              review_rules: [...current.review_rules, createEmptyReviewRuleDraft()],
+              assessment_rules: [...current.assessment_rules, createEmptyAssessmentRuleDraft()],
             }))
           }
         >
           <Plus className="h-4 w-4" />
-          Add Review Rule
+          Add Assessment Rule
         </Button>
       </div>
     </SectionCard>
@@ -972,7 +994,7 @@ export function WorkflowRulesSection(
 ): JSX.Element {
   return (
     <div className="space-y-4">
-      <ReviewRulesSection {...props} />
+      <AssessmentRulesSection {...props} />
       <ApprovalRulesSection draft={props.draft} onChange={props.onChange} />
       <HandoffRulesSection {...props} />
       <WorkflowCheckpointsSection draft={props.draft} onChange={props.onChange} />
@@ -1299,15 +1321,20 @@ function updateCheckpoint(
   }));
 }
 
-function updateReviewRule(
+function updateAssessmentRule(
   onChange: SectionProps['onChange'],
   index: number,
-  field: 'from_role' | 'reviewed_by' | 'reject_role',
+  field:
+    | 'subject_role'
+    | 'assessed_by'
+    | 'checkpoint'
+    | 'request_changes_target'
+    | 'rejected_target',
   value: string,
 ): void {
   onChange((current) => ({
     ...current,
-    review_rules: current.review_rules.map((entry, entryIndex) =>
+    assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
     ),
   }));
