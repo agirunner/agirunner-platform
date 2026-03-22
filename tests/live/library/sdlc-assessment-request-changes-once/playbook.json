@@ -5,7 +5,7 @@
   "outcome": "An implemented change is assessed explicitly before release packaging continues.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "The solution architect defines the change. The implementation engineer delivers it. The acceptance gate assessor evaluates the implementation output and records an explicit approved, request_changes, or rejected verdict based on the authored scenario contract. Once the assessment clears, the release operations coordinator packages the result.",
+    "process_instructions": "The solution architect defines the staged change. The implementation engineer follows the authored revision scope for the current delivery cycle. The acceptance gate assessor evaluates the linked implementation output against the explicit assessment contract and requests changes when the linked subject only satisfies the initial revision scope. After one real rework cycle satisfies the rework completion scope, the assessor approves and the release operations coordinator packages the result.",
     "parameters": [
       {
         "name": "goal",
@@ -27,6 +27,20 @@
         "required": true,
         "category": "input",
         "description": "Exact approval contract the acceptance assessor must enforce"
+      },
+      {
+        "name": "initial_revision_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Explicit scope that the first implementation revision must stop at before assessment."
+      },
+      {
+        "name": "rework_completion_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Explicit scope that the reopened implementation revision must satisfy after request_changes."
       }
     ],
     "roles": [

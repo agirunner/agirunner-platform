@@ -3,9 +3,12 @@
   "profile": "sdlc-assessment-request-changes-once",
   "workflow": {
     "name": "SDLC Assessment Request Changes",
-    "goal": "Ship a CLI enhancement where the acceptance assessor requests changes on the first revision and approves the second revision.",
+    "goal": "Ship a CLI enhancement where revision 1 adds the core assess command and tests, the acceptance assessor requests changes for missing release-readiness fields and docs, and revision 2 resolves those findings before release packaging proceeds.",
     "parameters": {
-      "assessment_contract": "The acceptance assessor must request changes once, then approve after one real rework cycle."
+      "scenario_name": "sdlc-assessment-request-changes-once",
+      "initial_revision_scope": "Revision 1 MUST add `python3 -m workflow_cli assess --scenario-name <name>` that emits deterministic JSON with scenario_name, assessment_status=draft, and release_ready=false, plus unit coverage for the new command. Revision 1 MUST NOT add package_reference output or README usage for the assess command yet.",
+      "rework_completion_scope": "After request_changes, revision 2 MUST update the assess command to emit deterministic JSON with scenario_name, assessment_contract echo, assessment_status=approved, release_ready=true, and a non-empty package_reference. Revision 2 MUST also update README usage and unit coverage so the repository fully documents and verifies the assess command.",
+      "assessment_contract": "The acceptance assessor must request changes once when the linked subject only satisfies the initial revision scope, citing the missing release-ready fields and README coverage. The assessor must approve only after one real rework cycle increases the subject revision and the linked subject satisfies the rework completion scope."
     }
   },
   "workspace": {

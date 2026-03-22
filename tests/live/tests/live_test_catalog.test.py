@@ -130,6 +130,23 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertEqual({}, shared_profiles)
 
     def test_request_changes_once_profile_requires_a_real_first_revision_rework_cycle(self) -> None:
+        scenario = scenario_config.load_scenario(
+            SCENARIOS_DIR / "sdlc-assessment-request-changes-once.json"
+        )
+        parameters = scenario["workflow"]["parameters"]
+        self.assertIn("scenario_name", parameters)
+        self.assertIn("initial_revision_scope", parameters)
+        self.assertIn("rework_completion_scope", parameters)
+
+        playbook = live_test_catalog.read_fixture(
+            LIBRARY_DIR / "sdlc-assessment-request-changes-once" / "playbook.json"
+        )
+        parameter_names = {
+            entry["name"] for entry in playbook["definition"]["parameters"]
+        }
+        self.assertIn("initial_revision_scope", parameter_names)
+        self.assertIn("rework_completion_scope", parameter_names)
+
         roles = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-assessment-request-changes-once" / "roles.json"
         )
@@ -144,9 +161,13 @@ class LiveTestCatalogTests(unittest.TestCase):
             if role["name"] == "rework-implementation-engineer"
         )
 
+        self.assertIn("satisfy the authored initial_revision_scope and stop there", implementation_prompt)
+        self.assertIn("satisfy the full rework_completion_scope", implementation_prompt)
         self.assertIn("first subject revision MUST return request_changes", assessor_prompt)
+        self.assertIn("still misses items from the rework_completion_scope", assessor_prompt)
         self.assertIn("Approve only after the subject revision increases", assessor_prompt)
-        self.assertIn("resolve every cited finding before resubmitting", implementation_prompt)
+        self.assertIn("resolve every cited finding", implementation_prompt)
+        self.assertIn("before resubmitting", implementation_prompt)
 
     def test_readme_documents_oauth_default_and_provider_auth_externalization(self) -> None:
         source = README_FILE.read_text()
