@@ -703,7 +703,7 @@ def main() -> None:
             payload=build_workspace_create_payload(
                 workspace_name=workspace_name,
                 workspace_slug=workspace_slug,
-                workspace_description="Repeatable live-test workspace seeded by tests/live/prepare-live-test-environment.sh",
+                workspace_description="Repeatable live-test workspace seeded by the shared assessment-matrix harness",
                 workspace_config=workspace_config,
                 repository_url=repository_url,
                 default_branch=default_branch,

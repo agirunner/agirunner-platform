@@ -16,12 +16,15 @@
 
 ## Layout
 
-- `prepare-live-test-environment.sh`
-  - rebuilds runtime images
-  - resets seeded platform state
-  - seeds provider/model/workspace state through API
-  - creates test-owned roles and playbooks from fixture files through API
-  - restarts orchestrator through fleet API and waits for healthy DCM state
+- `prepare-live-test-shared-environment.sh`
+  - rebuilds runtime and execution images
+  - resets seeded platform state once for the full corpus
+  - seeds provider/model defaults plus all test-owned roles and playbooks through API
+  - restarts orchestrator capacity through fleet API and waits for healthy DCM state
+- `prepare-live-test-run.sh`
+  - creates a unique workspace and run context for a single scenario
+  - creates a unique git branch or host-directory root for that run
+  - binds the run to the already-seeded profile registry from the shared bootstrap
 - `export-current-oauth-session.sh`
   - exports the currently connected OAuth session for the configured profile from the live platform database
 - `env/local.env.example`
@@ -56,6 +59,12 @@ The generic runner is:
 
 ```bash
 bash tests/live/scenarios/run-live-scenario.sh sdlc-assessment-approve
+```
+
+The batch runner is:
+
+```bash
+bash tests/live/scenarios/run-live-scenario-batch.sh 5
 ```
 
 Thin per-scenario wrappers call that runner for convenience.
