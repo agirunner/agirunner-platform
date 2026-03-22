@@ -137,6 +137,9 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("scenario_name", parameters)
         self.assertIn("initial_revision_scope", parameters)
         self.assertIn("rework_completion_scope", parameters)
+        workspace_instructions = scenario["workspace"]["spec"]["instructions"]["content"]
+        self.assertIn("Revision 1 MUST stop at `initial_revision_scope`", workspace_instructions)
+        self.assertIn("Do not satisfy any requirement that appears only in `rework_completion_scope`", workspace_instructions)
 
         playbook = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-assessment-request-changes-once" / "playbook.json"
@@ -163,6 +166,7 @@ class LiveTestCatalogTests(unittest.TestCase):
 
         self.assertIn("satisfy the authored initial_revision_scope and stop there", implementation_prompt)
         self.assertIn("satisfy the full rework_completion_scope", implementation_prompt)
+        self.assertIn("MUST NOT implement any item that appears only in the rework_completion_scope", implementation_prompt)
         self.assertIn("first subject revision MUST return request_changes", assessor_prompt)
         self.assertIn("still misses items from the rework_completion_scope", assessor_prompt)
         self.assertIn("Approve only after the subject revision increases", assessor_prompt)

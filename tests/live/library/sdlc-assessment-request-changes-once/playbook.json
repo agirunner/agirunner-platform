@@ -5,7 +5,7 @@
   "outcome": "An implemented change is assessed explicitly before release packaging continues.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "The solution architect defines the staged change. The implementation engineer follows the authored revision scope for the current delivery cycle. The acceptance gate assessor evaluates the linked implementation output against the explicit assessment contract and requests changes when the linked subject only satisfies the initial revision scope. After one real rework cycle satisfies the rework completion scope, the assessor approves and the release operations coordinator packages the result.",
+    "process_instructions": "The solution architect defines the staged change and explicitly separates revision 1 from the rework scope. The implementation engineer follows the authored revision scope for the current delivery cycle and must not deliver rework-scope items early. The acceptance gate assessor evaluates the linked implementation output against the explicit assessment contract and requests changes when the linked subject only satisfies the initial revision scope. After one real rework cycle satisfies the rework completion scope, the assessor approves and the release operations coordinator packages the result.",
     "parameters": [
       {
         "name": "goal",

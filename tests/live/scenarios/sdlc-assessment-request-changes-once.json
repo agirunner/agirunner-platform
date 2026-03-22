@@ -14,7 +14,12 @@
   "workspace": {
     "repo": true,
     "memory": {},
-    "spec": {}
+    "spec": {
+      "instructions": {
+        "format": "markdown",
+        "content": "This scenario uses an intentionally staged two-revision delivery contract. Revision 1 MUST stop at `initial_revision_scope`. Do not satisfy any requirement that appears only in `rework_completion_scope` until the implementation task is explicitly reopened after `request_changes`. Treat early delivery of `rework_completion_scope` items as contract noncompliance, not as proactive helpfulness."
+      }
+    }
   },
   "approvals": [],
   "actions": [],
