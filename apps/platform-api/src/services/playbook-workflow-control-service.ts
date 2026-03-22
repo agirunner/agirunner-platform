@@ -88,7 +88,11 @@ interface BlockingStageWorkItemRow {
   id: string;
   title: string;
   blocking_resolution: string | null;
+  next_expected_actor?: string | null;
+  next_expected_action?: string | null;
 }
+
+const COMPLETION_BLOCKING_NEXT_ACTIONS = new Set(['assess', 'approve', 'rework']);
 
 export interface UpdateWorkflowWorkItemInput {
   parent_work_item_id?: string | null;
@@ -723,6 +727,55 @@ export class PlaybookWorkflowControlService {
     );
   }
 
+  private assertNoPendingBlockingContinuation(
+    workItem: Pick<WorkflowWorkItemRow, 'title' | 'next_expected_actor' | 'next_expected_action'>,
+  ) {
+    if (!workItem.next_expected_actor || !workItem.next_expected_action) {
+      return;
+    }
+    if (!COMPLETION_BLOCKING_NEXT_ACTIONS.has(workItem.next_expected_action)) {
+      return;
+    }
+
+    const expectation = describePendingContinuation(workItem.next_expected_action);
+    throw new ValidationError(
+      `Cannot complete work item '${workItem.title}' while required ${expectation} by '${workItem.next_expected_actor}' is still pending.`,
+    );
+  }
+
+  private async assertStageHasNoPendingBlockingContinuation(
+    tenantId: string,
+    workflowId: string,
+    stageName: string,
+    db: DatabaseClient,
+  ) {
+    const result = await db.query<BlockingStageWorkItemRow>(
+      `SELECT wi.id,
+              wi.title,
+              wi.next_expected_actor,
+              wi.next_expected_action
+         FROM workflow_work_items wi
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = $2
+          AND wi.stage_name = $3
+          AND wi.completed_at IS NULL
+          AND wi.next_expected_actor IS NOT NULL
+          AND wi.next_expected_action = ANY($4::text[])
+        ORDER BY wi.created_at ASC
+        LIMIT 1`,
+      [tenantId, workflowId, stageName, Array.from(COMPLETION_BLOCKING_NEXT_ACTIONS)],
+    );
+    const row = result.rows[0];
+    if (!row?.next_expected_actor || !row.next_expected_action) {
+      return;
+    }
+
+    const expectation = describePendingContinuation(row.next_expected_action);
+    throw new ValidationError(
+      `Cannot complete workflow while stage '${stageName}' still has required ${expectation} by '${row.next_expected_actor}' pending on work item '${row.title}'.`,
+    );
+  }
+
   private async completeWorkflowInTransaction(
     identity: ApiKeyIdentity,
     workflowId: string,
@@ -759,6 +812,12 @@ export class PlaybookWorkflowControlService {
         throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`);
       }
       await this.assertStageHasNoBlockingAssessmentResolution(
+        identity.tenantId,
+        workflowId,
+        stage.name,
+        db,
+      );
+      await this.assertStageHasNoPendingBlockingContinuation(
         identity.tenantId,
         workflowId,
         stage.name,
@@ -1005,6 +1064,7 @@ export class PlaybookWorkflowControlService {
         workItem.title,
         db,
       );
+      this.assertNoPendingBlockingContinuation(workItem);
     }
     if (sameNormalizedWorkItem(workItem, normalizedUpdate)) {
       return toWorkItemResponse(workItem);
@@ -1878,6 +1938,17 @@ function toStageDecisionResponse(
       error: activation.error ?? null,
     },
   };
+}
+
+function describePendingContinuation(action: string) {
+  switch (action) {
+    case 'approve':
+      return 'approval';
+    case 'rework':
+      return 'rework';
+    default:
+      return 'assessment';
+  }
 }
 
 function asString(value: unknown) {
