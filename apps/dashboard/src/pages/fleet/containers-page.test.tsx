@@ -36,6 +36,7 @@ describe('containers page source', () => {
     expect(tableSource).not.toContain('<TableHead>Container</TableHead>');
     expect(tableSource).not.toContain('<p className="text-xs text-muted-foreground">{row.name}</p>');
     expect(tableSource).toContain('const TABLE_COLUMN_CLASS_NAMES = [');
+    expect(tableSource).toContain("const TABLE_COLUMN_CLASS_NAMES = [\n  'w-[7rem]',\n  'w-[12rem]',");
     expect(tableSource).toContain('<colgroup>');
     expect(tableSource).toContain('table-fixed');
     expect(tableSource).toContain('TABLE_COLUMN_CLASS_NAMES.map');

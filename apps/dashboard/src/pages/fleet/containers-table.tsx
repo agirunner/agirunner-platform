@@ -15,7 +15,7 @@ import {
 } from './containers-page.support.js';
 
 const TABLE_COLUMN_CLASS_NAMES = [
-  'w-[12rem]',
+  'w-[7rem]',
   'w-[12rem]',
   'w-[8rem]',
   'w-[11rem]',
