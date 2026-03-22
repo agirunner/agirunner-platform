@@ -17,10 +17,13 @@
   "actions": [],
   "expect": {
     "state": "completed",
-    "task_rework_sequences": [
+    "continuity_rework_sequences": [
       {
         "stage_name": "implementation",
-        "required_role": "rework-implementation-engineer"
+        "required_role": "rework-implementation-engineer",
+        "minimum_rework_count": 1,
+        "assessment_stage_name": "implementation",
+        "assessment_task_min_count": 2
       }
     ],
     "assessment_sequences": [

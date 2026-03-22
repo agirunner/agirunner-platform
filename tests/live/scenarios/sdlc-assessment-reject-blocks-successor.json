@@ -16,7 +16,7 @@
   "approvals": [],
   "actions": [],
   "expect": {
-    "state": "failed",
+    "state": "active",
     "assessment_sequences": [
       {
         "subject_role": "reject-implementation-engineer",

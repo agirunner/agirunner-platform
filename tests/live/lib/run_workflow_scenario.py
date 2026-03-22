@@ -246,6 +246,14 @@ def _board_columns(snapshot: Any) -> list[dict[str, Any]]:
     return columns if isinstance(columns, list) else []
 
 
+def _board_work_items(snapshot: Any) -> list[dict[str, Any]]:
+    data = _nested_data(snapshot)
+    if not isinstance(data, dict):
+        return []
+    work_items = data.get("work_items", [])
+    return work_items if isinstance(work_items, list) else []
+
+
 def _work_items(snapshot: Any) -> list[dict[str, Any]]:
     data = _nested_data(snapshot)
     return data if isinstance(data, list) else []
@@ -1068,11 +1076,11 @@ def evaluate_expectations(
     board_expectations = expectations.get("board", {})
     if isinstance(board_expectations, dict) and "blocked_count" in board_expectations:
         blocked_items = 0
-        for column in _board_columns(board):
-            if column.get("id") == "blocked":
-                work_items_list = column.get("work_items", [])
-                if isinstance(work_items_list, list):
-                    blocked_items += len(work_items_list)
+        for work_item in _board_work_items(board):
+            if not isinstance(work_item, dict):
+                continue
+            if work_item.get("column_id") == "blocked":
+                blocked_items += 1
         expected_blocked_count = int(board_expectations["blocked_count"])
         passed = blocked_items == expected_blocked_count
         checks.append(

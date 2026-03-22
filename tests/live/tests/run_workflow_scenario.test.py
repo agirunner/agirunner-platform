@@ -1424,7 +1424,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                     {"id": "task-2", "is_orchestrator_task": False},
                 ],
             },
-            board={"data": {"data": {"columns": [{"id": "blocked", "work_items": []}]}}},
+            board={"data": {"data": {"columns": [{"id": "blocked"}], "work_items": []}}},
             work_items={
                 "data": {
                     "data": [
@@ -1454,7 +1454,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "workflow_tasks": {"min_non_orchestrator_count": 2},
             },
             workflow={"state": "failed", "tasks": [{"id": "task-1", "is_orchestrator_task": False}]},
-            board={"data": {"data": {"columns": [{"id": "blocked", "work_items": [{"id": "wi-1"}]}]}}},
+            board={"data": {"data": {"columns": [{"id": "blocked"}], "work_items": [{"id": "wi-1", "column_id": "blocked"}]}}},
             work_items={"data": {"data": [{"column_id": "active"}]}},
             workspace={"memory": {}},
             artifacts={"data": {"items": []}},
