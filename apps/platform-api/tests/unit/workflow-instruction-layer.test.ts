@@ -392,4 +392,60 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
     expect(layer!.content).toContain('A predecessor task remaining in output_pending_assessment is expected while required assessment is pending and does not block dispatching the listed required assessment task.');
   });
+
+  it('tells the orchestrator to seed an empty started planned stage from predecessor lineage', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        active_stages: ['publication-release'],
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions: 'Draft, assess, approve, then publish.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            checkpoints: [
+              { name: 'draft-package', goal: 'Prepare the draft package' },
+              { name: 'operator-approval', goal: 'Record a human decision', human_gate: true },
+              { name: 'publication-release', goal: 'Finalize the publication packet' },
+            ],
+            handoff_rules: [
+              { from_role: 'fact-check-assessor', to_role: 'publication-editor', checkpoint: 'operator-approval', required: true },
+            ],
+          },
+        },
+      },
+      orchestratorContext: {
+        activation: {
+          payload: {
+            stage_name: 'publication-release',
+            previous_stage_name: 'operator-approval',
+          },
+        },
+        board: {
+          work_items: [
+            {
+              id: 'wi-1',
+              stage_name: 'draft-package',
+              column_id: 'done',
+              owner_role: 'research-lead',
+            },
+          ],
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Current Stage\npublication-release');
+    expect(layer!.content).toContain('## Successor Seeding');
+    expect(layer!.content).toContain('No work item currently exists in "publication-release".');
+    expect(layer!.content).toContain('This stage was entered from "operator-approval"');
+    expect(layer!.content).toContain('creating the first successor work item in "publication-release"');
+    expect(layer!.content).toContain('Do not escalate solely because the newly started planned stage is empty.');
+  });
 });

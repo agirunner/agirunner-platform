@@ -49,6 +49,9 @@ export function buildWorkflowInstructionLayer(
   const activationAnchor = input.isOrchestratorTask
     ? readOrchestratorActivationAnchor(input.orchestratorContext)
     : { workItemId: null, stageName: null };
+  const activationTransition = input.isOrchestratorTask
+    ? readActivationStageTransition(input.orchestratorContext)
+    : { previousStageName: null };
   const focusedWorkItem = input.isOrchestratorTask
     ? selectFocusedWorkItem(input.orchestratorContext, activationAnchor)
     : asRecord(input.workItem);
@@ -61,6 +64,9 @@ export function buildWorkflowInstructionLayer(
   const checkpoint = definition.checkpoints.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(focusedWorkItem.column_id));
   const repoBacked = isRepositoryBacked(input.workspace, workflow, input.taskInput);
+  const currentStageHasWorkItems = input.isOrchestratorTask
+    ? hasStageWorkItems(input.orchestratorContext, stageName)
+    : false;
   const sections = input.isOrchestratorTask
     ? buildOrchestratorSections({
         lifecycle,
@@ -71,6 +77,8 @@ export function buildWorkflowInstructionLayer(
         focusedWorkItem,
         activeStages: readStringArray(workflowInstructionContext.active_stages),
         pendingDispatches: readPendingDispatches(input.orchestratorContext),
+        activationTransition,
+        currentStageHasWorkItems,
         repoBacked,
       })
     : buildSpecialistSections({
@@ -103,6 +111,8 @@ function buildOrchestratorSections(params: {
   focusedWorkItem: Record<string, unknown>;
   activeStages: string[];
   pendingDispatches: Array<{ work_item_id: string; stage_name: string | null; actor: string; action: string; title: string | null }>;
+  activationTransition: { previousStageName: string | null };
+  currentStageHasWorkItems: boolean;
   repoBacked: boolean;
 }) {
   const sections = [
@@ -119,6 +129,14 @@ function buildOrchestratorSections(params: {
     const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
     if (params.lifecycle === 'planned') {
       sections.push(`## Stage Routing\n${formatStageRouting(params.checkpoint.name, successorCheckpoint)}`);
+      const emptyStageGuidance = formatEmptyPlannedStageGuidance(
+        params.checkpoint.name,
+        params.activationTransition.previousStageName,
+        params.currentStageHasWorkItems,
+      );
+      if (emptyStageGuidance) {
+        sections.push(`## Successor Seeding\n${emptyStageGuidance}`);
+      }
     }
   } else if (params.boardColumn) {
     sections.push(`## Current Board Focus\n${params.boardColumn.label}`);
@@ -499,6 +517,33 @@ function formatStageRouting(
   ].join('\n');
 }
 
+function formatEmptyPlannedStageGuidance(
+  currentStageName: string,
+  previousStageName: string | null,
+  currentStageHasWorkItems: boolean,
+) {
+  if (currentStageHasWorkItems) {
+    return '';
+  }
+
+  const lines = [
+    `No work item currently exists in "${currentStageName}".`,
+    `When a planned stage has just started and is empty, creating the first successor work item in "${currentStageName}" from cleared predecessor lineage is expected workflow progress, not an error.`,
+    `Use the latest accepted predecessor work item, its cleared handoffs, and any satisfied approval or assessment outcomes to seed the first work item in "${currentStageName}" before dispatching successor specialists.`,
+    'Do not escalate solely because the newly started planned stage is empty.',
+  ];
+
+  if (previousStageName) {
+    lines.splice(
+      1,
+      0,
+      `This stage was entered from "${previousStageName}", so inspect that predecessor stage first when deriving the successor work item.`,
+    );
+  }
+
+  return lines.join('\n');
+}
+
 function nextCheckpointName(
   definition: ReturnType<typeof parsePlaybookDefinition>,
   checkpointName: string | null,
@@ -589,6 +634,48 @@ function readOrchestratorActivationAnchor(
   }
 
   return { workItemId: null, stageName: null };
+}
+
+function readActivationStageTransition(
+  orchestratorContext: Record<string, unknown> | null | undefined,
+) {
+  const context = asRecord(orchestratorContext);
+  const activation = asRecord(context.activation);
+  const activationEvents = Array.isArray(activation.events)
+    ? activation.events
+    : [];
+  const payloadSources = [
+    activation.payload,
+    ...activationEvents.map((event) => asRecord(event).payload),
+  ].map(asRecord);
+
+  for (const payload of payloadSources) {
+    const previousStageName = readString(payload.previous_stage_name);
+    if (previousStageName) {
+      return { previousStageName };
+    }
+  }
+
+  return { previousStageName: null };
+}
+
+function hasStageWorkItems(
+  orchestratorContext: Record<string, unknown> | null | undefined,
+  stageName: string | null,
+) {
+  if (!stageName) {
+    return false;
+  }
+
+  const context = asRecord(orchestratorContext);
+  const board = asRecord(context.board);
+  const workItems = Array.isArray(board.work_items)
+    ? board.work_items.filter(
+        (entry): entry is Record<string, unknown> =>
+          Boolean(entry) && typeof entry === 'object' && !Array.isArray(entry),
+      )
+    : [];
+  return workItems.some((entry) => readString(entry.stage_name) === stageName);
 }
 
 function isRepositoryBacked(
