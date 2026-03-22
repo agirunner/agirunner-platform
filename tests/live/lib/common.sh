@@ -191,6 +191,7 @@ prepare_live_test_fixture_branch() {
   local seed_dir="$5"
   local git_user_name="$6"
   local git_user_email="$7"
+  local origin_push_url
 
   rm -rf "${working_root}"
   mkdir -p "$(dirname "${working_root}")"
@@ -209,5 +210,7 @@ prepare_live_test_fixture_branch() {
     git -C "${working_root}" commit -m "chore: prepare live test branch"
   fi
 
+  origin_push_url="$(git -C "${fixtures_root}" remote get-url --push origin)"
+  git -C "${working_root}" remote set-url --push origin "${origin_push_url}"
   git -C "${working_root}" push --force origin HEAD:"${run_branch}"
 }
