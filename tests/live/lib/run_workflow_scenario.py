@@ -545,10 +545,16 @@ def _task_kind(task: dict[str, Any]) -> str:
     direct_kind = task.get("task_kind")
     if isinstance(direct_kind, str) and direct_kind.strip() != "":
         return direct_kind.strip()
+    direct_type = task.get("task_type")
+    if isinstance(direct_type, str) and direct_type.strip() in {"assessment", "approval"}:
+        return direct_type.strip()
     metadata = _task_mapping(task, "metadata")
     metadata_kind = metadata.get("task_kind")
     if isinstance(metadata_kind, str) and metadata_kind.strip() != "":
         return metadata_kind.strip()
+    metadata_type = metadata.get("task_type")
+    if isinstance(metadata_type, str) and metadata_type.strip() in {"assessment", "approval"}:
+        return metadata_type.strip()
     if task.get("is_orchestrator_task"):
         return "orchestrator"
     return "delivery"
