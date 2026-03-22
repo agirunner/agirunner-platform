@@ -197,6 +197,27 @@ function readAssessmentFeedback(metadata: Record<string, unknown>): string | nul
   return readOptionalText(metadata.assessment_feedback);
 }
 
+function resolveRequestedChangesDescription(
+  task: Record<string, unknown>,
+  overrideInput: Record<string, unknown> | null,
+  nextInput: Record<string, unknown>,
+): string | null {
+  const explicitOverrideDescription = readOptionalText(overrideInput?.description);
+  if (explicitOverrideDescription) {
+    return explicitOverrideDescription;
+  }
+
+  const taskInput = asRecord(task.input);
+  const taskMetadata = asRecord(task.metadata);
+  return (
+    readOptionalText(taskInput.rework_completion_scope)
+    ?? readOptionalText(taskMetadata.rework_completion_scope)
+    ?? readOptionalText(nextInput.description)
+    ?? readOptionalText(taskInput.description)
+    ?? readOptionalText(taskMetadata.description)
+  );
+}
+
 function matchesReviewMetadata(
   task: Record<string, unknown>,
   expected: {
@@ -1536,13 +1557,18 @@ export class TaskLifecycleService {
     if (hasAppliedLatestAssessmentRequest(task, latestAssessmentRequest)) {
       return this.deps.toTaskResponse(task);
     }
-    const nextInput = payload.override_input ?? {
+    const overrideInput = payload.override_input ?? null;
+    const nextInput = overrideInput ?? {
       ...asRecord(task.input),
       assessment_feedback: payload.feedback,
     };
+    const nextDescription = resolveRequestedChangesDescription(task, overrideInput, nextInput);
+    const nextReworkInput = nextDescription
+      ? { ...nextInput, description: nextDescription }
+      : nextInput;
     if (
       (task.state === 'ready' || task.state === 'pending' || task.state === 'failed') &&
-      isJsonEquivalent(task.input, nextInput) &&
+      isJsonEquivalent(task.input, nextReworkInput) &&
       matchesReviewMetadata(task, {
         action: 'request_changes',
         feedback: payload.feedback,
@@ -1647,8 +1673,9 @@ export class TaskLifecycleService {
       clearEscalationMetadata: true,
       reworkIncrement: true,
       retryIncrement: true,
-      overrideInput: nextInput,
+      overrideInput: nextReworkInput,
       metadataPatch: {
+        ...(nextDescription ? { description: nextDescription } : {}),
         assessment_feedback: payload.feedback,
         assessment_action: 'request_changes',
         assessment_updated_at: new Date().toISOString(),

@@ -1028,6 +1028,100 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('refreshes the reopened task contract from explicit rework scope when requesting changes', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-rework-scope',
+                state: 'ready',
+                workflow_id: null,
+                input: {
+                  description: 'Deliver revision 2 release-ready fields and docs.',
+                  rework_completion_scope: 'Deliver revision 2 release-ready fields and docs.',
+                  assessment_feedback: 'Add the release-ready payload and README coverage.',
+                },
+                metadata: {
+                  description: 'Deliver revision 2 release-ready fields and docs.',
+                  assessment_action: 'request_changes',
+                },
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-rework-scope',
+        state: 'output_pending_assessment',
+        workflow_id: null,
+        input: {
+          description: 'Implement revision 1 only.',
+          rework_completion_scope: 'Deliver revision 2 release-ready fields and docs.',
+        },
+        rework_count: 0,
+        metadata: {
+          description: 'Implement revision 1 only.',
+        },
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-rework-scope',
+      {
+        feedback: 'Add the release-ready payload and README coverage.',
+      },
+    );
+
+    expect(result.input).toMatchObject({
+      description: 'Deliver revision 2 release-ready fields and docs.',
+      rework_completion_scope: 'Deliver revision 2 release-ready fields and docs.',
+      assessment_feedback: 'Add the release-ready payload and README coverage.',
+    });
+    expect(result.metadata).toMatchObject({
+      description: 'Deliver revision 2 release-ready fields and docs.',
+      assessment_action: 'request_changes',
+    });
+
+    const updateCall = client.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.startsWith('UPDATE tasks SET')) as
+      | [string, unknown[]]
+      | undefined;
+    expect(updateCall?.[1]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          description: 'Deliver revision 2 release-ready fields and docs.',
+          rework_completion_scope: 'Deliver revision 2 release-ready fields and docs.',
+          assessment_feedback: 'Add the release-ready payload and README coverage.',
+        }),
+        expect.objectContaining({
+          description: 'Deliver revision 2 release-ready fields and docs.',
+          assessment_action: 'request_changes',
+        }),
+      ]),
+    );
+  });
+
   it('enqueues a workflow activation when an assessment requests changes on a playbook-backed task', async () => {
     const eventService = { emit: vi.fn() };
     const activationDispatchService = { dispatchActivation: vi.fn(async () => 'orchestrator-task-2') };
