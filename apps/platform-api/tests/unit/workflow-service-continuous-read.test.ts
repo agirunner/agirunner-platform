@@ -10,38 +10,43 @@ const config = {
 
 describe('WorkflowService continuous workflow reads', () => {
   it('removes workflow-global current_stage on workflow lists and exposes derived active stages', async () => {
-    const pool = {
-      query: vi
-        .fn()
-        .mockResolvedValueOnce({ rows: [{ total: '1' }] })
-        .mockResolvedValueOnce({
-          rows: [
-            {
-              id: 'wf-1',
-              tenant_id: 'tenant-1',
+    const query = vi
+      .fn()
+      .mockResolvedValueOnce({ rows: [{ total: '1' }] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 'wf-1',
+            tenant_id: 'tenant-1',
+            lifecycle: 'ongoing',
+            current_stage: 'legacy-stage',
+            playbook_definition: {
               lifecycle: 'ongoing',
-              current_stage: 'legacy-stage',
-              playbook_definition: {
-                lifecycle: 'ongoing',
-                roles: ['triager'],
-                board: { columns: [{ id: 'planned', label: 'Planned' }] },
-                stages: [
-                  { name: 'triage', goal: 'Triage inbound work' },
-                  { name: 'implementation', goal: 'Implement approved work' },
-                ],
-              },
-              work_item_summary: {
-                total_work_items: 3,
-                open_work_item_count: 2,
-                completed_work_item_count: 1,
-                active_stage_count: 99,
-                awaiting_gate_count: 1,
-                active_stage_names: ['implementation', 'triage'],
-              },
-              metadata: {},
+              roles: ['triager'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [
+                { name: 'triage', goal: 'Triage inbound work' },
+                { name: 'implementation', goal: 'Implement approved work' },
+              ],
             },
-          ],
-        }),
+            work_item_summary: {
+              total_work_items: 3,
+              open_work_item_count: 2,
+              blocked_work_item_count: 1,
+              completed_work_item_count: 1,
+              active_stage_count: 99,
+              awaiting_gate_count: 1,
+              active_stage_names: ['implementation', 'triage'],
+            },
+            metadata: {},
+          },
+        ],
+      })
+      .mockResolvedValueOnce({
+        rows: [{ workflow_id: 'wf-1', blocked_work_item_count: 1 }],
+      });
+    const pool = {
+      query,
     };
 
     const service = new WorkflowService(pool as never, { emit: vi.fn() } as never, config as never);
@@ -68,6 +73,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(result.data[0].work_item_summary).toEqual({
       total_work_items: 3,
       open_work_item_count: 2,
+      blocked_work_item_count: 1,
       completed_work_item_count: 1,
       active_stage_count: 2,
       awaiting_gate_count: 1,
@@ -265,6 +271,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(workflow.work_item_summary).toEqual({
       total_work_items: 3,
       open_work_item_count: 2,
+      blocked_work_item_count: 0,
       completed_work_item_count: 1,
       active_stage_count: 2,
       awaiting_gate_count: 1,
@@ -750,6 +757,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(workflow.work_item_summary).toEqual({
       total_work_items: 2,
       open_work_item_count: 1,
+      blocked_work_item_count: 0,
       completed_work_item_count: 1,
       active_stage_count: 1,
       awaiting_gate_count: 1,
@@ -1326,6 +1334,7 @@ describe('WorkflowService continuous workflow reads', () => {
     expect(workflow.work_item_summary).toEqual({
       total_work_items: 3,
       open_work_item_count: 2,
+      blocked_work_item_count: 0,
       completed_work_item_count: 1,
       active_stage_count: 2,
       awaiting_gate_count: 1,

@@ -313,7 +313,8 @@ export class WorkflowService {
       ),
     ]);
 
-    const workflowsWithRelations = await this.attachWorkflowRelations(tenantId, rows.rows);
+    const workflowsWithBlockedSummary = await this.attachBlockedWorkItemCounts(tenantId, rows.rows);
+    const workflowsWithRelations = await this.attachWorkflowRelations(tenantId, workflowsWithBlockedSummary);
     return {
       data: workflowsWithRelations.map((workflow) => normalizeWorkflowReadModel(sanitizeWorkflowReadModel(workflow))),
       meta: {
@@ -453,6 +454,127 @@ export class WorkflowService {
         workflow_relations: buildWorkflowRelations(metadata, relatedById),
       };
     });
+  }
+
+  private async attachBlockedWorkItemCounts(
+    tenantId: string,
+    workflows: Array<Record<string, unknown> & { tenant_id: string }>,
+  ) {
+    if (workflows.length === 0) {
+      return workflows;
+    }
+
+    const workflowIds = workflows.map((workflow) => String(workflow.id));
+    const blockedCounts = await this.loadBlockedWorkItemCounts(tenantId, workflowIds);
+
+    return workflows.map((workflow) => {
+      const blockedWorkItemCount = blockedCounts.get(String(workflow.id)) ?? 0;
+      const workItemSummary = asRecord(workflow.work_item_summary);
+      if (Object.keys(workItemSummary).length === 0) {
+        return workflow;
+      }
+      return {
+        ...workflow,
+        work_item_summary: {
+          ...workItemSummary,
+          blocked_work_item_count: blockedWorkItemCount,
+        },
+      };
+    });
+  }
+
+  private async loadBlockedWorkItemCounts(tenantId: string, workflowIds: string[]) {
+    if (workflowIds.length === 0) {
+      return new Map<string, number>();
+    }
+
+    const result = await this.pool.query<{ workflow_id: string; blocked_work_item_count: number }>(
+      `SELECT wi.workflow_id,
+              COUNT(*) FILTER (
+                WHERE wi.completed_at IS NULL
+                  AND (
+                    COALESCE(assessment_rollup.blocking_assessment_count, 0) > 0
+                    OR COALESCE(latest_gate.gate_status, '') IN ('changes_requested', 'rejected')
+                  )
+              )::int AS blocked_work_item_count
+         FROM workflow_work_items wi
+         JOIN workflows w
+           ON w.tenant_id = wi.tenant_id
+          AND w.id = wi.workflow_id
+         LEFT JOIN playbooks pb
+           ON pb.tenant_id = w.tenant_id
+          AND pb.id = w.playbook_id
+         LEFT JOIN workflow_stages ws
+           ON ws.tenant_id = wi.tenant_id
+          AND ws.workflow_id = wi.workflow_id
+          AND ws.name = wi.stage_name
+         LEFT JOIN LATERAL (
+           SELECT th.task_id AS subject_task_id,
+                  th.role AS subject_role,
+                  NULLIF(COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, 0), 0) AS subject_revision
+             FROM task_handoffs th
+            WHERE th.tenant_id = wi.tenant_id
+              AND th.workflow_id = wi.workflow_id
+              AND th.work_item_id = wi.id
+              AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+              AND th.completion = 'full'
+            ORDER BY th.sequence DESC, th.created_at DESC
+            LIMIT 1
+         ) latest_delivery ON true
+         LEFT JOIN LATERAL (
+           SELECT COALESCE(
+                    ARRAY_AGG(DISTINCT rule.assessed_by) FILTER (WHERE rule.assessed_by IS NOT NULL),
+                    ARRAY[]::text[]
+                  ) AS required_assessor_roles
+             FROM jsonb_to_recordset(COALESCE(pb.definition->'assessment_rules', '[]'::jsonb)) AS rule(
+               subject_role text,
+               assessed_by text,
+               checkpoint text,
+               required boolean,
+               optional boolean
+             )
+            WHERE latest_delivery.subject_role IS NOT NULL
+              AND rule.subject_role = latest_delivery.subject_role
+              AND (rule.checkpoint IS NULL OR rule.checkpoint = wi.stage_name)
+              AND COALESCE(rule.required, CASE WHEN rule.optional IS TRUE THEN FALSE ELSE TRUE END)
+         ) assessment_requirements ON true
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*) FILTER (WHERE latest_assessment.resolution IN ('request_changes', 'rejected'))::int AS blocking_assessment_count
+             FROM (
+               SELECT DISTINCT ON (assessment_handoff.role)
+                      assessment_handoff.role,
+                      assessment_handoff.resolution
+                 FROM task_handoffs assessment_handoff
+                WHERE assessment_handoff.tenant_id = wi.tenant_id
+                  AND assessment_handoff.workflow_id = wi.workflow_id
+                  AND COALESCE(assessment_handoff.role_data->>'task_kind', '') = 'assessment'
+                  AND COALESCE(assessment_handoff.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
+                  AND COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
+                  AND (
+                    COALESCE(array_length(assessment_requirements.required_assessor_roles, 1), 0) = 0
+                    OR assessment_handoff.role = ANY(assessment_requirements.required_assessor_roles)
+                  )
+                ORDER BY assessment_handoff.role, assessment_handoff.sequence DESC, assessment_handoff.created_at DESC
+             ) latest_assessment
+         ) assessment_rollup ON true
+         LEFT JOIN LATERAL (
+           SELECT g.status AS gate_status
+             FROM workflow_stage_gates g
+            WHERE g.tenant_id = wi.tenant_id
+              AND g.workflow_id = wi.workflow_id
+              AND g.stage_id = ws.id
+            ORDER BY g.requested_at DESC, g.created_at DESC
+            LIMIT 1
+         ) latest_gate ON true
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = ANY($2::uuid[])
+        GROUP BY wi.workflow_id`,
+      [tenantId, workflowIds],
+    );
+
+    return new Map(
+      result.rows.map((row) => [String(row.workflow_id), Number(row.blocked_work_item_count ?? 0)]),
+    );
   }
 
   async getResolvedConfig(tenantId: string, workflowId: string, showLayers = false) {
@@ -931,6 +1053,7 @@ function normalizeWorkflowWorkItemSummary(
   return {
     total_work_items: readCount(summary.total_work_items),
     open_work_item_count: readCount(summary.open_work_item_count),
+    blocked_work_item_count: readCount(summary.blocked_work_item_count),
     completed_work_item_count: readCount(summary.completed_work_item_count),
     active_stage_count: activeStageNames.length,
     awaiting_gate_count: readCount(summary.awaiting_gate_count),
@@ -981,6 +1104,7 @@ function buildWorkflowWorkItemSummary(
 ): WorkflowWorkItemSummary {
   const totalWorkItems = workItems.length;
   const openWorkItems = workItems.filter((item) => isBoardItemOpen(item, terminalColumns));
+  const blockedWorkItemCount = openWorkItems.filter((item) => isBlockedBoardItem(item)).length;
   const activeStageNames = orderStageNames(
     uniqueStageNames(openWorkItems.map((item) => item.stage_name)),
     workflowStages,
@@ -989,11 +1113,24 @@ function buildWorkflowWorkItemSummary(
   return {
     total_work_items: totalWorkItems,
     open_work_item_count: openWorkItems.length,
+    blocked_work_item_count: blockedWorkItemCount,
     completed_work_item_count: totalWorkItems - openWorkItems.length,
     active_stage_count: activeStageNames.length,
     awaiting_gate_count: awaitingGateCount,
     active_stage_names: activeStageNames,
   };
+}
+
+function isBlockedBoardItem(item: Record<string, unknown>) {
+  if (item.completed_at != null) {
+    return false;
+  }
+  const assessmentStatus = asOptionalString(item.assessment_status);
+  if (assessmentStatus === 'blocked') {
+    return true;
+  }
+  const gateStatus = asOptionalString(item.gate_status);
+  return gateStatus === 'changes_requested' || gateStatus === 'rejected';
 }
 
 function readTerminalColumns(definition: unknown): Set<string> {

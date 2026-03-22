@@ -175,6 +175,30 @@ describe('workflow list support', () => {
     expect(describeOperatorSignal(workflow)).toBe('2 open work items across 1 live stage');
   });
 
+  it('surfaces blocked posture when open work is blocked by assessments', () => {
+    const workflow = {
+      id: 'workflow-blocked',
+      name: 'Blocked',
+      status: 'running',
+      state: 'active',
+      created_at: '2026-03-11',
+      lifecycle: 'ongoing' as const,
+      active_stages: ['implementation'],
+      work_item_summary: {
+        total_work_items: 3,
+        open_work_item_count: 1,
+        blocked_work_item_count: 1,
+        completed_work_item_count: 2,
+        active_stage_count: 1,
+        awaiting_gate_count: 0,
+        active_stage_names: ['implementation'],
+      },
+    };
+
+    expect(resolveStatus(workflow)).toBe('blocked');
+    expect(describeOperatorSignal(workflow)).toBe('1 blocked work item');
+  });
+
   it('uses delivery-centric blocked and terminal fallback signals', () => {
     expect(
       describeOperatorSignal({

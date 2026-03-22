@@ -575,6 +575,7 @@ interface DashboardWorkflowRecordBase {
   work_item_summary?: {
     total_work_items: number;
     open_work_item_count: number;
+    blocked_work_item_count?: number;
     completed_work_item_count: number;
     active_stage_count: number;
     awaiting_gate_count: number;

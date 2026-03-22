@@ -15,6 +15,7 @@ export interface WorkflowListRecord {
   work_item_summary?: {
     total_work_items: number;
     open_work_item_count: number;
+    blocked_work_item_count?: number;
     completed_work_item_count: number;
     active_stage_count: number;
     awaiting_gate_count: number;
@@ -63,6 +64,9 @@ export function normalizeWorkflows(response: unknown): WorkflowListRecord[] {
 export function resolveStatus(workflow: WorkflowListRecord): string {
   const rawState = (workflow.status ?? workflow.state ?? '').toLowerCase();
   const summary = workflow.work_item_summary;
+  if ((summary?.blocked_work_item_count ?? 0) > 0) {
+    return 'blocked';
+  }
   if (summary?.awaiting_gate_count) {
     return 'gated';
   }
@@ -171,6 +175,10 @@ export function describeOperatorSignal(workflow: WorkflowListRecord): string {
     return 'Board run complete';
   }
   if (status === 'blocked') {
+    const blockedCount = summary?.blocked_work_item_count ?? 0;
+    if (blockedCount > 0) {
+      return `${blockedCount} blocked work item${blockedCount === 1 ? '' : 's'}`;
+    }
     const rawState = (workflow.status ?? workflow.state ?? '').toLowerCase();
     if (rawState === 'paused') {
       return 'Stage or gate work paused';
