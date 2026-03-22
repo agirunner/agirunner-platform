@@ -492,7 +492,7 @@ describe('TaskWriteService', () => {
     ).rejects.toThrow(ConflictError);
   });
 
-  it('rejects non-owner task creation on child review work items in planned workflows', async () => {
+  it('allows child assessment work items to dispatch a different assessment role when the stage permits it', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
@@ -508,7 +508,7 @@ describe('TaskWriteService', () => {
               stage_status: 'active',
               stage_gate_status: 'not_requested',
               parent_work_item_id: 'implementation-item',
-              owner_role: 'live-test-reviewer',
+              owner_role: 'implementation-engineer',
               next_expected_actor: null,
               next_expected_action: 'assess',
             }],
@@ -519,8 +519,8 @@ describe('TaskWriteService', () => {
             rowCount: 1,
             rows: [{
               definition: {
-                process_instructions: 'Developer implements and reviewer reviews.',
-                roles: ['live-test-developer', 'live-test-reviewer'],
+                process_instructions: 'Implementation is assessed before release.',
+                roles: ['implementation-engineer', 'acceptance-gate-assessor'],
                 assessment_rules: [],
                 approval_rules: [],
                 handoff_rules: [],
@@ -536,8 +536,8 @@ describe('TaskWriteService', () => {
                 stages: [
                   {
                     name: 'review',
-                    goal: 'Review the implementation',
-                    involves: ['live-test-reviewer', 'live-test-developer'],
+                    goal: 'Assess the implementation output',
+                    involves: ['implementation-engineer', 'acceptance-gate-assessor'],
                   },
                 ],
               },
@@ -595,16 +595,25 @@ describe('TaskWriteService', () => {
           keyPrefix: 'agent-key',
         } as never,
         {
-          title: 'Fix implementation after review feedback',
+          title: 'Assess the implementation output',
           workflow_id: 'workflow-1',
           work_item_id: 'review-item-1',
-          request_id: 'request-review-child-rework',
-          role: 'live-test-developer',
+          request_id: 'request-review-child-assessment',
+          role: 'acceptance-gate-assessor',
           stage_name: 'review',
-          type: 'code',
+          type: 'assessment',
+          task_kind: 'assessment',
+          input: {
+            subject_task_id: 'implementation-task-1',
+            subject_revision: 1,
+          },
         },
       ),
-    ).rejects.toThrow(ValidationError);
+    ).resolves.toEqual(
+      expect.objectContaining({
+        id: 'task-review-rework',
+      }),
+    );
   });
 
   it('applies playbook task loop defaults when workflow tasks do not override them', async () => {

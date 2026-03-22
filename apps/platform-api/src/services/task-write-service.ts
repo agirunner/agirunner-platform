@@ -369,7 +369,6 @@ export class TaskWriteService {
           `in stage '${input.stage_name}' before creating tasks for that stage.`,
       );
     }
-    this.assertChildAssessmentWorkItemOwnership(input, linkedWorkItem);
     await this.assertPlannedStageRoleMembership(tenantId, input, linkedWorkItem, db);
     if (
       input.role
@@ -390,32 +389,6 @@ export class TaskWriteService {
         `Cannot create new tasks for planned workflow stage '${linkedWorkItem.stage_name}' after it has been approved or completed`,
       );
     }
-  }
-
-  private assertChildAssessmentWorkItemOwnership(
-    input: CreateTaskInput,
-    linkedWorkItem: LinkedWorkItemRow,
-  ) {
-    if (
-      linkedWorkItem.workflow_lifecycle !== 'planned'
-      || input.is_orchestrator_task
-      || !linkedWorkItem.parent_work_item_id
-      || linkedWorkItem.next_expected_action !== 'assess'
-      || !input.role?.trim()
-    ) {
-      return;
-    }
-
-    const ownerRole = linkedWorkItem.owner_role?.trim();
-    if (!ownerRole || input.role.trim() === ownerRole) {
-      return;
-    }
-
-    throw new ValidationError(
-      `Role '${input.role.trim()}' cannot run on child assessment work item '${input.work_item_id}'. ` +
-        `Child assessment work items stay owned by configured assessment role '${ownerRole}', and any requested rework ` +
-        `must continue on the parent work item '${linkedWorkItem.parent_work_item_id}'.`,
-    );
   }
 
   private async assertPlannedStageRoleMembership(
