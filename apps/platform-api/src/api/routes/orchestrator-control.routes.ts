@@ -1429,6 +1429,9 @@ interface OrchestratorCreateWorkItemContext {
 interface ReviewedTaskContextRow {
   id: string;
   rework_count: number | null;
+  input: Record<string, unknown> | null;
+  metadata: Record<string, unknown> | null;
+  is_orchestrator_task: boolean | null;
 }
 
 interface ReviewedTaskReadinessRow extends ReviewedTaskContextRow {
@@ -1643,7 +1646,7 @@ async function loadReviewedTaskMetadata(
   reviewedTaskId: string,
 ) {
   const result = await db.query<ReviewedTaskContextRow>(
-    `SELECT id, rework_count
+    `SELECT id, rework_count, input, metadata, is_orchestrator_task
        FROM tasks
       WHERE tenant_id = $1
         AND workflow_id = $2
@@ -1652,6 +1655,18 @@ async function loadReviewedTaskMetadata(
     [tenantId, workflowId, reviewedTaskId],
   );
   const row = result.rows[0];
+  const taskKind = readWorkflowTaskKind(row?.metadata, Boolean(row?.is_orchestrator_task));
+  if (taskKind === 'assessment' || taskKind === 'approval') {
+    const explicitLinkage = readAssessmentSubjectLinkage(row?.input, row?.metadata);
+    if (explicitLinkage.subjectTaskId) {
+      return {
+        subjectTaskId: explicitLinkage.subjectTaskId,
+        subjectWorkItemId: explicitLinkage.subjectWorkItemId,
+        subjectHandoffId: explicitLinkage.subjectHandoffId,
+        subjectRevision: explicitLinkage.subjectRevision,
+      };
+    }
+  }
   return {
     subjectTaskId: row?.id ?? reviewedTaskId,
     subjectWorkItemId: null,
