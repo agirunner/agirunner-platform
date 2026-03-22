@@ -118,7 +118,9 @@ export class TaskWriteService {
       ...(normalizedInput.task_kind ? { task_kind: normalizedInput.task_kind } : {}),
       ...(normalizedInput.credentials ? { credential_refs: normalizedInput.credentials } : {}),
       ...(normalizedInput.parent_id ? { parent_id: normalizedInput.parent_id } : {}),
-      ...(normalizedInput.review_prompt ? { review_prompt: normalizedInput.review_prompt } : {}),
+      ...(normalizedInput.assessment_prompt
+        ? { assessment_prompt: normalizedInput.assessment_prompt }
+        : {}),
     };
     if (normalizedInput.request_id?.trim()) {
       const existing = await this.findExistingByRequestId(
@@ -1243,7 +1245,7 @@ function hasMatchingCreateMetadata(
 
 function selectReplayStableMetadata(metadata: Record<string, unknown>) {
   const stable: Record<string, unknown> = {};
-  for (const key of ['lifecycle_policy', 'task_type', 'task_kind', 'credential_refs', 'review_prompt']) {
+  for (const key of ['lifecycle_policy', 'task_type', 'task_kind', 'credential_refs', 'assessment_prompt']) {
     if (key in metadata) {
       stable[key] = metadata[key];
     }

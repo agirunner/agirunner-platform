@@ -26,7 +26,7 @@ export interface CreateTaskInput {
   depends_on?: string[];
   requires_approval?: boolean;
   requires_output_review?: boolean;
-  review_prompt?: string;
+  assessment_prompt?: string;
   role_config?: Record<string, unknown>;
   environment?: Record<string, unknown>;
   resource_bindings?: unknown[];

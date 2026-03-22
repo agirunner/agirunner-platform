@@ -892,7 +892,7 @@ interface OutputReviewCardProps {
 
 function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onReject, isLoading }: OutputReviewCardProps): JSX.Element {
   const [outputExpanded, setOutputExpanded] = useState(false);
-  const reviewPrompt = task.metadata?.review_prompt as string | undefined;
+  const assessmentPrompt = task.metadata?.assessment_prompt as string | undefined;
   const reworkCount = task.rework_count ?? (task.metadata?.rework_count as number | undefined) ?? 0;
   const reviewFeedback = task.input?.review_feedback as string | undefined;
   const outputText = formatOutput(task.output);
@@ -927,12 +927,12 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
       </CardHeader>
       <CardContent className="space-y-3">
         {/* Review instructions captured on the task payload */}
-        {reviewPrompt && (
+        {assessmentPrompt && (
           <div className="rounded-md border border-blue-200 bg-blue-50 p-3 dark:border-blue-900 dark:bg-blue-950/30">
             <p className="text-xs font-medium text-blue-800 dark:text-blue-300 mb-1 flex items-center gap-1">
-              <MessageSquare className="h-3 w-3" /> Operator Review Guidance
+              <MessageSquare className="h-3 w-3" /> Operator Assessment Guidance
             </p>
-            <p className="text-xs text-blue-700 dark:text-blue-400 whitespace-pre-wrap">{reviewPrompt}</p>
+            <p className="text-xs text-blue-700 dark:text-blue-400 whitespace-pre-wrap">{assessmentPrompt}</p>
           </div>
         )}
 

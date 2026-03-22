@@ -36,7 +36,7 @@ const taskCreateSchema = z.object({
   depends_on: z.array(z.string().uuid()).optional(),
   requires_approval: z.boolean().optional(),
   requires_output_review: z.boolean().optional(),
-  review_prompt: z.string().max(2000).optional(),
+  assessment_prompt: z.string().max(2000).optional(),
   role_config: z.record(z.unknown()).optional(),
   environment: z.record(z.unknown()).optional(),
   resource_bindings: z.array(z.unknown()).optional(),

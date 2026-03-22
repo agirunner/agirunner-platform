@@ -74,13 +74,13 @@ describe('task detail context support', () => {
 
     expect(
       buildPreviewFacts({
-        review_prompt: 'Validate rollback notes',
+        assessment_prompt: 'Validate rollback notes',
         attempts: 3,
         checks: ['lint', 'tests'],
         repo: { name: 'agirunner' },
       }),
     ).toEqual([
-      { label: 'review prompt', value: 'Validate rollback notes' },
+      { label: 'assessment prompt', value: 'Validate rollback notes' },
       { label: 'attempts', value: '3' },
       { label: 'checks', value: '2 items' },
       { label: 'repo', value: '1 field' },
