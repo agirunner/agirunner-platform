@@ -1131,7 +1131,7 @@ export class PlaybookWorkflowControlService {
              FROM task_handoffs th
             WHERE th.tenant_id = $1
               AND th.workflow_id = $2
-              AND th.work_item_id = $4
+              AND th.work_item_id = $3
               AND th.completion = 'full'
               AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
             ORDER BY th.sequence DESC, th.created_at DESC
@@ -1146,7 +1146,7 @@ export class PlaybookWorkflowControlService {
                  FROM task_handoffs th
                 WHERE th.tenant_id = $1
                   AND th.workflow_id = $2
-                  AND th.work_item_id = $4
+                  AND th.work_item_id = $3
                   AND COALESCE(th.role_data->>'task_kind', '') = 'assessment'
                   AND COALESCE(th.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
                   AND COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)

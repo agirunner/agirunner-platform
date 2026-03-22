@@ -2078,6 +2078,8 @@ describe('PlaybookWorkflowControlService', () => {
           };
         }
         if (sql.includes('FROM task_handoffs th') && sql.includes("resolution IN ('request_changes', 'rejected')")) {
+          expect(sql).toContain('th.work_item_id = $3');
+          expect(sql).not.toContain('th.work_item_id = $4');
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-implementation-1']);
           return {
             rowCount: 1,
@@ -2160,6 +2162,8 @@ describe('PlaybookWorkflowControlService', () => {
           };
         }
         if (sql.includes('FROM task_handoffs th') && sql.includes("resolution IN ('request_changes', 'rejected')")) {
+          expect(sql).toContain('th.work_item_id = $3');
+          expect(sql).not.toContain('th.work_item_id = $4');
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-implementation-1']);
           return {
             rowCount: 0,
