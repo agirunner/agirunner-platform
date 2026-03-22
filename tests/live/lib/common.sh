@@ -182,3 +182,32 @@ reset_live_test_host_workspace() {
   mkdir -p "${host_root}"
   copy_live_test_seed_tree "${seed_dir}" "${host_root}"
 }
+
+prepare_live_test_fixture_branch() {
+  local fixtures_root="$1"
+  local working_root="$2"
+  local run_branch="$3"
+  local default_branch="$4"
+  local seed_dir="$5"
+  local git_user_name="$6"
+  local git_user_email="$7"
+
+  rm -rf "${working_root}"
+  mkdir -p "$(dirname "${working_root}")"
+  git clone "${fixtures_root}" "${working_root}"
+  mkdir -p "${working_root}"
+  git -C "${working_root}" checkout -B "${run_branch}" "origin/${default_branch}"
+  git -C "${working_root}" config user.name "${git_user_name}"
+  git -C "${working_root}" config user.email "${git_user_email}"
+  find "${working_root}" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+  copy_live_test_seed_tree "${seed_dir}" "${working_root}"
+  git -C "${working_root}" add -A
+
+  if git -C "${working_root}" diff --cached --quiet --exit-code; then
+    git -C "${working_root}" commit --allow-empty -m "chore: prepare live test branch"
+  else
+    git -C "${working_root}" commit -m "chore: prepare live test branch"
+  fi
+
+  git -C "${working_root}" push --force origin HEAD:"${run_branch}"
+}

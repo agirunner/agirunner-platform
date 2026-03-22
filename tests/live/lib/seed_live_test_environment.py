@@ -265,6 +265,36 @@ def sync_playbook(client: ApiClient, playbook_fixture_path: str) -> dict[str, An
     )
 
 
+def sync_library_profiles(
+    client: ApiClient,
+    *,
+    library_root: str,
+    provider_type: str | None = None,
+    resolved_model_id: str | None = None,
+) -> dict[str, dict[str, Any]]:
+    registry: dict[str, dict[str, Any]] = {}
+    library_path = Path(library_root)
+    for profile_dir in sorted(path for path in library_path.iterdir() if path.is_dir()):
+        roles_fixture = profile_dir / "roles.json"
+        playbook_fixture = profile_dir / "playbook.json"
+        if not roles_fixture.is_file() or not playbook_fixture.is_file():
+            continue
+
+        roles = sync_roles(
+            client,
+            str(roles_fixture),
+            provider_type=provider_type,
+            resolved_model_id=resolved_model_id,
+        )
+        playbook = sync_playbook(client, str(playbook_fixture))
+        registry[profile_dir.name] = {
+            "playbook_id": playbook["id"],
+            "playbook_slug": playbook["slug"],
+            "role_names": [role["name"] for role in roles],
+        }
+    return registry
+
+
 def reasoning_config(default_effort: str) -> dict[str, Any]:
     return {
         "type": "effort",

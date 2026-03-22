@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LIVE_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${LIVE_TEST_ROOT}/../.." && pwd)"
+
+# shellcheck disable=SC1091
+source "${LIVE_TEST_ROOT}/lib/common.sh"
+
+LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
+load_live_test_env "${LIVE_TEST_ENV_FILE}"
+
+LIVE_TEST_ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
+LIVE_TEST_BOOTSTRAP_DIR="${LIVE_TEST_BOOTSTRAP_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/bootstrap}"
+LIVE_TEST_SHARED_CONTEXT_FILE="${LIVE_TEST_SHARED_CONTEXT_FILE:-${LIVE_TEST_BOOTSTRAP_DIR}/context.json}"
+LIVE_TEST_TRACE_DIR="${LIVE_TEST_TRACE_DIR:-${LIVE_TEST_BOOTSTRAP_DIR}/api-trace}"
+LIVE_TEST_PLATFORM_ROOT="${LIVE_TEST_PLATFORM_ROOT:-${REPO_ROOT}}"
+LIVE_TEST_COMPOSE_FILE="${LIVE_TEST_COMPOSE_FILE:-${LIVE_TEST_PLATFORM_ROOT}/docker-compose.yml}"
+LIVE_TEST_COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME:-agirunner-platform}"
+LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT:-${LIVE_TEST_ROOT}/library}"
+LIVE_TEST_DEFAULT_BRANCH="${LIVE_TEST_DEFAULT_BRANCH:-main}"
+RUNTIME_REPO_PATH="${RUNTIME_REPO_PATH:-${REPO_ROOT}/../agirunner-runtime}"
+FIXTURES_REPO_PATH="${FIXTURES_REPO_PATH:-${REPO_ROOT}/../agirunner-test-fixtures}"
+RUNTIME_IMAGE="${RUNTIME_IMAGE:-agirunner-runtime:local}"
+EXECUTION_IMAGE="${EXECUTION_IMAGE:-agirunner-runtime-execution:local}"
+LIVE_TEST_PROVIDER_AUTH_MODE="${LIVE_TEST_PROVIDER_AUTH_MODE:-oauth}"
+LIVE_TEST_PROVIDER_TYPE="${LIVE_TEST_PROVIDER_TYPE:-openai}"
+LIVE_TEST_PROVIDER_NAME="${LIVE_TEST_PROVIDER_NAME:-OpenAI (Subscription)}"
+LIVE_TEST_PROVIDER_BASE_URL="${LIVE_TEST_PROVIDER_BASE_URL:-https://chatgpt.com/backend-api}"
+LIVE_TEST_PROVIDER_API_KEY="${LIVE_TEST_PROVIDER_API_KEY:-${LIVE_TEST_OPENAI_API_KEY:-}}"
+LIVE_TEST_MODEL_ID="${LIVE_TEST_MODEL_ID:-gpt-5.4}"
+LIVE_TEST_MODEL_ENDPOINT_TYPE="${LIVE_TEST_MODEL_ENDPOINT_TYPE:-responses}"
+LIVE_TEST_SYSTEM_REASONING_EFFORT="${LIVE_TEST_SYSTEM_REASONING_EFFORT:-low}"
+LIVE_TEST_SPECIALIST_MODEL_ID="${LIVE_TEST_SPECIALIST_MODEL_ID:-gpt-5.4-mini}"
+LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE="${LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE:-${LIVE_TEST_MODEL_ENDPOINT_TYPE}}"
+LIVE_TEST_SPECIALIST_REASONING_EFFORT="${LIVE_TEST_SPECIALIST_REASONING_EFFORT:-medium}"
+LIVE_TEST_RUN_SCRIPT="${LIVE_TEST_RUN_SCRIPT:-${LIVE_TEST_PLATFORM_ROOT}/tests/live/lib/seed_live_test_shared_environment.py}"
+
+require_live_test_dir "${RUNTIME_REPO_PATH}" "runtime repo"
+require_live_test_dir "${LIVE_TEST_PLATFORM_ROOT}/apps/platform-api" "platform api app"
+require_live_test_file "${LIVE_TEST_COMPOSE_FILE}" "platform docker compose file"
+require_live_test_dir "${LIVE_TEST_LIBRARY_ROOT}" "live test library"
+require_live_test_file "${RUNTIME_REPO_PATH}/Dockerfile.execution" "execution Dockerfile"
+require_live_test_file "${LIVE_TEST_RUN_SCRIPT}" "shared live test seed script"
+require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
+require_live_test_dir "${FIXTURES_REPO_PATH}" "fixtures repo"
+
+mkdir -p "${LIVE_TEST_BOOTSTRAP_DIR}" "${LIVE_TEST_TRACE_DIR}"
+
+log_live_test "building runtime image ${RUNTIME_IMAGE}"
+docker build -t "${RUNTIME_IMAGE}" "${RUNTIME_REPO_PATH}"
+
+log_live_test "building execution image ${EXECUTION_IMAGE}"
+docker build -f "${RUNTIME_REPO_PATH}/Dockerfile.execution" -t "${EXECUTION_IMAGE}" "${RUNTIME_REPO_PATH}"
+
+refresh_live_test_remote_branch "${FIXTURES_REPO_PATH}" "${LIVE_TEST_DEFAULT_BRANCH}"
+git -C "${FIXTURES_REPO_PATH}" checkout "${LIVE_TEST_DEFAULT_BRANCH}"
+git -C "${FIXTURES_REPO_PATH}" reset --hard "origin/${LIVE_TEST_DEFAULT_BRANCH}"
+git -C "${FIXTURES_REPO_PATH}" clean -fdx
+
+log_live_test "rebuilding standard docker compose stack"
+(
+  cd "${LIVE_TEST_PLATFORM_ROOT}"
+  export COMPOSE_PROJECT_NAME="${LIVE_TEST_COMPOSE_PROJECT_NAME}"
+  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" down -v --remove-orphans
+  wait_for_live_test_compose_project_down "${LIVE_TEST_COMPOSE_PROJECT_NAME}"
+  docker compose -p "${LIVE_TEST_COMPOSE_PROJECT_NAME}" -f "${LIVE_TEST_COMPOSE_FILE}" up -d --build
+)
+
+export PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
+wait_for_live_test_http "${PLATFORM_API_BASE_URL}/health" "platform api health"
+
+log_live_test "seeding shared platform state through API"
+export LIVE_TEST_TRACE_DIR
+export LIVE_TEST_SHARED_CONTEXT_FILE
+export LIVE_TEST_LIBRARY_ROOT
+export LIVE_TEST_PROVIDER_AUTH_MODE
+export LIVE_TEST_PROVIDER_TYPE
+export LIVE_TEST_PROVIDER_NAME
+export LIVE_TEST_PROVIDER_BASE_URL
+export LIVE_TEST_PROVIDER_API_KEY
+export LIVE_TEST_MODEL_ID
+export LIVE_TEST_MODEL_ENDPOINT_TYPE
+export LIVE_TEST_SYSTEM_REASONING_EFFORT
+export LIVE_TEST_SPECIALIST_MODEL_ID
+export LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE
+export LIVE_TEST_SPECIALIST_REASONING_EFFORT
+python3 "${LIVE_TEST_RUN_SCRIPT}" >"${LIVE_TEST_SHARED_CONTEXT_FILE}"
+
+log_live_test "shared bootstrap context written to ${LIVE_TEST_SHARED_CONTEXT_FILE}"

@@ -3,6 +3,10 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SCRIPT_PATH="${ROOT_DIR}/tests/live/scenarios/run-live-scenario.sh"
+SCENARIO_NAME="sdlc-assessment-approve"
+SCENARIO_PROFILE="sdlc-single-assessment"
+SCENARIO_STORAGE_TYPE="git_remote"
+SCENARIO_FILE="${ROOT_DIR}/tests/live/scenarios/${SCENARIO_NAME}.json"
 
 fail() {
   echo "[tests/live/run-live-scenario.test] $*" >&2
@@ -36,7 +40,7 @@ test_scenario_profile_is_exported_to_bootstrap() {
   envfile="${tmpdir}/env/local.env"
   output_root="${tmpdir}/artifacts"
   context_file="${output_root}/bootstrap/context.json"
-  run_file="${output_root}/bug-fix-positive/workflow-run.json"
+  run_file="${output_root}/${SCENARIO_NAME}/workflow-run.json"
   bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
   mkdir -p "${stubdir}" "$(dirname "${context_file}")" "$(dirname "${envfile}")"
 
@@ -54,17 +58,17 @@ EOF
 printf "bootstrap LIVE_TEST_PROFILE=%s LIVE_TEST_WORKSPACE_STORAGE_TYPE=%s LIVE_TEST_SCENARIO_FILE=%s LIVE_TEST_SCENARIO_NAME=%s\n" "${LIVE_TEST_PROFILE:-}" "${LIVE_TEST_WORKSPACE_STORAGE_TYPE:-}" "${LIVE_TEST_SCENARIO_FILE:-}" "${LIVE_TEST_SCENARIO_NAME:-}" >>"'"${logfile}"'"
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
 
-  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix" "git_remote"; else printf "%s\n" "{\"workflow_id\":\"workflow-1\",\"state\":\"active\"}"; fi'
+  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"; fi"
 
   if PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
-    "${SCRIPT_PATH}" "bug-fix-positive" >"${stdout_log}"; then
+    "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${stdout_log}"; then
     :
   fi
 
-  assert_contains "bootstrap LIVE_TEST_PROFILE=bug-fix LIVE_TEST_WORKSPACE_STORAGE_TYPE=git_remote LIVE_TEST_SCENARIO_FILE=${ROOT_DIR}/tests/live/scenarios/bug-fix-positive.json LIVE_TEST_SCENARIO_NAME=bug-fix-positive" "${logfile}"
+  assert_contains "bootstrap LIVE_TEST_PROFILE=${SCENARIO_PROFILE} LIVE_TEST_WORKSPACE_STORAGE_TYPE=${SCENARIO_STORAGE_TYPE} LIVE_TEST_SCENARIO_FILE=${SCENARIO_FILE} LIVE_TEST_SCENARIO_NAME=${SCENARIO_NAME}" "${logfile}"
   assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
 }
 
@@ -76,7 +80,7 @@ test_runner_failure_promotes_nonzero_json_result() {
   envfile="${tmpdir}/env/local.env"
   output_root="${tmpdir}/artifacts"
   context_file="${output_root}/bootstrap/context.json"
-  run_file="${output_root}/bug-fix-positive/workflow-run.json"
+  run_file="${output_root}/${SCENARIO_NAME}/workflow-run.json"
   tmp_run_file="${run_file}.tmp"
   bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
   mkdir -p "${stubdir}" "$(dirname "${context_file}")" "$(dirname "${envfile}")"
@@ -94,13 +98,13 @@ EOF
 'mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
 
-  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix" "git_remote"; else printf "%s" "{\"workflow_id\":\"workflow-1\"}"; exit 1; fi'
+  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\"}\"; exit 1; fi"
 
   if PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
-    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
+    "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
     fail "expected scenario runner failure to propagate"
   fi
 
@@ -118,7 +122,7 @@ test_runner_direct_result_file_is_promoted_on_failure() {
   envfile="${tmpdir}/env/local.env"
   output_root="${tmpdir}/artifacts"
   context_file="${output_root}/bootstrap/context.json"
-  run_file="${output_root}/bug-fix-positive/workflow-run.json"
+  run_file="${output_root}/${SCENARIO_NAME}/workflow-run.json"
   tmp_run_file="${run_file}.tmp"
   bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
   runner_script="${tmpdir}/runner.py"
@@ -152,7 +156,7 @@ PY
 
   make_stub "${stubdir}/python3" '
 if [[ "${1:-}" == "-" ]]; then
-  printf "%s\n" "bug-fix" "git_remote"
+  printf "%s\n" "'"${SCENARIO_PROFILE}"'" "'"${SCENARIO_STORAGE_TYPE}"'"
 else
   exec /usr/bin/python3 "$@"
 fi'
@@ -162,7 +166,7 @@ fi'
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_START_WORKFLOW_SCRIPT="${runner_script}" \
-    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
+    "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
     fail "expected direct-write scenario runner failure to propagate"
   fi
 
@@ -179,7 +183,7 @@ test_bootstrap_failure_publishes_harness_failure_result() {
   stubdir="${tmpdir}/bin"
   envfile="${tmpdir}/env/local.env"
   output_root="${tmpdir}/artifacts"
-  run_file="${output_root}/bug-fix-positive/workflow-run.json"
+  run_file="${output_root}/${SCENARIO_NAME}/workflow-run.json"
   bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
   mkdir -p "${stubdir}" "$(dirname "${envfile}")"
 
@@ -193,13 +197,13 @@ PLATFORM_API_PORT=8080
 EOF
 
   make_stub "${bootstrap_stub}" 'exit 1'
-  make_stub "${stubdir}/python3" 'printf "%s\n" "bug-fix" "git_remote"'
+  make_stub "${stubdir}/python3" "printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\""
 
   if PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
-    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
+    "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
     fail "expected bootstrap failure to propagate"
   fi
 
@@ -216,7 +220,7 @@ test_bootstrap_can_delete_scenario_dir_without_breaking_runner() {
   envfile="${tmpdir}/env/local.env"
   output_root="${tmpdir}/artifacts"
   context_file="${output_root}/bootstrap/context.json"
-  run_file="${output_root}/bug-fix-positive/workflow-run.json"
+  run_file="${output_root}/${SCENARIO_NAME}/workflow-run.json"
   bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
   mkdir -p "${stubdir}" "$(dirname "${context_file}")" "$(dirname "${envfile}")"
 
@@ -234,13 +238,13 @@ EOF
 mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
 
-  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix" "git_remote"; else printf "%s\n" "{\"workflow_id\":\"workflow-1\",\"state\":\"active\"}"; fi'
+  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"; fi"
 
   PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
-    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log"
+    "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log"
 
   assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
 }
@@ -253,7 +257,7 @@ test_runner_resets_stale_trace_before_each_run() {
   envfile="${tmpdir}/env/local.env"
   output_root="${tmpdir}/artifacts"
   context_file="${output_root}/bootstrap/context.json"
-  trace_file="${output_root}/bug-fix-positive/trace/api.ndjson"
+  trace_file="${output_root}/${SCENARIO_NAME}/trace/api.ndjson"
   bootstrap_stub="${tmpdir}/bootstrap-stub.sh"
   mkdir -p "${stubdir}" "$(dirname "${context_file}")" "$(dirname "${envfile}")" "$(dirname "${trace_file}")"
 
@@ -272,13 +276,13 @@ EOF
 'mkdir -p "$(dirname "${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}")"
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_BOOTSTRAP_CONTEXT_FILE}"'
 
-  make_stub "${stubdir}/python3" 'if [[ "${1:-}" == "-" ]]; then printf "%s\n" "bug-fix" "git_remote"; else printf "%s\n" "{\"workflow_id\":\"workflow-1\",\"state\":\"active\"}"; fi'
+  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"; fi"
 
   PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
-    "${SCRIPT_PATH}" "bug-fix-positive" >"${tmpdir}/stdout.log"
+    "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log"
 
   if [[ -e "${trace_file}" ]] && grep -Fq "stale-trace" "${trace_file}"; then
     fail "expected stale trace file to be removed before run"

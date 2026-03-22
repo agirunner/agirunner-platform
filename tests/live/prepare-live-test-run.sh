@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LIVE_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${LIVE_TEST_ROOT}/../.." && pwd)"
+
+# shellcheck disable=SC1091
+source "${LIVE_TEST_ROOT}/lib/common.sh"
+
+read_scenario_metadata() {
+  local scenario_file="$1"
+  python3 - "${LIVE_TEST_ROOT}/lib" "${scenario_file}" <<'PY'
+import sys
+from pathlib import Path
+
+sys.path.insert(0, sys.argv[1])
+from scenario_config import load_scenario
+
+scenario = load_scenario(Path(sys.argv[2]))
+print(scenario["profile"])
+print(scenario["workspace"]["storage"]["type"])
+PY
+}
+
+SCENARIO_INPUT="${1:-${LIVE_TEST_SCENARIO_NAME:-}}"
+if [[ -z "${SCENARIO_INPUT}" ]]; then
+  echo "[tests/live] scenario name or path is required" >&2
+  exit 1
+fi
+
+if [[ -f "${SCENARIO_INPUT}" ]]; then
+  LIVE_TEST_SCENARIO_FILE="$(cd "$(dirname "${SCENARIO_INPUT}")" && pwd)/$(basename "${SCENARIO_INPUT}")"
+else
+  LIVE_TEST_SCENARIO_FILE="${LIVE_TEST_ROOT}/scenarios/${SCENARIO_INPUT}.json"
+fi
+
+require_live_test_file "${LIVE_TEST_SCENARIO_FILE}" "live test scenario file"
+
+LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
+load_live_test_env "${LIVE_TEST_ENV_FILE}"
+
+LIVE_TEST_SCENARIO_NAME="${LIVE_TEST_SCENARIO_NAME:-$(basename "${LIVE_TEST_SCENARIO_FILE}" .json)}"
+mapfile -t LIVE_TEST_SCENARIO_METADATA < <(read_scenario_metadata "${LIVE_TEST_SCENARIO_FILE}")
+LIVE_TEST_PROFILE="${LIVE_TEST_PROFILE:-${LIVE_TEST_SCENARIO_METADATA[0]}}"
+LIVE_TEST_WORKSPACE_STORAGE_TYPE="${LIVE_TEST_WORKSPACE_STORAGE_TYPE:-${LIVE_TEST_SCENARIO_METADATA[1]}}"
+LIVE_TEST_ARTIFACTS_DIR="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
+LIVE_TEST_SCENARIO_DIR="${LIVE_TEST_SCENARIO_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/${LIVE_TEST_SCENARIO_NAME}}"
+LIVE_TEST_SCENARIO_TRACE_DIR="${LIVE_TEST_SCENARIO_TRACE_DIR:-${LIVE_TEST_SCENARIO_DIR}/trace}"
+LIVE_TEST_SHARED_CONTEXT_FILE="${LIVE_TEST_SHARED_CONTEXT_FILE:-${LIVE_TEST_ARTIFACTS_DIR}/bootstrap/context.json}"
+LIVE_TEST_RUN_CONTEXT_FILE="${LIVE_TEST_RUN_CONTEXT_FILE:-${LIVE_TEST_SCENARIO_DIR}/run-context.json}"
+LIVE_TEST_LIBRARY_ROOT="${LIVE_TEST_LIBRARY_ROOT:-${LIVE_TEST_ROOT}/library}"
+LIVE_TEST_RUN_TOKEN="${LIVE_TEST_RUN_TOKEN:-$(date +%Y%m%d%H%M%S)-$$}"
+LIVE_TEST_REPO_SEED_DIR="${LIVE_TEST_REPO_SEED_DIR:-${LIVE_TEST_LIBRARY_ROOT}/${LIVE_TEST_PROFILE}/repo-seed}"
+LIVE_TEST_HOST_SEED_DIR="${LIVE_TEST_HOST_SEED_DIR:-${LIVE_TEST_LIBRARY_ROOT}/${LIVE_TEST_PROFILE}/host-seed}"
+LIVE_TEST_DEFAULT_BRANCH="${LIVE_TEST_DEFAULT_BRANCH:-main}"
+LIVE_TEST_GIT_USER_NAME="${LIVE_TEST_GIT_USER_NAME:-sirmarkz}"
+LIVE_TEST_GIT_USER_EMAIL="${LIVE_TEST_GIT_USER_EMAIL:-250921129+sirmarkz@users.noreply.github.com}"
+LIVE_TEST_GIT_WORKSPACES_DIR="${LIVE_TEST_GIT_WORKSPACES_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/git-workspaces}"
+LIVE_TEST_HOST_WORKSPACES_DIR="${LIVE_TEST_HOST_WORKSPACES_DIR:-${LIVE_TEST_ARTIFACTS_DIR}/host-workspaces}"
+LIVE_TEST_RUN_SCRIPT="${LIVE_TEST_RUN_SCRIPT:-${LIVE_TEST_ROOT}/lib/seed_live_test_run.py}"
+
+require_live_test_file "${LIVE_TEST_SHARED_CONTEXT_FILE}" "shared live test context file"
+require_live_test_file "${LIVE_TEST_RUN_SCRIPT}" "live test run seed script"
+
+mkdir -p "${LIVE_TEST_SCENARIO_DIR}" "${LIVE_TEST_SCENARIO_TRACE_DIR}"
+
+case "${LIVE_TEST_WORKSPACE_STORAGE_TYPE}" in
+  git_remote)
+    require_live_test_dir "${FIXTURES_REPO_PATH:-}" "fixtures repo"
+    require_live_test_value "LIVE_TEST_GITHUB_TOKEN" "${LIVE_TEST_GITHUB_TOKEN:-}"
+    LIVE_TEST_GIT_WORKSPACE_DIR="${LIVE_TEST_GIT_WORKSPACES_DIR}/${LIVE_TEST_SCENARIO_NAME}/${LIVE_TEST_RUN_TOKEN}"
+    LIVE_TEST_RUN_BRANCH="${LIVE_TEST_RUN_BRANCH:-live-test/${LIVE_TEST_SCENARIO_NAME}/${LIVE_TEST_RUN_TOKEN}}"
+    prepare_live_test_fixture_branch \
+      "${FIXTURES_REPO_PATH}" \
+      "${LIVE_TEST_GIT_WORKSPACE_DIR}" \
+      "${LIVE_TEST_RUN_BRANCH}" \
+      "${LIVE_TEST_DEFAULT_BRANCH}" \
+      "${LIVE_TEST_REPO_SEED_DIR}" \
+      "${LIVE_TEST_GIT_USER_NAME}" \
+      "${LIVE_TEST_GIT_USER_EMAIL}"
+    LIVE_TEST_DEFAULT_BRANCH="${LIVE_TEST_RUN_BRANCH}"
+    ;;
+  host_directory)
+    LIVE_TEST_HOST_WORKSPACE_PATH="${LIVE_TEST_HOST_WORKSPACE_PATH:-${LIVE_TEST_HOST_WORKSPACES_DIR}/${LIVE_TEST_SCENARIO_NAME}/${LIVE_TEST_RUN_TOKEN}}"
+    reset_live_test_host_workspace "${LIVE_TEST_HOST_WORKSPACE_PATH}" "${LIVE_TEST_HOST_SEED_DIR}"
+    ;;
+  workspace_artifacts)
+    ;;
+  *)
+    echo "[tests/live] unsupported LIVE_TEST_WORKSPACE_STORAGE_TYPE: ${LIVE_TEST_WORKSPACE_STORAGE_TYPE}" >&2
+    exit 1
+    ;;
+esac
+
+export PLATFORM_API_BASE_URL="${PLATFORM_API_BASE_URL:-http://127.0.0.1:${PLATFORM_API_PORT:-8080}}"
+export DEFAULT_ADMIN_API_KEY
+export LIVE_TEST_SCENARIO_FILE
+export LIVE_TEST_SCENARIO_TRACE_DIR
+export LIVE_TEST_SHARED_CONTEXT_FILE
+export LIVE_TEST_RUN_CONTEXT_FILE
+export LIVE_TEST_RUN_TOKEN
+export LIVE_TEST_REPOSITORY_URL="${LIVE_TEST_REPOSITORY_URL:-https://github.com/agirunner/agirunner-test-fixtures.git}"
+export LIVE_TEST_DEFAULT_BRANCH
+export LIVE_TEST_GIT_USER_NAME
+export LIVE_TEST_GIT_USER_EMAIL
+export LIVE_TEST_GITHUB_TOKEN
+export LIVE_TEST_HOST_WORKSPACE_PATH="${LIVE_TEST_HOST_WORKSPACE_PATH:-}"
+
+python3 "${LIVE_TEST_RUN_SCRIPT}"
+log_live_test "run context written to ${LIVE_TEST_RUN_CONTEXT_FILE}"

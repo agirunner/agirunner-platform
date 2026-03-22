@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+LIVE_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "${LIVE_TEST_ROOT}/../.." && pwd)"
+
+# shellcheck disable=SC1091
+source "${LIVE_TEST_ROOT}/lib/common.sh"
+
+LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
+load_live_test_env "${LIVE_TEST_ENV_FILE}"
+
+DEFAULT_CONCURRENCY=5
+concurrency="${1:-}"
+if [[ -n "${concurrency}" && "${concurrency}" =~ ^[0-9]+$ ]]; then
+  shift
+else
+  concurrency="${LIVE_TEST_MAX_CONCURRENT_SCENARIOS:-${DEFAULT_CONCURRENCY}}"
+fi
+
+scenario_root="${LIVE_TEST_SCENARIO_ROOT:-${LIVE_TEST_SCENARIO_DIR:-${LIVE_TEST_ROOT}/scenarios}}"
+shared_bootstrap_script="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-shared-environment.sh}"
+scenario_runner="${LIVE_TEST_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-live-scenario.sh}"
+scenario_bootstrap_script="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-run.sh}"
+artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:-${REPO_ROOT}/.tmp/live-tests}"
+shared_context_file="${LIVE_TEST_SHARED_CONTEXT_FILE:-${artifacts_dir}/bootstrap/context.json}"
+batch_artifacts_dir="${artifacts_dir}/batch"
+
+mkdir -p "${batch_artifacts_dir}"
+require_live_test_dir "${scenario_root}" "live test scenario directory"
+require_live_test_file "${shared_bootstrap_script}" "shared live test bootstrap script"
+require_live_test_file "${scenario_runner}" "scenario runner"
+require_live_test_file "${scenario_bootstrap_script}" "scenario bootstrap script"
+
+declare -a scenarios=()
+if (( $# > 0 )); then
+  scenarios=("$@")
+else
+  while IFS= read -r scenario_file; do
+    scenarios+=("$(basename "${scenario_file}" .json)")
+  done < <(find "${scenario_root}" -maxdepth 1 -name '*.json' -type f | sort)
+fi
+
+if (( ${#scenarios[@]} == 0 )); then
+  echo "[tests/live] no scenarios found in ${scenario_root}" >&2
+  exit 1
+fi
+
+log_live_test "Running live scenarios with concurrency=${concurrency}"
+bash "${shared_bootstrap_script}"
+
+declare -A pid_to_scenario=()
+declare -A pid_to_log=()
+declare -a active_pids=()
+passed=0
+failed=0
+completed=0
+next_index=0
+
+launch_scenario() {
+  local scenario="$1"
+  local log_file="${batch_artifacts_dir}/${scenario}.log"
+  rm -f "${log_file}"
+  (
+    env -u LIVE_TEST_SCENARIO_DIR \
+      LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE}" \
+      LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
+      LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+      LIVE_TEST_BOOTSTRAP_SCRIPT="${scenario_bootstrap_script}" \
+      "${scenario_runner}" "${scenario}"
+  ) >"${log_file}" 2>&1 &
+  local pid=$!
+  pid_to_scenario["${pid}"]="${scenario}"
+  pid_to_log["${pid}"]="${log_file}"
+  active_pids+=("${pid}")
+}
+
+collect_finished_scenario() {
+  local pid="$1"
+  local scenario="${pid_to_scenario[${pid}]}"
+  local log_file="${pid_to_log[${pid}]}"
+  local status
+
+  set +e
+  wait "${pid}"
+  status=$?
+  set -e
+
+  completed=$((completed + 1))
+  if (( status == 0 )); then
+    passed=$((passed + 1))
+    log_live_test "PASS ${scenario}"
+  else
+    failed=$((failed + 1))
+    log_live_test "FAIL ${scenario}"
+  fi
+  if [[ -f "${log_file}" ]]; then
+    cat "${log_file}"
+  fi
+  unset 'pid_to_scenario[$pid]'
+  unset 'pid_to_log[$pid]'
+}
+
+while (( next_index < ${#scenarios[@]} || ${#active_pids[@]} > 0 )); do
+  while (( next_index < ${#scenarios[@]} && ${#active_pids[@]} < concurrency )); do
+    launch_scenario "${scenarios[${next_index}]}"
+    next_index=$((next_index + 1))
+  done
+
+  finished_pid=""
+  for pid in "${active_pids[@]}"; do
+    if ! kill -0 "${pid}" 2>/dev/null; then
+      finished_pid="${pid}"
+      break
+    fi
+  done
+
+  if [[ -z "${finished_pid}" ]]; then
+    sleep 0.1
+    continue
+  fi
+
+  collect_finished_scenario "${finished_pid}"
+  remaining_pids=()
+  for pid in "${active_pids[@]}"; do
+    if [[ "${pid}" != "${finished_pid}" ]]; then
+      remaining_pids+=("${pid}")
+    fi
+  done
+  active_pids=("${remaining_pids[@]}")
+done
+
+log_live_test "Completed ${completed} scenario(s): ${passed} passed, ${failed} failed"
+if (( failed > 0 )); then
+  exit 1
+fi

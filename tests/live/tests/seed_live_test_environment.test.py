@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import sys
 import unittest
+import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -121,6 +122,56 @@ class FakeClient:
 
 
 class SeedLiveTestEnvironmentTests(unittest.TestCase):
+    def test_sync_library_profiles_registers_every_profile_and_returns_playbook_registry(self) -> None:
+        client = FakeClient()
+        with tempfile.TemporaryDirectory() as tmpdir:
+            library_root = Path(tmpdir)
+            for profile_name in ("profile-a", "profile-b"):
+                profile_dir = library_root / profile_name
+                profile_dir.mkdir(parents=True)
+                (profile_dir / "roles.json").write_text("[]", encoding="utf-8")
+                (profile_dir / "playbook.json").write_text("{}", encoding="utf-8")
+
+            with (
+                patch.object(
+                    seed_live_test_environment,
+                    "sync_roles",
+                    side_effect=lambda *args, **kwargs: [
+                        {"name": f"{Path(args[1]).parent.name}-role"}
+                    ],
+                ),
+                patch.object(
+                    seed_live_test_environment,
+                    "sync_playbook",
+                    side_effect=lambda *args, **kwargs: {
+                        "id": f"playbook-{Path(args[1]).parent.name}",
+                        "slug": f"slug-{Path(args[1]).parent.name}",
+                    },
+                ),
+            ):
+                registry = seed_live_test_environment.sync_library_profiles(
+                    client,
+                    library_root=str(library_root),
+                    provider_type="openai",
+                    resolved_model_id="gpt-5.4-mini",
+                )
+
+        self.assertEqual(
+            {
+                "profile-a": {
+                    "playbook_id": "playbook-profile-a",
+                    "playbook_slug": "slug-profile-a",
+                    "role_names": ["profile-a-role"],
+                },
+                "profile-b": {
+                    "playbook_id": "playbook-profile-b",
+                    "playbook_slug": "slug-profile-b",
+                    "role_names": ["profile-b-role"],
+                },
+            },
+            registry,
+        )
+
     def test_sync_roles_enables_native_search_for_supported_models(self) -> None:
         client = FakeClient()
 
