@@ -688,6 +688,47 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertIn("efficiency.non_orchestrator_max_llm_turns_per_attempt_lte", check_names)
         self.assertIn("efficiency.specialist_teardown_lag_seconds_lte", check_names)
 
+    def test_evaluate_expectations_counts_blocked_board_items_from_generic_blocking_signals(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "state": "active",
+                "board": {
+                    "blocked_count": 2,
+                },
+            },
+            workflow={"state": "active", "tasks": []},
+            board={
+                "ok": True,
+                "data": {
+                    "columns": [
+                        {"id": "doing", "label": "Doing"},
+                        {"id": "halted", "label": "Halted", "is_blocked": True},
+                    ],
+                    "work_items": [
+                        {
+                            "id": "wi-assessment",
+                            "column_id": "doing",
+                            "assessment_status": "blocked",
+                        },
+                        {
+                            "id": "wi-column",
+                            "column_id": "halted",
+                        },
+                    ],
+                },
+            },
+            work_items={"ok": True, "data": []},
+            workspace={"memory": {}, "memory_index": {"keys": []}, "artifact_index": {"items": []}},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={"ok": True, "data": {"by_playbook_pool": []}},
+        )
+
+        self.assertTrue(result["passed"])
+        board_check = next(entry for entry in result["checks"] if entry["name"] == "board.blocked_count")
+        self.assertEqual(2, board_check["actual"])
+
     def test_summarize_efficiency_uses_runtime_teardown_completion_without_container_remove(self) -> None:
         workflow = {
             "created_at": "2026-03-20T10:00:00.000Z",
