@@ -15,10 +15,10 @@ export interface TaskNextStep {
   detail: string;
 }
 
-export interface TaskReviewSignals {
-  reviewAction?: string;
-  reviewFeedback?: string;
-  reviewUpdatedAt?: string;
+export interface TaskAssessmentSignals {
+  assessmentAction?: string;
+  assessmentFeedback?: string;
+  assessmentUpdatedAt?: string;
   escalationReason?: string;
   escalationTarget?: string;
   escalationContext?: string;
@@ -63,8 +63,8 @@ export function readReworkDetails(task: Task | null) {
   const metadata = asRecord(task?.metadata);
   return {
     reworkCount: readNumber((task as Task & { rework_count?: number } | null)?.rework_count),
-    reviewAction: readString(metadata.review_action),
-    reviewFeedback: readString(metadata.review_feedback),
+    assessmentAction: readString(metadata.assessment_action),
+    assessmentFeedback: readString(metadata.assessment_feedback),
     clarificationRequested: metadata.clarification_requested === true,
   };
 }
@@ -82,12 +82,12 @@ export function readExecutionSummary(task: Task | null) {
   };
 }
 
-export function readReviewSignals(task: Task | null): TaskReviewSignals {
+export function readAssessmentSignals(task: Task | null): TaskAssessmentSignals {
   const metadata = asRecord(task?.metadata);
   return {
-    reviewAction: readString(metadata.review_action),
-    reviewFeedback: readString(metadata.review_feedback),
-    reviewUpdatedAt: readString(metadata.review_updated_at),
+    assessmentAction: readString(metadata.assessment_action),
+    assessmentFeedback: readString(metadata.assessment_feedback),
+    assessmentUpdatedAt: readString(metadata.assessment_updated_at),
     escalationReason: readString(metadata.escalation_reason),
     escalationTarget: readString(metadata.escalation_target),
     escalationContext: readString(metadata.escalation_context),

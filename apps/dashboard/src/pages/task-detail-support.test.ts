@@ -6,8 +6,8 @@ import {
   parseJsonObject,
   readClarificationAnswers,
   readClarificationHistory,
+  readAssessmentSignals,
   readHumanEscalationResponse,
-  readReviewSignals,
   readReworkDetails,
 } from './task-detail-support.js';
 
@@ -58,10 +58,10 @@ describe('task detail lifecycle support', () => {
     const task = {
       rework_count: 2,
       metadata: {
-        review_action: 'request_changes',
-        review_feedback: 'Tighten the plan',
+        assessment_action: 'request_changes',
+        assessment_feedback: 'Tighten the plan',
         clarification_requested: true,
-        review_updated_at: '2026-03-08T12:00:00Z',
+        assessment_updated_at: '2026-03-08T12:00:00Z',
         escalation_reason: 'Need rollout approval',
         escalation_target: 'human',
         escalation_context: 'Waiting for change window',
@@ -76,17 +76,17 @@ describe('task detail lifecycle support', () => {
 
     expect(readReworkDetails(task as never)).toEqual({
       reworkCount: 2,
-      reviewAction: 'request_changes',
-      reviewFeedback: 'Tighten the plan',
+      assessmentAction: 'request_changes',
+      assessmentFeedback: 'Tighten the plan',
       clarificationRequested: true,
     });
     expect(readHumanEscalationResponse(task as never)).toEqual({
       instructions: 'Use the approved rollout window.',
     });
-    expect(readReviewSignals(task as never)).toEqual({
-      reviewAction: 'request_changes',
-      reviewFeedback: 'Tighten the plan',
-      reviewUpdatedAt: '2026-03-08T12:00:00Z',
+    expect(readAssessmentSignals(task as never)).toEqual({
+      assessmentAction: 'request_changes',
+      assessmentFeedback: 'Tighten the plan',
+      assessmentUpdatedAt: '2026-03-08T12:00:00Z',
       escalationReason: 'Need rollout approval',
       escalationTarget: 'human',
       escalationContext: 'Waiting for change window',

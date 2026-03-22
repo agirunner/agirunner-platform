@@ -480,7 +480,7 @@ describe('tasks routes', () => {
       id: 'task-1',
       workflow_id: 'workflow-1',
       state: 'ready',
-      metadata: { review_action: 'approve' },
+      metadata: { assessment_action: 'approve' },
     }));
 
     app = buildTaskRouteApp(
@@ -704,7 +704,7 @@ describe('tasks routes', () => {
       id: 'task-2',
       workflow_id: 'workflow-2',
       state: 'completed',
-      metadata: { review_action: 'approve_output' },
+      metadata: { assessment_action: 'approve_output' },
     }));
 
     app = buildTaskRouteApp(

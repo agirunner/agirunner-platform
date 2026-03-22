@@ -20,8 +20,8 @@ describe('TaskLifecycleService continuity hooks', () => {
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
               role: 'developer',
-              input: { review_feedback: 'Fix the failing assertions' },
-              metadata: { review_action: 'request_changes' },
+              input: { assessment_feedback: 'Fix the failing assertions' },
+              metadata: { assessment_action: 'request_changes' },
             }],
           };
         }
@@ -97,7 +97,7 @@ describe('TaskLifecycleService continuity hooks', () => {
               stage_name: 'implementation',
               role: 'developer',
               output: { summary: 'done' },
-              metadata: { review_action: 'approve_output' },
+              metadata: { assessment_action: 'approve_output' },
             }],
           };
         }

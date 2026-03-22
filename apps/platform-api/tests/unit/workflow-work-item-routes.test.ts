@@ -590,7 +590,7 @@ describe('workflow work-item routes', () => {
       workflow_id: 'workflow-1',
       work_item_id: 'wi-1',
       state: 'ready',
-      metadata: { preferred_agent_id: 'agent-2', review_action: 'reassign' },
+      metadata: { preferred_agent_id: 'agent-2', assessment_action: 'reassign' },
     }));
     const taskService = {
       getTask: vi.fn(async () => ({
@@ -1211,7 +1211,7 @@ describe('workflow work-item routes', () => {
       workflow_id: 'workflow-1',
       work_item_id: 'wi-1',
       state: 'ready',
-      metadata: { review_action: 'rejected' },
+      metadata: { assessment_action: 'rejected' },
     }));
     const taskService = {
       getTask: vi.fn(async () => ({
@@ -1294,7 +1294,7 @@ describe('workflow work-item routes', () => {
       workflow_id: 'workflow-1',
       work_item_id: 'wi-1',
       state: 'ready',
-      metadata: { review_action: 'request_changes' },
+      metadata: { assessment_action: 'request_changes' },
     }));
     const taskService = {
       getTask: vi.fn(async () => ({

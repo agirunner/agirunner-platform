@@ -74,7 +74,7 @@ describe('public task operator route idempotency', () => {
       id: 'task-reject-1',
       workflow_id: null,
       state: 'failed',
-      metadata: { review_action: 'reject' },
+      metadata: { assessment_action: 'reject' },
     }));
 
     app = buildTaskRouteApp(
@@ -111,7 +111,7 @@ describe('public task operator route idempotency', () => {
       id: 'task-rework-1',
       workflow_id: null,
       state: 'ready',
-      metadata: { review_action: 'request_changes' },
+      metadata: { assessment_action: 'request_changes' },
     }));
 
     app = buildTaskRouteApp(
@@ -193,7 +193,7 @@ describe('public task operator route idempotency', () => {
       id: 'task-reassign-1',
       workflow_id: null,
       state: 'ready',
-      metadata: { review_action: 'reassign' },
+      metadata: { assessment_action: 'reassign' },
     }));
 
     app = buildTaskRouteApp(
@@ -238,7 +238,7 @@ describe('public task operator route idempotency', () => {
       id: 'task-escalate-1',
       workflow_id: null,
       state: 'escalated',
-      metadata: { review_action: 'escalate' },
+      metadata: { assessment_action: 'escalate' },
     }));
 
     app = buildTaskRouteApp(

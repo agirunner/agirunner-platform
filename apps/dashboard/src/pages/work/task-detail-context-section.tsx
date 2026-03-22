@@ -5,7 +5,7 @@ import {
   readClarificationHistory,
   readExecutionSummary,
   readHumanEscalationResponse,
-  readReviewSignals,
+  readAssessmentSignals,
 } from '../task-detail-support.js';
 import {
   buildActivationCheckpointPacket,
@@ -44,7 +44,7 @@ export function TaskDetailContextSection({
   const clarificationHistory = readClarificationHistory(task as never);
   const escalationResponse = readHumanEscalationResponse(task as never);
   const executionSummary = readExecutionSummary(task as never);
-  const reviewSignals = readReviewSignals(task as never);
+  const assessmentSignals = readAssessmentSignals(task as never);
   const runtimeContext = asRecord(task.context);
   const activationCheckpoint = asRecord(asRecord(task.metadata).last_activation_checkpoint);
 
@@ -54,7 +54,7 @@ export function TaskDetailContextSection({
   });
   const escalationPacket = buildEscalationPacket({
     escalationResponse,
-    reviewSignals,
+    reviewSignals: assessmentSignals,
   });
   const executionPacket = buildExecutionPacket({
     verification: executionSummary.verification,

@@ -26,7 +26,7 @@ import {
 } from '../../components/ui/tabs.js';
 import {
   buildTaskNextStep,
-  readReviewSignals,
+  readAssessmentSignals,
   readReworkDetails,
 } from '../task-detail-support.js';
 import {
@@ -639,7 +639,7 @@ function RelatedLinks({ task }: { task: Task }): JSX.Element {
 
 function OperatorBriefingCard({ task, status }: { task: Task; status: string }): JSX.Element {
   const nextStep = buildTaskNextStep(task as never);
-  const reviewSignals = readReviewSignals(task as never);
+  const assessmentSignals = readAssessmentSignals(task as never);
   const reworkDetails = readReworkDetails(task as never);
   const workItemFlow = usesWorkItemOperatorFlow(task);
   const workflowLinkedStep = usesWorkflowOperatorFlow(task) || Boolean(task.workflow_id);
@@ -690,8 +690,8 @@ function OperatorBriefingCard({ task, status }: { task: Task; status: string }):
             <p className="text-xs font-medium uppercase tracking-wide text-muted">Operator signals</p>
           </div>
           <SignalRow
-            label="Review status"
-            value={reviewSignals.reviewAction ? formatStatusLabel(reviewSignals.reviewAction) : 'No review action recorded'}
+            label="Assessment status"
+            value={assessmentSignals.assessmentAction ? formatStatusLabel(assessmentSignals.assessmentAction) : 'No assessment action recorded'}
           />
           <SignalRow
             label="Rework rounds"
@@ -699,24 +699,24 @@ function OperatorBriefingCard({ task, status }: { task: Task; status: string }):
           />
           <SignalRow
             label="Escalation target"
-            value={reviewSignals.escalationTarget ?? 'No escalation target'}
+            value={assessmentSignals.escalationTarget ?? 'No escalation target'}
           />
           <SignalRow
             label="Clarification"
             value={reworkDetails.clarificationRequested ? 'Clarification requested' : 'No clarification request recorded'}
           />
-          {reviewSignals.reviewFeedback ? (
+          {assessmentSignals.assessmentFeedback ? (
             <div className="rounded-lg bg-border/10 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted">Latest feedback</p>
-              <p className="mt-2 text-sm leading-6">{reviewSignals.reviewFeedback}</p>
-              {reviewSignals.reviewUpdatedAt ? (
-                <p className="mt-2 text-xs text-muted" title={formatTimestamp(reviewSignals.reviewUpdatedAt)}>
-                  Updated {formatRelativeTime(reviewSignals.reviewUpdatedAt)}
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">Latest assessment feedback</p>
+              <p className="mt-2 text-sm leading-6">{assessmentSignals.assessmentFeedback}</p>
+              {assessmentSignals.assessmentUpdatedAt ? (
+                <p className="mt-2 text-xs text-muted" title={formatTimestamp(assessmentSignals.assessmentUpdatedAt)}>
+                  Updated {formatRelativeTime(assessmentSignals.assessmentUpdatedAt)}
                 </p>
               ) : null}
             </div>
           ) : null}
-          {reviewSignals.escalationAwaitingHuman ? (
+          {assessmentSignals.escalationAwaitingHuman ? (
             <div className="rounded-lg bg-border/10 p-3">
               <p className="text-xs font-medium uppercase tracking-wide text-muted">Escalation state</p>
               <p className="mt-2 text-sm leading-6">

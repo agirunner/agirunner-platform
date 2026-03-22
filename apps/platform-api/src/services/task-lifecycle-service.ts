@@ -124,9 +124,9 @@ interface ReworkWorkItemContextRow {
   definition: unknown;
 }
 
-interface LatestReviewRequestHandoffRow {
+interface LatestAssessmentRequestHandoffRow {
   handoff_id: string;
-  review_task_id: string;
+  assessment_task_id: string;
   created_at: Date | null;
 }
 
@@ -184,16 +184,16 @@ function buildOutputRevisionMetadataPatch(task: Record<string, unknown>) {
   };
 }
 
-function normalizeReviewOutcome(value: unknown): 'approved' | null {
+function normalizeAssessmentApprovalOutcome(value: unknown): 'approved' | null {
   return readOptionalText(value) === 'approved' ? 'approved' : null;
 }
 
 function readAssessmentAction(metadata: Record<string, unknown>): string | null {
-  return readOptionalText(metadata.assessment_action) ?? readOptionalText(metadata.review_action);
+  return readOptionalText(metadata.assessment_action);
 }
 
 function readAssessmentFeedback(metadata: Record<string, unknown>): string | null {
-  return readOptionalText(metadata.assessment_feedback) ?? readOptionalText(metadata.review_feedback);
+  return readOptionalText(metadata.assessment_feedback);
 }
 
 function matchesReviewMetadata(
@@ -224,31 +224,31 @@ function hasActiveReworkRequest(task: Record<string, unknown>): boolean {
   return readAssessmentAction(asRecord(task.metadata)) === 'request_changes';
 }
 
-function hasAppliedLatestReviewRequest(
+function hasAppliedLatestAssessmentRequest(
   task: Record<string, unknown>,
-  latestReviewRequest: LatestReviewRequestHandoffRow | null,
+  latestAssessmentRequest: LatestAssessmentRequestHandoffRow | null,
 ): boolean {
-  if (!latestReviewRequest) {
+  if (!latestAssessmentRequest) {
     return false;
   }
 
   return readOptionalText(asRecord(task.metadata).last_applied_assessment_request_handoff_id)
-    === latestReviewRequest.handoff_id;
+    === latestAssessmentRequest.handoff_id;
 }
 
-function hasSupersedingTaskHandoffAfterReviewRequest(
+function hasSupersedingTaskHandoffAfterAssessmentRequest(
   task: Record<string, unknown>,
-  latestReviewRequest: LatestReviewRequestHandoffRow | null,
+  latestAssessmentRequest: LatestAssessmentRequestHandoffRow | null,
   latestTaskHandoffCreatedAt: Date | null,
 ) {
   const state = normalizeTaskState(task.state as string | null | undefined);
   if (state !== 'output_pending_review' && state !== 'completed') {
     return false;
   }
-  if (!(latestReviewRequest?.created_at instanceof Date) || !(latestTaskHandoffCreatedAt instanceof Date)) {
+  if (!(latestAssessmentRequest?.created_at instanceof Date) || !(latestTaskHandoffCreatedAt instanceof Date)) {
     return false;
   }
-  return latestTaskHandoffCreatedAt.getTime() > latestReviewRequest.created_at.getTime();
+  return latestTaskHandoffCreatedAt.getTime() > latestAssessmentRequest.created_at.getTime();
 }
 
 function hasMatchingManualEscalation(
@@ -276,8 +276,8 @@ function hasMatchingManualEscalation(
     && (latestEscalation.recommendation ?? null) === (payload.recommendation ?? null)
     && (latestEscalation.blocking_task_id ?? null) === (payload.blocking_task_id ?? null)
     && (latestEscalation.urgency ?? null) === (payload.urgency ?? null)
-    && metadata.review_action === 'escalate'
-    && metadata.review_feedback === payload.reason
+    && metadata.assessment_action === 'escalate'
+    && metadata.assessment_feedback === payload.reason
     && areJsonValuesEquivalent(metadata.escalation_context_packet ?? null, payload.context ?? null)
     && (metadata.escalation_recommendation ?? null) === (payload.recommendation ?? null)
     && (metadata.escalation_blocking_task_id ?? null) === (payload.blocking_task_id ?? null)
@@ -328,7 +328,7 @@ function hasMatchingAgentEscalationDepthFailure(
     && (metadata.escalation_max_depth ?? null) === maxDepth;
 }
 
-function hasMatchingReviewRejection(
+function hasMatchingAssessmentRejection(
   task: Record<string, unknown>,
   feedback: string,
 ): boolean {
@@ -336,7 +336,7 @@ function hasMatchingReviewRejection(
   return (
     task.state === 'failed'
     && matchesReviewMetadata(task, { action: 'reject', feedback })
-    && error.category === 'review_rejected'
+    && error.category === 'assessment_rejected'
     && error.message === feedback
   );
 }
@@ -766,7 +766,7 @@ export class TaskLifecycleService {
             from_state: normalizeTaskState(task.state as string | undefined) ?? task.state,
             to_state: resolvedNextState,
             reason: options.reason,
-            feedback: options.metadataPatch?.review_feedback ?? undefined,
+            feedback: options.metadataPatch?.assessment_feedback ?? undefined,
           },
         },
         client,
@@ -1023,7 +1023,7 @@ export class TaskLifecycleService {
       existingClient,
     );
 
-    const approvedReviewerHandoff = await this.readApprovedReviewerHandoffOutcome(
+    const approvedAssessmentHandoff = await this.readApprovedAssessmentHandoffOutcome(
       identity.tenantId,
       task,
       existingClient,
@@ -1058,7 +1058,7 @@ export class TaskLifecycleService {
     const outputRevisionMetadataPatch = buildOutputRevisionMetadataPatch(task);
 
     const shouldMoveToOutputReview =
-      (Boolean(task.requires_output_review) && !approvedReviewerHandoff)
+      (Boolean(task.requires_output_review) && !approvedAssessmentHandoff)
       || !outputValidation.valid
       || verificationPassed === false;
 
@@ -1110,12 +1110,12 @@ export class TaskLifecycleService {
     }
   }
 
-  private async readApprovedReviewerHandoffOutcome(
+  private async readApprovedAssessmentHandoffOutcome(
     tenantId: string,
     task: Record<string, unknown>,
     db?: DatabaseClient,
   ) {
-    if (!isReviewSemanticTask(task)) {
+    if (!isAssessmentTask(task)) {
       return false;
     }
 
@@ -1143,7 +1143,7 @@ export class TaskLifecycleService {
         [tenantId, taskId, taskReworkCount],
       );
 
-      return normalizeReviewOutcome(result.rows[0]?.review_outcome) === 'approved';
+      return normalizeAssessmentApprovalOutcome(result.rows[0]?.review_outcome) === 'approved';
     } finally {
       if (ownsClient && 'release' in queryClient && typeof queryClient.release === 'function') {
         queryClient.release();
@@ -1151,11 +1151,11 @@ export class TaskLifecycleService {
     }
   }
 
-  private async loadLatestReviewRequestHandoff(
+  private async loadLatestAssessmentRequestHandoff(
     tenantId: string,
     task: Record<string, unknown>,
     db?: DatabaseClient,
-  ): Promise<LatestReviewRequestHandoffRow | null> {
+  ): Promise<LatestAssessmentRequestHandoffRow | null> {
     const workflowId = readOptionalText(task.workflow_id);
     const workItemId = readOptionalText(task.work_item_id);
     if (!workflowId || !workItemId) {
@@ -1169,7 +1169,7 @@ export class TaskLifecycleService {
     const ownsClient = db == null && queryClient !== this.deps.pool;
 
     try {
-      const result = await queryClient.query<LatestReviewRequestHandoffRow>(
+      const result = await queryClient.query<LatestAssessmentRequestHandoffRow>(
         `WITH RECURSIVE descendant_work_items AS (
             SELECT id
               FROM workflow_work_items
@@ -1328,8 +1328,8 @@ export class TaskLifecycleService {
     return this.applyStateTransition(identity, taskId, 'ready', {
       expectedStates: ['awaiting_approval'],
       metadataPatch: {
-        review_action: 'approve',
-        review_updated_at: new Date().toISOString(),
+        assessment_action: 'approve',
+        assessment_updated_at: new Date().toISOString(),
       },
       afterUpdate: async (updatedTask, client) => {
         await this.deps.workItemContinuityService?.clearAssessmentExpectation(
@@ -1351,7 +1351,7 @@ export class TaskLifecycleService {
     }
     if (identity.scope === 'agent' && !currentTask.is_orchestrator_task && currentTask.workflow_id) {
       throw new ConflictError(
-        'Agent-driven task output approval is not allowed for workflow specialist tasks; use formal review resolution instead.',
+        'Agent-driven task output approval is not allowed for workflow specialist tasks; use formal assessment resolution instead.',
       );
     }
 
@@ -1360,8 +1360,8 @@ export class TaskLifecycleService {
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
       metadataPatch: {
-        review_action: 'approve_output',
-        review_updated_at: new Date().toISOString(),
+        assessment_action: 'approve_output',
+        assessment_updated_at: new Date().toISOString(),
       },
       afterUpdate: async (updatedTask, client) => {
         await registerTaskOutputDocuments(client, identity.tenantId, updatedTask, updatedTask.output);
@@ -1376,7 +1376,7 @@ export class TaskLifecycleService {
           client,
         );
       },
-      reason: 'output_review_approved',
+      reason: 'output_assessment_approved',
     }, client);
   }
 
@@ -1465,7 +1465,7 @@ export class TaskLifecycleService {
 
   async rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
-    if (hasMatchingReviewRejection(task, payload.feedback)) {
+    if (hasMatchingAssessmentRejection(task, payload.feedback)) {
       return this.deps.toTaskResponse(task);
     }
 
@@ -1475,14 +1475,14 @@ export class TaskLifecycleService {
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
       error: {
-        category: 'review_rejected',
+        category: 'assessment_rejected',
         message: payload.feedback,
         recoverable: true,
       },
       metadataPatch: {
-        review_feedback: payload.feedback,
-        review_action: 'reject',
-        review_updated_at: new Date().toISOString(),
+        assessment_feedback: payload.feedback,
+        assessment_action: 'reject',
+        assessment_updated_at: new Date().toISOString(),
       },
       afterUpdate: async (updatedTask, client) => {
         await this.deps.workItemContinuityService?.recordAssessmentRequestedChanges(
@@ -1491,7 +1491,7 @@ export class TaskLifecycleService {
           client,
         );
       },
-      reason: 'review_rejected',
+      reason: 'assessment_rejected',
     });
   }
 
@@ -1510,7 +1510,7 @@ export class TaskLifecycleService {
     if (hasActiveReworkRequest(task)) {
       return this.deps.toTaskResponse(task);
     }
-    const latestReviewRequest = await this.loadLatestReviewRequestHandoff(
+    const latestAssessmentRequest = await this.loadLatestAssessmentRequestHandoff(
       identity.tenantId,
       task,
       client,
@@ -1520,10 +1520,10 @@ export class TaskLifecycleService {
       task,
       client,
     );
-    if (hasSupersedingTaskHandoffAfterReviewRequest(task, latestReviewRequest, latestTaskHandoffCreatedAt)) {
+    if (hasSupersedingTaskHandoffAfterAssessmentRequest(task, latestAssessmentRequest, latestTaskHandoffCreatedAt)) {
       return this.deps.toTaskResponse(task);
     }
-    if (hasAppliedLatestReviewRequest(task, latestReviewRequest)) {
+    if (hasAppliedLatestAssessmentRequest(task, latestAssessmentRequest)) {
       return this.deps.toTaskResponse(task);
     }
     const nextInput = payload.override_input ?? {
@@ -1564,10 +1564,10 @@ export class TaskLifecycleService {
           assessment_action: 'request_changes',
           assessment_updated_at: new Date().toISOString(),
           max_rework_exceeded_at: new Date().toISOString(),
-          ...(latestReviewRequest
+          ...(latestAssessmentRequest
             ? {
-                last_applied_assessment_request_handoff_id: latestReviewRequest.handoff_id,
-                last_applied_assessment_request_task_id: latestReviewRequest.review_task_id,
+                last_applied_assessment_request_handoff_id: latestAssessmentRequest.handoff_id,
+                last_applied_assessment_request_task_id: latestAssessmentRequest.assessment_task_id,
               }
             : {}),
           ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
@@ -1642,10 +1642,10 @@ export class TaskLifecycleService {
         assessment_feedback: payload.feedback,
         assessment_action: 'request_changes',
         assessment_updated_at: new Date().toISOString(),
-        ...(latestReviewRequest
+        ...(latestAssessmentRequest
           ? {
-              last_applied_assessment_request_handoff_id: latestReviewRequest.handoff_id,
-              last_applied_assessment_request_task_id: latestReviewRequest.review_task_id,
+              last_applied_assessment_request_handoff_id: latestAssessmentRequest.handoff_id,
+              last_applied_assessment_request_task_id: latestAssessmentRequest.assessment_task_id,
             }
           : {}),
         ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
@@ -1729,9 +1729,9 @@ export class TaskLifecycleService {
         reason: payload.reason,
       },
       metadataPatch: {
-        review_action: 'skip',
-        review_feedback: payload.reason,
-        review_updated_at: new Date().toISOString(),
+        assessment_action: 'skip',
+        assessment_feedback: payload.reason,
+        assessment_updated_at: new Date().toISOString(),
       },
       reason: 'task_skipped',
     });
@@ -1788,9 +1788,9 @@ export class TaskLifecycleService {
       metadataPatch: {
         preferred_agent_id: payload.preferred_agent_id ?? null,
         preferred_worker_id: payload.preferred_worker_id ?? null,
-        review_action: 'reassign',
-        review_feedback: payload.reason,
-        review_updated_at: new Date().toISOString(),
+        assessment_action: 'reassign',
+        assessment_feedback: payload.reason,
+        assessment_updated_at: new Date().toISOString(),
       },
       reason: 'task_reassigned',
     }, client);
@@ -1844,9 +1844,9 @@ export class TaskLifecycleService {
         escalation_blocking_task_id: payload.blocking_task_id ?? null,
         escalation_urgency: payload.urgency ?? null,
         escalation_awaiting_human: true,
-        review_action: 'escalate',
-        review_feedback: payload.reason,
-        review_updated_at: new Date().toISOString(),
+        assessment_action: 'escalate',
+        assessment_feedback: payload.reason,
+        assessment_updated_at: new Date().toISOString(),
       },
       afterUpdate: async (_updatedTask, client) => {
         await this.enqueuePlaybookActivationIfNeeded(identity, task, 'task.escalated', {
@@ -1922,9 +1922,9 @@ export class TaskLifecycleService {
       clearEscalationMetadata: true,
       output: payload.output,
       metadataPatch: {
-        review_action: 'override_output',
-        review_feedback: payload.reason,
-        review_updated_at: new Date().toISOString(),
+        assessment_action: 'override_output',
+        assessment_feedback: payload.reason,
+        assessment_updated_at: new Date().toISOString(),
       },
       reason: 'task_output_overridden',
     });
@@ -2701,7 +2701,7 @@ export class TaskLifecycleService {
   }
 }
 
-function isReviewSemanticTask(task: Record<string, unknown>) {
+function isAssessmentTask(task: Record<string, unknown>) {
   const metadata = asRecord(task.metadata);
   const taskType = readOptionalText(metadata.task_type);
   if (taskType?.trim().toLowerCase() === 'review') {

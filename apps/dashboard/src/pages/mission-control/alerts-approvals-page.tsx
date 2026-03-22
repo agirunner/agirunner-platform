@@ -894,7 +894,7 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
   const [outputExpanded, setOutputExpanded] = useState(false);
   const assessmentPrompt = task.metadata?.assessment_prompt as string | undefined;
   const reworkCount = task.rework_count ?? (task.metadata?.rework_count as number | undefined) ?? 0;
-  const reviewFeedback = task.input?.review_feedback as string | undefined;
+  const assessmentFeedback = task.input?.assessment_feedback as string | undefined;
   const outputText = formatOutput(task.output);
   const outputTruncated = outputText.length > 800;
   const workItemFlow = usesWorkItemOperatorFlow(task);
@@ -936,13 +936,13 @@ function OutputReviewCard({ task, onApproveOutput, onRequestChanges, onSkip, onR
           </div>
         )}
 
-        {/* Previous review feedback (on rework iterations) */}
-        {reviewFeedback && reworkCount > 0 && (
+        {/* Previous assessment feedback (on rework iterations) */}
+        {assessmentFeedback && reworkCount > 0 && (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/30">
             <p className="text-xs font-medium text-amber-800 dark:text-amber-300 mb-1 flex items-center gap-1">
               <MessageSquare className="h-3 w-3" /> Previous Operator Feedback
             </p>
-            <p className="text-xs text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{reviewFeedback}</p>
+            <p className="text-xs text-amber-700 dark:text-amber-400 whitespace-pre-wrap">{assessmentFeedback}</p>
           </div>
         )}
 

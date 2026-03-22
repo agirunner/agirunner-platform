@@ -775,7 +775,6 @@ function readRequestChangesFeedback(
   return (
     asOptionalString(latestHandoffOutcome?.summary)
     ?? asOptionalString(asRecord(completedTask.output).assessment_feedback)
-    ?? asOptionalString(asRecord(completedTask.output).review_feedback)
     ?? asOptionalString(asRecord(completedTask.output).summary)
     ?? 'Assessment requested changes.'
   );

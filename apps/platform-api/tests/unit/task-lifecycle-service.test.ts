@@ -809,7 +809,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       state: 'pending',
       workflow_id: 'workflow-1',
       metadata: {
-        review_action: 'approve',
+        assessment_action: 'approve',
       },
     };
 
@@ -857,7 +857,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               work_item_id: 'work-item-1',
               stage_name: 'approval',
               is_orchestrator_task: false,
-              metadata: { review_action: 'approve' },
+              metadata: { assessment_action: 'approve' },
               updated_at: new Date('2026-03-17T10:00:00Z'),
             }],
           };
@@ -1169,8 +1169,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               role: 'developer',
               title: 'Implement change',
               is_orchestrator_task: false,
-              input: { review_feedback: 'Tighten the invalid-input assertions' },
-              metadata: { review_action: 'request_changes' },
+              input: { assessment_feedback: 'Tighten the invalid-input assertions' },
+              metadata: { assessment_action: 'request_changes' },
               rework_count: 1,
               updated_at: new Date('2026-03-21T02:10:00Z'),
             }],
@@ -1352,8 +1352,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               role: 'developer',
               title: 'Implement change',
               is_orchestrator_task: false,
-              input: { review_feedback: 'Address the reviewer findings' },
-              metadata: { review_action: 'request_changes' },
+              input: { assessment_feedback: 'Address the reviewer findings' },
+              metadata: { assessment_action: 'request_changes' },
               rework_count: 1,
               completed_at: null,
             }],
@@ -1421,10 +1421,10 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       id: 'task-review-loop',
       state: 'ready',
       workflow_id: null,
-      input: { review_feedback: 'Fix the failing assertions' },
+      input: { assessment_feedback: 'Fix the failing assertions' },
       metadata: {
-        review_action: 'request_changes',
-        review_feedback: 'Fix the failing assertions',
+        assessment_action: 'request_changes',
+        assessment_feedback: 'Fix the failing assertions',
         preferred_agent_id: 'agent-2',
       },
     };
@@ -1469,12 +1469,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       input: {
-        review_feedback:
+        assessment_feedback:
           'Review task 8bf issued a request-changes verdict. Add explicit short-form coverage and resubmit.',
       },
       metadata: {
-        review_action: 'request_changes',
-        review_feedback:
+        assessment_action: 'request_changes',
+        assessment_feedback:
           'Review task 8bf issued a request-changes verdict. Add explicit short-form coverage and resubmit.',
       },
       rework_count: 1,
@@ -1546,7 +1546,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       input: {
-        review_feedback: 'Earlier review feedback',
+        assessment_feedback: 'Earlier review feedback',
       },
       metadata: {
         assessment_action: 'request_changes',
@@ -1625,7 +1625,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       input: {
-        review_feedback: 'Earlier review feedback',
+        assessment_feedback: 'Earlier review feedback',
       },
       metadata: {},
       rework_count: 1,
@@ -1696,7 +1696,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       workflow_id: 'workflow-1',
       work_item_id: 'implementation-item',
       input: {
-        review_feedback: 'Earlier QA feedback',
+        assessment_feedback: 'Earlier QA feedback',
       },
       metadata: {},
       rework_count: 1,
@@ -1740,13 +1740,13 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       state: 'failed',
       workflow_id: null,
       error: {
-        category: 'review_rejected',
+        category: 'assessment_rejected',
         message: 'Fix the failing assertions',
         recoverable: true,
       },
       metadata: {
-        review_action: 'reject',
-        review_feedback: 'Fix the failing assertions',
+        assessment_action: 'reject',
+        assessment_feedback: 'Fix the failing assertions',
       },
     };
 
@@ -1909,7 +1909,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
                 id: 'task-reassign',
                 state: 'ready',
                 workflow_id: null,
-                metadata: { preferred_worker_id: 'worker-3', review_action: 'reassign' },
+                metadata: { preferred_worker_id: 'worker-3', assessment_action: 'reassign' },
               },
             ],
           };
@@ -1954,7 +1954,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(result.state).toBe('ready');
     expect(result.metadata).toMatchObject({
       preferred_worker_id: 'worker-3',
-      review_action: 'reassign',
+      assessment_action: 'reassign',
     });
     expect(queueWorkerCancelSignal).toHaveBeenCalledWith(
       expect.objectContaining({ tenantId: 'tenant-1' }),
@@ -1968,7 +1968,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       | undefined;
     expect(updateCall?.[1]).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ preferred_worker_id: 'worker-3', review_action: 'reassign' }),
+        expect.objectContaining({ preferred_worker_id: 'worker-3', assessment_action: 'reassign' }),
       ]),
     );
   });
@@ -1985,8 +1985,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       workflow_id: null,
       metadata: {
         preferred_worker_id: 'worker-3',
-        review_action: 'reassign',
-        review_feedback: 'Move to a healthier worker',
+        assessment_action: 'reassign',
+        assessment_feedback: 'Move to a healthier worker',
       },
     };
 
@@ -2033,8 +2033,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       workflow_id: 'workflow-1',
       metadata: {
         preferred_worker_id: 'worker-3',
-        review_action: 'reassign',
-        review_feedback: 'Move to a healthier worker',
+        assessment_action: 'reassign',
+        assessment_feedback: 'Move to a healthier worker',
       },
     };
 
@@ -2821,8 +2821,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
                   escalation_blocking_task_id: '11111111-1111-1111-1111-111111111111',
                   escalation_urgency: 'important',
                   escalation_awaiting_human: true,
-                  review_action: 'escalate',
-                  review_feedback: 'Need operator guidance',
+                  assessment_action: 'escalate',
+                  assessment_feedback: 'Need operator guidance',
                 },
               },
             ],
@@ -2886,8 +2886,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       escalation_blocking_task_id: '11111111-1111-1111-1111-111111111111',
       escalation_urgency: 'important',
       escalation_awaiting_human: true,
-      review_action: 'escalate',
-      review_feedback: 'Need operator guidance',
+      assessment_action: 'escalate',
+      assessment_feedback: 'Need operator guidance',
     });
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -3078,8 +3078,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         escalation_recommendation: 'Approve the rollout.',
         escalation_blocking_task_id: '11111111-1111-1111-1111-111111111111',
         escalation_urgency: 'critical',
-        review_action: 'escalate',
-        review_feedback: 'Need operator guidance',
+        assessment_action: 'escalate',
+        assessment_feedback: 'Need operator guidance',
       },
     };
 
@@ -3551,8 +3551,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         reason: 'No longer needed',
       },
       metadata: {
-        review_action: 'skip',
-        review_feedback: 'No longer needed',
+        assessment_action: 'skip',
+        assessment_feedback: 'No longer needed',
       },
     };
 
@@ -3593,8 +3593,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       state: 'completed',
       output: overriddenOutput,
       metadata: {
-        review_action: 'override_output',
-        review_feedback: 'Operator supplied the final output',
+        assessment_action: 'override_output',
+        assessment_feedback: 'Operator supplied the final output',
       },
     };
 
