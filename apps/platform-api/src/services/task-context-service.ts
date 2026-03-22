@@ -388,7 +388,7 @@ async function loadWorkItemContext(
        FROM workflow_work_items
        LEFT JOIN LATERAL (
          SELECT th.completion AS latest_handoff_completion,
-                COALESCE(th.resolution, th.role_data->>'review_outcome') AS latest_handoff_resolution,
+                th.resolution AS latest_handoff_resolution,
                 array_cat(
                   COALESCE(
                     ARRAY(SELECT jsonb_array_elements_text(COALESCE(th.remaining_items, '[]'::jsonb))),

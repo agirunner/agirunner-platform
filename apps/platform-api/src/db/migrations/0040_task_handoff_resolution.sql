@@ -2,14 +2,6 @@ ALTER TABLE task_handoffs
   ADD COLUMN IF NOT EXISTS resolution text;
 
 UPDATE task_handoffs
-   SET resolution = CASE
-     WHEN COALESCE(role_data->>'review_outcome', '') IN ('approved', 'request_changes', 'rejected')
-       THEN role_data->>'review_outcome'
-     ELSE resolution
-   END
- WHERE resolution IS NULL;
-
-UPDATE task_handoffs
    SET completion = 'full'
  WHERE completion = 'partial';
 

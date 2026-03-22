@@ -553,7 +553,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         if (sql.includes('FROM task_handoffs')) {
           expect(values).toEqual(['tenant-1', 'task-reviewer-approved', 0]);
           return {
-            rows: [{ review_outcome: 'approved' }],
+            rows: [{ resolution: 'approved' }],
             rowCount: 1,
           };
         }
@@ -569,7 +569,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
                 work_item_id: 'work-item-1',
                 stage_name: 'implementation',
                 role: 'reviewer',
-                output: { review_outcome: 'approved' },
+                output: { resolution: 'approved' },
                 metadata: {},
               },
             ],
@@ -625,7 +625,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       },
       'task-reviewer-approved',
       {
-        output: { review_outcome: 'approved' },
+        output: { resolution: 'approved' },
         verification: { passed: true },
       },
     );
@@ -1512,13 +1512,13 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
   it('does not reapply the same reviewer request-changes handoff after the developer resubmits output', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes('COALESCE(th.resolution')) {
+        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes("th.resolution = 'request_changes'")) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
           return {
             rowCount: 1,
             rows: [{
               handoff_id: 'handoff-review-1',
-              review_task_id: 'review-task-1',
+              assessment_task_id: 'review-task-1',
               created_at: new Date('2026-03-21T16:52:24.000Z'),
             }],
           };
@@ -1591,13 +1591,13 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
           return { rows: [], rowCount: 0 };
         }
-        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes('COALESCE(th.resolution')) {
+        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes("th.resolution = 'request_changes'")) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
           return {
             rowCount: 1,
             rows: [{
               handoff_id: 'handoff-review-1',
-              review_task_id: 'review-task-1',
+              assessment_task_id: 'review-task-1',
               created_at: new Date('2026-03-21T16:52:24.000Z'),
             }],
           };
@@ -1662,13 +1662,13 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
   it('ignores a stale QA request-changes replay once a newer developer handoff already exists', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes('COALESCE(th.resolution')) {
+        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes("th.resolution = 'request_changes'")) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
           return {
             rowCount: 1,
             rows: [{
               handoff_id: 'handoff-qa-1',
-              review_task_id: 'task-qa-1',
+              assessment_task_id: 'task-qa-1',
               created_at: new Date('2026-03-21T20:09:52.000Z'),
             }],
           };

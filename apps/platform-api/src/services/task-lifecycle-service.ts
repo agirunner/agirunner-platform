@@ -1132,8 +1132,8 @@ export class TaskLifecycleService {
     const ownsClient = db == null && queryClient !== this.deps.pool;
 
     try {
-      const result = await queryClient.query<{ review_outcome: unknown }>(
-        `SELECT COALESCE(resolution, role_data->>'review_outcome') AS review_outcome
+      const result = await queryClient.query<{ resolution: unknown }>(
+        `SELECT resolution
          FROM task_handoffs
         WHERE tenant_id = $1
           AND task_id = $2
@@ -1143,7 +1143,7 @@ export class TaskLifecycleService {
         [tenantId, taskId, taskReworkCount],
       );
 
-      return normalizeAssessmentApprovalOutcome(result.rows[0]?.review_outcome) === 'approved';
+      return normalizeAssessmentApprovalOutcome(result.rows[0]?.resolution) === 'approved';
     } finally {
       if (ownsClient && 'release' in queryClient && typeof queryClient.release === 'function') {
         queryClient.release();
@@ -1185,7 +1185,7 @@ export class TaskLifecycleService {
                AND child.workflow_id = $2
           )
           SELECT th.id AS handoff_id,
-                 th.task_id AS review_task_id,
+                 th.task_id AS assessment_task_id,
                  th.created_at
            FROM descendant_work_items review_wi
            JOIN task_handoffs th
@@ -1193,7 +1193,7 @@ export class TaskLifecycleService {
             AND th.workflow_id = $2
             AND th.work_item_id = review_wi.id
           WHERE review_wi.id <> $3
-            AND COALESCE(th.resolution, th.role_data->>'review_outcome') = 'request_changes'
+            AND th.resolution = 'request_changes'
           ORDER BY th.sequence DESC, th.created_at DESC
           LIMIT 1`,
         [tenantId, workflowId, workItemId],

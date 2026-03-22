@@ -730,7 +730,7 @@ export class WorkItemService {
           AND ws.name = wi.stage_name
          LEFT JOIN LATERAL (
            SELECT th.completion AS latest_handoff_completion,
-                  COALESCE(th.resolution, th.role_data->>'review_outcome') AS latest_handoff_resolution
+                  th.resolution AS latest_handoff_resolution
              FROM task_handoffs th
             WHERE th.tenant_id = wi.tenant_id
               AND th.workflow_id = wi.workflow_id
@@ -919,7 +919,7 @@ export class WorkItemService {
           AND ws.name = wi.stage_name
          LEFT JOIN LATERAL (
            SELECT th.completion AS latest_handoff_completion,
-                  COALESCE(th.resolution, th.role_data->>'review_outcome') AS latest_handoff_resolution,
+                  th.resolution AS latest_handoff_resolution,
                   array_cat(
                     COALESCE(
                       ARRAY(SELECT jsonb_array_elements_text(COALESCE(th.remaining_items, '[]'::jsonb))),
@@ -976,7 +976,7 @@ export class WorkItemService {
              FROM (
                SELECT DISTINCT ON (assessment_handoff.role)
                       assessment_handoff.role,
-                      COALESCE(assessment_handoff.resolution, assessment_handoff.role_data->>'review_outcome') AS resolution
+                      assessment_handoff.resolution AS resolution
                  FROM task_handoffs assessment_handoff
                 WHERE assessment_handoff.tenant_id = wi.tenant_id
                   AND assessment_handoff.workflow_id = wi.workflow_id

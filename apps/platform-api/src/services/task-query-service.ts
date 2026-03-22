@@ -172,7 +172,7 @@ export class TaskQueryService {
               role,
               summary,
               completion,
-              COALESCE(resolution, role_data->>'review_outcome') AS resolution,
+              resolution,
               changes,
               decisions,
               remaining_items,
