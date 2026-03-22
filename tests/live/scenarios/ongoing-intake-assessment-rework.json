@@ -27,9 +27,25 @@
   ],
   "expect": {
     "state": "pending",
+    "workflow_fields": {
+      "lifecycle": "ongoing"
+    },
     "work_items": {
-      "min_count": 2
-    }
+      "min_count": 2,
+      "all_terminal": true
+    },
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 4
+    },
+    "continuity_rework_sequences": [
+      {
+        "stage_name": "intake-triage",
+        "required_role": "intake-analyst",
+        "minimum_rework_count": 1,
+        "assessment_stage_name": "intake-triage",
+        "assessment_task_min_count": 2
+      }
+    ]
   },
   "coverage": {
     "playbook_shapes": [

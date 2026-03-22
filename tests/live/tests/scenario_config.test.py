@@ -15,6 +15,29 @@ import scenario_config  # noqa: E402
 
 
 class ScenarioConfigTests(unittest.TestCase):
+    def test_ongoing_intake_scenario_requires_real_work_before_pending_counts_as_success(self) -> None:
+        scenario_path = Path(__file__).resolve().parents[1] / "scenarios" / "ongoing-intake-assessment-rework.json"
+
+        scenario = scenario_config.load_scenario(scenario_path)
+
+        self.assertEqual("pending", scenario["expect"]["state"])
+        self.assertEqual({"lifecycle": "ongoing"}, scenario["expect"]["workflow_fields"])
+        self.assertEqual(2, scenario["expect"]["work_items"]["min_count"])
+        self.assertTrue(scenario["expect"]["work_items"]["all_terminal"])
+        self.assertEqual(4, scenario["expect"]["workflow_tasks"]["min_non_orchestrator_count"])
+        self.assertEqual(
+            [
+                {
+                    "stage_name": "intake-triage",
+                    "required_role": "intake-analyst",
+                    "minimum_rework_count": 1,
+                    "assessment_stage_name": "intake-triage",
+                    "assessment_task_min_count": 2,
+                }
+            ],
+            scenario["expect"]["continuity_rework_sequences"],
+        )
+
     def write_scenario(self, payload: dict[str, object]) -> Path:
         handle = tempfile.NamedTemporaryFile("w", suffix=".json", delete=False)
         with handle:
