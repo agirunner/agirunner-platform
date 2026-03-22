@@ -132,13 +132,7 @@ export interface RoleDraftValidationResult {
   isValid: boolean;
 }
 
-export function createDefaultAuthoringDraft(
-  lifecycle: PlaybookLifecycle,
-  availableRoleNames: string[] = [],
-): PlaybookAuthoringDraft {
-  void lifecycle;
-  void availableRoleNames;
-
+export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): PlaybookAuthoringDraft {
   return {
     process_instructions:
       lifecycle === 'ongoing'

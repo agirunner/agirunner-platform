@@ -35,7 +35,7 @@ describe('playbook list page source', () => {
     expect(source).toContain('summarizePlaybookProcess');
     expect(source).toContain('Process');
     expect(source).toContain('roles');
-    expect(source).toContain('reviews');
+    expect(source).toContain('assessments');
     expect(source).toContain('handoffs /');
     expect(source).toContain('Most revisions');
     expect(source).toContain('families ·');
@@ -57,5 +57,12 @@ describe('playbook list page source', () => {
     expect(source).not.toContain('Delete Playbook Revision');
     expect(source).not.toContain('dashboardApi.archivePlaybook');
     expect(source).not.toContain('dashboardApi.restorePlaybook');
+  });
+
+  it('keeps fresh playbook drafts blank instead of backfilling active roles', () => {
+    const source = readSource();
+    expect(source).not.toContain('dashboardApi.listRoleDefinitions');
+    expect(source).not.toContain('activeRoleNames');
+    expect(source).not.toContain('roles: activeRoleNames.map');
   });
 });
