@@ -4,6 +4,10 @@ import type { LogService } from '../logging/log-service.js';
 import { logPredecessorHandoffResolution } from '../logging/predecessor-handoff-log.js';
 import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
+import {
+  readAssessmentSubjectLinkage,
+  readWorkflowTaskKind,
+} from './assessment-subject-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
@@ -539,11 +543,38 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     review_focus: normalizeStringArray(sanitizeHandoffValue(input.review_focus)),
     known_risks: normalizeStringArray(sanitizeHandoffValue(input.known_risks)),
     successor_context: readOptionalString(sanitizeHandoffValue(input.successor_context)),
-    role_data: sanitizeHandoffRecord(input.role_data),
+    role_data: buildSystemOwnedRoleData(task, input),
     artifact_ids: normalizeStringArray(input.artifact_ids),
   };
   assertNoTaskLocalHandoffPaths(payload);
   return payload;
+}
+
+function buildSystemOwnedRoleData(task: TaskContextRow, input: SubmitTaskHandoffInput) {
+  const taskKind = readWorkflowTaskKind(task.metadata, task.is_orchestrator_task);
+  const roleData = sanitizeHandoffRecord(input.role_data);
+
+  if (taskKind === 'delivery') {
+    const subjectRevision = readInteger(normalizeRecord(task.metadata).output_revision)
+      ?? ((readInteger(task.rework_count) ?? 0) + 1);
+    return sanitizeHandoffRecord({
+      ...roleData,
+      task_kind: taskKind,
+      subject_task_id: task.id,
+      ...(task.work_item_id ? { subject_work_item_id: task.work_item_id } : {}),
+      ...(subjectRevision > 0 ? { subject_revision: subjectRevision } : {}),
+    });
+  }
+
+  const linkage = readAssessmentSubjectLinkage(task.input, task.metadata);
+  return sanitizeHandoffRecord({
+    ...roleData,
+    task_kind: taskKind,
+    ...(linkage.subjectTaskId ? { subject_task_id: linkage.subjectTaskId } : {}),
+    ...(linkage.subjectWorkItemId ? { subject_work_item_id: linkage.subjectWorkItemId } : {}),
+    ...(linkage.subjectHandoffId ? { subject_handoff_id: linkage.subjectHandoffId } : {}),
+    ...(linkage.subjectRevision !== null ? { subject_revision: linkage.subjectRevision } : {}),
+  });
 }
 
 function assertMatchingHandoffReplay(

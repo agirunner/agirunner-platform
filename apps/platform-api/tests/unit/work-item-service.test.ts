@@ -255,6 +255,62 @@ describe('WorkItemService', () => {
     ).rejects.toThrowError(ValidationError);
   });
 
+  it('summarizes required assessments against the current subject revision and ignores stale older approvals', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_work_items wi')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          expect(sql).toContain('latest_delivery.subject_revision AS current_subject_revision');
+          expect(sql).toContain('assessment_handoff.role_data->>\'subject_revision\'');
+          expect(sql).toContain("COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)");
+          expect(sql).toContain('required_assessment_count');
+          expect(sql).toContain('approved_assessment_count');
+          expect(sql).toContain('blocking_assessment_count');
+          expect(sql).toContain('pending_assessment_count');
+          expect(sql).toContain('assessment_status');
+          return {
+            rows: [
+              {
+                id: 'wi-impl-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                stage_name: 'implementation',
+                title: 'Implementation checkpoint',
+                column_id: 'planned',
+                task_count: '1',
+                children_count: '0',
+                children_completed: '0',
+                current_subject_revision: 2,
+                required_assessment_count: 1,
+                approved_assessment_count: 0,
+                blocking_assessment_count: 0,
+                pending_assessment_count: 1,
+                assessment_status: 'pending',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { enqueueForWorkflow: vi.fn() } as never,
+      { dispatchActivation: vi.fn() } as never,
+    );
+
+    const [workItem] = await service.listWorkflowWorkItems('tenant-1', 'workflow-1');
+
+    expect((workItem as Record<string, unknown>).current_subject_revision).toBe(2);
+    expect((workItem as Record<string, unknown>).required_assessment_count).toBe(1);
+    expect((workItem as Record<string, unknown>).approved_assessment_count).toBe(0);
+    expect((workItem as Record<string, unknown>).blocking_assessment_count).toBe(0);
+    expect((workItem as Record<string, unknown>).pending_assessment_count).toBe(1);
+    expect((workItem as Record<string, unknown>).assessment_status).toBe('pending');
+  });
+
   it('allows the immediate review successor when the predecessor output is pending review with a full handoff', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

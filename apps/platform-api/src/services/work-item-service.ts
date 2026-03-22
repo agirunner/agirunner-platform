@@ -60,6 +60,12 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   unresolved_findings?: string[];
   review_focus?: string[];
   known_risks?: string[];
+  current_subject_revision?: number | null;
+  required_assessment_count?: number;
+  approved_assessment_count?: number;
+  blocking_assessment_count?: number;
+  pending_assessment_count?: number;
+  assessment_status?: 'pending' | 'blocked' | 'approved' | null;
   gate_status?: string | null;
   gate_decision_feedback?: string | null;
   gate_decided_at?: string | Date | null;
@@ -874,10 +880,33 @@ export class WorkItemService {
               latest_handoff.unresolved_findings,
               latest_handoff.review_focus,
               latest_handoff.known_risks,
+              latest_delivery.subject_revision AS current_subject_revision,
+              COALESCE(assessment_requirements.required_assessment_count, 0)::int AS required_assessment_count,
+              COALESCE(assessment_rollup.approved_assessment_count, 0)::int AS approved_assessment_count,
+              COALESCE(assessment_rollup.blocking_assessment_count, 0)::int AS blocking_assessment_count,
+              GREATEST(
+                COALESCE(assessment_requirements.required_assessment_count, 0)::int
+                  - COALESCE(assessment_rollup.approved_assessment_count, 0)::int
+                  - COALESCE(assessment_rollup.blocking_assessment_count, 0)::int,
+                0
+              )::int AS pending_assessment_count,
+              CASE
+                WHEN COALESCE(assessment_requirements.required_assessment_count, 0) = 0 THEN NULL
+                WHEN COALESCE(assessment_rollup.blocking_assessment_count, 0) > 0 THEN 'blocked'
+                WHEN COALESCE(assessment_rollup.approved_assessment_count, 0) >= COALESCE(assessment_requirements.required_assessment_count, 0)
+                  THEN 'approved'
+                ELSE 'pending'
+              END AS assessment_status,
               latest_gate.gate_status,
               latest_gate.gate_decision_feedback,
               latest_gate.gate_decided_at
          FROM workflow_work_items wi
+         LEFT JOIN workflows wf
+           ON wf.tenant_id = wi.tenant_id
+          AND wf.id = wi.workflow_id
+         LEFT JOIN playbooks pb
+           ON pb.tenant_id = wf.tenant_id
+          AND pb.id = wf.playbook_id
          LEFT JOIN tasks t
            ON t.tenant_id = wi.tenant_id
           AND t.work_item_id = wi.id
@@ -911,6 +940,57 @@ export class WorkItemService {
             LIMIT 1
          ) latest_handoff ON true
          LEFT JOIN LATERAL (
+           SELECT th.task_id AS subject_task_id,
+                  th.role AS subject_role,
+                  NULLIF(COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, 0), 0) AS subject_revision
+             FROM task_handoffs th
+            WHERE th.tenant_id = wi.tenant_id
+              AND th.workflow_id = wi.workflow_id
+              AND th.work_item_id = wi.id
+              AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+              AND th.completion = 'full'
+            ORDER BY th.sequence DESC, th.created_at DESC
+            LIMIT 1
+         ) latest_delivery ON true
+         LEFT JOIN LATERAL (
+           SELECT COUNT(DISTINCT rule.assessed_by)::int AS required_assessment_count,
+                  COALESCE(
+                    ARRAY_AGG(DISTINCT rule.assessed_by) FILTER (WHERE rule.assessed_by IS NOT NULL),
+                    ARRAY[]::text[]
+                  ) AS required_assessor_roles
+             FROM jsonb_to_recordset(COALESCE(pb.definition->'assessment_rules', '[]'::jsonb)) AS rule(
+               subject_role text,
+               assessed_by text,
+               checkpoint text,
+               required boolean,
+               optional boolean
+             )
+            WHERE latest_delivery.subject_role IS NOT NULL
+              AND rule.subject_role = latest_delivery.subject_role
+              AND (rule.checkpoint IS NULL OR rule.checkpoint = wi.stage_name)
+              AND COALESCE(rule.required, CASE WHEN rule.optional IS TRUE THEN FALSE ELSE TRUE END)
+         ) assessment_requirements ON true
+         LEFT JOIN LATERAL (
+           SELECT COUNT(*) FILTER (WHERE latest_assessment.resolution = 'approved')::int AS approved_assessment_count,
+                  COUNT(*) FILTER (WHERE latest_assessment.resolution IN ('request_changes', 'rejected'))::int AS blocking_assessment_count
+             FROM (
+               SELECT DISTINCT ON (assessment_handoff.role)
+                      assessment_handoff.role,
+                      COALESCE(assessment_handoff.resolution, assessment_handoff.role_data->>'review_outcome') AS resolution
+                 FROM task_handoffs assessment_handoff
+                WHERE assessment_handoff.tenant_id = wi.tenant_id
+                  AND assessment_handoff.workflow_id = wi.workflow_id
+                  AND COALESCE(assessment_handoff.role_data->>'task_kind', '') = 'assessment'
+                  AND COALESCE(assessment_handoff.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id, '')
+                  AND COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
+                  AND (
+                    COALESCE(array_length(assessment_requirements.required_assessor_roles, 1), 0) = 0
+                    OR assessment_handoff.role = ANY(assessment_requirements.required_assessor_roles)
+                  )
+                ORDER BY assessment_handoff.role, assessment_handoff.sequence DESC, assessment_handoff.created_at DESC
+             ) latest_assessment
+         ) assessment_rollup ON true
+         LEFT JOIN LATERAL (
            SELECT g.status AS gate_status,
                   g.decision_feedback AS gate_decision_feedback,
                   g.decided_at AS gate_decided_at
@@ -928,6 +1008,10 @@ export class WorkItemService {
                  latest_handoff.unresolved_findings,
                  latest_handoff.review_focus,
                  latest_handoff.known_risks,
+                 latest_delivery.subject_revision,
+                 assessment_requirements.required_assessment_count,
+                 assessment_rollup.approved_assessment_count,
+                 assessment_rollup.blocking_assessment_count,
                  latest_gate.gate_status,
                  latest_gate.gate_decision_feedback,
                  latest_gate.gate_decided_at
@@ -1080,6 +1164,15 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     unresolved_findings: completedWorkItem ? [] : readStringArray(sanitizedRow.unresolved_findings),
     review_focus: completedWorkItem ? [] : readStringArray(sanitizedRow.review_focus),
     known_risks: readStringArray(sanitizedRow.known_risks),
+    current_subject_revision: readOptionalCount(sanitizedRow.current_subject_revision),
+    required_assessment_count: readCount(sanitizedRow.required_assessment_count),
+    approved_assessment_count: readCount(sanitizedRow.approved_assessment_count),
+    blocking_assessment_count: readCount(sanitizedRow.blocking_assessment_count),
+    pending_assessment_count: readCount(sanitizedRow.pending_assessment_count),
+    assessment_status:
+      typeof sanitizedRow.assessment_status === 'string'
+        ? sanitizedRow.assessment_status as WorkItemReadModel['assessment_status']
+        : null,
     gate_status: typeof sanitizedRow.gate_status === 'string' ? sanitizedRow.gate_status : null,
     gate_decision_feedback:
       typeof sanitizedRow.gate_decision_feedback === 'string'
@@ -1135,6 +1228,17 @@ function readCount(value: unknown) {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+}
+
+function readOptionalCount(value: unknown): number | null {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return value;
+  }
+  if (typeof value === 'string') {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
 }
 
 function readStringArray(value: unknown): string[] {

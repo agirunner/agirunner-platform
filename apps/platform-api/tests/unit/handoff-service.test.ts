@@ -55,7 +55,7 @@ describe('HandoffService', () => {
             stage_name: 'implementation',
             state: 'in_progress',
             rework_count: 0,
-            metadata: { team_name: 'delivery' },
+            metadata: { team_name: 'delivery', output_revision: 2 },
           }],
           rowCount: 1,
         })
@@ -109,6 +109,17 @@ describe('HandoffService', () => {
         review_focus: ['error handling'],
       }),
     );
+    const insertCall = pool.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
+    ) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(insertCall?.[1]?.[20] ?? '{}'))).toEqual(
+      expect.objectContaining({
+        task_kind: 'delivery',
+        subject_task_id: 'task-1',
+        subject_work_item_id: 'work-item-1',
+        subject_revision: 2,
+      }),
+    );
   });
 
   it('allows resolution on assessment task handoffs', async () => {
@@ -126,7 +137,11 @@ describe('HandoffService', () => {
             state: 'in_progress',
             rework_count: 0,
             is_orchestrator_task: false,
-            input: { subject_task_id: 'task-dev-1', subject_revision: 1 },
+            input: {
+              subject_task_id: 'task-dev-1',
+              subject_work_item_id: 'work-item-impl-1',
+              subject_revision: 1,
+            },
             metadata: { task_kind: 'assessment', team_name: 'delivery' },
           }],
           rowCount: 1,
@@ -181,6 +196,17 @@ describe('HandoffService', () => {
         id: 'handoff-qa-1',
         resolution: 'request_changes',
         stage_name: 'verification',
+      }),
+    );
+    const insertCall = pool.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
+    ) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(insertCall?.[1]?.[20] ?? '{}'))).toEqual(
+      expect.objectContaining({
+        task_kind: 'assessment',
+        subject_task_id: 'task-dev-1',
+        subject_work_item_id: 'work-item-impl-1',
+        subject_revision: 1,
       }),
     );
   });
@@ -619,7 +645,15 @@ describe('HandoffService', () => {
     expect(insertParams[14]).toBe(JSON.stringify([{ owner: 'developer' }]));
     expect(insertParams[15]).toBe(JSON.stringify(['review findings']));
     expect(insertParams[16]).toBe(JSON.stringify(['Need human scope confirmation']));
-    expect(insertParams[20]).toBe(JSON.stringify({ branch: 'feature/hello-world' }));
+    expect(insertParams[20]).toBe(
+      JSON.stringify({
+        branch: 'feature/hello-world',
+        task_kind: 'delivery',
+        subject_task_id: 'task-1',
+        subject_work_item_id: 'work-item-1',
+        subject_revision: 1,
+      }),
+    );
   });
 
   it('treats late handoff activation enqueue as a no-op once the workflow is already completed', async () => {
@@ -807,7 +841,13 @@ describe('HandoffService', () => {
     expect(insertParams[18]).toEqual(['redacted://handoff-secret']);
     expect(insertParams[19]).toBe('redacted://handoff-secret');
     expect(insertParams[20]).toBe(
-      JSON.stringify({ api_key: 'redacted://handoff-secret' }),
+      JSON.stringify({
+        api_key: 'redacted://handoff-secret',
+        task_kind: 'delivery',
+        subject_task_id: 'task-1',
+        subject_work_item_id: 'work-item-1',
+        subject_revision: 1,
+      }),
     );
 
     expect(result).toEqual(
@@ -864,7 +904,12 @@ describe('HandoffService', () => {
             review_focus: ['error handling'],
             known_risks: [],
             successor_context: 'Focus on refresh token expiry.',
-            role_data: {},
+            role_data: {
+              task_kind: 'delivery',
+              subject_task_id: 'task-1',
+              subject_work_item_id: 'work-item-1',
+              subject_revision: 1,
+            },
             artifact_ids: [],
             created_at: new Date('2026-03-15T12:00:00Z'),
           }],
