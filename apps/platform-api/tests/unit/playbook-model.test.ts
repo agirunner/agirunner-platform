@@ -204,7 +204,7 @@ describe('playbook model runtime pools', () => {
     expect(definition.assessment_rules.map((rule) => rule.assessed_by)).toEqual(['reviewer', 'qa']);
   });
 
-  it('rejects legacy authored review_rules payloads', () => {
+  it('rejects unknown authored playbook keys such as review_rules', () => {
     expect(() =>
       parsePlaybookDefinition({
         process_instructions: 'All developer work is assessed before completion.',

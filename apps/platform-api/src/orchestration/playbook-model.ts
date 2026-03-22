@@ -111,7 +111,7 @@ const playbookDefinitionSchema = z.object({
     .optional(),
   runtime: runtimeSchema.optional(),
   parameters: z.array(z.record(z.unknown())).optional(),
-});
+}).strict();
 
 export type PlaybookDefinition = z.infer<typeof playbookDefinitionSchema>;
 export type PlaybookRuntimeConfig = z.infer<typeof runtimeSchema>;
@@ -124,7 +124,6 @@ export interface PlaybookRuntimePoolTarget {
 }
 
 export function parsePlaybookDefinition(value: unknown): PlaybookDefinition {
-  assertNoLegacyReviewRules(value);
   const parsed = playbookDefinitionSchema.safeParse(value);
   if (!parsed.success) {
     throw new SchemaValidationFailedError('Invalid playbook definition', {
@@ -273,19 +272,6 @@ function buildLegacyProcessInstructions(stages: PlaybookDefinition['stages']): s
       return `${ordinal}. ${stage.name}: ${stage.goal}`;
     })
     .join('\n');
-}
-
-function assertNoLegacyReviewRules(value: unknown): void {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    return;
-  }
-  if ('review_rules' in (value as Record<string, unknown>)) {
-    throw new SchemaValidationFailedError('Invalid playbook definition', {
-      issues: {
-        formErrors: ['review_rules is not supported; use assessment_rules'],
-      },
-    });
-  }
 }
 
 function readSharedRuntimeConfig(runtime: PlaybookRuntimeConfig): PlaybookRuntimePoolConfig {
