@@ -193,6 +193,18 @@ describe('OAuth profiles', () => {
     }
   });
 
+  it('openai-codex exposes gpt-5.3-codex-spark as an oauth static model', () => {
+    const model = OPENAI_CODEX_PROFILE.staticModels.find((entry) => entry.modelId === 'gpt-5.3-codex-spark');
+    expect(model).toBeDefined();
+    expect(model?.endpointType).toBe('responses');
+    expect(model?.supportsToolUse).toBe(true);
+    expect(model?.supportsVision).toBe(false);
+    expect(model?.contextWindow).toBe(272000);
+    expect(model?.maxOutputTokens).toBe(128000);
+    expect(model?.inputCostPerMillionUsd).toBeNull();
+    expect(model?.outputCostPerMillionUsd).toBeNull();
+  });
+
   it('openai-codex profile has PKCE authorize params matching Codex CLI', () => {
     expect(OPENAI_CODEX_PROFILE.scopes).toContain('offline_access');
     expect(OPENAI_CODEX_PROFILE.scopes).toContain('openid');

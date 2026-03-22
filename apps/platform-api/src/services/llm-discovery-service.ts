@@ -30,6 +30,7 @@ export interface DiscoveredModel {
 const providerTypeSchema = z.enum(['openai', 'anthropic', 'google', 'openai-compatible']);
 
 const OPENAI_MODEL_PREFIXES = ['gpt-', 'o1-', 'o3-', 'o4-', 'chatgpt-', 'codex-'];
+const OPENAI_OAUTH_ONLY_MODEL_IDS = new Set(['gpt-5.3-codex-spark']);
 
 const DISCOVERY_TIMEOUT_MS = 10000;
 
@@ -70,6 +71,7 @@ export class LlmDiscoveryService {
     const body = await response.json() as { data: Array<{ id: string; created: number }> };
     return body.data
       .filter((model) => isOpenAiChatModel(model.id))
+      .filter((model) => !isOAuthOnlyOpenAiModel(model.id))
       .map((model) => enrichModel(model.id, model.id, 'openai'));
   }
 
@@ -81,7 +83,9 @@ export class LlmDiscoveryService {
     const response = await this.fetchWithTimeout(`${normalizeBaseUrl(baseUrl)}/models`, { headers });
 
     const body = await response.json() as { data: Array<{ id: string; created?: number }> };
-    return body.data.map((model) => enrichModel(model.id, model.id, 'openai-compatible'));
+    return body.data
+      .filter((model) => !isOAuthOnlyOpenAiModel(model.id))
+      .map((model) => enrichModel(model.id, model.id, 'openai-compatible'));
   }
 
   private async discoverAnthropic(apiKey: string): Promise<DiscoveredModel[]> {
@@ -157,6 +161,10 @@ function normalizeBaseUrl(url: string): string {
 
 function isOpenAiChatModel(modelId: string): boolean {
   return OPENAI_MODEL_PREFIXES.some((prefix) => modelId.startsWith(prefix));
+}
+
+function isOAuthOnlyOpenAiModel(modelId: string): boolean {
+  return OPENAI_OAUTH_ONLY_MODEL_IDS.has(modelId);
 }
 
 function enrichModel(modelId: string, displayName: string, providerType: string): DiscoveredModel {

@@ -93,6 +93,7 @@ describe('isDefaultEnabledModel', () => {
   });
 
   it('does not enable legacy or testing models', () => {
+    expect(isDefaultEnabledModel('gpt-5.3-codex-spark')).toBe(false);
     expect(isDefaultEnabledModel('gpt-4o')).toBe(false);
     expect(isDefaultEnabledModel('gpt-4o-mini')).toBe(false);
     expect(isDefaultEnabledModel('claude-haiku-4-5')).toBe(false);

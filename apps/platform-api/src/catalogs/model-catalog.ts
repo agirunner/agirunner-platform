@@ -271,5 +271,8 @@ const DEFAULT_ENABLED_PATTERNS = [
 ];
 
 export function isDefaultEnabledModel(modelId: string): boolean {
+  if (modelId === 'gpt-5.3-codex-spark') {
+    return false;
+  }
   return DEFAULT_ENABLED_PATTERNS.some((pattern) => pattern.test(modelId));
 }

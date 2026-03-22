@@ -234,6 +234,23 @@ describe('LlmDiscoveryService', () => {
       expect(result[0].outputCostPerMillionUsd).toBeNull();
       expect(result[0].reasoningConfig).toBeNull();
     });
+
+    it('filters oauth-only spark models from non-oauth discovery', async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        mockFetchResponse({
+          data: [
+            { id: 'gpt-5.3-codex', created: 1700000000 },
+            { id: 'gpt-5.3-codex-spark', created: 1700000000 },
+          ],
+        }),
+      );
+
+      const result = await service.validateAndDiscover('openai', 'https://api.openai.com/v1', 'sk-test');
+      const ids = result.map((model) => model.modelId);
+
+      expect(ids).toContain('gpt-5.3-codex');
+      expect(ids).not.toContain('gpt-5.3-codex-spark');
+    });
   });
 
   describe('Anthropic discovery', () => {
@@ -445,6 +462,23 @@ describe('LlmDiscoveryService', () => {
 
       expect(result[0].contextWindow).toBe(128000);
       expect(result[0].endpointType).toBe('chat-completions');
+    });
+
+    it('filters oauth-only spark models from compatible discovery', async () => {
+      vi.mocked(globalThis.fetch).mockResolvedValueOnce(
+        mockFetchResponse({
+          data: [
+            { id: 'gpt-5.3-codex-spark' },
+            { id: 'gpt-4o' },
+          ],
+        }),
+      );
+
+      const result = await service.validateAndDiscover('openai-compatible', 'http://proxy:8080/v1', 'key');
+      const ids = result.map((model) => model.modelId);
+
+      expect(ids).toContain('gpt-4o');
+      expect(ids).not.toContain('gpt-5.3-codex-spark');
     });
   });
 });
