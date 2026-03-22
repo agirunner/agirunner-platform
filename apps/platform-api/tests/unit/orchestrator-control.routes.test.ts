@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 import { ValidationError } from '../../src/errors/domain-errors.js';
 import {
+  normalizeExplicitAssessmentSubjectTaskLinkage,
   normalizeOrchestratorChildWorkflowLinkage,
   orchestratorControlRoutes,
 } from '../../src/api/routes/orchestrator-control.routes.js';
@@ -142,7 +143,7 @@ describe('orchestratorControlRoutes', () => {
             }],
           };
         }
-        throw new Error(`unexpected client query: ${sql}`);
+        return { rowCount: 0, rows: [] };
       }),
       release: vi.fn(),
     };
@@ -176,7 +177,7 @@ describe('orchestratorControlRoutes', () => {
             }],
           };
         }
-        throw new Error(`unexpected pool query: ${sql}`);
+        return { rowCount: 0, rows: [] };
       }),
       connect: vi.fn(async () => client),
     };
@@ -3482,6 +3483,55 @@ describe('orchestratorControlRoutes', () => {
       client,
     );
     expect(response.json().data).toEqual(createdTask);
+  });
+
+  it('derives subject_revision for explicit assessment subject_task_id linkage', async () => {
+    const db = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT id, rework_count, input, metadata, is_orchestrator_task') && sql.includes('FROM tasks')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-implementer']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-implementer',
+              rework_count: 2,
+              input: { description: 'Implement revision 3 release-ready contract.' },
+              metadata: { task_kind: 'delivery', description: 'Implement revision 3 release-ready contract.' },
+              is_orchestrator_task: false,
+            }],
+          };
+        }
+        throw new Error(`unexpected db query: ${sql}`);
+      }),
+    };
+
+    const normalized = await normalizeExplicitAssessmentSubjectTaskLinkage(
+      db as never,
+      'tenant-1',
+      'workflow-1',
+      {
+        request_id: 'create-assessment-explicit-subject-1',
+        title: 'Assess implementation output with explicit subject',
+        description: 'Assess the explicit subject task after rework.',
+        work_item_id: '5a5a5a5a-5a5a-45a5-85a5-5a5a5a5a5a5a',
+        stage_name: 'implementation',
+        role: 'acceptance-gate-assessor',
+        type: 'assessment',
+        input: {
+          subject_task_id: 'task-implementer',
+        },
+      },
+    );
+
+    expect(normalized.input).toMatchObject({
+      subject_task_id: 'task-implementer',
+      subject_revision: 3,
+    });
+    expect(normalized.metadata).toMatchObject({
+      subject_linkage_source: 'explicit_subject_task_default',
+      subject_task_id: 'task-implementer',
+      subject_revision: 3,
+    });
   });
 
   it('rebinds activation-default assessment linkage through an assessment task to its explicit subject', async () => {

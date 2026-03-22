@@ -1508,19 +1508,25 @@ async function normalizeOrchestratorTaskCreateInput(
     taskScope.workflow_id,
     topLevelNormalizedBody,
   );
-  if (hasExplicitReviewedTaskReference(stageAlignedBody.input, stageAlignedBody.metadata)) {
-    return stageAlignedBody;
+  const explicitLinkageBody = await normalizeExplicitAssessmentSubjectTaskLinkage(
+    pool,
+    tenantId,
+    taskScope.workflow_id,
+    stageAlignedBody,
+  );
+  if (hasExplicitReviewedTaskReference(explicitLinkageBody.input, explicitLinkageBody.metadata)) {
+    return explicitLinkageBody;
   }
 
-  const existingInput = stageAlignedBody.input ?? {};
-  const explicitAssessmentLinkage = readAssessmentSubjectLinkage(existingInput, stageAlignedBody.metadata);
+  const existingInput = explicitLinkageBody.input ?? {};
+  const explicitAssessmentLinkage = readAssessmentSubjectLinkage(existingInput, explicitLinkageBody.metadata);
   const context = await loadOrchestratorCreateWorkItemContext(
     pool,
     tenantId,
     taskScope.workflow_id,
     taskScope.activation_id,
   );
-  if (isReviewTaskCreate(stageAlignedBody)) {
+  if (isReviewTaskCreate(explicitLinkageBody)) {
     const explicitTaskID = readString(existingInput.task_id);
     if (explicitTaskID) {
       const reviewTaskMetadata = await loadReviewedTaskMetadata(
@@ -1531,25 +1537,25 @@ async function normalizeOrchestratorTaskCreateInput(
     );
       const resolvedLinkage = mergeAssessmentSubjectLinkage(reviewTaskMetadata, explicitAssessmentLinkage);
       return {
-        ...stageAlignedBody,
+        ...explicitLinkageBody,
         input: buildAssessmentSubjectInput(existingInput, resolvedLinkage),
-        metadata: buildAssessmentSubjectMetadata(stageAlignedBody.metadata, resolvedLinkage, 'input_task_id_default'),
+        metadata: buildAssessmentSubjectMetadata(explicitLinkageBody.metadata, resolvedLinkage, 'input_task_id_default'),
       };
     }
     const targetWorkItemSubject = await maybeLoadCrossStageTargetWorkItemAssessmentSubject(
       pool,
       tenantId,
       taskScope.workflow_id,
-      stageAlignedBody,
+      explicitLinkageBody,
       context,
     );
     if (targetWorkItemSubject) {
       const resolvedLinkage = mergeAssessmentSubjectLinkage(targetWorkItemSubject, explicitAssessmentLinkage);
       return {
-        ...stageAlignedBody,
-        input: buildAssessmentSubjectInput(stageAlignedBody.input, resolvedLinkage),
+        ...explicitLinkageBody,
+        input: buildAssessmentSubjectInput(explicitLinkageBody.input, resolvedLinkage),
         metadata: buildAssessmentSubjectMetadata(
-          stageAlignedBody.metadata,
+          explicitLinkageBody.metadata,
           resolvedLinkage,
           'target_work_item_delivery_default',
         ),
@@ -1573,14 +1579,14 @@ async function normalizeOrchestratorTaskCreateInput(
     const resolvedLinkage = mergeAssessmentSubjectLinkage(reviewTaskMetadata, explicitAssessmentLinkage);
 
     return {
-      ...stageAlignedBody,
-      input: buildAssessmentSubjectInput(stageAlignedBody.input, resolvedLinkage),
-      metadata: buildAssessmentSubjectMetadata(stageAlignedBody.metadata, resolvedLinkage, 'activation_default'),
+      ...explicitLinkageBody,
+      input: buildAssessmentSubjectInput(explicitLinkageBody.input, resolvedLinkage),
+      metadata: buildAssessmentSubjectMetadata(explicitLinkageBody.metadata, resolvedLinkage, 'activation_default'),
     };
   }
 
-  if (!shouldDefaultActivationReviewedTaskLinkage(stageAlignedBody, context.event_type)) {
-    return stageAlignedBody;
+  if (!shouldDefaultActivationReviewedTaskLinkage(explicitLinkageBody, context.event_type)) {
+    return explicitLinkageBody;
   }
 
   const reviewedTaskId = await loadActivationReviewedTaskId(
@@ -1602,9 +1608,34 @@ async function normalizeOrchestratorTaskCreateInput(
   const resolvedLinkage = mergeAssessmentSubjectLinkage(reviewedTaskMetadata, explicitAssessmentLinkage);
 
   return {
-    ...stageAlignedBody,
+    ...explicitLinkageBody,
     input: buildAssessmentSubjectInput(existingInput, resolvedLinkage),
-    metadata: buildAssessmentSubjectMetadata(stageAlignedBody.metadata, resolvedLinkage, 'activation_lineage_default'),
+    metadata: buildAssessmentSubjectMetadata(explicitLinkageBody.metadata, resolvedLinkage, 'activation_lineage_default'),
+  };
+}
+
+export async function normalizeExplicitAssessmentSubjectTaskLinkage(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+): Promise<z.infer<typeof orchestratorTaskCreateSchema>> {
+  const explicitLinkage = readAssessmentSubjectLinkage(body.input ?? {}, body.metadata);
+  if (!explicitLinkage.subjectTaskId || explicitLinkage.subjectRevision !== null) {
+    return body;
+  }
+
+  const fallbackLinkage = await loadReviewedTaskMetadata(
+    db,
+    tenantId,
+    workflowId,
+    explicitLinkage.subjectTaskId,
+  );
+  const resolvedLinkage = mergeAssessmentSubjectLinkage(fallbackLinkage, explicitLinkage);
+  return {
+    ...body,
+    input: buildAssessmentSubjectInput(body.input, resolvedLinkage),
+    metadata: buildAssessmentSubjectMetadata(body.metadata, resolvedLinkage, 'explicit_subject_task_default'),
   };
 }
 
