@@ -3932,4 +3932,175 @@ describe('PlaybookWorkflowControlService', () => {
       "Cannot complete workflow while stage 'implementation' still has required assessment by 'release-assessor' pending on work item 'Implement the reporting pipeline'.",
     );
   });
+
+  it('rejects stage advancement when the source stage only has completed work items with unresolved assessment changes requested', async () => {
+    const activationService = { enqueueForWorkflow: vi.fn() };
+    const dispatchService = { dispatchActivation: vi.fn() };
+    const service = new PlaybookWorkflowControlService({
+      pool: { query: vi.fn() } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+    vi.spyOn(service as never, 'loadWorkflow').mockResolvedValue({
+      id: 'workflow-1',
+      workspace_id: 'workspace-1',
+      playbook_id: 'playbook-1',
+      lifecycle: 'planned',
+      active_stage_name: 'requirements',
+      state: 'active',
+      orchestration_state: {},
+      definition,
+    });
+    vi.spyOn(service as never, 'loadStage')
+      .mockResolvedValueOnce({
+        id: 'stage-requirements',
+        name: 'requirements',
+        position: 0,
+        goal: 'Define scope',
+        guidance: null,
+        human_gate: false,
+        status: 'active',
+        gate_status: 'not_requested',
+        iteration_count: 0,
+        summary: null,
+        metadata: {},
+        started_at: new Date('2026-03-21T03:00:00Z'),
+        completed_at: null,
+        updated_at: new Date('2026-03-21T03:00:00Z'),
+      })
+      .mockResolvedValueOnce({
+        id: 'stage-implementation',
+        name: 'implementation',
+        position: 1,
+        goal: 'Ship code',
+        guidance: null,
+        human_gate: false,
+        status: 'pending',
+        gate_status: 'not_requested',
+        iteration_count: 0,
+        summary: null,
+        metadata: {},
+        started_at: null,
+        completed_at: null,
+        updated_at: new Date('2026-03-21T03:00:00Z'),
+      });
+
+    const db = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('blocking_resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          expect(sql).not.toContain('wi.completed_at IS NULL');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'work-item-1',
+              title: 'Define launch scope',
+              blocking_resolution: 'request_changes',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    await expect(service.advanceStage(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'requirements',
+      {},
+      db as never,
+    )).rejects.toThrow(
+      "Cannot complete workflow while stage 'requirements' still has a blocking request_changes assessment on work item 'Define launch scope'.",
+    );
+
+    expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
+    expect(dispatchService.dispatchActivation).not.toHaveBeenCalled();
+  });
+
+  it('rejects workflow completion when the active stage only has completed work items with unresolved pending assessment continuation', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'implementation',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-implementation',
+              lifecycle: 'planned',
+              name: 'implementation',
+              position: 1,
+              goal: 'Ship code',
+              guidance: null,
+              human_gate: false,
+              status: 'active',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              metadata: {},
+              started_at: new Date('2026-03-11T00:00:00Z'),
+              completed_at: null,
+              open_work_item_count: 0,
+              total_work_item_count: 1,
+              first_work_item_at: new Date('2026-03-11T00:00:00Z'),
+              last_completed_work_item_at: new Date('2026-03-11T00:10:00Z'),
+              updated_at: new Date('2026-03-11T00:10:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('COALESCE(blocking_assessment.blocking_resolution')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT wi.id,') && sql.includes('wi.next_expected_actor') && sql.includes('wi.next_expected_action')) {
+          expect(sql).not.toContain('wi.completed_at IS NULL');
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'implementation',
+            ['assess', 'approve', 'rework'],
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-implementation-1',
+              title: 'Implement the reporting pipeline',
+              next_expected_actor: 'release-assessor',
+              next_expected_action: 'assess',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    await expect(service.completeWorkflow(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      { summary: 'Done', final_artifacts: [] },
+      pool as never,
+    )).rejects.toThrow(
+      "Cannot complete workflow while stage 'implementation' still has required assessment by 'release-assessor' pending on work item 'Implement the reporting pipeline'.",
+    );
+  });
 });

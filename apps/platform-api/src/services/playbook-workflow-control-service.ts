@@ -711,7 +711,6 @@ export class PlaybookWorkflowControlService {
         WHERE wi.tenant_id = $1
           AND wi.workflow_id = $2
           AND wi.stage_name = $3
-          AND wi.completed_at IS NULL
           AND COALESCE(blocking_assessment.blocking_resolution, latest_handoff.latest_handoff_resolution) IN ('request_changes', 'rejected')
         ORDER BY wi.created_at ASC
         LIMIT 1`,
@@ -758,7 +757,6 @@ export class PlaybookWorkflowControlService {
         WHERE wi.tenant_id = $1
           AND wi.workflow_id = $2
           AND wi.stage_name = $3
-          AND wi.completed_at IS NULL
           AND wi.next_expected_actor IS NOT NULL
           AND wi.next_expected_action = ANY($4::text[])
         ORDER BY wi.created_at ASC

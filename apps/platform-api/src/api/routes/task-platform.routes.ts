@@ -41,6 +41,7 @@ const memoryPatchSchema = z.union([
 const taskHandoffSchema = z
   .object({
     request_id: z.string().min(1).max(255),
+    task_rework_count: z.number().int().min(0).optional(),
     summary: z.string().min(1).max(4000),
     completion: z.enum(['full', 'blocked']),
     resolution: z.enum(['approved', 'request_changes', 'rejected']).optional(),

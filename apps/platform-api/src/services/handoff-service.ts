@@ -26,6 +26,7 @@ const TASK_LOCAL_HANDOFF_PATH_PATTERNS = [
 
 export interface SubmitTaskHandoffInput {
   request_id?: string;
+  task_rework_count?: number;
   summary: string;
   completion: 'full' | 'blocked';
   resolution?: 'approved' | 'request_changes' | 'rejected';
@@ -144,6 +145,7 @@ export class HandoffService {
       throw new ValidationError('Task must belong to a workflow to submit a handoff');
     }
 
+    assertMatchingTaskAttempt(task, input);
     assertHandoffResolutionAllowed(task, input);
 
     const payload = buildNormalizedHandoffPayload(task, input);
@@ -526,9 +528,10 @@ function assertHandoffResolutionAllowed(task: TaskContextRow, input: SubmitTaskH
 }
 
 function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHandoffInput) {
+  const taskReworkCount = input.task_rework_count ?? readInteger(task.rework_count) ?? 0;
   const summary = sanitizeHandoffValue(input.summary.trim());
   const payload = {
-    task_rework_count: readInteger(task.rework_count) ?? 0,
+    task_rework_count: taskReworkCount,
     request_id: input.request_id?.trim() || null,
     role: task.role?.trim() || 'specialist',
     team_name: readOptionalString(task.metadata?.team_name),
@@ -548,6 +551,17 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
   };
   assertNoTaskLocalHandoffPaths(payload);
   return payload;
+}
+
+function assertMatchingTaskAttempt(task: TaskContextRow, input: SubmitTaskHandoffInput) {
+  if (input.task_rework_count === undefined) {
+    return;
+  }
+  const currentTaskReworkCount = readInteger(task.rework_count) ?? 0;
+  if (input.task_rework_count === currentTaskReworkCount) {
+    return;
+  }
+  throw new ConflictError('task handoff submission does not match the current task rework attempt');
 }
 
 function buildSystemOwnedRoleData(task: TaskContextRow, input: SubmitTaskHandoffInput) {

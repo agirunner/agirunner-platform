@@ -193,6 +193,42 @@ describe('HandoffService', () => {
     );
   });
 
+  it('rejects stale handoff submissions from an older task rework attempt', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 2,
+            is_orchestrator_task: false,
+            input: {},
+            metadata: { team_name: 'delivery', output_revision: 3 },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-stale-1',
+      task_rework_count: 1,
+      summary: 'Late handoff from the stale attempt.',
+      completion: 'full',
+    })).rejects.toThrowError(
+      new ConflictError('task handoff submission does not match the current task rework attempt'),
+    );
+
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
   it('allows resolution on assessment task handoffs', async () => {
     const pool = {
       query: vi
