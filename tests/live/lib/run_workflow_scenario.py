@@ -1570,6 +1570,97 @@ def evaluate_expectations(
     }
 
 
+def progress_verification_requires_full_evidence(expectations: dict[str, Any]) -> bool:
+    return any(
+        isinstance(expectations.get(key), list) and len(expectations.get(key, [])) > 0
+        for key in ("task_rework_sequences", "continuity_rework_sequences")
+    ) or bool(expectations.get("efficiency"))
+
+
+def progress_verification_candidate_ready(
+    expectations: dict[str, Any],
+    *,
+    workflow: dict[str, Any],
+    work_items: Any,
+) -> bool:
+    expected_state = expectations.get("state")
+    if expected_state is not None and workflow.get("state") != expected_state:
+        return False
+
+    work_item_expectations = expectations.get("work_items", {})
+    if not isinstance(work_item_expectations, dict):
+        return True
+
+    items = _work_items(work_items)
+    if "min_count" in work_item_expectations and len(items) < int(work_item_expectations["min_count"]):
+        return False
+    if work_item_expectations.get("all_terminal"):
+        return all(item.get("column_id") == "done" for item in items)
+    return True
+
+
+def evaluate_progress_expectations(
+    client: ApiClient,
+    *,
+    workflow_id: str,
+    expectations: dict[str, Any],
+    workflow: dict[str, Any],
+    board: Any,
+    work_items: Any,
+    workspace: dict[str, Any],
+    artifacts: Any,
+    approval_actions: list[dict[str, Any]],
+    fleet: Any,
+    playbook_id: str,
+    fleet_peaks: dict[str, int] | None,
+) -> dict[str, Any]:
+    verification = evaluate_expectations(
+        expectations,
+        workflow=workflow,
+        board=board,
+        work_items=work_items,
+        workspace=workspace,
+        artifacts=artifacts,
+        approval_actions=approval_actions,
+        events={"ok": True, "data": []},
+        fleet=fleet,
+        playbook_id=playbook_id,
+        fleet_peaks=fleet_peaks,
+        efficiency=None,
+        execution_logs=None,
+    )
+    if verification["passed"]:
+        return verification
+    if not progress_verification_requires_full_evidence(expectations):
+        return verification
+    if not progress_verification_candidate_ready(expectations, workflow=workflow, work_items=work_items):
+        return verification
+
+    events_snapshot = collect_workflow_events(client, workflow_id=workflow_id)
+    execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
+    efficiency_summary = summarize_efficiency(
+        workflow=workflow,
+        logs=execution_logs_snapshot,
+        events=events_snapshot,
+        approval_actions=approval_actions,
+    )
+    return evaluate_expectations(
+        expectations,
+        workflow=workflow,
+        board=board,
+        work_items=work_items,
+        workspace=workspace,
+        artifacts=artifacts,
+        approval_actions=approval_actions,
+        events=events_snapshot,
+        fleet=fleet,
+        playbook_id=playbook_id,
+        fleet_peaks=fleet_peaks,
+        efficiency=efficiency_summary,
+        execution_logs=execution_logs_snapshot,
+    )
+
+
 def login(client: ApiClient, admin_api_key: str) -> str:
     response = client.request(
         "POST",
@@ -2224,20 +2315,19 @@ def main() -> None:
                 expected=(200,),
                 label="workspaces.artifacts.progress",
             )
-            progress_verification = evaluate_expectations(
-                expectation_plan,
+            progress_verification = evaluate_progress_expectations(
+                client,
+                workflow_id=workflow_id,
+                expectations=expectation_plan,
                 workflow=latest_workflow,
                 board=board_snapshot,
                 work_items=work_items_snapshot,
                 workspace=workspace_snapshot,
                 artifacts=artifacts_snapshot,
                 approval_actions=approval_actions,
-                events={"ok": True, "data": []},
                 fleet=latest_fleet,
                 playbook_id=playbook_id,
                 fleet_peaks=fleet_peaks,
-                efficiency=None,
-                execution_logs=None,
             )
             if progress_verification["passed"]:
                 timed_out = False
