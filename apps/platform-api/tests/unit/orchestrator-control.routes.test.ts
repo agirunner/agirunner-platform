@@ -1528,10 +1528,6 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('FROM task_handoffs th') && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', reviewWorkItemId]);
-          return { rowCount: 0, rows: [] };
-        }
         if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orchestrator']);
           return {
@@ -1624,10 +1620,6 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('FROM task_handoffs th') && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', reviewWorkItemId]);
-          return { rowCount: 0, rows: [] };
-        }
         if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orchestrator']);
           return {
@@ -1749,10 +1741,6 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('FROM task_handoffs th') && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', reviewWorkItemId]);
-          return { rowCount: 0, rows: [] };
-        }
         if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orchestrator']);
           return {
@@ -2213,10 +2201,6 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('FROM task_handoffs th') && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', reviewWorkItemId]);
-          return { rowCount: 0, rows: [] };
-        }
         if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orchestrator']);
           return {
@@ -2541,10 +2525,6 @@ describe('orchestratorControlRoutes', () => {
     };
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes('FROM task_handoffs th') && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', reviewWorkItemId]);
-          return { rowCount: 0, rows: [] };
-        }
         if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
           expect(params).toEqual(['tenant-1', 'task-orchestrator']);
           return {
