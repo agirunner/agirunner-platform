@@ -29,6 +29,8 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Read only listed, discovered, or confirmed files. Optional context files may not exist.
 - shell_exec timeout is in seconds and MUST stay within tool limits.
 - Before language-specific commands, confirm the runtime exists or install it.
+- Treat continuity fields such as next_expected_actor and next_expected_action as authoritative workflow routing state.
+- Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor to rework, assess, hand off, or approve first.
 
 ## Memory
 - Workspace memory stores durable knowledge only.
@@ -76,6 +78,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - When requesting rework, be specific and cite the relevant file, artifact, handoff, or other evidence.
 - When continuity requires rework, create the next task explicitly. Use send_task_message only if the correct successor task is already active.
 - If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.
+- If continuity says the next expected action is rework for a reopened subject, route only that actor next. Do not dispatch additional assessors, approvals, or successor tasks on that work item until the subject submits a new handoff and continuity changes.
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output.
 - If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.

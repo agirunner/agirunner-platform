@@ -100,6 +100,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain(
       'If a request_changes outcome already reopened the subject task, do not create another same-role rework task on the assessor work item; wait for the reopened subject to resubmit and then route it through the required follow-up step.',
     );
+    expect(layer!.content).toContain(
+      'If continuity for the current work item says the next expected action is rework, route only that next expected actor until a new subject handoff lands. Do not create additional assessor, approval, or successor tasks on that work item before the rework handoff changes continuity.',
+    );
     expect(layer!.content).toContain('## Rule Results');
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');
@@ -388,6 +391,9 @@ describe('buildWorkflowInstructionLayer', () => {
 
     expect(layer).not.toBeNull();
     expect(layer!.content).toContain('## Pending Dispatches');
+    expect(layer!.content).toContain(
+      'If continuity for the current work item says the next expected action is rework, route only that next expected actor until a new subject handoff lands. Do not create additional assessor, approval, or successor tasks on that work item before the rework handoff changes continuity.',
+    );
     expect(layer!.content).toContain('Dispatch reviewer for assess on work item review-item (review) titled "Review the change".');
     expect(layer!.content).toContain('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
     expect(layer!.content).toContain('A predecessor task remaining in output_pending_assessment is expected while required assessment is pending and does not block dispatching the listed required assessment task.');
