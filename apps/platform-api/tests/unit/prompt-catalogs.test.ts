@@ -55,6 +55,7 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Mandatory assessment, approval, and handoff rules are enforced by the platform.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as { id, task_id, label, path } objects');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If a playbook has no explicit stage sequence, use board posture and process instructions.',
@@ -78,6 +79,9 @@ describe('prompt catalogs', () => {
       'Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Avoid setting specialist token_budget unless you have a concrete budget reason',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
@@ -95,8 +99,8 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).not.toContain('Project memory stores');
   });
 
-  it('keeps the shared prompts dense enough for routine execution', () => {
+  it('keeps the shared prompts bounded for routine execution', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(2350);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5000);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5300);
   });
 });
