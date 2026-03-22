@@ -176,7 +176,7 @@ function isSyntheticContainerContextLabel(value: string | null): boolean {
 }
 
 function resolveRowClassName(row: SessionContainerRow): string {
-  return row.presence === 'inactive' ? 'bg-muted/6 hover:bg-muted/10' : 'hover:bg-background/60';
+  return row.presence === 'inactive' ? 'bg-muted/6 italic hover:bg-muted/10' : 'hover:bg-background/60';
 }
 
 function resolveDiffCellTone(row: SessionContainerRow, field: ContainerDiffField): string {

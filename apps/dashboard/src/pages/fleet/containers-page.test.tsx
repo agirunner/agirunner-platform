@@ -44,6 +44,7 @@ describe('containers page source', () => {
     expect(tableSource).toContain('sanitizeContainerContextLabel');
     expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist runtimes'");
     expect(tableSource).not.toContain('Unassigned');
+    expect(tableSource).toContain("return row.presence === 'inactive' ? 'bg-muted/6 italic hover:bg-muted/10' : 'hover:bg-background/60';");
     expect(tableSource).not.toContain('bg-accent/14');
     expect(supportSource).toContain('Orchestrator worker');
     expect(supportSource).toContain('Task execution');
