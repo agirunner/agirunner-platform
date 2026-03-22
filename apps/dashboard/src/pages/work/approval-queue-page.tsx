@@ -285,7 +285,7 @@ export function ApprovalQueuePage(): JSX.Element {
                 icon={<Workflow className="h-4 w-4 text-muted" />}
                 title="Stage Gates"
                 count={stageGates.length}
-                description="Review packets are ordered by oldest wait first so operators can clear stale gates before newer requests."
+                description="Decision packets are ordered by oldest wait first so operators can clear stale gates before newer requests."
               />
               {visibleStageGates.map((gate, index) => (
                 <StageGateQueueCard

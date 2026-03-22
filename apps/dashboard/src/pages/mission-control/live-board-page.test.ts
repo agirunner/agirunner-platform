@@ -46,6 +46,7 @@ describe('live board page source', () => {
     expect(source).toContain('Operator Live Board');
     expect(source).toContain('Mission Control');
     expect(source).toContain('Triage what needs attention first');
+    expect(source).toContain('decision packet with full context');
     expect(source).toContain('Search boards, work items, stages, gates, steps, or IDs');
     expect(source).toContain('describeAttentionStep');
     expect(source).toContain('resolveTaskOperatorState');

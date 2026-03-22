@@ -692,7 +692,7 @@ export function LiveBoardPage(): JSX.Element {
             <h1 className="text-3xl font-semibold tracking-tight">Operator Live Board</h1>
             <p className="max-w-3xl text-sm leading-6 text-muted">
               Triage what needs attention first, then drill into the affected board, work item, or
-              review packet with full context.
+              decision packet with full context.
             </p>
           </div>
         </div>

@@ -10,6 +10,7 @@ describe('approval queue page source', () => {
   it('prioritizes stage gates with stronger summary cards and section hierarchy', () => {
     const source = readSource();
     expect(source).toContain('Review stage gates first');
+    expect(source).toContain('Decision packets are ordered by oldest wait first');
     expect(source).toContain('Oldest wait');
     expect(source).toContain('Recovery watch');
     expect(source).toContain('Stage gates');

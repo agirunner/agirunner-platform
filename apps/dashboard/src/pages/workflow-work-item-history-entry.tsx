@@ -63,7 +63,7 @@ export function WorkItemHistoryEntry(props: {
       </div>
 
       <StructuredValueReview
-        label="Operator review packet"
+        label="Operator decision packet"
         value={props.packet.payload}
         emptyMessage="No event payload."
         disclosureLabel="Open full event payload"
@@ -83,9 +83,9 @@ function StructuredValueReview(props: {
     return <p className="text-sm leading-6 text-muted">{props.emptyMessage}</p>;
   }
 
-  const reviewLabel = normalizeDisplayText(props.label) ?? 'Review packet';
+  const reviewLabel = normalizeDisplayText(props.label) ?? 'Decision packet';
   const reviewDetail =
-    normalizeDisplayText(summary.detail) ?? 'Structured packet available for operator review.';
+    normalizeDisplayText(summary.detail) ?? 'Structured packet available for operator inspection.';
   const shapeLabel = normalizeDisplayText(summary.shapeLabel) ?? 'Structured packet';
   const scalarFacts = summary.scalarFacts
     .map((fact) => ({

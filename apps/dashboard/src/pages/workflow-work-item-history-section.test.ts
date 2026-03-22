@@ -39,7 +39,7 @@ describe('workflow work-item history section source', () => {
     expect(source).toContain('data-testid="work-item-history-list"');
     expect(source).toContain('Stay in the work-item flow first');
     expect(source).toContain('Open linked step diagnostics');
-    expect(source).toContain('Operator review packet');
+    expect(source).toContain('Operator decision packet');
     expect(source).toContain('Open full event payload');
   });
 
