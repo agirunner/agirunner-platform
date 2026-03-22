@@ -393,7 +393,7 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
         client = FakeClient()
         roles = [{"name": "live-test-developer"}, {"name": "live-test-reviewer"}]
 
-        provider, model, specialist_model = seed_live_test_environment.seed_provider_catalog(
+        provider, model, orchestrator_model, specialist_model = seed_live_test_environment.seed_provider_catalog(
             client,
             auth_mode="oauth",
             provider_name="OpenAI (Subscription)",
@@ -411,6 +411,9 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
             model_id="gpt-5.4",
             model_endpoint_type="responses",
             system_reasoning_effort="low",
+            orchestrator_model_id="gpt-5.4-mini",
+            orchestrator_endpoint_type="responses",
+            orchestrator_reasoning_effort="medium",
             specialist_model_id="gpt-5.4-mini",
             specialist_endpoint_type="responses",
             specialist_reasoning_effort="medium",
@@ -419,12 +422,14 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
 
         self.assertEqual("provider-oauth", provider["id"])
         self.assertEqual("model-gpt-5.4", model["id"])
+        self.assertEqual("model-gpt-5.4-mini", orchestrator_model["id"])
         self.assertEqual("model-gpt-5.4-mini", specialist_model["id"])
         self.assertEqual(
             [
                 ("POST", "/api/v1/config/oauth/import-session"),
                 ("POST", "/api/v1/config/llm/providers/provider-oauth/discover"),
                 ("PUT", "/api/v1/config/llm/system-default"),
+                ("PUT", "/api/v1/config/llm/assignments/orchestrator"),
                 ("PUT", "/api/v1/config/llm/assignments/live-test-developer"),
                 ("PUT", "/api/v1/config/llm/assignments/live-test-reviewer"),
             ],
@@ -435,8 +440,15 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
             client.calls[2][2],
         )
         self.assertEqual(
-            {"primaryModelId": "model-gpt-5.4-mini", "reasoningConfig": {"effort": "medium", "reasoning_effort": "medium"}},
+            {
+                "primaryModelId": "model-gpt-5.4-mini",
+                "reasoningConfig": {"effort": "medium", "reasoning_effort": "medium"},
+            },
             client.calls[3][2],
+        )
+        self.assertEqual(
+            {"primaryModelId": "model-gpt-5.4-mini", "reasoningConfig": {"effort": "medium", "reasoning_effort": "medium"}},
+            client.calls[4][2],
         )
 
 

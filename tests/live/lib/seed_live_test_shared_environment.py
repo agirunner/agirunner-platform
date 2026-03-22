@@ -11,6 +11,7 @@ from seed_live_test_environment import (
     delete_models_and_providers,
     delete_workspaces,
     login,
+    restart_orchestrator,
     seed_provider_catalog,
     sync_library_profiles,
 )
@@ -45,12 +46,18 @@ def main() -> None:
     oauth_profile_id = env("LIVE_TEST_OAUTH_PROFILE_ID") or None
     oauth_session_json = env("LIVE_TEST_OAUTH_SESSION_JSON")
     oauth_session = json.loads(oauth_session_json) if oauth_session_json else None
-    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4")
+    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4-mini")
     model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", "responses")
-    system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "low")
+    system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium")
+    orchestrator_model_id = env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", model_id)
+    orchestrator_endpoint_type = env("LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE", model_endpoint_type)
+    orchestrator_reasoning_effort = env("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "medium")
     specialist_model_id = env("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4-mini")
     specialist_endpoint_type = env("LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE", model_endpoint_type)
     specialist_reasoning_effort = env("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium")
+    worker_name = env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
+    orchestrator_replicas = int(env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "2"))
+    runtime_image = env("RUNTIME_IMAGE", "agirunner-runtime:local")
     library_root = env("LIVE_TEST_LIBRARY_ROOT", required=True)
 
     trace = TraceRecorder(trace_dir)
@@ -70,7 +77,7 @@ def main() -> None:
     )
     roles = [{"name": role_name} for profile in profiles.values() for role_name in profile["role_names"]]
 
-    provider, model, specialist_model = seed_provider_catalog(
+    provider, model, orchestrator_model, specialist_model = seed_provider_catalog(
         client,
         auth_mode=provider_auth_mode,
         provider_name=provider_name,
@@ -82,11 +89,15 @@ def main() -> None:
         model_id=model_id,
         model_endpoint_type=model_endpoint_type,
         system_reasoning_effort=system_reasoning_effort,
+        orchestrator_model_id=orchestrator_model_id,
+        orchestrator_endpoint_type=orchestrator_endpoint_type,
+        orchestrator_reasoning_effort=orchestrator_reasoning_effort,
         specialist_model_id=specialist_model_id,
         specialist_endpoint_type=specialist_endpoint_type,
         specialist_reasoning_effort=specialist_reasoning_effort,
         roles=roles,
     )
+    orchestrator = restart_orchestrator(client, worker_name, runtime_image, orchestrator_replicas)
 
     emit_context(
         {
@@ -97,6 +108,11 @@ def main() -> None:
             "model_id": model["id"],
             "model_name": model_id,
             "system_reasoning": system_reasoning_effort,
+            "orchestrator_model_id": orchestrator_model["id"],
+            "orchestrator_model_name": orchestrator_model["model_id"],
+            "orchestrator_reasoning": orchestrator_reasoning_effort,
+            "orchestrator_worker_id": orchestrator["worker"]["id"],
+            "orchestrator_replica_count": len(orchestrator["containers"]),
             "specialist_model_id": specialist_model["id"],
             "specialist_model_name": specialist_model["model_id"],
             "specialist_reasoning": specialist_reasoning_effort,

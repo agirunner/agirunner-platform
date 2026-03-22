@@ -145,12 +145,7 @@ describe('catalog data spot checks', () => {
     expect(entry.reasoningConfig!.type).toBe('thinking_level');
   });
 
-  it('subscription-only models have null costs', () => {
-    const spark = MODEL_CATALOG['gpt-5.3-codex-spark'];
-    expect(spark).toBeDefined();
-    expect(spark.inputCostPerMillionUsd).toBeNull();
-    expect(spark.outputCostPerMillionUsd).toBeNull();
-
+  it('codex mini has null costs', () => {
     const codexMini = MODEL_CATALOG['gpt-5-codex-mini'];
     expect(codexMini).toBeDefined();
     expect(codexMini.inputCostPerMillionUsd).toBeNull();

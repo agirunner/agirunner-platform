@@ -18,7 +18,6 @@ NATIVE_SEARCH_MODEL_PREFIXES: dict[str, tuple[str, ...]] = {
         "gpt-5.4-mini",
         "gpt-5.4-nano",
         "gpt-5.3-codex",
-        "gpt-5.3-codex-spark",
         "gpt-5.2",
         "gpt-5.2-pro",
         "gpt-5.2-codex",
@@ -365,11 +364,14 @@ def seed_provider_catalog(
     model_id: str,
     model_endpoint_type: str,
     system_reasoning_effort: str,
+    orchestrator_model_id: str,
+    orchestrator_endpoint_type: str,
+    orchestrator_reasoning_effort: str,
     specialist_model_id: str,
     specialist_endpoint_type: str,
     specialist_reasoning_effort: str,
     roles: list[dict[str, Any]],
-) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
+) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any], dict[str, Any]]:
     normalized_auth_mode = auth_mode.strip().lower()
     if normalized_auth_mode == "oauth":
         if not oauth_profile_id:
@@ -456,6 +458,15 @@ def seed_provider_catalog(
         label="llm.system-default.update",
     )
 
+    orchestrator_model = ensure_orchestrator_assignment(
+        client,
+        provider_id=provider["id"],
+        existing_models=available_models,
+        orchestrator_model_id=orchestrator_model_id,
+        orchestrator_endpoint_type=orchestrator_endpoint_type,
+        orchestrator_reasoning_effort=orchestrator_reasoning_effort,
+    )
+
     specialist_model = ensure_specialist_assignments(
         client,
         provider_id=provider["id"],
@@ -465,7 +476,7 @@ def seed_provider_catalog(
         specialist_endpoint_type=specialist_endpoint_type,
         specialist_reasoning_effort=specialist_reasoning_effort,
     )
-    return provider, model, specialist_model
+    return provider, model, orchestrator_model, specialist_model
 
 
 def build_workspace_create_payload(
@@ -589,9 +600,79 @@ def ensure_specialist_assignments(
     return specialist_model
 
 
-def restart_orchestrator(client: ApiClient, worker_name: str, runtime_image: str) -> dict[str, Any]:
+def ensure_orchestrator_assignment(
+    client: ApiClient,
+    *,
+    provider_id: str,
+    existing_models: list[dict[str, Any]],
+    orchestrator_model_id: str,
+    orchestrator_endpoint_type: str,
+    orchestrator_reasoning_effort: str,
+) -> dict[str, Any]:
+    orchestrator_model = find_model(
+        existing_models,
+        provider_id=provider_id,
+        model_id=orchestrator_model_id,
+        endpoint_type=orchestrator_endpoint_type,
+    )
+    if orchestrator_model is None:
+        orchestrator_model = create_model(
+            client,
+            provider_id=provider_id,
+            model_id=orchestrator_model_id,
+            endpoint_type=orchestrator_endpoint_type,
+            default_reasoning_effort=orchestrator_reasoning_effort,
+            label="llm.models.create.orchestrator",
+        )
+
+    client.request(
+        "PUT",
+        "/api/v1/config/llm/assignments/orchestrator",
+        payload={
+            "primaryModelId": orchestrator_model["id"],
+            "reasoningConfig": reasoning_assignment(orchestrator_reasoning_effort),
+        },
+        expected=(200,),
+        label="llm.assignments.update:orchestrator",
+    )
+    return orchestrator_model
+
+
+def ensure_orchestrator_capacity(
+    client: ApiClient,
+    worker_name: str,
+    runtime_image: str,
+    replicas: int,
+) -> dict[str, Any]:
     workers = extract_data(client.request("GET", "/api/v1/fleet/workers", label="fleet.workers.list"))
     orchestrator = find_worker(workers, worker_name)
+    patch_payload: dict[str, Any] = {}
+    if orchestrator.get("runtime_image") != runtime_image:
+        patch_payload["runtimeImage"] = runtime_image
+    if int(orchestrator.get("replicas") or 0) != replicas:
+        patch_payload["replicas"] = replicas
+    if orchestrator.get("enabled") is not True:
+        patch_payload["enabled"] = True
+    if patch_payload:
+        orchestrator = extract_data(
+            client.request(
+                "PATCH",
+                f"/api/v1/fleet/workers/{orchestrator['id']}",
+                payload=patch_payload,
+                expected=(200,),
+                label=f"fleet.workers.update:{worker_name}",
+            )
+        )
+    return orchestrator
+
+
+def restart_orchestrator(
+    client: ApiClient,
+    worker_name: str,
+    runtime_image: str,
+    replicas: int,
+) -> dict[str, Any]:
+    orchestrator = ensure_orchestrator_capacity(client, worker_name, runtime_image, replicas)
     client.request(
         "POST",
         f"/api/v1/fleet/workers/{orchestrator['id']}/restart",
@@ -605,14 +686,18 @@ def restart_orchestrator(client: ApiClient, worker_name: str, runtime_image: str
         workers = extract_data(client.request("GET", "/api/v1/fleet/workers", label="fleet.workers.poll"))
         containers = extract_data(client.request("GET", "/api/v1/fleet/containers", label="fleet.containers.poll"))
         orchestrator = find_worker(workers, worker_name)
+        matching_containers = [
+            container
+            for container in containers
+            if container.get("name") == worker_name
+            and "healthy" in str(container.get("status", "")).lower()
+            and container.get("image") == runtime_image
+        ]
         if (
             orchestrator.get("restart_requested") is False
-            and len(containers) == 1
-            and containers[0].get("name") == worker_name
-            and "healthy" in str(containers[0].get("status", "")).lower()
-            and containers[0].get("image") == runtime_image
+            and len(matching_containers) >= replicas
         ):
-            return {"worker": orchestrator, "container": containers[0]}
+            return {"worker": orchestrator, "containers": matching_containers}
         time.sleep(2)
 
     raise RuntimeError(f"orchestrator worker {worker_name} did not become healthy in time")
@@ -634,9 +719,12 @@ def main() -> None:
     oauth_profile_id = env("LIVE_TEST_OAUTH_PROFILE_ID") or None
     oauth_session_json = env("LIVE_TEST_OAUTH_SESSION_JSON")
     oauth_session = json.loads(oauth_session_json) if oauth_session_json else None
-    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4")
+    model_id = env("LIVE_TEST_MODEL_ID", "gpt-5.4-mini")
     model_endpoint_type = env("LIVE_TEST_MODEL_ENDPOINT_TYPE", "responses")
-    system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "low")
+    system_reasoning_effort = env("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium")
+    orchestrator_model_id = env("LIVE_TEST_ORCHESTRATOR_MODEL_ID", model_id)
+    orchestrator_endpoint_type = env("LIVE_TEST_ORCHESTRATOR_MODEL_ENDPOINT_TYPE", model_endpoint_type)
+    orchestrator_reasoning_effort = env("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "medium")
     specialist_model_id = env("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4-mini")
     specialist_endpoint_type = env("LIVE_TEST_SPECIALIST_MODEL_ENDPOINT_TYPE", model_endpoint_type)
     specialist_reasoning_effort = env("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium")
@@ -649,6 +737,7 @@ def main() -> None:
     git_token = env("LIVE_TEST_GITHUB_TOKEN", required=workspace_storage["type"] == "git_remote")
     host_workspace_path = env("LIVE_TEST_HOST_WORKSPACE_PATH") or None
     worker_name = env("ORCHESTRATOR_WORKER_NAME", "orchestrator-primary")
+    orchestrator_replicas = int(env("LIVE_TEST_ORCHESTRATOR_REPLICAS", "2"))
     runtime_image = env("RUNTIME_IMAGE", "agirunner-runtime:local")
     library_root = env("LIVE_TEST_LIBRARY_ROOT", required=True)
     library_profile = env("LIVE_TEST_PROFILE", "sdlc-baseline")
@@ -678,7 +767,7 @@ def main() -> None:
         resolved_model_id=specialist_model_id,
     )
 
-    provider, model, specialist_model = seed_provider_catalog(
+    provider, model, orchestrator_model, specialist_model = seed_provider_catalog(
         client,
         auth_mode=provider_auth_mode,
         provider_name=provider_name,
@@ -690,6 +779,9 @@ def main() -> None:
         model_id=model_id,
         model_endpoint_type=model_endpoint_type,
         system_reasoning_effort=system_reasoning_effort,
+        orchestrator_model_id=orchestrator_model_id,
+        orchestrator_endpoint_type=orchestrator_endpoint_type,
+        orchestrator_reasoning_effort=orchestrator_reasoning_effort,
         roles=roles,
         specialist_model_id=specialist_model_id,
         specialist_endpoint_type=specialist_endpoint_type,
@@ -720,7 +812,7 @@ def main() -> None:
         seed_workspace_context(client, workspace_id=workspace["id"], workspace_config=scenario["workspace"])
 
     playbook = sync_playbook(client, playbook_fixture_path)
-    orchestrator = restart_orchestrator(client, worker_name, runtime_image)
+    orchestrator = restart_orchestrator(client, worker_name, runtime_image, orchestrator_replicas)
 
     print(
         json.dumps(
@@ -734,6 +826,9 @@ def main() -> None:
                 "model_id": model["id"],
                 "model_name": model_id,
                 "system_reasoning": system_reasoning_effort,
+                "orchestrator_model_id": orchestrator_model["id"],
+                "orchestrator_model_name": orchestrator_model["model_id"],
+                "orchestrator_reasoning": orchestrator_reasoning_effort,
                 "specialist_model_id": specialist_model["id"],
                 "specialist_model_name": specialist_model["model_id"],
                 "specialist_reasoning": specialist_reasoning_effort,
@@ -741,6 +836,7 @@ def main() -> None:
                 "playbook_id": playbook["id"],
                 "playbook_slug": playbook["slug"],
                 "orchestrator_worker_id": orchestrator["worker"]["id"],
+                "orchestrator_replica_count": len(orchestrator["containers"]),
                 "runtime_image": runtime_image,
                 "platform_api_base_url": base_url,
             }

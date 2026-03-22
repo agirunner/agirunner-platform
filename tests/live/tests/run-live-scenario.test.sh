@@ -33,7 +33,7 @@ make_stub() {
 write_shared_context() {
   local path="$1"
   mkdir -p "$(dirname "${path}")"
-  printf '%s\n' '{"provider_auth_mode":"oauth","profiles":{},"provider_id":"provider-1","model_id":"model-1"}' >"${path}"
+  printf '%s\n' '{"provider_auth_mode":"oauth","provider_name":"OpenAI (Subscription)","provider_type":"openai","profiles":{},"provider_id":"provider-1","model_id":"model-1","model_name":"gpt-5.4-mini","system_reasoning":"medium","orchestrator_model_id":"orchestrator-model-1","orchestrator_model_name":"gpt-5.4-mini","orchestrator_reasoning":"medium","specialist_model_id":"specialist-model-1","specialist_model_name":"gpt-5.4-mini","specialist_reasoning":"medium"}' >"${path}"
 }
 
 test_scenario_profile_is_exported_to_bootstrap() {
@@ -63,17 +63,33 @@ EOF
   write_shared_context "${shared_context_file}"
 
   make_stub "${bootstrap_stub}" \
-'mkdir -p "$(dirname "${LIVE_TEST_RUN_CONTEXT_FILE}")"
+'target_file="${LIVE_TEST_RUN_CONTEXT_FILE:-${LIVE_TEST_SHARED_CONTEXT_FILE}}"
+mkdir -p "$(dirname "${target_file}")"
 printf "bootstrap LIVE_TEST_PROFILE=%s LIVE_TEST_WORKSPACE_STORAGE_TYPE=%s LIVE_TEST_SCENARIO_FILE=%s LIVE_TEST_SCENARIO_NAME=%s LIVE_TEST_SHARED_CONTEXT_FILE=%s LIVE_TEST_RUN_CONTEXT_FILE=%s\n" "${LIVE_TEST_PROFILE:-}" "${LIVE_TEST_WORKSPACE_STORAGE_TYPE:-}" "${LIVE_TEST_SCENARIO_FILE:-}" "${LIVE_TEST_SCENARIO_NAME:-}" "${LIVE_TEST_SHARED_CONTEXT_FILE:-}" "${LIVE_TEST_RUN_CONTEXT_FILE:-}" >>"'"${logfile}"'"
-printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"'
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${target_file}"'
 
   make_stub "${stubdir}/curl" 'exit 0'
-  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"; fi"
+  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" && \"\$#\" -eq 3 ]]; then
+  printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"
+elif [[ \"\${1:-}\" == \"-\" && \"\$#\" -eq 2 ]]; then
+  if grep -Fq \"\\\"model_name\\\":\\\"\\\${LIVE_TEST_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"system_reasoning\\\":\\\"\\\${LIVE_TEST_SYSTEM_REASONING_EFFORT}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"orchestrator_model_name\\\":\\\"\\\${LIVE_TEST_ORCHESTRATOR_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"orchestrator_reasoning\\\":\\\"\\\${LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"specialist_model_name\\\":\\\"\\\${LIVE_TEST_SPECIALIST_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"specialist_reasoning\\\":\\\"\\\${LIVE_TEST_SPECIALIST_REASONING_EFFORT}\\\"\" \"\$2\"; then
+    exit 0
+  fi
+  exit 1
+else
+  printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"
+fi"
 
   if PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${stdout_log}"; then
     :
@@ -118,7 +134,21 @@ printf "%s\n" "{\"provider_auth_mode\":\"oauth\",\"profiles\":{},\"provider_id\"
 printf "run LIVE_TEST_SCENARIO_NAME=%s LIVE_TEST_SHARED_CONTEXT_FILE=%s LIVE_TEST_RUN_CONTEXT_FILE=%s\n" "${LIVE_TEST_SCENARIO_NAME:-}" "${LIVE_TEST_SHARED_CONTEXT_FILE:-}" "${LIVE_TEST_RUN_CONTEXT_FILE:-}" >>"'"${logfile}"'"
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"playbook_id\":\"playbook-1\",\"provider_auth_mode\":\"oauth\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"'
 
-  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"; fi"
+  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" && \"\$#\" -eq 3 ]]; then
+  printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"
+elif [[ \"\${1:-}\" == \"-\" && \"\$#\" -eq 2 ]]; then
+  if grep -Fq \"\\\"model_name\\\":\\\"\\\${LIVE_TEST_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"system_reasoning\\\":\\\"\\\${LIVE_TEST_SYSTEM_REASONING_EFFORT}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"orchestrator_model_name\\\":\\\"\\\${LIVE_TEST_ORCHESTRATOR_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"orchestrator_reasoning\\\":\\\"\\\${LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"specialist_model_name\\\":\\\"\\\${LIVE_TEST_SPECIALIST_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"specialist_reasoning\\\":\\\"\\\${LIVE_TEST_SPECIALIST_REASONING_EFFORT}\\\"\" \"\$2\"; then
+    exit 0
+  fi
+  exit 1
+else
+  printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"
+fi"
 
   PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
@@ -169,7 +199,21 @@ printf "run-after-refresh LIVE_TEST_SCENARIO_NAME=%s\n" "${LIVE_TEST_SCENARIO_NA
 printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"playbook_id\":\"playbook-1\",\"provider_auth_mode\":\"oauth\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"'
 
   make_stub "${stubdir}/curl" 'exit 1'
-  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"; fi"
+  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" && \"\$#\" -eq 3 ]]; then
+  printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"
+elif [[ \"\${1:-}\" == \"-\" && \"\$#\" -eq 2 ]]; then
+  if grep -Fq \"\\\"model_name\\\":\\\"\\\${LIVE_TEST_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"system_reasoning\\\":\\\"\\\${LIVE_TEST_SYSTEM_REASONING_EFFORT}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"orchestrator_model_name\\\":\\\"\\\${LIVE_TEST_ORCHESTRATOR_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"orchestrator_reasoning\\\":\\\"\\\${LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"specialist_model_name\\\":\\\"\\\${LIVE_TEST_SPECIALIST_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"specialist_reasoning\\\":\\\"\\\${LIVE_TEST_SPECIALIST_REASONING_EFFORT}\\\"\" \"\$2\"; then
+    exit 0
+  fi
+  exit 1
+else
+  printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"
+fi"
 
   PATH="${stubdir}:${PATH}" \
     LIVE_TEST_ENV_FILE="${envfile}" \
@@ -181,6 +225,80 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
 
   assert_contains "shared-refresh LIVE_TEST_SCENARIO_NAME=${SCENARIO_NAME}" "${logfile}"
   assert_contains "run-after-refresh LIVE_TEST_SCENARIO_NAME=${SCENARIO_NAME}" "${logfile}"
+  assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
+}
+
+test_runner_refreshes_shared_bootstrap_when_requested_models_change() {
+  local tmpdir stubdir logfile stdout_log output_root shared_context_file run_context_file run_file shared_bootstrap_stub run_bootstrap_stub envfile
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  logfile="${tmpdir}/calls.log"
+  stdout_log="${tmpdir}/stdout.log"
+  envfile="${tmpdir}/env/local.env"
+  output_root="${tmpdir}/artifacts"
+  shared_context_file="${output_root}/bootstrap/context.json"
+  run_context_file="${output_root}/${SCENARIO_NAME}/run-context.json"
+  run_file="${output_root}/${SCENARIO_NAME}/workflow-run.json"
+  shared_bootstrap_stub="${tmpdir}/shared-bootstrap-stub.sh"
+  run_bootstrap_stub="${tmpdir}/run-bootstrap-stub.sh"
+  mkdir -p "${stubdir}" "$(dirname "${shared_context_file}")" "$(dirname "${envfile}")"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5432
+PLATFORM_API_PORT=8080
+EOF
+
+  cat >"${shared_context_file}" <<'EOF'
+{"provider_auth_mode":"oauth","provider_name":"OpenAI (Subscription)","provider_type":"openai","model_name":"gpt-5.4","system_reasoning":"low","orchestrator_model_name":"gpt-5.4","orchestrator_reasoning":"low","specialist_model_name":"gpt-5.4-mini","specialist_reasoning":"medium","profiles":{}}
+EOF
+
+  make_stub "${shared_bootstrap_stub}" \
+'printf "shared-refresh LIVE_TEST_MODEL_ID=%s LIVE_TEST_SYSTEM_REASONING_EFFORT=%s LIVE_TEST_ORCHESTRATOR_MODEL_ID=%s LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT=%s LIVE_TEST_SPECIALIST_MODEL_ID=%s LIVE_TEST_SPECIALIST_REASONING_EFFORT=%s\n" "${LIVE_TEST_MODEL_ID:-}" "${LIVE_TEST_SYSTEM_REASONING_EFFORT:-}" "${LIVE_TEST_ORCHESTRATOR_MODEL_ID:-}" "${LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT:-}" "${LIVE_TEST_SPECIALIST_MODEL_ID:-}" "${LIVE_TEST_SPECIALIST_REASONING_EFFORT:-}" >>"'"${logfile}"'"
+printf "%s\n" "{\"provider_auth_mode\":\"oauth\",\"provider_name\":\"OpenAI (Subscription)\",\"provider_type\":\"openai\",\"model_name\":\"${LIVE_TEST_MODEL_ID}\",\"system_reasoning\":\"${LIVE_TEST_SYSTEM_REASONING_EFFORT}\",\"orchestrator_model_name\":\"${LIVE_TEST_ORCHESTRATOR_MODEL_ID}\",\"orchestrator_reasoning\":\"${LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT}\",\"specialist_model_name\":\"${LIVE_TEST_SPECIALIST_MODEL_ID}\",\"specialist_reasoning\":\"${LIVE_TEST_SPECIALIST_REASONING_EFFORT}\",\"profiles\":{}}" >"${LIVE_TEST_SHARED_CONTEXT_FILE}"'
+
+  make_stub "${run_bootstrap_stub}" \
+'mkdir -p "$(dirname "${LIVE_TEST_RUN_CONTEXT_FILE}")"
+printf "run LIVE_TEST_RUN_CONTEXT_FILE=%s\n" "${LIVE_TEST_RUN_CONTEXT_FILE:-}" >>"'"${logfile}"'"
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"playbook_id\":\"playbook-1\",\"provider_auth_mode\":\"oauth\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"'
+
+  make_stub "${stubdir}/curl" 'exit 0'
+  make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" && \"\$#\" -eq 3 ]]; then
+  printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"
+elif [[ \"\${1:-}\" == \"-\" && \"\$#\" -eq 2 ]]; then
+  if grep -Fq \"\\\"model_name\\\":\\\"\\\${LIVE_TEST_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"system_reasoning\\\":\\\"\\\${LIVE_TEST_SYSTEM_REASONING_EFFORT}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"orchestrator_model_name\\\":\\\"\\\${LIVE_TEST_ORCHESTRATOR_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"orchestrator_reasoning\\\":\\\"\\\${LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"specialist_model_name\\\":\\\"\\\${LIVE_TEST_SPECIALIST_MODEL_ID}\\\"\" \"\$2\" \\
+    && grep -Fq \"\\\"specialist_reasoning\\\":\\\"\\\${LIVE_TEST_SPECIALIST_REASONING_EFFORT}\\\"\" \"\$2\"; then
+    exit 0
+  fi
+  exit 1
+else
+  printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"
+fi"
+
+  PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${shared_bootstrap_stub}" \
+    LIVE_TEST_BOOTSTRAP_SCRIPT="${run_bootstrap_stub}" \
+    LIVE_TEST_MODEL_ID="gpt-5.4-mini" \
+    LIVE_TEST_SYSTEM_REASONING_EFFORT="medium" \
+    LIVE_TEST_ORCHESTRATOR_MODEL_ID="gpt-5.4-mini" \
+    LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT="medium" \
+    LIVE_TEST_SPECIALIST_MODEL_ID="gpt-5.4-mini" \
+    LIVE_TEST_SPECIALIST_REASONING_EFFORT="medium" \
+    "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${stdout_log}"
+
+  assert_contains "shared-refresh LIVE_TEST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SYSTEM_REASONING_EFFORT=medium LIVE_TEST_ORCHESTRATOR_MODEL_ID=gpt-5.4-mini LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT=medium LIVE_TEST_SPECIALIST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_REASONING_EFFORT=medium" "${logfile}"
+  assert_contains "run LIVE_TEST_RUN_CONTEXT_FILE=${run_context_file}" "${logfile}"
   assert_contains "\"workflow_id\":\"workflow-1\"" "${run_file}"
 }
 
@@ -209,8 +327,9 @@ EOF
   write_shared_context "${shared_context_file}"
 
   make_stub "${bootstrap_stub}" \
-'mkdir -p "$(dirname "${LIVE_TEST_RUN_CONTEXT_FILE}")"
-printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"'
+'target_file="${LIVE_TEST_RUN_CONTEXT_FILE:-${LIVE_TEST_SHARED_CONTEXT_FILE}}"
+mkdir -p "$(dirname "${target_file}")"
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${target_file}"'
 
   make_stub "${stubdir}/curl" 'exit 0'
   make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\"}\"; exit 1; fi"
@@ -219,6 +338,7 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
     fail "expected scenario runner failure to propagate"
@@ -256,8 +376,9 @@ EOF
   write_shared_context "${shared_context_file}"
 
   make_stub "${bootstrap_stub}" \
-'mkdir -p "$(dirname "${LIVE_TEST_RUN_CONTEXT_FILE}")"
-printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"'
+'target_file="${LIVE_TEST_RUN_CONTEXT_FILE:-${LIVE_TEST_SHARED_CONTEXT_FILE}}"
+mkdir -p "$(dirname "${target_file}")"
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${target_file}"'
 
   cat >"${runner_script}" <<'PY'
 #!/usr/bin/env python3
@@ -284,6 +405,7 @@ fi'
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_START_WORKFLOW_SCRIPT="${runner_script}" \
     "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
@@ -358,8 +480,9 @@ EOF
 
   make_stub "${bootstrap_stub}" \
 'rm -rf "${LIVE_TEST_ARTIFACTS_DIR}/${LIVE_TEST_SCENARIO_NAME}"
-mkdir -p "$(dirname "${LIVE_TEST_RUN_CONTEXT_FILE}")"
-printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"'
+target_file="${LIVE_TEST_RUN_CONTEXT_FILE:-${LIVE_TEST_SHARED_CONTEXT_FILE}}"
+mkdir -p "$(dirname "${target_file}")"
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${target_file}"'
 
   make_stub "${stubdir}/curl" 'exit 0'
   make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"; fi"
@@ -368,6 +491,7 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log"
 
@@ -400,8 +524,9 @@ EOF
   write_shared_context "${shared_context_file}"
 
   make_stub "${bootstrap_stub}" \
-'mkdir -p "$(dirname "${LIVE_TEST_RUN_CONTEXT_FILE}")"
-printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"'
+'target_file="${LIVE_TEST_RUN_CONTEXT_FILE:-${LIVE_TEST_SHARED_CONTEXT_FILE}}"
+mkdir -p "$(dirname "${target_file}")"
+printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-one\",\"provider_id\":\"provider-1\",\"model_id\":\"model-1\",\"playbook_id\":\"playbook-1\"}" >"${target_file}"'
 
   make_stub "${stubdir}/curl" 'exit 0'
   make_stub "${stubdir}/python3" "if [[ \"\${1:-}\" == \"-\" ]]; then printf \"%s\\n\" \"${SCENARIO_PROFILE}\" \"${SCENARIO_STORAGE_TYPE}\"; else printf \"%s\\n\" \"{\\\"workflow_id\\\":\\\"workflow-1\\\",\\\"state\\\":\\\"active\\\"}\"; fi"
@@ -410,6 +535,7 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
     LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
     LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+    LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     "${SCRIPT_PATH}" "${SCENARIO_NAME}" >"${tmpdir}/stdout.log"
 
@@ -421,6 +547,7 @@ printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"workspace-
 test_scenario_profile_is_exported_to_bootstrap
 test_runner_uses_shared_bootstrap_before_per_run_bootstrap
 test_runner_refreshes_shared_bootstrap_when_platform_is_down
+test_runner_refreshes_shared_bootstrap_when_requested_models_change
 test_runner_failure_promotes_nonzero_json_result
 test_runner_direct_result_file_is_promoted_on_failure
 test_bootstrap_failure_publishes_harness_failure_result

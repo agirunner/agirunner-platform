@@ -64,6 +64,41 @@ probe_live_test_http() {
   return 1
 }
 
+shared_bootstrap_matches_requested_config() {
+  local context_file="$1"
+
+  python3 - "${context_file}" <<'PY'
+import json
+import os
+import sys
+from pathlib import Path
+
+context_path = Path(sys.argv[1])
+if not context_path.exists():
+    raise SystemExit(1)
+
+try:
+    context = json.loads(context_path.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(1)
+
+expected = {
+    "provider_auth_mode": os.environ.get("LIVE_TEST_PROVIDER_AUTH_MODE", "oauth").strip() or "oauth",
+    "provider_name": os.environ.get("LIVE_TEST_PROVIDER_NAME", "OpenAI (Subscription)").strip() or "OpenAI (Subscription)",
+    "provider_type": os.environ.get("LIVE_TEST_PROVIDER_TYPE", "openai").strip() or "openai",
+    "model_name": os.environ.get("LIVE_TEST_MODEL_ID", "gpt-5.4-mini").strip() or "gpt-5.4-mini",
+    "system_reasoning": os.environ.get("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium").strip() or "medium",
+    "orchestrator_model_name": os.environ.get("LIVE_TEST_ORCHESTRATOR_MODEL_ID", os.environ.get("LIVE_TEST_MODEL_ID", "gpt-5.4-mini")).strip() or "gpt-5.4-mini",
+    "orchestrator_reasoning": os.environ.get("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "medium").strip() or "medium",
+    "specialist_model_name": os.environ.get("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4-mini").strip() or "gpt-5.4-mini",
+    "specialist_reasoning": os.environ.get("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium").strip() or "medium",
+}
+
+actual = {key: context.get(key) for key in expected}
+raise SystemExit(0 if actual == expected else 1)
+PY
+}
+
 SCENARIO_INPUT="${1:-${LIVE_TEST_SCENARIO_NAME:-}}"
 if [[ -z "${SCENARIO_INPUT}" ]]; then
   echo "[tests/live] scenario name or path is required" >&2
@@ -126,7 +161,9 @@ export LIVE_TEST_PROFILE
 export LIVE_TEST_WORKSPACE_STORAGE_TYPE
 export LIVE_TEST_SCENARIO_FILE
 export LIVE_TEST_SCENARIO_NAME
-if [[ ! -f "${LIVE_TEST_SHARED_CONTEXT_FILE}" ]] || ! probe_live_test_http "${PLATFORM_API_BASE_URL}/health"; then
+if [[ ! -f "${LIVE_TEST_SHARED_CONTEXT_FILE}" ]] \
+  || ! probe_live_test_http "${PLATFORM_API_BASE_URL}/health" \
+  || ! shared_bootstrap_matches_requested_config "${LIVE_TEST_SHARED_CONTEXT_FILE}"; then
   "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}"
 fi
 
