@@ -441,7 +441,7 @@ describe('WorkItemService', () => {
     expect((workItem as Record<string, unknown>).assessment_status).toBeNull();
   });
 
-  it('allows the immediate review successor when the predecessor output is pending assessment with a full handoff', async () => {
+  it('rejects the immediate successor when the predecessor output is still pending required assessment', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -502,10 +502,6 @@ describe('WorkItemService', () => {
             rowCount: 1,
           };
         }
-        if (sql.includes('FROM tasks') && sql.includes("state NOT IN ('completed', 'failed', 'cancelled')")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-impl-1']);
-          return { rows: [{ count: 1 }], rowCount: 1 };
-        }
         if (
           sql.includes('FROM workflow_work_items')
           && sql.includes('parent_work_item_id = $3')
@@ -515,133 +511,44 @@ describe('WorkItemService', () => {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-impl-1', 'review', null]);
           return { rows: [], rowCount: 0 };
         }
+        if (sql.includes('FROM tasks') && sql.includes("state NOT IN ('completed', 'failed', 'cancelled')")) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-impl-1']);
+          return { rows: [{ count: 1 }], rowCount: 1 };
+        }
         if (sql.includes('INSERT INTO workflow_work_items')) {
-          expect(params?.[2]).toBe('wi-impl-1');
-          expect(params?.[4]).toBe('review');
-          return {
-            rows: [
-              {
-                id: 'wi-review-1',
-                workflow_id: 'workflow-1',
-                parent_work_item_id: 'wi-impl-1',
-                stage_name: 'review',
-                column_id: 'planned',
-                next_expected_actor: null,
-                next_expected_action: null,
-                rework_count: 0,
-              },
-            ],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('SELECT ws.id,') && sql.includes('FROM workflow_stages ws')) {
-          return {
-            rows: [
-              {
-                id: 'stage-1',
-                lifecycle: 'planned',
-                name: 'implementation',
-                position: 0,
-                goal: 'Ship the change',
-                guidance: null,
-                human_gate: false,
-                status: 'active',
-                gate_status: 'not_requested',
-                iteration_count: 0,
-                summary: null,
-                started_at: new Date('2026-03-18T15:00:00Z'),
-                completed_at: null,
-                open_work_item_count: 1,
-                total_work_item_count: 1,
-                first_work_item_at: new Date('2026-03-18T15:00:00Z'),
-                last_completed_work_item_at: null,
-              },
-              {
-                id: 'stage-2',
-                lifecycle: 'planned',
-                name: 'review',
-                position: 1,
-                goal: 'Review the implementation',
-                guidance: null,
-                human_gate: false,
-                status: 'pending',
-                gate_status: 'not_requested',
-                iteration_count: 0,
-                summary: null,
-                started_at: null,
-                completed_at: null,
-                open_work_item_count: 1,
-                total_work_item_count: 1,
-                first_work_item_at: new Date('2026-03-18T15:01:00Z'),
-                last_completed_work_item_at: null,
-              },
-              {
-                id: 'stage-3',
-                lifecycle: 'planned',
-                name: 'release',
-                position: 2,
-                goal: 'Release the change',
-                guidance: null,
-                human_gate: false,
-                status: 'pending',
-                gate_status: 'not_requested',
-                iteration_count: 0,
-                summary: null,
-                started_at: null,
-                completed_at: null,
-                open_work_item_count: 0,
-                total_work_item_count: 0,
-                first_work_item_at: null,
-                last_completed_work_item_at: null,
-              },
-            ],
-            rowCount: 3,
-          };
-        }
-        if (sql.includes('UPDATE workflow_work_items')) {
-          throw new Error('predecessor checkpoint should not auto-close while review is still pending');
-        }
-        if (sql.includes('UPDATE workflow_stages') || sql.includes('UPDATE workflows')) {
-          throw new Error(`Unexpected SQL: ${sql}`);
+          throw new Error('successor work item insert should not run while required assessment is still pending');
         }
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
       release: vi.fn(),
     };
-    const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
-    const activationService = { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) };
-    const activationDispatchService = { dispatchActivation: vi.fn().mockResolvedValue(undefined) };
     const service = new WorkItemService(
       { connect: vi.fn().mockResolvedValue(client) } as never,
-      eventService as never,
-      activationService as never,
-      activationDispatchService as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
     );
 
-    const result = await service.createWorkItem(
-      {
-        id: 'admin:1',
-        tenantId: 'tenant-1',
-        scope: 'admin',
-        ownerType: 'tenant',
-        ownerId: 'tenant-1',
-        keyPrefix: 'admin-key',
-      },
-      'workflow-1',
-      {
-        request_id: 'req-review-1',
-        parent_work_item_id: 'wi-impl-1',
-        stage_name: 'review',
-        title: 'Review checkpoint',
-      },
-    );
-
-    expect(result).toEqual(
-      expect.objectContaining({
-        id: 'wi-review-1',
-        parent_work_item_id: 'wi-impl-1',
-        stage_name: 'review',
-      }),
+    await expect(
+      service.createWorkItem(
+        {
+          id: 'admin:1',
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          ownerType: 'tenant',
+          ownerId: 'tenant-1',
+          keyPrefix: 'admin-key',
+        },
+        'workflow-1',
+        {
+          request_id: 'req-review-1',
+          parent_work_item_id: 'wi-impl-1',
+          stage_name: 'review',
+          title: 'Review checkpoint',
+        },
+      ),
+    ).rejects.toThrow(
+      "Cannot create successor work item in stage 'review' while predecessor 'Implementation checkpoint' (implementation) still has non-terminal tasks. Wait for the current checkpoint task to finish before routing to the next stage.",
     );
   });
 

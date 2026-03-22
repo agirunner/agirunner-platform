@@ -89,7 +89,7 @@ describe('buildWorkflowInstructionLayer', () => {
       `If the platform already reports "verification" as current after you route successor work, treat any repeated advance_stage request for "review" -> "verification" as unnecessary and do not issue it again.`,
     );
     expect(layer!.content).toContain(
-      'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_assessment is the only allowed carryover, and only while a required assessment remains pending for the current subject.',
+      'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no active predecessor tasks remain. Required assessment or approval must clear before successor checkpoint work starts.',
     );
     expect(layer!.content).toContain(
       'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',

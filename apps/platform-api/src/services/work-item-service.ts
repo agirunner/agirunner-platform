@@ -1135,30 +1135,9 @@ function shouldBlockSuccessorCheckpointForOpenTasks(
   predecessorStageName: string | null,
   taskStateCounts: Map<string, number>,
 ) {
-  if (taskStateCounts.size === 0) {
-    return false;
-  }
-
-  const nonReviewReadyStates = Array.from(taskStateCounts.keys()).filter(
-    (state) => state !== 'output_pending_assessment',
-  );
-  if (nonReviewReadyStates.length > 0) {
-    return true;
-  }
-
-  return !checkpointRequiresMandatoryReview(definition, predecessorStageName);
-}
-
-function checkpointRequiresMandatoryReview(
-  definition: ReturnType<typeof parsePlaybookDefinition>,
-  checkpointName: string | null,
-) {
-  if (!checkpointName) {
-    return false;
-  }
-  return definition.assessment_rules.some(
-    (rule) => rule.required !== false && (!rule.checkpoint || rule.checkpoint === checkpointName),
-  );
+  void definition;
+  void predecessorStageName;
+  return taskStateCounts.size > 0;
 }
 
 function terminalColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition>) {

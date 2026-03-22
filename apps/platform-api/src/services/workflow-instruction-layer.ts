@@ -511,7 +511,7 @@ function formatStageRouting(
     `Creating successor work in "${successorStageName}" and closing the accepted predecessor work item is itself the forward-routing mutation for this planned workflow.`,
     `If the platform already reports "${successorStageName}" as current after you route successor work, treat any repeated advance_stage request for "${currentStageName}" -> "${successorStageName}" as unnecessary and do not issue it again.`,
     `When you create successor work in a planned workflow, set stage_name to "${successorStageName}" and close the predecessor work item instead of leaving successor work anchored to "${currentStageName}".`,
-    'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_assessment is the only allowed carryover, and only while a required assessment remains pending for the current subject.',
+    'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no active predecessor tasks remain. Required assessment or approval must clear before successor checkpoint work starts.',
     'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',
     'Planned-workflow tasks must stay attached to a work item in the same stage as the task itself.',
     'If a request_changes outcome already reopened the subject task, do not create another same-role rework task on the assessor work item; wait for the reopened subject to resubmit and then route it through the required follow-up step.',
