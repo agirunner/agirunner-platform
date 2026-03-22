@@ -1778,6 +1778,64 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('rejects a completed task when a later assessment blocks the delivered revision', async () => {
+    const updatedTask = {
+      id: 'task-delivery-rejected',
+      state: 'failed',
+      workflow_id: null,
+      assigned_worker_id: null,
+      assigned_agent_id: null,
+      is_orchestrator_task: false,
+      metadata: {
+        assessment_action: 'reject',
+        assessment_feedback: 'The delivered revision is rejected.',
+      },
+      error: {
+        category: 'assessment_rejected',
+        message: 'The delivered revision is rejected.',
+        recoverable: true,
+      },
+    };
+    const client = {
+      query: vi.fn(async () => ({ rows: [updatedTask], rowCount: 1 })),
+      release: vi.fn(),
+    };
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn(async () => undefined) } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn(async () => ({
+        id: 'task-delivery-rejected',
+        state: 'completed',
+        workflow_id: null,
+        assigned_worker_id: null,
+        assigned_agent_id: null,
+        is_orchestrator_task: false,
+        metadata: {},
+      })),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.rejectTask(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-delivery-rejected',
+      {
+        feedback: 'The delivered revision is rejected.',
+      },
+    );
+
+    expect(result).toEqual(updatedTask);
+    expect(client.query).toHaveBeenCalled();
+  });
+
   it('fails and escalates when request-changes exceeds the configured max rework count', async () => {
     const eventService = { emit: vi.fn() };
     const logService = { insert: vi.fn(async () => undefined) };

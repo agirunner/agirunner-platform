@@ -24,7 +24,7 @@ const transitionTable: Record<CanonicalTaskState, ReadonlySet<CanonicalTaskState
   awaiting_approval: new Set(['ready', 'cancelled']),
   output_pending_assessment: new Set(['completed', 'failed', 'ready', 'cancelled']),
   escalated: new Set(['ready', 'cancelled', 'failed']),
-  completed: new Set(),
+  completed: new Set(['failed']),
   failed: new Set(['ready', 'escalated', 'cancelled']),
   cancelled: new Set(),
 };

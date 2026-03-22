@@ -555,8 +555,9 @@ function buildSystemOwnedRoleData(task: TaskContextRow, input: SubmitTaskHandoff
   const roleData = sanitizeHandoffRecord(input.role_data);
 
   if (taskKind === 'delivery') {
-    const subjectRevision = readInteger(normalizeRecord(task.metadata).output_revision)
-      ?? ((readInteger(task.rework_count) ?? 0) + 1);
+    const persistedRevision = readInteger(normalizeRecord(task.metadata).output_revision) ?? 0;
+    const reworkDerivedRevision = (readInteger(task.rework_count) ?? 0) + 1;
+    const subjectRevision = Math.max(persistedRevision, reworkDerivedRevision);
     return sanitizeHandoffRecord({
       ...roleData,
       task_kind: taskKind,

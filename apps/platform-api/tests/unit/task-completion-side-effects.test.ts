@@ -525,6 +525,127 @@ describe('applyTaskCompletionSideEffects', () => {
     expect(workItemContinuityService.recordAssessmentRequestedChanges).not.toHaveBeenCalled();
   });
 
+  it('rejects the explicit subject task when an assessment handoff rejects it', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          return {
+            rows: [{
+              completion: 'full',
+              resolution: 'rejected',
+              summary: 'The subject output is rejected and must not advance.',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('state = ANY($4::task_state[])') && sql.includes('AND id = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', ['output_pending_assessment', 'completed'], 'task-assess']);
+          return {
+            rows: [{
+              id: 'task-dev',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'implementation-item',
+              role: 'implementation-engineer',
+              state: 'output_pending_assessment',
+              output: { summary: 'done' },
+              metadata: {},
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-completed:task-assess:updated',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'assessment',
+        nextExpectedActor: 'implementation-engineer',
+        nextExpectedAction: 'deliver_revision',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedAssessmentExpectation: false,
+      })),
+    };
+    const reviewTaskChangeService = {
+      requestTaskChanges: vi.fn(async () => ({ id: 'task-dev', state: 'ready' })),
+      rejectTask: vi.fn(async () => ({ id: 'task-dev', state: 'failed' })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-assess',
+        workflow_id: 'workflow-1',
+        work_item_id: 'assessment-item',
+        role: 'acceptance-assessor',
+        stage_name: 'assessment',
+        is_orchestrator_task: false,
+        rework_count: 0,
+        updated_at: 'updated',
+        input: { subject_task_id: 'task-dev', subject_revision: 1 },
+        metadata: { task_kind: 'assessment', subject_task_id: 'task-dev', subject_revision: 1 },
+        output: { verdict: 'rejected' },
+      },
+      client as never,
+      undefined,
+      undefined,
+      reviewTaskChangeService as never,
+    );
+
+    expect(reviewTaskChangeService.rejectTask).toHaveBeenCalledWith(
+      expect.objectContaining({ tenantId: 'tenant-1' }),
+      'task-dev',
+      expect.objectContaining({
+        feedback: 'The subject output is rejected and must not advance.',
+      }),
+      client,
+    );
+    expect(reviewTaskChangeService.requestTaskChanges).not.toHaveBeenCalled();
+  });
+
   it('does not advance assessment continuity for a blocked assessment handoff without a request-changes outcome', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {

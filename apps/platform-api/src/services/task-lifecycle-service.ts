@@ -786,6 +786,8 @@ export class TaskLifecycleService {
           {
             requestTaskChanges: (nextIdentity, managedTaskId, payload, nextClient) =>
               this.requestTaskChanges(nextIdentity, managedTaskId, payload, nextClient),
+            rejectTask: (nextIdentity, managedTaskId, payload, nextClient) =>
+              this.rejectTask(nextIdentity, managedTaskId, payload, nextClient),
           },
         );
       }
@@ -1464,14 +1466,19 @@ export class TaskLifecycleService {
     }, client);
   }
 
-  async rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
-    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId));
+  async rejectTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { feedback: string; record_continuity?: boolean },
+    client?: DatabaseClient,
+  ) {
+    const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
     if (hasMatchingAssessmentRejection(task, payload.feedback)) {
       return this.deps.toTaskResponse(task);
     }
 
     return this.applyStateTransition(identity, taskId, 'failed', {
-      expectedStates: ['awaiting_approval', 'output_pending_assessment', 'in_progress', 'claimed'],
+      expectedStates: ['awaiting_approval', 'output_pending_assessment', 'in_progress', 'claimed', 'completed'],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
@@ -1486,14 +1493,16 @@ export class TaskLifecycleService {
         assessment_updated_at: new Date().toISOString(),
       },
       afterUpdate: async (updatedTask, client) => {
-        await this.deps.workItemContinuityService?.recordAssessmentRequestedChanges(
-          identity.tenantId,
-          updatedTask,
-          client,
-        );
+        if (payload.record_continuity !== false) {
+          await this.deps.workItemContinuityService?.recordAssessmentRequestedChanges(
+            identity.tenantId,
+            updatedTask,
+            client,
+          );
+        }
       },
       reason: 'assessment_rejected',
-    });
+    }, client);
   }
 
   async requestTaskChanges(

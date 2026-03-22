@@ -320,7 +320,11 @@ export class TaskService {
     return this.lifecycleService.cancelTask(identity, taskId, client);
   }
 
-  rejectTask(identity: ApiKeyIdentity, taskId: string, payload: { feedback: string }) {
+  rejectTask(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { feedback: string; record_continuity?: boolean },
+  ) {
     return this.lifecycleService.rejectTask(identity, taskId, payload);
   }
 

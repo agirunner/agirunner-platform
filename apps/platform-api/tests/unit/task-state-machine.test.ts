@@ -40,6 +40,7 @@ const validTransitions: Array<[State, State]> = [
   ['output_pending_assessment', 'failed'],
   ['output_pending_assessment', 'ready'],
   ['output_pending_assessment', 'cancelled'],
+  ['completed', 'failed'],
   ['failed', 'ready'],
   ['failed', 'escalated'],
   ['failed', 'cancelled'],

@@ -48,6 +48,15 @@ interface SubjectTaskChangeService {
     },
     client?: DatabaseClient,
   ) => Promise<Record<string, unknown>>;
+  rejectTask?: (
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: {
+      feedback: string;
+      record_continuity?: boolean;
+    },
+    client?: DatabaseClient,
+  ) => Promise<Record<string, unknown>>;
 }
 
 export function validateOutputSchema(output: unknown, schema: Record<string, unknown>): string[] {
@@ -207,6 +216,17 @@ export async function applyTaskCompletionSideEffects(
             logService,
           )
         : false;
+    const assessmentRejectionApplied =
+      continuityEvent === 'task_completed'
+        ? await maybeRejectSubjectTask(
+            reviewTaskChangeService,
+            eventService,
+            identity,
+            task,
+            client,
+            logService,
+          )
+        : false;
     const continuityResult = assessmentReworkApplied
       ? null
       : await applyTaskCompletionContinuityEvent(
@@ -217,14 +237,16 @@ export async function applyTaskCompletionSideEffects(
           client,
         );
     if (continuityEvent === 'task_completed') {
-      await maybeResolveAssessmentSubject(
-        eventService,
-        identity,
-        task,
-        continuityResult ?? null,
-        client,
-        logService,
-      );
+      if (!assessmentRejectionApplied) {
+        await maybeResolveAssessmentSubject(
+          eventService,
+          identity,
+          task,
+          continuityResult ?? null,
+          client,
+          logService,
+        );
+      }
     }
     await maybeAutoCloseCompletedPlannedPredecessorWorkItem(
       eventService,
@@ -347,6 +369,105 @@ async function maybeRequestSubjectTaskChanges(
   await logTaskGovernanceTransition(logService, {
     tenantId: identity.tenantId,
     operation: 'task.assessment_rework.applied',
+    executor: client,
+    task: completedTask,
+    payload,
+  });
+
+  return true;
+}
+
+async function maybeRejectSubjectTask(
+  reviewTaskChangeService: SubjectTaskChangeService | undefined,
+  eventService: EventService,
+  identity: ApiKeyIdentity,
+  completedTask: Record<string, unknown>,
+  client: DatabaseClient,
+  logService?: LogService,
+) {
+  if (!reviewTaskChangeService?.rejectTask) {
+    return false;
+  }
+
+  const resolutionGate = resolveAssessmentResolutionGate(completedTask, null);
+  if (!resolutionGate.shouldAttempt) {
+    return false;
+  }
+
+  const workflowId = asOptionalString(completedTask.workflow_id);
+  const workItemId = asOptionalString(completedTask.work_item_id);
+  const assessmentTaskId = asOptionalString(completedTask.id);
+  if (!workflowId || !workItemId || !assessmentTaskId) {
+    return false;
+  }
+
+  const latestHandoffOutcome = await loadLatestTaskAttemptHandoffOutcome(
+    client,
+    identity.tenantId,
+    completedTask,
+  );
+  if (latestHandoffOutcome?.resolution !== 'rejected') {
+    return false;
+  }
+
+  const candidates = await loadSubjectTaskCandidates(
+    client,
+    identity.tenantId,
+    workflowId,
+    workItemId,
+    assessmentTaskId,
+    completedTask,
+    { allowCompletedExplicitTask: true },
+  );
+  if (candidates.result.rowCount !== 1) {
+    return false;
+  }
+
+  const subjectTaskId = asOptionalString(candidates.result.rows[0]?.id);
+  if (!subjectTaskId) {
+    return false;
+  }
+
+  const feedback = readAssessmentResolutionFeedback(
+    completedTask,
+    latestHandoffOutcome,
+    'Assessment rejected the subject output.',
+  );
+  await reviewTaskChangeService.rejectTask(
+    identity,
+    subjectTaskId,
+    {
+      feedback,
+      record_continuity: false,
+    },
+    client,
+  );
+
+  const payload = {
+    event_type: 'task.assessment_rejection_applied',
+    workflow_id: workflowId,
+    assessment_task_id: assessmentTaskId,
+    assessment_task_work_item_id: workItemId,
+    subject_task_id: subjectTaskId,
+    resolution_source: candidates.resolutionSource,
+    resolution_gate: resolutionGate.reason,
+    explicit_subject_task_id: candidates.explicitSubjectTaskId,
+  };
+  await eventService.emit(
+    {
+      tenantId: identity.tenantId,
+      type: 'task.assessment_rejection_applied',
+      entityType: 'task',
+      entityId: assessmentTaskId,
+      actorType: 'system',
+      actorId: 'assessment_resolver',
+      data: payload,
+    },
+    client,
+  );
+  await logTaskGovernanceTransition(logService, {
+    tenantId: identity.tenantId,
+    operation: 'task.assessment_rejection.applied',
     executor: client,
     task: completedTask,
     payload,
@@ -772,11 +893,23 @@ function readRequestChangesFeedback(
   completedTask: Record<string, unknown>,
   latestHandoffOutcome: TaskAttemptHandoffOutcome | null,
 ) {
+  return readAssessmentResolutionFeedback(
+    completedTask,
+    latestHandoffOutcome,
+    'Assessment requested changes.',
+  );
+}
+
+function readAssessmentResolutionFeedback(
+  completedTask: Record<string, unknown>,
+  latestHandoffOutcome: TaskAttemptHandoffOutcome | null,
+  fallback: string,
+) {
   return (
     asOptionalString(latestHandoffOutcome?.summary)
     ?? asOptionalString(asRecord(completedTask.output).assessment_feedback)
     ?? asOptionalString(asRecord(completedTask.output).summary)
-    ?? 'Assessment requested changes.'
+    ?? fallback
   );
 }
 
