@@ -244,6 +244,25 @@ function normalizeUUIDList(values: string[] | undefined): string[] {
     .map((parsed) => parsed.data))];
 }
 
+function buildRecoverableApproveTaskNoop(managedTask: Record<string, unknown>) {
+  const taskState = readString(managedTask.state);
+  if (!taskState || taskState === 'awaiting_approval') {
+    return null;
+  }
+
+  return {
+    noop: true,
+    ready: false,
+    reason_code: 'task_not_awaiting_approval',
+    message: `Cannot approve task '${readString(managedTask.id) ?? 'unknown'}' because it is currently '${taskState}', not 'awaiting_approval'. Re-read the task state before mutating further.`,
+    blocked_on: [`task_state:${taskState}`],
+    task_id: readString(managedTask.id),
+    task_state: taskState,
+    work_item_id: readString(managedTask.work_item_id),
+    stage_name: readString(managedTask.stage_name),
+  };
+}
+
 async function resolveContinuityWorkItemId(
   app: FastifyInstance,
   tenantId: string,
@@ -513,9 +532,14 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const params = request.params as { taskId: string; managedTaskId: string };
       const body = parseOrThrow(orchestratorTaskMutationSchema.safeParse(request.body));
-      const taskScope = await withManagedSpecialistTask(
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
         request.auth!,
         params.taskId,
+      );
+      const managedTask = await loadManagedSpecialistTask(
+        app,
+        request.auth!,
+        taskScope.workflow_id,
         params.managedTaskId,
       );
       const stored = await runIdempotentMutation(
@@ -525,7 +549,13 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         taskScope.workflow_id,
         'approve_task',
         body.request_id,
-        (client) => app.taskService.approveTask(request.auth!, params.managedTaskId, client),
+        async (client) => {
+          const noop = buildRecoverableApproveTaskNoop(managedTask);
+          if (noop) {
+            return noop;
+          }
+          return app.taskService.approveTask(request.auth!, params.managedTaskId, client);
+        },
       );
       return { data: stored };
     },

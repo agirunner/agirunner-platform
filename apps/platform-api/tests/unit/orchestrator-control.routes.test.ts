@@ -3688,7 +3688,7 @@ describe('orchestratorControlRoutes', () => {
       id: 'task-specialist',
       workflow_id: 'workflow-1',
       is_orchestrator_task: false,
-      state: 'ready',
+      state: 'awaiting_approval',
     };
     const taskService = {
       createTask: vi.fn(),
@@ -3768,6 +3768,108 @@ describe('orchestratorControlRoutes', () => {
       client,
     );
     expect(response.json().data).toEqual(approvedTask);
+  });
+
+  it('returns a recoverable noop when approving a specialist task that is no longer awaiting approval', async () => {
+    const managedTask = {
+      id: 'task-specialist',
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      stage_name: 'implementation',
+      is_orchestrator_task: false,
+      state: 'output_pending_assessment',
+    };
+    const taskService = {
+      createTask: vi.fn(),
+      getTask: vi.fn().mockResolvedValue(managedTask),
+      approveTask: vi.fn(),
+    };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'approve_task', 'approve-stale-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                noop: true,
+                ready: false,
+                reason_code: 'task_not_awaiting_approval',
+                task_id: 'task-specialist',
+                task_state: 'output_pending_assessment',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM tasks') && sql.includes('WHERE tenant_id = $1') && sql.includes('AND id = $2')) {
+          expect(params).toEqual(['tenant-1', 'task-orchestrator']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-orchestrator',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'implementation',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', taskService);
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks/task-specialist/approve',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'approve-stale-1',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(taskService.approveTask).not.toHaveBeenCalled();
+    expect(response.json().data).toMatchObject({
+      noop: true,
+      ready: false,
+      reason_code: 'task_not_awaiting_approval',
+      task_id: 'task-specialist',
+      task_state: 'output_pending_assessment',
+    });
   });
 
   it('escalates a specialist task to human review through the replay-safe orchestrator bridge', async () => {
