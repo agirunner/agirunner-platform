@@ -10,26 +10,28 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave clean takeover state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before escalation.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'Repository-backed containers guarantee the repo checkout, git, sh, and python3.',
+      'Repository-backed containers already provide repo checkout, git, sh, and python3.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('operational state such as rework counters');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before task completion, you MUST ensure');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before completion, ensure');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('successful structured handoff');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Rejected attempts do not count');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not duplicate unchanged handoffs');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('unique request_id');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('The platform rejects completion without a structured handoff');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff as a scratch note or progress marker');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Completion is rejected without a structured handoff');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not use submit_handoff for scratch progress');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
-      'Never reference task-local paths such as output/, repo/, or /tmp/workspace in a structured handoff.',
+      'Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.',
     );
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Never invent ids or leave placeholder ids in tool calls.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use repo-relative or tool-returned workspace paths; do not use guessed absolute /tmp/workspace paths.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Never invent ids or leave placeholders in tool calls.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use repo-relative or tool-returned workspace paths, never guessed absolute /tmp/workspace paths.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Only assessment or approval handoffs may include resolution.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('On delivery handoffs, omit resolution entirely.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not assume optional context files exist.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('shell_exec timeout is in seconds, not milliseconds');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('confirm the runtime exists in the container or install it first');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Delivery handoffs MUST omit resolution entirely.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff accepts only its documented schema fields.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent extras such as tests_run or verification_results');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Optional context files may not exist.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('shell_exec timeout is in seconds and MUST stay within tool limits');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('confirm the runtime exists or install it');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
