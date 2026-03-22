@@ -84,6 +84,12 @@ interface WorkflowStageGateRow extends WorkflowStageGateRecord {
   decided_at: Date | null;
 }
 
+interface BlockingStageWorkItemRow {
+  id: string;
+  title: string;
+  blocking_resolution: string | null;
+}
+
 export interface UpdateWorkflowWorkItemInput {
   parent_work_item_id?: string | null;
   title?: string;
@@ -518,6 +524,12 @@ export class PlaybookWorkflowControlService {
     }
 
     const nextStage = await this.loadStage(identity.tenantId, workflowId, nextStageName, db);
+    await this.assertStageHasNoBlockingAssessmentResolution(
+      identity.tenantId,
+      workflowId,
+      sourceStage.name,
+      db,
+    );
     await this.completeOpenCheckpointWorkItems(
       identity.tenantId,
       workflowId,
@@ -643,6 +655,74 @@ export class PlaybookWorkflowControlService {
     );
   }
 
+  private async assertStageHasNoBlockingAssessmentResolution(
+    tenantId: string,
+    workflowId: string,
+    stageName: string,
+    db: DatabaseClient,
+  ) {
+    const result = await db.query<BlockingStageWorkItemRow>(
+      `SELECT wi.id,
+              wi.title,
+              COALESCE(blocking_assessment.blocking_resolution, latest_handoff.latest_handoff_resolution) AS blocking_resolution
+         FROM workflow_work_items wi
+         LEFT JOIN LATERAL (
+           SELECT th.task_id AS subject_task_id,
+                  NULLIF(COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, 0), 0) AS subject_revision
+             FROM task_handoffs th
+            WHERE th.tenant_id = wi.tenant_id
+              AND th.workflow_id = wi.workflow_id
+              AND th.work_item_id = wi.id
+              AND th.completion = 'full'
+              AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+            ORDER BY th.sequence DESC, th.created_at DESC
+            LIMIT 1
+         ) latest_delivery ON true
+         LEFT JOIN LATERAL (
+           SELECT latest_assessment.resolution AS blocking_resolution
+             FROM (
+               SELECT DISTINCT ON (assessment_handoff.role)
+                      assessment_handoff.role,
+                      assessment_handoff.resolution
+                 FROM task_handoffs assessment_handoff
+                WHERE assessment_handoff.tenant_id = wi.tenant_id
+                  AND assessment_handoff.workflow_id = wi.workflow_id
+                  AND COALESCE(assessment_handoff.role_data->>'task_kind', '') = 'assessment'
+                  AND COALESCE(assessment_handoff.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
+                  AND COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
+                  AND assessment_handoff.resolution IN ('request_changes', 'rejected')
+                ORDER BY assessment_handoff.role, assessment_handoff.sequence DESC, assessment_handoff.created_at DESC
+             ) latest_assessment
+            LIMIT 1
+         ) blocking_assessment ON true
+         LEFT JOIN LATERAL (
+           SELECT th.resolution AS latest_handoff_resolution
+             FROM task_handoffs th
+            WHERE th.tenant_id = wi.tenant_id
+              AND th.workflow_id = wi.workflow_id
+              AND th.work_item_id = wi.id
+            ORDER BY th.sequence DESC, th.created_at DESC
+            LIMIT 1
+         ) latest_handoff ON true
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = $2
+          AND wi.stage_name = $3
+          AND wi.completed_at IS NULL
+          AND COALESCE(blocking_assessment.blocking_resolution, latest_handoff.latest_handoff_resolution) IN ('request_changes', 'rejected')
+        ORDER BY wi.created_at ASC
+        LIMIT 1`,
+      [tenantId, workflowId, stageName],
+    );
+    const row = result.rows[0];
+    if (!row) {
+      return;
+    }
+
+    throw new ValidationError(
+      `Cannot complete workflow while stage '${stageName}' still has a blocking ${row.blocking_resolution ?? 'assessment'} assessment on work item '${row.title}'.`,
+    );
+  }
+
   private async completeWorkflowInTransaction(
     identity: ApiKeyIdentity,
     workflowId: string,
@@ -678,6 +758,12 @@ export class PlaybookWorkflowControlService {
       if (stage.human_gate && stage.gate_status !== 'approved') {
         throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`);
       }
+      await this.assertStageHasNoBlockingAssessmentResolution(
+        identity.tenantId,
+        workflowId,
+        stage.name,
+        db,
+      );
       await this.completeOpenCheckpointWorkItems(
         identity.tenantId,
         workflowId,

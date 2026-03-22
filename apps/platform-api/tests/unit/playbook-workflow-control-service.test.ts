@@ -2836,6 +2836,10 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('blocking_resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation']);
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('SELECT ws.id') && sql.includes('FROM workflow_stages ws')) {
           return {
             rowCount: 2,
@@ -3378,6 +3382,10 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('blocking_resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', expect.any(String)]);
+          return { rowCount: 0, rows: [] };
+        }
         if (sql.includes('UPDATE workflow_work_items')) {
           if (params?.[2] === 'requirements') {
             expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements', 'done']);
@@ -3461,6 +3469,92 @@ describe('PlaybookWorkflowControlService', () => {
         data: { summary: 'Ship it', final_artifacts: [] },
       }),
       pool,
+    );
+  });
+
+  it('rejects workflow completion when the active stage still has a blocking rejected assessment', async () => {
+    const service = new PlaybookWorkflowControlService({
+      pool: {} as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+    vi.spyOn(service as never, 'loadWorkflow').mockResolvedValue({
+      id: 'workflow-1',
+      workspace_id: 'workspace-1',
+      playbook_id: 'playbook-1',
+      lifecycle: 'planned',
+      active_stage_name: 'implementation',
+      state: 'active',
+      orchestration_state: {},
+      definition,
+    });
+    vi.spyOn(service as never, 'loadStage').mockResolvedValue({
+      id: 'stage-implementation',
+      name: 'implementation',
+      position: 1,
+      goal: 'Ship the feature',
+      guidance: null,
+      human_gate: false,
+      status: 'active',
+      gate_status: 'not_requested',
+      iteration_count: 0,
+      summary: null,
+      metadata: {},
+      started_at: new Date('2026-03-21T03:00:00Z'),
+      completed_at: null,
+      updated_at: new Date('2026-03-21T03:00:00Z'),
+    });
+
+    const db = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT ws.id') && sql.includes('FROM workflow_stages ws')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-implementation',
+              lifecycle: 'planned',
+              name: 'implementation',
+              position: 1,
+              goal: 'Ship the feature',
+              guidance: null,
+              human_gate: false,
+              status: 'active',
+              gate_status: 'not_requested',
+              iteration_count: 0,
+              summary: null,
+              started_at: new Date('2026-03-21T03:00:00Z'),
+              completed_at: null,
+              open_work_item_count: 1,
+              total_work_item_count: 1,
+              first_work_item_at: new Date('2026-03-21T03:00:00Z'),
+              last_completed_work_item_at: null,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('blocking_resolution')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'work-item-1',
+              title: 'Implement the reporting pipeline',
+              blocking_resolution: 'rejected',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    await expect(service.completeWorkflow(
+      { tenantId: 'tenant-1', scope: 'agent', ownerType: 'agent', ownerId: 'agent-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      { summary: 'Ship it' },
+      db as never,
+    )).rejects.toThrow(
+      "Cannot complete workflow while stage 'implementation' still has a blocking rejected assessment on work item 'Implement the reporting pipeline'.",
     );
   });
 });
