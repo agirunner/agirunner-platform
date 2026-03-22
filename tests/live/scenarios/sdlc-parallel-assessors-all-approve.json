@@ -1,6 +1,6 @@
 {
   "name": "sdlc-parallel-assessors-all-approve",
-  "profile": "sdlc-parallel-assessment",
+  "profile": "sdlc-parallel-assessors-all-approve",
   "workflow": {
     "name": "SDLC Parallel Assessors Approve",
     "goal": "Implement a feature that both quality and security assessors approve on the same revision before release packaging.",
@@ -19,10 +19,10 @@
     "state": "completed",
     "required_assessment_sets": [
       {
-        "subject_role": "parallel-delivery-engineer",
+        "subject_role": "all-approve-delivery-engineer",
         "required_assessors": [
-          "release-quality-assessor",
-          "release-security-assessor"
+          "all-approve-quality-assessor",
+          "all-approve-security-assessor"
         ]
       }
     ],

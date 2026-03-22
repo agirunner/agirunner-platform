@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 SCRIPT_PATH="${ROOT_DIR}/tests/live/scenarios/run-live-scenario.sh"
 SCENARIO_NAME="sdlc-assessment-approve"
-SCENARIO_PROFILE="sdlc-single-assessment"
+SCENARIO_PROFILE="sdlc-assessment-approve"
 SCENARIO_STORAGE_TYPE="git_remote"
 SCENARIO_FILE="${ROOT_DIR}/tests/live/scenarios/${SCENARIO_NAME}.json"
 

@@ -49,15 +49,15 @@ class SeedLiveTestRunTests(unittest.TestCase):
         shared_context = {
             "provider_auth_mode": "oauth",
             "profiles": {
-                "sdlc-single-assessment": {
+                "sdlc-assessment-approve": {
                     "playbook_id": "playbook-123",
-                    "playbook_slug": "live-test-sdlc-single-assessment-v1",
+                    "playbook_slug": "live-test-sdlc-assessment-approve-v1",
                 }
             },
         }
         scenario = {
             "name": "sdlc-assessment-approve",
-            "profile": "sdlc-single-assessment",
+            "profile": "sdlc-assessment-approve",
             "workspace": {
                 "repo": True,
                 "storage": {"type": "git_remote", "read_only": False},

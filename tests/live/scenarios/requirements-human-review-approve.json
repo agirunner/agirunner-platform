@@ -1,6 +1,6 @@
 {
   "name": "requirements-human-review-approve",
-  "profile": "requirements-human-review",
+  "profile": "requirements-human-review-approve",
   "workflow": {
     "name": "Requirements Human Review Approve",
     "goal": "Produce a human-approved launch packet for budget-alert requirements.",

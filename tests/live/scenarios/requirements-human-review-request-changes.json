@@ -1,6 +1,6 @@
 {
   "name": "requirements-human-review-request-changes",
-  "profile": "requirements-human-review",
+  "profile": "requirements-human-review-request-changes",
   "workflow": {
     "name": "Requirements Human Review Request Changes",
     "goal": "Produce a launch packet that the human review gate sends back for one content revision before approval.",
@@ -46,7 +46,7 @@
     "gate_rework_sequences": [
       {
         "stage_name": "approval-gate",
-        "required_role": "technical-editor"
+        "required_role": "rework-technical-editor"
       }
     ]
   },

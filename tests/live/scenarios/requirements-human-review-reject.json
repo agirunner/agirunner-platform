@@ -1,6 +1,6 @@
 {
   "name": "requirements-human-review-reject",
-  "profile": "requirements-human-review",
+  "profile": "requirements-human-review-reject",
   "workflow": {
     "name": "Requirements Human Review Reject",
     "goal": "Produce a launch packet that human review rejects and escalates instead of allowing successor work.",

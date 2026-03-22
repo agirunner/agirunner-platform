@@ -1,6 +1,6 @@
 {
   "name": "sdlc-optional-assessor-blocking",
-  "profile": "sdlc-optional-assessment",
+  "profile": "sdlc-optional-assessor-blocking",
   "workflow": {
     "name": "SDLC Optional Assessor Blocking",
     "goal": "Extend the seeded Python CLI with a higher-risk template preview command where quality can approve but the optional security assessor must force one rework cycle before release.",

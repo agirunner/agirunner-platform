@@ -1,6 +1,6 @@
 {
   "name": "sdlc-assessment-approve",
-  "profile": "sdlc-single-assessment",
+  "profile": "sdlc-assessment-approve",
   "workflow": {
     "name": "SDLC Assessment Approve",
     "goal": "Extend the seeded Python CLI with an assess command that emits a deterministic JSON assessment packet and a release package reference, then clear the acceptance assessment on the first implementation revision.",
@@ -25,16 +25,16 @@
     "state": "completed",
     "assessment_sequences": [
       {
-        "subject_role": "implementation-engineer",
-        "assessed_by": "acceptance-gate-assessor",
+        "subject_role": "approve-implementation-engineer",
+        "assessed_by": "approve-acceptance-assessor",
         "expected_resolution": "approved"
       }
     ],
     "required_assessment_sets": [
       {
-        "subject_role": "implementation-engineer",
+        "subject_role": "approve-implementation-engineer",
         "required_assessors": [
-          "acceptance-gate-assessor"
+          "approve-acceptance-assessor"
         ]
       }
     ],

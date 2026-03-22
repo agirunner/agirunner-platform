@@ -1,6 +1,6 @@
 {
   "name": "sdlc-parallel-assessors-mixed-outcomes",
-  "profile": "sdlc-parallel-assessment",
+  "profile": "sdlc-parallel-assessors-mixed-outcomes",
   "workflow": {
     "name": "SDLC Parallel Assessors Mixed Outcomes",
     "goal": "Implement a feature where one assessor requests changes, another rejects on a later pass, and stale earlier approvals do not clear the new revision.",

@@ -1,0 +1,146 @@
+{
+  "name": "SDLC Assessment Approve Pipeline",
+  "slug": "live-test-sdlc-assessment-approve-v1",
+  "description": "Realistic software-delivery pipeline with one specialist assessment before release packaging.",
+  "outcome": "An implemented change is assessed explicitly before release packaging continues.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The solution architect defines the change. The implementation engineer delivers it. The acceptance gate assessor evaluates the implementation output and records an explicit approved, request_changes, or rejected verdict based on the authored scenario contract. Once the assessment clears, the release operations coordinator packages the result.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      },
+      {
+        "name": "scenario_name",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Stable scenario identifier that the CLI must echo in its assessment output"
+      },
+      {
+        "name": "assessment_contract",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Exact approval contract the acceptance assessor must enforce"
+      }
+    ],
+    "roles": [
+      "approve-solution-architect",
+      "approve-implementation-engineer",
+      "approve-acceptance-assessor",
+      "approve-release-coordinator"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "blueprint",
+        "goal": "Technical direction exists.",
+        "involves": [
+          "approve-solution-architect"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "The change is implemented and assessed.",
+        "involves": [
+          "approve-implementation-engineer",
+          "approve-acceptance-assessor"
+        ]
+      },
+      {
+        "name": "release-readiness",
+        "goal": "Release packaging is complete.",
+        "involves": [
+          "approve-release-coordinator"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "blueprint",
+        "goal": "Technical direction exists.",
+        "human_gate": false,
+        "entry_criteria": "The scoped request is available."
+      },
+      {
+        "name": "implementation",
+        "goal": "The change is implemented and assessed.",
+        "human_gate": false,
+        "entry_criteria": "Blueprint output is ready."
+      },
+      {
+        "name": "release-readiness",
+        "goal": "Release packaging is complete.",
+        "human_gate": false,
+        "entry_criteria": "The implementation assessment has cleared."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "approve-solution-architect",
+        "to_role": "approve-implementation-engineer",
+        "required": true
+      },
+      {
+        "from_role": "approve-acceptance-assessor",
+        "to_role": "approve-release-coordinator",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 3,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "approve-implementation-engineer",
+        "assessed_by": "approve-acceptance-assessor",
+        "checkpoint": "implementation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

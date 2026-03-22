@@ -1,6 +1,6 @@
 {
   "name": "sdlc-assessment-request-changes-once",
-  "profile": "sdlc-single-assessment",
+  "profile": "sdlc-assessment-request-changes-once",
   "workflow": {
     "name": "SDLC Assessment Request Changes",
     "goal": "Ship a CLI enhancement where the acceptance assessor requests changes on the first revision and approves the second revision.",
@@ -20,13 +20,13 @@
     "task_rework_sequences": [
       {
         "stage_name": "implementation",
-        "required_role": "implementation-engineer"
+        "required_role": "rework-implementation-engineer"
       }
     ],
     "assessment_sequences": [
       {
-        "subject_role": "implementation-engineer",
-        "assessed_by": "acceptance-gate-assessor",
+        "subject_role": "rework-implementation-engineer",
+        "assessed_by": "rework-acceptance-assessor",
         "expected_resolutions": [
           "request_changes",
           "approved"

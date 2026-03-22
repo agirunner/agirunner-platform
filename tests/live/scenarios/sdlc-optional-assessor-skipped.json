@@ -1,6 +1,6 @@
 {
   "name": "sdlc-optional-assessor-skipped",
-  "profile": "sdlc-optional-assessment",
+  "profile": "sdlc-optional-assessor-skipped",
   "workflow": {
     "name": "SDLC Optional Assessor Skipped",
     "goal": "Extend the seeded Python CLI with a low-risk deterministic report command that only the required quality assessor needs to clear.",
@@ -25,16 +25,16 @@
     "state": "completed",
     "assessment_sequences": [
       {
-        "subject_role": "application-delivery-engineer",
-        "assessed_by": "delivery-quality-assessor",
+        "subject_role": "skip-delivery-engineer",
+        "assessed_by": "skip-quality-assessor",
         "expected_resolution": "approved"
       }
     ],
     "required_assessment_sets": [
       {
-        "subject_role": "application-delivery-engineer",
+        "subject_role": "skip-delivery-engineer",
         "required_assessors": [
-          "delivery-quality-assessor"
+          "skip-quality-assessor"
         ]
       }
     ]

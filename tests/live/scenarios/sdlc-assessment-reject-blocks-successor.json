@@ -1,6 +1,6 @@
 {
   "name": "sdlc-assessment-reject-blocks-successor",
-  "profile": "sdlc-single-assessment",
+  "profile": "sdlc-assessment-reject-blocks-successor",
   "workflow": {
     "name": "SDLC Assessment Reject",
     "goal": "Deliver a change where the acceptance assessor rejects the subject and release packaging never begins.",
@@ -19,8 +19,8 @@
     "state": "failed",
     "assessment_sequences": [
       {
-        "subject_role": "implementation-engineer",
-        "assessed_by": "acceptance-gate-assessor",
+        "subject_role": "reject-implementation-engineer",
+        "assessed_by": "reject-acceptance-assessor",
         "expected_resolution": "rejected"
       }
     ],

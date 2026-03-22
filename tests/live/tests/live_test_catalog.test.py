@@ -54,7 +54,7 @@ class LiveTestCatalogTests(unittest.TestCase):
                 self.assertIn("assessment_rules", definition)
 
     def test_sdlc_single_assessment_profile_seeds_a_real_repo_and_verification_path(self) -> None:
-        seed_root = LIBRARY_DIR / "sdlc-single-assessment" / "repo-seed"
+        seed_root = LIBRARY_DIR / "sdlc-assessment-approve" / "repo-seed"
         self.assertTrue((seed_root / "README.md").is_file())
         self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
         self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
@@ -115,6 +115,38 @@ class LiveTestCatalogTests(unittest.TestCase):
             if len(owners) > 1
         }
         self.assertEqual({}, duplicates)
+
+    def test_each_scenario_uses_a_dedicated_profile(self) -> None:
+        scenarios_by_profile: dict[str, list[str]] = {}
+        for scenario_file in sorted(SCENARIOS_DIR.glob("*.json")):
+            scenario = scenario_config.load_scenario(scenario_file)
+            scenarios_by_profile.setdefault(scenario["profile"], []).append(scenario_file.stem)
+
+        shared_profiles = {
+            profile_name: scenario_names
+            for profile_name, scenario_names in scenarios_by_profile.items()
+            if len(scenario_names) > 1
+        }
+        self.assertEqual({}, shared_profiles)
+
+    def test_request_changes_once_profile_requires_a_real_first_revision_rework_cycle(self) -> None:
+        roles = live_test_catalog.read_fixture(
+            LIBRARY_DIR / "sdlc-assessment-request-changes-once" / "roles.json"
+        )
+        assessor_prompt = next(
+            role["systemPrompt"]
+            for role in roles
+            if role["name"] == "rework-acceptance-assessor"
+        )
+        implementation_prompt = next(
+            role["systemPrompt"]
+            for role in roles
+            if role["name"] == "rework-implementation-engineer"
+        )
+
+        self.assertIn("first subject revision MUST return request_changes", assessor_prompt)
+        self.assertIn("Approve only after the subject revision increases", assessor_prompt)
+        self.assertIn("resolve every cited finding before resubmitting", implementation_prompt)
 
     def test_readme_documents_oauth_default_and_provider_auth_externalization(self) -> None:
         source = README_FILE.read_text()
