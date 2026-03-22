@@ -332,7 +332,7 @@ function workflowModeGuidance(lifecycle: 'planned' | 'ongoing') {
   if (lifecycle === 'ongoing') {
     return 'This workflow stays open and accepts work over time. Prioritize per-work-item continuity and backlog health over any single global checkpoint.';
   }
-  return 'This workflow is bounded. Move work through the required checkpoints, close finished predecessor work items when routing to successor checkpoint work, and finish only after mandatory reviews and approvals are satisfied.';
+  return 'This workflow is bounded. Move work through the required checkpoints, close finished predecessor work items when routing to successor checkpoint work, and finish only after mandatory assessments and approvals are satisfied.';
 }
 
 function progressModelGuidance(
@@ -411,7 +411,7 @@ function formatPlannedHandoffSemantics() {
   ].join('\n');
 }
 
-function formatReviewExpectations(
+function formatAssessmentExpectations(
   definition: ReturnType<typeof parsePlaybookDefinition>,
   checkpointName: string | null,
   workItem: Record<string, unknown>,
@@ -474,10 +474,10 @@ function formatStageRouting(
     `Creating successor work in "${successorStageName}" and closing the accepted predecessor work item is itself the forward-routing mutation for this planned workflow.`,
     `If the platform already reports "${successorStageName}" as current after you route successor work, treat any repeated advance_stage request for "${currentStageName}" -> "${successorStageName}" as unnecessary and do not issue it again.`,
     `When you create successor work in a planned workflow, set stage_name to "${successorStageName}" and close the predecessor work item instead of leaving successor work anchored to "${currentStageName}".`,
-    'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_review is the only allowed carryover, and only for a required review checkpoint.',
+    'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_review is the only allowed carryover, and only while a required assessment remains pending for the current subject.',
     'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',
     'Planned-workflow tasks must stay attached to a work item in the same stage as the task itself.',
-    'If a request_changes handoff already reopened the reviewed task, do not create another same-role rework task on the requester work item; wait for the reopened task to resubmit and then route it back through the required follow-up step.',
+    'If a request_changes outcome already reopened the subject task, do not create another same-role rework task on the assessor work item; wait for the reopened subject to resubmit and then route it through the required follow-up step.',
   ].join('\n');
 }
 

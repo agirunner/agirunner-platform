@@ -84,7 +84,7 @@ describe('buildWorkflowInstructionLayer', () => {
       `If the platform already reports "verification" as current after you route successor work, treat any repeated advance_stage request for "review" -> "verification" as unnecessary and do not issue it again.`,
     );
     expect(layer!.content).toContain(
-      'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_review is the only allowed carryover, and only for a required review checkpoint.',
+      'Only create successor checkpoint work for the immediate next stage after the predecessor checkpoint has a full handoff or approved gate and no actively running tasks; output_pending_review is the only allowed carryover, and only while a required assessment remains pending for the current subject.',
     );
     expect(layer!.content).toContain(
       'Before you create successor specialist tasks in a planned workflow, create or move the successor work item into the successor stage first.',
@@ -93,7 +93,7 @@ describe('buildWorkflowInstructionLayer', () => {
       'Planned-workflow tasks must stay attached to a work item in the same stage as the task itself.',
     );
     expect(layer!.content).toContain(
-      'If a request_changes handoff already reopened the reviewed task, do not create another same-role rework task on the requester work item; wait for the reopened task to resubmit and then route it back through the required follow-up step.',
+      'If a request_changes outcome already reopened the subject task, do not create another same-role rework task on the assessor work item; wait for the reopened subject to resubmit and then route it through the required follow-up step.',
     );
     expect(layer!.content).toContain('## Rule Results');
     expect(layer!.content).toContain('Next expected actor: human');
@@ -118,6 +118,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Parallelism');
     expect(layer!.content).toContain('Max active tasks: 4');
     expect(layer!.content).toContain('Repository-backed workflow. Inspect files, diffs, and git state before deciding. Once required work is dispatched');
+    expect(layer!.content).not.toContain('mandatory reviews and approvals');
+    expect(layer!.content).not.toContain('required review checkpoint');
+    expect(layer!.content).not.toContain('reviewed task');
   });
 
   it('builds ongoing specialist durable guidance without task-scoped workflow brief or predecessor context', () => {

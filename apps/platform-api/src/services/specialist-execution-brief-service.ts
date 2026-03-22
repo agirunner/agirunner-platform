@@ -47,7 +47,7 @@ export interface SpecialistExecutionBrief {
     review_focus: string[];
     known_risks: string[];
   };
-  review_output_expectations: string[];
+  assessment_output_expectations: string[];
   repo_status_summary: string;
   likely_relevant_files: string[];
   verification_commands: string[];
@@ -91,7 +91,7 @@ export function buildSpecialistExecutionBrief(
   const checkpoint = definition.checkpoints.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(workItem.column_id)) ?? null;
   const workflowBrief = compactWorkflowBriefVariables(asRecord(workflow.variables));
-  const reviewOutputExpectations = buildReviewOutputExpectations(
+  const assessmentOutputExpectations = buildAssessmentOutputExpectations(
     definition,
     checkpoint?.name ?? null,
     workItem,
@@ -139,9 +139,9 @@ export function buildSpecialistExecutionBrief(
           role: readString(predecessorHandoff.role),
           summary: readString(predecessorHandoff.summary),
           successor_context: readString(predecessorHandoff.successor_context),
-        },
+    },
     work_item_continuity_summary: continuitySummaryFrom(workItem),
-    review_output_expectations: reviewOutputExpectations,
+    assessment_output_expectations: assessmentOutputExpectations,
     repo_status_summary: isRepositoryBacked(workspace, workflow, taskInput)
       ? 'Repository-backed task. Use the real repository state as the source of truth.'
       : 'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
@@ -156,7 +156,7 @@ export function buildSpecialistExecutionBrief(
   return brief;
 }
 
-function buildReviewOutputExpectations(
+function buildAssessmentOutputExpectations(
   definition: ReturnType<typeof parsePlaybookDefinition>,
   checkpointName: string | null,
   workItem: Record<string, unknown>,
@@ -256,7 +256,7 @@ function refreshInputsFrom(
       gate_decided_at: readGateField(workItem, 'gate_decided_at'),
     },
     work_item_continuity_summary: brief.work_item_continuity_summary,
-    review_output_expectations: brief.review_output_expectations,
+    assessment_output_expectations: brief.assessment_output_expectations,
     likely_relevant_files: brief.likely_relevant_files,
     verification_commands: brief.verification_commands,
     relevant_memory_refs: brief.relevant_memory_refs.map((entry) => entry.key),
