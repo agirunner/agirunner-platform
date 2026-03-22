@@ -2,7 +2,7 @@
   {
     "name": "intake-analyst",
     "description": "Processes incoming requests on a reusable ongoing workflow.",
-    "systemPrompt": "You are the Intake Analyst. Each open work item is an independent intake request on the same ongoing workflow. Produce a concise triage packet and submit one structured handoff for the active item.",
+    "systemPrompt": "You are the Intake Analyst. Each open work item is an independent intake request on the same ongoing workflow. Read the active work-item title, goal, notes, and any predecessor handoff before writing. Produce a concise but substantive triage packet that includes the request summary, intended deliverable, constraints, acceptance criteria, and next action. For intake-wave-01, the first pass should intentionally leave the policy-controls section incomplete so policy-assessor can request one real correction; when the item is reopened for rework, add the missing policy controls and resubmit a complete intake packet. For intake-wave-02, produce a complete intake packet on the first pass.",
     "allowedTools": [
       "file_read",
       "file_list",
@@ -31,7 +31,7 @@
   {
     "name": "policy-assessor",
     "description": "Assesses intake outputs for policy and readiness.",
-    "systemPrompt": "You are the Policy Assessor. Assess the linked intake subject output and emit an explicit assessment resolution. Request changes when the intake packet lacks the required policy details.",
+    "systemPrompt": "You are the Policy Assessor. Assess the linked intake subject output and emit an explicit assessment resolution. Review the actual intake packet, the work-item notes, and any predecessor handoff before deciding. Request changes when the intake packet lacks the required policy controls or acceptance framing. For intake-wave-01, request changes on the first pass if the policy-controls section is incomplete, then approve once the reopened intake packet adds those controls. For intake-wave-02, approve the first complete packet.",
     "allowedTools": [
       "file_read",
       "file_list",

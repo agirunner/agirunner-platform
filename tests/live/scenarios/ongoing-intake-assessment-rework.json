@@ -19,10 +19,23 @@
   "actions": [
     {
       "type": "create_work_items",
-      "dispatch": "parallel",
-      "count": 2,
-      "title_template": "intake-wave-{index:02d}",
-      "request_id_template": "intake-wave-{index:02d}"
+      "dispatch": "serial",
+      "count": 1,
+      "title_template": "intake-wave-01",
+      "request_id_template": "intake-wave-01",
+      "goal_template": "Triage a customer request for a workspace activity export package covering the last 30 days.",
+      "acceptance_criteria_template": "Produce a triage packet with the request summary, intended deliverable, policy controls, acceptance criteria, and next action for assessment.",
+      "notes_template": "Customer: Northwind Support\nRequest: Export the last 30 days of workspace activity for compliance review.\nNeeded by: 2026-03-29\nKnown constraints: redact operator email addresses, retain only required audit fields, include delivery owner and validation plan.\nImportant: On the first intake-analyst pass, leave the policy-controls section incomplete so policy-assessor must request changes once. On rework, finish the policy-controls section and the assessor should approve."
+    },
+    {
+      "type": "create_work_items",
+      "dispatch": "serial",
+      "count": 1,
+      "title_template": "intake-wave-02",
+      "request_id_template": "intake-wave-02",
+      "goal_template": "Triage a launch-readiness request for a customer-facing release note packet.",
+      "acceptance_criteria_template": "Produce a triage packet with the request summary, deliverable outline, policy controls, acceptance criteria, and owner handoff needed for assessment.",
+      "notes_template": "Customer: Field Enablement\nRequest: Prepare a release note packet for the April launch announcement.\nNeeded by: 2026-03-28\nKnown constraints: exclude unreleased roadmap details, use only public feature names, include final editorial owner and sign-off path.\nThis intake should be complete enough for policy-assessor approval on the first pass."
     }
   ],
   "expect": {
