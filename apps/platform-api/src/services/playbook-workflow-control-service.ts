@@ -994,6 +994,19 @@ export class PlaybookWorkflowControlService {
       columnId: nextColumnId,
       terminalColumns,
     });
+    if (
+      normalizedUpdate.completed_at !== null
+      && workItem.completed_at === null
+    ) {
+      await this.assertWorkItemHasNoBlockingAssessmentResolution(
+        identity.tenantId,
+        workflowId,
+        workItemId,
+        nextStageName,
+        workItem.title,
+        db,
+      );
+    }
     if (sameNormalizedWorkItem(workItem, normalizedUpdate)) {
       return toWorkItemResponse(workItem);
     }
@@ -1101,6 +1114,58 @@ export class PlaybookWorkflowControlService {
       workItemId,
       { column_id: terminalColumnId },
       db,
+    );
+  }
+
+  private async assertWorkItemHasNoBlockingAssessmentResolution(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string,
+    stageName: string,
+    workItemTitle: string,
+    db: DatabaseClient,
+  ) {
+    const result = await db.query<{ blocking_resolution: string | null }>(
+      `SELECT latest_assessment.resolution AS blocking_resolution
+         FROM LATERAL (
+           SELECT th.task_id AS subject_task_id,
+                  NULLIF(COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, 0), 0) AS subject_revision
+             FROM task_handoffs th
+            WHERE th.tenant_id = $1
+              AND th.workflow_id = $2
+              AND th.work_item_id = $4
+              AND th.completion = 'full'
+              AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+            ORDER BY th.sequence DESC, th.created_at DESC
+            LIMIT 1
+         ) latest_delivery
+         JOIN LATERAL (
+           SELECT assessment_handoff.resolution
+             FROM (
+               SELECT DISTINCT ON (th.role)
+                      th.role,
+                      th.resolution
+                 FROM task_handoffs th
+                WHERE th.tenant_id = $1
+                  AND th.workflow_id = $2
+                  AND th.work_item_id = $4
+                  AND COALESCE(th.role_data->>'task_kind', '') = 'assessment'
+                  AND COALESCE(th.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
+                  AND COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
+                  AND th.resolution IN ('request_changes', 'rejected')
+                ORDER BY th.role, th.sequence DESC, th.created_at DESC
+             ) assessment_handoff
+            LIMIT 1
+         ) latest_assessment ON true`,
+      [tenantId, workflowId, stageName, workItemId],
+    );
+    const blockingResolution = result.rows[0]?.blocking_resolution;
+    if (!blockingResolution) {
+      return;
+    }
+
+    throw new ValidationError(
+      `Cannot complete work item '${workItemTitle}' while it still has a blocking ${blockingResolution} assessment.`,
     );
   }
 
