@@ -56,6 +56,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Mandatory assessment, approval, and handoff rules are enforced by the platform.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'A null predecessor handoff is normal for first-stage work or freshly seeded entry work.',
+    );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('key_artifacts as { id, task_id, label, path } objects');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If a playbook has no explicit stage sequence, use board posture and process instructions.',
@@ -80,6 +83,9 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Avoid setting specialist token_budget unless you have a concrete budget reason',
