@@ -527,7 +527,15 @@ def _matches_continuity_rework_sequence(
             and item.get("stage_name") == assessment_stage_name
             and int(item.get("task_count") or 0) >= assessment_task_min_count
         ]
-        if not assessment_children:
+        same_work_item_assessments = [
+            task
+            for task in workflow_tasks
+            if isinstance(task, dict)
+            and task.get("work_item_id") == work_item_id
+            and task.get("stage_name") == assessment_stage_name
+            and _task_kind(task) == "assessment"
+        ]
+        if not assessment_children and len(same_work_item_assessments) < assessment_task_min_count:
             continue
 
         reworked_task_completed = any(

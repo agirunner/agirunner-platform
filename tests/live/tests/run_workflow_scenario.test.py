@@ -2096,6 +2096,92 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertTrue(verification["passed"])
 
+    def test_evaluate_expectations_accepts_continuity_rework_on_same_work_item(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "continuity_rework_sequences": [
+                    {
+                        "stage_name": "implementation",
+                        "required_role": "live-test-developer",
+                        "assessment_stage_name": "implementation",
+                        "assessment_task_min_count": 2,
+                    }
+                ]
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-dev-1",
+                        "stage_name": "implementation",
+                        "role": "live-test-developer",
+                        "work_item_id": "wi-impl-1",
+                        "completed_at": "2026-03-19T04:20:00Z",
+                    },
+                    {
+                        "id": "task-assess-1",
+                        "stage_name": "implementation",
+                        "role": "live-test-assessor",
+                        "work_item_id": "wi-impl-1",
+                        "completed_at": "2026-03-19T04:12:00Z",
+                        "input": {
+                            "subject_task_id": "task-dev-1",
+                            "subject_revision": 1,
+                        },
+                        "metadata": {
+                            "task_kind": "assessment",
+                            "subject_task_id": "task-dev-1",
+                            "subject_revision": 1,
+                        },
+                    },
+                    {
+                        "id": "task-assess-2",
+                        "stage_name": "implementation",
+                        "role": "live-test-assessor",
+                        "work_item_id": "wi-impl-1",
+                        "completed_at": "2026-03-19T04:18:00Z",
+                        "input": {
+                            "subject_task_id": "task-dev-1",
+                            "subject_revision": 2,
+                        },
+                        "metadata": {
+                            "task_kind": "assessment",
+                            "subject_task_id": "task-dev-1",
+                            "subject_revision": 2,
+                        },
+                    },
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={
+                "data": {
+                    "data": [
+                        {
+                            "id": "wi-impl-1",
+                            "stage_name": "implementation",
+                            "rework_count": 1,
+                            "task_count": 3,
+                        }
+                    ]
+                }
+            },
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+            execution_logs={
+                "data": [
+                    {
+                        "operation": "work_item.continuity.assessment_requested_changes",
+                        "work_item_id": "wi-impl-1",
+                        "created_at": "2026-03-19T04:10:00Z",
+                    }
+                ]
+            },
+        )
+
+        self.assertTrue(verification["passed"])
+
     def test_evaluate_expectations_accepts_continuity_backed_double_rework_sequence(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {
