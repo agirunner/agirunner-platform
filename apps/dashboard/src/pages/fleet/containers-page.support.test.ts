@@ -317,7 +317,7 @@ describe('mergeLiveContainerSessionRows', () => {
     });
   });
 
-  it('drops inactive rows after five minutes', () => {
+  it('drops inactive rows after ten seconds', () => {
     const previous = [
       createRow({
         presence: 'inactive',
@@ -326,7 +326,7 @@ describe('mergeLiveContainerSessionRows', () => {
       }),
     ];
 
-    const merged = mergeLiveContainerSessionRows(previous, [], '2026-03-21T18:35:01.000Z');
+    const merged = mergeLiveContainerSessionRows(previous, [], '2026-03-21T18:30:11.000Z');
 
     expect(merged).toEqual([]);
   });
@@ -340,12 +340,12 @@ describe('mergeLiveContainerSessionRows', () => {
         task_id: `task-${index}`,
         task_title: `Task ${index}`,
         presence: 'inactive',
-        inactive_at: `2026-03-21T18:11:${String(index).padStart(2, '0')}.000Z`,
-        changed_at: `2026-03-21T18:11:${String(index).padStart(2, '0')}.500Z`,
+        inactive_at: `2026-03-21T18:11:00.${String(index).padStart(3, '0')}Z`,
+        changed_at: `2026-03-21T18:11:00.${String(index + 100).padStart(3, '0')}Z`,
       }),
     );
 
-    const merged = mergeLiveContainerSessionRows(previous, [], '2026-03-21T18:12:00.000Z');
+    const merged = mergeLiveContainerSessionRows(previous, [], '2026-03-21T18:11:09.000Z');
 
     expect(merged).toHaveLength(10);
     expect(merged.map((row) => row.id)).toEqual([

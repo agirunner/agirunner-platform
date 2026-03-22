@@ -1,7 +1,7 @@
 import type { DashboardLiveContainerRecord } from '../../lib/api.js';
 
 const MAX_RECENT_INACTIVE_ROWS = 10;
-const INACTIVE_RETENTION_MS = 5 * 60 * 1000;
+const INACTIVE_RETENTION_MS = 10 * 1000;
 const PENDING_TRANSITION_MS = 1_000;
 const RECENT_CHANGE_MS = 1_000;
 const KIND_ORDER: Record<DashboardLiveContainerRecord['kind'], number> = {

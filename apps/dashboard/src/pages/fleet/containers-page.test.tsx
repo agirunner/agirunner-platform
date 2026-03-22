@@ -34,6 +34,7 @@ describe('containers page source', () => {
     expect(tableSource).toContain('<TableHead>Role</TableHead>');
     expect(tableSource).toContain('<TableHead>Stage</TableHead>');
     expect(tableSource).not.toContain('<TableHead>Container</TableHead>');
+    expect(tableSource).not.toContain('<p className="text-xs text-muted-foreground">{row.name}</p>');
     expect(tableSource).toContain('const TABLE_COLUMN_CLASS_NAMES = [');
     expect(tableSource).toContain('<colgroup>');
     expect(tableSource).toContain('table-fixed');

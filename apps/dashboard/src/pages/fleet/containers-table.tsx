@@ -80,10 +80,7 @@ export function ContainersTable(props: {
                 </div>
               </DiffCell>
               <DiffCell row={row} field="kind" className="py-3">
-                <div className="space-y-1">
-                  <p className="font-medium text-foreground">{formatContainerKindLabel(row.kind)}</p>
-                  <p className="text-xs text-muted-foreground">{row.name}</p>
-                </div>
+                <p className="font-medium text-foreground">{formatContainerKindLabel(row.kind)}</p>
               </DiffCell>
               <DiffCell row={row} field="role" className="py-3">
                 <CellText>{sanitizeContainerContextLabel(row.role_name)}</CellText>
