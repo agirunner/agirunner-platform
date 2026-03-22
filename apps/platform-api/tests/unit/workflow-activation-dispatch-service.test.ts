@@ -278,14 +278,14 @@ describe('WorkflowActivationDispatchService', () => {
     expect(dispatched).toBe(3);
   });
 
-  it('treats approval, review, and completion signals as immediate workflow wakeups', async () => {
+  it('treats approval, assessment, and completion signals as immediate workflow wakeups', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         expect(sql).toContain("wa.event_type = 'task.completed'");
         expect(sql).toContain("wa.event_type = 'task.failed'");
         expect(sql).toContain("wa.event_type = 'task.output_pending_review'");
         expect(sql).toContain("wa.event_type = 'task.approved'");
-        expect(sql).toContain("wa.event_type = 'task.review_requested_changes'");
+        expect(sql).toContain("wa.event_type = 'task.assessment_requested_changes'");
         expect(params).toEqual([
           ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
           60_000,

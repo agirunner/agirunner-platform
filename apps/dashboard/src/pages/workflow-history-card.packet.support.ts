@@ -275,17 +275,17 @@ const TASK_GOVERNANCE_PACKET_DESCRIPTORS: Record<string, TaskGovernancePacketDes
     fallbackDetail: 'Handoff packet available for operator review.',
     summary: (objectLabel) => `${objectLabel} submitted a specialist handoff.`,
   },
-  'task.review_resolution_applied': {
-    typeLabel: 'Review resolution',
-    disclosureLabel: 'Open full review packet',
-    fallbackDetail: 'Review packet available for operator review.',
-    summary: (objectLabel) => `${objectLabel} applied review resolution.`,
+  'task.assessment_resolution_applied': {
+    typeLabel: 'Assessment resolution',
+    disclosureLabel: 'Open full assessment packet',
+    fallbackDetail: 'Assessment packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} applied assessment resolution.`,
   },
-  'task.review_resolution_skipped': {
-    typeLabel: 'Review resolution',
-    disclosureLabel: 'Open full review packet',
-    fallbackDetail: 'Review packet available for operator review.',
-    summary: (objectLabel) => `${objectLabel} skipped review resolution.`,
+  'task.assessment_resolution_skipped': {
+    typeLabel: 'Assessment resolution',
+    disclosureLabel: 'Open full assessment packet',
+    fallbackDetail: 'Assessment packet available for operator review.',
+    summary: (objectLabel) => `${objectLabel} skipped assessment resolution.`,
   },
   'task.retry_scheduled': {
     typeLabel: 'Recovery',

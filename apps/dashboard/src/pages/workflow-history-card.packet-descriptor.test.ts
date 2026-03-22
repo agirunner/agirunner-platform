@@ -166,9 +166,9 @@ describe('describeTimelineEventPacket', () => {
     expect(packet.disclosureLabel).toBe('Open full handoff packet');
   });
 
-  it('turns review resolution events into explicit review packets', () => {
+  it('turns assessment resolution events into explicit assessment packets', () => {
     const event = buildEvent({
-      type: 'task.review_resolution_applied',
+      type: 'task.assessment_resolution_applied',
       actor_type: 'task',
       actor_id: 'task-9',
       entity_type: 'task',
@@ -184,10 +184,10 @@ describe('describeTimelineEventPacket', () => {
 
     const packet = describeTimelineEventPacket(event, describeTimelineEvent(event, context));
 
-    expect(packet.typeLabel).toBe('Review resolution');
-    expect(packet.summary).toBe('Implement OAuth callback flow applied review resolution.');
+    expect(packet.typeLabel).toBe('Assessment resolution');
+    expect(packet.summary).toBe('Implement OAuth callback flow applied assessment resolution.');
     expect(packet.detail).toContain('requested review edits');
-    expect(packet.disclosureLabel).toBe('Open full review packet');
+    expect(packet.disclosureLabel).toBe('Open full assessment packet');
   });
 
   it('turns retry and rework events into explicit recovery packets', () => {

@@ -181,21 +181,21 @@ const GOVERNANCE_EXECUTION_DESCRIPTORS: Record<string, GovernanceExecutionDescri
       'Review the handoff summary and successor context before reactivating downstream work.',
     signals: ['Governance', 'Handoff'],
   },
-  'task.review_resolution_applied': {
-    operationLabel: 'Review resolution applied',
-    contextLabel: 'Review resolution packet',
-    headlineSuffix: 'applied review resolution',
+  'task.assessment_resolution_applied': {
+    operationLabel: 'Assessment resolution applied',
+    contextLabel: 'Assessment resolution packet',
+    headlineSuffix: 'applied assessment resolution',
     nextAction:
-      'Confirm the review resolution updated the board state you expected before resuming execution.',
-    signals: ['Governance', 'Review'],
+      'Confirm the assessment resolution updated the board state you expected before resuming execution.',
+    signals: ['Governance', 'Assessment'],
   },
-  'task.review_resolution_skipped': {
-    operationLabel: 'Review resolution skipped',
-    contextLabel: 'Review resolution packet',
-    headlineSuffix: 'skipped review resolution',
+  'task.assessment_resolution_skipped': {
+    operationLabel: 'Assessment resolution skipped',
+    contextLabel: 'Assessment resolution packet',
+    headlineSuffix: 'skipped assessment resolution',
     nextAction:
-      'Check why the review resolution was skipped before assuming the board is ready to continue.',
-    signals: ['Governance', 'Review'],
+      'Check why the assessment resolution was skipped before assuming the board is ready to continue.',
+    signals: ['Governance', 'Assessment'],
   },
   'task.retry_scheduled': {
     operationLabel: 'Retry scheduled',

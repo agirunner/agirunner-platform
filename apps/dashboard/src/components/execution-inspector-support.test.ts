@@ -263,7 +263,7 @@ describe('execution inspector support', () => {
     ]);
   });
 
-  it('describes review resolution logs as explicit review packets', () => {
+  it('describes assessment resolution logs as explicit assessment packets', () => {
     const entry = {
       id: 5,
       trace_id: 'trace-5',
@@ -271,7 +271,7 @@ describe('execution inspector support', () => {
       source: 'platform',
       category: 'task_lifecycle',
       level: 'info',
-      operation: 'task.review_resolution_skipped',
+      operation: 'task.assessment_resolution_skipped',
       status: 'skipped',
       workflow_name: 'Delivery',
       task_title: 'Review smoke result',
@@ -287,21 +287,21 @@ describe('execution inspector support', () => {
     } as const;
 
     expect(describeExecutionHeadline(entry)).toBe(
-      'Step Review smoke result skipped review resolution',
+      'Step Review smoke result skipped assessment resolution',
     );
     expect(summarizeLogContext(entry)).toEqual([
       'board Delivery',
       'step Review smoke result',
       'stage qa',
       'work item work-ite',
-      'Review resolution packet',
+      'Assessment resolution packet',
     ]);
     expect(describeExecutionNextAction(entry)).toBe(
-      'Check why the review resolution was skipped before assuming the board is ready to continue.',
+      'Check why the assessment resolution was skipped before assuming the board is ready to continue.',
     );
     expect(readExecutionSignals(entry)).toEqual([
       'Governance',
-      'Review',
+      'Assessment',
       'Work item',
       'Stage',
     ]);
@@ -411,8 +411,8 @@ describe('execution inspector support', () => {
     expect(describeExecutionOperationLabel('task_lifecycle.workflow.activation_failed')).toBe(
       'Workflow activation failed',
     );
-    expect(describeExecutionOperationLabel('task.review_resolution_skipped')).toBe(
-      'Review resolution skipped',
+    expect(describeExecutionOperationLabel('task.assessment_resolution_skipped')).toBe(
+      'Assessment resolution skipped',
     );
     expect(describeExecutionOperationLabel('task.escalation_depth_exceeded')).toBe(
       'Escalation depth exceeded',
