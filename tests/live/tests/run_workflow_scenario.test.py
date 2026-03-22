@@ -1490,6 +1490,239 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             verification["failures"],
         )
 
+    def test_evaluate_expectations_accepts_generic_assessment_contracts(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "direct_handoff_expectations": [
+                    {
+                        "source_role": "author",
+                        "successor_role": "packager",
+                        "forbid_task_kinds": ["assessment", "approval"],
+                    }
+                ],
+                "assessment_sequences": [
+                    {
+                        "subject_task_id": "task-build-1",
+                        "assessed_by": "checker",
+                        "expected_resolution": "approved",
+                        "subject_revision": 2,
+                    },
+                    {
+                        "subject_task_id": "task-build-1",
+                        "assessed_by": "auditor",
+                        "expected_resolution": "approved",
+                        "subject_revision": 2,
+                    },
+                ],
+                "approval_sequences": [
+                    {
+                        "match": {"stage_name": "approve-gate"},
+                        "expected_actions": ["request_changes", "approve"],
+                    }
+                ],
+                "subject_revision_expectations": [
+                    {"stage_name": "implementation", "current_revision": 2}
+                ],
+                "required_assessment_sets": [
+                    {
+                        "subject_task_id": "task-build-1",
+                        "subject_revision": 2,
+                        "required_assessors": ["checker", "auditor"],
+                    }
+                ],
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-author-1",
+                        "role": "author",
+                        "stage_name": "draft",
+                        "metadata": {"task_kind": "delivery"},
+                        "completed_at": "2026-03-21T09:00:00Z",
+                    },
+                    {
+                        "id": "task-packager-1",
+                        "role": "packager",
+                        "stage_name": "publish",
+                        "metadata": {"task_kind": "delivery"},
+                        "completed_at": "2026-03-21T09:05:00Z",
+                    },
+                    {
+                        "id": "task-build-1",
+                        "role": "builder",
+                        "stage_name": "implementation",
+                        "metadata": {"task_kind": "delivery"},
+                        "completed_at": "2026-03-21T10:00:00Z",
+                    },
+                    {
+                        "id": "task-check-1",
+                        "role": "checker",
+                        "stage_name": "assessment",
+                        "input": {"subject_task_id": "task-build-1", "subject_revision": 2},
+                        "metadata": {
+                            "task_kind": "assessment",
+                            "subject_task_id": "task-build-1",
+                            "subject_revision": 2,
+                        },
+                        "output": {"resolution": "approved"},
+                        "completed_at": "2026-03-21T10:10:00Z",
+                    },
+                    {
+                        "id": "task-audit-1",
+                        "role": "auditor",
+                        "stage_name": "assessment",
+                        "input": {"subject_task_id": "task-build-1", "subject_revision": 2},
+                        "metadata": {
+                            "task_kind": "assessment",
+                            "subject_task_id": "task-build-1",
+                            "subject_revision": 2,
+                        },
+                        "output": {"resolution": "approved"},
+                        "completed_at": "2026-03-21T10:12:00Z",
+                    },
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={
+                "data": {
+                    "data": [{"id": "wi-impl-1", "stage_name": "implementation", "current_subject_revision": 2}]
+                }
+            },
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[
+                {"stage_name": "approve-gate", "action": "request_changes"},
+                {"stage_name": "approve-gate", "action": "approve"},
+            ],
+            events={"data": {"data": []}},
+        )
+
+        self.assertTrue(verification["passed"])
+        self.assertEqual([], verification["failures"])
+        self.assertEqual(
+            {
+                "direct_handoff_expectations:author->packager",
+                "assessment_sequences:task-build-1:checker",
+                "assessment_sequences:task-build-1:auditor",
+                "approval_sequences:{'stage_name': 'approve-gate'}",
+                "subject_revision_expectations:implementation",
+                "required_assessment_sets:task-build-1",
+            },
+            {check["name"] for check in verification["checks"]},
+        )
+
+    def test_evaluate_expectations_reports_generic_assessment_contract_failures(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "direct_handoff_expectations": [
+                    {
+                        "source_role": "author",
+                        "successor_role": "packager",
+                        "forbid_task_kinds": ["assessment"],
+                    }
+                ],
+                "assessment_sequences": [
+                    {
+                        "subject_task_id": "task-build-1",
+                        "assessed_by": "checker",
+                        "expected_actions": ["request_changes", "approved"],
+                        "subject_revision": 2,
+                    }
+                ],
+                "approval_sequences": [
+                    {
+                        "match": {"stage_name": "approve-gate"},
+                        "expected_actions": ["request_changes", "approve"],
+                    }
+                ],
+                "subject_revision_expectations": [
+                    {"stage_name": "implementation", "current_revision": 2}
+                ],
+                "required_assessment_sets": [
+                    {
+                        "subject_task_id": "task-build-1",
+                        "subject_revision": 2,
+                        "required_assessors": ["checker", "auditor"],
+                    }
+                ],
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-author-1",
+                        "role": "author",
+                        "stage_name": "draft",
+                        "metadata": {"task_kind": "delivery"},
+                        "completed_at": "2026-03-21T09:00:00Z",
+                    },
+                    {
+                        "id": "task-packager-1",
+                        "role": "packager",
+                        "stage_name": "publish",
+                        "metadata": {"task_kind": "delivery"},
+                        "completed_at": "2026-03-21T09:05:00Z",
+                    },
+                    {
+                        "id": "task-extra-assessment-1",
+                        "role": "checker",
+                        "stage_name": "assessment",
+                        "input": {"subject_task_id": "task-author-1", "subject_revision": 1},
+                        "metadata": {
+                            "task_kind": "assessment",
+                            "subject_task_id": "task-author-1",
+                            "subject_revision": 1,
+                        },
+                        "output": {"resolution": "approved"},
+                        "completed_at": "2026-03-21T09:02:00Z",
+                    },
+                    {
+                        "id": "task-build-1",
+                        "role": "builder",
+                        "stage_name": "implementation",
+                        "metadata": {"task_kind": "delivery"},
+                        "completed_at": "2026-03-21T10:00:00Z",
+                    },
+                    {
+                        "id": "task-check-1",
+                        "role": "checker",
+                        "stage_name": "assessment",
+                        "input": {"subject_task_id": "task-build-1", "subject_revision": 1},
+                        "metadata": {
+                            "task_kind": "assessment",
+                            "subject_task_id": "task-build-1",
+                            "subject_revision": 1,
+                        },
+                        "output": {"resolution": "approved"},
+                        "completed_at": "2026-03-21T10:10:00Z",
+                    },
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={
+                "data": {
+                    "data": [{"id": "wi-impl-1", "stage_name": "implementation", "current_subject_revision": 1}]
+                }
+            },
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[{"stage_name": "approve-gate", "action": "approve"}],
+            events={"data": {"data": []}},
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertEqual(
+            [
+                "expected direct handoff author->packager without linked assessment, found blocking assessment task kinds ['assessment']",
+                "expected assessment sequence for subject 'task-build-1' by assessor 'checker' to equal ['request_changes', 'approved'], got []",
+                "expected approval sequence for match {'stage_name': 'approve-gate'} to equal ['request_changes', 'approve'], got ['approve']",
+                "expected subject revision for stage 'implementation' to equal 2, got 1",
+                "expected required assessors ['checker', 'auditor'] for subject 'task-build-1' revision 2, missing ['checker', 'auditor']",
+            ],
+            verification["failures"],
+        )
+
     def test_evaluate_expectations_requires_rework_between_request_changes_and_approve(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {

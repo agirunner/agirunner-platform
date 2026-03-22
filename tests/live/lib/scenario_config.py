@@ -10,6 +10,13 @@ from live_test_api import read_json
 DEFAULT_TIMEOUT_SECONDS = 1800
 DEFAULT_POLL_INTERVAL_SECONDS = 10
 WORKSPACE_STORAGE_TYPES = {"git_remote", "host_directory", "workspace_artifacts"}
+GENERIC_EXPECTATION_LIST_FIELDS = (
+    "direct_handoff_expectations",
+    "assessment_sequences",
+    "approval_sequences",
+    "subject_revision_expectations",
+    "required_assessment_sets",
+)
 
 
 def _read_mapping(value: Any, field_name: str) -> dict[str, Any]:
@@ -33,6 +40,22 @@ def _read_list(value: Any, field_name: str) -> list[dict[str, Any]]:
     return normalized
 
 
+def _read_string_list(value: Any, field_name: str) -> list[str]:
+    if value is None:
+        return []
+    if not isinstance(value, list):
+        raise RuntimeError(f"{field_name} must be a list")
+    normalized: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str):
+            raise RuntimeError(f"{field_name}[{index}] must be a string")
+        trimmed = item.strip()
+        if trimmed == "":
+            raise RuntimeError(f"{field_name}[{index}] must not be empty")
+        normalized.append(trimmed)
+    return normalized
+
+
 def _read_workspace_storage(value: Any, *, repo_default: bool) -> dict[str, Any]:
     storage = _read_mapping(value, "workspace.storage")
     storage_type = str(storage.get("type") or "").strip()
@@ -48,6 +71,24 @@ def _read_workspace_storage(value: Any, *, repo_default: bool) -> dict[str, Any]
     host_path = storage.get("host_path")
     if isinstance(host_path, str) and host_path.strip() != "":
         normalized["host_path"] = host_path.strip()
+    return normalized
+
+
+def _read_expectations(value: Any) -> dict[str, Any]:
+    expectations = _read_mapping(value, "expect")
+    normalized = dict(expectations)
+    for field_name in GENERIC_EXPECTATION_LIST_FIELDS:
+        normalized[field_name] = _read_list(expectations.get(field_name), f"expect.{field_name}")
+    return normalized
+
+
+def _read_coverage(value: Any) -> dict[str, list[str]]:
+    coverage = _read_mapping(value, "coverage")
+    normalized: dict[str, list[str]] = {}
+    for key, entry in coverage.items():
+        if not isinstance(key, str):
+            raise RuntimeError("coverage keys must be strings")
+        normalized[key] = _read_string_list(entry, f"coverage.{key}")
     return normalized
 
 
@@ -90,7 +131,8 @@ def load_scenario(path: str | Path) -> dict[str, Any]:
         },
         "approvals": _read_list(payload.get("approvals"), "approvals"),
         "actions": _read_list(payload.get("actions"), "actions"),
-        "expect": _read_mapping(payload.get("expect"), "expect"),
+        "expect": _read_expectations(payload.get("expect")),
+        "coverage": _read_coverage(payload.get("coverage")),
         "timeout_seconds": int(payload.get("timeout_seconds", DEFAULT_TIMEOUT_SECONDS)),
         "poll_interval_seconds": int(payload.get("poll_interval_seconds", DEFAULT_POLL_INTERVAL_SECONDS)),
     }

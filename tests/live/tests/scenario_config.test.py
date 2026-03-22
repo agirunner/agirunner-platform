@@ -54,7 +54,17 @@ class ScenarioConfigTests(unittest.TestCase):
         )
         self.assertEqual([], scenario["approvals"])
         self.assertEqual([], scenario["actions"])
-        self.assertEqual({}, scenario["expect"])
+        self.assertEqual(
+            {
+                "direct_handoff_expectations": [],
+                "assessment_sequences": [],
+                "approval_sequences": [],
+                "subject_revision_expectations": [],
+                "required_assessment_sets": [],
+            },
+            scenario["expect"],
+        )
+        self.assertEqual({}, scenario["coverage"])
         self.assertEqual(1800, scenario["timeout_seconds"])
         self.assertEqual(10, scenario["poll_interval_seconds"])
 
@@ -179,6 +189,59 @@ class ScenarioConfigTests(unittest.TestCase):
         self.assertEqual(
             {"workspace_kind": "host-directory"},
             scenario["workspace"]["memory"],
+        )
+
+    def test_load_scenario_normalizes_generic_assessment_expectations_and_coverage(self) -> None:
+        scenario_path = self.write_scenario(
+            {
+                "name": "generic-assessment",
+                "workflow": {
+                    "goal": "Exercise the generic assessment contract.",
+                },
+                "expect": {
+                    "direct_handoff_expectations": [{"source_role": "builder", "successor_role": "publisher"}],
+                    "assessment_sequences": [{"subject_role": "builder", "assessed_by": "checker"}],
+                    "approval_sequences": [{"match": {"stage_name": "approval"}, "expected_actions": ["approve"]}],
+                    "subject_revision_expectations": [{"stage_name": "implementation", "current_revision": 2}],
+                    "required_assessment_sets": [{"subject_role": "builder", "required_assessors": ["checker"]}],
+                },
+                "coverage": {
+                    "delivery_paths": ["direct_successor"],
+                    "assessment_outcomes": ["approved"],
+                    "provider_auth": ["openai_oauth"],
+                },
+            }
+        )
+
+        scenario = scenario_config.load_scenario(scenario_path)
+
+        self.assertEqual(
+            [{"source_role": "builder", "successor_role": "publisher"}],
+            scenario["expect"]["direct_handoff_expectations"],
+        )
+        self.assertEqual(
+            [{"subject_role": "builder", "assessed_by": "checker"}],
+            scenario["expect"]["assessment_sequences"],
+        )
+        self.assertEqual(
+            [{"match": {"stage_name": "approval"}, "expected_actions": ["approve"]}],
+            scenario["expect"]["approval_sequences"],
+        )
+        self.assertEqual(
+            [{"stage_name": "implementation", "current_revision": 2}],
+            scenario["expect"]["subject_revision_expectations"],
+        )
+        self.assertEqual(
+            [{"subject_role": "builder", "required_assessors": ["checker"]}],
+            scenario["expect"]["required_assessment_sets"],
+        )
+        self.assertEqual(
+            {
+                "delivery_paths": ["direct_successor"],
+                "assessment_outcomes": ["approved"],
+                "provider_auth": ["openai_oauth"],
+            },
+            scenario["coverage"],
         )
 
 
