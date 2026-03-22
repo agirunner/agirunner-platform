@@ -34,6 +34,7 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('confirm the runtime exists or install it');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Treat continuity fields such as next_expected_actor and next_expected_action as authoritative workflow routing state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('In workflows with multiple open work items, stay scoped to the current work item or explicitly linked subject.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
@@ -95,6 +96,9 @@ describe('prompt catalogs', () => {
       'If continuity says the next expected action is rework for a reopened subject, route only that actor next.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If a workflow has multiple open work items, every work-item-scoped continuity or activation-checkpoint mutation MUST include the explicit work_item_id',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Avoid setting specialist token_budget unless you have a concrete budget reason',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
@@ -113,7 +117,7 @@ describe('prompt catalogs', () => {
   });
 
   it('keeps the shared prompts bounded for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(2700);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5600);
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(2950);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5850);
   });
 });

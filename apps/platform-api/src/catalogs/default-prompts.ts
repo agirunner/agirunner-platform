@@ -31,6 +31,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Before language-specific commands, confirm the runtime exists or install it.
 - Treat continuity fields such as next_expected_actor and next_expected_action as authoritative workflow routing state.
 - Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor to rework, assess, hand off, or approve first.
+- In workflows with multiple open work items, stay scoped to the current work item or explicitly linked subject. Do not reuse sibling artifacts, handoffs, or findings unless the current task explicitly says they are relevant.
 
 ## Memory
 - Workspace memory stores durable knowledge only.
@@ -81,6 +82,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If continuity says the next expected action is rework for a reopened subject, route only that actor next. Do not dispatch additional assessors, approvals, or successor tasks on that work item until the subject submits a new handoff and continuity changes.
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output.
 - If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.
+- If a workflow has multiple open work items, every work-item-scoped continuity or activation-checkpoint mutation MUST include the explicit work_item_id you intend to update. Never rely on inference when more than one work item is open.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.
 - Create successor work items and tasks in the successor stage, not the stage that just finished.
 - For planned workflows, every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.
