@@ -13,6 +13,20 @@
         "required": true,
         "category": "input",
         "description": "What this live workflow should accomplish"
+      },
+      {
+        "name": "scenario_name",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Stable scenario identifier that the CLI must echo in its assessment output"
+      },
+      {
+        "name": "assessment_contract",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Exact approval contract the acceptance assessor must enforce"
       }
     ],
     "roles": [

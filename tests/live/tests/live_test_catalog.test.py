@@ -52,6 +52,13 @@ class LiveTestCatalogTests(unittest.TestCase):
                 self.assertNotIn("review_rules", definition)
                 self.assertIn("assessment_rules", definition)
 
+    def test_sdlc_single_assessment_profile_seeds_a_real_repo_and_verification_path(self) -> None:
+        seed_root = LIBRARY_DIR / "sdlc-single-assessment" / "repo-seed"
+        self.assertTrue((seed_root / "README.md").is_file())
+        self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
+        self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
+        self.assertTrue((seed_root / "tests" / "test_cli.py").is_file())
+
     def test_profiles_do_not_reuse_role_names(self) -> None:
         owners_by_role: dict[str, set[str]] = {}
         for roles_file in sorted(LIBRARY_DIR.glob("*/roles.json")):

@@ -3,15 +3,18 @@
   "profile": "sdlc-single-assessment",
   "workflow": {
     "name": "SDLC Assessment Approve",
-    "goal": "Ship a CLI enhancement where the acceptance assessor approves the first implementation revision and the release package follows immediately.",
+    "goal": "Extend the seeded Python CLI with an assess command that emits a deterministic JSON assessment packet and a release package reference, then clear the acceptance assessment on the first implementation revision.",
     "parameters": {
-      "assessment_contract": "The acceptance assessor should approve the first revision when the implementation meets the authored criteria."
+      "scenario_name": "sdlc-assessment-approve",
+      "assessment_contract": "Approve the first implementation revision only if `python3 -m workflow_cli assess --scenario-name sdlc-assessment-approve --assessment-contract \"<contract>\"` succeeds, emits stable JSON with scenario_name, assessment_contract, assessment_status=approved, release_ready=true, and a non-empty package_reference, and `./scripts/verify.sh` passes."
     }
   },
   "workspace": {
     "repo": true,
     "memory": {},
-    "spec": {}
+    "spec": {
+      "instructions": "This workspace already contains a seeded Python standard-library CLI scaffold. Keep the existing stack and layout. Verify changes with `./scripts/verify.sh`. Do not install new system packages unless a genuine runtime dependency is missing from the seeded path."
+    }
   },
   "approvals": [],
   "actions": [],
