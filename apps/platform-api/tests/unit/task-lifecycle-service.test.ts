@@ -956,7 +956,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
-  it('records review metadata when requesting task changes', async () => {
+  it('records assessment metadata when requesting task changes', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -968,8 +968,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
                 id: 'task-review-loop',
                 state: 'ready',
                 workflow_id: null,
-                input: { review_feedback: 'Fix the failing assertions' },
-                metadata: { review_action: 'request_changes', preferred_agent_id: 'agent-2' },
+                input: { assessment_feedback: 'Fix the failing assertions' },
+                metadata: { assessment_action: 'request_changes', preferred_agent_id: 'agent-2' },
               },
             ],
           };
@@ -1012,9 +1012,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
 
     expect(result.state).toBe('ready');
-    expect(result.input).toMatchObject({ review_feedback: 'Fix the failing assertions' });
+    expect(result.input).toMatchObject({ assessment_feedback: 'Fix the failing assertions' });
     expect(result.metadata).toMatchObject({
-      review_action: 'request_changes',
+      assessment_action: 'request_changes',
       preferred_agent_id: 'agent-2',
     });
     const updateCall = client.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.startsWith('UPDATE tasks SET')) as
@@ -1022,13 +1022,13 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       | undefined;
     expect(updateCall?.[1]).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ review_feedback: 'Fix the failing assertions' }),
-        expect.objectContaining({ review_action: 'request_changes', preferred_agent_id: 'agent-2' }),
+        expect.objectContaining({ assessment_feedback: 'Fix the failing assertions' }),
+        expect.objectContaining({ assessment_action: 'request_changes', preferred_agent_id: 'agent-2' }),
       ]),
     );
   });
 
-  it('enqueues a workflow activation when review requests changes on a playbook-backed task', async () => {
+  it('enqueues a workflow activation when an assessment requests changes on a playbook-backed task', async () => {
     const eventService = { emit: vi.fn() };
     const activationDispatchService = { dispatchActivation: vi.fn(async () => 'orchestrator-task-2') };
     const client = {
@@ -1046,8 +1046,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               role: 'reviewer',
               title: 'Review deliverable',
               is_orchestrator_task: false,
-              input: { review_feedback: 'Fix the failing assertions' },
-              metadata: { review_action: 'request_changes', preferred_agent_id: 'agent-2' },
+              input: { assessment_feedback: 'Fix the failing assertions' },
+              metadata: { assessment_action: 'request_changes', preferred_agent_id: 'agent-2' },
               rework_count: 1,
               updated_at: new Date('2026-03-17T10:15:00Z'),
             }],
@@ -1063,9 +1063,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               id: 'activation-2',
               workflow_id: 'workflow-1',
               activation_id: null,
-              request_id: 'task-review-requested:task-review-loop:Tue Mar 17 2026 10:15:00 GMT+0000 (Coordinated Universal Time)',
-              reason: 'task.review_requested_changes',
-              event_type: 'task.review_requested_changes',
+              request_id: 'task-assessment-requested:task-review-loop:Tue Mar 17 2026 10:15:00 GMT+0000 (Coordinated Universal Time)',
+              reason: 'task.assessment_requested_changes',
+              event_type: 'task.assessment_requested_changes',
               payload: { task_id: 'task-review-loop' },
               state: 'queued',
               dispatch_attempt: 0,
@@ -1129,9 +1129,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       expect.arrayContaining([
         'tenant-1',
         'workflow-1',
-        expect.stringContaining('task-review-requested:task-review-loop:'),
-        'task.review_requested_changes',
-        'task.review_requested_changes',
+        expect.stringContaining('task-assessment-requested:task-review-loop:'),
+        'task.assessment_requested_changes',
+        'task.assessment_requested_changes',
       ]),
     );
     expect(eventService.emit).toHaveBeenCalledWith(
@@ -1140,8 +1140,8 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         entityType: 'workflow',
         entityId: 'workflow-1',
         data: expect.objectContaining({
-          event_type: 'task.review_requested_changes',
-          reason: 'task.review_requested_changes',
+          event_type: 'task.assessment_requested_changes',
+          reason: 'task.assessment_requested_changes',
         }),
       }),
       expect.anything(),

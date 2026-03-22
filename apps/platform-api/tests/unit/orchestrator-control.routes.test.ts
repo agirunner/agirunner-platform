@@ -2133,7 +2133,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.json().data).toEqual(existingTask);
   });
 
-  it('returns the reopened reviewed task when review_requested_changes already reactivated it', async () => {
+  it('returns the reopened subject task when assessment_requested_changes already reactivated it', async () => {
     const implementationWorkItemId = '33333333-3333-4333-8333-333333333333';
     const verificationWorkItemId = '44444444-4444-4444-8444-444444444444';
     const existingTask = {
@@ -2144,7 +2144,7 @@ describe('orchestratorControlRoutes', () => {
       role: 'live-test-developer',
       state: 'in_progress',
       metadata: {
-        review_action: 'request_changes',
+        assessment_action: 'request_changes',
       },
     };
     const taskService = {
@@ -2169,7 +2169,7 @@ describe('orchestratorControlRoutes', () => {
             rowCount: 1,
             rows: [{
               lifecycle: 'planned',
-              event_type: 'task.review_requested_changes',
+              event_type: 'task.assessment_requested_changes',
               payload: {
                 task_id: existingTask.id,
                 task_role: 'live-test-developer',
@@ -2238,7 +2238,7 @@ describe('orchestratorControlRoutes', () => {
             rowCount: 1,
             rows: [{
               lifecycle: 'planned',
-              event_type: 'task.review_requested_changes',
+              event_type: 'task.assessment_requested_changes',
               payload: {
                 task_id: existingTask.id,
                 task_role: 'live-test-developer',
@@ -2474,7 +2474,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.json().data).toEqual(createdTask);
   });
 
-  it('returns a structured no-op when verification is requested before the reviewed task is ready', async () => {
+  it('returns a structured no-op when verification is requested before the subject task is ready', async () => {
     const verificationWorkItemId = '55555555-5555-4555-8555-555555555555';
     const taskService = {
       createTask: vi.fn(),
@@ -2509,12 +2509,12 @@ describe('orchestratorControlRoutes', () => {
               response: {
                 noop: true,
                 ready: false,
-                reason_code: 'reviewed_task_not_ready',
+                reason_code: 'subject_task_not_ready',
                 work_item_id: verificationWorkItemId,
                 stage_name: 'verification',
-                reviewed_task_id: 'task-developer',
-                reviewed_task_rework_count: 1,
-                reviewed_task_state: 'output_pending_review',
+                subject_task_id: 'task-developer',
+                subject_task_revision: 1,
+                subject_task_state: 'output_pending_review',
               },
             }],
           };
@@ -2615,17 +2615,17 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({
         noop: true,
         ready: false,
-        reason_code: 'reviewed_task_not_ready',
+        reason_code: 'subject_task_not_ready',
         work_item_id: verificationWorkItemId,
         stage_name: 'verification',
-        reviewed_task_id: 'task-developer',
-        reviewed_task_rework_count: 1,
-        reviewed_task_state: 'output_pending_review',
+        subject_task_id: 'task-developer',
+        subject_task_revision: 1,
+        subject_task_state: 'output_pending_review',
       }),
     );
   });
 
-  it('returns a structured no-op when a review request was already applied to the triggering task', async () => {
+  it('returns a structured no-op when an assessment request was already applied to the triggering task', async () => {
     const implementationWorkItemId = '44444444-4444-4444-8444-444444444444';
     const verificationWorkItemId = '55555555-5555-4555-8555-555555555555';
     const taskService = {
@@ -2656,8 +2656,8 @@ describe('orchestratorControlRoutes', () => {
               work_item_id: implementationWorkItemId,
               stage_name: 'implementation',
               metadata: {
-                last_applied_review_request_task_id: 'task-qa',
-                last_applied_review_request_handoff_id: 'handoff-qa-1',
+                last_applied_assessment_request_task_id: 'task-qa',
+                last_applied_assessment_request_handoff_id: 'handoff-qa-1',
               },
             }],
           };
@@ -2683,14 +2683,14 @@ describe('orchestratorControlRoutes', () => {
               response: {
                 noop: true,
                 ready: false,
-                reason_code: 'review_request_already_applied',
+                reason_code: 'assessment_request_already_applied',
                 work_item_id: verificationWorkItemId,
                 stage_name: 'verification',
-                reviewed_task_id: 'task-developer',
-                reviewed_task_stage_name: 'implementation',
-                review_request_task_id: 'task-qa',
-                review_request_work_item_id: verificationWorkItemId,
-                review_request_stage_name: 'verification',
+                subject_task_id: 'task-developer',
+                subject_task_stage_name: 'implementation',
+                assessment_request_task_id: 'task-qa',
+                assessment_request_work_item_id: verificationWorkItemId,
+                assessment_request_stage_name: 'verification',
               },
             }],
           };
@@ -2805,14 +2805,14 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({
         noop: true,
         ready: false,
-        reason_code: 'review_request_already_applied',
+        reason_code: 'assessment_request_already_applied',
         work_item_id: verificationWorkItemId,
         stage_name: 'verification',
-        reviewed_task_id: 'task-developer',
-        reviewed_task_stage_name: 'implementation',
-        review_request_task_id: 'task-qa',
-        review_request_work_item_id: verificationWorkItemId,
-        review_request_stage_name: 'verification',
+        subject_task_id: 'task-developer',
+        subject_task_stage_name: 'implementation',
+        assessment_request_task_id: 'task-qa',
+        assessment_request_work_item_id: verificationWorkItemId,
+        assessment_request_stage_name: 'verification',
       }),
     );
   });

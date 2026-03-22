@@ -188,6 +188,14 @@ function normalizeReviewOutcome(value: unknown): 'approved' | null {
   return readOptionalText(value) === 'approved' ? 'approved' : null;
 }
 
+function readAssessmentAction(metadata: Record<string, unknown>): string | null {
+  return readOptionalText(metadata.assessment_action) ?? readOptionalText(metadata.review_action);
+}
+
+function readAssessmentFeedback(metadata: Record<string, unknown>): string | null {
+  return readOptionalText(metadata.assessment_feedback) ?? readOptionalText(metadata.review_feedback);
+}
+
 function matchesReviewMetadata(
   task: Record<string, unknown>,
   expected: {
@@ -199,8 +207,8 @@ function matchesReviewMetadata(
 ): boolean {
   const metadata = asRecord(task.metadata);
   return (
-    metadata.review_action === expected.action &&
-    (expected.feedback === undefined || metadata.review_feedback === expected.feedback) &&
+    readAssessmentAction(metadata) === expected.action &&
+    (expected.feedback === undefined || readAssessmentFeedback(metadata) === expected.feedback) &&
     (expected.preferredAgentId === undefined ||
       (metadata.preferred_agent_id ?? null) === expected.preferredAgentId) &&
     (expected.preferredWorkerId === undefined ||
@@ -213,7 +221,7 @@ function hasActiveReworkRequest(task: Record<string, unknown>): boolean {
   if (state !== 'ready' && state !== 'claimed' && state !== 'in_progress') {
     return false;
   }
-  return asRecord(task.metadata).review_action === 'request_changes';
+  return readAssessmentAction(asRecord(task.metadata)) === 'request_changes';
 }
 
 function hasAppliedLatestReviewRequest(
@@ -224,7 +232,7 @@ function hasAppliedLatestReviewRequest(
     return false;
   }
 
-  return readOptionalText(asRecord(task.metadata).last_applied_review_request_handoff_id)
+  return readOptionalText(asRecord(task.metadata).last_applied_assessment_request_handoff_id)
     === latestReviewRequest.handoff_id;
 }
 
@@ -1520,7 +1528,7 @@ export class TaskLifecycleService {
     }
     const nextInput = payload.override_input ?? {
       ...asRecord(task.input),
-      review_feedback: payload.feedback,
+      assessment_feedback: payload.feedback,
     };
     if (
       (task.state === 'ready' || task.state === 'pending' || task.state === 'failed') &&
@@ -1552,14 +1560,14 @@ export class TaskLifecycleService {
         clearLifecycleControlMetadata: true,
         reworkIncrement: true,
         metadataPatch: {
-          review_feedback: payload.feedback,
-          review_action: 'request_changes',
-          review_updated_at: new Date().toISOString(),
+          assessment_feedback: payload.feedback,
+          assessment_action: 'request_changes',
+          assessment_updated_at: new Date().toISOString(),
           max_rework_exceeded_at: new Date().toISOString(),
           ...(latestReviewRequest
             ? {
-                last_applied_review_request_handoff_id: latestReviewRequest.handoff_id,
-                last_applied_review_request_task_id: latestReviewRequest.review_task_id,
+                last_applied_assessment_request_handoff_id: latestReviewRequest.handoff_id,
+                last_applied_assessment_request_task_id: latestReviewRequest.review_task_id,
               }
             : {}),
           ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
@@ -1631,13 +1639,13 @@ export class TaskLifecycleService {
       retryIncrement: true,
       overrideInput: nextInput,
       metadataPatch: {
-        review_feedback: payload.feedback,
-        review_action: 'request_changes',
-        review_updated_at: new Date().toISOString(),
+        assessment_feedback: payload.feedback,
+        assessment_action: 'request_changes',
+        assessment_updated_at: new Date().toISOString(),
         ...(latestReviewRequest
           ? {
-              last_applied_review_request_handoff_id: latestReviewRequest.handoff_id,
-              last_applied_review_request_task_id: latestReviewRequest.review_task_id,
+              last_applied_assessment_request_handoff_id: latestReviewRequest.handoff_id,
+              last_applied_assessment_request_task_id: latestReviewRequest.review_task_id,
             }
           : {}),
         ...(payload.preferred_agent_id ? { preferred_agent_id: payload.preferred_agent_id } : {}),
@@ -1654,7 +1662,7 @@ export class TaskLifecycleService {
           client,
         );
       },
-      reason: 'review_requested_changes',
+      reason: 'assessment_requested_changes',
     }, client);
   }
 
@@ -2699,10 +2707,13 @@ function isReviewSemanticTask(task: Record<string, unknown>) {
   if (taskType?.trim().toLowerCase() === 'review') {
     return true;
   }
+  if (readTaskKind(task) === 'assessment') {
+    return true;
+  }
 
   const input = asRecord(task.input);
   return (
-    readOptionalText(input.reviewed_task_id) !== null
+    readOptionalText(input.subject_task_id) !== null
     || readOptionalText(input.target_task_id) !== null
   );
 }
@@ -2796,7 +2807,7 @@ function buildEscalationTaskInput(
       source_task_role: task.role,
       failure,
       error: task.error ?? null,
-      review_feedback: asRecord(task.metadata).review_feedback ?? null,
+      assessment_feedback: readAssessmentFeedback(asRecord(task.metadata)),
       retry_count: task.retry_count ?? 0,
       allowed_actions: ['retry_modified', 'reassign', 'skip', 'fail_workflow'],
     },
@@ -2888,10 +2899,10 @@ function resolveWorkflowActivationTransitionReason(
       eventType: 'task.approved',
     };
   }
-  if ((nextState === 'ready' || nextState === 'pending') && transitionReason === 'review_requested_changes') {
+  if ((nextState === 'ready' || nextState === 'pending') && transitionReason === 'assessment_requested_changes') {
     return {
-      requestPrefix: 'task-review-requested',
-      eventType: 'task.review_requested_changes',
+      requestPrefix: 'task-assessment-requested',
+      eventType: 'task.assessment_requested_changes',
     };
   }
   return null;

@@ -726,7 +726,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             },
           };
 
-          const existingReworkTaskId = await loadExistingReworkTaskForRequestedChanges(
+          const existingReworkTaskId = await loadExistingReworkTaskForAssessmentRequest(
             client,
             request.auth!.tenantId,
             taskScope.workflow_id,
@@ -747,15 +747,15 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             return app.taskService.getTask(request.auth!.tenantId, existingReviewTaskId) as Promise<Record<string, unknown>>;
           }
 
-          const duplicateAppliedReviewRequestNoop = await buildRecoverableCreateTaskNoopIfReviewRequestAlreadyApplied(
+          const duplicateAppliedAssessmentRequestNoop = await buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied(
             client,
             request.auth!.tenantId,
             taskScope.workflow_id,
             createTaskContext,
             createInput,
           );
-          if (duplicateAppliedReviewRequestNoop) {
-            return duplicateAppliedReviewRequestNoop;
+          if (duplicateAppliedAssessmentRequestNoop) {
+            return duplicateAppliedAssessmentRequestNoop;
           }
 
           const verificationNotReadyNoop = await buildRecoverableCreateTaskNoopIfNotReady(
@@ -1580,9 +1580,9 @@ async function loadExistingReviewTaskForSameRevision(
     return null;
   }
 
-  const reviewedTaskId = readReviewedTaskReference(body.input);
-  const reviewedTaskReworkCount = readInteger(body.metadata?.subject_revision);
-  if (!reviewedTaskId || reviewedTaskReworkCount === null) {
+  const subjectTaskId = readSubjectTaskReference(body.input);
+  const subjectRevision = readInteger(body.metadata?.subject_revision);
+  if (!subjectTaskId || subjectRevision === null) {
     return null;
   }
 
@@ -1604,8 +1604,8 @@ async function loadExistingReviewTaskForSameRevision(
       body.work_item_id,
       body.role,
       ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
-      reviewedTaskId,
-      reviewedTaskReworkCount,
+      subjectTaskId,
+      subjectRevision,
     ],
   );
   return result.rows[0]?.id ?? null;
@@ -1621,8 +1621,8 @@ async function buildRecoverableCreateTaskNoopIfNotReady(
     return null;
   }
 
-  const reviewedTaskId = readReviewedTaskReference(body.input);
-  if (!reviewedTaskId) {
+  const subjectTaskId = readSubjectTaskReference(body.input);
+  if (!subjectTaskId) {
     return null;
   }
 
@@ -1633,30 +1633,30 @@ async function buildRecoverableCreateTaskNoopIfNotReady(
         AND workflow_id = $2
         AND id = $3
       LIMIT 1`,
-    [tenantId, workflowId, reviewedTaskId],
+    [tenantId, workflowId, subjectTaskId],
   );
-  const reviewedTask = result.rows[0];
-  if (!reviewedTask || reviewedTask.state === 'completed') {
+  const subjectTask = result.rows[0];
+  if (!subjectTask || subjectTask.state === 'completed') {
     return null;
   }
 
   return {
     noop: true,
     ready: false,
-    reason_code: 'reviewed_task_not_ready',
-    message: `Cannot create a follow-up task that depends on reviewed output while reviewed task '${reviewedTaskId}' is still '${reviewedTask.state ?? 'unknown'}'. Wait for the current review/rework cycle to resolve before dispatching the follow-up task.`,
+    reason_code: 'subject_task_not_ready',
+    message: `Cannot create a follow-up task that depends on subject output while subject task '${subjectTaskId}' is still '${subjectTask.state ?? 'unknown'}'. Wait for the current assessment/rework cycle to resolve before dispatching the follow-up task.`,
     blocked_on: [
-      `reviewed_task_state:${reviewedTask.state ?? 'unknown'}`,
+      `subject_task_state:${subjectTask.state ?? 'unknown'}`,
     ],
     work_item_id: body.work_item_id,
     stage_name: body.stage_name,
-    reviewed_task_id: reviewedTask.id ?? reviewedTaskId,
-    reviewed_task_rework_count: reviewedTask.rework_count ?? 0,
-    reviewed_task_state: reviewedTask.state ?? null,
+    subject_task_id: subjectTask.id ?? subjectTaskId,
+    subject_task_revision: subjectTask.rework_count ?? 0,
+    subject_task_state: subjectTask.state ?? null,
   };
 }
 
-async function buildRecoverableCreateTaskNoopIfReviewRequestAlreadyApplied(
+async function buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied(
   db: DatabaseQueryable,
   tenantId: string,
   workflowId: string,
@@ -1697,57 +1697,57 @@ async function buildRecoverableCreateTaskNoopIfReviewRequestAlreadyApplied(
     return null;
   }
 
-  const reviewRequestTaskId = readString(asRecord(activationTask.metadata).last_applied_review_request_task_id);
-  if (!reviewRequestTaskId) {
+  const assessmentRequestTaskId = readString(asRecord(activationTask.metadata).last_applied_assessment_request_task_id);
+  if (!assessmentRequestTaskId) {
     return null;
   }
 
-  const reviewRequestTaskResult = await db.query<ReviewRequestTaskContextRow>(
+  const assessmentRequestTaskResult = await db.query<ReviewRequestTaskContextRow>(
     `SELECT id, work_item_id, stage_name
        FROM tasks
       WHERE tenant_id = $1
         AND workflow_id = $2
         AND id = $3
       LIMIT 1`,
-    [tenantId, workflowId, reviewRequestTaskId],
+    [tenantId, workflowId, assessmentRequestTaskId],
   );
-  const reviewRequestTask = reviewRequestTaskResult.rows[0];
-  if (!reviewRequestTask?.work_item_id || reviewRequestTask.work_item_id !== body.work_item_id) {
+  const assessmentRequestTask = assessmentRequestTaskResult.rows[0];
+  if (!assessmentRequestTask?.work_item_id || assessmentRequestTask.work_item_id !== body.work_item_id) {
     return null;
   }
 
   return {
     noop: true,
     ready: false,
-    reason_code: 'review_request_already_applied',
-    message: `Cannot create '${body.role}' task on work item '${body.work_item_id}' because review request '${reviewRequestTask.id}' was already applied to reopened task '${activationTask.id}'. Continue routing from the reopened task instead of spawning a sibling rework task.`,
+    reason_code: 'assessment_request_already_applied',
+    message: `Cannot create '${body.role}' task on work item '${body.work_item_id}' because assessment request '${assessmentRequestTask.id}' was already applied to reopened task '${activationTask.id}'. Continue routing from the reopened task instead of spawning a sibling rework task.`,
     blocked_on: [
-      `review_request_already_applied:${reviewRequestTask.id}`,
+      `assessment_request_already_applied:${assessmentRequestTask.id}`,
     ],
     work_item_id: body.work_item_id,
     stage_name: body.stage_name,
-    reviewed_task_id: activationTask.id,
-    reviewed_task_stage_name: activationTask.stage_name,
-    review_request_task_id: reviewRequestTask.id,
-    review_request_work_item_id: reviewRequestTask.work_item_id,
-    review_request_stage_name: reviewRequestTask.stage_name,
+    subject_task_id: activationTask.id,
+    subject_task_stage_name: activationTask.stage_name,
+    assessment_request_task_id: assessmentRequestTask.id,
+    assessment_request_work_item_id: assessmentRequestTask.work_item_id,
+    assessment_request_stage_name: assessmentRequestTask.stage_name,
   };
 }
 
-async function loadExistingReworkTaskForRequestedChanges(
+async function loadExistingReworkTaskForAssessmentRequest(
   db: DatabaseQueryable,
   tenantId: string,
   workflowId: string,
   context: OrchestratorCreateWorkItemContext,
   body: z.infer<typeof orchestratorTaskCreateSchema>,
 ) {
-  if (context.event_type !== 'task.review_requested_changes') {
+  if (context.event_type !== 'task.assessment_requested_changes') {
     return null;
   }
 
-  const reviewedTaskId = readString(context.payload.task_id);
-  const reviewedTaskRole = readString(context.payload.task_role);
-  if (!reviewedTaskId || !reviewedTaskRole || body.role !== reviewedTaskRole) {
+  const subjectTaskId = readString(context.payload.task_id);
+  const subjectTaskRole = readString(context.payload.task_role);
+  if (!subjectTaskId || !subjectTaskRole || body.role !== subjectTaskRole) {
     return null;
   }
 
@@ -1763,8 +1763,8 @@ async function loadExistingReworkTaskForRequestedChanges(
     [
       tenantId,
       workflowId,
-      reviewedTaskId,
-      reviewedTaskRole,
+      subjectTaskId,
+      subjectTaskRole,
       ['pending', 'ready', 'claimed', 'in_progress', 'output_pending_review'],
     ],
   );
@@ -1938,7 +1938,7 @@ async function loadActivationReviewedTaskId(
     return activationTaskId;
   }
 
-  return readReviewedTaskReference(result.rows[0].input ?? undefined) ?? activationTaskId;
+  return readSubjectTaskReference(result.rows[0].input ?? undefined) ?? activationTaskId;
 }
 
 async function loadOrchestratorCreateWorkItemContext(
@@ -2005,7 +2005,7 @@ function hasExplicitReviewedTaskReference(
   return hasExplicitAssessmentSubjectLinkage(input, metadata);
 }
 
-function readReviewedTaskReference(input: Record<string, unknown> | undefined) {
+function readSubjectTaskReference(input: Record<string, unknown> | undefined) {
   return readAssessmentSubjectLinkage(input).subjectTaskId;
 }
 
