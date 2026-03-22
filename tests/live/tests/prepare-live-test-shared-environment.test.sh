@@ -77,7 +77,7 @@ EOF
   assert_contains "git -C ${fixtures_root} fetch --prune origin +refs/heads/main:refs/remotes/origin/main" "${logfile}"
   assert_contains "git -C ${fixtures_root} checkout main" "${logfile}"
   assert_contains "git -C ${fixtures_root} reset --hard origin/main" "${logfile}"
-  assert_contains "python3 ${fake_platform_root}/tests/live/lib/seed_live_test_shared_environment.py LIVE_TEST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SYSTEM_REASONING_EFFORT=medium LIVE_TEST_ORCHESTRATOR_MODEL_ID=gpt-5.4-mini LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT=medium LIVE_TEST_SPECIALIST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_REASONING_EFFORT=medium LIVE_TEST_TRACE_DIR=${trace_dir}" "${logfile}"
+  assert_contains "python3 ${fake_platform_root}/tests/live/lib/seed_live_test_shared_environment.py LIVE_TEST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SYSTEM_REASONING_EFFORT=medium LIVE_TEST_ORCHESTRATOR_MODEL_ID=gpt-5.4 LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT=low LIVE_TEST_SPECIALIST_MODEL_ID=gpt-5.4-mini LIVE_TEST_SPECIALIST_REASONING_EFFORT=medium LIVE_TEST_TRACE_DIR=${trace_dir}" "${logfile}"
   assert_contains "\"content-direct-successor\"" "${bootstrap_context_file}"
 }
 

@@ -88,8 +88,8 @@ expected = {
     "provider_type": os.environ.get("LIVE_TEST_PROVIDER_TYPE", "openai").strip() or "openai",
     "model_name": os.environ.get("LIVE_TEST_MODEL_ID", "gpt-5.4-mini").strip() or "gpt-5.4-mini",
     "system_reasoning": os.environ.get("LIVE_TEST_SYSTEM_REASONING_EFFORT", "medium").strip() or "medium",
-    "orchestrator_model_name": os.environ.get("LIVE_TEST_ORCHESTRATOR_MODEL_ID", os.environ.get("LIVE_TEST_MODEL_ID", "gpt-5.4-mini")).strip() or "gpt-5.4-mini",
-    "orchestrator_reasoning": os.environ.get("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "medium").strip() or "medium",
+    "orchestrator_model_name": os.environ.get("LIVE_TEST_ORCHESTRATOR_MODEL_ID", "gpt-5.4").strip() or "gpt-5.4",
+    "orchestrator_reasoning": os.environ.get("LIVE_TEST_ORCHESTRATOR_REASONING_EFFORT", "low").strip() or "low",
     "specialist_model_name": os.environ.get("LIVE_TEST_SPECIALIST_MODEL_ID", "gpt-5.4-mini").strip() or "gpt-5.4-mini",
     "specialist_reasoning": os.environ.get("LIVE_TEST_SPECIALIST_REASONING_EFFORT", "medium").strip() or "medium",
 }

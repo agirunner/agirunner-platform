@@ -411,9 +411,9 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
             model_id="gpt-5.4",
             model_endpoint_type="responses",
             system_reasoning_effort="low",
-            orchestrator_model_id="gpt-5.4-mini",
+            orchestrator_model_id="gpt-5.4",
             orchestrator_endpoint_type="responses",
-            orchestrator_reasoning_effort="medium",
+            orchestrator_reasoning_effort="low",
             specialist_model_id="gpt-5.4-mini",
             specialist_endpoint_type="responses",
             specialist_reasoning_effort="medium",
@@ -422,7 +422,7 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
 
         self.assertEqual("provider-oauth", provider["id"])
         self.assertEqual("model-gpt-5.4", model["id"])
-        self.assertEqual("model-gpt-5.4-mini", orchestrator_model["id"])
+        self.assertEqual("model-gpt-5.4", orchestrator_model["id"])
         self.assertEqual("model-gpt-5.4-mini", specialist_model["id"])
         self.assertEqual(
             [
@@ -441,8 +441,8 @@ class SeedLiveTestEnvironmentTests(unittest.TestCase):
         )
         self.assertEqual(
             {
-                "primaryModelId": "model-gpt-5.4-mini",
-                "reasoningConfig": {"effort": "medium", "reasoning_effort": "medium"},
+                "primaryModelId": "model-gpt-5.4",
+                "reasoningConfig": {"effort": "low", "reasoning_effort": "low"},
             },
             client.calls[3][2],
         )
