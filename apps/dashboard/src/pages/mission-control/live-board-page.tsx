@@ -214,7 +214,7 @@ function describeAttentionStep(task: TaskRecord): string {
   if (state === 'awaiting_approval') {
     return 'Step approval';
   }
-  if (state === 'output_pending_review') {
+  if (state === 'output_pending_assessment') {
     return 'Output gate';
   }
   if (state === 'failed') {

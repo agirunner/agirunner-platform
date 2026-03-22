@@ -1081,7 +1081,7 @@ function shouldBlockSuccessorCheckpointForOpenTasks(
   }
 
   const nonReviewReadyStates = Array.from(taskStateCounts.keys()).filter(
-    (state) => state !== 'output_pending_review',
+    (state) => state !== 'output_pending_assessment',
   );
   if (nonReviewReadyStates.length > 0) {
     return true;

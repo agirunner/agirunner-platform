@@ -22,13 +22,13 @@ const ACTIVE_ORCHESTRATOR_TASK_STATES = [
   'claimed',
   'in_progress',
   'awaiting_approval',
-  'output_pending_review',
+  'output_pending_assessment',
 ] as const;
 const ACTIVE_SPECIALIST_HEARTBEAT_SKIP_STATES = [
   'claimed',
   'in_progress',
   'awaiting_approval',
-  'output_pending_review',
+  'output_pending_assessment',
 ] as const;
 const IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES = [
   'workflow.created',
@@ -38,7 +38,7 @@ const IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES = [
   'task.escalation_resolved',
   'task.completed',
   'task.failed',
-  'task.output_pending_review',
+  'task.output_pending_assessment',
   'task.approved',
   'task.assessment_requested_changes',
   'task.handoff_submitted',
@@ -598,7 +598,7 @@ export class WorkflowActivationDispatchService {
            state,
            depends_on,
            requires_approval,
-           requires_output_review,
+           requires_assessment,
            input,
            context,
            role_config,

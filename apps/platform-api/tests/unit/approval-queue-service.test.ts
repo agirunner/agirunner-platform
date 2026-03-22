@@ -12,7 +12,7 @@ describe('ApprovalQueueService', () => {
             rows: [{
               id: 'task-1',
               title: 'Review output',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               workflow_id: 'workflow-1',
               workflow_name: 'Workflow One',
               work_item_id: 'work-item-1',

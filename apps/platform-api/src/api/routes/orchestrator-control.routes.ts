@@ -80,7 +80,7 @@ const orchestratorTaskCreateSchema = z.object({
   depends_on: z.array(z.string().uuid()).optional(),
   credentials: credentialRefsSchema.optional(),
   requires_approval: z.boolean().optional(),
-  requires_output_review: z.boolean().optional(),
+  requires_assessment: z.boolean().optional(),
   assessment_prompt: z.string().max(2000).optional(),
   role_config: z.record(z.unknown()).optional(),
   environment: z.record(z.unknown()).optional(),
@@ -1603,7 +1603,7 @@ async function loadExistingReviewTaskForSameRevision(
       workflowId,
       body.work_item_id,
       body.role,
-      ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
+      ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment', 'completed'],
       subjectTaskId,
       subjectRevision,
     ],
@@ -1663,7 +1663,7 @@ async function buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied(
   context: OrchestratorCreateWorkItemContext,
   body: z.infer<typeof orchestratorTaskCreateSchema>,
 ): Promise<Record<string, unknown> | null> {
-  if (context.event_type !== 'task.output_pending_review') {
+  if (context.event_type !== 'task.output_pending_assessment') {
     return null;
   }
 
@@ -1765,7 +1765,7 @@ async function loadExistingReworkTaskForAssessmentRequest(
       workflowId,
       subjectTaskId,
       subjectTaskRole,
-      ['pending', 'ready', 'claimed', 'in_progress', 'output_pending_review'],
+      ['pending', 'ready', 'claimed', 'in_progress', 'output_pending_assessment'],
     ],
   );
   return result.rows[0]?.id ?? null;
@@ -1908,7 +1908,7 @@ function shouldDefaultActivationReviewedTaskLinkage(
 }
 
 function isReviewLinkActivation(eventType: string | null) {
-  return eventType === 'task.output_pending_review' || eventType === 'task.handoff_submitted';
+  return eventType === 'task.output_pending_assessment' || eventType === 'task.handoff_submitted';
 }
 
 function isVerificationTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) {
@@ -1989,9 +1989,9 @@ function shouldDefaultParentWorkItemId(
   }
   return new Set([
     'task.completed',
-    'task.output_pending_review',
-    'task.output_review.approved',
-    'task.output_review.rejected',
+    'task.output_pending_assessment',
+    'task.output_assessment.approved',
+    'task.output_assessment.rejected',
     'stage.gate.approve',
     'stage.gate.reject',
     'work_item.created',

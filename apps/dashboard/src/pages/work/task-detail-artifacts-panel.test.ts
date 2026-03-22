@@ -20,7 +20,7 @@ describe('task detail artifacts panel source', () => {
     expect(source).toContain('No artifacts published for this step yet.');
   });
 
-  it('uses responsive cards and explicit review guidance for every artifact', () => {
+  it('uses responsive cards and explicit assessment guidance for every artifact', () => {
     const source = readSource();
     expect(source).toContain('grid gap-3 md:grid-cols-3');
     expect(source).toContain('sm:flex-row sm:items-start sm:justify-between');

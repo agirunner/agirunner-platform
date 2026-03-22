@@ -199,7 +199,7 @@ export function summarizeTasks(tasks: Array<{ state: string }>): MissionControlS
       else if (
         state === 'blocked'
         || state === 'awaiting_approval'
-        || state === 'output_pending_review'
+        || state === 'output_pending_assessment'
         || state === 'escalated'
       ) acc.blocked += 1;
       else if (state === 'completed') acc.completed += 1;

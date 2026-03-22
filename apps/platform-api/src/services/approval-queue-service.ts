@@ -108,7 +108,7 @@ export class ApprovalQueueService {
               LIMIT 1
            ) latest_handoff ON true
           WHERE t.tenant_id = $1
-            AND t.state IN ('awaiting_approval', 'output_pending_review')
+            AND t.state IN ('awaiting_approval', 'output_pending_assessment')
           ORDER BY t.created_at ASC`,
         [tenantId],
       ),

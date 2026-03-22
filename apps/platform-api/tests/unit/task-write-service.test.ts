@@ -192,7 +192,7 @@ describe('TaskWriteService', () => {
     ).rejects.toThrow('Missing runtime default "agent.max_iterations"');
   });
 
-  it('derives output review from playbook rules instead of trusting reviewer task input', async () => {
+  it('derives output assessment from playbook rules instead of trusting reviewer task input', async () => {
     let insertedRequiresOutputReview: boolean | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -264,7 +264,7 @@ describe('TaskWriteService', () => {
               tenant_id: 'tenant-1',
               workflow_id: 'workflow-1',
               work_item_id: 'work-item-1',
-              requires_output_review: insertedRequiresOutputReview,
+              requires_assessment: insertedRequiresOutputReview,
             }],
           };
         }
@@ -300,14 +300,14 @@ describe('TaskWriteService', () => {
         request_id: 'request-review-normalized',
         role: 'reviewer',
         type: 'review',
-        requires_output_review: true,
+        requires_assessment: true,
       },
     );
 
     expect(insertedRequiresOutputReview).toBe(false);
   });
 
-  it('only requires output review on the checkpoint named by the playbook review rule', async () => {
+  it('only requires output assessment on the checkpoint named by the playbook review rule', async () => {
     const insertedRequiresOutputReview: boolean[] = [];
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -379,7 +379,7 @@ describe('TaskWriteService', () => {
               tenant_id: 'tenant-1',
               workflow_id: 'workflow-1',
               work_item_id: values?.[2],
-              requires_output_review: Boolean(values?.[11]),
+              requires_assessment: Boolean(values?.[11]),
             }],
           };
         }
@@ -1778,7 +1778,7 @@ describe('TaskWriteService', () => {
               stage_name: 'implementation',
               depends_on: [],
               requires_approval: false,
-              requires_output_review: false,
+              requires_assessment: false,
               context: {},
               role_config: null,
               environment: null,
@@ -1861,7 +1861,7 @@ describe('TaskWriteService', () => {
             'workflow-1',
             'work-item-1',
             'product-manager',
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'escalated', 'completed'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment', 'escalated', 'completed'],
           ]);
           return {
             rowCount: 1,
@@ -1948,7 +1948,7 @@ describe('TaskWriteService', () => {
             'workflow-1',
             'work-item-1',
             'live-test-qa',
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'escalated', 'completed'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment', 'escalated', 'completed'],
           ]);
           return {
             rowCount: 1,
@@ -1966,7 +1966,7 @@ describe('TaskWriteService', () => {
               state: 'completed',
               depends_on: [],
               requires_approval: false,
-              requires_output_review: false,
+              requires_assessment: false,
               input: {
                 expected_commit: '3fea712',
                 review_handoff_id: 'handoff-1',
@@ -2077,7 +2077,7 @@ describe('TaskWriteService', () => {
               stage_name: 'design',
               depends_on: [],
               requires_approval: false,
-              requires_output_review: false,
+              requires_assessment: false,
               context: {},
               role_config: null,
               environment: null,
@@ -2279,7 +2279,7 @@ describe('TaskWriteService', () => {
                   stage_name: 'implementation',
                   depends_on: [],
                   requires_approval: false,
-                  requires_output_review: false,
+                  requires_assessment: false,
                   context: {},
                   role_config: null,
                   environment: null,
@@ -2368,7 +2368,7 @@ describe('TaskWriteService', () => {
               stage_name: 'implementation',
               depends_on: [],
               requires_approval: false,
-              requires_output_review: false,
+              requires_assessment: false,
               context: {},
               role_config: null,
               environment: null,

@@ -595,7 +595,7 @@ describe('WorkItemContinuityService', () => {
               keep_me: true,
               orchestrator_finish_state: {
                 status_summary: 'Implementation is ready for the next assessment pass.',
-                next_expected_event: 'task.output_pending_review',
+                next_expected_event: 'task.output_pending_assessment',
               },
             },
           }],
@@ -631,7 +631,7 @@ describe('WorkItemContinuityService', () => {
       nextExpectedAction: 'assess',
       continuity: {
         status_summary: 'Implementation is ready for the next assessment pass.',
-        next_expected_event: 'task.output_pending_review',
+        next_expected_event: 'task.output_pending_assessment',
       },
     });
     expect(pool.query).toHaveBeenCalledTimes(3);

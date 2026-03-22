@@ -12,7 +12,7 @@ describe('applyTaskCompletionSideEffects', () => {
         if (sql.includes('SELECT playbook_id FROM workflows')) {
           return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
         }
-        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_review'")) {
+        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_assessment'")) {
           return {
             rows: [{
               id: 'task-dev',
@@ -20,7 +20,7 @@ describe('applyTaskCompletionSideEffects', () => {
               workflow_id: 'workflow-1',
               work_item_id: 'work-item-1',
               role: 'developer',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               output: { summary: 'done' },
               metadata: {},
             }],
@@ -136,7 +136,7 @@ describe('applyTaskCompletionSideEffects', () => {
         entityId: 'task-dev',
         actorId: 'assessment_resolver',
         data: expect.objectContaining({
-          from_state: 'output_pending_review',
+          from_state: 'output_pending_assessment',
           to_state: 'completed',
           reason: 'assessment_approved',
           assessment_task_id: 'task-review',
@@ -275,7 +275,7 @@ describe('applyTaskCompletionSideEffects', () => {
           };
         }
         if (sql.includes('FROM tasks') && sql.includes('state = ANY($4::task_state[])') && sql.includes('AND id = $3')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', ['output_pending_review', 'completed'], 'task-review']);
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', ['output_pending_assessment', 'completed'], 'task-review']);
           return {
             rows: [{
               id: 'task-dev',
@@ -283,7 +283,7 @@ describe('applyTaskCompletionSideEffects', () => {
               workflow_id: 'workflow-1',
               work_item_id: 'implementation-item',
               role: 'developer',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               output: { summary: 'done' },
               metadata: {},
             }],
@@ -410,7 +410,7 @@ describe('applyTaskCompletionSideEffects', () => {
           };
         }
         if (sql.includes('FROM tasks') && sql.includes('state = ANY($4::task_state[])') && sql.includes('AND id = $3')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', ['output_pending_review', 'completed'], 'task-qa']);
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', ['output_pending_assessment', 'completed'], 'task-qa']);
           return {
             rows: [{
               id: 'task-dev',
@@ -883,7 +883,7 @@ describe('applyTaskCompletionSideEffects', () => {
         if (sql.includes('SELECT playbook_id FROM workflows')) {
           return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
         }
-        if (sql.includes("AND state = 'output_pending_review'") && sql.includes('AND id = $3')) {
+        if (sql.includes("AND state = 'output_pending_assessment'") && sql.includes('AND id = $3')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', 'task-review']);
           return {
             rows: [{
@@ -892,14 +892,14 @@ describe('applyTaskCompletionSideEffects', () => {
               workflow_id: 'workflow-1',
               work_item_id: 'implementation-item',
               role: 'developer',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               output: { summary: 'done' },
               metadata: {},
             }],
             rowCount: 1,
           };
         }
-        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_review'")) {
+        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_assessment'")) {
           return { rows: [], rowCount: 0 };
         }
         if (sql.startsWith('UPDATE tasks')) {
@@ -993,7 +993,7 @@ describe('applyTaskCompletionSideEffects', () => {
         entityId: 'task-dev',
         actorId: 'assessment_resolver',
         data: expect.objectContaining({
-          from_state: 'output_pending_review',
+          from_state: 'output_pending_assessment',
           to_state: 'completed',
           reason: 'assessment_approved',
           assessment_task_id: 'task-review',
@@ -1015,7 +1015,7 @@ describe('applyTaskCompletionSideEffects', () => {
         if (sql.includes('SELECT playbook_id FROM workflows')) {
           return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
         }
-        if (sql.includes("AND state = 'output_pending_review'") && sql.includes('AND id = $3')) {
+        if (sql.includes("AND state = 'output_pending_assessment'") && sql.includes('AND id = $3')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', 'task-review']);
           return {
             rows: [{
@@ -1024,7 +1024,7 @@ describe('applyTaskCompletionSideEffects', () => {
               workflow_id: 'workflow-1',
               work_item_id: 'implementation-item',
               role: 'developer',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               output: { summary: 'done' },
               metadata: {},
             }],
@@ -1261,7 +1261,7 @@ describe('applyTaskCompletionSideEffects', () => {
         if (sql.includes('SELECT playbook_id FROM workflows')) {
           return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
         }
-        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_review'")) {
+        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_assessment'")) {
           if (params?.[2] === 'review-item') {
             return { rows: [], rowCount: 0 };
           }
@@ -1273,7 +1273,7 @@ describe('applyTaskCompletionSideEffects', () => {
                 workflow_id: 'workflow-1',
                 work_item_id: 'implementation-item',
                 role: 'developer',
-                state: 'output_pending_review',
+                state: 'output_pending_assessment',
                 output: { summary: 'done' },
                 metadata: {},
               }],
@@ -1396,7 +1396,7 @@ describe('applyTaskCompletionSideEffects', () => {
         if (sql.includes('SELECT playbook_id FROM workflows')) {
           return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
         }
-        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_review'") && sql.includes('AND id = $3')) {
+        if (sql.includes('FROM tasks') && sql.includes("AND state = 'output_pending_assessment'") && sql.includes('AND id = $3')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'task-dev', 'task-review']);
           return {
             rows: [{
@@ -1405,7 +1405,7 @@ describe('applyTaskCompletionSideEffects', () => {
               workflow_id: 'workflow-1',
               work_item_id: 'implementation-item',
               role: 'developer',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               output: { summary: 'done' },
               metadata: {},
             }],

@@ -40,7 +40,7 @@ describe('TaskLifecycleService continuity hooks', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-review-loop',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
@@ -123,7 +123,7 @@ describe('TaskLifecycleService continuity hooks', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-output-approval',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
@@ -230,12 +230,12 @@ describe('TaskLifecycleService continuity hooks', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-output-agent-blocked',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
         role: 'developer',
-        requires_output_review: true,
+        requires_assessment: true,
         is_orchestrator_task: false,
         metadata: {},
       }),

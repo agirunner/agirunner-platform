@@ -242,7 +242,7 @@ function hasSupersedingTaskHandoffAfterAssessmentRequest(
   latestTaskHandoffCreatedAt: Date | null,
 ) {
   const state = normalizeTaskState(task.state as string | null | undefined);
-  if (state !== 'output_pending_review' && state !== 'completed') {
+  if (state !== 'output_pending_assessment' && state !== 'completed') {
     return false;
   }
   if (!(latestAssessmentRequest?.created_at instanceof Date) || !(latestTaskHandoffCreatedAt instanceof Date)) {
@@ -788,7 +788,7 @@ export class TaskLifecycleService {
           },
         );
       }
-      if (resolvedNextState === 'output_pending_review' && !updatedTask.is_orchestrator_task) {
+      if (resolvedNextState === 'output_pending_assessment' && !updatedTask.is_orchestrator_task) {
         await this.deps.workItemContinuityService?.recordTaskCompleted(
           identity.tenantId,
           updatedTask,
@@ -1011,7 +1011,7 @@ export class TaskLifecycleService {
     const sanitizedOutput = sanitizeSecretLikeValue(payload.output);
 
     if (
-      (task.state === 'completed' || task.state === 'output_pending_review') &&
+      (task.state === 'completed' || task.state === 'output_pending_assessment') &&
       isJsonEquivalent(task.output, sanitizedOutput)
     ) {
       return this.deps.toTaskResponse(task);
@@ -1057,14 +1057,14 @@ export class TaskLifecycleService {
       : undefined;
     const outputRevisionMetadataPatch = buildOutputRevisionMetadataPatch(task);
 
-    const shouldMoveToOutputReview =
-      (Boolean(task.requires_output_review) && !approvedAssessmentHandoff)
+    const shouldMoveToOutputAssessment =
+      (Boolean(task.requires_assessment) && !approvedAssessmentHandoff)
       || !outputValidation.valid
       || verificationPassed === false;
 
     try {
-      return shouldMoveToOutputReview
-        ? await this.applyStateTransition(identity, taskId, 'output_pending_review', {
+      return shouldMoveToOutputAssessment
+        ? await this.applyStateTransition(identity, taskId, 'output_pending_assessment', {
             expectedStates: ['in_progress'],
             requireAssignment: assignment,
             output: safeOutput,
@@ -1075,11 +1075,11 @@ export class TaskLifecycleService {
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
             clearEscalationMetadata: true,
-            reason: task.requires_output_review
-              ? 'output_review_required'
+            reason: task.requires_assessment
+              ? 'output_assessment_required'
               : !outputValidation.valid
-                ? 'output_schema_review_required'
-                : 'verification_review_required',
+                ? 'output_schema_assessment_required'
+                : 'verification_assessment_required',
           }, existingClient)
         : await this.applyStateTransition(identity, taskId, 'completed', {
             expectedStates: ['in_progress'],
@@ -1356,7 +1356,7 @@ export class TaskLifecycleService {
     }
 
     return this.applyStateTransition(identity, taskId, 'completed', {
-      expectedStates: ['output_pending_review'],
+      expectedStates: ['output_pending_assessment'],
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
       metadataPatch: {
@@ -1403,7 +1403,7 @@ export class TaskLifecycleService {
           'ready',
           'pending',
           'awaiting_approval',
-          'output_pending_review',
+          'output_pending_assessment',
           'escalated',
         ]
       : ['failed'];
@@ -1452,7 +1452,7 @@ export class TaskLifecycleService {
         'claimed',
         'in_progress',
         'awaiting_approval',
-        'output_pending_review',
+        'output_pending_assessment',
         'escalated',
         'failed',
       ],
@@ -1470,7 +1470,7 @@ export class TaskLifecycleService {
     }
 
     return this.applyStateTransition(identity, taskId, 'failed', {
-      expectedStates: ['awaiting_approval', 'output_pending_review', 'in_progress', 'claimed'],
+      expectedStates: ['awaiting_approval', 'output_pending_assessment', 'in_progress', 'claimed'],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
@@ -1551,7 +1551,7 @@ export class TaskLifecycleService {
       return this.applyStateTransition(identity, taskId, 'failed', {
         expectedStates: [
           'awaiting_approval',
-          'output_pending_review',
+          'output_pending_assessment',
           'completed',
           'failed',
           'cancelled',
@@ -1626,7 +1626,7 @@ export class TaskLifecycleService {
     return this.applyStateTransition(identity, taskId, 'ready', {
       expectedStates: [
         'awaiting_approval',
-        'output_pending_review',
+        'output_pending_assessment',
         'completed',
         'failed',
         'cancelled',
@@ -1717,7 +1717,7 @@ export class TaskLifecycleService {
         'pending',
         'ready',
         'awaiting_approval',
-        'output_pending_review',
+        'output_pending_assessment',
         'failed',
         'cancelled',
       ],
@@ -1777,12 +1777,12 @@ export class TaskLifecycleService {
         'claimed',
         'in_progress',
         'awaiting_approval',
-        'output_pending_review',
+        'output_pending_assessment',
         'failed',
         'cancelled',
       ],
       clearAssignment: true,
-      clearExecutionData: task.state === 'output_pending_review' || task.state === 'failed',
+      clearExecutionData: task.state === 'output_pending_assessment' || task.state === 'failed',
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
       metadataPatch: {
@@ -1916,7 +1916,7 @@ export class TaskLifecycleService {
     }
 
     return this.applyStateTransition(identity, taskId, 'completed', {
-      expectedStates: ['output_pending_review', 'failed', 'cancelled', 'completed'],
+      expectedStates: ['output_pending_assessment', 'failed', 'cancelled', 'completed'],
       clearAssignment: true,
       clearLifecycleControlMetadata: true,
       clearEscalationMetadata: true,
@@ -2887,10 +2887,10 @@ function resolveWorkflowActivationTransitionReason(
       eventType: 'task.failed',
     };
   }
-  if (nextState === 'output_pending_review') {
+  if (nextState === 'output_pending_assessment') {
     return {
-      requestPrefix: 'task-output-pending-review',
-      eventType: 'task.output_pending_review',
+      requestPrefix: 'task-output-pending-assessment',
+      eventType: 'task.output_pending_assessment',
     };
   }
   if ((nextState === 'ready' || nextState === 'pending') && transitionReason === 'approved') {

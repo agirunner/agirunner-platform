@@ -15,7 +15,7 @@ describe('workflow mission-control summary', () => {
       { state: 'in_progress' },
       { state: 'in_progress' },
       { state: 'awaiting_approval' },
-      { state: 'output_pending_review' },
+      { state: 'output_pending_assessment' },
       { state: 'escalated' },
       { state: 'completed' },
       { state: 'failed' },

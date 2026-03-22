@@ -407,7 +407,7 @@ export function describeWorkItemOperatorSummary(
   let completed = 0;
   for (const task of relevantTasks) {
     const state = readTaskState(task);
-    if (state === 'awaiting_approval' || state === 'output_pending_review') {
+    if (state === 'awaiting_approval' || state === 'output_pending_assessment') {
       reviews += 1;
       continue;
     }
@@ -457,7 +457,7 @@ export function countSpecialistReviewQueue(tasks: LiveBoardTaskRecord[]): number
       return false;
     }
     const state = readTaskState(task);
-    return state === 'awaiting_approval' || state === 'output_pending_review';
+    return state === 'awaiting_approval' || state === 'output_pending_assessment';
   }).length;
 }
 

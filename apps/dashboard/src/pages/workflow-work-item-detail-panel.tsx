@@ -1781,7 +1781,7 @@ function WorkItemTasksSection(props: {
   const attentionTasks = orderedTasks.filter(
     (task) =>
       task.state === 'awaiting_approval' ||
-      task.state === 'output_pending_review' ||
+      task.state === 'output_pending_assessment' ||
       task.state === 'failed' ||
       task.state === 'escalated',
   );
@@ -2077,7 +2077,7 @@ function WorkItemTaskActionCell(props: {
 
   const approveMutation = useMutation({
     mutationFn: () =>
-      state === 'output_pending_review'
+      state === 'output_pending_assessment'
         ? dashboardApi.approveWorkflowWorkItemTaskOutput(
             props.workflowId,
             scopedWorkItemId,
@@ -2230,10 +2230,10 @@ function WorkItemTaskActionCell(props: {
     },
   });
 
-  const canApprove = state === 'awaiting_approval' || state === 'output_pending_review';
-  const canOverrideOutput = state === 'output_pending_review';
+  const canApprove = state === 'awaiting_approval' || state === 'output_pending_assessment';
+  const canOverrideOutput = state === 'output_pending_assessment';
   const canRequestChanges =
-    state === 'awaiting_approval' || state === 'output_pending_review' || state === 'failed';
+    state === 'awaiting_approval' || state === 'output_pending_assessment' || state === 'failed';
   const canResolveEscalation = state === 'escalated';
   const canCancel = state === 'failed' || state === 'escalated' || state === 'in_progress';
   const canReassign = state !== 'completed' && state !== 'cancelled';
@@ -2263,7 +2263,7 @@ function WorkItemTaskActionCell(props: {
             onClick={() => approveMutation.mutate()}
             disabled={isAnyMutationPending}
           >
-            {state === 'output_pending_review' ? 'Approve Output' : 'Approve Step'}
+            {state === 'output_pending_assessment' ? 'Approve Output' : 'Approve Step'}
           </Button>
         ) : null}
         {canOverrideOutput ? (

@@ -341,11 +341,11 @@ export function AlertsApprovalsPage(): JSX.Element {
   const approvalTasks = useMemo(() => approvalsQuery.data?.task_approvals ?? [], [approvalsQuery.data]);
   const stageGates = useMemo(() => approvalsQuery.data?.stage_gates ?? [], [approvalsQuery.data]);
   const reviewTasks = useMemo(
-    () => approvalTasks.filter((task) => task.state === 'output_pending_review'),
+    () => approvalTasks.filter((task) => task.state === 'output_pending_assessment'),
     [approvalTasks],
   );
   const manualApprovalTasks = useMemo(
-    () => approvalTasks.filter((task) => task.state !== 'output_pending_review'),
+    () => approvalTasks.filter((task) => task.state !== 'output_pending_assessment'),
     [approvalTasks],
   );
   const failedTasks = useMemo(
@@ -878,7 +878,7 @@ function ApprovalCard({ task, onApprove, onRequestChanges, onSkip, onReject, isL
 }
 
 // ---------------------------------------------------------------------------
-// Output review card (operator quality gate after execution)
+// Output assessment card (operator quality gate after execution)
 // ---------------------------------------------------------------------------
 
 interface OutputReviewCardProps {

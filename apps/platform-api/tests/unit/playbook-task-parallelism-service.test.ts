@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { PlaybookTaskParallelismService } from '../../src/services/playbook-task-parallelism-service.js';
 
 describe('PlaybookTaskParallelismService', () => {
-  it('does not count output_pending_review tasks as active specialist slots', async () => {
+  it('does not count output_pending_assessment tasks as active specialist slots', async () => {
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {

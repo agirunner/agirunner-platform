@@ -123,7 +123,7 @@ export function statusVariantForOperatorState(
     case 'rejected':
       return 'destructive';
     case 'awaiting_approval':
-    case 'output_pending_review':
+    case 'output_pending_assessment':
     case 'changes_requested':
     case 'queued':
     case 'paused':

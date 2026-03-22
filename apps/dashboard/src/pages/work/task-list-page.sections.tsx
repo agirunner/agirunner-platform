@@ -121,9 +121,9 @@ export function TaskPostureSection(props: {
       icon: Loader2,
     },
     {
-      title: 'Review queue',
-      value: `${props.posture.review} waiting`,
-      detail: 'Approvals and output reviews that need an operator decision',
+      title: 'Assessment queue',
+      value: `${props.posture.assessment} waiting`,
+      detail: 'Approvals and output assessments that need an operator decision',
       icon: CheckCircle2,
     },
     {
@@ -166,19 +166,19 @@ export function TaskListOperatorCue(props: {
   const highlightedTask =
     props.tasks.find((task) => ['failed', 'escalated'].includes(resolveTaskStatus(task))) ??
     props.tasks.find((task) =>
-      ['awaiting_approval', 'output_pending_review'].includes(resolveTaskStatus(task)),
+      ['awaiting_approval', 'output_pending_assessment'].includes(resolveTaskStatus(task)),
     ) ??
     props.tasks.find((task) => resolveTaskStatus(task) === 'ready') ??
     props.tasks.find((task) => task.is_orchestrator_task) ??
     props.tasks[0];
-  const reviewPressure = posture.review > 0;
+  const assessmentPressure = posture.assessment > 0;
   const recoveryPressure = posture.recovery > 0;
-  const cueTitle = recoveryPressure ? 'Recovery cue' : reviewPressure ? 'Approval cue' : 'Flow cue';
+  const cueTitle = recoveryPressure ? 'Recovery cue' : assessmentPressure ? 'Assessment cue' : 'Flow cue';
   const cueBody = readTaskRecoveryCue(highlightedTask);
   const cueFootnote = recoveryPressure
     ? `${posture.recovery} step${posture.recovery === 1 ? '' : 's'} still need intervention before lower-risk execution work matters.`
-    : reviewPressure
-      ? `${posture.review} step${posture.review === 1 ? '' : 's'} are waiting on review, so approvals will unblock flow fastest.`
+    : assessmentPressure
+      ? `${posture.assessment} step${posture.assessment === 1 ? '' : 's'} are waiting on assessment, so operator decisions will unblock flow fastest.`
       : 'The current page is mostly execution and orchestration work, so use the linked board flow only when you need deeper context.';
   const filterBody = props.hasFilters
     ? 'A saved or ad-hoc filter is active, so counts and cues reflect only the current slice.'
@@ -191,7 +191,7 @@ export function TaskListOperatorCue(props: {
           <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
             {cueTitle}
           </div>
-          <p className="text-base font-semibold">Review next, then recover</p>
+          <p className="text-base font-semibold">Clear assessments, then recover</p>
           <p className="text-sm leading-6 text-muted">{cueBody}</p>
           <p className="text-xs leading-5 text-muted">{cueFootnote}</p>
         </div>

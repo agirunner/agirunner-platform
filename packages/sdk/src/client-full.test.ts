@@ -464,7 +464,7 @@ describe('sdk full client coverage', () => {
                 {
                   id: 'task-1',
                   title: 'Review output',
-                  state: 'output_pending_review',
+                  state: 'output_pending_assessment',
                   created_at: '2026-03-11T00:00:00Z',
                 },
               ],

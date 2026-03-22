@@ -9,12 +9,12 @@ import {
 } from './approval-queue-task-card-support.js';
 
 describe('approval queue task card support', () => {
-  it('builds review guidance for output gates and direct approvals', () => {
+  it('builds assessment guidance for output gates and direct approvals', () => {
     expect(
       buildApprovalDecisionPacket({
         id: 'task-1',
         title: 'Review generated release notes',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         created_at: '2026-03-13T00:00:00Z',
       }),
     ).toEqual({
@@ -73,7 +73,7 @@ describe('approval queue task card support', () => {
       buildApprovalOutputPacket({
         id: 'task-3',
         title: 'Review generated release notes',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         created_at: '2026-03-13T00:00:00Z',
         output: 'Rendered summary',
       }),
@@ -103,7 +103,7 @@ describe('approval queue task card support', () => {
       buildApprovalOutputPacket({
         id: 'task-4',
         title: 'Review generated release notes',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         created_at: '2026-03-13T00:00:00Z',
       }),
     ).toEqual({

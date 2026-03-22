@@ -9,7 +9,7 @@ export interface ApprovalTaskPacket {
 export function buildApprovalDecisionPacket(
   task: DashboardApprovalTaskRecord,
 ): ApprovalTaskPacket {
-  if (task.state === 'output_pending_review') {
+  if (task.state === 'output_pending_assessment') {
     return {
       title: 'Review the output packet',
       summary:

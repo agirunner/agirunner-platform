@@ -317,7 +317,7 @@ function isOpenSpecialistTask(task: Record<string, unknown>): boolean {
     || state === 'claimed'
     || state === 'in_progress'
     || state === 'awaiting_approval'
-    || state === 'output_pending_review';
+    || state === 'output_pending_assessment';
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

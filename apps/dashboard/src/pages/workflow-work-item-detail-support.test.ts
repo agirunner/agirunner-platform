@@ -385,7 +385,7 @@ describe('workflow work item detail support', () => {
       describeTaskOperatorPosture({
         id: 'task-1',
         title: 'Review change',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         role: 'reviewer',
         stage_name: 'verification',
         completed_at: null,

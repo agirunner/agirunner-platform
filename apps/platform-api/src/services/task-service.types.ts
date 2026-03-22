@@ -25,7 +25,7 @@ export interface CreateTaskInput {
   context?: Record<string, unknown>;
   depends_on?: string[];
   requires_approval?: boolean;
-  requires_output_review?: boolean;
+  requires_assessment?: boolean;
   assessment_prompt?: string;
   role_config?: Record<string, unknown>;
   environment?: Record<string, unknown>;
@@ -62,7 +62,7 @@ export type PublicTaskState =
   | 'claimed'
   | 'in_progress'
   | 'awaiting_approval'
-  | 'output_pending_review'
+  | 'output_pending_assessment'
   | 'escalated'
   | 'completed'
   | 'failed'

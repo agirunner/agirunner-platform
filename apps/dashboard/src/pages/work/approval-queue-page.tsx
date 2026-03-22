@@ -239,7 +239,7 @@ export function ApprovalQueuePage(): JSX.Element {
                 icon={<FileText className="h-3.5 w-3.5" />}
                 label="Step reviews"
                 value={taskApprovals.length}
-                detail="Specialist approvals or output reviews still owned by operators."
+                detail="Specialist approvals or output assessments still owned by operators."
               />
               <QueueMetricCard
                 icon={<GitBranch className="h-3.5 w-3.5" />}
@@ -270,7 +270,7 @@ export function ApprovalQueuePage(): JSX.Element {
             <Inbox className="h-12 w-12 text-muted" />
             <p className="mt-4 text-lg font-medium">No operator queue items waiting</p>
             <p className="mt-1 text-sm text-muted">
-              Stage gates, specialist step approvals, and output gates will appear here.
+              Stage gates, specialist step approvals, and output assessments will appear here.
             </p>
           </CardContent>
         </Card>
@@ -317,7 +317,7 @@ export function ApprovalQueuePage(): JSX.Element {
                 icon={<FileText className="h-4 w-4 text-muted" />}
                 title="Step Approvals"
                 count={taskApprovals.length}
-                description="These operator decisions apply to specialist steps blocked on approval, output review, or rework guidance."
+                description="These operator decisions apply to specialist steps blocked on approval, output assessment, or rework guidance."
               />
               {visibleTaskApprovals.map((task) => (
                 <TaskApprovalCard key={task.id} task={task} />

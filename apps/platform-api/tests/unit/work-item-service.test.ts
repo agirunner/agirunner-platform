@@ -311,7 +311,7 @@ describe('WorkItemService', () => {
     expect((workItem as Record<string, unknown>).assessment_status).toBe('pending');
   });
 
-  it('allows the immediate review successor when the predecessor output is pending review with a full handoff', async () => {
+  it('allows the immediate review successor when the predecessor output is pending assessment with a full handoff', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -368,7 +368,7 @@ describe('WorkItemService', () => {
         if (sql.includes('FROM tasks') && sql.includes('GROUP BY state')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-impl-1']);
           return {
-            rows: [{ state: 'output_pending_review', count: 1 }],
+            rows: [{ state: 'output_pending_assessment', count: 1 }],
             rowCount: 1,
           };
         }

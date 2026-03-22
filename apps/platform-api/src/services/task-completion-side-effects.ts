@@ -571,7 +571,7 @@ async function maybeResolveAssessmentSubject(
         AND workflow_id = $2
         AND work_item_id = $3
         AND id = $4
-        AND state = 'output_pending_review'
+        AND state = 'output_pending_assessment'
       RETURNING *`,
     [
       identity.tenantId,
@@ -657,7 +657,7 @@ async function maybeResolveAssessmentSubject(
       actorType: 'system',
       actorId: 'assessment_resolver',
       data: {
-        from_state: 'output_pending_review',
+        from_state: 'output_pending_assessment',
         to_state: 'completed',
         reason: 'assessment_approved',
         assessment_task_id: assessmentTaskId,
@@ -695,7 +695,7 @@ async function loadSubjectTaskCandidates(
               AND state = ANY($4::task_state[])
               AND id <> $5
             LIMIT 1`,
-          [tenantId, workflowId, explicitSubjectTaskId, ['output_pending_review', 'completed'], assessmentTaskId],
+          [tenantId, workflowId, explicitSubjectTaskId, ['output_pending_assessment', 'completed'], assessmentTaskId],
         )
       : await client.query<Record<string, unknown>>(
           `SELECT *
@@ -703,7 +703,7 @@ async function loadSubjectTaskCandidates(
             WHERE tenant_id = $1
               AND workflow_id = $2
               AND id = $3
-              AND state = 'output_pending_review'
+              AND state = 'output_pending_assessment'
               AND id <> $4
             LIMIT 1`,
           [tenantId, workflowId, explicitSubjectTaskId, assessmentTaskId],

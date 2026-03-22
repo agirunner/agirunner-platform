@@ -69,7 +69,7 @@ const ACTIVE_TASK_DUPLICATE_GUARD_STATES = [
   'claimed',
   'in_progress',
   'awaiting_approval',
-  'output_pending_review',
+  'output_pending_assessment',
   'escalated',
 ] as const;
 const REUSABLE_TASK_DUPLICATE_GUARD_STATES = [
@@ -168,7 +168,7 @@ export class TaskWriteService {
     const insertResult = await db.query(
       `INSERT INTO tasks (
         tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
-        requires_approval, requires_output_review, input, context, role_config, environment,
+        requires_approval, requires_assessment, input, context, role_config, environment,
         resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, metadata
       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
       ON CONFLICT DO NOTHING
@@ -185,7 +185,7 @@ export class TaskWriteService {
         initialState,
         dependencies,
         normalizedInput.requires_approval ?? false,
-        normalizedInput.requires_output_review ?? false,
+        normalizedInput.requires_assessment ?? false,
         normalizedInput.input ?? {},
         normalizedInput.context ?? {},
         normalizedInput.role_config ?? null,
@@ -287,7 +287,7 @@ export class TaskWriteService {
             WHEN 'claimed' THEN 1
             WHEN 'ready' THEN 2
             WHEN 'awaiting_approval' THEN 3
-            WHEN 'output_pending_review' THEN 4
+            WHEN 'output_pending_assessment' THEN 4
             WHEN 'pending' THEN 5
             WHEN 'escalated' THEN 6
             ELSE 7
@@ -603,7 +603,7 @@ export class TaskWriteService {
       return input;
     }
     const taskStageName = input.stage_name?.trim() || null;
-    const requiresOutputReview = definition.assessment_rules.some(
+    const requiresAssessment = definition.assessment_rules.some(
       (rule) =>
         rule.required !== false
         && rule.subject_role === roleName
@@ -611,7 +611,7 @@ export class TaskWriteService {
     );
     return {
       ...input,
-      requires_output_review: requiresOutputReview,
+      requires_assessment: requiresAssessment,
     };
   }
 
@@ -1123,7 +1123,7 @@ function buildExpectedCreateTaskReplay(
     stage_name: input.stage_name ?? null,
     depends_on: dependencies,
     requires_approval: input.requires_approval ?? false,
-    requires_output_review: input.requires_output_review ?? false,
+    requires_assessment: input.requires_assessment ?? false,
     context: input.context ?? {},
     role_config: input.role_config ?? null,
     environment: input.environment ?? null,
@@ -1156,7 +1156,7 @@ function buildExpectedCreateTaskIntent(
     stage_name: input.stage_name ?? null,
     depends_on: dependencies,
     requires_approval: input.requires_approval ?? false,
-    requires_output_review: input.requires_output_review ?? false,
+    requires_assessment: input.requires_assessment ?? false,
     context: input.context ?? {},
     role_config: input.role_config ?? null,
     environment: input.environment ?? null,
@@ -1185,7 +1185,7 @@ function assertMatchingCreateTaskReplay(
     (existing.stage_name ?? null) !== expected.stage_name ||
     !areJsonValuesEquivalent(existing.depends_on ?? [], expected.depends_on) ||
     Boolean(existing.requires_approval) !== expected.requires_approval ||
-    Boolean(existing.requires_output_review) !== expected.requires_output_review ||
+    Boolean(existing.requires_assessment) !== expected.requires_assessment ||
     !areJsonValuesEquivalent(asRecord(existing.context), expected.context) ||
     !areJsonValuesEquivalent(existing.role_config ?? null, expected.role_config) ||
     !areJsonValuesEquivalent(existing.environment ?? null, expected.environment) ||
@@ -1220,7 +1220,7 @@ function matchesCreateTaskIntent(
     (existing.stage_name ?? null) === expected.stage_name &&
     areJsonValuesEquivalent(existing.depends_on ?? [], expected.depends_on) &&
     Boolean(existing.requires_approval) === expected.requires_approval &&
-    Boolean(existing.requires_output_review) === expected.requires_output_review &&
+    Boolean(existing.requires_assessment) === expected.requires_assessment &&
     areJsonValuesEquivalent(asRecord(existing.context), expected.context) &&
     areJsonValuesEquivalent(existing.role_config ?? null, expected.role_config) &&
     areJsonValuesEquivalent(existing.environment ?? null, expected.environment) &&

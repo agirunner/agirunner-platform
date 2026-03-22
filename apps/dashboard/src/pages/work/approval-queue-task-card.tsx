@@ -68,11 +68,11 @@ export function TaskApprovalCard(props: {
   const queryClient = useQueryClient();
   const [isChangesDialogOpen, setIsChangesDialogOpen] = useState(false);
   const [feedback, setFeedback] = useState('');
-  const isOutputReview = task.state === 'output_pending_review';
+  const isOutputAssessment = task.state === 'output_pending_assessment';
 
   const approveMutation = useMutation({
     mutationFn: () =>
-      isOutputReview ? dashboardApi.approveTaskOutput(task.id) : dashboardApi.approveTask(task.id),
+      isOutputAssessment ? dashboardApi.approveTaskOutput(task.id) : dashboardApi.approveTask(task.id),
     onSuccess: async () => {
       queryClient.invalidateQueries({ queryKey: ['approval-queue'] });
       queryClient.invalidateQueries({ queryKey: ['tasks'] });
@@ -134,8 +134,8 @@ export function TaskApprovalCard(props: {
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div className="min-w-0 flex-1 space-y-3">
               <div className="flex flex-wrap items-center gap-2">
-                <Badge variant={isOutputReview ? 'warning' : 'secondary'}>
-                  {isOutputReview ? 'Output gate' : 'Step approval'}
+                <Badge variant={isOutputAssessment ? 'warning' : 'secondary'}>
+                  {isOutputAssessment ? 'Output gate' : 'Step approval'}
                 </Badge>
                 <Badge variant="outline">
                   <Clock3 className="mr-1 h-3 w-3" />
@@ -206,7 +206,7 @@ export function TaskApprovalCard(props: {
                     ) : (
                       <CheckCircle className="h-4 w-4" />
                     )}
-                    {isOutputReview ? 'Approve Output' : 'Approve'}
+                    {isOutputAssessment ? 'Approve Output' : 'Approve'}
                   </Button>
                   <Button
                     variant="outline"

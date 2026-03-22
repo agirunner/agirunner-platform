@@ -182,7 +182,7 @@ describe('task list page support', () => {
         new Date('2026-03-12T12:00:00.000Z').getTime(),
       ),
     ).toBe('45m ago');
-    expect(formatStatusLabel('output_pending_review')).toBe('Output Pending Review');
+    expect(formatStatusLabel('output_pending_assessment')).toBe('Output Pending Assessment');
     expect(statusBadgeVariant('failed')).toBe('destructive');
   });
 
@@ -205,7 +205,7 @@ describe('task list page support', () => {
     expect(summarizeTaskPosture(tasks)).toEqual({
       active: 2,
       ready: 1,
-      review: 1,
+      assessment: 1,
       recovery: 1,
       orchestrator: 1,
     });
@@ -226,11 +226,11 @@ describe('task list page support', () => {
     expect(
       readTaskRecoveryCue({
         id: 'task-review',
-        status: 'output_pending_review',
+        status: 'output_pending_assessment',
         created_at: '2026-03-12T12:00:00.000Z',
       }),
     ).toBe(
-      'Output is ready for review. Validate the packet, then approve or request targeted changes.',
+      'Output is ready for assessment. Validate the packet, then approve or request targeted changes.',
     );
     expect(
       readTaskRecoveryCue({

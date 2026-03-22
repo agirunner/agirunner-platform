@@ -26,7 +26,7 @@ describe('alerts approvals page source', () => {
     expect(source).toContain('Operator Guidance');
     expect(source).toContain('Execution Failures');
     expect(source).toContain('escalated');
-    expect(source).toContain('output_pending_review');
+    expect(source).toContain('output_pending_assessment');
     expect(source).toContain('Cancel Failed Step');
     expect(source).toContain('Cancel Work');
   });

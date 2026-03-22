@@ -41,7 +41,7 @@ export class WorkflowCancellationService {
         'pending',
         'ready',
         'awaiting_approval',
-        'output_pending_review',
+        'output_pending_assessment',
         'failed',
         'escalated',
       ];

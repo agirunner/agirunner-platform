@@ -94,7 +94,7 @@ function statusBadgeVariant(status: string) {
     completed: 'success',
     in_progress: 'default',
     failed: 'destructive',
-    output_pending_review: 'warning',
+    output_pending_assessment: 'warning',
     pending: 'secondary',
     awaiting_approval: 'warning',
     escalated: 'destructive',
@@ -108,8 +108,8 @@ function describeTaskKind(task: Task): string {
   if (task.is_orchestrator_task) {
     return 'Orchestrator activation';
   }
-  if (status === 'output_pending_review') {
-    return 'Output review';
+  if (status === 'output_pending_assessment') {
+    return 'Output assessment';
   }
   if (status === 'awaiting_approval') {
     return 'Operator approval';
@@ -170,7 +170,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
   });
   const status = resolveStatus(task);
   const isAwaitingApproval = status === 'awaiting_approval';
-  const isOutputReview = status === 'output_pending_review';
+  const isOutputAssessment = status === 'output_pending_assessment';
   const isEscalated = status === 'escalated';
   const isFailed = status === 'failed';
   const isInProgress = status === 'in_progress';
@@ -191,7 +191,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
 
   const approveMutation = useMutation({
     mutationFn: () =>
-      isOutputReview ? dashboardApi.approveTaskOutput(task.id) : dashboardApi.approveTask(task.id),
+      isOutputAssessment ? dashboardApi.approveTaskOutput(task.id) : dashboardApi.approveTask(task.id),
     onSuccess: () => {
       setActionError(null);
       queryClient.invalidateQueries({ queryKey: ['task', task.id] });
@@ -348,7 +348,7 @@ function TaskActionButtons({ task }: { task: Task }): JSX.Element {
           </Button>
         </>
       )}
-      {isOutputReview && (
+      {isOutputAssessment && (
         <>
           <Button
             size="sm"

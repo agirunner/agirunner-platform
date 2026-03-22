@@ -25,7 +25,7 @@ export interface TaskListRecord {
 export interface TaskPostureSummary {
   active: number;
   ready: number;
-  review: number;
+  assessment: number;
   recovery: number;
   orchestrator: number;
 }
@@ -38,7 +38,7 @@ export type StatusFilter =
   | 'completed'
   | 'failed'
   | 'awaiting_approval'
-  | 'output_pending_review'
+  | 'output_pending_assessment'
   | 'escalated';
 
 export const STATUS_FILTERS: StatusFilter[] = [
@@ -49,7 +49,7 @@ export const STATUS_FILTERS: StatusFilter[] = [
   'completed',
   'failed',
   'awaiting_approval',
-  'output_pending_review',
+  'output_pending_assessment',
   'escalated',
 ];
 
@@ -79,7 +79,7 @@ export function statusBadgeVariant(
       completed: 'success',
       in_progress: 'default',
       failed: 'destructive',
-      output_pending_review: 'warning',
+      output_pending_assessment: 'warning',
       awaiting_approval: 'warning',
       escalated: 'destructive',
       ready: 'secondary',
@@ -96,8 +96,8 @@ export function describeTaskKind(task: TaskListRecord): string {
   if (status === 'escalated') {
     return 'Escalated specialist step';
   }
-  if (status === 'output_pending_review') {
-    return 'Output review';
+  if (status === 'output_pending_assessment') {
+    return 'Output assessment';
   }
   if (status === 'awaiting_approval') {
     return 'Operator approval';
@@ -122,7 +122,7 @@ export function describeTaskNextAction(task: TaskListRecord): string {
       ? `Review and approve this step from the ${operatorFlow}.`
       : 'Review and approve the step output.';
   }
-  if (status === 'output_pending_review') {
+  if (status === 'output_pending_assessment') {
     return operatorFlow
       ? `Inspect the output packet from the ${operatorFlow} and decide on changes.`
       : 'Inspect the output packet and decide on changes.';
@@ -165,8 +165,8 @@ export function readTaskRecoveryCue(task: TaskListRecord): string {
   if (status === 'awaiting_approval') {
     return 'An approval decision is waiting. Approve, reject, or request changes so the board can move again.';
   }
-  if (status === 'output_pending_review') {
-    return 'Output is ready for review. Validate the packet, then approve or request targeted changes.';
+  if (status === 'output_pending_assessment') {
+    return 'Output is ready for assessment. Validate the packet, then approve or request targeted changes.';
   }
   if (status === 'ready') {
     return 'This step is ready but unclaimed. Watch for worker-capacity buildup if more steps stack here.';
@@ -235,15 +235,15 @@ export function summarizeTaskPosture(tasks: TaskListRecord[]): TaskPostureSummar
       if (status === 'in_progress') {
         summary.active += 1;
       }
-      if (status === 'awaiting_approval' || status === 'output_pending_review') {
-        summary.review += 1;
+      if (status === 'awaiting_approval' || status === 'output_pending_assessment') {
+        summary.assessment += 1;
       }
       if (status === 'failed' || status === 'escalated') {
         summary.recovery += 1;
       }
       return summary;
     },
-    { active: 0, ready: 0, review: 0, recovery: 0, orchestrator: 0 },
+    { active: 0, ready: 0, assessment: 0, recovery: 0, orchestrator: 0 },
   );
 }
 

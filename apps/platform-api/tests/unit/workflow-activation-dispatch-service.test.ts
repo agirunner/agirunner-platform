@@ -54,6 +54,21 @@ vi.mock('../../src/services/workflow-stage-projection.js', async () => {
 
 import { WorkflowActivationDispatchService } from '../../src/services/workflow-activation-dispatch-service.js';
 
+function readInsertedActivationTask(params: unknown[] | undefined) {
+  return {
+    input: params?.[6],
+    roleConfig: params?.[7],
+    environment: params?.[8],
+    resourceBindings: params?.[9],
+    activationId: params?.[10],
+    requestId: params?.[11],
+    timeoutMinutes: params?.[12],
+    maxIterations: params?.[13],
+    llmMaxRetries: params?.[14],
+    metadata: params?.[15],
+  };
+}
+
 describe('WorkflowActivationDispatchService', () => {
   beforeEach(() => {
     loadWorkflowStageProjectionMock.mockReset();
@@ -81,9 +96,9 @@ describe('WorkflowActivationDispatchService', () => {
           expect(sql).toContain('t.is_orchestrator_task = false');
           expect(sql).toContain("AND t.state = ANY($3::task_state[])");
           expect(params).toEqual([
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
             300_000,
-            ['claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ['claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
             2,
           ]);
           return {
@@ -165,9 +180,9 @@ describe('WorkflowActivationDispatchService', () => {
         if (sql.includes('FROM workflows w')) {
           expect(sql).toContain('t.is_orchestrator_task = false');
           expect(params).toEqual([
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
             300_000,
-            ['claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ['claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
             5,
           ]);
           return { rowCount: 0, rows: [] };
@@ -197,7 +212,7 @@ describe('WorkflowActivationDispatchService', () => {
     const pool = {
       query: vi.fn(async (_sql: string, params?: unknown[]) => {
         expect(params).toEqual([
-          ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+          ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
           60_000,
           2,
         ]);
@@ -242,7 +257,7 @@ describe('WorkflowActivationDispatchService', () => {
         expect(sql).toContain("wa.event_type = 'task.handoff_submitted'");
         expect(sql).toContain("wa.event_type = 'child_workflow.completed'");
         expect(params).toEqual([
-          ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+          ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
           60_000,
           3,
         ]);
@@ -283,11 +298,11 @@ describe('WorkflowActivationDispatchService', () => {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         expect(sql).toContain("wa.event_type = 'task.completed'");
         expect(sql).toContain("wa.event_type = 'task.failed'");
-        expect(sql).toContain("wa.event_type = 'task.output_pending_review'");
+        expect(sql).toContain("wa.event_type = 'task.output_pending_assessment'");
         expect(sql).toContain("wa.event_type = 'task.approved'");
         expect(sql).toContain("wa.event_type = 'task.assessment_requested_changes'");
         expect(params).toEqual([
-          ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+          ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
           60_000,
           1,
         ]);
@@ -466,8 +481,9 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
+          const inserted = readInsertedActivationTask(params);
           expect(params?.[5]).toBe('triage');
-          expect(params?.[6]).toEqual(
+          expect(inserted.input).toEqual(
             expect.objectContaining({
               activation_id: 'activation-heartbeat',
               activation_reason: 'heartbeat',
@@ -477,9 +493,9 @@ describe('WorkflowActivationDispatchService', () => {
               events: [],
             }),
           );
-          expect(params?.[14]).toBe(500);
-          expect(params?.[15]).toBe(5);
-          expect(params?.[16]).toEqual(
+          expect(inserted.maxIterations).toBe(500);
+          expect(inserted.llmMaxRetries).toBe(5);
+          expect(inserted.metadata).toEqual(
             expect.objectContaining({
               activation_event_type: 'heartbeat',
               activation_reason: 'heartbeat',
@@ -602,9 +618,10 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[13]).toBe(45);
-          expect(params?.[14]).toBe(500);
-          expect(params?.[15]).toBe(5);
+          const inserted = readInsertedActivationTask(params);
+          expect(inserted.timeoutMinutes).toBe(45);
+          expect(inserted.maxIterations).toBe(500);
+          expect(inserted.llmMaxRetries).toBe(5);
           return { rowCount: 1, rows: [{ id: 'task-runtime-default' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -731,9 +748,10 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[13]).toBe(30);
-          expect(params?.[14]).toBe(120);
-          expect(params?.[15]).toBe(7);
+          const inserted = readInsertedActivationTask(params);
+          expect(inserted.timeoutMinutes).toBe(30);
+          expect(inserted.maxIterations).toBe(120);
+          expect(inserted.llmMaxRetries).toBe(7);
           return { rowCount: 1, rows: [{ id: 'task-playbook-loop-defaults' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -1111,7 +1129,8 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[6]).toEqual(
+          const inserted = readInsertedActivationTask(params);
+          expect(inserted.input).toEqual(
             expect.objectContaining({
               activation_id: 'activation-heartbeat',
               activation_reason: 'queued_events',
@@ -1123,9 +1142,9 @@ describe('WorkflowActivationDispatchService', () => {
               ],
             }),
           );
-          expect(params?.[14]).toBe(500);
-          expect(params?.[15]).toBe(5);
-          expect(params?.[16]).toEqual(
+          expect(inserted.maxIterations).toBe(500);
+          expect(inserted.llmMaxRetries).toBe(5);
+          expect(inserted.metadata).toEqual(
             expect.objectContaining({
               activation_event_type: 'task.completed',
               activation_reason: 'queued_events',
@@ -1390,9 +1409,10 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
+          const inserted = readInsertedActivationTask(params);
           expect(params?.[5]).toBe('implementation');
-          expect(params?.[6]).not.toHaveProperty('current_stage');
-          expect(params?.[6]).toEqual(
+          expect(inserted.input).not.toHaveProperty('current_stage');
+          expect(inserted.input).toEqual(
             expect.objectContaining({
               activation_id: 'activation-1',
               activation_reason: 'queued_events',
@@ -1405,7 +1425,7 @@ describe('WorkflowActivationDispatchService', () => {
               ],
             }),
           );
-          expect(params?.[9]).toEqual(
+          expect(inserted.environment).toEqual(
             expect.objectContaining({
               execution_mode: 'orchestrator',
               template: 'execution-workspace',
@@ -1413,7 +1433,7 @@ describe('WorkflowActivationDispatchService', () => {
               branch: 'main',
             }),
           );
-          expect(params?.[10]).toBe(JSON.stringify([]));
+          expect(inserted.resourceBindings).toBe(JSON.stringify([]));
           return { rowCount: 1, rows: [{ id: 'task-1' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -1642,14 +1662,15 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[8]).toEqual(
+          const inserted = readInsertedActivationTask(params);
+          expect(inserted.roleConfig).toEqual(
             expect.objectContaining({
               system_prompt: expect.stringContaining('finish the activation and wait for the next event'),
             }),
           );
-          expect((params?.[8] as { system_prompt: string }).system_prompt).toContain('Do not poll running tasks in a loop.');
-          expect((params?.[8] as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
-          expect(params?.[9]).toEqual({
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('Do not poll running tasks in a loop.');
+          expect((inserted.roleConfig as { system_prompt: string }).system_prompt).toContain('If a stage already awaits approval, do not request another gate');
+          expect(inserted.environment).toEqual({
             execution_mode: 'orchestrator',
             template: 'execution-workspace',
             repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
@@ -1657,7 +1678,7 @@ describe('WorkflowActivationDispatchService', () => {
             git_user_name: 'Smoke Bot',
             git_user_email: 'smoke@example.test',
           });
-          expect(JSON.parse(String(params?.[10] ?? '[]'))).toEqual([
+          expect(JSON.parse(String(inserted.resourceBindings ?? '[]'))).toEqual([
             {
               type: 'git_repository',
               repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
@@ -1666,7 +1687,7 @@ describe('WorkflowActivationDispatchService', () => {
               },
             },
           ]);
-          expect(params?.[6]).toEqual(
+          expect(inserted.input).toEqual(
             expect.objectContaining({
               current_stage: 'requirements',
               repository: {
@@ -1790,7 +1811,8 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[9]).toEqual({
+          const inserted = readInsertedActivationTask(params);
+          expect(inserted.environment).toEqual({
             execution_mode: 'orchestrator',
             template: 'execution-workspace',
             repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
@@ -1798,7 +1820,7 @@ describe('WorkflowActivationDispatchService', () => {
             git_user_name: 'Smoke Bot',
             git_user_email: 'smoke@example.test',
           });
-          expect(params?.[6]).toEqual(
+          expect(inserted.input).toEqual(
             expect.objectContaining({
               repository: {
                 repository_url: 'https://github.com/agisnap/agirunner-test-fixtures.git',
@@ -2996,7 +3018,7 @@ describe('WorkflowActivationDispatchService', () => {
             'tenant-1',
             'workflow-1',
             'activation-1',
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
             'task-old',
           ]);
           return { rowCount: 1, rows: [{ '?column?': 1 }] };
@@ -3356,7 +3378,7 @@ describe('WorkflowActivationDispatchService', () => {
             expect(params).toEqual([
               300_000,
               20,
-              ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+              ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
             ]);
             return { rowCount: 1, rows: [{ id: 'activation-8', tenant_id: 'tenant-1' }] };
           }
@@ -3448,7 +3470,7 @@ describe('WorkflowActivationDispatchService', () => {
             expect(params).toEqual([
               300_000,
               20,
-              ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+              ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
             ]);
             return { rowCount: 0, rows: [] };
           }
@@ -3769,7 +3791,7 @@ describe('WorkflowActivationDispatchService', () => {
             'tenant-1',
             'workflow-1',
             'activation-1',
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment'],
             'task-1',
           ]);
           return { rowCount: 0, rows: [] };

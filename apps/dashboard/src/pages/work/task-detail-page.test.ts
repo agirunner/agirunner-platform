@@ -16,7 +16,7 @@ describe('task detail page source', () => {
     expect(source).toContain('Stage');
   });
 
-  it('handles output review and escalation-aware operator actions', () => {
+  it('handles output assessment and escalation-aware operator actions', () => {
     const source = readSource();
     expect(source).toContain('approveTaskOutput');
     expect(source).toContain('overrideTaskOutput');

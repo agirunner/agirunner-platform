@@ -164,7 +164,7 @@ func (m *Manager) shouldFailActiveTask(taskID string) (bool, string) {
 
 func isHungRuntimeFailureEligibleTaskState(state string) bool {
 	switch strings.ToLower(strings.TrimSpace(state)) {
-	case "completed", "failed", "cancelled", "escalated", "output_pending_review", "awaiting_approval":
+	case "completed", "failed", "cancelled", "escalated", "output_pending_assessment", "awaiting_approval":
 		return false
 	default:
 		return true

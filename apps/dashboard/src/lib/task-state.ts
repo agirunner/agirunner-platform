@@ -4,7 +4,7 @@ const CANONICAL_TASK_STATES = new Set([
   'claimed',
   'in_progress',
   'awaiting_approval',
-  'output_pending_review',
+  'output_pending_assessment',
   'escalated',
   'completed',
   'failed',

@@ -249,7 +249,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     });
   });
 
-  it('moves completion to output_pending_review when output schema validation fails', async () => {
+  it('moves completion to output_pending_assessment when output schema validation fails', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
@@ -259,7 +259,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
             rows: [
               {
                 id: 'task-review',
-                state: 'output_pending_review',
+                state: 'output_pending_assessment',
                 workflow_id: 'wf-1',
                 assigned_agent_id: null,
                 assigned_worker_id: null,
@@ -312,10 +312,10 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       },
     );
 
-    expect(result.state).toBe('output_pending_review');
+    expect(result.state).toBe('output_pending_assessment');
   });
 
-  it('records continuity expectations when completion routes to output review', async () => {
+  it('records continuity expectations when completion routes to output assessment', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
@@ -326,7 +326,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
             rowCount: 1,
             rows: [{
               id: 'task-review-needed',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               workflow_id: 'workflow-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
@@ -345,9 +345,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               id: 'activation-review-needed',
               workflow_id: 'workflow-1',
               activation_id: null,
-              request_id: 'task-output_pending_review:task-review-needed:updated',
-              reason: 'task.output_pending_review',
-              event_type: 'task.output_pending_review',
+              request_id: 'task-output_pending_assessment:task-review-needed:updated',
+              reason: 'task.output_pending_assessment',
+              event_type: 'task.output_pending_assessment',
               payload: {},
               state: 'queued',
               dispatch_attempt: 0,
@@ -388,7 +388,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
         role: 'developer',
-        requires_output_review: true,
+        requires_assessment: true,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         role_config: {},
@@ -413,12 +413,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       },
     );
 
-    expect(result.state).toBe('output_pending_review');
+    expect(result.state).toBe('output_pending_assessment');
     expect(workItemContinuityService.recordTaskCompleted).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
         id: 'task-review-needed',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         work_item_id: 'work-item-1',
         role: 'developer',
       }),
@@ -426,7 +426,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
-  it('re-arms an open child review work item for the reviewer when rework resubmission returns to output review', async () => {
+  it('re-arms an open child review work item for the reviewer when rework resubmission returns to output assessment', async () => {
     const client = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
@@ -437,7 +437,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
             rowCount: 1,
             rows: [{
               id: 'task-rework-resubmitted',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               workflow_id: 'workflow-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
@@ -464,9 +464,9 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
               id: 'activation-review-resubmitted',
               workflow_id: 'workflow-1',
               activation_id: null,
-              request_id: 'task-output_pending_review:task-rework-resubmitted:updated',
-              reason: 'task.output_pending_review',
-              event_type: 'task.output_pending_review',
+              request_id: 'task-output_pending_assessment:task-rework-resubmitted:updated',
+              reason: 'task.output_pending_assessment',
+              event_type: 'task.output_pending_assessment',
               payload: {},
               state: 'queued',
               dispatch_attempt: 0,
@@ -507,7 +507,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
         role: 'developer',
-        requires_output_review: true,
+        requires_assessment: true,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         rework_count: 1,
@@ -533,7 +533,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       },
     );
 
-    expect(result.state).toBe('output_pending_review');
+    expect(result.state).toBe('output_pending_assessment');
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
       ['tenant-1', 'workflow-1', 'work-item-1'],
@@ -602,7 +602,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
         role: 'reviewer',
-        requires_output_review: true,
+        requires_assessment: true,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         rework_count: 0,
@@ -986,7 +986,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-review-loop',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         workflow_id: null,
         input: { summary: 'old output' },
         rework_count: 0,
@@ -1092,7 +1092,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-review-loop',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',
         stage_name: 'review',
@@ -1264,7 +1264,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-impl',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         workflow_id: 'workflow-1',
         work_item_id: 'implementation-item',
         stage_name: 'implementation',
@@ -1542,7 +1542,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     };
     const existingTask = {
       id: 'task-review-loop-consumed',
-      state: 'output_pending_review',
+      state: 'output_pending_assessment',
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       input: {
@@ -1621,7 +1621,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     };
     const existingTask = {
       id: 'task-review-loop-superseded',
-      state: 'output_pending_review',
+      state: 'output_pending_assessment',
       workflow_id: 'workflow-1',
       work_item_id: 'work-item-1',
       input: {
@@ -1692,7 +1692,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     };
     const existingTask = {
       id: 'task-qa-rework-superseded',
-      state: 'output_pending_review',
+      state: 'output_pending_assessment',
       workflow_id: 'workflow-1',
       work_item_id: 'implementation-item',
       input: {
@@ -1829,7 +1829,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       defaultTaskTimeoutMinutes: 30,
       loadTaskOrThrow: vi.fn().mockResolvedValue({
         id: 'task-max-rework',
-        state: 'output_pending_review',
+        state: 'output_pending_assessment',
         workflow_id: 'pipe-1',
         title: 'Compile',
         role: 'builder',
@@ -2240,7 +2240,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
-  it('releases queued specialist tasks when a task enters output_pending_review', async () => {
+  it('releases queued specialist tasks when a task enters output_pending_assessment', async () => {
     const eventService = { emit: vi.fn() };
     const parallelismService = {
       releaseQueuedReadyTasks: vi.fn(async () => 1),
@@ -2256,7 +2256,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
             rows: [
               {
                 id: 'task-review-slot',
-                state: 'output_pending_review',
+                state: 'output_pending_assessment',
                 workflow_id: 'wf-1',
                 is_orchestrator_task: false,
                 assigned_agent_id: 'agent-1',
@@ -2283,7 +2283,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         is_orchestrator_task: false,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
-        requires_output_review: true,
+        requires_assessment: true,
         metadata: {},
       }),
       toTaskResponse: (task) => task,
@@ -2308,7 +2308,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       },
     );
 
-    expect(result.state).toBe('output_pending_review');
+    expect(result.state).toBe('output_pending_assessment');
     expect(parallelismService.releaseQueuedReadyTasks).toHaveBeenCalledWith(
       eventService,
       'tenant-1',
@@ -3718,10 +3718,10 @@ describe('TaskLifecycleService replay-safe idempotent guards', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
-  it('returns the existing task when completeTask replays for an output_pending_review task with matching output', async () => {
+  it('returns the existing task when completeTask replays for an output_pending_assessment task with matching output', async () => {
     const existingTask = {
       id: 'task-review-replay',
-      state: 'output_pending_review',
+      state: 'output_pending_assessment',
       workflow_id: null,
       assigned_agent_id: 'agent-1',
       assigned_worker_id: null,

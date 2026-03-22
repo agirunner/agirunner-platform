@@ -9,7 +9,7 @@ export const taskStateEnum = pgEnum('task_state', [
   'failed',
   'cancelled',
   'awaiting_approval',
-  'output_pending_review',
+  'output_pending_assessment',
   'escalated',
 ]);
 

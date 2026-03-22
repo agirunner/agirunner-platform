@@ -114,7 +114,7 @@ DO $$ BEGIN
     'failed',
     'cancelled',
     'awaiting_approval',
-    'output_pending_review',
+    'output_pending_assessment',
     'escalated'
   );
 EXCEPTION WHEN duplicate_object THEN NULL;
@@ -361,7 +361,7 @@ CREATE TABLE public.tasks (
     started_at timestamp with time zone,
     depends_on uuid[] DEFAULT '{}'::uuid[] NOT NULL,
     requires_approval boolean DEFAULT false NOT NULL,
-    requires_output_review boolean DEFAULT false NOT NULL,
+    requires_assessment boolean DEFAULT false NOT NULL,
     input jsonb DEFAULT '{}'::jsonb NOT NULL,
     output jsonb,
     error jsonb,

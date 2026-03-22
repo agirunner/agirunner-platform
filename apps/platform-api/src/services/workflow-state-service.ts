@@ -236,7 +236,7 @@ export class WorkflowStateService {
           WHERE tenant_id = $1
             AND workflow_id = $2
             AND is_orchestrator_task = true
-            AND state IN ('ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review')
+            AND state IN ('ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment')
           LIMIT 1`,
         [tenantId, workflowId],
       ),

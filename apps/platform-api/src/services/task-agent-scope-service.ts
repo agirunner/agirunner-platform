@@ -44,7 +44,7 @@ export class TaskAgentScopeService {
       throw new ForbiddenError('Task is not owned by the calling agent');
     }
     const normalizedState = normalizeTaskState(task.state) ?? task.state;
-    if (!['claimed', 'in_progress', 'output_pending_review', 'awaiting_approval'].includes(normalizedState)) {
+    if (!['claimed', 'in_progress', 'output_pending_assessment', 'awaiting_approval'].includes(normalizedState)) {
       throw new ForbiddenError('Task-scoped tools require an active task');
     }
     task.state = normalizedState;

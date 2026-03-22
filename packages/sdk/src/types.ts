@@ -11,7 +11,7 @@ export type TaskState =
   | 'failed'
   | 'cancelled'
   | 'awaiting_approval'
-  | 'output_pending_review';
+  | 'output_pending_assessment';
 
 export type WorkflowState =
   | 'pending'

@@ -23,14 +23,14 @@ describe('task list page source', () => {
     expect(source).toContain('TaskListContent');
     expect(source).toContain('TaskPostureSection');
     expect(source).toContain('Execution pressure');
-    expect(source).toContain('Review queue');
+    expect(source).toContain('Assessment queue');
     expect(source).toContain('Recovery queue');
     expect(source).toContain('Orchestrator turns');
   });
 
   it('surfaces v2 workflow scope and operator review states', () => {
     const source = readSource();
-    expect(source).toContain('output_pending_review');
+    expect(source).toContain('output_pending_assessment');
     expect(source).toContain('escalated');
     expect(source).toContain('describeTaskNextAction');
     expect(source).toContain('describeTaskScope');
@@ -51,7 +51,7 @@ describe('task list page source', () => {
     expect(source).toContain('Open workflow context');
     expect(source).toContain('Open step diagnostics');
     expect(source).toContain('TaskListOperatorCue');
-    expect(source).toContain('Review next, then recover');
+    expect(source).toContain('Clear assessments, then recover');
     expect(source).toContain('This page keeps posture, recovery cues, board context');
   });
 });

@@ -10,7 +10,7 @@ import {
 describe('operator display helpers', () => {
   it('formats status labels for operator-readable copy', () => {
     expect(formatOperatorStatusLabel('in_progress')).toBe('In Progress');
-    expect(formatOperatorStatusLabel('outputPendingReview')).toBe('Output Pending Review');
+    expect(formatOperatorStatusLabel('outputPendingAssessment')).toBe('Output Pending Assessment');
     expect(formatOperatorStatusLabel('')).toBe('Unknown');
   });
 

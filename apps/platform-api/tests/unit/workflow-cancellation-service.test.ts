@@ -352,7 +352,7 @@ describe('WorkflowCancellationService', () => {
 
     expect(client.query).toHaveBeenCalledWith(
       expect.stringContaining("state = ANY($3::task_state[])"),
-      ['tenant-1', 'workflow-1', ['pending', 'ready', 'awaiting_approval', 'output_pending_review', 'failed', 'escalated']],
+      ['tenant-1', 'workflow-1', ['pending', 'ready', 'awaiting_approval', 'output_pending_assessment', 'failed', 'escalated']],
     );
   });
 

@@ -227,7 +227,7 @@ export function summarizeMilestoneOperatorFlow(
   const openChildren = totalChildren - completedChildren;
   const awaitingStepDecisions = tasks.filter((task) => {
     const state = normalizeTaskState(task.state);
-    return state === 'awaiting_approval' || state === 'output_pending_review';
+    return state === 'awaiting_approval' || state === 'output_pending_assessment';
   }).length;
   const failedSteps = tasks.filter((task) => {
     const state = normalizeTaskState(task.state);
@@ -286,7 +286,7 @@ export function summarizeWorkItemExecution(
     if (task.stage_name) {
       distinctStages.add(task.stage_name);
     }
-    if (state === 'awaiting_approval' || state === 'output_pending_review') {
+    if (state === 'awaiting_approval' || state === 'output_pending_assessment') {
       awaitingOperator += 1;
       continue;
     }
@@ -345,7 +345,7 @@ export function describeTaskOperatorPosture(
           'Approve or redirect this step from the work-item flow before the next stage can continue.',
         tone: 'warning',
       };
-    case 'output_pending_review':
+    case 'output_pending_assessment':
       return {
         title: 'Output decision needed',
         detail:
@@ -649,7 +649,7 @@ export function describeWorkItemArtifactIdentity(logicalPath: string): WorkItemA
 function readTaskUrgencyRank(state: DashboardWorkItemTaskRecord['state']): number {
   switch (normalizeTaskState(state)) {
     case 'awaiting_approval':
-    case 'output_pending_review':
+    case 'output_pending_assessment':
       return 0;
     case 'failed':
     case 'escalated':

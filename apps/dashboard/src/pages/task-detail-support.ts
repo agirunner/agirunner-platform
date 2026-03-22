@@ -104,7 +104,7 @@ export function buildTaskNextStep(task: TaskWithStatus | null): TaskNextStep {
         'Review the work-item packet, decide whether the step should advance, and keep the board state aligned with the operator decision.',
     };
   }
-  if (state === 'output_pending_review') {
+  if (state === 'output_pending_assessment') {
     return {
       title: 'Review the output packet',
       detail:

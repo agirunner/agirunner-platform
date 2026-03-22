@@ -1794,7 +1794,7 @@ describe('orchestratorControlRoutes', () => {
     expect(taskService.createTask).not.toHaveBeenCalled();
   });
 
-  it('defaults reviewer task linkage from a task.output_pending_review activation', async () => {
+  it('defaults reviewer task linkage from a task.output_pending_assessment activation', async () => {
     const reviewWorkItemId = '22222222-2222-4222-8222-222222222222';
     const createdTask = {
       id: 'task-reviewer',
@@ -1826,7 +1826,7 @@ describe('orchestratorControlRoutes', () => {
             'workflow-1',
             reviewWorkItemId,
             'reviewer',
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment', 'completed'],
             'task-developer',
             1,
           ]);
@@ -1902,7 +1902,7 @@ describe('orchestratorControlRoutes', () => {
             rowCount: 1,
             rows: [{
               lifecycle: 'planned',
-              event_type: 'task.output_pending_review',
+              event_type: 'task.output_pending_assessment',
               payload: {
                 task_id: 'task-developer',
                 work_item_id: 'implementation-item',
@@ -1968,7 +1968,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.json().data).toEqual(createdTask);
   });
 
-  it('returns the existing reviewer task when output_pending_review replays for the same reviewed task revision', async () => {
+  it('returns the existing reviewer task when output_pending_assessment replays for the same reviewed task revision', async () => {
     const reviewWorkItemId = '22222222-2222-4222-8222-222222222222';
     const existingTask = {
       id: 'task-reviewer-existing',
@@ -2005,7 +2005,7 @@ describe('orchestratorControlRoutes', () => {
             'workflow-1',
             reviewWorkItemId,
             'reviewer',
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment', 'completed'],
             'task-developer',
             1,
           ]);
@@ -2084,7 +2084,7 @@ describe('orchestratorControlRoutes', () => {
             rowCount: 1,
             rows: [{
               lifecycle: 'planned',
-              event_type: 'task.output_pending_review',
+              event_type: 'task.output_pending_assessment',
               payload: {
                 task_id: 'task-developer',
                 work_item_id: 'implementation-item',
@@ -2185,7 +2185,7 @@ describe('orchestratorControlRoutes', () => {
             'workflow-1',
             existingTask.id,
             'live-test-developer',
-            ['pending', 'ready', 'claimed', 'in_progress', 'output_pending_review'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'output_pending_assessment'],
           ]);
           return {
             rowCount: 1,
@@ -2497,7 +2497,7 @@ describe('orchestratorControlRoutes', () => {
             rowCount: 1,
             rows: [{
               id: 'task-developer',
-              state: 'output_pending_review',
+              state: 'output_pending_assessment',
               rework_count: 1,
             }],
           };
@@ -2514,7 +2514,7 @@ describe('orchestratorControlRoutes', () => {
                 stage_name: 'verification',
                 subject_task_id: 'task-developer',
                 subject_task_revision: 1,
-                subject_task_state: 'output_pending_review',
+                subject_task_state: 'output_pending_assessment',
               },
             }],
           };
@@ -2620,7 +2620,7 @@ describe('orchestratorControlRoutes', () => {
         stage_name: 'verification',
         subject_task_id: 'task-developer',
         subject_task_revision: 1,
-        subject_task_state: 'output_pending_review',
+        subject_task_state: 'output_pending_assessment',
       }),
     );
   });
@@ -2752,7 +2752,7 @@ describe('orchestratorControlRoutes', () => {
             rowCount: 1,
             rows: [{
               lifecycle: 'planned',
-              event_type: 'task.output_pending_review',
+              event_type: 'task.output_pending_assessment',
               payload: {
                 task_id: 'task-developer',
                 task_role: 'live-test-developer',
@@ -2985,7 +2985,7 @@ describe('orchestratorControlRoutes', () => {
             'workflow-1',
             reviewWorkItemId,
             'live-test-reviewer',
-            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_review', 'completed'],
+            ['pending', 'ready', 'claimed', 'in_progress', 'awaiting_approval', 'output_pending_assessment', 'completed'],
             'task-developer',
             1,
           ]);
