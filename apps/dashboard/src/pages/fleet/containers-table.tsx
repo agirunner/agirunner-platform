@@ -15,6 +15,21 @@ import {
   type SessionContainerRow,
 } from './containers-page.support.js';
 
+const TABLE_COLUMN_CLASS_NAMES = [
+  'w-[12rem]',
+  'w-[12rem]',
+  'w-[8rem]',
+  'w-[11rem]',
+  'w-[14rem]',
+  'w-[8rem]',
+  'w-[16rem]',
+  'w-[18rem]',
+  'w-[6rem]',
+  'w-[7rem]',
+  'w-[8rem]',
+  'w-[8rem]',
+] as const;
+
 export function ContainersTable(props: {
   rows: SessionContainerRow[];
   emptyMessage: string;
@@ -29,7 +44,12 @@ export function ContainersTable(props: {
 
   return (
     <div className="overflow-hidden rounded-lg border border-border/70 bg-surface/90 shadow-sm">
-      <Table className="min-w-[1240px]">
+      <Table className="min-w-[1240px] table-fixed">
+        <colgroup>
+          {TABLE_COLUMN_CLASS_NAMES.map((className) => (
+            <col key={className} className={className} />
+          ))}
+        </colgroup>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
             <TableHead>Status</TableHead>
@@ -49,7 +69,7 @@ export function ContainersTable(props: {
         <TableBody>
           {props.rows.map((row) => (
             <TableRow key={row.id} className={resolveRowClassName(row)}>
-              <DiffCell row={row} field="status" className="min-w-36 py-3">
+              <DiffCell row={row} field="status" className="py-3">
                 <div className="space-y-1">
                   <OperatorStatusBadge status={row.presence === 'inactive' ? 'inactive' : row.state} />
                   <p className="text-xs text-muted-foreground">
@@ -59,42 +79,42 @@ export function ContainersTable(props: {
                   </p>
                 </div>
               </DiffCell>
-              <DiffCell row={row} field="kind" className="min-w-40 py-3">
+              <DiffCell row={row} field="kind" className="py-3">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">{formatContainerKindLabel(row.kind)}</p>
                   <p className="text-xs text-muted-foreground">{row.name}</p>
                 </div>
               </DiffCell>
-              <DiffCell row={row} field="role" className="min-w-28 py-3">
+              <DiffCell row={row} field="role" className="py-3">
                 <CellText>{sanitizeContainerContextLabel(row.role_name)}</CellText>
               </DiffCell>
-              <DiffCell row={row} field="playbook" className="min-w-40 py-3">
+              <DiffCell row={row} field="playbook" className="py-3">
                 <CellText>{sanitizeContainerContextLabel(row.playbook_name)}</CellText>
               </DiffCell>
-              <DiffCell row={row} field="workflow" className="min-w-48 py-3">
+              <DiffCell row={row} field="workflow" className="py-3">
                 {renderEntityLink(row.workflow_id, row.workflow_name, '/work/boards')}
               </DiffCell>
-              <DiffCell row={row} field="stage" className="min-w-32 py-3">
+              <DiffCell row={row} field="stage" className="py-3">
                 <CellText>{row.stage_name ?? '-'}</CellText>
               </DiffCell>
-              <DiffCell row={row} field="task" className="min-w-56 py-3">
+              <DiffCell row={row} field="task" className="py-3">
                 {renderEntityLink(row.task_id, row.task_title, '/work/tasks')}
               </DiffCell>
-              <DiffCell row={row} field="image" className="min-w-64 py-3">
+              <DiffCell row={row} field="image" className="py-3">
                 <code className="block truncate text-xs text-foreground" title={row.image}>
                   {row.image}
                 </code>
               </DiffCell>
-              <DiffCell row={row} field="cpu" className="min-w-24 py-3">
+              <DiffCell row={row} field="cpu" className="py-3">
                 <CellText>{formatLimit(row.cpu_limit)}</CellText>
               </DiffCell>
-              <DiffCell row={row} field="memory" className="min-w-24 py-3">
+              <DiffCell row={row} field="memory" className="py-3">
                 <CellText>{formatLimit(row.memory_limit)}</CellText>
               </DiffCell>
-              <DiffCell row={row} field="started" className="min-w-28 py-3">
+              <DiffCell row={row} field="started" className="py-3">
                 <RelativeTimestamp value={row.started_at ?? row.last_seen_at} />
               </DiffCell>
-              <TableCell className="min-w-28 py-3">
+              <TableCell className="py-3">
                 <RelativeTimestamp value={row.inactive_at ?? row.last_seen_at} />
               </TableCell>
             </TableRow>
