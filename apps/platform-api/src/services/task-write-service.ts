@@ -958,6 +958,9 @@ function resolveTaskKind(input: CreateTaskInput): NonNullable<CreateTaskInput['t
   if (input.task_kind) {
     return input.task_kind;
   }
+  if (input.type === 'assessment') {
+    return 'assessment';
+  }
   return 'delivery';
 }
 
@@ -965,7 +968,7 @@ function shouldPersistTaskKind(
   input: CreateTaskInput,
   taskKind: NonNullable<CreateTaskInput['task_kind']>,
 ) {
-  return input.task_kind !== undefined || taskKind === 'orchestrator';
+  return input.task_kind !== undefined || taskKind === 'orchestrator' || taskKind === 'assessment' || taskKind === 'approval';
 }
 
 function assertTaskKindIsValidForInput(

@@ -620,8 +620,7 @@ function normalizeHandoffResolution(value: unknown): 'approved' | 'request_chang
 }
 
 function allowsHandoffResolution(task: TaskContextRow) {
-  const metadata = normalizeRecord(task.metadata);
-  const taskKind = readOptionalString(metadata.task_kind);
+  const taskKind = readWorkflowTaskKind(task.metadata, task.is_orchestrator_task);
   return taskKind === 'assessment' || taskKind === 'approval';
 }
 

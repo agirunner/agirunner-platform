@@ -15,6 +15,16 @@ export function readWorkflowTaskKind(
   if (taskKind === 'assessment' || taskKind === 'approval' || taskKind === 'orchestrator' || taskKind === 'delivery') {
     return taskKind;
   }
+  const taskType = readString(asRecord(metadata).task_type);
+  if (taskType === 'assessment' || taskType === 'approval') {
+    return taskType;
+  }
+  if (taskType === 'orchestration') {
+    return 'orchestrator';
+  }
+  if (taskType === 'analysis' || taskType === 'code' || taskType === 'test' || taskType === 'docs' || taskType === 'custom') {
+    return 'delivery';
+  }
   if (isOrchestratorTask) {
     return 'orchestrator';
   }

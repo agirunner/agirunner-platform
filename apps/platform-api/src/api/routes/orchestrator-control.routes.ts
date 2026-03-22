@@ -1897,14 +1897,14 @@ function shouldDefaultCrossStageParentWorkItemId(
 }
 
 function isReviewTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) {
-  return readWorkflowTaskKind(body.metadata) === 'assessment';
+  return readWorkflowTaskCreateKind(body) === 'assessment';
 }
 
 function shouldDefaultActivationReviewedTaskLinkage(
   body: z.infer<typeof orchestratorTaskCreateSchema>,
   eventType: string | null,
 ) {
-  return readWorkflowTaskKind(body.metadata) !== 'orchestrator' && isReviewLinkActivation(eventType);
+  return readWorkflowTaskCreateKind(body) !== 'orchestrator' && isReviewLinkActivation(eventType);
 }
 
 function isReviewLinkActivation(eventType: string | null) {
@@ -1913,6 +1913,13 @@ function isReviewLinkActivation(eventType: string | null) {
 
 function isVerificationTaskCreate(body: z.infer<typeof orchestratorTaskCreateSchema>) {
   return body.type === 'test';
+}
+
+function readWorkflowTaskCreateKind(body: z.infer<typeof orchestratorTaskCreateSchema>) {
+  if (body.type === 'assessment') {
+    return 'assessment';
+  }
+  return readWorkflowTaskKind(body.metadata);
 }
 
 async function loadActivationReviewedTaskId(

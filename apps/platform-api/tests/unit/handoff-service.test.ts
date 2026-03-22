@@ -246,6 +246,41 @@ describe('HandoffService', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
+  it('requires resolution on successful assessment handoffs when the task kind is stored as task_type', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-qa-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-verify-1',
+            role: 'live-test-qa',
+            stage_name: 'verification',
+            state: 'in_progress',
+            rework_count: 0,
+            is_orchestrator_task: false,
+            input: { subject_task_id: 'task-dev-1', subject_revision: 1 },
+            metadata: { task_type: 'assessment', team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(service.submitTaskHandoff('tenant-1', 'task-qa-1', {
+      request_id: 'req-qa-type-1',
+      summary: 'Verified the fix and collected evidence.',
+      completion: 'full',
+    })).rejects.toThrowError(
+      new ValidationError('resolution is required on full assessment or approval handoffs'),
+    );
+
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
   it('allows blocked assessment handoffs without resolution', async () => {
     const pool = {
       query: vi
