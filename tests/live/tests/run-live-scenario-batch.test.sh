@@ -27,7 +27,7 @@ make_stub() {
 }
 
 test_batch_runner_uses_default_concurrency_and_reports_results_as_completed() {
-  local tmpdir bootstrap_stub runner_stub output_log envfile scenario_dir
+  local tmpdir bootstrap_stub runner_stub output_log envfile scenario_dir artifacts_dir
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "${tmpdir}"' RETURN
   output_log="${tmpdir}/output.log"
@@ -35,7 +35,8 @@ test_batch_runner_uses_default_concurrency_and_reports_results_as_completed() {
   bootstrap_stub="${tmpdir}/bootstrap.sh"
   runner_stub="${tmpdir}/runner.sh"
   scenario_dir="${tmpdir}/scenarios"
-  mkdir -p "${scenario_dir}" "$(dirname "${envfile}")"
+  artifacts_dir="${tmpdir}/artifacts"
+  mkdir -p "${scenario_dir}" "$(dirname "${envfile}")" "${artifacts_dir}"
 
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
@@ -54,7 +55,12 @@ EOF
 #!/usr/bin/env bash
 set -euo pipefail
 scenario="$1"
+artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:?}"
 if [[ "${scenario}" == "alpha" ]]; then
+  mkdir -p "${artifacts_dir}/${scenario}"
+  cat >"${artifacts_dir}/${scenario}/workflow-run.json" <<'JSON'
+{"verification_passed":true}
+JSON
   sleep 0.2
   exit 0
 fi
@@ -67,6 +73,7 @@ EOF
     LIVE_TEST_SCENARIO_DIR="${scenario_dir}" \
     LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_SCENARIO_RUNNER="${runner_stub}" \
+    LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
     "${SCRIPT_PATH}" >"${output_log}" 2>&1; then
     fail "expected mixed batch results to return nonzero"
   fi
@@ -76,11 +83,11 @@ EOF
   assert_contains "FAIL beta" "${output_log}"
   assert_contains "PASS alpha" "${output_log}"
   assert_contains "Completed 2 scenario(s): 1 passed, 1 failed" "${output_log}"
-  assert_contains "Matrix status: 0 passed, 2 remaining, 2 total" "${output_log}"
+  assert_contains "Matrix status: 1 passed, 1 remaining, 2 total" "${output_log}"
 }
 
 test_batch_runner_uses_explicit_concurrency_argument() {
-  local tmpdir bootstrap_stub runner_stub output_log envfile scenario_dir
+  local tmpdir bootstrap_stub runner_stub output_log envfile scenario_dir artifacts_dir
   tmpdir="$(mktemp -d)"
   trap 'rm -rf "${tmpdir}"' RETURN
   output_log="${tmpdir}/output.log"
@@ -88,7 +95,8 @@ test_batch_runner_uses_explicit_concurrency_argument() {
   bootstrap_stub="${tmpdir}/bootstrap.sh"
   runner_stub="${tmpdir}/runner.sh"
   scenario_dir="${tmpdir}/scenarios"
-  mkdir -p "${scenario_dir}" "$(dirname "${envfile}")"
+  artifacts_dir="${tmpdir}/artifacts"
+  mkdir -p "${scenario_dir}" "$(dirname "${envfile}")" "${artifacts_dir}"
 
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
@@ -117,6 +125,7 @@ EOF
     LIVE_TEST_SCENARIO_DIR="${scenario_dir}" \
     LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT="${bootstrap_stub}" \
     LIVE_TEST_SCENARIO_RUNNER="${runner_stub}" \
+    LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
     "${SCRIPT_PATH}" 3 >"${output_log}" 2>&1
 
   assert_contains "Running live scenarios with concurrency=3" "${output_log}"
