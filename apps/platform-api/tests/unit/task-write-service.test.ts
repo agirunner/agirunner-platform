@@ -299,7 +299,7 @@ describe('TaskWriteService', () => {
         work_item_id: 'work-item-1',
         request_id: 'request-review-normalized',
         role: 'reviewer',
-        type: 'review',
+        type: 'assessment',
         requires_assessment: true,
       },
     );

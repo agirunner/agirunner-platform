@@ -1940,7 +1940,7 @@ describe('orchestratorControlRoutes', () => {
         work_item_id: reviewWorkItemId,
         stage_name: 'review',
         role: 'reviewer',
-        type: 'review',
+        type: 'assessment',
         metadata: { task_kind: 'assessment' },
       },
     });
@@ -2122,7 +2122,7 @@ describe('orchestratorControlRoutes', () => {
         work_item_id: reviewWorkItemId,
         stage_name: 'review',
         role: 'reviewer',
-        type: 'review',
+        type: 'assessment',
         metadata: { task_kind: 'assessment' },
       },
     });
@@ -2953,7 +2953,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.json().data).toEqual(createdTask);
   });
 
-  it('defaults custom review-role linkage from a task.handoff_submitted activation when task type is review', async () => {
+  it('defaults custom assessment-role linkage from a task.handoff_submitted activation when task type is assessment', async () => {
     const reviewWorkItemId = '44444444-4444-4444-8444-444444444444';
     const createdTask = {
       id: 'task-custom-reviewer',
@@ -3086,7 +3086,7 @@ describe('orchestratorControlRoutes', () => {
         work_item_id: reviewWorkItemId,
         stage_name: 'review',
         role: 'live-test-reviewer',
-        type: 'review',
+        type: 'assessment',
         metadata: { task_kind: 'assessment' },
       },
     });
@@ -3096,7 +3096,7 @@ describe('orchestratorControlRoutes', () => {
       expect.objectContaining({ tenantId: 'tenant-1' }),
       expect.objectContaining({
         role: 'live-test-reviewer',
-        type: 'review',
+        type: 'assessment',
         input: expect.objectContaining({
           subject_task_id: 'task-developer',
           subject_revision: 1,

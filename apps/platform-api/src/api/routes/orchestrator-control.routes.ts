@@ -28,7 +28,7 @@ import {
   readWorkflowTaskKind,
 } from '../../services/assessment-subject-service.js';
 
-const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'review', 'test', 'docs', 'custom']);
+const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'assessment', 'test', 'docs', 'custom']);
 const credentialRefsSchema = z.record(z.string().min(1).max(255)).refine(
   (record) => Object.values(record).every((value) => value.trim().startsWith('secret:')),
   { message: 'credentials must use secret: references' },

@@ -45,6 +45,7 @@ import {
   enqueueAndDispatchImmediatePlaybookActivation,
   type ImmediateWorkflowActivationDispatcher,
 } from './workflow-immediate-activation.js';
+import { readAssessmentSubjectLinkage } from './assessment-subject-service.js';
 
 interface TransitionOptions {
   expectedStates: TaskState[];
@@ -2702,20 +2703,11 @@ export class TaskLifecycleService {
 }
 
 function isAssessmentTask(task: Record<string, unknown>) {
-  const metadata = asRecord(task.metadata);
-  const taskType = readOptionalText(metadata.task_type);
-  if (taskType?.trim().toLowerCase() === 'review') {
-    return true;
-  }
   if (readTaskKind(task) === 'assessment') {
     return true;
   }
 
-  const input = asRecord(task.input);
-  return (
-    readOptionalText(input.subject_task_id) !== null
-    || readOptionalText(input.target_task_id) !== null
-  );
+  return readAssessmentSubjectLinkage(task.input, task.metadata).subjectTaskId !== null;
 }
 
 interface FailureClassification {

@@ -12,7 +12,7 @@ describe('a2a service mapping', () => {
       mapA2ATaskToCreateInput({
         id: 'external-1',
         title: 'Review spec',
-        type: 'review',
+        type: 'assessment',
         metadata: { source: 'a2a-client' },
       }),
     ).toEqual(

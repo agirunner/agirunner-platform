@@ -14,7 +14,7 @@ import {
 
 const taskCreateSchema = z.object({
   title: z.string().min(1).max(500),
-  type: z.enum(['analysis', 'code', 'review', 'test', 'docs', 'orchestration', 'custom']),
+  type: z.enum(['analysis', 'code', 'assessment', 'test', 'docs', 'orchestration', 'custom']),
   task_kind: z.enum(['delivery', 'assessment', 'approval', 'orchestrator']).optional(),
   description: z.string().max(5000).optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).optional(),
