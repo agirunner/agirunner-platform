@@ -18,14 +18,13 @@ import type {
 import type { ImmediateWorkflowActivationDispatcher } from './workflow-immediate-activation.js';
 import { enqueueAndDispatchImmediateWorkflowActivation } from './workflow-immediate-activation.js';
 
-interface ReviewedTaskCandidateLookup {
+interface SubjectTaskCandidateLookup {
   result: { rows: Record<string, unknown>[]; rowCount: number };
-  resolutionSource: 'explicit_task' | 'same_work_item' | 'parent_work_item' | 'none';
-  explicitReviewedTaskId: string | null;
-  parentWorkItemId: string | null;
+  resolutionSource: 'explicit_subject_task_id' | 'none';
+  explicitSubjectTaskId: string | null;
 }
 
-interface ReviewedTaskCandidateOptions {
+interface SubjectTaskCandidateOptions {
   allowCompletedExplicitTask?: boolean;
 }
 
@@ -37,7 +36,7 @@ interface TaskAttemptHandoffOutcome {
   summary: string | null;
 }
 
-interface ReviewTaskChangeService {
+interface SubjectTaskChangeService {
   requestTaskChanges: (
     identity: ApiKeyIdentity,
     taskId: string,
@@ -112,7 +111,7 @@ export async function applyTaskCompletionSideEffects(
   client: DatabaseClient,
   activationDispatchService?: ImmediateWorkflowActivationDispatcher,
   logService?: LogService,
-  reviewTaskChangeService?: ReviewTaskChangeService,
+  reviewTaskChangeService?: SubjectTaskChangeService,
 ) {
   const outputSchema = asRecord((task.metadata as Record<string, unknown> | null)?.output_schema);
   if (Object.keys(outputSchema).length > 0 && task.output) {
@@ -197,9 +196,9 @@ export async function applyTaskCompletionSideEffects(
       identity.tenantId,
       task,
     );
-    const reviewReworkApplied =
+    const assessmentReworkApplied =
       continuityEvent === 'assessment_requested_changes'
-        ? await maybeRequestReviewedTaskChanges(
+        ? await maybeRequestSubjectTaskChanges(
             reviewTaskChangeService,
             eventService,
             identity,
@@ -208,7 +207,7 @@ export async function applyTaskCompletionSideEffects(
             logService,
           )
         : false;
-    const continuityResult = reviewReworkApplied
+    const continuityResult = assessmentReworkApplied
       ? null
       : await applyTaskCompletionContinuityEvent(
           workItemContinuityService,
@@ -218,7 +217,7 @@ export async function applyTaskCompletionSideEffects(
           client,
         );
     if (continuityEvent === 'task_completed') {
-      await maybeResolveReviewedOutput(
+      await maybeResolveAssessmentSubject(
         eventService,
         identity,
         task,
@@ -239,7 +238,7 @@ export async function applyTaskCompletionSideEffects(
       identity.tenantId,
       task,
     );
-    if (!reviewReworkApplied) {
+    if (!assessmentReworkApplied) {
       if (!latestHandoffOutcome) {
         await enqueueAndDispatchImmediateWorkflowActivation(
           client,
@@ -268,8 +267,8 @@ export async function applyTaskCompletionSideEffects(
   }
 }
 
-async function maybeRequestReviewedTaskChanges(
-  reviewTaskChangeService: ReviewTaskChangeService | undefined,
+async function maybeRequestSubjectTaskChanges(
+  reviewTaskChangeService: SubjectTaskChangeService | undefined,
   eventService: EventService,
   identity: ApiKeyIdentity,
   completedTask: Record<string, unknown>,
@@ -280,24 +279,24 @@ async function maybeRequestReviewedTaskChanges(
     return false;
   }
 
-  const resolutionGate = resolveReviewResolutionGate(completedTask, null);
+  const resolutionGate = resolveAssessmentResolutionGate(completedTask, null);
   if (!resolutionGate.shouldAttempt) {
     return false;
   }
 
   const workflowId = asOptionalString(completedTask.workflow_id);
   const workItemId = asOptionalString(completedTask.work_item_id);
-  const reviewTaskId = asOptionalString(completedTask.id);
-  if (!workflowId || !workItemId || !reviewTaskId) {
+  const assessmentTaskId = asOptionalString(completedTask.id);
+  if (!workflowId || !workItemId || !assessmentTaskId) {
     return false;
   }
 
-  const candidates = await loadReviewedTaskCandidates(
+  const candidates = await loadSubjectTaskCandidates(
     client,
     identity.tenantId,
     workflowId,
     workItemId,
-    reviewTaskId,
+    assessmentTaskId,
     completedTask,
     { allowCompletedExplicitTask: true },
   );
@@ -305,8 +304,8 @@ async function maybeRequestReviewedTaskChanges(
     return false;
   }
 
-  const reviewedTaskId = asOptionalString(candidates.result.rows[0]?.id);
-  if (!reviewedTaskId) {
+  const subjectTaskId = asOptionalString(candidates.result.rows[0]?.id);
+  if (!subjectTaskId) {
     return false;
   }
 
@@ -315,40 +314,39 @@ async function maybeRequestReviewedTaskChanges(
     identity.tenantId,
     completedTask,
   );
-  const feedback = readReviewRequestChangesFeedback(completedTask, latestHandoffOutcome);
+  const feedback = readRequestChangesFeedback(completedTask, latestHandoffOutcome);
   await reviewTaskChangeService.requestTaskChanges(
     identity,
-    reviewedTaskId,
+    subjectTaskId,
     { feedback },
     client,
   );
 
   const payload = {
-    event_type: 'task.review_rework_applied',
+    event_type: 'task.assessment_rework_applied',
     workflow_id: workflowId,
-    review_task_id: reviewTaskId,
-    review_task_work_item_id: workItemId,
-    reviewed_task_id: reviewedTaskId,
+    assessment_task_id: assessmentTaskId,
+    assessment_task_work_item_id: workItemId,
+    subject_task_id: subjectTaskId,
     resolution_source: candidates.resolutionSource,
     resolution_gate: resolutionGate.reason,
-    explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
-    parent_work_item_id: candidates.parentWorkItemId,
+    explicit_subject_task_id: candidates.explicitSubjectTaskId,
   };
   await eventService.emit(
     {
       tenantId: identity.tenantId,
-      type: 'task.review_rework_applied',
+      type: 'task.assessment_rework_applied',
       entityType: 'task',
-      entityId: reviewTaskId,
+      entityId: assessmentTaskId,
       actorType: 'system',
-      actorId: 'review_resolver',
+      actorId: 'assessment_resolver',
       data: payload,
     },
     client,
   );
   await logTaskGovernanceTransition(logService, {
     tenantId: identity.tenantId,
-    operation: 'task.review_rework.applied',
+    operation: 'task.assessment_rework.applied',
     executor: client,
     task: completedTask,
     payload,
@@ -362,7 +360,7 @@ async function resolveTaskCompletionContinuityEvent(
   tenantId: string,
   completedTask: Record<string, unknown>,
 ): Promise<TaskCompletionContinuityEvent | null> {
-  if (!isReviewTaskCandidate(completedTask)) {
+  if (!isAssessmentTaskCandidate(completedTask)) {
     return 'task_completed';
   }
 
@@ -377,7 +375,7 @@ async function resolveTaskCompletionContinuityEvent(
 
   if (
     latestHandoffOutcome.completion === 'full'
-    && readsReviewRequestChangesOutcome(completedTask, latestHandoffOutcome)
+    && readsAssessmentRequestChangesOutcome(completedTask, latestHandoffOutcome)
   ) {
     return 'assessment_requested_changes';
   }
@@ -420,7 +418,7 @@ async function applyTaskCompletionContinuityEvent(
   ) ?? null;
 }
 
-async function maybeResolveReviewedOutput(
+async function maybeResolveAssessmentSubject(
   eventService: EventService,
   identity: ApiKeyIdentity,
   completedTask: Record<string, unknown>,
@@ -428,35 +426,35 @@ async function maybeResolveReviewedOutput(
   client: DatabaseClient,
   logService?: LogService,
 ) {
-  const resolutionGate = resolveReviewResolutionGate(completedTask, continuityResult);
+  const resolutionGate = resolveAssessmentResolutionGate(completedTask, continuityResult);
   if (!resolutionGate.shouldAttempt) {
-    const reviewTaskId = asOptionalString(completedTask.id);
-    if (reviewTaskId) {
+    const assessmentTaskId = asOptionalString(completedTask.id);
+    if (assessmentTaskId) {
       const skipPayload = {
-        event_type: 'task.review_resolution_skipped',
-        reason: 'not_review_candidate',
+        event_type: 'task.assessment_resolution_skipped',
+        reason: resolutionGate.reason,
         resolution_gate: resolutionGate.reason,
         role: asOptionalString(completedTask.role),
         task_type: asOptionalString(asRecord(completedTask.metadata).task_type),
-        explicit_reviewed_task_id: readReviewedTaskId(completedTask),
+        explicit_subject_task_id: readSubjectTaskId(completedTask),
         matched_rule_type: continuityResult?.matchedRuleType ?? null,
         satisfied_assessment_expectation: continuityResult?.satisfiedAssessmentExpectation ?? false,
       };
       await eventService.emit(
         {
           tenantId: identity.tenantId,
-          type: 'task.review_resolution_skipped',
+          type: 'task.assessment_resolution_skipped',
           entityType: 'task',
-          entityId: reviewTaskId,
+          entityId: assessmentTaskId,
           actorType: 'system',
-          actorId: 'review_resolver',
+          actorId: 'assessment_resolver',
           data: skipPayload,
         },
         client,
       );
       await logTaskGovernanceTransition(logService, {
         tenantId: identity.tenantId,
-        operation: 'task.review_resolution.skipped',
+        operation: 'task.assessment_resolution.skipped',
         executor: client,
         task: completedTask,
         payload: skipPayload,
@@ -467,47 +465,41 @@ async function maybeResolveReviewedOutput(
 
   const workflowId = asOptionalString(completedTask.workflow_id);
   const workItemId = asOptionalString(completedTask.work_item_id);
-  const reviewTaskId = asOptionalString(completedTask.id);
-  if (!workflowId || !workItemId || !reviewTaskId) {
+  const assessmentTaskId = asOptionalString(completedTask.id);
+  if (!workflowId || !workItemId || !assessmentTaskId) {
     return;
   }
 
-  const candidates = await loadReviewedTaskCandidates(
+  const latestHandoffOutcome = await loadLatestTaskAttemptHandoffOutcome(
     client,
     identity.tenantId,
-    workflowId,
-    workItemId,
-    reviewTaskId,
     completedTask,
   );
-
-  if (candidates.result.rowCount !== 1) {
+  if (!readsAssessmentApprovedOutcome(completedTask, latestHandoffOutcome)) {
     const skipPayload = {
-      event_type: 'task.review_resolution_skipped',
+      event_type: 'task.assessment_resolution_skipped',
       workflow_id: workflowId,
       work_item_id: workItemId,
-      candidate_count: candidates.result.rowCount,
-      review_task_work_item_id: workItemId,
-      resolution_source: candidates.resolutionSource,
+      reason: 'resolution_not_approved',
       resolution_gate: resolutionGate.reason,
-      explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
-      parent_work_item_id: candidates.parentWorkItemId,
+      explicit_subject_task_id: readSubjectTaskId(completedTask),
+      resolution: latestHandoffOutcome?.resolution ?? null,
     };
     await eventService.emit(
       {
         tenantId: identity.tenantId,
-        type: 'task.review_resolution_skipped',
+        type: 'task.assessment_resolution_skipped',
         entityType: 'task',
-        entityId: reviewTaskId,
+        entityId: assessmentTaskId,
         actorType: 'system',
-        actorId: 'review_resolver',
+        actorId: 'assessment_resolver',
         data: skipPayload,
       },
       client,
     );
     await logTaskGovernanceTransition(logService, {
       tenantId: identity.tenantId,
-      operation: 'task.review_resolution.skipped',
+      operation: 'task.assessment_resolution.skipped',
       executor: client,
       task: completedTask,
       payload: skipPayload,
@@ -515,13 +507,55 @@ async function maybeResolveReviewedOutput(
     return;
   }
 
-  const reviewedTask = candidates.result.rows[0];
-  const reviewedTaskId = asOptionalString(reviewedTask.id);
-  const reviewedWorkItemId = asOptionalString(reviewedTask.work_item_id);
-  if (!reviewedTaskId) {
+  const candidates = await loadSubjectTaskCandidates(
+    client,
+    identity.tenantId,
+    workflowId,
+    workItemId,
+    assessmentTaskId,
+    completedTask,
+  );
+
+  if (candidates.result.rowCount !== 1) {
+    const skipPayload = {
+      event_type: 'task.assessment_resolution_skipped',
+      workflow_id: workflowId,
+      work_item_id: workItemId,
+      candidate_count: candidates.result.rowCount,
+      assessment_task_work_item_id: workItemId,
+      resolution_source: candidates.resolutionSource,
+      resolution_gate: resolutionGate.reason,
+      explicit_subject_task_id: candidates.explicitSubjectTaskId,
+    };
+    await eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'task.assessment_resolution_skipped',
+        entityType: 'task',
+        entityId: assessmentTaskId,
+        actorType: 'system',
+        actorId: 'assessment_resolver',
+        data: skipPayload,
+      },
+      client,
+    );
+    await logTaskGovernanceTransition(logService, {
+      tenantId: identity.tenantId,
+      operation: 'task.assessment_resolution.skipped',
+      executor: client,
+      task: completedTask,
+      payload: skipPayload,
+    });
     return;
   }
-  if (!reviewedWorkItemId) {
+
+  const subjectTask = candidates.result.rows[0];
+  const subjectTaskId = asOptionalString(subjectTask.id);
+  const subjectWorkItemId = asOptionalString(subjectTask.work_item_id);
+  if (!subjectTaskId) {
+    return;
+  }
+  if (!subjectWorkItemId) {
     return;
   }
 
@@ -542,39 +576,39 @@ async function maybeResolveReviewedOutput(
     [
       identity.tenantId,
       workflowId,
-      reviewedWorkItemId,
-      reviewedTaskId,
+      subjectWorkItemId,
+      subjectTaskId,
       {
-        review_action: 'approve_output',
-        review_updated_at: new Date().toISOString(),
-        review_resolved_by_task_id: reviewTaskId,
+        assessment_action: 'approved',
+        assessment_updated_at: new Date().toISOString(),
+        assessment_resolved_by_task_id: assessmentTaskId,
       },
     ],
   );
   if (!updated.rowCount) {
     const skipPayload = {
-      event_type: 'task.review_resolution_skipped',
+      event_type: 'task.assessment_resolution_skipped',
       workflow_id: workflowId,
       work_item_id: workItemId,
       candidate_count: 1,
       reason: 'candidate_state_changed',
-      candidate_task_id: reviewedTaskId,
+      candidate_task_id: subjectTaskId,
     };
     await eventService.emit(
       {
         tenantId: identity.tenantId,
-        type: 'task.review_resolution_skipped',
+        type: 'task.assessment_resolution_skipped',
         entityType: 'task',
-        entityId: reviewTaskId,
+        entityId: assessmentTaskId,
         actorType: 'system',
-        actorId: 'review_resolver',
+        actorId: 'assessment_resolver',
         data: skipPayload,
       },
       client,
     );
     await logTaskGovernanceTransition(logService, {
       tenantId: identity.tenantId,
-      operation: 'task.review_resolution.skipped',
+      operation: 'task.assessment_resolution.skipped',
       executor: client,
       task: completedTask,
       payload: skipPayload,
@@ -585,25 +619,24 @@ async function maybeResolveReviewedOutput(
   const approvedTask = updated.rows[0];
   await registerTaskOutputDocuments(client, identity.tenantId, approvedTask, approvedTask.output);
   const appliedPayload = {
-    event_type: 'task.review_resolution_applied',
+    event_type: 'task.assessment_resolution_applied',
     workflow_id: workflowId,
-    review_task_id: reviewTaskId,
-    review_task_work_item_id: workItemId,
-    reviewed_task_id: reviewedTaskId,
-    reviewed_work_item_id: reviewedWorkItemId,
+    assessment_task_id: assessmentTaskId,
+    assessment_task_work_item_id: workItemId,
+    subject_task_id: subjectTaskId,
+    subject_work_item_id: subjectWorkItemId,
     resolution_source: candidates.resolutionSource,
     resolution_gate: resolutionGate.reason,
-    explicit_reviewed_task_id: candidates.explicitReviewedTaskId,
-    parent_work_item_id: candidates.parentWorkItemId,
+    explicit_subject_task_id: candidates.explicitSubjectTaskId,
   };
   await eventService.emit(
     {
       tenantId: identity.tenantId,
-      type: 'task.review_resolution_applied',
+      type: 'task.assessment_resolution_applied',
       entityType: 'task',
-      entityId: reviewTaskId,
+      entityId: assessmentTaskId,
       actorType: 'system',
-      actorId: 'review_resolver',
+      actorId: 'assessment_resolver',
       data: appliedPayload,
     },
     client,
@@ -612,7 +645,7 @@ async function maybeResolveReviewedOutput(
     eventService,
     identity,
     workflowId,
-    reviewedWorkItemId,
+    subjectWorkItemId,
     client,
   );
   await eventService.emit(
@@ -620,38 +653,38 @@ async function maybeResolveReviewedOutput(
       tenantId: identity.tenantId,
       type: 'task.state_changed',
       entityType: 'task',
-      entityId: reviewedTaskId,
+      entityId: subjectTaskId,
       actorType: 'system',
-      actorId: 'review_resolver',
+      actorId: 'assessment_resolver',
       data: {
         from_state: 'output_pending_review',
         to_state: 'completed',
-        reason: 'output_review_approved',
-        review_task_id: reviewTaskId,
+        reason: 'assessment_approved',
+        assessment_task_id: assessmentTaskId,
       },
     },
     client,
   );
   await logTaskGovernanceTransition(logService, {
     tenantId: identity.tenantId,
-    operation: 'task.review_resolution.applied',
+    operation: 'task.assessment_resolution.applied',
     executor: client,
     task: completedTask,
     payload: appliedPayload,
   });
 }
 
-async function loadReviewedTaskCandidates(
+async function loadSubjectTaskCandidates(
   client: DatabaseClient,
   tenantId: string,
   workflowId: string,
-  workItemId: string,
-  reviewTaskId: string,
+  _workItemId: string,
+  assessmentTaskId: string,
   completedTask: Record<string, unknown>,
-  options?: ReviewedTaskCandidateOptions,
-): Promise<ReviewedTaskCandidateLookup> {
-  const explicitReviewedTaskId = readReviewedTaskId(completedTask);
-  if (explicitReviewedTaskId) {
+  options?: SubjectTaskCandidateOptions,
+): Promise<SubjectTaskCandidateLookup> {
+  const explicitSubjectTaskId = readSubjectTaskId(completedTask);
+  if (explicitSubjectTaskId) {
     const exactMatch = options?.allowCompletedExplicitTask
       ? await client.query<Record<string, unknown>>(
           `SELECT *
@@ -662,7 +695,7 @@ async function loadReviewedTaskCandidates(
               AND state = ANY($4::task_state[])
               AND id <> $5
             LIMIT 1`,
-          [tenantId, workflowId, explicitReviewedTaskId, ['output_pending_review', 'completed'], reviewTaskId],
+          [tenantId, workflowId, explicitSubjectTaskId, ['output_pending_review', 'completed'], assessmentTaskId],
         )
       : await client.query<Record<string, unknown>>(
           `SELECT *
@@ -673,7 +706,7 @@ async function loadReviewedTaskCandidates(
               AND state = 'output_pending_review'
               AND id <> $4
             LIMIT 1`,
-          [tenantId, workflowId, explicitReviewedTaskId, reviewTaskId],
+          [tenantId, workflowId, explicitSubjectTaskId, assessmentTaskId],
         );
     if ((exactMatch.rowCount ?? 0) > 0) {
       return {
@@ -681,77 +714,23 @@ async function loadReviewedTaskCandidates(
           rows: exactMatch.rows as Record<string, unknown>[],
           rowCount: exactMatch.rowCount ?? 0,
         },
-        resolutionSource: 'explicit_task',
-        explicitReviewedTaskId,
-        parentWorkItemId: null,
+        resolutionSource: 'explicit_subject_task_id',
+        explicitSubjectTaskId,
       };
     }
   }
 
-  const localMatches = await client.query<Record<string, unknown>>(
-    `SELECT *
-       FROM tasks
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND work_item_id = $3
-        AND state = 'output_pending_review'
-        AND id <> $4
-      ORDER BY created_at DESC`,
-    [tenantId, workflowId, workItemId, reviewTaskId],
-  );
-  if ((localMatches.rowCount ?? 0) > 0) {
-    return {
-      result: {
-        rows: localMatches.rows as Record<string, unknown>[],
-        rowCount: localMatches.rowCount ?? 0,
-      },
-      resolutionSource: 'same_work_item',
-      explicitReviewedTaskId,
-      parentWorkItemId: null,
-    };
-  }
-
-  const parentWorkItemId = await loadParentWorkItemId(
-    client,
-    tenantId,
-    workflowId,
-    workItemId,
-  );
-  if (!parentWorkItemId) {
-    return {
-      result: {
-        rows: localMatches.rows as Record<string, unknown>[],
-        rowCount: localMatches.rowCount ?? 0,
-      },
-      resolutionSource: 'none',
-      explicitReviewedTaskId,
-      parentWorkItemId: null,
-    };
-  }
-
-  const parentMatches = await client.query<Record<string, unknown>>(
-    `SELECT *
-       FROM tasks
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND work_item_id = $3
-        AND state = 'output_pending_review'
-        AND id <> $4
-      ORDER BY created_at DESC`,
-    [tenantId, workflowId, parentWorkItemId, reviewTaskId],
-  );
   return {
     result: {
-      rows: parentMatches.rows as Record<string, unknown>[],
-      rowCount: parentMatches.rowCount ?? 0,
+      rows: [],
+      rowCount: 0,
     },
-    resolutionSource: (parentMatches.rowCount ?? 0) > 0 ? 'parent_work_item' : 'none',
-    explicitReviewedTaskId,
-    parentWorkItemId,
+    resolutionSource: 'none',
+    explicitSubjectTaskId,
   };
 }
 
-function readReviewedTaskId(completedTask: Record<string, unknown>) {
+function readSubjectTaskId(completedTask: Record<string, unknown>) {
   return readAssessmentSubjectLinkage(completedTask.input, completedTask.metadata).subjectTaskId;
 }
 
@@ -784,24 +763,25 @@ async function loadLatestTaskAttemptHandoffOutcome(
   }
   return {
     completion: asOptionalString(row.completion),
-    resolution: normalizeReviewOutcome(row.resolution),
+    resolution: normalizeAssessmentOutcome(row.resolution),
     summary: asOptionalString((row as { summary?: string | null }).summary),
   } satisfies TaskAttemptHandoffOutcome;
 }
 
-function readReviewRequestChangesFeedback(
+function readRequestChangesFeedback(
   completedTask: Record<string, unknown>,
   latestHandoffOutcome: TaskAttemptHandoffOutcome | null,
 ) {
   return (
     asOptionalString(latestHandoffOutcome?.summary)
+    ?? asOptionalString(asRecord(completedTask.output).assessment_feedback)
     ?? asOptionalString(asRecord(completedTask.output).review_feedback)
     ?? asOptionalString(asRecord(completedTask.output).summary)
-    ?? 'Review requested changes.'
+    ?? 'Assessment requested changes.'
   );
 }
 
-function readsReviewRequestChangesOutcome(
+function readsAssessmentRequestChangesOutcome(
   completedTask: Record<string, unknown>,
   latestHandoffOutcome: TaskAttemptHandoffOutcome,
 ) {
@@ -811,64 +791,54 @@ function readsReviewRequestChangesOutcome(
 
   const output = asRecord(completedTask.output);
   return (
-    normalizeReviewOutcome(output.resolution) === 'request_changes'
-    || normalizeReviewOutcome(output.verdict) === 'request_changes'
+    normalizeAssessmentOutcome(output.resolution) === 'request_changes'
+    || normalizeAssessmentOutcome(output.verdict) === 'request_changes'
   );
 }
 
-function normalizeReviewOutcome(value: unknown) {
-  const normalized = asOptionalString(value)?.toLowerCase();
-  return normalized === 'approved' || normalized === 'request_changes' ? normalized : null;
-}
-
-async function loadParentWorkItemId(
-  client: DatabaseClient,
-  tenantId: string,
-  workflowId: string,
-  workItemId: string,
+function readsAssessmentApprovedOutcome(
+  completedTask: Record<string, unknown>,
+  latestHandoffOutcome: TaskAttemptHandoffOutcome | null,
 ) {
-  const result = await client.query<{ parent_work_item_id: string | null }>(
-    `SELECT parent_work_item_id
-       FROM workflow_work_items
-      WHERE tenant_id = $1
-        AND workflow_id = $2
-        AND id = $3
-      LIMIT 1`,
-    [tenantId, workflowId, workItemId],
+  if (latestHandoffOutcome?.resolution === 'approved') {
+    return true;
+  }
+
+  const output = asRecord(completedTask.output);
+  return (
+    normalizeAssessmentOutcome(output.resolution) === 'approved'
+    || normalizeAssessmentOutcome(output.verdict) === 'approved'
   );
-  return asOptionalString(result.rows[0]?.parent_work_item_id);
 }
 
-function resolveReviewResolutionGate(
+function normalizeAssessmentOutcome(value: unknown) {
+  const normalized = asOptionalString(value)?.toLowerCase();
+  return normalized === 'approved' || normalized === 'request_changes' || normalized === 'rejected'
+    ? normalized
+    : null;
+}
+
+function resolveAssessmentResolutionGate(
   completedTask: Record<string, unknown>,
   continuityResult: WorkItemCompletionOutcome | null,
 ) {
+  if (!isAssessmentTaskCandidate(completedTask)) {
+    return { shouldAttempt: false, reason: 'not_assessment_candidate' } as const;
+  }
+
+  if (!readSubjectTaskId(completedTask)) {
+    return { shouldAttempt: false, reason: 'missing_subject_task_id' } as const;
+  }
+
   if (continuityResult?.satisfiedAssessmentExpectation) {
     return { shouldAttempt: true, reason: 'continuity_expectation' } as const;
   }
 
-  if (readReviewedTaskId(completedTask)) {
-    return { shouldAttempt: true, reason: 'explicit_reviewed_task_id' } as const;
-  }
-
-  const reviewTaskReason = readReviewTaskReason(completedTask);
-  if (reviewTaskReason) {
-    return { shouldAttempt: true, reason: reviewTaskReason } as const;
-  }
-
-  return { shouldAttempt: false, reason: 'not_review_candidate' } as const;
+  return { shouldAttempt: true, reason: 'explicit_subject_task_id' } as const;
 }
 
-function isReviewTaskCandidate(completedTask: Record<string, unknown>) {
-  return readReviewTaskReason(completedTask) !== null || readReviewedTaskId(completedTask) !== null;
-}
-
-function readReviewTaskReason(completedTask: Record<string, unknown>) {
-  if (readWorkflowTaskKind(completedTask.metadata, Boolean(completedTask.is_orchestrator_task)) === 'assessment') {
-    return 'assessment_task_kind' as const;
-  }
-
-  return null;
+function isAssessmentTaskCandidate(completedTask: Record<string, unknown>) {
+  return readWorkflowTaskKind(completedTask.metadata, Boolean(completedTask.is_orchestrator_task)) === 'assessment';
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

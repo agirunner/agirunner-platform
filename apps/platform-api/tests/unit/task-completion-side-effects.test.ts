@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { applyTaskCompletionSideEffects } from '../../src/services/task-completion-side-effects.js';
 
 describe('applyTaskCompletionSideEffects', () => {
-  it('auto-completes the reviewed task when a review expectation is satisfied', async () => {
+  it('auto-completes the subject task when an assessment expectation is satisfied', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -39,8 +39,8 @@ describe('applyTaskCompletionSideEffects', () => {
               state: 'completed',
               output: { summary: 'done' },
               metadata: {
-                review_action: 'approve_output',
-                review_resolved_by_task_id: 'task-review',
+                assessment_action: 'approved',
+                assessment_resolved_by_task_id: 'task-review',
               },
             }],
             rowCount: 1,
@@ -105,6 +105,17 @@ describe('applyTaskCompletionSideEffects', () => {
         role: 'reviewer',
         stage_name: 'implementation',
         is_orchestrator_task: false,
+        input: {
+          subject_task_id: 'task-dev',
+          subject_work_item_id: 'work-item-1',
+          subject_revision: 1,
+        },
+        metadata: {
+          task_kind: 'assessment',
+          subject_task_id: 'task-dev',
+          subject_work_item_id: 'work-item-1',
+          subject_revision: 1,
+        },
         output: { verdict: 'approved' },
       },
       client as never,
@@ -123,19 +134,19 @@ describe('applyTaskCompletionSideEffects', () => {
       expect.objectContaining({
         type: 'task.state_changed',
         entityId: 'task-dev',
-        actorId: 'review_resolver',
+        actorId: 'assessment_resolver',
         data: expect.objectContaining({
           from_state: 'output_pending_review',
           to_state: 'completed',
-          reason: 'output_review_approved',
-          review_task_id: 'task-review',
+          reason: 'assessment_approved',
+          assessment_task_id: 'task-review',
         }),
       }),
       client,
     );
   });
 
-  it('records review rejection continuity for a full reviewer handoff that requests changes', async () => {
+  it('records assessment rejection continuity for a full assessor handoff that requests changes', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -184,7 +195,7 @@ describe('applyTaskCompletionSideEffects', () => {
     };
     const workItemContinuityService = {
       recordTaskCompleted: vi.fn(async () => ({
-        matchedRuleType: 'review',
+        matchedRuleType: 'assessment',
         nextExpectedActor: 'qa',
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
@@ -192,7 +203,7 @@ describe('applyTaskCompletionSideEffects', () => {
         satisfiedAssessmentExpectation: true,
       })),
       recordAssessmentRequestedChanges: vi.fn(async () => ({
-        matchedRuleType: 'review',
+        matchedRuleType: 'assessment',
         nextExpectedActor: 'developer',
         nextExpectedAction: 'rework',
         requiresHumanApproval: false,
@@ -244,7 +255,7 @@ describe('applyTaskCompletionSideEffects', () => {
     ).toBe(false);
   });
 
-  it('requests rework on the reviewed task when a reviewer handoff requests changes', async () => {
+  it('requests rework on the explicit subject task when an assessment handoff requests changes', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -331,8 +342,8 @@ describe('applyTaskCompletionSideEffects', () => {
         id: 'task-dev',
         state: 'ready',
         metadata: {
-          review_action: 'request_changes',
-          review_feedback: 'Add malformed-input regression coverage before approval.',
+          assessment_action: 'request_changes',
+          assessment_feedback: 'Add malformed-input regression coverage before approval.',
         },
       })),
     };
@@ -379,7 +390,7 @@ describe('applyTaskCompletionSideEffects', () => {
     expect(workItemContinuityService.recordAssessmentRequestedChanges).not.toHaveBeenCalled();
   });
 
-  it('requests rework on a completed reviewed task when a verification handoff requests changes', async () => {
+  it('requests rework on a completed explicit subject task when an assessment handoff requests changes', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -466,8 +477,8 @@ describe('applyTaskCompletionSideEffects', () => {
         id: 'task-dev',
         state: 'ready',
         metadata: {
-          review_action: 'request_changes',
-          review_feedback: 'QA found a regression in greeting validation.',
+          assessment_action: 'request_changes',
+          assessment_feedback: 'QA found a regression in greeting validation.',
         },
       })),
     };
@@ -514,7 +525,7 @@ describe('applyTaskCompletionSideEffects', () => {
     expect(workItemContinuityService.recordAssessmentRequestedChanges).not.toHaveBeenCalled();
   });
 
-  it('does not advance review continuity for a blocked reviewer handoff without a request-changes outcome', async () => {
+  it('does not advance assessment continuity for a blocked assessment handoff without a request-changes outcome', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -863,7 +874,7 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
-  it('auto-completes the reviewed task across separate review work items using reviewed_task_id', async () => {
+  it('auto-completes the explicit subject task across separate assessment work items', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -903,8 +914,8 @@ describe('applyTaskCompletionSideEffects', () => {
               state: 'completed',
               output: { summary: 'done' },
               metadata: {
-                review_action: 'approve_output',
-                review_resolved_by_task_id: 'task-review',
+                assessment_action: 'approved',
+                assessment_resolved_by_task_id: 'task-review',
               },
             }],
             rowCount: 1,
@@ -941,7 +952,7 @@ describe('applyTaskCompletionSideEffects', () => {
     };
     const workItemContinuityService = {
       recordTaskCompleted: vi.fn(async () => ({
-        matchedRuleType: 'review',
+        matchedRuleType: 'assessment',
         nextExpectedActor: 'qa',
         nextExpectedAction: 'handoff',
         requiresHumanApproval: false,
@@ -980,19 +991,19 @@ describe('applyTaskCompletionSideEffects', () => {
       expect.objectContaining({
         type: 'task.state_changed',
         entityId: 'task-dev',
-        actorId: 'review_resolver',
+        actorId: 'assessment_resolver',
         data: expect.objectContaining({
           from_state: 'output_pending_review',
           to_state: 'completed',
-          reason: 'output_review_approved',
-          review_task_id: 'task-review',
+          reason: 'assessment_approved',
+          assessment_task_id: 'task-review',
         }),
       }),
       client,
     );
   });
 
-  it('auto-closes a planned predecessor work item after review resolution completes its last open task', async () => {
+  it('auto-closes a planned predecessor work item after assessment resolution completes its last open task', async () => {
     const eventService = {
       emit: vi.fn(async () => undefined),
     };
@@ -1100,8 +1111,8 @@ describe('applyTaskCompletionSideEffects', () => {
               state: 'completed',
               output: { summary: 'done' },
               metadata: {
-                review_action: 'approve_output',
-                review_resolved_by_task_id: 'task-review',
+                assessment_action: 'approved',
+                assessment_resolved_by_task_id: 'task-review',
               },
             }],
             rowCount: 1,
@@ -1241,7 +1252,7 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
-  it('auto-completes the reviewed task across linked review work items using the parent work item fallback', async () => {
+  it('skips assessment resolution when the subject task linkage is missing', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -1289,8 +1300,8 @@ describe('applyTaskCompletionSideEffects', () => {
               state: 'completed',
               output: { summary: 'done' },
               metadata: {
-                review_action: 'approve_output',
-                review_resolved_by_task_id: 'task-review',
+                assessment_action: 'approved',
+                assessment_resolved_by_task_id: 'task-review',
               },
             }],
             rowCount: 1,
@@ -1364,29 +1375,19 @@ describe('applyTaskCompletionSideEffects', () => {
 
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'task.review_resolution_applied',
+        type: 'task.assessment_resolution_skipped',
         entityId: 'task-review',
-        actorId: 'review_resolver',
+        actorId: 'assessment_resolver',
         data: expect.objectContaining({
-          reviewed_task_id: 'task-dev',
-          reviewed_work_item_id: 'implementation-item',
-          resolution_source: 'parent_work_item',
-          parent_work_item_id: 'implementation-item',
+          reason: 'missing_subject_task_id',
+          resolution_gate: 'missing_subject_task_id',
         }),
-      }),
-      client,
-    );
-    expect(eventService.emit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'task.state_changed',
-        entityId: 'task-dev',
-        actorId: 'review_resolver',
       }),
       client,
     );
   });
 
-  it('auto-completes the reviewed task for a reviewer task even when continuity did not mark a review expectation', async () => {
+  it('auto-completes the explicit subject task for an assessment even when continuity did not mark an assessment expectation', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
@@ -1446,8 +1447,8 @@ describe('applyTaskCompletionSideEffects', () => {
               state: 'completed',
               output: { summary: 'done' },
               metadata: {
-                review_action: 'approve_output',
-                review_resolved_by_task_id: 'task-review',
+                assessment_action: 'approved',
+                assessment_resolved_by_task_id: 'task-review',
               },
             }],
             rowCount: 1,
@@ -1498,20 +1499,20 @@ describe('applyTaskCompletionSideEffects', () => {
 
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
-        type: 'task.review_resolution_applied',
+        type: 'task.assessment_resolution_applied',
         entityId: 'task-review',
-        actorId: 'review_resolver',
+        actorId: 'assessment_resolver',
         data: expect.objectContaining({
-          reviewed_task_id: 'task-dev',
-          resolution_source: 'explicit_task',
-          resolution_gate: 'explicit_reviewed_task_id',
+          subject_task_id: 'task-dev',
+          resolution_source: 'explicit_subject_task_id',
+          resolution_gate: 'explicit_subject_task_id',
         }),
       }),
       client,
     );
   });
 
-  it('logs when review resolution is skipped before candidate lookup starts', async () => {
+  it('logs when assessment resolution is skipped before candidate lookup starts', async () => {
     const client = {
       query: vi.fn(async () => ({ rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 })),
     };
@@ -1561,15 +1562,15 @@ describe('applyTaskCompletionSideEffects', () => {
 
     expect(logService.insert).toHaveBeenCalledWith(
       expect.objectContaining({
-        operation: 'task.review_resolution.skipped',
+        operation: 'task.assessment_resolution.skipped',
         taskId: 'task-dev',
         workItemId: 'implementation-item',
         stageName: 'implementation',
         role: 'developer',
         payload: expect.objectContaining({
-          event_type: 'task.review_resolution_skipped',
-          reason: 'not_review_candidate',
-          resolution_gate: 'not_review_candidate',
+          event_type: 'task.assessment_resolution_skipped',
+          reason: 'not_assessment_candidate',
+          resolution_gate: 'not_assessment_candidate',
         }),
       }),
     );
