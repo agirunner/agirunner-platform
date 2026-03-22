@@ -43,6 +43,7 @@ describe('workflow inspector support', () => {
             workflow_id: 'workflow-1',
             stage_name: 'review',
             rework_count: 2,
+            current_subject_revision: 2,
             title: 'Review release notes',
             column_id: 'review',
             next_expected_actor: 'reviewer',
@@ -111,7 +112,7 @@ describe('workflow inspector support', () => {
       {
         label: 'Gate checkpoints',
         value: '1',
-        detail: '1 waiting for operator review across 1 gate stage.',
+        detail: '1 waiting for operator decision across 1 gate stage.',
       },
       {
         label: 'Artifacts',
@@ -147,9 +148,9 @@ describe('workflow inspector support', () => {
         detail: 'Review release notes is still open in review.',
       },
       {
-        label: 'Gate review lane',
+        label: 'Gate decision lane',
         href: '/work/boards/workflow-1?stage=review',
-        detail: 'review is carrying the current gate posture for this workflow.',
+        detail: 'review is carrying the current gate decision posture for this workflow.',
       },
       {
         label: 'Workspace memory',
@@ -170,9 +171,10 @@ describe('workflow inspector support', () => {
       nextExpectedActor: 'reviewer',
       nextExpectedAction: 'review',
       unresolvedFindingsCount: 1,
-      reviewFocusCount: 1,
+      assessmentFocusCount: 1,
       knownRiskCount: 1,
       latestHandoffCompletion: 'partial',
+      currentSubjectRevision: 2,
     });
   });
 
@@ -227,6 +229,7 @@ describe('workflow inspector support', () => {
             review_focus: ['Rollback notes'],
             known_risks: ['Release timing'],
             latest_handoff_completion: 'partial',
+            current_subject_revision: 2,
             priority: 'high',
           },
         ],
@@ -241,9 +244,10 @@ describe('workflow inspector support', () => {
       nextExpectedActor: 'reviewer',
       nextExpectedAction: 'review',
       unresolvedFindingsCount: 1,
-      reviewFocusCount: 1,
+      assessmentFocusCount: 1,
       knownRiskCount: 1,
       latestHandoffCompletion: 'partial',
+      currentSubjectRevision: 2,
     });
 
     expect(
@@ -270,9 +274,9 @@ describe('workflow inspector support', () => {
     ).toEqual({
       title: 'Focus on Review release notes',
       detail:
-        'Stage review • 2 reworks • 1 unresolved finding • 1 review focus item • 1 known risk • Latest handoff: QA validated the approved branch successfully. • Successor context: Use the verified QA evidence as the release input. • Next actor: reviewer should review next',
+        'Stage review • Subject revision 2 • 2 reworks • 1 unresolved finding • 1 assessment focus item • 1 known risk • Latest handoff: QA validated the approved branch successfully. • Successor context: Use the verified QA evidence as the release input. • Next actor: reviewer should review next',
       nextAction:
-        'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
+        'Open the focus work item first, clear the unresolved findings and assessment focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',
       actionHref: '/work/boards/workflow-5?work_item=work-item-5',
     });
@@ -359,10 +363,10 @@ describe('workflow inspector support', () => {
         traceModel,
       }),
     ).toEqual({
-      title: 'Gate review needs attention first',
+      title: 'Gate decision needs attention first',
       detail: '1 gate checkpoint is waiting across review.',
       nextAction:
-        'Start with the board stage that is waiting for approval, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
+        'Start with the board stage that is waiting for operator decision, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
       actionLabel: 'Open board stage',
       actionHref: '/work/boards/workflow-3',
     });
@@ -396,6 +400,7 @@ describe('workflow inspector support', () => {
             review_focus: ['Rollback notes'],
             known_risks: ['Release timing'],
             latest_handoff_completion: 'partial',
+            current_subject_revision: 1,
             priority: 'high',
           },
         ],
@@ -425,9 +430,9 @@ describe('workflow inspector support', () => {
     ).toEqual({
       title: 'Focus on Review release notes',
       detail:
-        'Stage review • 1 unresolved finding • 1 review focus item • 1 known risk • Next actor: reviewer should review next',
+        'Stage review • Subject revision 1 • 1 unresolved finding • 1 assessment focus item • 1 known risk • Next actor: reviewer should review next',
       nextAction:
-        'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
+        'Open the focus work item first, clear the unresolved findings and assessment focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',
       actionHref: '/work/boards/workflow-5?work_item=work-item-5',
     });

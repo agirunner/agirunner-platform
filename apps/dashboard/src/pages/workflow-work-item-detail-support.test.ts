@@ -311,7 +311,7 @@ describe('workflow work item detail support', () => {
       totalChildren: 2,
       completedChildren: 1,
       openChildren: 1,
-      awaitingStepReviews: 1,
+      awaitingStepDecisions: 1,
       failedSteps: 1,
       inFlightSteps: 1,
       activeStageNames: ['implementation', 'verification'],
@@ -393,8 +393,8 @@ describe('workflow work item detail support', () => {
         work_item_id: 'wi-1',
       }),
     ).toEqual({
-      title: 'Output review needed',
-      detail: 'Review the specialist output from the work-item flow before the board can advance.',
+      title: 'Output decision needed',
+      detail: 'Assess or approve the specialist output from the work-item flow before the board can advance.',
       tone: 'warning',
     });
 
@@ -652,7 +652,7 @@ describe('workflow work item detail support', () => {
       facts: [
         { label: 'Board routing', value: 'implementation / active' },
         { label: 'Owner role', value: 'engineer' },
-        { label: 'Pending review', value: 'No decisions waiting' },
+        { label: 'Pending decisions', value: 'No decisions waiting' },
         { label: 'Execution coverage', value: '1 active / 0 complete' },
       ],
     });
@@ -684,7 +684,7 @@ describe('workflow work item detail support', () => {
           totalChildren: 0,
           completedChildren: 0,
           openChildren: 0,
-          awaitingStepReviews: 0,
+          awaitingStepDecisions: 0,
           failedSteps: 0,
           inFlightSteps: 0,
           activeStageNames: [],
@@ -700,7 +700,7 @@ describe('workflow work item detail support', () => {
       facts: [
         { label: 'Board routing', value: 'implementation / active' },
         { label: 'Owner role', value: 'Unassigned' },
-        { label: 'Pending review', value: 'No decisions waiting' },
+        { label: 'Pending decisions', value: 'No decisions waiting' },
         { label: 'Milestone scope', value: '0 open / 0 child items' },
       ],
     });
@@ -737,7 +737,7 @@ describe('workflow work item detail support', () => {
       facts: [
         { label: 'Board routing', value: 'Missing stage / Missing board column' },
         { label: 'Owner role', value: 'Unassigned' },
-        { label: 'Pending review', value: 'No decisions waiting' },
+        { label: 'Pending decisions', value: 'No decisions waiting' },
         { label: 'Execution coverage', value: 'No linked specialist steps' },
       ],
     });

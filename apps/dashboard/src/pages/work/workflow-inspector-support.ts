@@ -31,10 +31,11 @@ export interface WorkflowInspectorFocusWorkItem {
   title: string;
   stageName: string;
   reworkCount?: number;
+  currentSubjectRevision?: number | null;
   nextExpectedActor: string | null;
   nextExpectedAction: string | null;
   unresolvedFindingsCount: number;
-  reviewFocusCount: number;
+  assessmentFocusCount: number;
   knownRiskCount: number;
   latestHandoffCompletion: string | null;
 }
@@ -107,17 +108,18 @@ export function buildWorkflowInspectorTraceModel(input: {
     links: buildWorkflowInspectorTraceLinks(workflow, workspaceId, readLatestActivation),
     focusWorkItem: focusWorkItem
         ? {
-          id: focusWorkItem.id,
-          title: focusWorkItem.title,
-          stageName: focusWorkItem.stage_name,
-          reworkCount: focusWorkItem.rework_count ?? 0,
-          nextExpectedActor: focusWorkItem.next_expected_actor ?? null,
-          nextExpectedAction: focusWorkItem.next_expected_action ?? null,
-          unresolvedFindingsCount: focusWorkItem.unresolved_findings?.length ?? 0,
-          reviewFocusCount: focusWorkItem.review_focus?.length ?? 0,
-          knownRiskCount: focusWorkItem.known_risks?.length ?? 0,
-          latestHandoffCompletion: focusWorkItem.latest_handoff_completion ?? null,
-        }
+            id: focusWorkItem.id,
+            title: focusWorkItem.title,
+            stageName: focusWorkItem.stage_name,
+            reworkCount: focusWorkItem.rework_count ?? 0,
+            currentSubjectRevision: focusWorkItem.current_subject_revision ?? null,
+            nextExpectedActor: focusWorkItem.next_expected_actor ?? null,
+            nextExpectedAction: focusWorkItem.next_expected_action ?? null,
+            unresolvedFindingsCount: focusWorkItem.unresolved_findings?.length ?? 0,
+            assessmentFocusCount: focusWorkItem.review_focus?.length ?? 0,
+            knownRiskCount: focusWorkItem.known_risks?.length ?? 0,
+            latestHandoffCompletion: focusWorkItem.latest_handoff_completion ?? null,
+          }
       : null,
   };
 }
@@ -132,10 +134,10 @@ export function buildWorkflowInspectorFocusSummary(input: {
   const awaitingGateCount = input.workflow?.work_item_summary?.awaiting_gate_count ?? 0;
   if (awaitingGateCount > 0) {
     return {
-      title: 'Gate review needs attention first',
+      title: 'Gate decision needs attention first',
       detail: `${awaitingGateCount} gate checkpoint${awaitingGateCount === 1 ? ' is' : 's are'} waiting across ${input.liveStageLabel}.`,
       nextAction:
-        'Start with the board stage that is waiting for approval, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
+        'Start with the board stage that is waiting for operator decision, then use the trace packets below to confirm spend, artifacts, and memory context before deciding.',
       actionLabel: 'Open board stage',
       actionHref: `/work/boards/${input.workflowId}`,
     };
@@ -148,7 +150,7 @@ export function buildWorkflowInspectorFocusSummary(input: {
       title: `Focus on ${focusItem.title}`,
       detail: continuityDetail,
       nextAction:
-        'Open the focus work item first, clear the unresolved findings and review focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
+        'Open the focus work item first, clear the unresolved findings and assessment focus notes, then decide whether the next move is approval, rework, or a new orchestrator turn.',
       actionLabel: 'Open focus work item',
       actionHref: `/work/boards/${input.workflowId}?work_item=${encodeURIComponent(focusItem.id)}`,
     };
@@ -232,6 +234,9 @@ function describeFocusContinuityDetail(
   if (focusWorkItem.stageName.trim().length > 0) {
     fragments.push(`Stage ${focusWorkItem.stageName}`);
   }
+  if ((focusWorkItem.currentSubjectRevision ?? 0) > 0) {
+    fragments.push(`Subject revision ${focusWorkItem.currentSubjectRevision}`);
+  }
   if (reworkCount > 0) {
     fragments.push(`${reworkCount} rework${reworkCount === 1 ? '' : 's'}`);
   }
@@ -240,9 +245,9 @@ function describeFocusContinuityDetail(
       `${focusWorkItem.unresolvedFindingsCount} unresolved finding${focusWorkItem.unresolvedFindingsCount === 1 ? '' : 's'}`,
     );
   }
-  if (focusWorkItem.reviewFocusCount > 0) {
+  if (focusWorkItem.assessmentFocusCount > 0) {
     fragments.push(
-      `${focusWorkItem.reviewFocusCount} review focus item${focusWorkItem.reviewFocusCount === 1 ? '' : 's'}`,
+      `${focusWorkItem.assessmentFocusCount} assessment focus item${focusWorkItem.assessmentFocusCount === 1 ? '' : 's'}`,
     );
   }
   if (focusWorkItem.knownRiskCount > 0) {
@@ -274,7 +279,7 @@ function describeGateMetric(
 ): string {
   const humanGateCount = stages.filter((stage) => stage.human_gate).length;
   if (awaitingGateCount > 0) {
-    return `${awaitingGateCount} waiting for operator review across ${humanGateCount || stages.length} gate stage${humanGateCount === 1 ? '' : 's'}.`;
+    return `${awaitingGateCount} waiting for operator decision across ${humanGateCount || stages.length} gate stage${humanGateCount === 1 ? '' : 's'}.`;
   }
   if (humanGateCount > 0) {
     return `${humanGateCount} human-gated stage${humanGateCount === 1 ? '' : 's'} are tracked in the board trace.`;

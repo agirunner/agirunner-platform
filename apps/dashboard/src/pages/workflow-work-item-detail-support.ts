@@ -39,7 +39,7 @@ export interface MilestoneOperatorSummary {
   totalChildren: number;
   completedChildren: number;
   openChildren: number;
-  awaitingStepReviews: number;
+  awaitingStepDecisions: number;
   failedSteps: number;
   inFlightSteps: number;
   activeStageNames: string[];
@@ -225,7 +225,7 @@ export function summarizeMilestoneOperatorFlow(
   const totalChildren = children.length;
   const completedChildren = children.filter((child) => Boolean(child.completed_at)).length;
   const openChildren = totalChildren - completedChildren;
-  const awaitingStepReviews = tasks.filter((task) => {
+  const awaitingStepDecisions = tasks.filter((task) => {
     const state = normalizeTaskState(task.state);
     return state === 'awaiting_approval' || state === 'output_pending_review';
   }).length;
@@ -260,7 +260,7 @@ export function summarizeMilestoneOperatorFlow(
     totalChildren,
     completedChildren,
     openChildren,
-    awaitingStepReviews,
+    awaitingStepDecisions,
     failedSteps,
     inFlightSteps,
     activeStageNames,
@@ -347,9 +347,9 @@ export function describeTaskOperatorPosture(
       };
     case 'output_pending_review':
       return {
-        title: 'Output review needed',
+        title: 'Output decision needed',
         detail:
-          'Review the specialist output from the work-item flow before the board can advance.',
+          'Assess or approve the specialist output from the work-item flow before the board can advance.',
         tone: 'warning',
       };
     case 'failed':
@@ -452,11 +452,11 @@ export function buildWorkItemRecoveryBrief(input: {
 
   if (input.executionSummary.awaitingOperator > 0) {
     return {
-      title: 'Finish operator review before reshaping the flow',
+      title: 'Finish operator decisions before reshaping the flow',
       summary: `${describeCount(
         input.executionSummary.awaitingOperator,
         'linked step',
-      )} waiting on approval or output review. Clear those decisions before changing ownership or board placement.`,
+      )} waiting on approval or assessment decisions. Clear those decisions before changing ownership or board placement.`,
       tone: 'warning',
       badge: 'Decision required',
       facts,
@@ -687,7 +687,7 @@ function buildRecoveryFacts(
       value: formatRoutingValue(workItem.owner_role, 'Unassigned'),
     },
     {
-      label: 'Pending review',
+      label: 'Pending decisions',
       value:
         executionSummary.awaitingOperator > 0
           ? `${describeCount(executionSummary.awaitingOperator, 'step')} waiting`

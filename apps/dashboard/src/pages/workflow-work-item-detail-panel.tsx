@@ -1475,7 +1475,7 @@ function MilestoneOperatorSummarySection(props: {
     totalChildren: number;
     completedChildren: number;
     openChildren: number;
-    awaitingStepReviews: number;
+    awaitingStepDecisions: number;
     failedSteps: number;
     inFlightSteps: number;
     activeStageNames: string[];
@@ -1502,7 +1502,7 @@ function MilestoneOperatorSummarySection(props: {
         </div>
         <div className={metaRowClass}>
           <Badge variant="warning">
-            {describeCountLabel(props.summary.awaitingStepReviews, 'step review')}
+            {describeCountLabel(props.summary.awaitingStepDecisions, 'step decision')}
           </Badge>
           <Badge variant="destructive">
             {describeCountLabel(props.summary.failedSteps, 'failed step')}
@@ -1553,7 +1553,7 @@ function WorkItemFocusPacket(props: {
       </div>
       <div className="flex flex-wrap gap-2">
         <Badge variant={props.executionSummary.awaitingOperator > 0 ? 'warning' : 'outline'}>
-          {props.executionSummary.awaitingOperator} need review
+          {props.executionSummary.awaitingOperator} need decision
         </Badge>
         <Badge variant={props.executionSummary.retryableSteps > 0 ? 'warning' : 'outline'}>
           {props.executionSummary.retryableSteps} retryable
@@ -1588,6 +1588,10 @@ function WorkItemContinuitySection(props: {
     {
       label: 'Rework count',
       value: String(props.workItem?.rework_count ?? 0),
+    },
+    {
+      label: 'Subject revision',
+      value: String(props.workItem?.current_subject_revision ?? 0),
     },
   ];
 
@@ -1665,7 +1669,7 @@ function WorkItemReviewClosure(props: { title: string; detail: string }): JSX.El
   return (
     <section className="grid gap-2 rounded-xl border border-dashed border-border/70 bg-background/80 p-3">
       <div className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted">
-        Review checkpoint
+        Decision checkpoint
       </div>
       <strong className="text-sm text-foreground">{props.title}</strong>
       <p className={mutedBodyClass}>{props.detail}</p>
@@ -1715,7 +1719,7 @@ function WorkItemHandoffHistorySection(props: {
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
                 <Badge variant="outline">
-                  {describeCountLabel(handoff.review_focus.length, 'review focus item')}
+                  {describeCountLabel(handoff.review_focus.length, 'assessment focus item')}
                 </Badge>
                 <Badge variant="outline">
                   {describeCountLabel(handoff.remaining_items.length, 'remaining item')}
@@ -1800,7 +1804,7 @@ function WorkItemTasksSection(props: {
             detail="Execution records anchored here"
           />
           <DetailStatCard
-            label="Needs review"
+            label="Needs decision"
             value={String(executionSummary.awaitingOperator)}
             detail="Operator decisions still needed"
           />
@@ -1817,7 +1821,7 @@ function WorkItemTasksSection(props: {
         </div>
         <div className="grid gap-3 rounded-xl border border-border/70 bg-border/10 p-4">
           <div className="flex items-center justify-between gap-3">
-            <strong className="text-sm">Execution review packet</strong>
+            <strong className="text-sm">Execution decision packet</strong>
             <Badge variant="outline">{executionSummary.completedSteps} completed</Badge>
           </div>
           <p className={mutedBodyClass}>
@@ -1868,7 +1872,7 @@ function WorkItemTasksSection(props: {
                 buried below routine execution.
               </p>
             </div>
-            <Badge variant="warning">{attentionTasks.length} queued for review</Badge>
+            <Badge variant="warning">{attentionTasks.length} queued for decision</Badge>
           </div>
           <div className="grid gap-3 lg:grid-cols-2">
             {attentionTasks.slice(0, 4).map((task) => {

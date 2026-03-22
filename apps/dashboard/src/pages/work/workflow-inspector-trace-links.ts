@@ -52,9 +52,9 @@ export function buildWorkflowInspectorTraceLinks(
   const highlightedGateStage = readHighlightedGateStage(stages);
   if (highlightedGateStage) {
     links.push({
-      label: 'Gate review lane',
+      label: 'Gate decision lane',
       href: buildWorkflowBoardLink(workflowId, { stage: highlightedGateStage.name }),
-      detail: `${highlightedGateStage.name} is carrying the current gate posture for this workflow.`,
+      detail: `${highlightedGateStage.name} is carrying the current gate decision posture for this workflow.`,
     });
   }
 

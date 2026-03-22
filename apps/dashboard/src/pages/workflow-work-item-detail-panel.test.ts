@@ -137,7 +137,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain(
       'Review the summary first. Open controls only when routing or metadata needs to change.',
     );
-    expect(source).toContain('need review');
+    expect(source).toContain('need decision');
     expect(source).toContain('history events');
     expect(source).toContain('Handoff history');
     expect(source).toContain('Full execution chain for this work item');
@@ -145,7 +145,7 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain('Child acceptance criteria');
     expect(source).toContain('Child notes');
     expect(source).toContain('Add Child Metadata Entry');
-    expect(source).toContain('Execution review packet');
+    expect(source).toContain('Execution decision packet');
     expect(source).toContain('Requires operator attention');
     expect(source).toContain('Execution queue');
     expect(source).toContain('Operator next step');

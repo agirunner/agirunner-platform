@@ -83,7 +83,7 @@ describe('workflow inspector telemetry', () => {
         nextExpectedActor: null,
         nextExpectedAction: null,
         unresolvedFindingsCount: 0,
-        reviewFocusCount: 0,
+        assessmentFocusCount: 0,
         knownRiskCount: 0,
         latestHandoffCompletion: null,
       },

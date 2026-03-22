@@ -451,7 +451,14 @@ export interface DashboardWorkflowWorkItemRecordBase {
   next_expected_actor?: string | null;
   next_expected_action?: string | null;
   rework_count?: number | null;
+  current_subject_revision?: number | null;
   latest_handoff_completion?: string | null;
+  latest_handoff_resolution?: string | null;
+  assessment_status?: string | null;
+  required_assessment_count?: number | null;
+  approved_assessment_count?: number | null;
+  blocking_assessment_count?: number | null;
+  pending_assessment_count?: number | null;
   unresolved_findings?: string[];
   review_focus?: string[];
   known_risks?: string[];
