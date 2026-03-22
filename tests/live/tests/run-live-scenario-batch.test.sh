@@ -76,6 +76,7 @@ EOF
   assert_contains "FAIL beta" "${output_log}"
   assert_contains "PASS alpha" "${output_log}"
   assert_contains "Completed 2 scenario(s): 1 passed, 1 failed" "${output_log}"
+  assert_contains "Matrix status: 0 passed, 2 remaining, 2 total" "${output_log}"
 }
 
 test_batch_runner_uses_explicit_concurrency_argument() {
@@ -100,7 +101,17 @@ EOF
 
   printf '%s\n' '{}' >"${scenario_dir}/alpha.json"
   make_stub "${bootstrap_stub}" ':'
-  make_stub "${runner_stub}" ':'
+  cat >"${runner_stub}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+scenario="$1"
+artifacts_dir="${LIVE_TEST_ARTIFACTS_DIR:?}"
+mkdir -p "${artifacts_dir}/${scenario}"
+cat >"${artifacts_dir}/${scenario}/workflow-run.json" <<'JSON'
+{"verification_passed":true}
+JSON
+EOF
+  chmod +x "${runner_stub}"
 
   LIVE_TEST_ENV_FILE="${envfile}" \
     LIVE_TEST_SCENARIO_DIR="${scenario_dir}" \
@@ -109,6 +120,7 @@ EOF
     "${SCRIPT_PATH}" 3 >"${output_log}" 2>&1
 
   assert_contains "Running live scenarios with concurrency=3" "${output_log}"
+  assert_contains "Matrix status: 1 passed, 0 remaining, 1 total" "${output_log}"
 }
 
 test_batch_runner_uses_default_concurrency_and_reports_results_as_completed

@@ -4,6 +4,36 @@ log_live_test() {
   echo "[tests/live] $*"
 }
 
+count_live_test_matrix_status() {
+  local scenario_root="$1"
+  local artifacts_root="$2"
+  python3 - "${scenario_root}" "${artifacts_root}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+scenario_root = Path(sys.argv[1])
+artifacts_root = Path(sys.argv[2])
+
+total = 0
+passed = 0
+for scenario_file in sorted(scenario_root.glob("*.json")):
+    total += 1
+    result_file = artifacts_root / scenario_file.stem / "workflow-run.json"
+    if not result_file.exists():
+        continue
+    try:
+        data = json.loads(result_file.read_text())
+    except Exception:
+        continue
+    if data.get("verification_passed") is True:
+        passed += 1
+
+remaining = total - passed
+print(f"{passed}\t{remaining}\t{total}")
+PY
+}
+
 require_live_test_file() {
   local path="$1"
   local label="$2"

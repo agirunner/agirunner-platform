@@ -131,6 +131,10 @@ while (( next_index < ${#scenarios[@]} || ${#active_pids[@]} > 0 )); do
 done
 
 log_live_test "Completed ${completed} scenario(s): ${passed} passed, ${failed} failed"
+IFS=$'\t' read -r matrix_passed matrix_remaining matrix_total < <(
+  count_live_test_matrix_status "${scenario_root}" "${artifacts_dir}"
+)
+log_live_test "Matrix status: ${matrix_passed} passed, ${matrix_remaining} remaining, ${matrix_total} total"
 if (( failed > 0 )); then
   exit 1
 fi
