@@ -11,7 +11,7 @@ describe('gate detail card source', () => {
     const source = readSource();
     expect(source).toContain('Operator breadcrumbs');
     expect(source).toContain('OperatorBreadcrumbTrail');
-    expect(source).toContain('Gate review packet');
+    expect(source).toContain('Gate decision packet');
     expect(source).toContain('Lifecycle trail');
     expect(source).toContain('GateSignalCard');
     expect(source).toContain('GatePanel');
@@ -57,7 +57,7 @@ describe('gate detail card source', () => {
     expect(source).toContain('location.hash === `#gate-${props.gate.stage_name}`');
   });
 
-  it('keeps the request-changes dialog scroll-safe for long review packets', () => {
+  it('keeps the request-changes dialog scroll-safe for long decision packets', () => {
     const source = readSource();
     expect(source).toContain('DialogContent className="sm:max-w-lg"');
     expect(source).toContain('max-h-[75vh]');

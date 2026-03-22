@@ -7,7 +7,7 @@ function readSource() {
 }
 
 describe('approval queue stage gate card source', () => {
-  it('renders stage-gate packets with explicit review disclosure and follow-up context', () => {
+  it('renders stage-gate packets with explicit decision disclosure and follow-up context', () => {
     const source = readSource();
     expect(source).toContain('ApprovalQueueReviewDisclosure');
     expect(source).toContain('buildWorkflowDetailPermalink');
@@ -22,7 +22,7 @@ describe('approval queue stage gate card source', () => {
     expect(source).toContain('Gate packet');
     expect(source).toContain('Request source');
     expect(source).toContain('Next operator move');
-    expect(source).toContain('Gate review packet');
+    expect(source).toContain('Gate decision packet');
     expect(source).toContain('Open board gate');
     expect(source).toContain('Open work-item flow');
     expect(source).toContain('Open follow-up activation');

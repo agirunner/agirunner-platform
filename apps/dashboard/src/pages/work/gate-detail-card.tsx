@@ -291,7 +291,7 @@ export function GateDetailCard(props: {
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(19rem,0.95fr)]">
               <div className="space-y-4">
-                <GatePanel eyebrow="Review focus" title="Gate review packet">
+                <GatePanel eyebrow="Decision focus" title="Gate decision packet">
                   <p className="text-sm leading-6 text-foreground">
                     {gate.stage_goal?.trim() || 'No gate goal recorded.'}
                   </p>
@@ -308,7 +308,7 @@ export function GateDetailCard(props: {
                     <p className="text-sm leading-6 text-muted">{gate.request_summary}</p>
                   ) : (
                     <p className="text-sm leading-6 text-muted">
-                      Review the linked concerns, artifacts, and decision trail before acting.
+                      Inspect the linked concerns, artifacts, and decision trail before acting.
                     </p>
                   )}
                 </GatePanel>
@@ -496,7 +496,7 @@ export function GateDetailCard(props: {
                 <GatePanel eyebrow="Request trace" title="Request source">
                   <p className="text-sm leading-6 text-muted">
                     Keep the decision on the gate or work-item flow first. Use step diagnostics only
-                    when you need the source execution evidence behind this review packet.
+                      when you need the source execution evidence behind this decision packet.
                   </p>
                   {requestSourceSummary.length > 0 ? (
                     <div className="flex flex-wrap gap-2">
@@ -604,8 +604,8 @@ export function GateDetailCard(props: {
                 {detailQuery.isError ? (
                   <GatePanel eyebrow="Recovery" title="Gate refresh failed" tone="destructive">
                     <p className="text-sm leading-6 text-rose-900">
-                      The current review packet could not be refreshed. Use the workflow or approval
-                      permalink to retry once the gate API is healthy.
+                       The current decision packet could not be refreshed. Use the workflow or approval
+                       permalink to retry once the gate API is healthy.
                     </p>
                   </GatePanel>
                 ) : null}

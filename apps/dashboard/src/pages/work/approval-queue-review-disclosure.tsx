@@ -43,7 +43,7 @@ export function ApprovalQueueReviewDisclosure(props: {
           id={triggerId}
           onClick={() => setIsOpen((current) => !current)}
         >
-          {isOpen ? 'Hide full review packet' : 'Open full review packet'}
+          {isOpen ? 'Hide full decision packet' : 'Open full decision packet'}
           {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
         </Button>
       </div>
@@ -62,10 +62,10 @@ export function ApprovalQueueReviewDisclosure(props: {
                 tabIndex={-1}
                 className="text-sm font-semibold text-foreground"
               >
-                Full review packet
+                Full decision packet
               </h3>
               <p className="text-sm text-muted">
-                Review the decision trail, artifacts, and orchestrator follow-up without leaving the queue.
+                Inspect the decision trail, artifacts, and orchestrator follow-up without leaving the queue.
               </p>
             </div>
             <Button type="button" variant="ghost" size="sm" onClick={closePanel}>

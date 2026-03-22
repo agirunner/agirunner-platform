@@ -10,9 +10,9 @@ function readSource() {
 }
 
 describe('task detail artifacts panel source', () => {
-  it('reframes the artifacts tab as an operator review packet instead of a raw file list', () => {
+  it('reframes the artifacts tab as an operator evidence packet instead of a raw file list', () => {
     const source = readSource();
-    expect(source).toContain('Artifact review packet');
+    expect(source).toContain('Artifact evidence packet');
     expect(source).toContain('Artifacts recorded');
     expect(source).toContain('Inline preview ready');
     expect(source).toContain('Download-first files');

@@ -14,7 +14,7 @@ describe('approval queue review disclosure source', () => {
     expect(source).toContain('role="region"');
     expect(source).toContain('requestAnimationFrame(() => triggerRef.current?.focus())');
     expect(source).toContain('panelHeadingRef.current?.focus()');
-    expect(source).toContain('Hide full review packet');
+    expect(source).toContain('Hide full decision packet');
     expect(source).toContain('Collapse packet');
     expect(source).not.toContain('<details');
   });

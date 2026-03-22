@@ -20,7 +20,7 @@ describe('approval queue page source', () => {
     expect(source).toContain('ApprovalQueueSectionJumpStrip');
     expect(source).toContain('approval-stage-gates');
     expect(source).toContain('approval-step-approvals');
-    expect(source).toContain('Human review packets waiting by stage.');
+    expect(source).toContain('Human decision packets waiting by stage.');
     expect(source).not.toContain('First up');
   });
 

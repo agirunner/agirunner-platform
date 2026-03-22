@@ -233,7 +233,7 @@ export function ApprovalQueuePage(): JSX.Element {
                 icon={<Workflow className="h-3.5 w-3.5" />}
                 label="Stage gates"
                 value={stageGates.length}
-                detail="Human review packets waiting by stage."
+                detail="Human decision packets waiting by stage."
               />
               <QueueMetricCard
                 icon={<FileText className="h-3.5 w-3.5" />}

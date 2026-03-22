@@ -33,7 +33,7 @@ export function TaskDetailArtifactsPanel(props: { taskId: string }): JSX.Element
     <div className="space-y-4">
       <section className="rounded-xl bg-border/10 p-4">
         <p className="text-xs font-medium uppercase tracking-wide text-muted">
-          Artifact review packet
+          Artifact evidence packet
         </p>
         <h3 className="mt-2 text-lg font-semibold">{summary.nextStepTitle}</h3>
         <p className="mt-2 text-sm leading-6 text-muted">{summary.nextStepDetail}</p>
@@ -74,7 +74,7 @@ export function TaskDetailArtifactsPanel(props: { taskId: string }): JSX.Element
 
       {artifacts.length === 0 ? (
         <div className="rounded-xl border border-dashed border-border/70 bg-border/5 px-4 py-6 text-sm text-muted">
-          No artifacts published for this step yet. Review the output packet first, then come back
+          No artifacts published for this step yet. Inspect the output packet first, then come back
           here when the specialist publishes files or handoff documents.
         </div>
       ) : (
@@ -189,8 +189,8 @@ function describeArtifact(artifact: DashboardTaskArtifactRecord) {
   return {
     canInline,
     statusLabel: canInline ? 'Inline preview ready' : 'Download-only artifact',
-    reviewGuidance: canInline
-      ? 'Start with the preview workspace so rendered output, raw payload, and download stay in one operator review flow.'
+      reviewGuidance: canInline
+      ? 'Start with the preview workspace so rendered output, raw payload, and download stay in one operator evidence flow.'
       : 'Use the preview workspace to inspect metadata and route to a safe download for this file.',
   };
 }

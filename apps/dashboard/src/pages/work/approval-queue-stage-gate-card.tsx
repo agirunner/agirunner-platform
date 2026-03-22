@@ -73,7 +73,7 @@ export function StageGateQueueCard(props: {
             <div className="space-y-1">
               <CardTitle className="text-base">{gate.stage_name}</CardTitle>
               <CardDescription>
-                {gate.stage_goal || 'Human review packet for this stage gate.'}
+                {gate.stage_goal || 'Human decision packet for this stage gate.'}
               </CardDescription>
             </div>
             <OperatorBreadcrumbTrail items={breadcrumbs} />
@@ -128,7 +128,7 @@ export function StageGateQueueCard(props: {
                 </div>
               ) : (
                 <p className="text-xs text-muted">
-                  Open the full review packet for the full request summary, concerns, and linked
+                  Open the full decision packet for the full request summary, concerns, and linked
                   evidence.
                 </p>
               )}
@@ -177,8 +177,8 @@ export function StageGateQueueCard(props: {
           </div>
         ) : null}
         <ApprovalQueueReviewDisclosure
-          title="Gate review packet"
-          summary={`${recoveryPacket.title}. Open the full review packet for the decision trail, key artifacts, and recovery evidence before acting.`}
+          title="Gate decision packet"
+          summary={`${recoveryPacket.title}. Open the full decision packet for the decision trail, key artifacts, and recovery evidence before acting.`}
         >
           <GateDetailCard gate={gate} source="approval-queue" />
         </ApprovalQueueReviewDisclosure>
