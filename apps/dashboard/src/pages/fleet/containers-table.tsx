@@ -66,10 +66,10 @@ export function ContainersTable(props: {
                 </div>
               </DiffCell>
               <DiffCell row={row} field="role" className="min-w-28 py-3">
-                <span className="text-sm text-foreground">{row.role_name ?? 'Unassigned'}</span>
+                <CellText>{sanitizeContainerContextLabel(row.role_name)}</CellText>
               </DiffCell>
               <DiffCell row={row} field="playbook" className="min-w-40 py-3">
-                <CellText>{row.playbook_name ?? '-'}</CellText>
+                <CellText>{sanitizeContainerContextLabel(row.playbook_name)}</CellText>
               </DiffCell>
               <DiffCell row={row} field="workflow" className="min-w-48 py-3">
                 {renderEntityLink(row.workflow_id, row.workflow_name, '/work/boards')}
@@ -107,6 +107,10 @@ export function ContainersTable(props: {
 
 function CellText(props: { children: ReactNode }): JSX.Element {
   return <span className="block text-sm text-foreground">{props.children}</span>;
+}
+
+function sanitizeContainerContextLabel(value: string | null): string {
+  return isSyntheticContainerContextLabel(value) ? '-' : (value?.trim() || '-');
 }
 
 function DiffCell(props: {

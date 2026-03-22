@@ -34,12 +34,16 @@ describe('containers page source', () => {
     expect(tableSource).toContain('resolveDiffCellTone');
     expect(tableSource).toContain('hasPendingField');
     expect(tableSource).toContain('hasRecentlyChangedField');
+    expect(tableSource).toContain('sanitizeContainerContextLabel');
     expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist runtimes'");
+    expect(tableSource).not.toContain('Unassigned');
     expect(tableSource).not.toContain('bg-accent/14');
     expect(supportSource).toContain('Orchestrator worker');
     expect(supportSource).toContain('Task execution');
     expect(supportSource).toContain('visibleFieldsForNewRow');
     expect(supportSource).toContain('diffVisibleFields');
+    expect(supportSource).toContain('rememberContainerContext');
+    expect(supportSource).toContain('applyRememberedContext');
     expect(tableSource).not.toContain('Orchestrator Pool');
     expect(tableSource).not.toContain('Specialist Pool');
   });

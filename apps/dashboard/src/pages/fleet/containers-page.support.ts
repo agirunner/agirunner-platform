@@ -44,6 +44,19 @@ interface PendingSessionState {
   presence: 'running' | 'inactive';
   inactive_at: string | null;
   changed_fields: ContainerDiffField[];
+  remembered_context: RememberedContainerContext | null;
+}
+
+interface RememberedContainerContext {
+  role_name: string | null;
+  playbook_id: string | null;
+  playbook_name: string | null;
+  workflow_id: string | null;
+  workflow_name: string | null;
+  stage_name: string | null;
+  task_id: string | null;
+  task_title: string | null;
+  activity_state: string | null;
 }
 
 export interface SessionContainerRow extends DashboardLiveContainerRecord {
@@ -54,6 +67,7 @@ export interface SessionContainerRow extends DashboardLiveContainerRecord {
   pending_state: PendingSessionState | null;
   pending_flip_at: string | null;
   pending_fields: ContainerDiffField[];
+  remembered_context: RememberedContainerContext | null;
 }
 
 export function formatContainerKindLabel(kind: DashboardLiveContainerRecord['kind']): string {
@@ -233,6 +247,10 @@ function buildRunningSessionRow(
   observedAt: string,
   hasBaselineSnapshot: boolean,
 ): SessionContainerRow {
+  const priorContext = prior
+    ? rememberContainerContext(prior.remembered_context, extractLiveRecord(prior))
+    : null;
+  const rememberedContext = rememberContainerContext(priorContext, next);
   if (!prior) {
     return buildStableSessionRow(
       next,
@@ -240,13 +258,21 @@ function buildRunningSessionRow(
       null,
       hasBaselineSnapshot ? observedAt : null,
       hasBaselineSnapshot ? visibleFieldsForNewRow(next) : [],
+      rememberedContext,
     );
   }
 
   const changedFields = diffVisibleFields(extractLiveRecord(prior), prior.presence, next, 'running');
   if (changedFields.length === 0) {
     return {
-      ...buildStableSessionRow(next, 'running', null, prior.changed_at, prior.changed_fields),
+      ...buildStableSessionRow(
+        next,
+        'running',
+        null,
+        prior.changed_at,
+        prior.changed_fields,
+        rememberedContext,
+      ),
       changed_at: prior.changed_at,
     };
   }
@@ -254,14 +280,15 @@ function buildRunningSessionRow(
   if (isPendingChangeRow(prior, Date.parse(observedAt))) {
     return {
       ...prior,
-      pending_state: buildPendingState(next, 'running', null, changedFields),
+      remembered_context: rememberedContext,
+      pending_state: buildPendingState(next, 'running', null, changedFields, rememberedContext),
       pending_fields: changedFields,
     };
   }
 
   return buildPendingTransitionRow(
     prior,
-    buildPendingState(next, 'running', null, changedFields),
+    buildPendingState(next, 'running', null, changedFields, rememberedContext),
     observedAt,
   );
 }
@@ -271,16 +298,29 @@ function buildMissingSessionRow(row: SessionContainerRow, observedAt: string): S
     return row;
   }
   const changedFields: ContainerDiffField[] = ['status'];
+  const inactiveRecord = applyRememberedContext(extractLiveRecord(row), row.remembered_context);
   if (isPendingChangeRow(row, Date.parse(observedAt))) {
     return {
       ...row,
-      pending_state: buildPendingState(extractLiveRecord(row), 'inactive', observedAt, changedFields),
+      pending_state: buildPendingState(
+        inactiveRecord,
+        'inactive',
+        observedAt,
+        changedFields,
+        row.remembered_context,
+      ),
       pending_fields: changedFields,
     };
   }
   return buildPendingTransitionRow(
     row,
-    buildPendingState(extractLiveRecord(row), 'inactive', observedAt, changedFields),
+    buildPendingState(
+      inactiveRecord,
+      'inactive',
+      observedAt,
+      changedFields,
+      row.remembered_context,
+    ),
     observedAt,
   );
 }
@@ -291,6 +331,7 @@ function buildStableSessionRow(
   inactiveAt: string | null,
   changedAt: string | null,
   changedFields: ContainerDiffField[],
+  rememberedContext: RememberedContainerContext | null,
 ): SessionContainerRow {
   return {
     ...row,
@@ -301,6 +342,7 @@ function buildStableSessionRow(
     pending_state: null,
     pending_flip_at: null,
     pending_fields: [],
+    remembered_context: rememberedContext,
   };
 }
 
@@ -323,12 +365,14 @@ function buildPendingState(
   presence: 'running' | 'inactive',
   inactiveAt: string | null,
   changedFields: ContainerDiffField[],
+  rememberedContext: RememberedContainerContext | null,
 ): PendingSessionState {
   return {
     record: row,
     presence,
     inactive_at: inactiveAt,
     changed_fields: changedFields,
+    remembered_context: rememberedContext,
   };
 }
 
@@ -347,6 +391,7 @@ function advancePendingSessionRow(row: SessionContainerRow, observedAt: string):
     row.pending_state.inactive_at,
     row.pending_flip_at,
     row.pending_state.changed_fields,
+    row.pending_state.remembered_context,
   );
 }
 
@@ -355,7 +400,7 @@ function visibleFieldsForNewRow(row: DashboardLiveContainerRecord): ContainerDif
   if (row.role_name?.trim()) {
     fields.push('role');
   }
-  if (row.playbook_id || row.playbook_name?.trim()) {
+  if (hasMeaningfulPlaybookContext(row.playbook_id, row.playbook_name)) {
     fields.push('playbook');
   }
   if (row.workflow_id || row.workflow_name?.trim()) {
@@ -393,7 +438,7 @@ function diffVisibleFields(
   }
   if (
     normalizeText(left.playbook_id) !== normalizeText(right.playbook_id)
-    || normalizeText(left.playbook_name) !== normalizeText(right.playbook_name)
+    || normalizePlaybookName(left.playbook_name) !== normalizePlaybookName(right.playbook_name)
   ) {
     changed.add('playbook');
   }
@@ -430,6 +475,59 @@ function diffVisibleFields(
 
 function normalizeText(value: string | null | undefined): string {
   return value?.trim() ?? '';
+}
+
+function normalizePlaybookName(value: string | null | undefined): string {
+  const normalized = normalizeText(value);
+  return isSyntheticContainerContextLabel(normalized) ? '' : normalized;
+}
+
+function hasMeaningfulPlaybookContext(id: string | null | undefined, name: string | null | undefined): boolean {
+  return normalizeText(id) !== '' || normalizePlaybookName(name) !== '';
+}
+
+function isSyntheticContainerContextLabel(value: string | null | undefined): boolean {
+  return normalizeText(value).toLowerCase() === 'specialist runtimes';
+}
+
+function rememberContainerContext(
+  prior: RememberedContainerContext | null,
+  row: DashboardLiveContainerRecord,
+): RememberedContainerContext | null {
+  const next: RememberedContainerContext = {
+    role_name: normalizeText(row.role_name) || prior?.role_name || null,
+    playbook_id: normalizeText(row.playbook_id) || prior?.playbook_id || null,
+    playbook_name: normalizePlaybookName(row.playbook_name) || prior?.playbook_name || null,
+    workflow_id: normalizeText(row.workflow_id) || prior?.workflow_id || null,
+    workflow_name: normalizeText(row.workflow_name) || prior?.workflow_name || null,
+    stage_name: normalizeText(row.stage_name) || prior?.stage_name || null,
+    task_id: normalizeText(row.task_id) || prior?.task_id || null,
+    task_title: normalizeText(row.task_title) || prior?.task_title || null,
+    activity_state: normalizeText(row.activity_state) || prior?.activity_state || null,
+  };
+
+  return Object.values(next).some((value) => value) ? next : null;
+}
+
+function applyRememberedContext(
+  row: DashboardLiveContainerRecord,
+  rememberedContext: RememberedContainerContext | null,
+): DashboardLiveContainerRecord {
+  if (!rememberedContext) {
+    return row;
+  }
+  return {
+    ...row,
+    role_name: normalizeText(row.role_name) || rememberedContext.role_name,
+    playbook_id: normalizeText(row.playbook_id) || rememberedContext.playbook_id,
+    playbook_name: normalizePlaybookName(row.playbook_name) || rememberedContext.playbook_name,
+    workflow_id: normalizeText(row.workflow_id) || rememberedContext.workflow_id,
+    workflow_name: normalizeText(row.workflow_name) || rememberedContext.workflow_name,
+    stage_name: normalizeText(row.stage_name) || rememberedContext.stage_name,
+    task_id: normalizeText(row.task_id) || rememberedContext.task_id,
+    task_title: normalizeText(row.task_title) || rememberedContext.task_title,
+    activity_state: normalizeText(row.activity_state) || rememberedContext.activity_state,
+  };
 }
 
 function extractLiveRecord(row: SessionContainerRow): DashboardLiveContainerRecord {

@@ -39,6 +39,7 @@ function createRow(overrides: Partial<SessionContainerRow> = {}): SessionContain
     pending_state: null,
     pending_flip_at: null,
     pending_fields: [],
+    remembered_context: null,
     ...overrides,
   };
 }
@@ -247,6 +248,72 @@ describe('mergeLiveContainerSessionRows', () => {
     expect(hasRecentlyChangedField(advanced[0], 'status', Date.parse('2026-03-21T18:35:01.500Z'))).toBe(true);
     expect(hasRecentlyChangedField(advanced[0], 'task', Date.parse('2026-03-21T18:35:01.500Z'))).toBe(false);
     expect(isRecentlyChangedRow(advanced[0], Date.parse('2026-03-21T18:35:01.500Z'))).toBe(true);
+  });
+
+  it('preserves the last real runtime context when a runtime goes idle and then disappears', () => {
+    const runtimeRow = createRow({
+      id: 'runtime:runtime-1',
+      kind: 'runtime',
+      container_id: 'runtime-container-1',
+      name: 'runtime-specialist-1',
+      role_name: 'developer',
+      playbook_id: 'playbook-1',
+      playbook_name: 'Bug Investigation',
+      workflow_id: 'workflow-1',
+      workflow_name: 'Fix login bug',
+      task_id: 'task-1',
+      task_title: 'Investigate auth timeout',
+      stage_name: 'Implement',
+      activity_state: 'in_progress',
+    });
+
+    const afterIdleRefresh = mergeLiveContainerSessionRows(
+      [runtimeRow],
+      [
+        createRow({
+          id: 'runtime:runtime-1',
+          kind: 'runtime',
+          container_id: 'runtime-container-1',
+          name: 'runtime-specialist-1',
+          role_name: null,
+          playbook_id: null,
+          playbook_name: 'Specialist runtimes',
+          workflow_id: null,
+          workflow_name: null,
+          task_id: null,
+          task_title: null,
+          stage_name: null,
+          activity_state: 'idle',
+        }),
+      ],
+      '2026-03-21T18:36:00.000Z',
+    );
+
+    const idleRuntime = advanceSessionContainerRows(afterIdleRefresh, '2026-03-21T18:36:01.100Z');
+    expect(idleRuntime[0]).toMatchObject({
+      presence: 'running',
+      role_name: null,
+      playbook_name: 'Specialist runtimes',
+      workflow_name: null,
+      task_title: null,
+      stage_name: null,
+      activity_state: 'idle',
+    });
+
+    const afterDisappear = mergeLiveContainerSessionRows(
+      idleRuntime,
+      [],
+      '2026-03-21T18:37:00.000Z',
+    );
+    const inactiveRuntime = advanceSessionContainerRows(afterDisappear, '2026-03-21T18:37:01.100Z');
+    expect(inactiveRuntime[0]).toMatchObject({
+      presence: 'inactive',
+      role_name: 'developer',
+      playbook_name: 'Bug Investigation',
+      workflow_name: 'Fix login bug',
+      task_title: 'Investigate auth timeout',
+      stage_name: 'Implement',
+    });
   });
 
   it('drops inactive rows after five minutes', () => {
