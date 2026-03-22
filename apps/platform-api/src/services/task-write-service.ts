@@ -110,6 +110,7 @@ export class TaskWriteService {
     const dependencies = normalizedInput.depends_on ?? [];
     const metadata = {
       ...(normalizedInput.metadata ?? {}),
+      ...selectPersistedSubjectLinkage(normalizedInput),
       ...(normalizedInput.retry_policy
         ? { lifecycle_policy: { retry_policy: readTemplateLifecyclePolicy({ retry_policy: normalizedInput.retry_policy }, 'retry_policy')?.retry_policy } }
         : {}),
@@ -1031,6 +1032,24 @@ function mergeSubjectLinkageIntoInput(input: CreateTaskInput): Record<string, un
     nextInput.subject_revision = subjectRevision;
   }
   return nextInput;
+}
+
+function selectPersistedSubjectLinkage(input: CreateTaskInput): Record<string, unknown> {
+  const subjectTaskId = readOptionalSubjectString(input.subject_task_id)
+    ?? readOptionalSubjectString(input.input?.subject_task_id);
+  const subjectWorkItemId = readOptionalSubjectString(input.subject_work_item_id)
+    ?? readOptionalSubjectString(input.input?.subject_work_item_id);
+  const subjectHandoffId = readOptionalSubjectString(input.subject_handoff_id)
+    ?? readOptionalSubjectString(input.input?.subject_handoff_id);
+  const subjectRevision = readOptionalPositiveInteger(input.subject_revision)
+    ?? readOptionalPositiveInteger(input.input?.subject_revision);
+
+  return {
+    ...(subjectTaskId ? { subject_task_id: subjectTaskId } : {}),
+    ...(subjectWorkItemId ? { subject_work_item_id: subjectWorkItemId } : {}),
+    ...(subjectHandoffId ? { subject_handoff_id: subjectHandoffId } : {}),
+    ...(subjectRevision !== null ? { subject_revision: subjectRevision } : {}),
+  };
 }
 
 function readOptionalSubjectString(value: unknown): string | null {

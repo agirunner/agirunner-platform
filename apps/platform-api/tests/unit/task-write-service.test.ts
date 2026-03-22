@@ -1053,6 +1053,10 @@ describe('TaskWriteService', () => {
       expect.objectContaining({
         task_type: 'test',
         task_kind: 'assessment',
+        subject_task_id: 'task-delivery-1',
+        subject_work_item_id: 'work-item-implementation-1',
+        subject_handoff_id: 'handoff-delivery-1',
+        subject_revision: 2,
       }),
     );
     expect(insertedInput).toEqual(
@@ -1063,7 +1067,15 @@ describe('TaskWriteService', () => {
         subject_revision: 2,
       }),
     );
-    expect(created.metadata).toEqual(expect.objectContaining({ task_kind: 'assessment' }));
+    expect(created.metadata).toEqual(
+      expect.objectContaining({
+        task_kind: 'assessment',
+        subject_task_id: 'task-delivery-1',
+        subject_work_item_id: 'work-item-implementation-1',
+        subject_handoff_id: 'handoff-delivery-1',
+        subject_revision: 2,
+      }),
+    );
     expect(created.input).toEqual(
       expect.objectContaining({
         subject_task_id: 'task-delivery-1',
@@ -1151,9 +1163,17 @@ describe('TaskWriteService', () => {
       expect.objectContaining({
         task_type: 'assessment',
         task_kind: 'assessment',
+        subject_task_id: 'task-delivery-1',
+        subject_revision: 1,
       }),
     );
-    expect(created.metadata).toEqual(expect.objectContaining({ task_kind: 'assessment' }));
+    expect(created.metadata).toEqual(
+      expect.objectContaining({
+        task_kind: 'assessment',
+        subject_task_id: 'task-delivery-1',
+        subject_revision: 1,
+      }),
+    );
   });
 
   it('rejects assessment tasks that omit the required subject task linkage', async () => {
