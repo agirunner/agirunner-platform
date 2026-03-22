@@ -42,6 +42,9 @@ describe('containers page source', () => {
     expect(tableSource).toContain('resolveDiffCellTone');
     expect(tableSource).toContain('hasPendingField');
     expect(tableSource).toContain('hasRecentlyChangedField');
+    expect(tableSource).not.toContain('No longer reported by the platform API');
+    expect(tableSource).not.toContain('formatOperatorStatusLabel(row.activity_state ?? row.state)');
+    expect(tableSource).not.toContain('row.status');
     expect(tableSource).toContain('sanitizeContainerContextLabel');
     expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist runtimes'");
     expect(tableSource).not.toContain('Unassigned');

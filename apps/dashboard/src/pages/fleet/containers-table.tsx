@@ -4,7 +4,6 @@ import { Link } from 'react-router-dom';
 import {
   OperatorStatusBadge,
   RelativeTimestamp,
-  formatOperatorStatusLabel,
 } from '../../components/operator-display.js';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import {
@@ -70,14 +69,7 @@ export function ContainersTable(props: {
           {props.rows.map((row) => (
             <TableRow key={row.id} className={resolveRowClassName(row)}>
               <DiffCell row={row} field="status" className="py-3">
-                <div className="space-y-1">
-                  <OperatorStatusBadge status={row.presence === 'inactive' ? 'inactive' : row.state} />
-                  <p className="text-xs text-muted-foreground">
-                    {row.presence === 'inactive'
-                      ? 'No longer reported by the platform API'
-                      : `${formatOperatorStatusLabel(row.activity_state ?? row.state)} • ${row.status}`}
-                  </p>
-                </div>
+                <OperatorStatusBadge status={row.presence === 'inactive' ? 'inactive' : row.state} />
               </DiffCell>
               <DiffCell row={row} field="kind" className="py-3">
                 <p className="font-medium text-foreground">{formatContainerKindLabel(row.kind)}</p>
