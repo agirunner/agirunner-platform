@@ -1002,7 +1002,6 @@ export class PlaybookWorkflowControlService {
         identity.tenantId,
         workflowId,
         workItemId,
-        nextStageName,
         workItem.title,
         db,
       );
@@ -1121,7 +1120,6 @@ export class PlaybookWorkflowControlService {
     tenantId: string,
     workflowId: string,
     workItemId: string,
-    stageName: string,
     workItemTitle: string,
     db: DatabaseClient,
   ) {
@@ -1157,7 +1155,7 @@ export class PlaybookWorkflowControlService {
              ) assessment_handoff
             LIMIT 1
          ) latest_assessment ON true`,
-      [tenantId, workflowId, stageName, workItemId],
+      [tenantId, workflowId, workItemId],
     );
     const blockingResolution = result.rows[0]?.blocking_resolution;
     if (!blockingResolution) {
