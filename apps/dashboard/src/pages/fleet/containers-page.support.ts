@@ -185,6 +185,23 @@ export function filterSessionContainerRows(
   });
 }
 
+export function partitionSessionContainerRowsByFunction(rows: SessionContainerRow[]): {
+  orchestrator: SessionContainerRow[];
+  specialists: SessionContainerRow[];
+} {
+  return rows.reduce(
+    (groups, row) => {
+      if (isOrchestratorFunctionRow(row)) {
+        groups.orchestrator.push(row);
+      } else {
+        groups.specialists.push(row);
+      }
+      return groups;
+    },
+    { orchestrator: [] as SessionContainerRow[], specialists: [] as SessionContainerRow[] },
+  );
+}
+
 function buildSearchableFields(row: SessionContainerRow): string[] {
   return [
     row.id,
@@ -202,6 +219,10 @@ function buildSearchableFields(row: SessionContainerRow): string[] {
   ]
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
+}
+
+function isOrchestratorFunctionRow(row: SessionContainerRow): boolean {
+  return row.kind === 'orchestrator' || normalizeText(row.role_name).toLowerCase() === 'orchestrator';
 }
 
 function compareSessionContainerRows(left: SessionContainerRow, right: SessionContainerRow): number {

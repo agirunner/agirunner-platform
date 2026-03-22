@@ -7,6 +7,7 @@ import {
   isRecentlyChangedRow,
   isPendingChangeRow,
   mergeLiveContainerSessionRows,
+  partitionSessionContainerRowsByFunction,
   type SessionContainerRow,
 } from './containers-page.support.js';
 
@@ -358,6 +359,50 @@ describe('mergeLiveContainerSessionRows', () => {
       'task:task-4',
       'task:task-3',
       'task:task-2',
+    ]);
+  });
+});
+
+describe('partitionSessionContainerRowsByFunction', () => {
+  it('groups orchestrator workers and orchestrator execution rows together', () => {
+    const rows = [
+      createRow({
+        id: 'orchestrator:worker-1',
+        kind: 'orchestrator',
+        container_id: 'orchestrator-container-1',
+        name: 'orchestrator-primary',
+        role_name: 'orchestrator',
+      }),
+      createRow({
+        id: 'task:task-2',
+        kind: 'task',
+        container_id: 'task-container-2',
+        role_name: 'orchestrator',
+      }),
+      createRow({
+        id: 'runtime:runtime-1',
+        kind: 'runtime',
+        container_id: 'runtime-container-1',
+        name: 'runtime-specialist-1',
+        role_name: null,
+      }),
+      createRow({
+        id: 'task:task-3',
+        kind: 'task',
+        container_id: 'task-container-3',
+        role_name: 'developer',
+      }),
+    ];
+
+    const grouped = partitionSessionContainerRowsByFunction(rows);
+
+    expect(grouped.orchestrator.map((row) => row.id)).toEqual([
+      'orchestrator:worker-1',
+      'task:task-2',
+    ]);
+    expect(grouped.specialists.map((row) => row.id)).toEqual([
+      'runtime:runtime-1',
+      'task:task-3',
     ]);
   });
 });

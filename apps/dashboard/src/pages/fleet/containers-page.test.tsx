@@ -25,6 +25,9 @@ describe('containers page source', () => {
       'Live container inventory from the platform API, showing image, CPU, and memory of running and recently-active containers.',
     );
     expect(pageSource).toContain("SelectItem value=\"inactive\"");
+    expect(pageSource).toContain('partitionSessionContainerRowsByFunction');
+    expect(pageSource).toContain('Orchestrator');
+    expect(pageSource).toContain('Specialists');
     expect(pageSource).not.toContain('Running now');
     expect(pageSource).not.toContain('Recently inactive');
     expect(pageSource).toContain('hasBaselineSnapshot: hasObservedSnapshot');

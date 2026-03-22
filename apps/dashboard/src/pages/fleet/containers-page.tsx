@@ -16,6 +16,7 @@ import {
   advanceSessionContainerRows,
   filterSessionContainerRows,
   mergeLiveContainerSessionRows,
+  partitionSessionContainerRowsByFunction,
   type ContainerKindFilter,
   type ContainerStatusFilter,
   type SessionContainerRow,
@@ -61,6 +62,10 @@ export function ContainersPage(): JSX.Element {
   const filteredRows = useMemo(
     () => filterSessionContainerRows(sessionRows, { query, kind, status }),
     [kind, query, sessionRows, status],
+  );
+  const groupedRows = useMemo(
+    () => partitionSessionContainerRowsByFunction(filteredRows),
+    [filteredRows],
   );
   const runningCount = sessionRows.filter((row) => row.presence === 'running').length;
   const inactiveCount = sessionRows.filter((row) => row.presence === 'inactive').length;
@@ -138,10 +143,31 @@ export function ContainersPage(): JSX.Element {
         </Select>
       </div>
 
-      <ContainersTable
-        rows={filteredRows}
-        emptyMessage="No containers match the current filters."
-      />
+      <section className="space-y-3">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold text-foreground">Orchestrator</h2>
+          <p className="text-sm text-muted-foreground">
+            Orchestrator workers and orchestrator execution containers.
+          </p>
+        </div>
+        <ContainersTable
+          rows={groupedRows.orchestrator}
+          emptyMessage="No orchestrator containers match the current filters."
+        />
+      </section>
+
+      <section className="space-y-3">
+        <div className="space-y-1">
+          <h2 className="text-base font-semibold text-foreground">Specialists</h2>
+          <p className="text-sm text-muted-foreground">
+            Specialist runtimes and non-orchestrator execution containers.
+          </p>
+        </div>
+        <ContainersTable
+          rows={groupedRows.specialists}
+          emptyMessage="No specialist containers match the current filters."
+        />
+      </section>
     </div>
   );
 }
