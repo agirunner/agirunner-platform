@@ -75,7 +75,7 @@ describe('buildSpecialistExecutionBrief', () => {
         next_expected_action: 'assess',
         latest_handoff_completion: 'partial',
         unresolved_findings: ['Check release note wording.'],
-        review_focus: ['Refresh-token expiry path'],
+        focus_areas: ['Refresh-token expiry path'],
         rework_count: 0,
         priority: 1,
         metadata: {},
@@ -159,7 +159,7 @@ describe('buildSpecialistExecutionBrief', () => {
       ...base,
       workItem: {
         ...base.workItem,
-        review_focus: ['Refresh-token expiry path', 'Release-note wording'],
+        focus_areas: ['Refresh-token expiry path', 'Release-note wording'],
       },
     });
 

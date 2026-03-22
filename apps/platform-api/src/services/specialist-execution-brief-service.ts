@@ -44,7 +44,7 @@ export interface SpecialistExecutionBrief {
     latest_handoff_completion: string | null;
     latest_handoff_resolution: string | null;
     unresolved_findings: string[];
-    review_focus: string[];
+    focus_areas: string[];
     known_risks: string[];
   };
   assessment_output_expectations: string[];
@@ -108,7 +108,7 @@ export function buildSpecialistExecutionBrief(
     readString(taskInput.description),
     readString(predecessorHandoff.summary),
     readString(predecessorHandoff.successor_context),
-    ...readStringArray(workItem.review_focus),
+    ...readStringArray(workItem.focus_areas),
   ]);
   const relevantArtifactRefs = selectRelevantArtifactRefs(workspace, [
     ...likelyRelevantFiles,
@@ -226,7 +226,7 @@ function continuitySummaryFrom(workItem: Record<string, unknown>) {
     latest_handoff_completion: readString(workItem.latest_handoff_completion),
     latest_handoff_resolution: readString(workItem.latest_handoff_resolution),
     unresolved_findings: readStringArray(workItem.unresolved_findings),
-    review_focus: readStringArray(workItem.review_focus),
+    focus_areas: readStringArray(workItem.focus_areas),
     known_risks: readStringArray(workItem.known_risks),
   };
 }

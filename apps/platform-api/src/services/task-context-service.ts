@@ -381,7 +381,7 @@ async function loadWorkItemContext(
             latest_handoff.latest_handoff_completion,
             latest_handoff.latest_handoff_resolution,
             latest_handoff.unresolved_findings,
-            latest_handoff.review_focus,
+            latest_handoff.focus_areas,
             latest_handoff.known_risks,
             priority,
             notes
@@ -399,7 +399,7 @@ async function loadWorkItemContext(
                     ARRAY[]::text[]
                   )
                 ) AS unresolved_findings,
-                th.review_focus,
+                th.focus_areas,
                 th.known_risks
            FROM task_handoffs th
           WHERE th.tenant_id = workflow_work_items.tenant_id

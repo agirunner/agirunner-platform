@@ -443,7 +443,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
           latest_handoff_completion: workItem.latest_handoff_completion ?? null,
           latest_handoff_resolution: workItem.latest_handoff_resolution ?? null,
           unresolved_findings: workItem.unresolved_findings ?? [],
-          review_focus: workItem.review_focus ?? [],
+          focus_areas: workItem.focus_areas ?? [],
           known_risks: workItem.known_risks ?? [],
           gate_status: workItem.gate_status ?? null,
           gate_decision_feedback: workItem.gate_decision_feedback ?? null,

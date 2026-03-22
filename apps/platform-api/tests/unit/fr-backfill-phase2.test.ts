@@ -162,7 +162,7 @@ describe('FR-192: context versioning', () => {
             stage_name: 'build',
             summary: 'Implemented the feature and left one review note.',
             completion: 'full',
-            review_focus: ['error handling'],
+            focus_areas: ['error handling'],
             known_risks: ['refresh token expiry edge case'],
             successor_context: 'Review the auth failure path closely.',
             role_data: { verdict: 'ready_for_review' },
@@ -216,7 +216,7 @@ describe('FR-192: context versioning', () => {
       expect.objectContaining({
         id: 'handoff-1',
         role: 'developer',
-        review_focus: ['error handling'],
+        focus_areas: ['error handling'],
       }),
     );
   });

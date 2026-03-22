@@ -177,7 +177,7 @@ export class TaskQueryService {
               decisions,
               remaining_items,
               blockers,
-              review_focus,
+              focus_areas,
               known_risks,
               successor_context,
               role_data,

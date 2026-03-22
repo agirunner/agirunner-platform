@@ -38,21 +38,23 @@ const memoryPatchSchema = z.union([
   }),
 ]);
 
-const taskHandoffSchema = z.object({
-  request_id: z.string().min(1).max(255),
-  summary: z.string().min(1).max(4000),
-  completion: z.enum(['full', 'blocked']),
-  resolution: z.enum(['approved', 'request_changes', 'rejected']).optional(),
-  changes: z.array(z.unknown()).max(200).optional(),
-  decisions: z.array(z.unknown()).max(200).optional(),
-  remaining_items: z.array(z.unknown()).max(200).optional(),
-  blockers: z.array(z.unknown()).max(200).optional(),
-  review_focus: z.array(z.string().min(1).max(4000)).max(100).optional(),
-  known_risks: z.array(z.string().min(1).max(4000)).max(100).optional(),
-  successor_context: z.string().max(8000).optional(),
-  role_data: z.record(z.unknown()).optional(),
-  artifact_ids: z.array(z.string().uuid()).max(100).optional(),
-});
+const taskHandoffSchema = z
+  .object({
+    request_id: z.string().min(1).max(255),
+    summary: z.string().min(1).max(4000),
+    completion: z.enum(['full', 'blocked']),
+    resolution: z.enum(['approved', 'request_changes', 'rejected']).optional(),
+    changes: z.array(z.unknown()).max(200).optional(),
+    decisions: z.array(z.unknown()).max(200).optional(),
+    remaining_items: z.array(z.unknown()).max(200).optional(),
+    blockers: z.array(z.unknown()).max(200).optional(),
+    focus_areas: z.array(z.string().min(1).max(4000)).max(100).optional(),
+    known_risks: z.array(z.string().min(1).max(4000)).max(100).optional(),
+    successor_context: z.string().max(8000).optional(),
+    role_data: z.record(z.unknown()).optional(),
+    artifact_ids: z.array(z.string().uuid()).max(100).optional(),
+  })
+  .strict();
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {

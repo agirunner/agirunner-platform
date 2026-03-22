@@ -460,7 +460,7 @@ export interface DashboardWorkflowWorkItemRecordBase {
   blocking_assessment_count?: number | null;
   pending_assessment_count?: number | null;
   unresolved_findings?: string[];
-  review_focus?: string[];
+  focus_areas?: string[];
   known_risks?: string[];
   priority: string;
   notes?: string | null;
@@ -493,7 +493,7 @@ export interface DashboardTaskHandoffRecord {
   decisions: unknown[];
   remaining_items: unknown[];
   blockers: unknown[];
-  review_focus: string[];
+  focus_areas: string[];
   known_risks: string[];
   successor_context?: string | null;
   role_data: Record<string, unknown>;

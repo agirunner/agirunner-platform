@@ -51,7 +51,7 @@ describe.runIf(canRunIntegration)('task handoff migration compatibility', () => 
         decisions jsonb NOT NULL DEFAULT '[]'::jsonb,
         remaining_items jsonb NOT NULL DEFAULT '[]'::jsonb,
         blockers jsonb NOT NULL DEFAULT '[]'::jsonb,
-        review_focus text[] NOT NULL DEFAULT '{}'::text[],
+        focus_areas text[] NOT NULL DEFAULT '{}'::text[],
         known_risks text[] NOT NULL DEFAULT '{}'::text[],
         successor_context text,
         role_data jsonb NOT NULL DEFAULT '{}'::jsonb,

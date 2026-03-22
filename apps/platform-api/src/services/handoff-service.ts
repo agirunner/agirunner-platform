@@ -33,7 +33,7 @@ export interface SubmitTaskHandoffInput {
   decisions?: unknown[];
   remaining_items?: unknown[];
   blockers?: unknown[];
-  review_focus?: string[];
+  focus_areas?: string[];
   known_risks?: string[];
   successor_context?: string;
   role_data?: Record<string, unknown>;
@@ -73,7 +73,7 @@ interface TaskHandoffRow extends Record<string, unknown> {
   decisions: unknown[];
   remaining_items: unknown[];
   blockers: unknown[];
-  review_focus: string[];
+  focus_areas: string[];
   known_risks: string[];
   successor_context: string | null;
   role_data: Record<string, unknown>;
@@ -180,7 +180,7 @@ export class HandoffService {
     const result = await db.query<TaskHandoffRow>(
       `INSERT INTO task_handoffs (
          tenant_id, workflow_id, work_item_id, task_id, task_rework_count, request_id, role, team_name, stage_name, sequence,
-         summary, completion, resolution, changes, decisions, remaining_items, blockers, review_focus,
+         summary, completion, resolution, changes, decisions, remaining_items, blockers, focus_areas,
          known_risks, successor_context, role_data, artifact_ids
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
@@ -207,7 +207,7 @@ export class HandoffService {
         serializeJsonb(payload.decisions),
         serializeJsonb(payload.remaining_items),
         serializeJsonb(payload.blockers),
-        payload.review_focus,
+        payload.focus_areas,
         payload.known_risks,
         payload.successor_context,
         serializeJsonb(payload.role_data),
@@ -475,7 +475,7 @@ export class HandoffService {
               decisions = $10::jsonb,
               remaining_items = $11::jsonb,
               blockers = $12::jsonb,
-              review_focus = $13::text[],
+              focus_areas = $13::text[],
               known_risks = $14::text[],
               successor_context = $15,
               role_data = $16::jsonb,
@@ -495,7 +495,7 @@ export class HandoffService {
         serializeJsonb(payload.decisions),
         serializeJsonb(payload.remaining_items),
         serializeJsonb(payload.blockers),
-        payload.review_focus,
+        payload.focus_areas,
         payload.known_risks,
         payload.successor_context,
         serializeJsonb(payload.role_data),
@@ -540,7 +540,7 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     decisions: normalizeArray(sanitizeHandoffValue(input.decisions)),
     remaining_items: normalizeArray(sanitizeHandoffValue(input.remaining_items)),
     blockers: normalizeArray(sanitizeHandoffValue(input.blockers)),
-    review_focus: normalizeStringArray(sanitizeHandoffValue(input.review_focus)),
+    focus_areas: normalizeStringArray(sanitizeHandoffValue(input.focus_areas)),
     known_risks: normalizeStringArray(sanitizeHandoffValue(input.known_risks)),
     successor_context: readOptionalString(sanitizeHandoffValue(input.successor_context)),
     role_data: buildSystemOwnedRoleData(task, input),
@@ -601,7 +601,7 @@ function matchesHandoffReplay(
     !areJsonValuesEquivalent(existing.decisions, expected.decisions) ||
     !areJsonValuesEquivalent(existing.remaining_items, expected.remaining_items) ||
     !areJsonValuesEquivalent(existing.blockers, expected.blockers) ||
-    !areJsonValuesEquivalent(existing.review_focus, expected.review_focus) ||
+    !areJsonValuesEquivalent(existing.focus_areas, expected.focus_areas) ||
     !areJsonValuesEquivalent(existing.known_risks, expected.known_risks) ||
     (existing.successor_context ?? null) !== expected.successor_context ||
     !areJsonValuesEquivalent(existing.role_data, expected.role_data) ||

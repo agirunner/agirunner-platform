@@ -58,7 +58,7 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   latest_handoff_completion?: string | null;
   latest_handoff_resolution?: string | null;
   unresolved_findings?: string[];
-  review_focus?: string[];
+  focus_areas?: string[];
   known_risks?: string[];
   current_subject_revision?: number | null;
   required_assessment_count?: number;
@@ -878,7 +878,7 @@ export class WorkItemService {
               latest_handoff.latest_handoff_completion,
               latest_handoff.latest_handoff_resolution,
               latest_handoff.unresolved_findings,
-              latest_handoff.review_focus,
+              latest_handoff.focus_areas,
               latest_handoff.known_risks,
               latest_delivery.subject_revision AS current_subject_revision,
               COALESCE(assessment_requirements.required_assessment_count, 0)::int AS required_assessment_count,
@@ -930,7 +930,7 @@ export class WorkItemService {
                       ARRAY[]::text[]
                     )
                   ) AS unresolved_findings,
-                  th.review_focus,
+                  th.focus_areas,
                   th.known_risks
              FROM task_handoffs th
             WHERE th.tenant_id = wi.tenant_id
@@ -1006,7 +1006,7 @@ export class WorkItemService {
                  latest_handoff.latest_handoff_completion,
                  latest_handoff.latest_handoff_resolution,
                  latest_handoff.unresolved_findings,
-                 latest_handoff.review_focus,
+                 latest_handoff.focus_areas,
                  latest_handoff.known_risks,
                  latest_delivery.subject_revision,
                  assessment_requirements.required_assessment_count,
@@ -1162,7 +1162,7 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
         ? sanitizedRow.latest_handoff_resolution
         : null,
     unresolved_findings: completedWorkItem ? [] : readStringArray(sanitizedRow.unresolved_findings),
-    review_focus: completedWorkItem ? [] : readStringArray(sanitizedRow.review_focus),
+    focus_areas: completedWorkItem ? [] : readStringArray(sanitizedRow.focus_areas),
     known_risks: readStringArray(sanitizedRow.known_risks),
     current_subject_revision: readOptionalCount(sanitizedRow.current_subject_revision),
     required_assessment_count: readCount(sanitizedRow.required_assessment_count),

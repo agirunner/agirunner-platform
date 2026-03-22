@@ -1894,7 +1894,7 @@ describe('WorkItemService', () => {
               rework_count: 2,
               latest_handoff_completion: 'full',
               unresolved_findings: ['Replace the static page with the required CLI entrypoint.'],
-              review_focus: ['Release deliverable must match approved CLI scope.'],
+              focus_areas: ['Release deliverable must match approved CLI scope.'],
               known_risks: ['Release package is blocked until the CLI deliverable exists.'],
               task_count: 1,
               children_count: 0,
@@ -1944,7 +1944,7 @@ describe('WorkItemService', () => {
             rework_count: 2,
             latest_handoff_completion: 'full',
             unresolved_findings: ['Release package is blocked until the CLI deliverable exists.'],
-            review_focus: ['Release deliverable must match approved CLI scope.'],
+            focus_areas: ['Release deliverable must match approved CLI scope.'],
             known_risks: ['Release package is blocked until the CLI deliverable exists.'],
             task_count: 1,
             children_count: 0,
@@ -1969,7 +1969,7 @@ describe('WorkItemService', () => {
       next_expected_actor: null,
       next_expected_action: null,
       unresolved_findings: [],
-      review_focus: [],
+      focus_areas: [],
     });
     expect(workItem.known_risks).toEqual(['Release package is blocked until the CLI deliverable exists.']);
   });

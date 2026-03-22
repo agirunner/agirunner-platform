@@ -1719,7 +1719,7 @@ function WorkItemHandoffHistorySection(props: {
               ) : null}
               <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted">
                 <Badge variant="outline">
-                  {describeCountLabel(handoff.review_focus.length, 'assessment focus item')}
+                  {describeCountLabel(handoff.focus_areas.length, 'assessment focus item')}
                 </Badge>
                 <Badge variant="outline">
                   {describeCountLabel(handoff.remaining_items.length, 'remaining item')}

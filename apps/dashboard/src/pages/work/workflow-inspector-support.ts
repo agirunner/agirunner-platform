@@ -116,7 +116,7 @@ export function buildWorkflowInspectorTraceModel(input: {
             nextExpectedActor: focusWorkItem.next_expected_actor ?? null,
             nextExpectedAction: focusWorkItem.next_expected_action ?? null,
             unresolvedFindingsCount: focusWorkItem.unresolved_findings?.length ?? 0,
-            assessmentFocusCount: focusWorkItem.review_focus?.length ?? 0,
+            assessmentFocusCount: focusWorkItem.focus_areas?.length ?? 0,
             knownRiskCount: focusWorkItem.known_risks?.length ?? 0,
             latestHandoffCompletion: focusWorkItem.latest_handoff_completion ?? null,
           }

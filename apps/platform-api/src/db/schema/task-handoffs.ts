@@ -33,7 +33,7 @@ export const taskHandoffs = pgTable(
     decisions: jsonb('decisions').notNull().default([]),
     remainingItems: jsonb('remaining_items').notNull().default([]),
     blockers: jsonb('blockers').notNull().default([]),
-    reviewFocus: text('review_focus').array().notNull().default(sql`'{}'::text[]`),
+    focusAreas: text('focus_areas').array().notNull().default(sql`'{}'::text[]`),
     knownRisks: text('known_risks').array().notNull().default(sql`'{}'::text[]`),
     successorContext: text('successor_context'),
     roleData: jsonb('role_data').notNull().default({}),
