@@ -1,0 +1,62 @@
+{
+  "name": "sdlc-assessment-approve",
+  "profile": "sdlc-single-assessment",
+  "workflow": {
+    "name": "SDLC Assessment Approve",
+    "goal": "Ship a CLI enhancement where the acceptance assessor approves the first implementation revision and the release package follows immediately.",
+    "parameters": {
+      "assessment_contract": "The acceptance assessor should approve the first revision when the implementation meets the authored criteria."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "assessment_sequences": [
+      {
+        "subject_role": "implementation-engineer",
+        "assessed_by": "acceptance-gate-assessor",
+        "expected_resolution": "approved"
+      }
+    ],
+    "required_assessment_sets": [
+      {
+        "subject_role": "implementation-engineer",
+        "required_assessors": [
+          "acceptance-gate-assessor"
+        ]
+      }
+    ],
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 4
+    }
+  },
+  "coverage": {
+    "delivery_paths": [
+      "assessment_then_successor"
+    ],
+    "assessment_outcomes": [
+      "approved"
+    ],
+    "assessor_cardinality": [
+      "one_required"
+    ],
+    "subject_revisions": [
+      "first_revision"
+    ],
+    "successor_gating": [
+      "blocked_required_assessment"
+    ],
+    "playbook_shapes": [
+      "multiple_checkpoints"
+    ],
+    "storage_execution": [
+      "git_workspace"
+    ]
+  }
+}

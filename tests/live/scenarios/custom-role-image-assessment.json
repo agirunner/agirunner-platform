@@ -1,0 +1,33 @@
+{
+  "name": "custom-role-image-assessment",
+  "profile": "custom-image-assessment",
+  "workflow": {
+    "name": "Custom Role Image Assessment",
+    "goal": "Run a build step in a custom role image and assess the result before rollout.",
+    "parameters": {
+      "build_contract": "The assessor approves the custom-image build output on the first pass."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "assessment_sequences": [
+      {
+        "subject_role": "build-engineer",
+        "assessed_by": "release-assessor",
+        "expected_resolution": "approved"
+      }
+    ]
+  },
+  "coverage": {
+    "storage_execution": [
+      "custom_role_image"
+    ]
+  }
+}

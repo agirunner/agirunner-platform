@@ -1,0 +1,93 @@
+{
+  "name": "Host Directory Assessment Pipeline",
+  "slug": "live-test-host-directory-assessment-v1",
+  "description": "Host-directory workflow with explicit assessment before closure.",
+  "outcome": "Host-mounted content is changed in place and assessed through the same subject-centric contract as git-backed work.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The maintenance engineer modifies the host-mounted workspace directly. The host acceptance assessor evaluates the linked subject output before the workflow closes.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "maintenance-engineer",
+      "host-acceptance-assessor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "maintenance-window",
+        "goal": "The host-directory change is delivered and assessed.",
+        "involves": [
+          "maintenance-engineer",
+          "host-acceptance-assessor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "maintenance-window",
+        "goal": "The host-directory change is delivered and assessed.",
+        "human_gate": false,
+        "entry_criteria": "The maintenance request exists."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "maintenance-engineer",
+        "assessed_by": "host-acceptance-assessor",
+        "checkpoint": "maintenance-window",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

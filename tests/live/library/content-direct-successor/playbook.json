@@ -1,0 +1,84 @@
+{
+  "name": "Editorial Direct Successor Pipeline",
+  "slug": "live-test-editorial-direct-successor-v1",
+  "description": "Realistic content workflow with direct role-to-role handoff and no assessment gate.",
+  "outcome": "A research memo becomes a publication-ready brief through direct successor handoff.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The market researcher produces the initial memo. The managing editor immediately turns that memo into the final brief. This playbook has no specialist assessment and no human gate; once the editor finishes, the workflow can complete.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "market-researcher",
+      "managing-editor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "briefing",
+        "goal": "The publication brief is ready for release.",
+        "involves": [
+          "market-researcher",
+          "managing-editor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "briefing",
+        "goal": "The publication brief is ready for release.",
+        "human_gate": false,
+        "entry_criteria": "The publication request exists."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "market-researcher",
+        "to_role": "managing-editor",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": []
+  }
+}

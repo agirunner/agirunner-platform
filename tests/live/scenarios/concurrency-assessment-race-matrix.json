@@ -1,0 +1,44 @@
+{
+  "name": "concurrency-assessment-race-matrix",
+  "profile": "assessment-race",
+  "workflow": {
+    "name": "Concurrency Assessment Race Matrix",
+    "goal": "Exercise same-subject parallel assessors, duplicate reopen attempts, duplicate events, and concurrent workflows under one or more orchestrators.",
+    "parameters": {
+      "race_contract": "Allow parallel work items and expect duplicate delivery pressure without losing explicit subject linkage."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [
+    {
+      "type": "create_work_items",
+      "dispatch": "parallel",
+      "count": 4,
+      "title_template": "race-case-{index:02d}",
+      "request_id_template": "race-case-{index:02d}"
+    }
+  ],
+  "expect": {
+    "state": "completed",
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 8
+    }
+  },
+  "coverage": {
+    "concurrency": [
+      "same_subject_two_assessments",
+      "simultaneous_completion",
+      "out_of_order_completion",
+      "duplicate_event_delivery",
+      "duplicate_reopen_attempts",
+      "multiple_workflows_concurrent",
+      "one_orchestrator_many_workflows",
+      "multiple_orchestrators_concurrent"
+    ]
+  }
+}

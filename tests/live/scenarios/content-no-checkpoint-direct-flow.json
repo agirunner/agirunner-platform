@@ -1,0 +1,50 @@
+{
+  "name": "content-no-checkpoint-direct-flow",
+  "profile": "content-direct-no-checkpoint",
+  "workflow": {
+    "name": "Editorial No Checkpoint Flow",
+    "goal": "Produce a launch update packet in a workflow that uses direct successor routing and no checkpoints.",
+    "parameters": {
+      "audience": "internal launch leads"
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "channel": "launch"
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "direct_handoff_expectations": [
+      {
+        "source_role": "audience-research-analyst",
+        "successor_role": "content-operations-editor",
+        "forbid_task_kinds": [
+          "assessment",
+          "approval"
+        ]
+      }
+    ],
+    "work_items": {
+      "all_terminal": true
+    }
+  },
+  "coverage": {
+    "delivery_paths": [
+      "direct_successor"
+    ],
+    "assessor_cardinality": [
+      "zero"
+    ],
+    "playbook_shapes": [
+      "no_checkpoints"
+    ],
+    "storage_execution": [
+      "artifact_heavy"
+    ]
+  }
+}

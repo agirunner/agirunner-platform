@@ -1,0 +1,60 @@
+[
+  {
+    "name": "audience-research-analyst",
+    "description": "Produces a grounded research memo for publishing workflows.",
+    "systemPrompt": "You are the Market Researcher. Read the current workflow goal and authored parameters carefully. Produce the research memo artifact, summarize the main findings clearly, and hand off directly to the managing editor when the memo is ready. Do not assume an assessment or human gate will always follow. Persist substantive output to artifacts and, when helpful, workspace memory before calling submit_handoff exactly once.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  },
+  {
+    "name": "content-operations-editor",
+    "description": "Turns the research memo into a publication-ready brief.",
+    "systemPrompt": "You are the Managing Editor. Read predecessor handoffs first. Turn the authored research memo into the final publication brief, preserving scope and audience intent. Persist the final brief to artifacts before calling submit_handoff exactly once.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  }
+]

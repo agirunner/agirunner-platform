@@ -1,0 +1,109 @@
+{
+  "name": "Concurrent Assessment Race Pipeline",
+  "slug": "live-test-concurrent-assessment-race-v1",
+  "description": "Concurrency-focused workflow for racing assessments, duplicate events, and multiple workflows.",
+  "outcome": "Concurrent assessment paths remain correctly linked even under out-of-order completion and duplicate activation pressure.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "This playbook is used for race-condition proofs. Multiple work items may be active at once. The concurrent delivery engineer can work several items in parallel, and the concurrency quality and compliance assessors may complete out of order against the same or different subject revisions. The control plane must preserve explicit subject linkage and idempotency.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "concurrent-delivery-engineer",
+      "concurrency-quality-assessor",
+      "compliance-assessor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "concurrent-validation",
+        "goal": "Concurrent subjects are delivered and assessed cleanly.",
+        "involves": [
+          "concurrent-delivery-engineer",
+          "concurrency-quality-assessor",
+          "compliance-assessor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "concurrent-validation",
+        "goal": "Concurrent subjects are delivered and assessed cleanly.",
+        "human_gate": false,
+        "entry_criteria": "Concurrent work items exist."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 10,
+      "max_active_tasks_per_work_item": 3,
+      "allow_parallel_work_items": true
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "concurrent-delivery-engineer",
+        "assessed_by": "concurrency-quality-assessor",
+        "checkpoint": "concurrent-validation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      },
+      {
+        "subject_role": "concurrent-delivery-engineer",
+        "assessed_by": "compliance-assessor",
+        "checkpoint": "concurrent-validation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,50 @@
+{
+  "name": "sdlc-parallel-assessors-all-approve",
+  "profile": "sdlc-parallel-assessment",
+  "workflow": {
+    "name": "SDLC Parallel Assessors Approve",
+    "goal": "Implement a feature that both quality and security assessors approve on the same revision before release packaging.",
+    "parameters": {
+      "assessment_contract": "Both assessors approve the active subject revision."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "required_assessment_sets": [
+      {
+        "subject_role": "parallel-delivery-engineer",
+        "required_assessors": [
+          "release-quality-assessor",
+          "release-security-assessor"
+        ]
+      }
+    ],
+    "fleet": {
+      "playbook_pool": {
+        "peak_running_gte": 2
+      }
+    }
+  },
+  "coverage": {
+    "assessor_cardinality": [
+      "two_required",
+      "parallel_same_revision"
+    ],
+    "multi_assessor_outcomes": [
+      "all_approve"
+    ],
+    "successor_gating": [
+      "blocked_all_required_assessors"
+    ],
+    "playbook_shapes": [
+      "subject_role_different_assessors"
+    ]
+  }
+}

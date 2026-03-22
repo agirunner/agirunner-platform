@@ -1,0 +1,77 @@
+{
+  "name": "Editorial No-Checkpoint Pipeline",
+  "slug": "live-test-editorial-no-checkpoint-v1",
+  "description": "Realistic content workflow with direct successor routing and no milestone checkpoints.",
+  "outcome": "A research brief flows directly from authoring to editing without explicit checkpoints.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The audience research analyst drafts the source brief. The content operations editor finalizes it. This workflow intentionally uses no checkpoints; direct handoff rules govern the flow.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "audience-research-analyst",
+      "content-operations-editor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "editorial-flow",
+        "goal": "The publication brief is finalized.",
+        "involves": [
+          "audience-research-analyst",
+          "content-operations-editor"
+        ]
+      }
+    ],
+    "checkpoints": [],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "audience-research-analyst",
+        "to_role": "content-operations-editor",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": []
+  }
+}

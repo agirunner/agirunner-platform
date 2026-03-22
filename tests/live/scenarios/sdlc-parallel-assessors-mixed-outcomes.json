@@ -1,0 +1,45 @@
+{
+  "name": "sdlc-parallel-assessors-mixed-outcomes",
+  "profile": "sdlc-parallel-assessment",
+  "workflow": {
+    "name": "SDLC Parallel Assessors Mixed Outcomes",
+    "goal": "Implement a feature where one assessor requests changes, another rejects on a later pass, and stale earlier approvals do not clear the new revision.",
+    "parameters": {
+      "assessment_contract": "Exercise mixed assessor outcomes across multiple revisions with out-of-order completion."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation",
+        "minimum_revision": 3
+      }
+    ]
+  },
+  "coverage": {
+    "multi_assessor_outcomes": [
+      "request_changes_plus_approve",
+      "reject_plus_approve",
+      "mixed_parallel_order"
+    ],
+    "subject_revisions": [
+      "multiple_rework",
+      "invalidate_prior_assessments",
+      "stale_late_assessment"
+    ],
+    "concurrency": [
+      "out_of_order_completion"
+    ],
+    "rework_actions": [
+      "block_subject"
+    ]
+  }
+}

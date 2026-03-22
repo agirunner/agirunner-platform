@@ -1,0 +1,42 @@
+{
+  "name": "sdlc-assessment-reject-blocks-successor",
+  "profile": "sdlc-single-assessment",
+  "workflow": {
+    "name": "SDLC Assessment Reject",
+    "goal": "Deliver a change where the acceptance assessor rejects the subject and release packaging never begins.",
+    "parameters": {
+      "assessment_contract": "The acceptance assessor must reject the active subject revision."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "failed",
+    "assessment_sequences": [
+      {
+        "subject_role": "implementation-engineer",
+        "assessed_by": "acceptance-gate-assessor",
+        "expected_resolution": "rejected"
+      }
+    ],
+    "board": {
+      "blocked_count": 1
+    }
+  },
+  "coverage": {
+    "assessment_outcomes": [
+      "rejected"
+    ],
+    "rework_actions": [
+      "block_subject"
+    ],
+    "successor_gating": [
+      "blocked_after_rejected"
+    ]
+  }
+}

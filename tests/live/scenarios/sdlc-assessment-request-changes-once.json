@@ -1,0 +1,61 @@
+{
+  "name": "sdlc-assessment-request-changes-once",
+  "profile": "sdlc-single-assessment",
+  "workflow": {
+    "name": "SDLC Assessment Request Changes",
+    "goal": "Ship a CLI enhancement where the acceptance assessor requests changes on the first revision and approves the second revision.",
+    "parameters": {
+      "assessment_contract": "The acceptance assessor must request changes once, then approve after one real rework cycle."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "task_rework_sequences": [
+      {
+        "stage_name": "implementation",
+        "required_role": "implementation-engineer"
+      }
+    ],
+    "assessment_sequences": [
+      {
+        "subject_role": "implementation-engineer",
+        "assessed_by": "acceptance-gate-assessor",
+        "expected_resolutions": [
+          "request_changes",
+          "approved"
+        ]
+      }
+    ],
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "assessment_outcomes": [
+      "request_changes"
+    ],
+    "rework_actions": [
+      "reopen_subject"
+    ],
+    "subject_revisions": [
+      "one_rework",
+      "reassessment_new_revision"
+    ],
+    "successor_gating": [
+      "blocked_after_request_changes"
+    ],
+    "assessor_cardinality": [
+      "sequential_same_revision"
+    ]
+  }
+}

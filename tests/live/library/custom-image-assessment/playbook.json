@@ -1,0 +1,93 @@
+{
+  "name": "Custom Image Assessment Pipeline",
+  "slug": "live-test-custom-image-assessment-v1",
+  "description": "Assessment flow that uses a custom role execution image for the delivery step.",
+  "outcome": "A custom-image role participates in the same generic assessment contract as default-image roles.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The build engineer runs in a custom execution image. The release assessor evaluates the linked subject output before rollout can continue.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "build-engineer",
+      "release-assessor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "build-validation",
+        "goal": "The build output is delivered and assessed.",
+        "involves": [
+          "build-engineer",
+          "release-assessor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "build-validation",
+        "goal": "The build output is delivered and assessed.",
+        "human_gate": false,
+        "entry_criteria": "The build request exists."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "build-engineer",
+        "assessed_by": "release-assessor",
+        "checkpoint": "build-validation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

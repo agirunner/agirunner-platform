@@ -1,0 +1,65 @@
+{
+  "name": "content-direct-successor-no-assessment",
+  "profile": "content-direct-successor",
+  "workflow": {
+    "name": "Editorial Direct Successor",
+    "goal": "Produce an operations newsletter brief that moves directly from research to editing with no assessment or human gate.",
+    "parameters": {
+      "audience": "workspace operators",
+      "format": "newsletter brief"
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "audience": "operators"
+    },
+    "spec": {
+      "documents": {
+        "content-charter": {
+          "source": "external",
+          "url": "https://example.test/content-charter"
+        }
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "direct_handoff_expectations": [
+      {
+        "source_role": "market-researcher",
+        "successor_role": "managing-editor",
+        "forbid_task_kinds": [
+          "assessment",
+          "approval"
+        ]
+      }
+    ],
+    "work_items": {
+      "all_terminal": true
+    }
+  },
+  "coverage": {
+    "delivery_paths": [
+      "direct_successor"
+    ],
+    "assessor_cardinality": [
+      "zero"
+    ],
+    "successor_gating": [
+      "direct_after_handoff"
+    ],
+    "playbook_shapes": [
+      "custom_role_names",
+      "one_checkpoint"
+    ],
+    "storage_execution": [
+      "artifact_heavy",
+      "default_image",
+      "cold_specialists",
+      "warm_orchestrators"
+    ]
+  }
+}

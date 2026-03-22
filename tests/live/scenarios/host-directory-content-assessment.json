@@ -1,0 +1,36 @@
+{
+  "name": "host-directory-content-assessment",
+  "profile": "host-directory-assessment",
+  "workflow": {
+    "name": "Host Directory Content Assessment",
+    "goal": "Fix and assess host-mounted documentation content without a repository remote.",
+    "parameters": {
+      "maintenance_contract": "The assessor should request one real correction if the first host-directory change misses the authored acceptance bar."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "storage": {
+      "type": "host_directory"
+    },
+    "memory": {
+      "workspace_kind": "host-directory"
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "host_files": [
+      {
+        "path": "README.md"
+      }
+    ]
+  },
+  "coverage": {
+    "storage_execution": [
+      "host_directory_workspace"
+    ]
+  }
+}

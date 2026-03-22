@@ -1,0 +1,154 @@
+{
+  "name": "SDLC Parallel Assessment Pipeline",
+  "slug": "live-test-sdlc-parallel-assessment-v1",
+  "description": "Software-delivery pipeline with two required assessors on the same subject revision.",
+  "outcome": "A delivery output is cleared by multiple assessors before successor work can continue.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The platform architecture lead defines the change. The parallel delivery engineer implements it. The release quality and release security assessors both evaluate the same subject revision in parallel. The parallel release manager packages the result only after all required assessments are clear.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "platform-architecture-lead",
+      "parallel-delivery-engineer",
+      "release-quality-assessor",
+      "release-security-assessor",
+      "parallel-release-manager"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "design-brief",
+        "goal": "The design is ready.",
+        "involves": [
+          "platform-architecture-lead"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "The change is implemented and assessed.",
+        "involves": [
+          "parallel-delivery-engineer",
+          "release-quality-assessor",
+          "release-security-assessor"
+        ]
+      },
+      {
+        "name": "release-readiness",
+        "goal": "Release packaging is complete.",
+        "involves": [
+          "parallel-release-manager"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "design-brief",
+        "goal": "The design is ready.",
+        "human_gate": false,
+        "entry_criteria": "The request is authored."
+      },
+      {
+        "name": "implementation",
+        "goal": "The change is implemented and assessed.",
+        "human_gate": false,
+        "entry_criteria": "The design brief exists."
+      },
+      {
+        "name": "release-readiness",
+        "goal": "Release packaging is complete.",
+        "human_gate": false,
+        "entry_criteria": "All required assessments are approved."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "platform-architecture-lead",
+        "to_role": "parallel-delivery-engineer",
+        "required": true
+      },
+      {
+        "from_role": "release-quality-assessor",
+        "to_role": "parallel-release-manager",
+        "required": true
+      },
+      {
+        "from_role": "release-security-assessor",
+        "to_role": "parallel-release-manager",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 4,
+      "max_active_tasks_per_work_item": 3,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "parallel-delivery-engineer",
+        "assessed_by": "release-quality-assessor",
+        "checkpoint": "implementation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      },
+      {
+        "subject_role": "parallel-delivery-engineer",
+        "assessed_by": "release-security-assessor",
+        "checkpoint": "implementation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "route_to_role",
+            "role": "platform-architecture-lead"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

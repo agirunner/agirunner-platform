@@ -8,9 +8,9 @@
 - No direct DB mutation for test seeding.
 - Bootstrap MUST seed runtime-facing state through platform APIs.
 - Live scenarios MUST use operator-facing flows: workspace API, workflow API, fleet/DCM restart surfaces.
-- Verification automation can be added incrementally, but every run MUST already write trace artifacts for debugging.
-- OpenAI live-test bootstrap MUST use the OAuth-backed subscription provider through platform APIs.
-- OAuth live tests MAY import a pre-authorized session snapshot through admin APIs when the scenario is validating execution paths rather than the OAuth browser flow itself.
+- OAuth MUST be the default live-test path.
+- Provider and auth configuration MUST stay externalized so the same scenario corpus can run against any supported provider/auth combination.
+- The same scenario corpus MUST run against any supported provider/auth combination.
 - `tests/live/env/local.env` SHOULD hold the current known-good OAuth session snapshot for repeatable runs.
 - `tests/live/export-current-oauth-session.sh` SHOULD be used to refresh that local env snapshot from the live database when the operator intentionally wants to promote the current DB session.
 
@@ -18,23 +18,18 @@
 
 - `prepare-live-test-environment.sh`
   - rebuilds runtime images
-  - wipes the fixture repository
   - resets seeded platform state
   - seeds provider/model/workspace state through API
   - creates test-owned roles and playbooks from fixture files through API
   - restarts orchestrator through fleet API and waits for healthy DCM state
 - `export-current-oauth-session.sh`
-  - exports the currently connected OAuth session for the configured profile
-    from the live platform database
-  - prints a reusable session JSON snapshot to stdout or writes it to a file
-  - uses the same export path that `prepare-live-test-environment.sh` uses in
-    OAuth mode when no explicit `LIVE_TEST_OAUTH_SESSION_JSON` is provided
+  - exports the currently connected OAuth session for the configured profile from the live platform database
 - `env/local.env.example`
-  - local-only secret template for admin key, OpenAI OAuth session snapshot, Git token, and ports
+  - local-only secret template for admin key, OAuth session snapshot, optional API-key paths, Git token, and ports
 - `library/`
-  - test-owned role and playbook fixtures
+  - realistic role and playbook fixtures for the assessment abstraction matrix
 - `lib/`
-  - shared API client and scenario helpers
+  - shared API client, catalog, and scenario helpers
 - `scenarios/`
   - scenario JSON files plus thin executable wrappers
 - `tests/`
@@ -47,22 +42,34 @@ Each live scenario is defined by a JSON file under `tests/live/scenarios/`.
 - `profile`
   - points to `tests/live/library/<profile>/` for the test-owned playbook, roles, and optional `repo-seed/`
 - `workflow`
-  - declares the workflow name, goal, and extra launch parameters
+  - declares the workflow name, goal, and launch parameters
 - `workspace`
-  - declares whether the workspace is repo-backed plus any memory/spec state to seed through workspace APIs
+  - declares the workspace storage mode plus memory/spec state seeded through workspace APIs
 - `approvals`
-  - ordered scripted gate decisions using `approve`, `reject`, or `request_changes`
+  - ordered scripted human decisions using `approve`, `reject`, or `request_changes`
 - `expect`
-  - declarative pass criteria evaluated by the runner; a scenario exits non-zero if they are not met
-  - MAY include `efficiency` ceilings derived from execution logs so the same scenario proves both correctness and bounded latency/loop churn
+  - declarative pass criteria evaluated by the runner; generic keys include direct handoff, assessment, approval, subject revision, and required-assessment assertions
+- `coverage`
+  - matrix metadata used by the catalog tests to prove that the scenario corpus covers the supported semantic, concurrency, storage, and playbook-shape variations
 
 The generic runner is:
 
 ```bash
-bash tests/live/scenarios/run-live-scenario.sh sdlc-baseline
+bash tests/live/scenarios/run-live-scenario.sh sdlc-assessment-approve
 ```
 
-Thin per-scenario wrappers can call that runner for convenience.
+Thin per-scenario wrappers call that runner for convenience.
+
+## Matrix
+
+The current corpus is intentionally realistic rather than toy-like. It spans:
+
+- SDLC delivery with direct successor, specialist assessment, optional assessment, and multi-assessor rework
+- requirements and publication pipelines with human review and mixed artifact/memory outputs
+- ongoing intake flows
+- host-directory maintenance flows
+- concurrency and race-condition stress scenarios
+- custom role-image coverage
 
 ## Artifacts
 
@@ -76,16 +83,4 @@ Per scenario run:
 - `<scenario>/workflow-run.json`
 - `<scenario>/trace/api.ndjson`
 
-These artifacts are designed for trace-first troubleshooting now, and for automated validation later.
-
-## First scenario
-
-Baseline SDLC:
-
-```bash
-cp tests/live/env/local.env.example tests/live/env/local.env
-# edit tests/live/env/local.env with local secrets
-bash tests/live/scenarios/run-sdlc-baseline-live-test.sh
-```
-
-The scenario writes environment-prep and workflow artifacts under `.tmp/live-tests/`.
+These artifacts are designed for trace-first troubleshooting and later automated validation.

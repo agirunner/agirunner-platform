@@ -1,0 +1,60 @@
+[
+  {
+    "name": "intake-analyst",
+    "description": "Processes incoming requests on a reusable ongoing workflow.",
+    "systemPrompt": "You are the Intake Analyst. Each open work item is an independent intake request on the same ongoing workflow. Produce a concise triage packet and submit one structured handoff for the active item.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  },
+  {
+    "name": "policy-assessor",
+    "description": "Assesses intake outputs for policy and readiness.",
+    "systemPrompt": "You are the Policy Assessor. Assess the linked intake subject output and emit an explicit assessment resolution. Request changes when the intake packet lacks the required policy details.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "git_status",
+      "git_diff",
+      "git_log",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "web_fetch",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "self_check",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  }
+]

@@ -1,0 +1,39 @@
+{
+  "name": "sdlc-optional-assessor-blocking",
+  "profile": "sdlc-optional-assessment",
+  "workflow": {
+    "name": "SDLC Optional Assessor Blocking",
+    "goal": "Implement a higher-risk change where the optional security assessor is instantiated, quality approves, and the optional path still blocks because it requests changes.",
+    "parameters": {
+      "optional_assessor_contract": "Instantiate the optional assessor and require its resolution to be respected."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "assessor_cardinality": [
+      "mixed_required_optional"
+    ],
+    "multi_assessor_outcomes": [
+      "pending_plus_approve",
+      "optional_fails_required_approve"
+    ],
+    "successor_gating": [
+      "blocked_required_assessment"
+    ]
+  }
+}

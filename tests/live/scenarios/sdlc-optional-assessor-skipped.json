@@ -1,0 +1,37 @@
+{
+  "name": "sdlc-optional-assessor-skipped",
+  "profile": "sdlc-optional-assessment",
+  "workflow": {
+    "name": "SDLC Optional Assessor Skipped",
+    "goal": "Implement a low-risk change where the optional security assessor is not instantiated and the required quality assessor alone clears the work.",
+    "parameters": {
+      "optional_assessor_contract": "The optional assessor should be skipped for this low-risk change."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "required_assessment_sets": [
+      {
+        "subject_role": "application-delivery-engineer",
+        "required_assessors": [
+          "delivery-quality-assessor"
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "assessor_cardinality": [
+      "one_optional"
+    ],
+    "successor_gating": [
+      "allowed_optional_pending"
+    ]
+  }
+}

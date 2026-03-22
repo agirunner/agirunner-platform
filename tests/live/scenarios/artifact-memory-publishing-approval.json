@@ -1,0 +1,70 @@
+{
+  "name": "artifact-memory-publishing-approval",
+  "profile": "artifact-memory-publishing",
+  "workflow": {
+    "name": "Artifact Memory Publishing Approval",
+    "goal": "Produce a publication packet that requires fact-check assessment, human approval, artifact outputs, and memory summaries before final publishing.",
+    "parameters": {
+      "publication_contract": "The fact-check assessment approves, then the human gate approves the assessed packet before publication editing begins."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {
+      "content_state": "drafting"
+    },
+    "spec": {
+      "documents": {
+        "style-guide": {
+          "source": "external",
+          "url": "https://example.test/style-guide"
+        }
+      }
+    }
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "operator-approval"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "operator-approval"
+        },
+        "expected_actions": [
+          "approve"
+        ]
+      }
+    ],
+    "required_assessment_sets": [
+      {
+        "subject_role": "research-lead",
+        "required_assessors": [
+          "fact-check-assessor"
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "delivery_paths": [
+      "assessment_then_human_review_then_successor"
+    ],
+    "playbook_shapes": [
+      "multiple_checkpoints"
+    ],
+    "storage_execution": [
+      "memory_heavy",
+      "mixed_git_memory_artifacts"
+    ],
+    "successor_gating": [
+      "blocked_human_review"
+    ]
+  }
+}

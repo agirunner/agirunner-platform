@@ -1,0 +1,51 @@
+{
+  "name": "requirements-human-review-reject",
+  "profile": "requirements-human-review",
+  "workflow": {
+    "name": "Requirements Human Review Reject",
+    "goal": "Produce a launch packet that human review rejects and escalates instead of allowing successor work.",
+    "parameters": {
+      "human_review_contract": "Reject the packet and escalate for operator intervention."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "existing_context": "The launch packet touches a regulated rollout."
+    },
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "reject"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "failed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "expected_actions": [
+          "reject"
+        ]
+      }
+    ],
+    "board": {
+      "blocked_count": 1
+    }
+  },
+  "coverage": {
+    "human_review_outcomes": [
+      "rejected"
+    ],
+    "rework_actions": [
+      "escalate"
+    ]
+  }
+}

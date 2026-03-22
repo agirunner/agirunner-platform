@@ -1,0 +1,67 @@
+{
+  "name": "requirements-human-review-request-changes",
+  "profile": "requirements-human-review",
+  "workflow": {
+    "name": "Requirements Human Review Request Changes",
+    "goal": "Produce a launch packet that the human review gate sends back for one content revision before approval.",
+    "parameters": {
+      "human_review_contract": "Request changes once, then approve after the revised packet is ready."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "existing_context": "Operators need step-by-step approval guidance."
+    },
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "request_changes"
+    },
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "expected_actions": [
+          "request_changes",
+          "approve"
+        ]
+      }
+    ],
+    "gate_rework_sequences": [
+      {
+        "stage_name": "approval-gate",
+        "required_role": "technical-editor"
+      }
+    ]
+  },
+  "coverage": {
+    "human_review_outcomes": [
+      "request_changes"
+    ],
+    "rework_actions": [
+      "route_to_role"
+    ],
+    "subject_revisions": [
+      "one_rework"
+    ],
+    "successor_gating": [
+      "blocked_human_review"
+    ]
+  }
+}

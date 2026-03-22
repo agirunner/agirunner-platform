@@ -1,0 +1,69 @@
+[
+  {
+    "name": "build-engineer",
+    "description": "Runs the delivery step inside an explicit custom execution image.",
+    "systemPrompt": "You are the Build Engineer. Implement the scoped build or packaging change in the repository and submit one structured handoff.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "file_write",
+      "file_edit",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "git_status",
+      "git_diff",
+      "git_log",
+      "git_commit",
+      "git_push",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "memory_write",
+      "web_fetch",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "peer_review",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true,
+    "executionContainerConfig": {
+      "image": "agirunner-runtime-execution:local",
+      "pullPolicy": "if-not-present"
+    }
+  },
+  {
+    "name": "release-assessor",
+    "description": "Assesses the custom-image delivery output before rollout.",
+    "systemPrompt": "You are the Release Assessor. Assess the linked subject output and emit an explicit assessment resolution.",
+    "allowedTools": [
+      "file_read",
+      "file_list",
+      "grep",
+      "glob",
+      "tool_search",
+      "shell_exec",
+      "git_status",
+      "git_diff",
+      "git_log",
+      "artifact_upload",
+      "artifact_list",
+      "artifact_read",
+      "memory_read",
+      "memory_search",
+      "web_fetch",
+      "escalate",
+      "submit_handoff",
+      "read_predecessor_handoff"
+    ],
+    "verificationStrategy": "peer_review",
+    "escalationTarget": "human",
+    "maxEscalationDepth": 5,
+    "isActive": true
+  }
+]

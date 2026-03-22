@@ -1,0 +1,125 @@
+{
+  "name": "Artifact And Memory Publishing Pipeline",
+  "slug": "live-test-artifact-memory-publishing-v1",
+  "description": "Content workflow that combines assessment, human review, artifacts, and memory.",
+  "outcome": "Draft content is fact-checked, approved by a human, and then finalized for publication.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The research lead drafts the content and supporting evidence. The fact-check assessor evaluates the draft. A human approval gate decides whether the assessed draft can proceed. Once both the assessment and the human decision are clear, the publication editor finalizes the release packet.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "research-lead",
+      "fact-check-assessor",
+      "publication-editor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "draft-package",
+        "goal": "The draft content and evidence are ready.",
+        "involves": [
+          "research-lead",
+          "fact-check-assessor"
+        ]
+      },
+      {
+        "name": "operator-approval",
+        "goal": "A human decision exists for the assessed draft.",
+        "human_gate": true,
+        "involves": []
+      },
+      {
+        "name": "publication-release",
+        "goal": "The publication packet is finalized.",
+        "involves": [
+          "publication-editor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "draft-package",
+        "goal": "The draft content and evidence are ready.",
+        "human_gate": false,
+        "entry_criteria": "The publishing request exists."
+      },
+      {
+        "name": "operator-approval",
+        "goal": "A human decision exists for the assessed draft.",
+        "human_gate": true,
+        "entry_criteria": "The assessed draft is ready."
+      },
+      {
+        "name": "publication-release",
+        "goal": "The publication packet is finalized.",
+        "human_gate": false,
+        "entry_criteria": "Assessment and human approval are clear."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "fact-check-assessor",
+        "to_role": "publication-editor",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 3,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "research-lead",
+        "assessed_by": "fact-check-assessor",
+        "checkpoint": "draft-package",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

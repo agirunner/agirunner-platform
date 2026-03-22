@@ -1,0 +1,67 @@
+{
+  "name": "requirements-human-review-approve",
+  "profile": "requirements-human-review",
+  "workflow": {
+    "name": "Requirements Human Review Approve",
+    "goal": "Produce a human-approved launch packet for budget-alert requirements.",
+    "parameters": {
+      "human_review_contract": "Approve the first review-ready packet when it satisfies the authored criteria."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "existing_context": "Budget-conscious operators need concise rollout guidance."
+    },
+    "spec": {
+      "documents": {
+        "budget-notes": {
+          "source": "external",
+          "url": "https://example.test/budgets"
+        }
+      }
+    }
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "expected_actions": [
+          "approve"
+        ]
+      }
+    ],
+    "approval_actions": [
+      {
+        "action": "approve",
+        "stage_name": "approval-gate"
+      }
+    ]
+  },
+  "coverage": {
+    "delivery_paths": [
+      "human_review_then_successor"
+    ],
+    "human_review_outcomes": [
+      "approved"
+    ],
+    "successor_gating": [
+      "blocked_human_review"
+    ],
+    "playbook_shapes": [
+      "custom_checkpoint_names"
+    ]
+  }
+}

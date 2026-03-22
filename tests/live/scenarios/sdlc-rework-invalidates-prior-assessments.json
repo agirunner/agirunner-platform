@@ -1,0 +1,41 @@
+{
+  "name": "sdlc-rework-invalidates-prior-assessments",
+  "profile": "sdlc-revision-rework",
+  "workflow": {
+    "name": "SDLC Revision Invalidation",
+    "goal": "Ship a change that requires multiple rework cycles, reuses an assessor across checkpoints, and invalidates stale approvals after each new revision.",
+    "parameters": {
+      "assessment_contract": "Older approvals must not clear newer revisions; route redesign feedback back to the platform architect when specified."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation-pass",
+        "minimum_revision": 3
+      }
+    ]
+  },
+  "coverage": {
+    "rework_actions": [
+      "route_to_role"
+    ],
+    "subject_revisions": [
+      "multiple_rework",
+      "reassessment_new_revision",
+      "invalidate_prior_assessments",
+      "stale_late_assessment"
+    ],
+    "playbook_shapes": [
+      "assessor_reused_across_checkpoints"
+    ]
+  }
+}
