@@ -363,11 +363,29 @@ function formatRuleResults(
   const lines: string[] = [];
   const nextActor = readString(workItem.next_expected_actor);
   const nextAction = readString(workItem.next_expected_action);
+  const continuity = asRecord(workItem.continuity);
   if (nextActor) {
     lines.push(`Next expected actor: ${nextActor}`);
   }
   if (nextAction) {
     lines.push(`Next expected action: ${nextAction}`);
+  }
+  const statusSummary = readString(continuity.status_summary);
+  if (statusSummary) {
+    lines.push(`Continuity status: ${statusSummary}`);
+  }
+  const nextExpectedEvent = readString(continuity.next_expected_event);
+  if (nextExpectedEvent) {
+    lines.push(`Next expected event: ${nextExpectedEvent}`);
+  }
+  const activeSubordinateTasks = readStringArray(continuity.active_subordinate_tasks);
+  if (activeSubordinateTasks.length > 0) {
+    lines.push(`Active subordinate tasks: ${activeSubordinateTasks.join(', ')}`);
+  }
+  if (nextExpectedEvent && activeSubordinateTasks.length > 0) {
+    lines.push(
+      'When active subordinate tasks are already in flight and continuity identifies the next expected event, finish this activation and wait for that event instead of polling for completion.',
+    );
   }
   const reworkCount = readNumber(workItem.rework_count);
   if (reworkCount !== null) {

@@ -63,6 +63,11 @@ describe('buildWorkflowInstructionLayer', () => {
               next_expected_actor: 'human',
               next_expected_action: 'approve',
               rework_count: 1,
+              continuity: {
+                status_summary: 'A release specialist is already packaging artifacts.',
+                next_expected_event: 'task.handoff_submitted',
+                active_subordinate_tasks: ['task-release-1'],
+              },
             },
           ],
         },
@@ -98,6 +103,12 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Rule Results');
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');
+    expect(layer!.content).toContain('Continuity status: A release specialist is already packaging artifacts.');
+    expect(layer!.content).toContain('Next expected event: task.handoff_submitted');
+    expect(layer!.content).toContain('Active subordinate tasks: task-release-1');
+    expect(layer!.content).toContain(
+      'When active subordinate tasks are already in flight and continuity identifies the next expected event, finish this activation and wait for that event instead of polling for completion.',
+    );
     expect(layer!.content).toContain('Human approval required before completion.');
     expect(layer!.content).toContain('Required assessment: reviewer -> qa');
     expect(layer!.content).not.toContain('Required handoff: reviewer -> qa');

@@ -57,6 +57,7 @@ Each activation is stateless. Durable knowledge lives in workspace memory. Opera
 - Check workflow budget posture when cost, time, or token pressure matters.
 - Decide, act, then update workspace memory with durable knowledge only.
 - On heartbeat-only activations, exit when specialist work is progressing and nothing new is actionable.
+- If continuity already names active subordinate tasks and a next expected event, do not poll for completion in the same activation; finish and wait for that event.
 
 ## Rules And Continuity
 - Mandatory review, approval, and handoff rules are enforced by the platform.
