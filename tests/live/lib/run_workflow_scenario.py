@@ -541,6 +541,18 @@ def _task_mapping(task: dict[str, Any], field_name: str) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def _json_object(value: Any) -> dict[str, Any]:
+    if isinstance(value, dict):
+        return value
+    if not isinstance(value, str) or value.strip() == "":
+        return {}
+    try:
+        parsed = json.loads(value)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
+
+
 def _task_kind(task: dict[str, Any]) -> str:
     direct_kind = task.get("task_kind")
     if isinstance(direct_kind, str) and direct_kind.strip() != "":
@@ -586,11 +598,41 @@ def _task_resolution(task: dict[str, Any]) -> str | None:
         _task_mapping(task, "output").get("resolution"),
         _task_mapping(task, "handoff").get("resolution"),
         task.get("latest_handoff_resolution"),
+        _latest_submitted_handoff(task).get("resolution"),
     )
     for value in candidates:
         if isinstance(value, str) and value.strip() != "":
             return value.strip()
     return None
+
+
+def _latest_submitted_handoff(task: dict[str, Any]) -> dict[str, Any]:
+    output = _task_mapping(task, "output")
+    raw = output.get("raw")
+    if not isinstance(raw, dict):
+        return {}
+    loop = raw.get("loop")
+    if not isinstance(loop, dict):
+        return {}
+    iterations = loop.get("iterations")
+    if not isinstance(iterations, list):
+        return {}
+    for iteration in reversed(iterations):
+        if not isinstance(iteration, dict):
+            continue
+        actions = iteration.get("act")
+        if not isinstance(actions, list):
+            continue
+        for action in reversed(actions):
+            if not isinstance(action, dict):
+                continue
+            step = action.get("step")
+            if not isinstance(step, dict) or step.get("tool") != "submit_handoff":
+                continue
+            payload = _json_object(action.get("output"))
+            if payload:
+                return payload
+    return {}
 
 
 def _task_timestamp(task: dict[str, Any]) -> datetime | None:

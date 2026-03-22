@@ -1667,6 +1667,86 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertTrue(verification["passed"])
         self.assertEqual([], verification["failures"])
 
+    def test_evaluate_expectations_reads_assessment_resolution_from_submitted_handoff(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "assessment_sequences": [
+                    {
+                        "subject_role": "implementation-engineer",
+                        "assessed_by": "acceptance-gate-assessor",
+                        "expected_resolution": "approved",
+                        "subject_revision": 1,
+                    }
+                ],
+                "required_assessment_sets": [
+                    {
+                        "subject_role": "implementation-engineer",
+                        "subject_revision": 1,
+                        "required_assessors": ["acceptance-gate-assessor"],
+                    }
+                ],
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-impl-1",
+                        "role": "implementation-engineer",
+                        "stage_name": "implementation",
+                        "metadata": {"task_kind": "delivery"},
+                        "completed_at": "2026-03-22T03:40:00Z",
+                    },
+                    {
+                        "id": "task-assess-1",
+                        "role": "acceptance-gate-assessor",
+                        "stage_name": "implementation",
+                        "input": {"subject_task_id": "task-impl-1", "subject_revision": 1},
+                        "metadata": {
+                            "task_type": "assessment",
+                            "subject_task_id": "task-impl-1",
+                            "subject_revision": 1,
+                        },
+                        "output": {
+                            "raw": {
+                                "loop": {
+                                    "iterations": [
+                                        {
+                                            "act": [
+                                                {
+                                                    "step": {"tool": "submit_handoff"},
+                                                    "output": json.dumps(
+                                                        {
+                                                            "completion": "full",
+                                                            "resolution": "approved",
+                                                            "role_data": {
+                                                                "task_kind": "assessment",
+                                                                "subject_task_id": "task-impl-1",
+                                                                "subject_revision": 1,
+                                                            },
+                                                        }
+                                                    ),
+                                                }
+                                            ]
+                                        }
+                                    ]
+                                }
+                            }
+                        },
+                        "completed_at": "2026-03-22T03:41:00Z",
+                    },
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+        )
+
+        self.assertTrue(verification["passed"])
+        self.assertEqual([], verification["failures"])
+
     def test_evaluate_expectations_reports_generic_assessment_contract_failures(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {
