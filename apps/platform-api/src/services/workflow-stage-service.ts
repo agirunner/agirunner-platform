@@ -234,6 +234,11 @@ function derivePlannedStageStatus(
   if (row.gate_status === 'changes_requested') {
     return 'active';
   }
+  if (row.human_gate && row.gate_status === 'approved') {
+    if (input.hasLaterOpenStage || row.status === 'completed') {
+      return 'completed';
+    }
+  }
   if (input.isCurrentOpenStage) {
     return 'active';
   }

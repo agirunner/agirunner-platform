@@ -186,4 +186,99 @@ describe('reconcilePlannedWorkflowStages', () => {
       { id: 'stage-2', status: 'active' },
     ]);
   });
+
+  it('marks an approved human-gate stage completed once later-stage work is active', async () => {
+    const updates: Array<{ id: string; status: string }> = [];
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('SELECT ws.id')) {
+          return {
+            rowCount: 3,
+            rows: [
+              {
+                id: 'stage-1',
+                lifecycle: 'planned',
+                name: 'draft-package',
+                position: 0,
+                goal: 'Prepare draft',
+                guidance: null,
+                human_gate: false,
+                status: 'completed',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: new Date('2026-03-11T00:00:00Z'),
+                completed_at: new Date('2026-03-11T00:30:00Z'),
+                open_work_item_count: 0,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-11T00:00:00Z'),
+                last_completed_work_item_at: new Date('2026-03-11T00:30:00Z'),
+              },
+              {
+                id: 'stage-2',
+                lifecycle: 'planned',
+                name: 'operator-approval',
+                position: 1,
+                goal: 'Approve release packet',
+                guidance: null,
+                human_gate: true,
+                status: 'pending',
+                gate_status: 'approved',
+                iteration_count: 0,
+                summary: 'Approved.',
+                started_at: new Date('2026-03-11T00:31:00Z'),
+                completed_at: null,
+                open_work_item_count: 0,
+                total_work_item_count: 0,
+                first_work_item_at: null,
+                last_completed_work_item_at: null,
+              },
+              {
+                id: 'stage-3',
+                lifecycle: 'planned',
+                name: 'publication-release',
+                position: 2,
+                goal: 'Publish packet',
+                guidance: null,
+                human_gate: false,
+                status: 'pending',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: null,
+                completed_at: null,
+                open_work_item_count: 1,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-11T00:40:00Z'),
+                last_completed_work_item_at: null,
+              },
+            ],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          updates.push({
+            id: String((params ?? [])[2]),
+            status: String((params ?? [])[3]),
+          });
+          return { rowCount: 1, rows: [] };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const result = await reconcilePlannedWorkflowStages(pool as never, 'tenant-1', 'workflow-1');
+
+    expect(result).toEqual({
+      currentStage: 'publication-release',
+      stages: [
+        expect.objectContaining({ name: 'draft-package', status: 'completed', is_active: false }),
+        expect.objectContaining({ name: 'operator-approval', status: 'completed', is_active: false }),
+        expect.objectContaining({ name: 'publication-release', status: 'active', is_active: true }),
+      ],
+    });
+    expect(updates).toEqual([
+      { id: 'stage-2', status: 'completed' },
+      { id: 'stage-3', status: 'active' },
+    ]);
+  });
 });
