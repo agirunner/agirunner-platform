@@ -622,19 +622,7 @@ function normalizeHandoffResolution(value: unknown): 'approved' | 'request_chang
 function allowsHandoffResolution(task: TaskContextRow) {
   const metadata = normalizeRecord(task.metadata);
   const taskKind = readOptionalString(metadata.task_kind);
-  if (taskKind === 'assessment' || taskKind === 'approval') {
-    return true;
-  }
-  return readSubjectLinkage(task) !== null;
-}
-
-function readSubjectLinkage(task: TaskContextRow) {
-  const input = normalizeRecord(task.input);
-  return (
-    readOptionalString(input.subject_task_id)
-    ?? readOptionalString(input.subject_work_item_id)
-    ?? readOptionalString(input.subject_handoff_id)
-  );
+  return taskKind === 'assessment' || taskKind === 'approval';
 }
 
 function toTaskHandoffResponse(row: TaskHandoffRow) {

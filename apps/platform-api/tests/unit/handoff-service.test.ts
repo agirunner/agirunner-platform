@@ -352,6 +352,40 @@ describe('HandoffService', () => {
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
+  it('rejects resolution on delivery handoffs that carry subject lineage', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'implementation-engineer',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 0,
+            is_orchestrator_task: false,
+            input: { subject_task_id: 'task-architect-1', subject_revision: 1 },
+            metadata: { task_kind: 'delivery', team_name: 'delivery', output_revision: 1 },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-1',
+      summary: 'Implemented the requested change.',
+      completion: 'full',
+      resolution: 'approved',
+    })).rejects.toThrowError(new ValidationError('resolution is only allowed on assessment or approval handoffs'));
+
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
   it('enqueues and dispatches an immediate workflow activation when a playbook handoff is submitted', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const logService = { insert: vi.fn(async () => undefined) };
