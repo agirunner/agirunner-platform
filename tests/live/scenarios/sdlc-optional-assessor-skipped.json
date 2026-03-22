@@ -3,20 +3,33 @@
   "profile": "sdlc-optional-assessment",
   "workflow": {
     "name": "SDLC Optional Assessor Skipped",
-    "goal": "Implement a low-risk change where the optional security assessor is not instantiated and the required quality assessor alone clears the work.",
+    "goal": "Extend the seeded Python CLI with a low-risk deterministic report command that only the required quality assessor needs to clear.",
     "parameters": {
-      "optional_assessor_contract": "The optional assessor should be skipped for this low-risk change."
+      "change_request": "Add `python3 -m workflow_cli report --scenario-name sdlc-optional-assessor-skipped` that prints deterministic JSON with scenario_name, report_status=ready, and risk_level=low. Keep `python3 -m workflow_cli status` working and verify with `./scripts/verify.sh`.",
+      "optional_assessor_contract": "This change is low risk. Skip the optional security assessor unless the implementation introduces shell execution, arbitrary file reads, or network access."
     }
   },
   "workspace": {
     "repo": true,
     "memory": {},
-    "spec": {}
+    "spec": {
+      "instructions": {
+        "content": "This workspace already contains a seeded Python standard-library CLI scaffold. Keep the existing stack and layout. Verify changes with `./scripts/verify.sh`.",
+        "format": "markdown"
+      }
+    }
   },
   "approvals": [],
   "actions": [],
   "expect": {
     "state": "completed",
+    "assessment_sequences": [
+      {
+        "subject_role": "application-delivery-engineer",
+        "assessed_by": "delivery-quality-assessor",
+        "expected_resolution": "approved"
+      }
+    ],
     "required_assessment_sets": [
       {
         "subject_role": "application-delivery-engineer",

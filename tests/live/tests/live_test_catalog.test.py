@@ -60,6 +60,23 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
         self.assertTrue((seed_root / "tests" / "test_cli.py").is_file())
 
+    def test_repo_backed_profiles_provide_seed_content_for_their_storage_mode(self) -> None:
+        for scenario_file in sorted(SCENARIOS_DIR.glob("*.json")):
+            with self.subTest(scenario=scenario_file.stem):
+                scenario = scenario_config.load_scenario(scenario_file)
+                profile_dir = LIBRARY_DIR / scenario["profile"]
+                storage_type = scenario["workspace"]["storage"]["type"]
+                if storage_type == "git_remote":
+                    seed_root = profile_dir / "repo-seed"
+                    self.assertTrue(seed_root.is_dir(), f"missing repo seed for {scenario['profile']}")
+                    self.assertTrue((seed_root / "README.md").is_file(), "missing seed README")
+                    self.assertTrue((seed_root / "scripts" / "verify.sh").is_file(), "missing seed verify script")
+                elif storage_type == "host_directory":
+                    seed_root = profile_dir / "host-seed"
+                    self.assertTrue(seed_root.is_dir(), f"missing host seed for {scenario['profile']}")
+                    self.assertTrue((seed_root / "README.md").is_file(), "missing host seed README")
+                    self.assertTrue((seed_root / "scripts" / "verify.sh").is_file(), "missing host seed verify script")
+
     def test_workspace_spec_instruction_documents_match_api_shape(self) -> None:
         for scenario_file in sorted(SCENARIOS_DIR.glob("*.json")):
             with self.subTest(scenario=scenario_file.stem):

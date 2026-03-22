@@ -3,15 +3,21 @@
   "profile": "sdlc-optional-assessment",
   "workflow": {
     "name": "SDLC Optional Assessor Blocking",
-    "goal": "Implement a higher-risk change where the optional security assessor is instantiated, quality approves, and the optional path still blocks because it requests changes.",
+    "goal": "Extend the seeded Python CLI with a higher-risk template preview command where quality can approve but the optional security assessor must force one rework cycle before release.",
     "parameters": {
-      "optional_assessor_contract": "Instantiate the optional assessor and require its resolution to be respected."
+      "change_request": "Add `python3 -m workflow_cli preview-template --template-name default` using repository template files and deterministic stdout. The first revision should be treated as incomplete for security until template access is constrained to the repository templates directory and verified with `./scripts/verify.sh`.",
+      "optional_assessor_contract": "Instantiate the optional security assessor. It must request changes until template access is constrained to repository-owned templates only, with no arbitrary path reads or shell execution."
     }
   },
   "workspace": {
     "repo": true,
     "memory": {},
-    "spec": {}
+    "spec": {
+      "instructions": {
+        "content": "This workspace already contains a seeded Python standard-library CLI scaffold. Keep the existing stack and layout. Verify changes with `./scripts/verify.sh`.",
+        "format": "markdown"
+      }
+    }
   },
   "approvals": [],
   "actions": [],
