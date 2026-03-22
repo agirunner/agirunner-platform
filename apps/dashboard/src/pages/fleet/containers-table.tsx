@@ -2,9 +2,10 @@ import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
 import {
-  OperatorStatusBadge,
   RelativeTimestamp,
+  statusVariantForOperatorState,
 } from '../../components/operator-display.js';
+import { Badge } from '../../components/ui/badge.js';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import {
   formatContainerKindLabel,
@@ -69,7 +70,7 @@ export function ContainersTable(props: {
           {props.rows.map((row) => (
             <TableRow key={row.id} className={resolveRowClassName(row)}>
               <DiffCell row={row} field="status" className="py-3">
-                <OperatorStatusBadge status={row.presence === 'inactive' ? 'inactive' : row.state} />
+                {renderContainerPresenceBadge(row)}
               </DiffCell>
               <DiffCell row={row} field="kind" className="py-3">
                 <p className="font-medium text-foreground">{formatContainerKindLabel(row.kind)}</p>
@@ -111,6 +112,15 @@ export function ContainersTable(props: {
         </TableBody>
       </Table>
     </div>
+  );
+}
+
+function renderContainerPresenceBadge(row: SessionContainerRow): JSX.Element {
+  const status = row.presence === 'inactive' ? 'inactive' : 'active';
+  return (
+    <Badge variant={statusVariantForOperatorState(status)}>
+      {row.presence === 'inactive' ? 'Inactive' : 'Active'}
+    </Badge>
   );
 }
 

@@ -99,7 +99,7 @@ export function ContainersPage(): JSX.Element {
           </p>
         </div>
         <p className="text-sm text-muted-foreground">
-          {runningCount} running • {inactiveCount} inactive this session
+          {runningCount} active • {inactiveCount} inactive this session
         </p>
       </div>
 
@@ -137,7 +137,7 @@ export function ContainersPage(): JSX.Element {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All statuses</SelectItem>
-            <SelectItem value="running">Running</SelectItem>
+            <SelectItem value="running">Active</SelectItem>
             <SelectItem value="inactive">Inactive</SelectItem>
           </SelectContent>
         </Select>

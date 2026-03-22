@@ -25,6 +25,8 @@ describe('containers page source', () => {
       'Live container inventory from the platform API, showing image, CPU, and memory of running and recently-active containers.',
     );
     expect(pageSource).toContain("SelectItem value=\"inactive\"");
+    expect(pageSource).toContain("SelectItem value=\"running\">Active</SelectItem>");
+    expect(pageSource).toContain('{runningCount} active • {inactiveCount} inactive this session');
     expect(pageSource).toContain('partitionSessionContainerRowsByFunction');
     expect(pageSource).toContain('Orchestrator');
     expect(pageSource).toContain('Specialists');
@@ -46,6 +48,8 @@ describe('containers page source', () => {
     expect(tableSource).not.toContain('No longer reported by the platform API');
     expect(tableSource).not.toContain('formatOperatorStatusLabel(row.activity_state ?? row.state)');
     expect(tableSource).not.toContain('row.status');
+    expect(tableSource).toContain('renderContainerPresenceBadge');
+    expect(tableSource).toContain("row.presence === 'inactive' ? 'Inactive' : 'Active'");
     expect(tableSource).toContain('sanitizeContainerContextLabel');
     expect(tableSource).toContain("value?.trim().toLowerCase() === 'specialist runtimes'");
     expect(tableSource).not.toContain('Unassigned');
