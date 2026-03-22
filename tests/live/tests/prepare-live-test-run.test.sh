@@ -126,5 +126,58 @@ fi'
   assert_contains "\"workspace_id\":\"workspace-host\"" "${run_context_file}"
 }
 
+test_git_remote_run_preparation_defaults_fixtures_repo_path() {
+  local tmpdir stubdir logfile envfile output_root shared_context_file run_context_file
+  local expected_default_fixtures_root="${ROOT_DIR}/../agirunner-test-fixtures"
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  logfile="${tmpdir}/calls.log"
+  envfile="${tmpdir}/env/local.env"
+  output_root="${tmpdir}/artifacts"
+  shared_context_file="${output_root}/bootstrap/context.json"
+  run_context_file="${output_root}/content-direct-successor-no-assessment/run-context.json"
+  mkdir -p "${stubdir}" "$(dirname "${envfile}")" "$(dirname "${shared_context_file}")"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+LIVE_TEST_PROVIDER_AUTH_MODE=oauth
+LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
+LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
+LIVE_TEST_GITHUB_TOKEN=test-github-token
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5432
+PLATFORM_API_PORT=8080
+EOF
+
+  cat >"${shared_context_file}" <<'EOF'
+{"provider_auth_mode":"oauth","profiles":{"content-direct-successor":{"playbook_id":"playbook-1","playbook_slug":"playbook-one"}}}
+EOF
+
+  make_stub "${stubdir}/git" 'printf "git %s\n" "$*" >>"'"${logfile}"'"'
+  make_stub "${stubdir}/python3" '
+if [[ "${1:-}" == "-" ]]; then
+  printf "%s\n" "content-direct-successor" "git_remote"
+else
+  printf "python3 %s\n" "$*" >>"'"${logfile}"'"
+  printf "%s\n" "{\"workspace_id\":\"workspace-1\",\"workspace_slug\":\"content-direct-successor-no-assessment-run-03\",\"playbook_id\":\"playbook-1\",\"run_token\":\"run-03\"}" >"${LIVE_TEST_RUN_CONTEXT_FILE}"
+fi'
+
+  PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_ARTIFACTS_DIR="${output_root}" \
+    LIVE_TEST_SHARED_CONTEXT_FILE="${shared_context_file}" \
+    LIVE_TEST_RUN_TOKEN="run-03" \
+    "${SCRIPT_PATH}" "content-direct-successor-no-assessment" >"${tmpdir}/stdout.log"
+
+  assert_contains "git clone ${expected_default_fixtures_root}" "${logfile}"
+  assert_contains "\"workspace_id\":\"workspace-1\"" "${run_context_file}"
+}
+
 test_git_remote_run_preparation_uses_unique_branch_and_writes_run_context
 test_host_directory_run_preparation_uses_unique_host_workspace_path
+test_git_remote_run_preparation_defaults_fixtures_repo_path
+
+echo "[tests/live/prepare-live-test-run.test] PASS"
