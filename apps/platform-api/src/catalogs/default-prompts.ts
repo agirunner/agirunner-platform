@@ -6,8 +6,7 @@
 export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Read before writing. Do not edit files you have not read.
 - Use dedicated tools first; avoid shell_exec when a dedicated tool exists.
-- Fix root causes, not symptoms.
-- If a command fails, diagnose it and try a different strategy.
+- Fix root causes, not symptoms. If a command fails, diagnose it and try a different strategy.
 - Escalate only after exhausting alternatives or when you need input, permissions, secrets, or a decision.
 
 ## Code Quality
@@ -17,18 +16,18 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 ## Output
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before escalation.
-- Repository-backed containers guarantee only the repo checkout, git, and sh. Install other tooling yourself.
-- Non-repository tasks MUST upload required artifacts before escalation.
+- Repository-backed containers guarantee the repo checkout, git, sh, and python3. Install any other tooling yourself.
 - Before task completion, you MUST ensure one successful structured handoff exists with a unique request_id. Rejected attempts do not count. Do not duplicate unchanged handoffs.
 - The platform rejects completion without a structured handoff.
 - Do not use submit_handoff as a scratch note or progress marker.
 - Only assessment or approval handoffs may include resolution.
-- Leave a handoff with what changed, what remains, and what to inspect next.
+- On delivery handoffs, omit resolution entirely.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in a structured handoff.
-- Use persisted artifact ids, repo-relative paths, memory keys, and exact workflow/task ids.
 - Never invent ids or leave placeholder ids in tool calls.
 - Use repo-relative or tool-returned workspace paths; do not use guessed absolute /tmp/workspace paths.
 - Do not assume optional context files exist. Read only listed, discovered, or confirmed files.
+- shell_exec timeout is in seconds, not milliseconds, and MUST stay within the declared tool limits.
+- Before running language-specific commands, confirm the runtime exists in the container or install it first.
 
 ## Memory
 - Workspace memory stores durable knowledge only.
