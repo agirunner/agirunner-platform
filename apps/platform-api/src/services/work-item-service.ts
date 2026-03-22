@@ -314,6 +314,14 @@ export class WorkItemService {
           input.parent_work_item_id ?? null,
           client,
         );
+        await this.assertPlannedStageEntryRoleCanStart(
+          identity.tenantId,
+          workflowId,
+          definition,
+          stageName,
+          input.owner_role ?? null,
+          client,
+        );
         const reusableWorkItem = await this.reuseOpenPlannedChildCheckpoint(
           identity.tenantId,
           workflowId,
@@ -647,6 +655,40 @@ export class WorkItemService {
     );
   }
 
+  private async assertPlannedStageEntryRoleCanStart(
+    tenantId: string,
+    workflowId: string,
+    definition: ReturnType<typeof parsePlaybookDefinition>,
+    stageName: string,
+    ownerRole: string | null,
+    client: DatabaseClient,
+  ) {
+    const normalizedOwnerRole = ownerRole?.trim() ?? null;
+    if (!normalizedOwnerRole) {
+      return;
+    }
+
+    const starterRoles = starterRolesForPlannedStage(definition, stageName);
+    if (starterRoles.length === 0 || starterRoles.includes(normalizedOwnerRole)) {
+      return;
+    }
+
+    const existingStageWorkItems = await this.countStageWorkItems(
+      tenantId,
+      workflowId,
+      stageName,
+      client,
+    );
+    if (existingStageWorkItems > 0) {
+      return;
+    }
+
+    throw new ValidationError(
+      `Cannot seed planned stage '${stageName}' with role '${normalizedOwnerRole}' before the required upstream handoff exists. ` +
+        `Start with one of: ${starterRoles.join(', ')}.`,
+    );
+  }
+
   private async reuseOpenPlannedChildCheckpoint(
     tenantId: string,
     workflowId: string,
@@ -764,6 +806,23 @@ export class WorkItemService {
       [tenantId, workflowId, workItemId],
     );
     return taskResult.rows[0]?.count ?? 0;
+  }
+
+  private async countStageWorkItems(
+    tenantId: string,
+    workflowId: string,
+    stageName: string,
+    client: DatabaseClient,
+  ) {
+    const result = await client.query<{ count: number }>(
+      `SELECT COUNT(*)::int AS count
+         FROM workflow_work_items
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND stage_name = $3`,
+      [tenantId, workflowId, stageName],
+    );
+    return result.rows[0]?.count ?? 0;
   }
 
   private async loadNonTerminalWorkItemTaskStateCounts(
@@ -1285,4 +1344,29 @@ function shouldResetReusableChildCheckpoint(workItem: Record<string, unknown>) {
     || (typeof workItem.next_expected_action === 'string' && workItem.next_expected_action.length > 0)
     || metadata.orchestrator_finish_state,
   );
+}
+
+function starterRolesForPlannedStage(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  stageName: string,
+) {
+  const stage = definition.stages.find((entry) => entry.name === stageName);
+  const stageRoles = stage?.involves?.filter((role) => role.trim().length > 0) ?? [];
+  if (stageRoles.length === 0) {
+    return [];
+  }
+
+  const blockedRoles = new Set(
+    definition.handoff_rules
+      .filter(
+        (rule) =>
+          rule.required !== false
+          && (!rule.checkpoint || rule.checkpoint === stageName)
+          && stageRoles.includes(rule.from_role)
+          && stageRoles.includes(rule.to_role),
+      )
+      .map((rule) => rule.to_role),
+  );
+
+  return stageRoles.filter((role) => !blockedRoles.has(role));
 }

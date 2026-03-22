@@ -448,4 +448,54 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('creating the first successor work item in "publication-release"');
     expect(layer!.content).toContain('Do not escalate solely because the newly started planned stage is empty.');
   });
+
+  it('tells the orchestrator to start an empty planned stage with checkpoint starter roles only', () => {
+    const layer = buildWorkflowInstructionLayer({
+      isOrchestratorTask: true,
+      workflow: {
+        lifecycle: 'planned',
+        active_stages: ['briefing'],
+        playbook: {
+          definition: {
+            lifecycle: 'planned',
+            process_instructions: 'Research first, then edit.',
+            board: {
+              columns: [
+                { id: 'planned', label: 'Planned' },
+                { id: 'done', label: 'Done', is_terminal: true },
+              ],
+            },
+            stages: [
+              {
+                name: 'briefing',
+                goal: 'Produce the final publication brief',
+                involves: ['market-researcher', 'managing-editor'],
+              },
+            ],
+            checkpoints: [
+              { name: 'briefing', goal: 'Produce the final publication brief' },
+            ],
+            handoff_rules: [
+              { from_role: 'market-researcher', to_role: 'managing-editor', required: true },
+            ],
+          },
+        },
+      },
+      orchestratorContext: {
+        activation: {
+          payload: {
+            stage_name: 'briefing',
+          },
+        },
+        board: {
+          work_items: [],
+        },
+      },
+    });
+
+    expect(layer).not.toBeNull();
+    expect(layer!.content).toContain('## Successor Seeding');
+    expect(layer!.content).toContain('Checkpoint starter roles for "briefing": market-researcher.');
+    expect(layer!.content).toContain("Do not seed the first work item in \"briefing\" with successor-only roles that require an intra-stage handoff first.");
+  });
 });

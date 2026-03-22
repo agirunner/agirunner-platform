@@ -4,6 +4,89 @@ import { ConflictError, ValidationError } from '../../src/errors/domain-errors.j
 import { WorkItemService } from '../../src/services/work-item-service.js';
 
 describe('WorkItemService', () => {
+  it('rejects seeding the first planned stage work item with a successor-only role', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'briefing',
+                lifecycle: 'planned',
+                definition: {
+                  roles: ['market-researcher', 'managing-editor'],
+                  lifecycle: 'planned',
+                  board: {
+                    columns: [
+                      { id: 'planned', label: 'Planned' },
+                      { id: 'done', label: 'Done', is_terminal: true },
+                    ],
+                  },
+                  stages: [
+                    {
+                      name: 'briefing',
+                      goal: 'Produce the publication brief',
+                      involves: ['market-researcher', 'managing-editor'],
+                    },
+                  ],
+                  handoff_rules: [
+                    {
+                      from_role: 'market-researcher',
+                      to_role: 'managing-editor',
+                      required: true,
+                    },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT COUNT(*)::int AS count') && sql.includes('FROM workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'briefing']);
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          throw new Error('first stage work item insert should not run for a successor-only role');
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    await expect(
+      service.createWorkItem(
+        {
+          id: 'admin:1',
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          ownerType: 'tenant',
+          ownerId: 'tenant-1',
+          keyPrefix: 'admin-key',
+        },
+        'workflow-1',
+        {
+          request_id: 'req-briefing-seed-1',
+          stage_name: 'briefing',
+          title: 'Publish-ready brief from research memo',
+          owner_role: 'managing-editor',
+        },
+      ),
+    ).rejects.toThrow(
+      "Cannot seed planned stage 'briefing' with role 'managing-editor' before the required upstream handoff exists. Start with one of: market-researcher.",
+    );
+  });
+
   it('rejects planned successor work-item creation while the predecessor still has a pending task', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

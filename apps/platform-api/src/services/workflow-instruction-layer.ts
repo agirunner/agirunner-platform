@@ -130,6 +130,7 @@ function buildOrchestratorSections(params: {
     if (params.lifecycle === 'planned') {
       sections.push(`## Stage Routing\n${formatStageRouting(params.checkpoint.name, successorCheckpoint)}`);
       const emptyStageGuidance = formatEmptyPlannedStageGuidance(
+        params.definition,
         params.checkpoint.name,
         params.activationTransition.previousStageName,
         params.currentStageHasWorkItems,
@@ -518,6 +519,7 @@ function formatStageRouting(
 }
 
 function formatEmptyPlannedStageGuidance(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
   currentStageName: string,
   previousStageName: string | null,
   currentStageHasWorkItems: boolean,
@@ -538,6 +540,14 @@ function formatEmptyPlannedStageGuidance(
       1,
       0,
       `This stage was entered from "${previousStageName}", so inspect that predecessor stage first when deriving the successor work item.`,
+    );
+  }
+
+  const starterRoles = starterRolesForStage(definition, currentStageName);
+  if (starterRoles.length > 0) {
+    lines.push(`Checkpoint starter roles for "${currentStageName}": ${starterRoles.join(', ')}.`);
+    lines.push(
+      `Do not seed the first work item in "${currentStageName}" with successor-only roles that require an intra-stage handoff first.`,
     );
   }
 
@@ -580,6 +590,31 @@ function approvalRuleAppliesToCheckpoint(
     return true;
   }
   return Boolean(checkpointName) && rule.checkpoint === checkpointName;
+}
+
+function starterRolesForStage(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  stageName: string,
+) {
+  const stage = definition.stages.find((entry) => entry.name === stageName);
+  const stageRoles = stage?.involves ?? [];
+  if (stageRoles.length === 0) {
+    return [];
+  }
+
+  const blockedRoles = new Set(
+    definition.handoff_rules
+      .filter(
+        (rule) =>
+          rule.required !== false
+          && ruleAppliesToCheckpoint(rule.checkpoint, stageName, definition)
+          && stageRoles.includes(rule.from_role)
+          && stageRoles.includes(rule.to_role),
+      )
+      .map((rule) => rule.to_role),
+  );
+
+  return stageRoles.filter((role) => !blockedRoles.has(role));
 }
 
 function selectFocusedWorkItem(
