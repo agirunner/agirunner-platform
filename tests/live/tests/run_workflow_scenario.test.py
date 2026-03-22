@@ -1628,13 +1628,13 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertTrue(verification["passed"])
 
-    def test_evaluate_expectations_requires_specialist_rework_between_review_events(self) -> None:
+    def test_evaluate_expectations_requires_specialist_rework_between_assessment_events(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {
                 "task_rework_sequences": [
                     {
                         "stage_name": "implementation",
-                        "request_event_type": "task.review_requested_changes",
+                        "request_event_type": "task.assessment_requested_changes",
                         "resume_event_type": "task.approved",
                         "required_role": "live-test-developer",
                     }
@@ -1650,7 +1650,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "data": {
                     "data": [
                         {
-                            "type": "task.review_requested_changes",
+                            "type": "task.assessment_requested_changes",
                             "created_at": "2026-03-19T04:00:00Z",
                             "data": {"stage_name": "implementation", "task_role": "live-test-reviewer"},
                         },
@@ -1678,6 +1678,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                     {
                         "stage_name": "implementation",
                         "required_role": "live-test-developer",
+                        "assessment_stage_name": "review",
                     }
                 ]
             },
@@ -1717,7 +1718,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             execution_logs={
                 "data": [
                     {
-                        "operation": "work_item.continuity.review_rejected",
+                        "operation": "work_item.continuity.assessment_requested_changes",
                         "work_item_id": "wi-impl-1",
                         "created_at": "2026-03-19T04:10:00Z",
                     }
@@ -1735,7 +1736,8 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                         "stage_name": "implementation",
                         "required_role": "live-test-developer",
                         "minimum_rework_count": 2,
-                        "review_task_min_count": 3,
+                        "assessment_stage_name": "review",
+                        "assessment_task_min_count": 3,
                     }
                 ]
             },
@@ -1775,12 +1777,12 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             execution_logs={
                 "data": [
                     {
-                        "operation": "work_item.continuity.review_rejected",
+                        "operation": "work_item.continuity.assessment_requested_changes",
                         "work_item_id": "wi-impl-1",
                         "created_at": "2026-03-19T04:10:00Z",
                     },
                     {
-                        "operation": "work_item.continuity.review_rejected",
+                        "operation": "work_item.continuity.assessment_requested_changes",
                         "work_item_id": "wi-impl-1",
                         "created_at": "2026-03-19T04:15:00Z",
                     }
@@ -1790,13 +1792,13 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertTrue(verification["passed"])
 
-    def test_evaluate_expectations_fails_when_review_is_reapproved_without_specialist_rework(self) -> None:
+    def test_evaluate_expectations_fails_when_assessment_is_reapproved_without_specialist_rework(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {
                 "task_rework_sequences": [
                     {
                         "stage_name": "implementation",
-                        "request_event_type": "task.review_requested_changes",
+                        "request_event_type": "task.assessment_requested_changes",
                         "resume_event_type": "task.approved",
                         "required_role": "live-test-developer",
                     }
@@ -1812,7 +1814,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 "data": {
                     "data": [
                         {
-                            "type": "task.review_requested_changes",
+                            "type": "task.assessment_requested_changes",
                             "created_at": "2026-03-19T04:00:00Z",
                             "data": {"stage_name": "implementation", "task_role": "live-test-reviewer"},
                         },
@@ -1830,7 +1832,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertEqual(
             [
                 "expected specialist rework for stage 'implementation' between "
-                "'task.review_requested_changes' and 'task.approved'"
+                "'task.assessment_requested_changes' and 'task.approved'"
             ],
             verification["failures"],
         )
@@ -1881,7 +1883,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
             execution_logs={
                 "data": [
                     {
-                        "operation": "work_item.continuity.review_rejected",
+                        "operation": "work_item.continuity.assessment_requested_changes",
                         "work_item_id": "wi-impl-1",
                         "created_at": "2026-03-19T04:10:00Z",
                     }

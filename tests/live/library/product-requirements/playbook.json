@@ -41,36 +41,93 @@
     "board": {
       "entry_column_id": "planned",
       "columns": [
-        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
-        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
-        { "id": "review", "label": "In Review", "description": "Primary work is complete and under review." },
-        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
-        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "review",
+          "label": "In Review",
+          "description": "Primary work is complete and under review."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
       ]
     },
     "stages": [
-      { "name": "requirements", "goal": "The PRD draft exists with testable acceptance criteria", "involves": ["live-test-product-manager", "live-test-architect"] },
-      { "name": "technical-review", "goal": "Technical review feedback exists for the PRD", "involves": ["live-test-architect", "live-test-product-manager"] },
-      { "name": "approval", "goal": "The PRD is finalized and approved", "involves": ["live-test-product-manager"], "human_gate": true }
+      {
+        "name": "requirements",
+        "goal": "The PRD draft exists with testable acceptance criteria",
+        "involves": [
+          "live-test-product-manager",
+          "live-test-architect"
+        ]
+      },
+      {
+        "name": "technical-review",
+        "goal": "Technical review feedback exists for the PRD",
+        "involves": [
+          "live-test-architect",
+          "live-test-product-manager"
+        ]
+      },
+      {
+        "name": "approval",
+        "goal": "The PRD is finalized and approved",
+        "involves": [
+          "live-test-product-manager"
+        ],
+        "human_gate": true
+      }
     ],
     "checkpoints": [
-      { "name": "requirements", "goal": "A PRD draft exists as an artifact with a durable summary in workspace memory.", "human_gate": false, "entry_criteria": "The feature request and context are available." },
-      { "name": "technical-review", "goal": "Technical review feedback exists as an artifact.", "human_gate": false, "entry_criteria": "The PRD draft artifact exists." },
-      { "name": "approval", "goal": "The final PRD is approved.", "human_gate": true, "entry_criteria": "The technical review is complete and the PRD is revised." }
-    ],
-    "review_rules": [
       {
-        "from_role": "live-test-product-manager",
-        "reviewed_by": "live-test-architect",
-        "checkpoint": "requirements",
-        "required": true,
-        "on_reject": { "action": "return_to_role", "role": "live-test-product-manager" }
+        "name": "requirements",
+        "goal": "A PRD draft exists as an artifact with a durable summary in workspace memory.",
+        "human_gate": false,
+        "entry_criteria": "The feature request and context are available."
+      },
+      {
+        "name": "technical-review",
+        "goal": "Technical review feedback exists as an artifact.",
+        "human_gate": false,
+        "entry_criteria": "The PRD draft artifact exists."
+      },
+      {
+        "name": "approval",
+        "goal": "The final PRD is approved.",
+        "human_gate": true,
+        "entry_criteria": "The technical review is complete and the PRD is revised."
       }
     ],
     "approval_rules": [],
     "handoff_rules": [
-      { "from_role": "live-test-product-manager", "to_role": "live-test-architect", "required": true },
-      { "from_role": "live-test-architect", "to_role": "live-test-product-manager", "required": true }
+      {
+        "from_role": "live-test-product-manager",
+        "to_role": "live-test-architect",
+        "required": true
+      },
+      {
+        "from_role": "live-test-architect",
+        "to_role": "live-test-product-manager",
+        "required": true
+      }
     ],
     "lifecycle": "planned",
     "orchestrator": {
@@ -78,6 +135,19 @@
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    }
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "live-test-product-manager",
+        "assessed_by": "live-test-architect",
+        "checkpoint": "requirements",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      }
+    ]
   }
 }

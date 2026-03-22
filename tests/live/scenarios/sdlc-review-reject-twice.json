@@ -29,7 +29,8 @@
         "stage_name": "implementation",
         "required_role": "live-test-developer",
         "minimum_rework_count": 2,
-        "review_task_min_count": 3
+        "assessment_stage_name": "review",
+        "assessment_task_min_count": 3
       }
     ],
     "efficiency": {

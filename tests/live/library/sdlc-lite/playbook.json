@@ -23,39 +23,112 @@
     "board": {
       "entry_column_id": "planned",
       "columns": [
-        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
-        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
-        { "id": "review", "label": "In Review", "description": "Primary work is complete and under review." },
-        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
-        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "review",
+          "label": "In Review",
+          "description": "Primary work is complete and under review."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
       ]
     },
     "stages": [
-      { "name": "design", "goal": "A lightweight design exists for the small change", "involves": ["live-test-architect", "live-test-developer"] },
-      { "name": "implementation", "goal": "Working code and tests are ready for review", "involves": ["live-test-developer", "live-test-reviewer"] },
-      { "name": "review", "goal": "Reviewer verdict exists for the delivered change", "involves": ["live-test-reviewer", "live-test-developer"] },
-      { "name": "release", "goal": "Release summary is ready and approved", "involves": ["live-test-architect"], "human_gate": true }
+      {
+        "name": "design",
+        "goal": "A lightweight design exists for the small change",
+        "involves": [
+          "live-test-architect",
+          "live-test-developer"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "Working code and tests are ready for review",
+        "involves": [
+          "live-test-developer",
+          "live-test-reviewer"
+        ]
+      },
+      {
+        "name": "review",
+        "goal": "Reviewer verdict exists for the delivered change",
+        "involves": [
+          "live-test-reviewer",
+          "live-test-developer"
+        ]
+      },
+      {
+        "name": "release",
+        "goal": "Release summary is ready and approved",
+        "involves": [
+          "live-test-architect"
+        ],
+        "human_gate": true
+      }
     ],
     "checkpoints": [
-      { "name": "design", "goal": "A concise design exists for the change.", "human_gate": false, "entry_criteria": "The workflow goal is clear enough to shape the implementation." },
-      { "name": "implementation", "goal": "Working code exists and is ready for review.", "human_gate": false, "entry_criteria": "The lightweight design exists." },
-      { "name": "review", "goal": "A reviewer verdict exists for the developer-delivered change.", "human_gate": false, "entry_criteria": "Implementation output and developer handoff are available." },
-      { "name": "release", "goal": "Release notes and rollout summary are approved.", "human_gate": true, "entry_criteria": "Review is complete and approved." }
-    ],
-    "review_rules": [
       {
-        "from_role": "live-test-developer",
-        "reviewed_by": "live-test-reviewer",
-        "checkpoint": "implementation",
-        "required": true,
-        "on_reject": { "action": "return_to_role", "role": "live-test-developer" }
+        "name": "design",
+        "goal": "A concise design exists for the change.",
+        "human_gate": false,
+        "entry_criteria": "The workflow goal is clear enough to shape the implementation."
+      },
+      {
+        "name": "implementation",
+        "goal": "Working code exists and is ready for review.",
+        "human_gate": false,
+        "entry_criteria": "The lightweight design exists."
+      },
+      {
+        "name": "review",
+        "goal": "A reviewer verdict exists for the developer-delivered change.",
+        "human_gate": false,
+        "entry_criteria": "Implementation output and developer handoff are available."
+      },
+      {
+        "name": "release",
+        "goal": "Release notes and rollout summary are approved.",
+        "human_gate": true,
+        "entry_criteria": "Review is complete and approved."
       }
     ],
     "approval_rules": [],
     "handoff_rules": [
-      { "from_role": "live-test-architect", "to_role": "live-test-developer", "required": true },
-      { "from_role": "live-test-developer", "to_role": "live-test-reviewer", "required": true },
-      { "from_role": "live-test-reviewer", "to_role": "live-test-architect", "required": true }
+      {
+        "from_role": "live-test-architect",
+        "to_role": "live-test-developer",
+        "required": true
+      },
+      {
+        "from_role": "live-test-developer",
+        "to_role": "live-test-reviewer",
+        "required": true
+      },
+      {
+        "from_role": "live-test-reviewer",
+        "to_role": "live-test-architect",
+        "required": true
+      }
     ],
     "lifecycle": "planned",
     "orchestrator": {
@@ -63,6 +136,19 @@
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    }
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "live-test-developer",
+        "assessed_by": "live-test-reviewer",
+        "checkpoint": "implementation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      }
+    ]
   }
 }

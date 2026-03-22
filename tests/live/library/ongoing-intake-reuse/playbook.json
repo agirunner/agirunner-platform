@@ -21,19 +21,47 @@
     "board": {
       "entry_column_id": "planned",
       "columns": [
-        { "id": "planned", "label": "Planned", "description": "Work is queued and waiting for analysis." },
-        { "id": "active", "label": "In Progress", "description": "A specialist is actively working the intake item." },
-        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
-        { "id": "done", "label": "Done", "description": "The intake item has been triaged and closed.", "is_terminal": true }
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is queued and waiting for analysis."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working the intake item."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The intake item has been triaged and closed.",
+          "is_terminal": true
+        }
       ]
     },
     "stages": [
-      { "name": "triage", "goal": "Each intake request is analyzed and closed.", "involves": ["live-test-intake-analyst"] }
+      {
+        "name": "triage",
+        "goal": "Each intake request is analyzed and closed.",
+        "involves": [
+          "live-test-intake-analyst"
+        ]
+      }
     ],
     "checkpoints": [
-      { "name": "triage", "goal": "The intake request has a completed triage handoff and is ready to close.", "human_gate": false, "entry_criteria": "A root work item exists for the intake request." }
+      {
+        "name": "triage",
+        "goal": "The intake request has a completed triage handoff and is ready to close.",
+        "human_gate": false,
+        "entry_criteria": "A root work item exists for the intake request."
+      }
     ],
-    "review_rules": [],
     "approval_rules": [],
     "handoff_rules": [],
     "lifecycle": "ongoing",
@@ -42,6 +70,7 @@
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": true
-    }
+    },
+    "assessment_rules": []
   }
 }

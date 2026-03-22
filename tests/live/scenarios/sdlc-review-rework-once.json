@@ -27,7 +27,8 @@
     "continuity_rework_sequences": [
       {
         "stage_name": "implementation",
-        "required_role": "live-test-developer"
+        "required_role": "live-test-developer",
+        "assessment_stage_name": "review"
       }
     ],
     "efficiency": {

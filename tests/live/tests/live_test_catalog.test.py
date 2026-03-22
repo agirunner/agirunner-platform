@@ -67,6 +67,14 @@ class LiveTestCatalogTests(unittest.TestCase):
                     f"{playbook_file} still overrides workspace storage: {sorted(mapped_targets & forbidden_targets)}",
                 )
 
+    def test_live_playbook_fixtures_use_assessment_rules_not_review_rules(self) -> None:
+        for playbook_file in sorted(LIBRARY_DIR.glob("*/playbook.json")):
+            with self.subTest(playbook=playbook_file.parent.name):
+                payload = json.loads(playbook_file.read_text())
+                definition = payload.get("definition", {})
+                self.assertNotIn("review_rules", definition)
+                self.assertIn("assessment_rules", definition)
+
     def test_review_rework_profile_uses_handoff_verdict_not_task_mutation_tool(self) -> None:
         roles_file = LIBRARY_DIR / "sdlc-review-rework-once" / "roles.json"
         payload = json.loads(roles_file.read_text())
@@ -126,8 +134,8 @@ class LiveTestCatalogTests(unittest.TestCase):
         developer = next(role for role in payload if role.get("name") == "live-test-developer")
 
         self.assertIn("remaining_items", reviewer.get("systemPrompt", ""))
-        self.assertIn("review_focus", reviewer.get("systemPrompt", ""))
-        self.assertIn("Treat predecessor review remaining_items and review_focus as blocking acceptance criteria", developer.get("systemPrompt", ""))
+        self.assertIn("focus_areas", reviewer.get("systemPrompt", ""))
+        self.assertIn("Treat predecessor assessment remaining_items and focus_areas as blocking acceptance criteria", developer.get("systemPrompt", ""))
 
     def test_review_reject_twice_profile_authors_concrete_invalid_option_closure(self) -> None:
         scenario_file = SCENARIOS_DIR / "sdlc-review-reject-twice.json"
@@ -248,8 +256,8 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertEqual(1, len(sequences))
         self.assertEqual("implementation", sequences[0].get("stage_name"))
         self.assertEqual("live-test-developer", sequences[0].get("required_role"))
-        self.assertEqual("verification", sequences[0].get("review_stage_name"))
-        self.assertEqual(2, sequences[0].get("review_task_min_count"))
+        self.assertEqual("verification", sequences[0].get("assessment_stage_name"))
+        self.assertEqual(2, sequences[0].get("assessment_task_min_count"))
 
 
 if __name__ == "__main__":

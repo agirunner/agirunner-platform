@@ -475,8 +475,8 @@ def _matches_continuity_rework_sequence(
     stage_name: str,
     required_role: str,
     minimum_rework_count: int,
-    review_stage_name: str,
-    review_task_min_count: int,
+    assessment_stage_name: str,
+    assessment_task_min_count: int,
 ) -> bool:
     work_items_list = _work_items(work_items_snapshot)
     log_rows = sorted(
@@ -503,7 +503,7 @@ def _matches_continuity_rework_sequence(
             (
                 _parse_timestamp(row.get("created_at"))
                 for row in log_rows
-                if row.get("operation") == "work_item.continuity.review_rejected"
+                if row.get("operation") == "work_item.continuity.assessment_requested_changes"
                 and row.get("work_item_id") == work_item_id
             ),
             None,
@@ -511,15 +511,15 @@ def _matches_continuity_rework_sequence(
         if rejection_at is None:
             continue
 
-        review_children = [
+        assessment_children = [
             item
             for item in work_items_list
             if isinstance(item, dict)
             and item.get("parent_work_item_id") == work_item_id
-            and item.get("stage_name") == review_stage_name
-            and int(item.get("task_count") or 0) >= review_task_min_count
+            and item.get("stage_name") == assessment_stage_name
+            and int(item.get("task_count") or 0) >= assessment_task_min_count
         ]
-        if not review_children:
+        if not assessment_children:
             continue
 
         reworked_task_completed = any(
@@ -934,7 +934,7 @@ def evaluate_expectations(
             stage_name = entry.get("stage_name")
             if not isinstance(stage_name, str) or stage_name.strip() == "":
                 continue
-            request_event_type = str(entry.get("request_event_type", "task.review_requested_changes"))
+            request_event_type = str(entry.get("request_event_type", "task.assessment_requested_changes"))
             resume_event_type = str(entry.get("resume_event_type", "task.approved"))
             required_event_type = str(entry.get("required_event_type", "task.handoff_submitted"))
             required_role = entry.get("required_role")
@@ -973,8 +973,8 @@ def evaluate_expectations(
             if not isinstance(required_role, str) or required_role.strip() == "":
                 continue
             minimum_rework_count = int(entry.get("minimum_rework_count", 1))
-            review_stage_name = str(entry.get("review_stage_name", "review"))
-            review_task_min_count = int(entry.get("review_task_min_count", 2))
+            assessment_stage_name = str(entry.get("assessment_stage_name", stage_name))
+            assessment_task_min_count = int(entry.get("assessment_task_min_count", 1))
             matched = _matches_continuity_rework_sequence(
                 work_items_snapshot=work_items,
                 execution_logs=execution_logs,
@@ -982,8 +982,8 @@ def evaluate_expectations(
                 stage_name=stage_name,
                 required_role=required_role,
                 minimum_rework_count=minimum_rework_count,
-                review_stage_name=review_stage_name,
-                review_task_min_count=review_task_min_count,
+                assessment_stage_name=assessment_stage_name,
+                assessment_task_min_count=assessment_task_min_count,
             )
             check_name = f"continuity_rework_sequences:{stage_name}:{required_role}"
             checks.append({"name": check_name, "passed": matched})

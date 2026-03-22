@@ -28,8 +28,8 @@
       {
         "stage_name": "implementation",
         "required_role": "live-test-developer",
-        "review_stage_name": "verification",
-        "review_task_min_count": 2
+        "assessment_stage_name": "verification",
+        "assessment_task_min_count": 2
       }
     ],
     "efficiency": {

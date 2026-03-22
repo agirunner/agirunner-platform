@@ -25,44 +25,146 @@
     "board": {
       "entry_column_id": "planned",
       "columns": [
-        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
-        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
-        { "id": "review", "label": "In Review", "description": "Primary work is under validation." },
-        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
-        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "review",
+          "label": "In Review",
+          "description": "Primary work is under validation."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
       ]
     },
     "stages": [
-      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria", "involves": ["live-test-product-manager", "live-test-architect"], "human_gate": false },
-      { "name": "design", "goal": "Approved system design with key decisions captured", "involves": ["live-test-architect", "live-test-product-manager"] },
-      { "name": "implementation", "goal": "Working code with tests on a feature branch", "involves": ["live-test-developer"] },
-      { "name": "validation", "goal": "Reviewer and QA verdicts exist for the delivered change", "involves": ["live-test-reviewer", "live-test-qa", "live-test-developer"] },
-      { "name": "release", "goal": "Operator-ready release package and final release summary", "involves": ["live-test-product-manager"], "human_gate": false }
+      {
+        "name": "requirements",
+        "goal": "Approved requirements with testable acceptance criteria",
+        "involves": [
+          "live-test-product-manager",
+          "live-test-architect"
+        ],
+        "human_gate": false
+      },
+      {
+        "name": "design",
+        "goal": "Approved system design with key decisions captured",
+        "involves": [
+          "live-test-architect",
+          "live-test-product-manager"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "Working code with tests on a feature branch",
+        "involves": [
+          "live-test-developer"
+        ]
+      },
+      {
+        "name": "validation",
+        "goal": "Reviewer and QA verdicts exist for the delivered change",
+        "involves": [
+          "live-test-reviewer",
+          "live-test-qa",
+          "live-test-developer"
+        ]
+      },
+      {
+        "name": "release",
+        "goal": "Operator-ready release package and final release summary",
+        "involves": [
+          "live-test-product-manager"
+        ],
+        "human_gate": false
+      }
     ],
     "checkpoints": [
-      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria.", "human_gate": false, "entry_criteria": "The workflow goal and initial context are available." },
-      { "name": "design", "goal": "A design exists for the implementation approach when needed.", "human_gate": false, "entry_criteria": "Requirements are clear enough to shape implementation." },
-      { "name": "implementation", "goal": "Working code exists and is ready for validation.", "human_gate": false, "entry_criteria": "Requirements and any required design are available." },
-      { "name": "validation", "goal": "Reviewer and QA validation evidence are both complete.", "human_gate": false, "entry_criteria": "Implementation output and developer handoff are available." },
-      { "name": "release", "goal": "Release notes, residual risk, and operator summary are complete.", "human_gate": false, "entry_criteria": "Reviewer and QA validation evidence are both complete." }
-    ],
-    "review_rules": [
       {
-        "from_role": "live-test-developer",
-        "reviewed_by": "live-test-reviewer",
-        "checkpoint": "validation",
-        "required": true,
-        "on_reject": { "action": "return_to_role", "role": "live-test-developer" }
+        "name": "requirements",
+        "goal": "Approved requirements with testable acceptance criteria.",
+        "human_gate": false,
+        "entry_criteria": "The workflow goal and initial context are available."
+      },
+      {
+        "name": "design",
+        "goal": "A design exists for the implementation approach when needed.",
+        "human_gate": false,
+        "entry_criteria": "Requirements are clear enough to shape implementation."
+      },
+      {
+        "name": "implementation",
+        "goal": "Working code exists and is ready for validation.",
+        "human_gate": false,
+        "entry_criteria": "Requirements and any required design are available."
+      },
+      {
+        "name": "validation",
+        "goal": "Reviewer and QA validation evidence are both complete.",
+        "human_gate": false,
+        "entry_criteria": "Implementation output and developer handoff are available."
+      },
+      {
+        "name": "release",
+        "goal": "Release notes, residual risk, and operator summary are complete.",
+        "human_gate": false,
+        "entry_criteria": "Reviewer and QA validation evidence are both complete."
       }
     ],
     "approval_rules": [],
     "handoff_rules": [
-      { "from_role": "live-test-product-manager", "to_role": "live-test-architect", "required": true },
-      { "from_role": "live-test-architect", "to_role": "live-test-developer", "required": true },
-      { "from_role": "live-test-developer", "to_role": "live-test-reviewer", "checkpoint": "validation", "required": true },
-      { "from_role": "live-test-developer", "to_role": "live-test-qa", "checkpoint": "validation", "required": true },
-      { "from_role": "live-test-reviewer", "to_role": "live-test-product-manager", "checkpoint": "release", "required": true },
-      { "from_role": "live-test-qa", "to_role": "live-test-product-manager", "checkpoint": "release", "required": true }
+      {
+        "from_role": "live-test-product-manager",
+        "to_role": "live-test-architect",
+        "required": true
+      },
+      {
+        "from_role": "live-test-architect",
+        "to_role": "live-test-developer",
+        "required": true
+      },
+      {
+        "from_role": "live-test-developer",
+        "to_role": "live-test-reviewer",
+        "checkpoint": "validation",
+        "required": true
+      },
+      {
+        "from_role": "live-test-developer",
+        "to_role": "live-test-qa",
+        "checkpoint": "validation",
+        "required": true
+      },
+      {
+        "from_role": "live-test-reviewer",
+        "to_role": "live-test-product-manager",
+        "checkpoint": "release",
+        "required": true
+      },
+      {
+        "from_role": "live-test-qa",
+        "to_role": "live-test-product-manager",
+        "checkpoint": "release",
+        "required": true
+      }
     ],
     "lifecycle": "planned",
     "orchestrator": {
@@ -70,6 +172,19 @@
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 2,
       "allow_parallel_work_items": false
-    }
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "live-test-developer",
+        "assessed_by": "live-test-reviewer",
+        "checkpoint": "validation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      }
+    ]
   }
 }

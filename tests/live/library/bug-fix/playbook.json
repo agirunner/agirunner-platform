@@ -42,45 +42,105 @@
     "board": {
       "entry_column_id": "planned",
       "columns": [
-        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
-        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
-        { "id": "review", "label": "In Review", "description": "Primary work is complete and under review." },
-        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
-        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "review",
+          "label": "In Review",
+          "description": "Primary work is complete and under review."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
       ]
     },
     "stages": [
-      { "name": "reproduce", "goal": "The bug is reproduced and a failing regression test exists", "involves": ["live-test-developer"] },
-      { "name": "fix", "goal": "The minimal safe fix is implemented", "involves": ["live-test-developer"] },
-      { "name": "test", "goal": "QA verifies the fix and edge cases", "involves": ["live-test-qa", "live-test-developer"] },
-      { "name": "review", "goal": "Reviewer approves the bug fix", "involves": ["live-test-reviewer", "live-test-developer"] }
-    ],
-    "checkpoints": [
-      { "name": "reproduce", "goal": "The bug is reproduced with a failing regression test.", "human_gate": false, "entry_criteria": "The bug report is available." },
-      { "name": "fix", "goal": "The minimal fix is implemented.", "human_gate": false, "entry_criteria": "A reproduction and failing test exist." },
-      { "name": "test", "goal": "QA verification is complete.", "human_gate": false, "entry_criteria": "The fix is implemented and pushed." },
-      { "name": "review", "goal": "The reviewer verdict is complete.", "human_gate": false, "entry_criteria": "QA evidence is available." }
-    ],
-    "review_rules": [
       {
-        "from_role": "live-test-developer",
-        "reviewed_by": "live-test-qa",
-        "checkpoint": "test",
-        "required": true,
-        "on_reject": { "action": "return_to_role", "role": "live-test-developer" }
+        "name": "reproduce",
+        "goal": "The bug is reproduced and a failing regression test exists",
+        "involves": [
+          "live-test-developer"
+        ]
       },
       {
-        "from_role": "live-test-developer",
-        "reviewed_by": "live-test-reviewer",
-        "checkpoint": "review",
-        "required": true,
-        "on_reject": { "action": "return_to_role", "role": "live-test-developer" }
+        "name": "fix",
+        "goal": "The minimal safe fix is implemented",
+        "involves": [
+          "live-test-developer"
+        ]
+      },
+      {
+        "name": "test",
+        "goal": "QA verifies the fix and edge cases",
+        "involves": [
+          "live-test-qa",
+          "live-test-developer"
+        ]
+      },
+      {
+        "name": "review",
+        "goal": "Reviewer approves the bug fix",
+        "involves": [
+          "live-test-reviewer",
+          "live-test-developer"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "reproduce",
+        "goal": "The bug is reproduced with a failing regression test.",
+        "human_gate": false,
+        "entry_criteria": "The bug report is available."
+      },
+      {
+        "name": "fix",
+        "goal": "The minimal fix is implemented.",
+        "human_gate": false,
+        "entry_criteria": "A reproduction and failing test exist."
+      },
+      {
+        "name": "test",
+        "goal": "QA verification is complete.",
+        "human_gate": false,
+        "entry_criteria": "The fix is implemented and pushed."
+      },
+      {
+        "name": "review",
+        "goal": "The reviewer verdict is complete.",
+        "human_gate": false,
+        "entry_criteria": "QA evidence is available."
       }
     ],
     "approval_rules": [],
     "handoff_rules": [
-      { "from_role": "live-test-developer", "to_role": "live-test-qa", "required": true },
-      { "from_role": "live-test-qa", "to_role": "live-test-reviewer", "required": true }
+      {
+        "from_role": "live-test-developer",
+        "to_role": "live-test-qa",
+        "required": true
+      },
+      {
+        "from_role": "live-test-qa",
+        "to_role": "live-test-reviewer",
+        "required": true
+      }
     ],
     "lifecycle": "planned",
     "orchestrator": {
@@ -88,6 +148,30 @@
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    }
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "live-test-developer",
+        "assessed_by": "live-test-qa",
+        "checkpoint": "test",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      },
+      {
+        "subject_role": "live-test-developer",
+        "assessed_by": "live-test-reviewer",
+        "checkpoint": "review",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      }
+    ]
   }
 }

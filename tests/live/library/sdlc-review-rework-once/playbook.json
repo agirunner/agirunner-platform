@@ -25,45 +25,153 @@
     "board": {
       "entry_column_id": "planned",
       "columns": [
-        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
-        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
-        { "id": "review", "label": "In Review", "description": "Primary work is complete and under review." },
-        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
-        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "review",
+          "label": "In Review",
+          "description": "Primary work is complete and under review."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
       ]
     },
     "stages": [
-      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria", "involves": ["live-test-product-manager", "live-test-architect", "live-test-qa"], "human_gate": false },
-      { "name": "design", "goal": "Approved system design with key decisions captured", "involves": ["live-test-architect", "live-test-product-manager", "live-test-reviewer"] },
-      { "name": "implementation", "goal": "Working code with tests on a feature branch", "involves": ["live-test-developer", "live-test-reviewer"] },
-      { "name": "review", "goal": "Reviewer verdict with concrete findings or approval", "involves": ["live-test-reviewer", "live-test-developer"] },
-      { "name": "verification", "goal": "QA signoff with test evidence", "involves": ["live-test-qa", "live-test-developer"] },
-      { "name": "release", "goal": "Operator-ready release package and final release summary", "involves": ["live-test-product-manager"], "human_gate": false }
+      {
+        "name": "requirements",
+        "goal": "Approved requirements with testable acceptance criteria",
+        "involves": [
+          "live-test-product-manager",
+          "live-test-architect",
+          "live-test-qa"
+        ],
+        "human_gate": false
+      },
+      {
+        "name": "design",
+        "goal": "Approved system design with key decisions captured",
+        "involves": [
+          "live-test-architect",
+          "live-test-product-manager",
+          "live-test-reviewer"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "Working code with tests on a feature branch",
+        "involves": [
+          "live-test-developer",
+          "live-test-reviewer"
+        ]
+      },
+      {
+        "name": "review",
+        "goal": "Reviewer verdict with concrete findings or approval",
+        "involves": [
+          "live-test-reviewer",
+          "live-test-developer"
+        ]
+      },
+      {
+        "name": "verification",
+        "goal": "QA signoff with test evidence",
+        "involves": [
+          "live-test-qa",
+          "live-test-developer"
+        ]
+      },
+      {
+        "name": "release",
+        "goal": "Operator-ready release package and final release summary",
+        "involves": [
+          "live-test-product-manager"
+        ],
+        "human_gate": false
+      }
     ],
     "checkpoints": [
-      { "name": "requirements", "goal": "Approved requirements with testable acceptance criteria.", "human_gate": false, "entry_criteria": "The workflow goal and initial context are available." },
-      { "name": "design", "goal": "A design exists for the implementation approach when needed.", "human_gate": false, "entry_criteria": "Requirements are clear enough to shape implementation." },
-      { "name": "implementation", "goal": "Working code exists and is ready for formal review.", "human_gate": false, "entry_criteria": "Requirements and any required design are available." },
-      { "name": "review", "goal": "A reviewer verdict exists for every developer-delivered change.", "human_gate": false, "entry_criteria": "Implementation output and developer handoff are available." },
-      { "name": "verification", "goal": "QA validation and evidence are complete.", "human_gate": false, "entry_criteria": "Required review is complete and approved." },
-      { "name": "release", "goal": "Release notes, residual risk, and operator summary are complete.", "human_gate": false, "entry_criteria": "Verification evidence and operator summary are ready." }
-    ],
-    "review_rules": [
       {
-        "from_role": "live-test-developer",
-        "reviewed_by": "live-test-reviewer",
-        "checkpoint": "implementation",
-        "required": true,
-        "on_reject": { "action": "return_to_role", "role": "live-test-developer" }
+        "name": "requirements",
+        "goal": "Approved requirements with testable acceptance criteria.",
+        "human_gate": false,
+        "entry_criteria": "The workflow goal and initial context are available."
+      },
+      {
+        "name": "design",
+        "goal": "A design exists for the implementation approach when needed.",
+        "human_gate": false,
+        "entry_criteria": "Requirements are clear enough to shape implementation."
+      },
+      {
+        "name": "implementation",
+        "goal": "Working code exists and is ready for formal review.",
+        "human_gate": false,
+        "entry_criteria": "Requirements and any required design are available."
+      },
+      {
+        "name": "review",
+        "goal": "A reviewer verdict exists for every developer-delivered change.",
+        "human_gate": false,
+        "entry_criteria": "Implementation output and developer handoff are available."
+      },
+      {
+        "name": "verification",
+        "goal": "QA validation and evidence are complete.",
+        "human_gate": false,
+        "entry_criteria": "Required review is complete and approved."
+      },
+      {
+        "name": "release",
+        "goal": "Release notes, residual risk, and operator summary are complete.",
+        "human_gate": false,
+        "entry_criteria": "Verification evidence and operator summary are ready."
       }
     ],
     "approval_rules": [],
     "handoff_rules": [
-      { "from_role": "live-test-product-manager", "to_role": "live-test-architect", "required": true },
-      { "from_role": "live-test-architect", "to_role": "live-test-developer", "required": true },
-      { "from_role": "live-test-developer", "to_role": "live-test-reviewer", "required": true },
-      { "from_role": "live-test-reviewer", "to_role": "live-test-qa", "required": true },
-      { "from_role": "live-test-qa", "to_role": "live-test-product-manager", "required": true }
+      {
+        "from_role": "live-test-product-manager",
+        "to_role": "live-test-architect",
+        "required": true
+      },
+      {
+        "from_role": "live-test-architect",
+        "to_role": "live-test-developer",
+        "required": true
+      },
+      {
+        "from_role": "live-test-developer",
+        "to_role": "live-test-reviewer",
+        "required": true
+      },
+      {
+        "from_role": "live-test-reviewer",
+        "to_role": "live-test-qa",
+        "required": true
+      },
+      {
+        "from_role": "live-test-qa",
+        "to_role": "live-test-product-manager",
+        "required": true
+      }
     ],
     "lifecycle": "planned",
     "orchestrator": {
@@ -71,6 +179,19 @@
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    }
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "live-test-developer",
+        "assessed_by": "live-test-reviewer",
+        "checkpoint": "implementation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      }
+    ]
   }
 }

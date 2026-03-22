@@ -36,43 +36,92 @@
     "board": {
       "entry_column_id": "planned",
       "columns": [
-        { "id": "planned", "label": "Planned", "description": "Work is defined but not yet assigned." },
-        { "id": "active", "label": "In Progress", "description": "A specialist is actively working." },
-        { "id": "review", "label": "In Review", "description": "Primary work is complete and under review." },
-        { "id": "blocked", "label": "Blocked", "description": "Work is blocked and needs intervention.", "is_blocked": true },
-        { "id": "done", "label": "Done", "description": "The work item meets its acceptance criteria.", "is_terminal": true }
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "review",
+          "label": "In Review",
+          "description": "Primary work is complete and under review."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
       ]
     },
     "stages": [
-      { "name": "fix", "goal": "The mapped host-directory workspace contains the minimal fix and regression check.", "involves": ["live-test-host-developer"] },
-      { "name": "test", "goal": "QA validates the mapped host-directory result.", "involves": ["live-test-host-qa", "live-test-host-developer"] },
-      { "name": "review", "goal": "Reviewer approves the local workspace change.", "involves": ["live-test-host-reviewer", "live-test-host-developer"] }
-    ],
-    "checkpoints": [
-      { "name": "fix", "goal": "The host-directory bug is fixed with a deterministic regression check.", "human_gate": false, "entry_criteria": "The bug report is available and the host directory is mounted." },
-      { "name": "test", "goal": "QA confirms the local workspace behavior.", "human_gate": false, "entry_criteria": "The host-directory fix exists." },
-      { "name": "review", "goal": "A reviewer verdict exists for the host-directory change.", "human_gate": false, "entry_criteria": "QA evidence is available." }
-    ],
-    "review_rules": [
       {
-        "from_role": "live-test-host-developer",
-        "reviewed_by": "live-test-host-qa",
-        "checkpoint": "test",
-        "required": true,
-        "on_reject": { "action": "return_to_role", "role": "live-test-host-developer" }
+        "name": "fix",
+        "goal": "The mapped host-directory workspace contains the minimal fix and regression check.",
+        "involves": [
+          "live-test-host-developer"
+        ]
       },
       {
-        "from_role": "live-test-host-developer",
-        "reviewed_by": "live-test-host-reviewer",
-        "checkpoint": "review",
-        "required": true,
-        "on_reject": { "action": "return_to_role", "role": "live-test-host-developer" }
+        "name": "test",
+        "goal": "QA validates the mapped host-directory result.",
+        "involves": [
+          "live-test-host-qa",
+          "live-test-host-developer"
+        ]
+      },
+      {
+        "name": "review",
+        "goal": "Reviewer approves the local workspace change.",
+        "involves": [
+          "live-test-host-reviewer",
+          "live-test-host-developer"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "fix",
+        "goal": "The host-directory bug is fixed with a deterministic regression check.",
+        "human_gate": false,
+        "entry_criteria": "The bug report is available and the host directory is mounted."
+      },
+      {
+        "name": "test",
+        "goal": "QA confirms the local workspace behavior.",
+        "human_gate": false,
+        "entry_criteria": "The host-directory fix exists."
+      },
+      {
+        "name": "review",
+        "goal": "A reviewer verdict exists for the host-directory change.",
+        "human_gate": false,
+        "entry_criteria": "QA evidence is available."
       }
     ],
     "approval_rules": [],
     "handoff_rules": [
-      { "from_role": "live-test-host-developer", "to_role": "live-test-host-qa", "required": true },
-      { "from_role": "live-test-host-qa", "to_role": "live-test-host-reviewer", "required": true }
+      {
+        "from_role": "live-test-host-developer",
+        "to_role": "live-test-host-qa",
+        "required": true
+      },
+      {
+        "from_role": "live-test-host-qa",
+        "to_role": "live-test-host-reviewer",
+        "required": true
+      }
     ],
     "lifecycle": "planned",
     "orchestrator": {
@@ -80,6 +129,30 @@
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    }
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "live-test-host-developer",
+        "assessed_by": "live-test-host-qa",
+        "checkpoint": "test",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      },
+      {
+        "subject_role": "live-test-host-developer",
+        "assessed_by": "live-test-host-reviewer",
+        "checkpoint": "review",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      }
+    ]
   }
 }
