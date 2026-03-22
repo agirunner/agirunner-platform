@@ -311,6 +311,53 @@ describe('WorkItemService', () => {
     expect((workItem as Record<string, unknown>).assessment_status).toBe('pending');
   });
 
+  it('compares nullable delivery subject task ids without coercing uuids to empty strings', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_work_items wi')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          expect(sql).toContain("COALESCE(assessment_handoff.role_data->>'subject_task_id', '')");
+          expect(sql).toContain("COALESCE(latest_delivery.subject_task_id::text, '')");
+          expect(sql).not.toContain("COALESCE(latest_delivery.subject_task_id, '')");
+          return {
+            rows: [
+              {
+                id: 'wi-blueprint-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                stage_name: 'blueprint',
+                title: 'Blueprint checkpoint',
+                column_id: 'planned',
+                task_count: '0',
+                children_count: '0',
+                children_completed: '0',
+                current_subject_revision: null,
+                required_assessment_count: 0,
+                approved_assessment_count: 0,
+                blocking_assessment_count: 0,
+                pending_assessment_count: 0,
+                assessment_status: null,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { enqueueForWorkflow: vi.fn() } as never,
+      { dispatchActivation: vi.fn() } as never,
+    );
+
+    const [workItem] = await service.listWorkflowWorkItems('tenant-1', 'workflow-1');
+
+    expect((workItem as Record<string, unknown>).stage_name).toBe('blueprint');
+    expect((workItem as Record<string, unknown>).assessment_status).toBeNull();
+  });
+
   it('allows the immediate review successor when the predecessor output is pending assessment with a full handoff', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

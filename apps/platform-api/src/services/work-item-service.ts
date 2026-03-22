@@ -981,7 +981,7 @@ export class WorkItemService {
                 WHERE assessment_handoff.tenant_id = wi.tenant_id
                   AND assessment_handoff.workflow_id = wi.workflow_id
                   AND COALESCE(assessment_handoff.role_data->>'task_kind', '') = 'assessment'
-                  AND COALESCE(assessment_handoff.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id, '')
+                  AND COALESCE(assessment_handoff.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
                   AND COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
                   AND (
                     COALESCE(array_length(assessment_requirements.required_assessor_roles, 1), 0) = 0
