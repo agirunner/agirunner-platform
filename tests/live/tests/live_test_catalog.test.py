@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import sys
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -58,6 +59,28 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
         self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
         self.assertTrue((seed_root / "tests" / "test_cli.py").is_file())
+
+    def test_workspace_spec_instruction_documents_match_api_shape(self) -> None:
+        for scenario_file in sorted(SCENARIOS_DIR.glob("*.json")):
+            with self.subTest(scenario=scenario_file.stem):
+                scenario = scenario_config.load_scenario(scenario_file)
+                instructions = scenario["workspace"]["spec"].get("instructions")
+                if instructions is None:
+                    continue
+                self.assertIsInstance(instructions, dict)
+                self.assertIsInstance(instructions.get("content"), str)
+
+    def test_library_fixtures_do_not_include_generated_python_cache_files(self) -> None:
+        tracked = subprocess.run(
+            ["git", "-C", str(LIVE_ROOT.parents[1]), "ls-files", str(LIBRARY_DIR)],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        generated = sorted(
+            path for path in tracked.stdout.splitlines() if "__pycache__" in path or path.endswith(".pyc")
+        )
+        self.assertEqual([], generated)
 
     def test_profiles_do_not_reuse_role_names(self) -> None:
         owners_by_role: dict[str, set[str]] = {}

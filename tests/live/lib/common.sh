@@ -122,7 +122,12 @@ copy_live_test_seed_tree() {
     return 0
   fi
 
-  tar -cf - -C "${seed_dir}" . | tar -xf - -C "${destination_dir}"
+  tar \
+    --exclude='__pycache__' \
+    --exclude='*.pyc' \
+    --exclude='.pytest_cache' \
+    --exclude='.venv' \
+    -cf - -C "${seed_dir}" . | tar -xf - -C "${destination_dir}"
 }
 
 refresh_live_test_remote_branch() {

@@ -13,7 +13,10 @@
     "repo": true,
     "memory": {},
     "spec": {
-      "instructions": "This workspace already contains a seeded Python standard-library CLI scaffold. Keep the existing stack and layout. Verify changes with `./scripts/verify.sh`. Do not install new system packages unless a genuine runtime dependency is missing from the seeded path."
+      "instructions": {
+        "content": "This workspace already contains a seeded Python standard-library CLI scaffold. Keep the existing stack and layout. Verify changes with `./scripts/verify.sh`. Do not install new system packages unless a genuine runtime dependency is missing from the seeded path.",
+        "format": "markdown"
+      }
     }
   },
   "approvals": [],
