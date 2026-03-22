@@ -27,6 +27,20 @@
         "required": true,
         "category": "input",
         "description": "When to skip or instantiate the optional assessor and what it must enforce"
+      },
+      {
+        "name": "initial_revision_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 1 must deliver before any required security rework is applied"
+      },
+      {
+        "name": "rework_completion_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 2 must add to satisfy the optional security assessor after request_changes"
       }
     ],
     "roles": [

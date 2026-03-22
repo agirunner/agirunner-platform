@@ -6,7 +6,9 @@
     "goal": "Extend the seeded Python CLI with a higher-risk template preview command where quality can approve but the optional security assessor must force one rework cycle before release.",
     "parameters": {
       "change_request": "Add `python3 -m workflow_cli preview-template --template-name default` using repository template files and deterministic stdout. The first revision should be treated as incomplete for security until template access is constrained to the repository templates directory and verified with `./scripts/verify.sh`.",
-      "optional_assessor_contract": "Instantiate the optional security assessor. It must request changes until template access is constrained to repository-owned templates only, with no arbitrary path reads or shell execution."
+      "optional_assessor_contract": "Instantiate the optional security assessor. It must request changes until template access is constrained to repository-owned templates only, with no arbitrary path reads or shell execution.",
+      "initial_revision_scope": "Revision 1 MUST add `python3 -m workflow_cli preview-template --template-name default` with deterministic stdout and repository-backed tests, but it MUST intentionally keep template access as a direct file-path join from the provided template name so the optional security assessor has concrete path-traversal findings to raise. Revision 1 MUST NOT introduce the repository-owned template registry or path-containment hardening yet.",
+      "rework_completion_scope": "Revision 2 MUST replace the unsafe template-name path join with a repository-owned template registry plus path-containment checks, reject traversal-like and unknown template names deterministically, rerun `./scripts/verify.sh`, and keep the preview stdout deterministic."
     }
   },
   "workspace": {
