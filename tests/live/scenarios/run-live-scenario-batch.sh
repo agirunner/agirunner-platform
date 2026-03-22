@@ -11,11 +11,24 @@ LIVE_TEST_ENV_FILE="${LIVE_TEST_ENV_FILE:-${LIVE_TEST_ROOT}/env/local.env}"
 load_live_test_env "${LIVE_TEST_ENV_FILE}"
 
 DEFAULT_CONCURRENCY=5
-concurrency="${1:-}"
-if [[ -n "${concurrency}" && "${concurrency}" =~ ^[0-9]+$ ]]; then
+concurrency="${LIVE_TEST_MAX_CONCURRENT_SCENARIOS:-${DEFAULT_CONCURRENCY}}"
+failed_only="${LIVE_TEST_FAILED_ONLY_RERUNS:-false}"
+
+while (( $# > 0 )); do
+  case "$1" in
+    --failed-only)
+      failed_only="true"
+      shift
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+if (( $# > 0 )) && [[ "$1" =~ ^[0-9]+$ ]]; then
+  concurrency="$1"
   shift
-else
-  concurrency="${LIVE_TEST_MAX_CONCURRENT_SCENARIOS:-${DEFAULT_CONCURRENCY}}"
 fi
 
 scenario_root="${LIVE_TEST_SCENARIO_ROOT:-${LIVE_TEST_SCENARIO_DIR:-${LIVE_TEST_ROOT}/scenarios}}"
@@ -35,6 +48,11 @@ require_live_test_file "${scenario_bootstrap_script}" "scenario bootstrap script
 declare -a scenarios=()
 if (( $# > 0 )); then
   scenarios=("$@")
+elif [[ "${failed_only}" == "true" ]]; then
+  while IFS= read -r scenario_name; do
+    [[ -n "${scenario_name}" ]] || continue
+    scenarios+=("${scenario_name}")
+  done < <(list_live_test_failing_scenarios "${scenario_root}" "${artifacts_dir}")
 else
   while IFS= read -r scenario_file; do
     scenarios+=("$(basename "${scenario_file}" .json)")
@@ -42,6 +60,10 @@ else
 fi
 
 if (( ${#scenarios[@]} == 0 )); then
+  if [[ "${failed_only}" == "true" ]]; then
+    log_live_test "No failing scenarios found for rerun"
+    exit 0
+  fi
   echo "[tests/live] no scenarios found in ${scenario_root}" >&2
   exit 1
 fi

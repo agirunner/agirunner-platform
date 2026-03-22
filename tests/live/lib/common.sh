@@ -34,6 +34,31 @@ print(f"{passed}\t{remaining}\t{total}")
 PY
 }
 
+list_live_test_failing_scenarios() {
+  local scenario_root="$1"
+  local artifacts_root="$2"
+  python3 - "${scenario_root}" "${artifacts_root}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+scenario_root = Path(sys.argv[1])
+artifacts_root = Path(sys.argv[2])
+
+for scenario_file in sorted(scenario_root.glob("*.json")):
+    result_file = artifacts_root / scenario_file.stem / "workflow-run.json"
+    if not result_file.exists():
+        continue
+    try:
+        data = json.loads(result_file.read_text())
+    except Exception:
+        print(scenario_file.stem)
+        continue
+    if data.get("verification_passed") is not True:
+        print(scenario_file.stem)
+PY
+}
+
 require_live_test_file() {
   local path="$1"
   local label="$2"
