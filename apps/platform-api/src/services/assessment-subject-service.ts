@@ -86,6 +86,18 @@ export function buildAssessmentSubjectMetadata(
   };
 }
 
+export function mergeAssessmentSubjectLinkage(
+  fallback: AssessmentSubjectLinkage,
+  explicit: AssessmentSubjectLinkage,
+): AssessmentSubjectLinkage {
+  return {
+    subjectTaskId: explicit.subjectTaskId ?? fallback.subjectTaskId,
+    subjectWorkItemId: explicit.subjectWorkItemId ?? fallback.subjectWorkItemId,
+    subjectHandoffId: explicit.subjectHandoffId ?? fallback.subjectHandoffId,
+    subjectRevision: explicit.subjectRevision ?? fallback.subjectRevision,
+  };
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
