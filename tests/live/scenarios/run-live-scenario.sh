@@ -51,6 +51,19 @@ finalize_live_test_result() {
 EOF
 }
 
+probe_live_test_http() {
+  local url="$1"
+  if command -v curl >/dev/null 2>&1; then
+    curl --fail --silent --show-error "${url}" >/dev/null
+    return $?
+  fi
+  if command -v wget >/dev/null 2>&1; then
+    wget -qO- "${url}" >/dev/null
+    return $?
+  fi
+  return 1
+}
+
 SCENARIO_INPUT="${1:-${LIVE_TEST_SCENARIO_NAME:-}}"
 if [[ -z "${SCENARIO_INPUT}" ]]; then
   echo "[tests/live] scenario name or path is required" >&2
@@ -113,7 +126,7 @@ export LIVE_TEST_PROFILE
 export LIVE_TEST_WORKSPACE_STORAGE_TYPE
 export LIVE_TEST_SCENARIO_FILE
 export LIVE_TEST_SCENARIO_NAME
-if [[ ! -f "${LIVE_TEST_SHARED_CONTEXT_FILE}" ]]; then
+if [[ ! -f "${LIVE_TEST_SHARED_CONTEXT_FILE}" ]] || ! probe_live_test_http "${PLATFORM_API_BASE_URL}/health"; then
   "${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT}"
 fi
 
