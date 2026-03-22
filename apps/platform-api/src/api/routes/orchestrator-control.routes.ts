@@ -1495,6 +1495,24 @@ async function normalizeOrchestratorTaskCreateInput(
         metadata: buildAssessmentSubjectMetadata(stageAlignedBody.metadata, reviewTaskMetadata, 'input_task_id_default'),
       };
     }
+    const targetWorkItemSubject = await maybeLoadCrossStageTargetWorkItemAssessmentSubject(
+      pool,
+      tenantId,
+      taskScope.workflow_id,
+      stageAlignedBody,
+      context,
+    );
+    if (targetWorkItemSubject) {
+      return {
+        ...stageAlignedBody,
+        input: buildAssessmentSubjectInput(stageAlignedBody.input, targetWorkItemSubject),
+        metadata: buildAssessmentSubjectMetadata(
+          stageAlignedBody.metadata,
+          targetWorkItemSubject,
+          'target_work_item_delivery_default',
+        ),
+      };
+    }
     if (!isReviewLinkActivation(context.event_type)) {
       return body;
     }
@@ -1567,6 +1585,56 @@ async function loadReviewedTaskMetadata(
     subjectWorkItemId: null,
     subjectHandoffId: null,
     subjectRevision: (row?.rework_count ?? 0) + 1,
+  };
+}
+
+async function maybeLoadCrossStageTargetWorkItemAssessmentSubject(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+  context: OrchestratorCreateWorkItemContext,
+) {
+  if (context.event_type !== 'task.handoff_submitted' || !body.work_item_id) {
+    return null;
+  }
+
+  const activationWorkItemId = readString(context.payload.work_item_id);
+  const activationStageName = readString(context.payload.stage_name);
+  const changedWorkItem = activationWorkItemId !== null && activationWorkItemId !== body.work_item_id;
+  const changedStage = activationStageName !== null && activationStageName !== body.stage_name;
+  if (!changedWorkItem && !changedStage) {
+    return null;
+  }
+
+  const result = await db.query<{
+    subject_task_id: string | null;
+    subject_work_item_id: string | null;
+    subject_revision: number | null;
+  }>(
+    `SELECT th.role_data->>'subject_task_id' AS subject_task_id,
+            NULLIF(th.role_data->>'subject_work_item_id', '') AS subject_work_item_id,
+            NULLIF(COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, 0), 0) AS subject_revision
+       FROM task_handoffs th
+      WHERE th.tenant_id = $1
+        AND th.workflow_id = $2
+        AND th.work_item_id = $3
+        AND th.completion = 'full'
+        AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+      ORDER BY th.sequence DESC, th.created_at DESC
+      LIMIT 1`,
+    [tenantId, workflowId, body.work_item_id],
+  );
+  const row = result.rows[0];
+  if (!row?.subject_task_id) {
+    return null;
+  }
+
+  return {
+    subjectTaskId: row.subject_task_id,
+    subjectWorkItemId: row.subject_work_item_id ?? body.work_item_id,
+    subjectHandoffId: null,
+    subjectRevision: row.subject_revision ?? null,
   };
 }
 
