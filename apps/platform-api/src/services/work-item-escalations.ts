@@ -29,6 +29,31 @@ export interface ResolveWorkItemEscalationInput {
   resolvedById: string;
 }
 
+export interface WorkItemEscalationRecord {
+  id: string;
+  status: 'open' | 'resolved' | 'dismissed';
+}
+
+export async function loadOpenWorkItemEscalation(
+  db: DatabaseClient | DatabasePool,
+  tenantId: string,
+  workflowId: string,
+  workItemId: string,
+) {
+  const result = await db.query<WorkItemEscalationRecord>(
+    `SELECT id, status
+       FROM workflow_subject_escalations
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND work_item_id = $3
+        AND status = 'open'
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [tenantId, workflowId, workItemId],
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function openWorkItemEscalation(
   db: DatabaseClient | DatabasePool,
   input: OpenWorkItemEscalationInput,

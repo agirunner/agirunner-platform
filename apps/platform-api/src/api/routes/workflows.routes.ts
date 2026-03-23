@@ -146,6 +146,12 @@ const workItemUpdateSchema = z.object({
   metadata: z.record(z.unknown()).optional(),
 });
 
+const workItemResolveEscalationSchema = z.object({
+  request_id: requestIdSchema,
+  action: z.enum(['dismiss', 'unblock_subject', 'reopen_subject']),
+  feedback: z.string().min(1).max(4000).optional(),
+});
+
 const workflowDocumentCreateSchema = z.object({
   request_id: requestIdSchema,
   logical_name: z.string().min(1).max(255),
@@ -1016,6 +1022,34 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
           requestId,
           (client) =>
             workflowService.updateWorkflowWorkItem(
+              request.auth!,
+              params.id,
+              params.workItemId,
+              input,
+              client,
+            ),
+        ),
+      };
+    },
+  );
+
+  app.post(
+    '/api/v1/workflows/:id/work-items/:workItemId/resolve-escalation',
+    { preHandler: [authenticateApiKey, withScope('admin')] },
+    async (request) => {
+      const params = request.params as { id: string; workItemId: string };
+      const body = parseOrThrow(workItemResolveEscalationSchema.safeParse(request.body));
+      const { request_id: requestId, ...input } = body;
+      return {
+        data: await runIdempotentTransactionalWorkflowAction(
+          app,
+          toolResultService,
+          request.auth!.tenantId,
+          params.id,
+          'operator_resolve_work_item_escalation',
+          requestId,
+          (client) =>
+            workflowService.resolveWorkflowWorkItemEscalation(
               request.auth!,
               params.id,
               params.workItemId,

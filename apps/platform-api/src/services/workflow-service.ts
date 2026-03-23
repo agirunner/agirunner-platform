@@ -19,6 +19,7 @@ import {
   PlaybookWorkflowControlService,
   type AdvanceStageInput,
   type CompleteWorkflowInput,
+  type ResolveWorkflowWorkItemEscalationInput,
   type StageGateDecisionInput,
   type StageGateRequestInput,
   type UpdateWorkflowWorkItemInput,
@@ -743,6 +744,22 @@ export class WorkflowService {
     client?: DatabaseClient,
   ) {
     return this.playbookControlService.updateWorkItem(identity, workflowId, workItemId, input, client);
+  }
+
+  resolveWorkflowWorkItemEscalation(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    workItemId: string,
+    input: ResolveWorkflowWorkItemEscalationInput,
+    client?: DatabaseClient,
+  ) {
+    return this.playbookControlService.resolveWorkItemEscalation(
+      identity,
+      workflowId,
+      workItemId,
+      input,
+      client,
+    );
   }
 
   listWorkflowStages(tenantId: string, workflowId: string) {

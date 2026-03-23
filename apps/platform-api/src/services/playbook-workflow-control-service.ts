@@ -16,6 +16,10 @@ import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.
 import { toGateResponse, type WorkflowStageGateRecord } from './workflow-stage-gate-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
 import { blockWorkflowStageItems } from './work-item-blocking.js';
+import {
+  loadOpenWorkItemEscalation,
+  resolveWorkItemEscalation,
+} from './work-item-escalations.js';
 
 interface WorkflowContextRow {
   id: string;
@@ -128,6 +132,11 @@ export interface UpdateWorkflowWorkItemInput {
 
 export interface CompleteWorkflowWorkItemInput {}
 
+export interface ResolveWorkflowWorkItemEscalationInput {
+  action: 'dismiss' | 'unblock_subject' | 'reopen_subject';
+  feedback?: string;
+}
+
 export interface StageGateRequestInput {
   summary: string;
   recommendation?: string;
@@ -226,6 +235,22 @@ export class PlaybookWorkflowControlService {
     } finally {
       db.release();
     }
+  }
+
+  async resolveWorkItemEscalation(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    workItemId: string,
+    input: ResolveWorkflowWorkItemEscalationInput,
+    client?: DatabaseClient,
+  ) {
+    if (client) {
+      return this.resolveWorkItemEscalationInTransaction(identity, workflowId, workItemId, input, client);
+    }
+
+    return this.runInTransaction((db) =>
+      this.resolveWorkItemEscalationInTransaction(identity, workflowId, workItemId, input, db),
+    );
   }
 
   async requestStageGateApproval(
@@ -1250,6 +1275,90 @@ export class PlaybookWorkflowControlService {
       { column_id: terminalColumnId },
       db,
     );
+  }
+
+  private async resolveWorkItemEscalationInTransaction(
+    identity: ApiKeyIdentity,
+    workflowId: string,
+    workItemId: string,
+    input: ResolveWorkflowWorkItemEscalationInput,
+    db: DatabaseClient,
+  ) {
+    const workflow = await this.loadWorkflow(identity.tenantId, workflowId, db);
+    const workItem = await this.loadWorkItem(identity.tenantId, workflowId, workItemId, db);
+    if (workItem.escalation_status !== 'open') {
+      throw new ConflictError('No open escalation exists for this work item');
+    }
+
+    const escalation = await loadOpenWorkItemEscalation(
+      db,
+      identity.tenantId,
+      workflowId,
+      workItemId,
+    );
+    if (!escalation) {
+      throw new ConflictError('No open escalation exists for this work item');
+    }
+
+    await resolveWorkItemEscalation(db, {
+      tenantId: identity.tenantId,
+      workflowId,
+      workItemId,
+      escalationId: escalation.id,
+      resolutionAction: input.action,
+      feedback: nullableText(input.feedback),
+      resolvedByType: identity.scope,
+      resolvedById: identity.keyPrefix,
+    });
+
+    const updatedWorkItem = await this.loadWorkItem(identity.tenantId, workflowId, workItemId, db);
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'work_item.escalation_resolved',
+        entityType: 'work_item',
+        entityId: workItemId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: {
+          workflow_id: workflowId,
+          work_item_id: workItemId,
+          escalation_id: escalation.id,
+          action: input.action,
+          feedback: nullableText(input.feedback),
+        },
+      },
+      db,
+    );
+    const activation = await this.deps.activationService.enqueueForWorkflow(
+      {
+        tenantId: identity.tenantId,
+        workflowId,
+        reason: 'work_item.escalation_resolved',
+        eventType: 'work_item.escalation_resolved',
+        payload: {
+          work_item_id: workItemId,
+          escalation_id: escalation.id,
+          action: input.action,
+        },
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+      },
+      db,
+    );
+    await this.deps.activationDispatchService.dispatchActivation(
+      identity.tenantId,
+      String(activation.id),
+      db,
+    );
+    await this.deps.stateService.recomputeWorkflowState(identity.tenantId, workflowId, db, {
+      actorType: identity.scope,
+      actorId: identity.keyPrefix,
+    });
+    if (workflow.lifecycle === 'planned') {
+      await reconcilePlannedWorkflowStages(db, identity.tenantId, workflowId);
+    }
+    return toWorkItemResponse(updatedWorkItem);
   }
 
   private async assertWorkItemHasNoBlockingAssessmentResolution(
