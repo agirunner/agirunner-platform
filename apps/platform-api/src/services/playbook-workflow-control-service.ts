@@ -123,6 +123,7 @@ interface BlockingStageWorkItemRow {
   escalation_status?: string | null;
   next_expected_actor?: string | null;
   next_expected_action?: string | null;
+  metadata?: Record<string, unknown>;
 }
 
 const COMPLETION_BLOCKING_NEXT_ACTIONS = new Set(['assess', 'approve', 'rework', 'handoff']);
@@ -833,16 +834,21 @@ export class PlaybookWorkflowControlService {
     );
   }
 
-  private assertNoPendingBlockingContinuation(
+  private async assertNoPendingBlockingContinuation(
+    tenantId: string,
+    workflowId: string,
     workItem: Pick<
       WorkflowWorkItemRow,
       'title'
+      | 'id'
       | 'next_expected_actor'
       | 'next_expected_action'
       | 'blocked_state'
       | 'blocked_reason'
       | 'escalation_status'
+      | 'metadata'
     >,
+    db: DatabaseClient,
   ) {
     if (workItem.blocked_state === 'blocked') {
       throw new ValidationError(
@@ -858,6 +864,12 @@ export class PlaybookWorkflowControlService {
       return;
     }
     if (!COMPLETION_BLOCKING_NEXT_ACTIONS.has(workItem.next_expected_action)) {
+      return;
+    }
+    if (
+      workItem.next_expected_action === 'handoff'
+      && await this.hasSatisfiedPendingHandoff(tenantId, workflowId, workItem, db)
+    ) {
       return;
     }
 
@@ -1202,7 +1214,12 @@ export class PlaybookWorkflowControlService {
       normalizedUpdate.completed_at !== null
       && workItem.completed_at === null
     ) {
-      this.assertNoPendingBlockingContinuation(workItem);
+      await this.assertNoPendingBlockingContinuation(
+        identity.tenantId,
+        workflowId,
+        workItem,
+        db,
+      );
       await this.assertWorkItemHasNoBlockingAssessmentResolution(
         identity.tenantId,
         workflowId,
@@ -1455,6 +1472,50 @@ export class PlaybookWorkflowControlService {
     throw new ValidationError(
       `Cannot complete work item '${workItemTitle}' while it still has a blocking ${blockingResolution} assessment.`,
     );
+  }
+
+  private async hasSatisfiedPendingHandoff(
+    tenantId: string,
+    workflowId: string,
+    workItem: Pick<WorkflowWorkItemRow, 'id' | 'next_expected_actor' | 'metadata'>,
+    db: DatabaseClient,
+  ) {
+    const actor = workItem.next_expected_actor;
+    if (!actor) {
+      return false;
+    }
+
+    const subjectRevision = readOptionalMetadataNumber(workItem.metadata, 'subject_revision');
+    if (subjectRevision === null) {
+      const result = await db.query<{ satisfied_handoff: number }>(
+        `SELECT 1 AS satisfied_handoff
+           FROM task_handoffs th
+          WHERE th.tenant_id = $1
+            AND th.workflow_id = $2
+            AND th.work_item_id = $3
+            AND th.role = $4
+            AND th.completion = 'full'
+            AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+          LIMIT 1`,
+        [tenantId, workflowId, workItem.id, actor],
+      );
+      return result.rows.length > 0;
+    }
+
+    const result = await db.query<{ satisfied_handoff: number }>(
+      `SELECT 1 AS satisfied_handoff
+         FROM task_handoffs th
+        WHERE th.tenant_id = $1
+          AND th.workflow_id = $2
+          AND th.work_item_id = $3
+          AND th.role = $4
+          AND th.completion = 'full'
+          AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+          AND COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, th.subject_revision, -1) = $5
+        LIMIT 1`,
+      [tenantId, workflowId, workItem.id, actor, subjectRevision],
+    );
+    return result.rows.length > 0;
   }
 
   private async assertValidParentChange(
@@ -2325,6 +2386,17 @@ function describePendingContinuation(action: string) {
     default:
       return 'assessment';
   }
+}
+
+function readOptionalMetadataNumber(metadata: Record<string, unknown>, key: string) {
+  const value = metadata[key];
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    return value;
+  }
+  if (typeof value === 'string' && /^-?\d+$/.test(value.trim())) {
+    return Number.parseInt(value, 10);
+  }
+  return null;
 }
 
 function asString(value: unknown) {

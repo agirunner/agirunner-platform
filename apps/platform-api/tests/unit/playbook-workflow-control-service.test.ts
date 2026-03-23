@@ -2254,6 +2254,16 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (
+          sql.includes('FROM task_handoffs th')
+          && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")
+          && sql.includes('AND th.role = $4')
+        ) {
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
         if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
           return { rowCount: 0, rows: [] };
         }
@@ -2532,6 +2542,16 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (
+          sql.includes('FROM task_handoffs th')
+          && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")
+          && sql.includes('AND th.role = $4')
+        ) {
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
         if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
           return { rowCount: 0, rows: [] };
         }
@@ -2607,6 +2627,16 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (
+          sql.includes('FROM task_handoffs th')
+          && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")
+          && sql.includes('AND th.role = $4')
+        ) {
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
         if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
           return { rowCount: 0, rows: [] };
         }
@@ -2629,6 +2659,141 @@ describe('PlaybookWorkflowControlService', () => {
       pool as never,
     )).rejects.toThrow(
       "Cannot complete work item 'Draft review-ready product brief' while required handoff by 'rework-technical-editor' is still pending.",
+    );
+  });
+
+  it('allows completing a work item when a required handoff continuity entry is stale', async () => {
+    const definitionWithReleasePass = {
+      ...definition,
+      stages: [
+        ...definition.stages,
+        {
+          name: 'release-pass',
+          goal: 'Validate release readiness.',
+          involves: ['integration-quality-assessor', 'revision-release-coordinator'],
+        },
+      ],
+    };
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const activationService = {
+      enqueueForWorkflow: vi.fn(async () => ({ id: 'activation-13' })),
+    };
+    const dispatchService = {
+      dispatchActivation: vi.fn(async () => 'task-13'),
+    };
+    const stateService = {
+      recomputeWorkflowState: vi.fn(async () => 'active'),
+    };
+    const updatedAt = new Date('2026-03-11T03:15:30Z');
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'release-pass',
+              state: 'active',
+              definition: definitionWithReleasePass,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-release-1',
+              parent_work_item_id: null,
+              stage_name: 'release-pass',
+              title: 'Assess release readiness',
+              goal: 'Close the release gate',
+              acceptance_criteria: 'Release handoffs are complete.',
+              column_id: 'planned',
+              owner_role: 'integration-quality-assessor',
+              next_expected_actor: 'revision-release-coordinator',
+              next_expected_action: 'handoff',
+              rework_count: 0,
+              priority: 'high',
+              notes: null,
+              completed_at: null,
+              metadata: {
+                subject_revision: 1,
+              },
+              updated_at: new Date('2026-03-11T03:15:00Z'),
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM task_handoffs th')
+          && sql.includes("COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'")
+          && sql.includes('AND th.role = $4')
+        ) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-release-1', 'revision-release-coordinator', 1]);
+          return {
+            rowCount: 1,
+            rows: [{ satisfied_handoff: 1 }],
+          };
+        }
+        if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-release-1',
+              parent_work_item_id: null,
+              stage_name: 'release-pass',
+              title: 'Assess release readiness',
+              goal: 'Close the release gate',
+              acceptance_criteria: 'Release handoffs are complete.',
+              column_id: 'done',
+              owner_role: 'integration-quality-assessor',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
+              priority: 'high',
+              notes: null,
+              completed_at: new Date('2026-03-11T03:15:30Z'),
+              metadata: {},
+              updated_at: updatedAt,
+            }],
+          };
+        }
+        if (sql.includes('SELECT stage_name, status, gate_status, human_gate') || sql.includes('FROM workflow_stages')) {
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: stateService as never,
+      activationService: activationService as never,
+      activationDispatchService: dispatchService as never,
+    });
+
+    const updated = await service.completeWorkItem(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'wi-release-1',
+      {},
+      pool as never,
+    );
+
+    expect(updated).toEqual(
+      expect.objectContaining({
+        id: 'wi-release-1',
+        column_id: 'done',
+        completed_at: '2026-03-11T03:15:30.000Z',
+      }),
     );
   });
 
