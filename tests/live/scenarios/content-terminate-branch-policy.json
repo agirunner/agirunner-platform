@@ -1,0 +1,49 @@
+{
+  "name": "content-terminate-branch-policy",
+  "profile": "content-terminate-branch-policy",
+  "workflow": {
+    "name": "Content Terminate Branch Policy",
+    "goal": "Exercise authored branch termination where one content branch is shut down without killing its sibling branch.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [
+    {
+      "type": "create_work_items",
+      "dispatch": "parallel",
+      "count": 2,
+      "stage_name": "variant-draft",
+      "title_template": "branch-{index}",
+      "goal_template": "Draft campaign branch {index}",
+      "acceptance_criteria_template": "Branch {index} draft and assessment packet exist.",
+      "request_id_template": "branch-{index}",
+      "branch_key_template": "branch-{index}"
+    }
+  ],
+  "expect": {
+    "state": "pending",
+    "work_items": {
+      "all_terminal": true
+    },
+    "work_item_matches": [
+      {
+        "match": {
+          "title": "branch-1"
+        },
+        "field_expectations": {
+          "branch_status": "terminated"
+        }
+      }
+    ]
+  },
+  "coverage": {
+    "advanced_policies": [
+      "terminate_branch_outcome_action"
+    ]
+  }
+}

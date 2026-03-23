@@ -1,0 +1,139 @@
+{
+  "name": "Requirements Stale Human Review Rework Pipeline",
+  "slug": "live-test-requirements-stale-human-review-arrives-after-rework-v1",
+  "description": "Requirements workflow where an earlier human approval is superseded after downstream rework.",
+  "outcome": "A prior approval is preserved in history but superseded when a later revision reopens and clears the same gate again.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The product strategist drafts the brief. The technical editor refines it. A human review gate approves the review-ready brief. Downstream packaging is then assessed for compliance, and request_changes from that downstream assessment reopens the brief. The earlier approval remains in history but becomes superseded when the next revision clears the gate again.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "stalegate-product-strategist",
+      "stalegate-technical-editor",
+      "stalegate-launch-planner",
+      "stalegate-compliance-assessor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "drafting",
+        "goal": "A review-ready brief exists.",
+        "involves": [
+          "stalegate-product-strategist",
+          "stalegate-technical-editor"
+        ]
+      },
+      {
+        "name": "approval-gate",
+        "goal": "A human decision exists for the brief.",
+        "human_gate": true,
+        "involves": []
+      },
+      {
+        "name": "launch-packaging",
+        "goal": "The approved launch packet is prepared and assessed.",
+        "involves": [
+          "stalegate-launch-planner",
+          "stalegate-compliance-assessor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "drafting",
+        "goal": "A review-ready brief exists.",
+        "human_gate": false,
+        "entry_criteria": "The authored request is available."
+      },
+      {
+        "name": "approval-gate",
+        "goal": "A human decision exists for the brief.",
+        "human_gate": true,
+        "entry_criteria": "The review-ready brief is complete."
+      },
+      {
+        "name": "launch-packaging",
+        "goal": "The approved launch packet is ready.",
+        "human_gate": false,
+        "entry_criteria": "The human decision is approved."
+      }
+    ],
+    "approval_rules": [
+      {
+        "on": "checkpoint",
+        "checkpoint": "approval-gate",
+        "approved_by": "human",
+        "required": true,
+        "revision_policy": {
+          "approval_retention": "invalidate_all"
+        }
+      }
+    ],
+    "handoff_rules": [
+      {
+        "from_role": "stalegate-product-strategist",
+        "to_role": "stalegate-technical-editor",
+        "required": true
+      },
+      {
+        "from_role": "stalegate-technical-editor",
+        "to_role": "stalegate-launch-planner",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "stalegate-launch-planner",
+        "assessed_by": "stalegate-compliance-assessor",
+        "checkpoint": "launch-packaging",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          }
+        }
+      }
+    ]
+  }
+}

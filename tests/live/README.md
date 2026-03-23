@@ -34,7 +34,7 @@
 - `lib/`
   - shared API client, catalog, and scenario helpers
 - `live_test_tracker.json`
-  - long-term corpus tracker for all supported scenarios plus documented future-design scenarios that MUST NOT be live-tested yet
+  - long-term corpus tracker for all supported scenarios plus the reserved `unsupported_future_design` bucket
 - `scenarios/`
   - scenario JSON files plus thin executable wrappers
 - `tests/`
@@ -51,9 +51,9 @@ Each live scenario is defined by a JSON file under `tests/live/scenarios/`.
 - `workspace`
   - declares the workspace storage mode plus memory/spec state seeded through workspace APIs
 - `approvals`
-  - ordered scripted human decisions using `approve`, `reject`, or `request_changes`
+  - ordered scripted human decisions using `approve`, `block`, `reject`, or `request_changes`
 - `expect`
-  - declarative pass criteria evaluated by the runner; generic keys include direct handoff, assessment, approval, subject revision, and required-assessment assertions
+  - declarative pass criteria evaluated by the runner; generic keys include direct handoff, assessment, approval, work-item field matching, stage-gate field matching, subject revision, ordering, and required-assessment assertions
 - `coverage`
   - matrix metadata used by the catalog tests to prove that the scenario corpus covers the supported semantic, concurrency, storage, and playbook-shape variations
 
@@ -88,11 +88,7 @@ Long-term corpus planning lives in:
   - `supported`
     - every scenario that is currently valid to seed and run
   - `unsupported_future_design`
-    - scenarios that are intentionally documented but MUST stay out of the live corpus until the product model supports them cleanly
-
-Future-design details for those deferred scenarios live in:
-
-- [unsupported-future-assessment-scenarios.md](/home/mark/codex/agirunner-docs/designv4/unsupported-future-assessment-scenarios.md)
+    - reserved for any future scenarios that are intentionally documented but not yet runnable
 
 ## Artifacts
 

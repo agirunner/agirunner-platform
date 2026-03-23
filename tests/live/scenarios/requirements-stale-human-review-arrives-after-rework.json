@@ -1,0 +1,73 @@
+{
+  "name": "requirements-stale-human-review-arrives-after-rework",
+  "profile": "requirements-stale-human-review-arrives-after-rework",
+  "workflow": {
+    "name": "Requirements Stale Human Review Arrives After Rework",
+    "goal": "Exercise a requirements workflow where an earlier human approval is superseded after downstream rework reopens the brief.",
+    "parameters": {
+      "human_review_contract": "Approve the first review-ready packet, then approve again after downstream rework creates a superseding revision."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "existing_context": "Operators need step-by-step approval guidance."
+    },
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "approve"
+    },
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "expected_actions": [
+          "approve",
+          "approve"
+        ]
+      }
+    ],
+    "stage_gate_matches": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "field_expectations": {
+          "is_superseded": true,
+          "superseded_by_revision": 2
+        }
+      }
+    ],
+    "subject_revision_expectations": [
+      {
+        "stage_name": "drafting",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "subject_revisions": [
+      "one_rework",
+      "stale_human_review"
+    ],
+    "advanced_policies": [
+      "stale_human_review_after_rework"
+    ]
+  }
+}

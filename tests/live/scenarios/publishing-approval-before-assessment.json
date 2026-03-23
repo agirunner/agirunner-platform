@@ -1,0 +1,61 @@
+{
+  "name": "publishing-approval-before-assessment",
+  "profile": "publishing-approval-before-assessment",
+  "workflow": {
+    "name": "Publishing Approval Before Assessment",
+    "goal": "Exercise a publication pipeline where operator approval clears first and policy assessment runs afterward before final packaging.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": false,
+    "storage": {
+      "type": "workspace_artifacts"
+    },
+    "memory": {
+      "workspace_kind": "artifact-only"
+    },
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "editorial-approval"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "editorial-approval"
+        },
+        "expected_actions": [
+          "approve"
+        ]
+      }
+    ],
+    "approval_before_assessment_sequences": [
+      {
+        "match": {
+          "stage_name": "editorial-approval"
+        },
+        "assessed_by": "preapproval-policy-assessor",
+        "assessment_stage_name": "policy-assessment"
+      }
+    ]
+  },
+  "coverage": {
+    "delivery_paths": [
+      "human_review_then_assessment_then_successor"
+    ],
+    "human_review_outcomes": [
+      "approved"
+    ],
+    "advanced_policies": [
+      "approval_before_assessment_ordering"
+    ]
+  }
+}

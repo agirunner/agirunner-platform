@@ -1,0 +1,107 @@
+{
+  "name": "Content Terminate Branch Policy Pipeline",
+  "slug": "live-test-content-terminate-branch-policy-v1",
+  "description": "Parallel content-branch workflow with authored terminate_branch semantics.",
+  "outcome": "One branch can be terminated without terminating its sibling branch.",
+  "lifecycle": "ongoing",
+  "definition": {
+    "process_instructions": "The workflow drafts multiple campaign branches in parallel. The brand assessor evaluates each branch independently. A rejected branch MUST terminate only the authored branch identified by its branch_key while sibling branches continue.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "branchterm-content-strategist",
+      "branchterm-content-author",
+      "branchterm-quality-assessor",
+      "branchterm-brand-assessor",
+      "branchterm-publication-lead"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "variant-draft",
+        "goal": "Each branch draft is assessed independently.",
+        "involves": [
+          "branchterm-content-author",
+          "branchterm-brand-assessor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "variant-draft",
+        "goal": "Each branch draft is assessed independently.",
+        "human_gate": false,
+        "entry_criteria": "The branch work item is created."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [],
+    "branch_policies": [
+      {
+        "branch_key": "branch-1",
+        "termination_policy": "stop_branch_only"
+      },
+      {
+        "branch_key": "branch-2",
+        "termination_policy": "stop_branch_only"
+      }
+    ],
+    "lifecycle": "ongoing",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 6,
+      "max_active_tasks_per_work_item": 2,
+      "allow_parallel_work_items": true
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "branchterm-content-author",
+        "assessed_by": "branchterm-brand-assessor",
+        "checkpoint": "variant-draft",
+        "required": true,
+        "decision_states": [
+          "approved",
+          "rejected"
+        ],
+        "outcome_actions": {
+          "rejected": {
+            "action": "terminate_branch"
+          }
+        }
+      }
+    ]
+  }
+}

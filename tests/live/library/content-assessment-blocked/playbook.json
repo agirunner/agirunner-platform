@@ -1,0 +1,135 @@
+{
+  "name": "Content Assessment Blocked Pipeline",
+  "slug": "live-test-content-assessment-blocked-v1",
+  "description": "Content workflow where a required assessor can explicitly block the current subject revision.",
+  "outcome": "A blocked assessment keeps the workflow active while leaving the current draft work item blocked.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The content strategist frames the change. The content author drafts it. The quality assessor evaluates the current draft revision and MAY emit an explicit blocked decision when required source material is missing or policy dependencies are unresolved. A blocked decision must stop successor packaging until the subject is unblocked.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "blocked-content-strategist",
+      "blocked-content-author",
+      "blocked-quality-assessor",
+      "blocked-brand-assessor",
+      "blocked-publication-lead"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "content-framing",
+        "goal": "Design direction exists.",
+        "involves": [
+          "blocked-content-strategist"
+        ]
+      },
+      {
+        "name": "draft-revision",
+        "goal": "Draft revisions are assessed.",
+        "involves": [
+          "blocked-content-author",
+          "blocked-quality-assessor"
+        ]
+      },
+      {
+        "name": "publication-packaging",
+        "goal": "Release packaging is validated.",
+        "involves": [
+          "blocked-publication-lead",
+          "blocked-quality-assessor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "content-framing",
+        "goal": "Design direction exists.",
+        "human_gate": false,
+        "entry_criteria": "The request is defined."
+      },
+      {
+        "name": "draft-revision",
+        "goal": "Implementation revisions are assessed.",
+        "human_gate": false,
+        "entry_criteria": "Architecture output is ready."
+      },
+      {
+        "name": "publication-packaging",
+        "goal": "Release packaging is validated.",
+        "human_gate": false,
+        "entry_criteria": "Active implementation revision is approved."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "blocked-content-strategist",
+        "to_role": "blocked-content-author",
+        "required": true
+      },
+      {
+        "from_role": "blocked-quality-assessor",
+        "to_role": "blocked-publication-lead",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 4,
+      "max_active_tasks_per_work_item": 2,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "blocked-content-author",
+        "assessed_by": "blocked-quality-assessor",
+        "checkpoint": "draft-revision",
+        "required": true,
+        "decision_states": [
+          "approved",
+          "blocked"
+        ],
+        "outcome_actions": {
+          "blocked": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

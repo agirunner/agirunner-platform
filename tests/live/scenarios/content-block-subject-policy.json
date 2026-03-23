@@ -1,0 +1,49 @@
+{
+  "name": "content-block-subject-policy",
+  "profile": "content-block-subject-policy",
+  "workflow": {
+    "name": "Content Block Subject Policy",
+    "goal": "Exercise a content workflow where an explicit block_subject policy leaves the workflow active but blocks the current work item.",
+    "parameters": {
+      "assessment_contract": "The policy assessor must reject the active subject revision and the authored outcome action must block the subject."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "active",
+    "assessment_sequences": [
+      {
+        "subject_role": "blockpolicy-content-author",
+        "assessed_by": "blockpolicy-quality-assessor",
+        "expected_resolution": "rejected"
+      }
+    ],
+    "work_item_matches": [
+      {
+        "match": {
+          "stage_name": "draft-revision"
+        },
+        "field_expectations": {
+          "blocked_state": "blocked"
+        }
+      }
+    ],
+    "board": {
+      "blocked_count": 1
+    }
+  },
+  "coverage": {
+    "rework_actions": [
+      "block_subject"
+    ],
+    "advanced_policies": [
+      "block_subject_outcome_action"
+    ]
+  }
+}

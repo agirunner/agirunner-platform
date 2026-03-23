@@ -1,0 +1,46 @@
+{
+  "name": "content-escalate-policy",
+  "profile": "content-escalate-policy",
+  "workflow": {
+    "name": "Content Escalate Policy",
+    "goal": "Exercise a content workflow where an assessment finding opens an escalation instead of routing rework immediately.",
+    "parameters": {
+      "assessment_contract": "The escalation assessor must request changes and the authored outcome action must create an open escalation."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "active",
+    "assessment_sequences": [
+      {
+        "subject_role": "escalate-content-author",
+        "assessed_by": "escalate-brand-assessor",
+        "expected_resolution": "request_changes"
+      }
+    ],
+    "work_item_matches": [
+      {
+        "match": {
+          "stage_name": "draft-revision"
+        },
+        "field_expectations": {
+          "escalation_status": "open"
+        }
+      }
+    ]
+  },
+  "coverage": {
+    "rework_actions": [
+      "escalate"
+    ],
+    "advanced_policies": [
+      "escalate_outcome_action"
+    ]
+  }
+}

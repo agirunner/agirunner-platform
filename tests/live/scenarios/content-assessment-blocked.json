@@ -1,0 +1,52 @@
+{
+  "name": "content-assessment-blocked",
+  "profile": "content-assessment-blocked",
+  "workflow": {
+    "name": "Content Assessment Blocked",
+    "goal": "Exercise a content workflow where a required assessor emits a blocked decision and successor packaging never begins.",
+    "parameters": {
+      "assessment_contract": "The primary content assessor must emit a blocked decision for the active subject revision."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "active",
+    "assessment_sequences": [
+      {
+        "subject_role": "blocked-content-author",
+        "assessed_by": "blocked-quality-assessor",
+        "expected_resolution": "blocked"
+      }
+    ],
+    "board": {
+      "blocked_count": 1
+    },
+    "work_item_matches": [
+      {
+        "match": {
+          "stage_name": "draft-revision"
+        },
+        "field_expectations": {
+          "blocked_state": "blocked"
+        }
+      }
+    ]
+  },
+  "coverage": {
+    "assessment_outcomes": [
+      "blocked"
+    ],
+    "successor_gating": [
+      "blocked_after_blocked_assessment"
+    ],
+    "advanced_policies": [
+      "assessment_blocked_decision"
+    ]
+  }
+}

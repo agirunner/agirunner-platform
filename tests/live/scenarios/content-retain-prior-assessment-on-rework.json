@@ -1,0 +1,44 @@
+{
+  "name": "content-retain-prior-assessment-on-rework",
+  "profile": "content-retain-prior-assessment-on-rework",
+  "workflow": {
+    "name": "Content Retain Prior Assessment On Rework",
+    "goal": "Exercise revision-aware rework where advisory assessments are retained across revisions while required assessments must be refreshed.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation-pass",
+        "minimum_revision": 2
+      }
+    ],
+    "work_item_matches": [
+      {
+        "match": {
+          "stage_name": "implementation-pass"
+        },
+        "field_expectations": {
+          "retained_assessment_count": 1
+        }
+      }
+    ]
+  },
+  "coverage": {
+    "subject_revisions": [
+      "one_rework",
+      "retain_prior_assessments"
+    ],
+    "advanced_policies": [
+      "assessment_retention_on_rework"
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "name": "requirements-human-review-blocked",
+  "profile": "requirements-human-review-blocked",
+  "workflow": {
+    "name": "Requirements Human Review Blocked",
+    "goal": "Exercise a requirements workflow where the human gate blocks the packet instead of approving or rejecting it.",
+    "parameters": {
+      "human_review_contract": "Block the first review-ready packet and do not allow successor packaging to start."
+    }
+  },
+  "workspace": {
+    "repo": false,
+    "memory": {
+      "existing_context": "Budget-conscious operators need concise rollout guidance."
+    },
+    "spec": {
+      "documents": {
+        "budget-notes": {
+          "source": "external",
+          "url": "https://example.test/budgets"
+        }
+      }
+    }
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "block"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "active",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "expected_actions": [
+          "block"
+        ]
+      }
+    ],
+    "stage_gate_matches": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "field_expectations": {
+          "status": "blocked"
+        }
+      }
+    ]
+  },
+  "coverage": {
+    "human_review_outcomes": [
+      "blocked"
+    ],
+    "successor_gating": [
+      "blocked_human_review_blocked"
+    ],
+    "advanced_policies": [
+      "human_review_blocked_decision"
+    ]
+  }
+}
