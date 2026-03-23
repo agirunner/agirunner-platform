@@ -124,6 +124,9 @@ describe('prompt catalogs', () => {
       'Specialists should install any additional language runtime, package manager, or test/build tool they need inside the task container.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'create_task.type MUST be one of analysis, code, assessment, test, docs, or custom.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'On heartbeat-only activations, exit when specialist work is progressing and nothing new is actionable.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
