@@ -103,6 +103,8 @@ def approval_feedback(action: str, scenario_name: str, feedback: str | None = No
         return feedback.strip()
     if action == "approve":
         return f"Approved by the live test operator flow for scenario {scenario_name}."
+    if action == "block":
+        return f"Blocked by the live test operator flow for scenario {scenario_name}."
     if action == "reject":
         return f"Rejected by the live test operator flow for scenario {scenario_name}."
     if action == "request_changes":
@@ -162,7 +164,7 @@ def apply_scripted_workflow_approvals(
         if not isinstance(gate_id, str) or gate_id.strip() == "":
             raise RuntimeError("approval gate id is required")
         action = str(decision.get("action") or "").strip()
-        if action not in {"approve", "reject", "request_changes"}:
+        if action not in {"approve", "block", "reject", "request_changes"}:
             raise RuntimeError(f"unsupported approval action: {action}")
 
         client.request(
@@ -293,6 +295,11 @@ def _artifacts(snapshot: Any) -> list[dict[str, Any]]:
 
 
 def _workflow_events(snapshot: Any) -> list[dict[str, Any]]:
+    data = _nested_data(snapshot)
+    return data if isinstance(data, list) else []
+
+
+def _stage_gates(snapshot: Any) -> list[dict[str, Any]]:
     data = _nested_data(snapshot)
     return data if isinstance(data, list) else []
 
@@ -816,6 +823,21 @@ def _match_entry(task: dict[str, Any], *, role: Any, stage_name: Any) -> bool:
     return True
 
 
+def _matches_field_expectations(entry: dict[str, Any], expectations: dict[str, Any]) -> bool:
+    return all(entry.get(field_name) == expected_value for field_name, expected_value in expectations.items())
+
+
+def _find_matching_entries(
+    entries: list[dict[str, Any]],
+    match: dict[str, Any],
+) -> list[dict[str, Any]]:
+    return [
+        entry
+        for entry in entries
+        if isinstance(entry, dict) and _matches_field_expectations(entry, match)
+    ]
+
+
 def _evaluate_direct_handoff_expectation(
     entry: dict[str, Any],
     *,
@@ -1115,6 +1137,7 @@ def evaluate_expectations(
     workflow: dict[str, Any],
     board: Any,
     work_items: Any,
+    stage_gates: Any | None = None,
     workspace: dict[str, Any],
     artifacts: Any,
     approval_actions: list[dict[str, Any]],
@@ -1177,6 +1200,46 @@ def evaluate_expectations(
         )
         if not passed:
             failures.append(f"expected at least {minimum} work items, found {actual}")
+
+    work_item_matches = expectations.get("work_item_matches", [])
+    if isinstance(work_item_matches, list):
+        items = _work_items(work_items)
+        for entry in work_item_matches:
+            if not isinstance(entry, dict):
+                continue
+            match = entry.get("match", {})
+            field_expectations = entry.get("field_expectations", {})
+            if not isinstance(match, dict) or not isinstance(field_expectations, dict):
+                continue
+            matches = _find_matching_entries(items, match)
+            passed = len(matches) > 0 and any(
+                _matches_field_expectations(item, field_expectations) for item in matches
+            )
+            checks.append({"name": f"work_item_matches:{match}", "passed": passed})
+            if not passed:
+                failures.append(
+                    f"expected work item matching {match!r} with fields {field_expectations!r}"
+                )
+
+    stage_gate_matches = expectations.get("stage_gate_matches", [])
+    if isinstance(stage_gate_matches, list):
+        gates = _stage_gates(stage_gates)
+        for entry in stage_gate_matches:
+            if not isinstance(entry, dict):
+                continue
+            match = entry.get("match", {})
+            field_expectations = entry.get("field_expectations", {})
+            if not isinstance(match, dict) or not isinstance(field_expectations, dict):
+                continue
+            matches = _find_matching_entries(gates, match)
+            passed = len(matches) > 0 and any(
+                _matches_field_expectations(item, field_expectations) for item in matches
+            )
+            checks.append({"name": f"stage_gate_matches:{match}", "passed": passed})
+            if not passed:
+                failures.append(
+                    f"expected stage gate matching {match!r} with fields {field_expectations!r}"
+                )
 
     board_expectations = expectations.get("board", {})
     if isinstance(board_expectations, dict) and "blocked_count" in board_expectations:
@@ -1629,6 +1692,52 @@ def evaluate_expectations(
             if failure is not None:
                 failures.append(failure)
 
+    approval_before_assessment_sequences = expectations.get("approval_before_assessment_sequences", [])
+    if isinstance(approval_before_assessment_sequences, list):
+        for entry in approval_before_assessment_sequences:
+            if not isinstance(entry, dict):
+                continue
+            match = entry.get("match", {})
+            if not isinstance(match, dict) or not match:
+                continue
+            assessed_by = entry.get("assessed_by")
+            if not isinstance(assessed_by, str) or assessed_by.strip() == "":
+                continue
+            approval_action = str(entry.get("approval_action", "approve"))
+            assessment_stage_name = entry.get("assessment_stage_name")
+            approval_times = [
+                _parse_timestamp(action.get("submitted_at"))
+                for action in approval_actions
+                if isinstance(action, dict)
+                and action.get("action") == approval_action
+                and _matches_field_expectations(action, match)
+            ]
+            approval_times = [value for value in approval_times if value is not None]
+            assessment_times = [
+                _task_timestamp(task)
+                for task in workflow_tasks
+                if isinstance(task, dict)
+                and _task_kind(task) == "assessment"
+                and task.get("role") == assessed_by.strip()
+                and (
+                    not isinstance(assessment_stage_name, str)
+                    or assessment_stage_name.strip() == ""
+                    or task.get("stage_name") == assessment_stage_name.strip()
+                )
+            ]
+            assessment_times = [value for value in assessment_times if value is not None]
+            passed = bool(approval_times) and bool(assessment_times) and min(approval_times) <= min(assessment_times)
+            checks.append(
+                {
+                    "name": f"approval_before_assessment_sequences:{match}:{assessed_by.strip()}",
+                    "passed": passed,
+                }
+            )
+            if not passed:
+                failures.append(
+                    f"expected approval {approval_action!r} for {match!r} before assessment role {assessed_by.strip()!r}"
+                )
+
     subject_revision_expectations = expectations.get("subject_revision_expectations", [])
     if isinstance(subject_revision_expectations, list):
         for entry in subject_revision_expectations:
@@ -1710,6 +1819,7 @@ def evaluate_progress_expectations(
     workflow: dict[str, Any],
     board: Any,
     work_items: Any,
+    stage_gates: Any,
     workspace: dict[str, Any],
     artifacts: Any,
     approval_actions: list[dict[str, Any]],
@@ -1723,6 +1833,7 @@ def evaluate_progress_expectations(
         workflow=workflow_with_tasks,
         board=board,
         work_items=work_items,
+        stage_gates=stage_gates,
         workspace=workspace,
         artifacts=artifacts,
         approval_actions=approval_actions,
@@ -1753,6 +1864,7 @@ def evaluate_progress_expectations(
         workflow=workflow_with_tasks,
         board=board,
         work_items=work_items,
+        stage_gates=stage_gates,
         workspace=workspace,
         artifacts=artifacts,
         approval_actions=approval_actions,
@@ -1857,6 +1969,7 @@ def build_create_work_item_payloads(
         }
         for source_key, target_key in (
             ("parent_work_item_id", "parent_work_item_id"),
+            ("branch_key_template", "branch_key"),
             ("stage_name", "stage_name"),
             ("goal_template", "goal"),
             ("acceptance_criteria_template", "acceptance_criteria"),
@@ -2039,6 +2152,15 @@ def collect_workflow_events(client: ApiClient, *, workflow_id: str, per_page: in
         after = next_after
 
 
+def collect_workflow_stage_gates(client: ApiClient, *, workflow_id: str) -> dict[str, Any]:
+    return client.best_effort_request(
+        "GET",
+        f"/api/v1/workflows/{workflow_id}/gates",
+        expected=(200,),
+        label="workflows.gates",
+    )
+
+
 def build_run_result_payload(
     *,
     workflow_id: str,
@@ -2051,6 +2173,7 @@ def build_run_result_payload(
     workflow: dict[str, Any],
     board: Any,
     work_items: Any,
+    stage_gates: Any | None = None,
     events: Any,
     approvals: Any,
     approval_actions: list[dict[str, Any]],
@@ -2083,6 +2206,7 @@ def build_run_result_payload(
         "workflow": workflow,
         "board": board,
         "work_items": work_items,
+        "stage_gates": stage_gates,
         "events": events,
         "approvals": approvals,
         "approval_actions": approval_actions,
@@ -2405,6 +2529,7 @@ def main() -> None:
                     label="workflows.work-items.progress",
                 )
             )
+            stage_gates_snapshot = collect_workflow_stage_gates(client, workflow_id=workflow_id)
             workspace_snapshot = extract_data(
                 client.request(
                     "GET",
@@ -2426,6 +2551,7 @@ def main() -> None:
                 workflow=latest_workflow,
                 board=board_snapshot,
                 work_items=work_items_snapshot,
+                stage_gates=stage_gates_snapshot,
                 workspace=workspace_snapshot,
                 artifacts=artifacts_snapshot,
                 approval_actions=approval_actions,
@@ -2462,6 +2588,7 @@ def main() -> None:
         expected=(200,),
         label="workflows.work-items",
     )
+    stage_gates_snapshot = collect_workflow_stage_gates(client, workflow_id=workflow_id)
     events_snapshot = collect_workflow_events(client, workflow_id=workflow_id)
     approvals_snapshot = client.best_effort_request(
         "GET",
@@ -2505,6 +2632,7 @@ def main() -> None:
         workflow=latest_workflow,
         board=board_snapshot,
         work_items=work_items_snapshot,
+        stage_gates=stage_gates_snapshot,
         workspace=workspace_snapshot,
         artifacts=artifacts_snapshot,
         approval_actions=approval_actions,
@@ -2527,6 +2655,7 @@ def main() -> None:
             workflow=latest_workflow,
             board=board_snapshot,
             work_items=work_items_snapshot,
+            stage_gates=stage_gates_snapshot,
             events=events_snapshot,
             approvals=approvals_snapshot,
             approval_actions=approval_actions,

@@ -196,6 +196,194 @@ describe('WorkItemService', () => {
     );
   });
 
+  it('creates and assigns an authored branch when a work item declares branch_key', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'variant-draft',
+                lifecycle: 'ongoing',
+                definition: {
+                  roles: ['branch-copywriter'],
+                  lifecycle: 'ongoing',
+                  board: {
+                    columns: [{ id: 'planned', label: 'Planned' }],
+                    entry_column_id: 'planned',
+                  },
+                  stages: [{ name: 'variant-draft', goal: 'Draft each branch variant.' }],
+                  branch_policies: [
+                    {
+                      branch_key: 'deprecated-release',
+                      termination_policy: 'stop_branch_only',
+                    },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_branches') && sql.includes('branch_key = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'deprecated-release']);
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('INSERT INTO workflow_branches')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            null,
+            { kind: 'workflow', workflow_id: 'workflow-1' },
+            'deprecated-release',
+            'stop_branch_only',
+            null,
+            {},
+          ]);
+          return {
+            rows: [{ id: 'branch-1' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          expect(sql).toContain('branch_id');
+          expect(params?.[17]).toBe('branch-1');
+          return {
+            rows: [
+              {
+                id: 'work-item-branch-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                branch_id: 'branch-1',
+                branch_status: 'active',
+                stage_name: 'variant-draft',
+                title: 'Draft deprecated release branch',
+                goal: 'Draft the deprecated release variant.',
+                acceptance_criteria: 'Variant draft exists.',
+                column_id: 'planned',
+                owner_role: 'branch-copywriter',
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                priority: 'normal',
+                notes: null,
+                blocked_state: null,
+                blocked_reason: null,
+                escalation_status: null,
+                completed_at: null,
+                metadata: {},
+                created_at: '2026-03-23T00:00:00.000Z',
+                updated_at: '2026-03-23T00:00:00.000Z',
+                task_count: 0,
+                children_count: 0,
+                is_milestone: false,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const workItem = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-branch-1',
+        stage_name: 'variant-draft',
+        title: 'Draft deprecated release branch',
+        goal: 'Draft the deprecated release variant.',
+        acceptance_criteria: 'Variant draft exists.',
+        owner_role: 'branch-copywriter',
+        branch_key: 'deprecated-release',
+      },
+    );
+
+    expect(workItem).toMatchObject({
+      id: 'work-item-branch-1',
+      branch_id: 'branch-1',
+      branch_status: 'active',
+    });
+  });
+
+  it('rejects work-item branch creation when branch_key is not authored in the playbook', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'variant-draft',
+                lifecycle: 'ongoing',
+                definition: {
+                  roles: ['branch-copywriter'],
+                  lifecycle: 'ongoing',
+                  board: {
+                    columns: [{ id: 'planned', label: 'Planned' }],
+                  },
+                  stages: [{ name: 'variant-draft', goal: 'Draft each branch variant.' }],
+                  branch_policies: [],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    await expect(
+      service.createWorkItem(
+        {
+          id: 'admin:1',
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          ownerType: 'tenant',
+          ownerId: 'tenant-1',
+          keyPrefix: 'admin-key',
+        },
+        'workflow-1',
+        {
+          request_id: 'req-branch-1',
+          stage_name: 'variant-draft',
+          title: 'Draft deprecated release branch',
+          branch_key: 'deprecated-release',
+        },
+      ),
+    ).rejects.toThrow("Unknown branch_key 'deprecated-release' for this playbook");
+  });
+
   it('rejects planned successor work-item creation while the predecessor still has a pending task', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

@@ -121,6 +121,7 @@ const workflowWorkItemTaskOutputOverrideSchema = workflowWorkItemTaskMutationSch
 const workItemCreateSchema = z.object({
   request_id: requestIdSchema,
   parent_work_item_id: z.string().uuid().optional(),
+  branch_key: z.string().min(1).max(120).optional(),
   stage_name: z.string().min(1).max(120).optional(),
   title: z.string().min(1).max(500),
   goal: z.string().max(4000).optional(),

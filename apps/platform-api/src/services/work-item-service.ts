@@ -20,10 +20,15 @@ import { WorkflowActivationService } from './workflow-activation-service.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.js';
+import {
+  ensureWorkflowBranch,
+  type BranchTerminationPolicy,
+} from './workflow-branch-service.js';
 
 export interface CreateWorkItemInput {
   request_id?: string;
   parent_work_item_id?: string;
+  branch_key?: string;
   stage_name?: string;
   title: string;
   goal?: string;
@@ -116,6 +121,11 @@ interface CheckpointPredecessorRow {
 interface NonTerminalTaskStateCountRow {
   state: string;
   count: number;
+}
+
+interface ParentWorkItemBranchRow {
+  branch_id: string | null;
+  branch_status: 'active' | 'completed' | 'blocked' | 'terminated' | null;
 }
 
 const WORK_ITEM_BASE_COLUMNS = [
@@ -335,6 +345,14 @@ export class WorkItemService {
         throw new ValidationError(`Unknown board column '${columnId}' for this playbook`);
       }
 
+      const branchId = await this.resolveCreateWorkItemBranchId(
+        identity.tenantId,
+        workflowId,
+        definition,
+        input,
+        client,
+      );
+
       if (workflow.lifecycle === 'planned') {
         await this.assertSuccessorCheckpointReady(
           identity.tenantId,
@@ -372,8 +390,8 @@ export class WorkItemService {
         `INSERT INTO workflow_work_items (
            tenant_id, workflow_id, parent_work_item_id, request_id, stage_name, title, goal,
            acceptance_criteria, column_id, owner_role, next_expected_actor, next_expected_action, rework_count,
-           priority, notes, created_by, metadata
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+           priority, notes, created_by, metadata, branch_id
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL
          DO NOTHING
@@ -396,6 +414,7 @@ export class WorkItemService {
           input.notes?.trim() ?? null,
           createdByForIdentity(identity),
           input.metadata ?? {},
+          branchId,
         ],
       );
       if (!result.rowCount) {
@@ -416,6 +435,7 @@ export class WorkItemService {
         }
         assertMatchingCreateWorkItemReplay(existing.rows[0] as Record<string, unknown>, {
           parent_work_item_id: input.parent_work_item_id ?? null,
+          branch_id: branchId,
           stage_name: stageName,
           title: input.title.trim(),
           goal: input.goal?.trim() ?? null,
@@ -707,6 +727,78 @@ export class WorkItemService {
       },
       client,
     );
+  }
+
+  private async resolveCreateWorkItemBranchId(
+    tenantId: string,
+    workflowId: string,
+    definition: ReturnType<typeof parsePlaybookDefinition>,
+    input: CreateWorkItemInput,
+    client: DatabaseClient,
+  ) {
+    const needsParentBranchLookup = Boolean(input.parent_work_item_id) && (
+      Boolean(input.branch_key?.trim()) || definition.branch_policies.length > 0
+    );
+    const parentBranch = needsParentBranchLookup
+      ? await this.loadParentWorkItemBranch(
+          tenantId,
+          workflowId,
+          input.parent_work_item_id ?? null,
+          client,
+        )
+      : null;
+    if (parentBranch?.branch_status === 'terminated') {
+      throw new ConflictError('Cannot create new work items for a terminated branch');
+    }
+
+    const branchKey = input.branch_key?.trim();
+    if (!branchKey) {
+      return parentBranch?.branch_id ?? null;
+    }
+
+    const authoredPolicy = definition.branch_policies.find((entry) => entry.branch_key === branchKey);
+    if (!authoredPolicy) {
+      throw new ValidationError(`Unknown branch_key '${branchKey}' for this playbook`);
+    }
+
+    return ensureWorkflowBranch(client, {
+      tenantId,
+      workflowId,
+      parentBranchId: parentBranch?.branch_id ?? null,
+      parentSubjectRef: { kind: 'workflow', workflow_id: workflowId },
+      branchKey,
+      terminationPolicy: authoredPolicy.termination_policy as BranchTerminationPolicy,
+      metadata: {},
+    });
+  }
+
+  private async loadParentWorkItemBranch(
+    tenantId: string,
+    workflowId: string,
+    parentWorkItemId: string | null,
+    client: DatabaseClient,
+  ) {
+    if (!parentWorkItemId) {
+      return null;
+    }
+    const result = await client.query<ParentWorkItemBranchRow>(
+      `SELECT wi.branch_id,
+              branch.branch_status
+         FROM workflow_work_items wi
+         LEFT JOIN workflow_branches branch
+           ON branch.tenant_id = wi.tenant_id
+          AND branch.workflow_id = wi.workflow_id
+          AND branch.id = wi.branch_id
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = $2
+          AND wi.id = $3
+        LIMIT 1`,
+      [tenantId, workflowId, parentWorkItemId],
+    );
+    if (!result.rowCount) {
+      throw new NotFoundError('Parent workflow work item not found');
+    }
+    return result.rows[0];
   }
 
   private async assertPlannedStageEntryRoleCanStart(
@@ -1456,6 +1548,7 @@ function assertMatchingCreateWorkItemReplay(
   existing: Record<string, unknown>,
   expected: {
     parent_work_item_id: string | null;
+    branch_id: string | null;
     stage_name: string;
     title: string;
     goal: string | null;
@@ -1469,6 +1562,7 @@ function assertMatchingCreateWorkItemReplay(
 ): void {
   if (
     (existing.parent_work_item_id ?? null) !== expected.parent_work_item_id ||
+    (existing.branch_id ?? null) !== expected.branch_id ||
     existing.stage_name !== expected.stage_name ||
     existing.title !== expected.title ||
     (existing.goal ?? null) !== expected.goal ||

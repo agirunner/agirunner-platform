@@ -1,4 +1,5 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import { ConflictError } from '../errors/domain-errors.js';
 
 export type BranchTerminationPolicy =
   | 'stop_branch_only'
@@ -20,6 +21,16 @@ interface TerminateWorkflowBranchInput {
   terminatedByType: string;
   terminatedById: string;
   terminationReason: string | null;
+}
+
+interface EnsureWorkflowBranchInput {
+  tenantId: string;
+  workflowId: string;
+  parentBranchId?: string | null;
+  parentSubjectRef?: Record<string, unknown>;
+  branchKey: string;
+  terminationPolicy: BranchTerminationPolicy;
+  metadata?: Record<string, unknown>;
 }
 
 export function collectTerminatedBranchIds(
@@ -158,4 +169,57 @@ export async function terminateWorkflowBranch(
   );
 
   return targetBranchIds;
+}
+
+export async function ensureWorkflowBranch(
+  db: DatabaseClient | DatabasePool,
+  input: EnsureWorkflowBranchInput,
+) {
+  const existingResult = await db.query<WorkflowBranchRow>(
+    `SELECT id, parent_branch_id, branch_key, termination_policy, branch_status
+       FROM workflow_branches
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND branch_key = $3
+      ORDER BY created_at DESC
+      LIMIT 1`,
+    [input.tenantId, input.workflowId, input.branchKey],
+  );
+  const existing = existingResult.rows[0];
+  if (existing) {
+    if (existing.termination_policy !== input.terminationPolicy) {
+      throw new ConflictError(
+        `Existing branch '${input.branchKey}' does not match termination_policy '${input.terminationPolicy}'`,
+      );
+    }
+    if (existing.branch_status === 'terminated') {
+      throw new ConflictError(`Cannot create new work for terminated branch '${input.branchKey}'`);
+    }
+    return existing.id;
+  }
+
+  const createdResult = await db.query<{ id: string }>(
+    `INSERT INTO workflow_branches (
+       tenant_id,
+       workflow_id,
+       parent_branch_id,
+       parent_subject_ref,
+       branch_key,
+       termination_policy,
+       created_by_task_id,
+       metadata
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING id`,
+    [
+      input.tenantId,
+      input.workflowId,
+      input.parentBranchId ?? null,
+      input.parentSubjectRef ?? {},
+      input.branchKey,
+      input.terminationPolicy,
+      null,
+      input.metadata ?? {},
+    ],
+  );
+  return createdResult.rows[0]?.id ?? null;
 }

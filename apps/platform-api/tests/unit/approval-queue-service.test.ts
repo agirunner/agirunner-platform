@@ -301,9 +301,20 @@ describe('ApprovalQueueService', () => {
 
     const service = new ApprovalQueueService(pool as never);
     const gate = await service.getGate('tenant-1', 'gate-9');
-    expect(pool.query).toHaveBeenCalledWith(
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
       expect.stringContaining('AND e.entity_id = g.id'),
-      ['tenant-1', 'gate-9', ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes']],
+      [
+        'tenant-1',
+        'gate-9',
+        [
+          'stage.gate_requested',
+          'stage.gate.approve',
+          'stage.gate.block',
+          'stage.gate.reject',
+          'stage.gate.request_changes',
+        ],
+      ],
     );
 
     expect(gate).toEqual(

@@ -269,6 +269,8 @@ export class ApprovalQueueService {
               g.decided_by_id,
               g.decision_feedback,
               g.decided_at,
+              g.superseded_at,
+              g.superseded_by_revision,
               requested_task.id::text AS requested_by_task_id,
               requested_task.title AS requested_by_task_title,
               requested_task.role AS requested_by_task_role,
@@ -323,6 +325,7 @@ export class ApprovalQueueService {
                       CASE
                         WHEN e.type = 'stage.gate_requested' THEN 'requested'
                         WHEN e.type = 'stage.gate.approve' THEN 'approve'
+                        WHEN e.type = 'stage.gate.block' THEN 'block'
                         WHEN e.type = 'stage.gate.reject' THEN 'reject'
                         WHEN e.type = 'stage.gate.request_changes' THEN 'request_changes'
                         ELSE e.type
@@ -347,7 +350,7 @@ export class ApprovalQueueService {
         WHERE g.tenant_id = $1
           AND g.workflow_id = $2
         ORDER BY g.requested_at DESC`,
-      [tenantId, workflowId, ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes']],
+      [tenantId, workflowId, ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.block', 'stage.gate.reject', 'stage.gate.request_changes']],
     );
     const rows = await this.attachGateResumeHistory(tenantId, result.rows, workflowId);
     return rows.map((row) => toGateResponse(row));
@@ -382,6 +385,8 @@ export class ApprovalQueueService {
               g.decided_by_id,
               g.decision_feedback,
               g.decided_at,
+              g.superseded_at,
+              g.superseded_by_revision,
               requested_task.id::text AS requested_by_task_id,
               requested_task.title AS requested_by_task_title,
               requested_task.role AS requested_by_task_role,
@@ -436,6 +441,7 @@ export class ApprovalQueueService {
                       CASE
                         WHEN e.type = 'stage.gate_requested' THEN 'requested'
                         WHEN e.type = 'stage.gate.approve' THEN 'approve'
+                        WHEN e.type = 'stage.gate.block' THEN 'block'
                         WHEN e.type = 'stage.gate.reject' THEN 'reject'
                         WHEN e.type = 'stage.gate.request_changes' THEN 'request_changes'
                         ELSE e.type
@@ -463,7 +469,7 @@ export class ApprovalQueueService {
         LIMIT 1`,
       [
         ...values,
-        ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.reject', 'stage.gate.request_changes'],
+        ['stage.gate_requested', 'stage.gate.approve', 'stage.gate.block', 'stage.gate.reject', 'stage.gate.request_changes'],
       ],
     );
     if (!result.rowCount) {

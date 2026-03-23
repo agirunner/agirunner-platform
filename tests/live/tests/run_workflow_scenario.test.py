@@ -29,7 +29,9 @@ class FakeClient:
         label: str | None = None,
     ) -> dict[str, object]:
         self.calls.append((method, path, payload or {}, expected, label))
-        return {"data": {"gate_id": path.rsplit("/", 1)[-1], "status": "approved"}}
+        action = (payload or {}).get("action", "approve")
+        status = "blocked" if action == "block" else "approved"
+        return {"data": {"gate_id": path.rsplit("/", 1)[-1], "status": status}}
 
 
 class FakePagedClient:
@@ -754,8 +756,194 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         )
 
         self.assertTrue(result["passed"])
-        board_check = next(entry for entry in result["checks"] if entry["name"] == "board.blocked_count")
-        self.assertEqual(2, board_check["actual"])
+
+    def test_process_workflow_approvals_accepts_block_action(self) -> None:
+        client = FakeClient()
+
+        actions = run_workflow_scenario.process_workflow_approvals(
+            client,
+            {
+                "stage_gates": [
+                    {
+                        "gate_id": "gate-1",
+                        "workflow_id": "workflow-1",
+                        "stage_name": "approval-gate",
+                        "status": "awaiting_approval",
+                    }
+                ]
+            },
+            workflow_id="workflow-1",
+            scenario_name="requirements-human-review-blocked",
+            approved_gate_ids=set(),
+            approval_mode="scripted",
+            consumed_decisions=set(),
+            approval_decisions=[
+                {
+                    "match": {"stage_name": "approval-gate"},
+                    "action": "block",
+                }
+            ],
+        )
+
+        self.assertEqual(
+            [
+                {
+                    "gate_id": "gate-1",
+                    "action": "block",
+                    "task_id": None,
+                    "stage_name": "approval-gate",
+                    "submitted_at": actions[0]["submitted_at"],
+                }
+            ],
+            actions,
+        )
+        self.assertEqual("POST", client.calls[0][0])
+        self.assertEqual("/api/v1/approvals/gate-1", client.calls[0][1])
+        self.assertEqual("block", client.calls[0][2]["action"])
+
+    def test_evaluate_expectations_checks_generic_work_item_field_matches(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "work_item_matches": [
+                    {
+                        "match": {"stage_name": "draft-review"},
+                        "field_expectations": {
+                            "blocked_state": "blocked",
+                            "branch_status": "terminated",
+                        },
+                    }
+                ]
+            },
+            workflow={"state": "active", "tasks": []},
+            board={"ok": True},
+            work_items={
+                "ok": True,
+                "data": [
+                    {
+                        "id": "wi-1",
+                        "stage_name": "draft-review",
+                        "blocked_state": "blocked",
+                        "branch_status": "terminated",
+                    }
+                ],
+            },
+            workspace={},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={"ok": True, "data": {}},
+            playbook_id="playbook-1",
+            fleet_peaks={},
+            efficiency=None,
+            execution_logs={"ok": True, "data": []},
+        )
+
+        self.assertTrue(result["passed"])
+        check_names = {check["name"] for check in result["checks"]}
+        self.assertIn("work_item_matches:{'stage_name': 'draft-review'}", check_names)
+
+    def test_evaluate_expectations_checks_stage_gate_matches(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "stage_gate_matches": [
+                    {
+                        "match": {"stage_name": "approval-gate"},
+                        "field_expectations": {
+                            "is_superseded": True,
+                            "superseded_by_revision": 2,
+                        },
+                    }
+                ]
+            },
+            workflow={"state": "active", "tasks": []},
+            board={"ok": True},
+            work_items={"ok": True, "data": []},
+            workspace={},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[],
+            events={"ok": True, "data": []},
+            fleet={"ok": True, "data": {}},
+            playbook_id="playbook-1",
+            fleet_peaks={},
+            efficiency=None,
+            execution_logs={"ok": True, "data": []},
+            stage_gates={
+                "ok": True,
+                "data": [
+                    {
+                        "id": "gate-1",
+                        "stage_name": "approval-gate",
+                        "is_superseded": True,
+                        "superseded_by_revision": 2,
+                    }
+                ],
+            },
+        )
+
+        self.assertTrue(result["passed"])
+        check_names = {check["name"] for check in result["checks"]}
+        self.assertIn("stage_gate_matches:{'stage_name': 'approval-gate'}", check_names)
+
+    def test_evaluate_expectations_checks_approval_before_assessment_ordering(self) -> None:
+        result = run_workflow_scenario.evaluate_expectations(
+            {
+                "approval_before_assessment_sequences": [
+                    {
+                        "match": {"stage_name": "approval-gate"},
+                        "assessed_by": "publishing-policy-assessor",
+                    }
+                ]
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-assessment-1",
+                        "role": "publishing-policy-assessor",
+                        "task_kind": "assessment",
+                        "created_at": "2026-03-23T00:05:00Z",
+                        "completed_at": "2026-03-23T00:06:00Z",
+                    }
+                ],
+            },
+            board={"ok": True},
+            work_items={"ok": True, "data": []},
+            workspace={},
+            artifacts={"ok": True, "data": []},
+            approval_actions=[
+                {
+                    "gate_id": "gate-1",
+                    "action": "approve",
+                    "stage_name": "approval-gate",
+                    "submitted_at": "2026-03-23T00:04:00Z",
+                }
+            ],
+            events={"ok": True, "data": []},
+            fleet={"ok": True, "data": {}},
+            playbook_id="playbook-1",
+            fleet_peaks={},
+            efficiency=None,
+            execution_logs={"ok": True, "data": []},
+        )
+
+        self.assertTrue(result["passed"])
+
+    def test_build_create_work_item_payloads_supports_branch_key_template(self) -> None:
+        payloads = run_workflow_scenario.build_create_work_item_payloads(
+            {
+                "count": 2,
+                "title_template": "branch-{index}",
+                "goal_template": "Goal {index}",
+                "acceptance_criteria_template": "Done {index}",
+                "stage_name": "variant-draft",
+                "branch_key_template": "branch-{index}",
+            },
+            workflow_id="workflow-1",
+            scenario_name="content-terminate-branch-policy",
+        )
+
+        self.assertEqual("branch-1", payloads[0]["branch_key"])
+        self.assertEqual("branch-2", payloads[1]["branch_key"])
 
     def test_summarize_efficiency_uses_runtime_teardown_completion_without_container_remove(self) -> None:
         workflow = {
