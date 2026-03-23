@@ -17,6 +17,11 @@ import {
   readTemplateLifecyclePolicy,
 } from './task-lifecycle-policy.js';
 import type { CreateTaskInput, TaskServiceConfig } from './task-service.types.js';
+import {
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
 
 interface TaskWriteDependencies {
   pool: DatabasePool;
@@ -78,6 +83,9 @@ const REUSABLE_TASK_DUPLICATE_GUARD_STATES = [
   ...ACTIVE_TASK_DUPLICATE_GUARD_STATES,
   'completed',
 ] as const;
+const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+);
 
 export class TaskWriteService {
   constructor(private readonly deps: TaskWriteDependencies) {}
@@ -141,6 +149,15 @@ export class TaskWriteService {
             dependencies,
             metadata,
           ),
+        );
+        logSafetynetTriggered(
+          IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+          'idempotent task create replay returned stored task',
+          {
+            workflow_id: normalizedInput.workflow_id ?? null,
+            work_item_id: normalizedInput.work_item_id ?? null,
+            request_id: normalizedInput.request_id.trim(),
+          },
         );
         return this.deps.toTaskResponse(existing);
       }
@@ -210,10 +227,11 @@ export class TaskWriteService {
       ],
     );
     if (!insertResult.rowCount) {
-      const existing = normalizedInput.request_id?.trim()
+      const replayRequestId = normalizedInput.request_id?.trim();
+      const existing = replayRequestId
         ? await this.findExistingByRequestId(
             identity.tenantId,
-            normalizedInput.request_id,
+            replayRequestId,
             normalizedInput.workflow_id ?? null,
             db,
           )
@@ -226,6 +244,15 @@ export class TaskWriteService {
             dependencies,
             metadata,
           ),
+        );
+        logSafetynetTriggered(
+          IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+          'idempotent task create replay returned stored task after insert conflict',
+          {
+            workflow_id: normalizedInput.workflow_id ?? null,
+            work_item_id: normalizedInput.work_item_id ?? null,
+            request_id: replayRequestId,
+          },
         );
         return this.deps.toTaskResponse(existing);
       }

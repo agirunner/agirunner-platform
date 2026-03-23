@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
+  logSafetynetTriggeredMock: vi.fn(),
+}));
+
+vi.mock('../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: logSafetynetTriggeredMock,
+}));
+
 import { ConflictError } from '../../src/errors/domain-errors.js';
 import { WorkflowToolResultService } from '../../src/services/workflow-tool-result-service.js';
 
@@ -54,6 +62,7 @@ describe('WorkflowToolResultService', () => {
   });
 
   it('returns the previously stored response on duplicate request ids', async () => {
+    logSafetynetTriggeredMock.mockReset();
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('INSERT INTO workflow_tool_results')) {
@@ -86,6 +95,17 @@ describe('WorkflowToolResultService', () => {
     );
 
     expect(response).toEqual({ work_item_id: 'wi-existing', status: 'deduped' });
+    expect(logSafetynetTriggeredMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'platform.control_plane.idempotent_mutation_replay',
+      }),
+      'idempotent workflow tool mutation replay returned stored result',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        tool_name: 'create_work_item',
+        request_id: 'req-1',
+      }),
+    );
   });
 
   it('treats reordered JSON object keys as the same stored tool result', async () => {

@@ -28,6 +28,11 @@ import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
 } from '../../services/assessment-subject-service.js';
+import {
+  PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID,
+  mustGetSafetynetEntry,
+} from '../../services/safetynet/registry.js';
+import { logSafetynetTriggered } from '../../services/safetynet/logging.js';
 
 const orchestratorTaskTypeSchema = z.enum(['analysis', 'code', 'assessment', 'test', 'docs', 'custom']);
 const credentialRefsSchema = z.record(z.string().min(1).max(255)).refine(
@@ -1392,9 +1397,15 @@ function buildRecoverableCreateWorkItemNoop(
   if (!reasonCode) {
     return null;
   }
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable create_work_item noop returned',
+    { stage_name: input.stage_name, reason_code: reasonCode },
+  );
 
   return {
     noop: true,
+    safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     ready: false,
     reason_code: reasonCode,
     message,
@@ -1910,9 +1921,15 @@ async function buildRecoverableCreateTaskNoopIfNotReady(
   if (!subjectTask || subjectTask.state === 'completed') {
     return null;
   }
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable create_task noop returned because subject task is not ready',
+    { workflow_id: workflowId, subject_task_id: subjectTask.id ?? subjectTaskId },
+  );
 
   return {
     noop: true,
+    safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     ready: false,
     reason_code: 'subject_task_not_ready',
     message: `Cannot create a follow-up task that depends on subject output while subject task '${subjectTaskId}' is still '${subjectTask.state ?? 'unknown'}'. Wait for the current assessment/rework cycle to resolve before dispatching the follow-up task.`,
@@ -1986,9 +2003,15 @@ async function buildRecoverableCreateTaskNoopIfAssessmentRequestAlreadyApplied(
   if (!assessmentRequestTask?.work_item_id || assessmentRequestTask.work_item_id !== body.work_item_id) {
     return null;
   }
+  logSafetynetTriggered(
+    NOT_READY_NOOP_RECOVERY_SAFETYNET,
+    'recoverable create_task noop returned because assessment request was already applied',
+    { workflow_id: workflowId, work_item_id: body.work_item_id },
+  );
 
   return {
     noop: true,
+    safetynet_behavior_id: NOT_READY_NOOP_RECOVERY_SAFETYNET.id,
     ready: false,
     reason_code: 'assessment_request_already_applied',
     message: `Cannot create '${body.role}' task on work item '${body.work_item_id}' because assessment request '${assessmentRequestTask.id}' was already applied to reopened task '${activationTask.id}'. Continue routing from the reopened task instead of spawning a sibling rework task.`,
@@ -2395,3 +2418,6 @@ function readInteger(value: unknown): number | null {
 function dedupeStrings(values: string[]): string[] {
   return [...new Set(values.filter((value) => value.trim().length > 0))];
 }
+const NOT_READY_NOOP_RECOVERY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_NOT_READY_NOOP_RECOVERY_ID,
+);

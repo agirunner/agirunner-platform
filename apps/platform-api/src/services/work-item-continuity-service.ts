@@ -11,6 +11,19 @@ import {
   evaluatePlaybookRules,
   type PlaybookRuleEvaluationResult,
 } from './playbook-rule-evaluation-service.js';
+import {
+  PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID,
+  PLATFORM_ORCHESTRATOR_REWORK_ROUTE_INFERENCE_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
+
+const REWORK_ROUTE_INFERENCE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_ORCHESTRATOR_REWORK_ROUTE_INFERENCE_ID,
+);
+const CONTINUITY_STALE_WRITE_SUPPRESSION_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID,
+);
 
 interface WorkItemContinuityContextRow {
   workflow_id: string;
@@ -168,6 +181,7 @@ export class WorkItemContinuityService {
         blockedOn: normalizeStringList(currentContinuity.blocked_on) ?? null,
         activeSubordinateTasks:
           normalizeStringList(currentContinuity.active_subordinate_tasks) ?? null,
+        safetynetBehaviorId: CONTINUITY_STALE_WRITE_SUPPRESSION_SAFETYNET.id,
       });
 
       return {
@@ -453,6 +467,15 @@ export class WorkItemContinuityService {
     if (!reworkActor) {
       return evaluation;
     }
+    logSafetynetTriggered(
+      REWORK_ROUTE_INFERENCE_SAFETYNET,
+      'rework route inferred from assessment lineage',
+      {
+        workflow_id: context.workflow_id,
+        work_item_id: context.work_item_id,
+        role,
+      },
+    );
 
     return {
       matchedRuleType: evaluation.matchedRuleType ?? 'assessment',

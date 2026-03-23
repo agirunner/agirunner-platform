@@ -3,6 +3,15 @@ import type { DatabasePool } from '../db/database.js';
 import { NotFoundError } from '../errors/domain-errors.js';
 import { WorkflowService } from './workflow-service.js';
 import { WorkspaceTimelineService } from './workspace-timeline-service.js';
+import {
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
+
+const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+);
 
 export class WorkflowChainingService {
   private readonly workspaceTimelineService: WorkspaceTimelineService;
@@ -62,6 +71,11 @@ export class WorkflowChainingService {
   ) {
     const existing = await this.loadExistingChainedWorkflow(identity, sourceWorkflowId, requestId);
     if (existing) {
+      logSafetynetTriggered(
+        IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+        'idempotent chained workflow request returned stored workflow',
+        { workflow_id: sourceWorkflowId, request_id: requestId },
+      );
       return existing;
     }
 
@@ -85,6 +99,11 @@ export class WorkflowChainingService {
       if (!conflicted) {
         throw error;
       }
+      logSafetynetTriggered(
+        IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+        'idempotent chained workflow request returned stored workflow after conflict',
+        { workflow_id: sourceWorkflowId, request_id: requestId },
+      );
       return conflicted;
     }
   }

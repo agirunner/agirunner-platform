@@ -1,6 +1,15 @@
 import type { DatabaseClient, DatabasePool, DatabaseQueryable } from '../db/database.js';
 import { EventService } from './event-service.js';
 import { sanitizeSecretLikeRecord } from './secret-redaction.js';
+import {
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
+
+const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+);
 
 export interface WorkflowActivationEventRow {
   id: string;
@@ -124,6 +133,11 @@ export async function enqueueWorkflowActivationRecord(
       [params.tenantId, params.workflowId, requestId],
     );
     if (existing.rowCount) {
+      logSafetynetTriggered(
+        IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+        'idempotent workflow activation replay returned stored activation event',
+        { workflow_id: params.workflowId, request_id: requestId, event_type: params.eventType },
+      );
       return existing.rows[0];
     }
     throw new Error('Failed to load existing workflow activation event after conflict');

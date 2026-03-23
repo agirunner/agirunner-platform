@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
+  logSafetynetTriggeredMock: vi.fn(),
+}));
+
+vi.mock('../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: logSafetynetTriggeredMock,
+}));
+
 import { ConflictError } from '../../src/errors/domain-errors.js';
 import { WorkflowActivationService } from '../../src/services/workflow-activation-service.js';
 
@@ -145,6 +153,7 @@ describe('WorkflowActivationService', () => {
   });
 
   it('returns the existing activation row when request_id conflicts', async () => {
+    logSafetynetTriggeredMock.mockReset();
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (sql.startsWith('SELECT id FROM workflows')) {
@@ -197,6 +206,17 @@ describe('WorkflowActivationService', () => {
       }),
     );
     expect(eventService.emit).not.toHaveBeenCalled();
+    expect(logSafetynetTriggeredMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'platform.control_plane.idempotent_mutation_replay',
+      }),
+      'idempotent workflow activation replay returned stored activation event',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        request_id: 'req-1',
+        event_type: 'work_item.created',
+      }),
+    );
   });
 
   it('treats activation payloads with reordered object keys as the same request replay', async () => {

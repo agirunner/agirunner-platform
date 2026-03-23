@@ -24,6 +24,11 @@ import {
   ensureWorkflowBranch,
   type BranchTerminationPolicy,
 } from './workflow-branch-service.js';
+import {
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
 
 export interface CreateWorkItemInput {
   request_id?: string;
@@ -154,6 +159,9 @@ const WORK_ITEM_BASE_COLUMNS = [
   'created_at',
   'updated_at',
 ] as const;
+const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+);
 
 function workItemColumnList(tableAlias?: string) {
   const prefix = tableAlias ? `${tableAlias}.` : '';
@@ -446,6 +454,11 @@ export class WorkItemService {
           notes: input.notes?.trim() ?? null,
           metadata: input.metadata ?? {},
         });
+        logSafetynetTriggered(
+          IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+          'idempotent work item create replay returned stored work item',
+          { workflow_id: workflowId, request_id: input.request_id.trim() },
+        );
         if (ownsClient) {
           await client.query('COMMIT');
         }

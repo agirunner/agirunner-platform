@@ -1,4 +1,13 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
+import {
+  PLATFORM_APPROVAL_STALE_DECISION_SUPERSESSION_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
+
+export const APPROVAL_STALE_DECISION_SUPERSESSION_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_APPROVAL_STALE_DECISION_SUPERSESSION_ID,
+);
 
 interface LatestSubjectRevisionRow {
   latest_subject_revision: number | null;
@@ -60,6 +69,18 @@ export async function supersedeStageGatesForRevision(
         AND subject_revision < $4`,
     [input.tenantId, input.workflowId, input.stageId, input.subjectRevision],
   );
+  if ((result.rowCount ?? 0) > 0) {
+    logSafetynetTriggered(
+      APPROVAL_STALE_DECISION_SUPERSESSION_SAFETYNET,
+      'superseded stale stage-gate decisions for newer subject revision',
+      {
+        workflow_id: input.workflowId,
+        stage_id: input.stageId,
+        subject_revision: input.subjectRevision,
+        superseded_count: result.rowCount ?? 0,
+      },
+    );
+  }
   return result.rowCount ?? 0;
 }
 

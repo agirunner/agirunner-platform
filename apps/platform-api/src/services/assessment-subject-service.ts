@@ -1,4 +1,13 @@
+import {
+  PLATFORM_ORCHESTRATOR_SUBJECT_LINKAGE_INFERENCE_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
+
 export type WorkflowTaskKind = 'delivery' | 'assessment' | 'approval' | 'orchestrator';
+export const SUBJECT_LINKAGE_INFERENCE_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_ORCHESTRATOR_SUBJECT_LINKAGE_INFERENCE_ID,
+);
 
 export interface AssessmentSubjectLinkage {
   subjectTaskId: string | null;
@@ -90,12 +99,24 @@ export function mergeAssessmentSubjectLinkage(
   fallback: AssessmentSubjectLinkage,
   explicit: AssessmentSubjectLinkage,
 ): AssessmentSubjectLinkage {
-  return {
+  const merged = {
     subjectTaskId: explicit.subjectTaskId ?? fallback.subjectTaskId,
     subjectWorkItemId: explicit.subjectWorkItemId ?? fallback.subjectWorkItemId,
     subjectHandoffId: explicit.subjectHandoffId ?? fallback.subjectHandoffId,
     subjectRevision: explicit.subjectRevision ?? fallback.subjectRevision,
   };
+  if (
+    (!explicit.subjectTaskId && Boolean(fallback.subjectTaskId))
+    || (!explicit.subjectWorkItemId && Boolean(fallback.subjectWorkItemId))
+    || (!explicit.subjectHandoffId && Boolean(fallback.subjectHandoffId))
+    || (explicit.subjectRevision === null && fallback.subjectRevision !== null)
+  ) {
+    logSafetynetTriggered(
+      SUBJECT_LINKAGE_INFERENCE_SAFETYNET,
+      'assessment subject linkage inferred from fallback context',
+    );
+  }
+  return merged;
 }
 
 function asRecord(value: unknown): Record<string, unknown> {

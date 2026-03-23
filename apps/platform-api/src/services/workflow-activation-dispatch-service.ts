@@ -7,6 +7,11 @@ import type { AppEnv } from '../config/schema.js';
 import { EventService } from './event-service.js';
 import { readWorkflowActivationTimingDefaults } from './platform-timing-defaults.js';
 import { buildGitRemoteResourceBindings, resolveWorkspaceStorageBinding } from './workspace-storage.js';
+import {
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import {
   readRequiredPositiveIntegerRuntimeDefault,
@@ -49,6 +54,9 @@ const IMMEDIATE_QUEUE_DISPATCH_EVENT_TYPES = [
 const ACTIVATION_TASK_REQUEST_ID_PATTERN = /^activation:([^:]+):dispatch:(\d+)$/;
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const DEFAULT_REPOSITORY_TASK_TEMPLATE = 'execution-workspace';
+const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+);
 
 interface QueuedActivationRow {
   id: string;
@@ -661,6 +669,15 @@ export class WorkflowActivationDispatchService {
       }
 
       if (existingTask?.kind === 'active' || existingTask?.kind === 'finalized') {
+        logSafetynetTriggered(
+          IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+          'idempotent activation task request returned existing orchestrator task',
+          {
+            workflow_id: activationAnchor.workflow_id,
+            activation_id: activationAnchor.id,
+            request_id: taskRequestId,
+          },
+        );
         if (ownsClient) {
           await client.query('COMMIT');
         }

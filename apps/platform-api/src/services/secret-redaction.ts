@@ -1,4 +1,13 @@
+import {
+  PLATFORM_LOGGING_SECRET_REDACTION_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
+
 const DEFAULT_SECRET_REDACTION = 'redacted://secret';
+export const SECRET_REDACTION_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_LOGGING_SECRET_REDACTION_ID,
+);
 const secretLikeKeyPattern = /(secret|token|password|api[_-]?key|credential|authorization|private[_-]?key|known_hosts|webhook_url)/i;
 const explicitSecretReferencePattern = /secret:[A-Za-z0-9_:-]+/i;
 const exactSecretLikeValuePattern = /^(?:enc:v\d+:.*|Bearer\s+\S+|sk-[A-Za-z0-9_-]+)$/i;
@@ -14,12 +23,16 @@ export function sanitizeSecretLikeValue(
   value: unknown,
   options: SecretRedactionOptions = {},
 ): unknown {
-  return sanitizeValue(
+  const sanitized = sanitizeValue(
     value,
     false,
     options.redactionValue ?? DEFAULT_SECRET_REDACTION,
     options.allowSecretReferences ?? true,
   );
+  if (containsRedactionMarker(sanitized) && !containsRedactionMarker(value)) {
+    logSafetynetTriggered(SECRET_REDACTION_SAFETYNET, 'platform secret redaction applied');
+  }
+  return sanitized;
 }
 
 export function sanitizeSecretLikeRecord(
@@ -108,4 +121,17 @@ function looksLikeJWTLikeToken(value: string) {
     return false;
   }
   return parts.some((part) => /[A-Z0-9]/.test(part));
+}
+
+function containsRedactionMarker(value: unknown): boolean {
+  if (typeof value === 'string') {
+    return value.includes('redacted://');
+  }
+  if (Array.isArray(value)) {
+    return value.some((item) => containsRedactionMarker(item));
+  }
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+  return Object.values(value).some((entry) => containsRedactionMarker(entry));
 }

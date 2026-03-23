@@ -1,6 +1,15 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError } from '../errors/domain-errors.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
+import {
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
+
+export const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+);
 
 interface StoredTaskToolResultRow {
   response: Record<string, unknown>;
@@ -73,6 +82,11 @@ export class TaskToolResultService {
     if (!areJsonValuesEquivalent(existing, response)) {
       throw new ConflictError('task tool request_id replay does not match the stored result');
     }
+    logSafetynetTriggered(
+      IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+      'idempotent task tool mutation replay returned stored result',
+      { task_id: taskId, tool_name: toolName, request_id: requestId },
+    );
     return existing;
   }
 }

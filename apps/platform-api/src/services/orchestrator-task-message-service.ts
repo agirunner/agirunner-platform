@@ -3,6 +3,11 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { NotFoundError, ValidationError } from '../errors/domain-errors.js';
 import { EventService } from './event-service.js';
 import type { WorkerConnectionHub } from './worker-connection-hub.js';
+import {
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
 
 type DeliveryState =
   | 'pending_delivery'
@@ -62,6 +67,10 @@ interface MessageDeliveryReservation {
   row: TaskMessageRow;
   shouldSend: boolean;
 }
+
+const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+);
 
 export class OrchestratorTaskMessageService {
   constructor(
@@ -187,6 +196,11 @@ export class OrchestratorTaskMessageService {
     if (!existing) {
       throw new Error('Failed to load task message after request-id conflict');
     }
+    logSafetynetTriggered(
+      IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+      'idempotent orchestrator task message replay returned stored message',
+      { workflow_id: taskScope.workflow_id, task_id: managedTask.id, request_id: input.request_id },
+    );
     return existing;
   }
 

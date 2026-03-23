@@ -11,6 +11,11 @@ import {
 import { areJsonValuesEquivalent } from './json-equivalence.js';
 import { resolveRelevantHandoffs } from './predecessor-handoff-resolver.js';
 import { sanitizeSecretLikeRecord, sanitizeSecretLikeValue } from './secret-redaction.js';
+import {
+  PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
 import type { EventService } from './event-service.js';
 import {
   enqueueAndDispatchImmediatePlaybookActivation,
@@ -18,6 +23,9 @@ import {
 } from './workflow-immediate-activation.js';
 
 const HANDOFF_SECRET_REDACTION = 'redacted://handoff-secret';
+const HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_ID,
+);
 const TASK_LOCAL_HANDOFF_PATH_PATTERNS = [
   /(?:^|[\s"'`(])(output\/[^\s"'`),\]]+)/i,
   /(?:^|[\s"'`(])(repo\/[^\s"'`),\]]+)/i,
@@ -627,7 +635,7 @@ function buildSystemOwnedRoleData(
       readOptionalPositiveInteger(input.subject_revision)
       ?? readOptionalPositiveInteger(task.input?.subject_revision);
     const subjectRevision = Math.max(persistedRevision, reworkDerivedRevision, inputRevision ?? 0);
-    return sanitizeHandoffRecord({
+    const normalized = sanitizeHandoffRecord({
       ...roleData,
       task_kind: taskKind,
       subject_task_id: task.id,
@@ -635,10 +643,18 @@ function buildSystemOwnedRoleData(
       ...(subjectRevision > 0 ? { subject_revision: subjectRevision } : {}),
       ...(branchId ? { branch_id: branchId } : {}),
     });
+    if (!areJsonValuesEquivalent(roleData, normalized)) {
+      logSafetynetTriggered(
+        HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET,
+        'delivery handoff role_data normalized with system-owned linkage',
+        { task_id: task.id, workflow_id: task.workflow_id },
+      );
+    }
+    return normalized;
   }
 
   const linkage = readAssessmentSubjectLinkage(task.input, task.metadata);
-  return sanitizeHandoffRecord({
+  const normalized = sanitizeHandoffRecord({
     ...roleData,
     task_kind: taskKind,
     ...(linkage.subjectTaskId ? { subject_task_id: linkage.subjectTaskId } : {}),
@@ -647,6 +663,14 @@ function buildSystemOwnedRoleData(
     ...(linkage.subjectRevision !== null ? { subject_revision: linkage.subjectRevision } : {}),
     ...(branchId ? { branch_id: branchId } : {}),
   });
+  if (!areJsonValuesEquivalent(roleData, normalized)) {
+    logSafetynetTriggered(
+      HANDOFF_NORMALIZATION_AND_REPLAY_REPAIR_SAFETYNET,
+      'assessment or approval handoff role_data normalized with subject linkage',
+      { task_id: task.id, workflow_id: task.workflow_id },
+    );
+  }
+  return normalized;
 }
 
 function assertMatchingHandoffReplay(

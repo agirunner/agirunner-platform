@@ -1,5 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const { logSafetynetTriggeredMock } = vi.hoisted(() => ({
+  logSafetynetTriggeredMock: vi.fn(),
+}));
+
+vi.mock('../../src/services/safetynet/logging.js', () => ({
+  logSafetynetTriggered: logSafetynetTriggeredMock,
+}));
+
 import { ConflictError, ValidationError } from '../../src/errors/domain-errors.js';
 import { WorkItemService } from '../../src/services/work-item-service.js';
 
@@ -1578,6 +1586,7 @@ describe('WorkItemService', () => {
   });
 
   it('returns the existing work item when request_id conflicts', async () => {
+    logSafetynetTriggeredMock.mockReset();
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -1675,6 +1684,16 @@ describe('WorkItemService', () => {
     expect(eventService.emit).not.toHaveBeenCalled();
     expect(activationService.enqueueForWorkflow).not.toHaveBeenCalled();
     expect(activationDispatchService.dispatchActivation).not.toHaveBeenCalled();
+    expect(logSafetynetTriggeredMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'platform.control_plane.idempotent_mutation_replay',
+      }),
+      'idempotent work item create replay returned stored work item',
+      expect.objectContaining({
+        workflow_id: 'workflow-1',
+        request_id: 'req-1',
+      }),
+    );
   });
 
   it('rejects a request_id replay when the existing work item does not match the requested mutation', async () => {

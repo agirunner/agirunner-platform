@@ -29,6 +29,7 @@ interface WorkItemContinuityTransitionInput {
   nextExpectedEvent?: string | null;
   blockedOn?: string[] | null;
   activeSubordinateTasks?: string[] | null;
+  safetynetBehaviorId?: string | null;
 }
 
 const CONTINUITY_OPERATION_BY_EVENT: Record<
@@ -89,6 +90,7 @@ export async function logWorkItemContinuityTransition(
         blocked_on: Array.isArray(input.blockedOn) ? input.blockedOn : null,
         active_subordinate_tasks:
           Array.isArray(input.activeSubordinateTasks) ? input.activeSubordinateTasks : null,
+        safetynet_behavior_id: input.safetynetBehaviorId ?? null,
       },
       workflowId: readOptionalString(input.task.workflow_id),
       taskId: readOptionalString(input.task.id),

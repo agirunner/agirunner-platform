@@ -1,6 +1,15 @@
 import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { ConflictError } from '../errors/domain-errors.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
+import {
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+  mustGetSafetynetEntry,
+} from './safetynet/registry.js';
+import { logSafetynetTriggered } from './safetynet/logging.js';
+
+const IDEMPOTENT_MUTATION_REPLAY_SAFETYNET = mustGetSafetynetEntry(
+  PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
+);
 
 interface StoredWorkflowToolResultRow {
   response: Record<string, unknown>;
@@ -73,6 +82,11 @@ export class WorkflowToolResultService {
     if (!areJsonValuesEquivalent(existing, response)) {
       throw new ConflictError('workflow tool request_id replay does not match the stored result');
     }
+    logSafetynetTriggered(
+      IDEMPOTENT_MUTATION_REPLAY_SAFETYNET,
+      'idempotent workflow tool mutation replay returned stored result',
+      { workflow_id: workflowId, tool_name: toolName, request_id: requestId },
+    );
     return existing;
   }
 
