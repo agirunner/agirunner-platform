@@ -50,7 +50,7 @@ describe('app trigger routes source', () => {
 
   it('removes deprecated worker, agent, and docker pages in favor of the containers route', () => {
     const source = readSource();
-    expect(source).toContain("../pages/fleet/containers-page.js");
+    expect(source).toContain("../pages/containers/containers-page.js");
     expect(source).toContain('path="/fleet/containers"');
     expect(source).not.toContain("../pages/fleet/worker-list-page.js");
     expect(source).not.toContain("../pages/fleet/warm-pools-page.js");

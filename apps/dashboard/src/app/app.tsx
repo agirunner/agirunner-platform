@@ -83,7 +83,7 @@ const WebhooksPage = lazyWithRetry(() => import('../pages/webhooks/webhooks-page
 const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
 const AgentProtocolsPage = lazyWithRetry(() => import('../pages/agent-protocols/agent-protocols-page.js').then((m) => ({ default: m.AgentProtocolsPage })));
 
-const ContainersPage = lazyWithRetry(() => import('../pages/fleet/containers-page.js').then((m) => ({ default: m.ContainersPage })));
+const ContainersPage = lazyWithRetry(() => import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })));
 
 const ApiKeyPage = lazyWithRetry(() => import('../pages/governance/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
 const UserManagementPage = lazyWithRetry(() => import('../pages/governance/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
