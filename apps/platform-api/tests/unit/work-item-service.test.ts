@@ -601,6 +601,57 @@ describe('WorkItemService', () => {
     expect((workItem as Record<string, unknown>).assessment_status).toBeNull();
   });
 
+  it('surfaces branch posture on workflow work item reads', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_work_items wi')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          expect(sql).toContain('wi.branch_id');
+          expect(sql).toContain('workflow_branches');
+          expect(sql).toContain('branch_status');
+          return {
+            rows: [
+              {
+                id: 'wi-branch-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                branch_id: 'branch-1',
+                branch_status: 'active',
+                stage_name: 'publication',
+                title: 'Deprecated release branch',
+                column_id: 'planned',
+                task_count: '0',
+                children_count: '0',
+                children_completed: '0',
+                current_subject_revision: null,
+                required_assessment_count: 0,
+                approved_assessment_count: 0,
+                blocking_assessment_count: 0,
+                pending_assessment_count: 0,
+                retained_assessment_count: 0,
+                invalidated_assessment_count: 0,
+                assessment_status: null,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { enqueueForWorkflow: vi.fn() } as never,
+      { dispatchActivation: vi.fn() } as never,
+    );
+
+    const [workItem] = await service.listWorkflowWorkItems('tenant-1', 'workflow-1');
+
+    expect((workItem as Record<string, unknown>).branch_id).toBe('branch-1');
+    expect((workItem as Record<string, unknown>).branch_status).toBe('active');
+  });
+
   it('rejects the immediate successor when the predecessor output is still pending required assessment', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

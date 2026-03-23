@@ -9,6 +9,7 @@ export interface CreateTaskInput {
   priority?: string;
   workflow_id?: string;
   work_item_id?: string;
+  branch_id?: string;
   workspace_id?: string;
   stage_name?: string;
   activation_id?: string;

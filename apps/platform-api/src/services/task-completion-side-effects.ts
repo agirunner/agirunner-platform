@@ -14,6 +14,7 @@ import { resolveAssessmentOutcomeAction } from './playbook-governance-policy.js'
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from './planned-work-item-auto-close.js';
 import { blockWorkflowWorkItem } from './work-item-blocking.js';
+import { terminateWorkflowBranch } from './workflow-branch-service.js';
 import { openWorkItemEscalation } from './work-item-escalations.js';
 import type {
   WorkItemCompletionOutcome,
@@ -498,6 +499,30 @@ async function maybeApplyExplicitAssessmentOutcomeAction(
     });
     return true;
   }
+  if (outcomeAction.action === 'terminate_branch') {
+    const branchId = readBranchId(completedTask) ?? readBranchId(subjectTask);
+    if (!branchId) {
+      return false;
+    }
+    await applyAssessmentBranchTerminationAction(client, {
+      tenantId: identity.tenantId,
+      workflowId,
+      assessmentTaskId,
+      assessmentWorkItemId: workItemId,
+      subjectTaskId: asOptionalString(subjectTask.id),
+      subjectWorkItemId,
+      branchId,
+      decisionState,
+      feedback,
+      resolutionSource: candidates.resolutionSource,
+      resolutionGate: resolutionGate.reason,
+      explicitSubjectTaskId: candidates.explicitSubjectTaskId,
+      eventService,
+      logService,
+      completedTask,
+    });
+    return true;
+  }
 
   return false;
 }
@@ -521,6 +546,10 @@ interface AssessmentExplicitOutcomeContext {
 
 interface AssessmentEscalationContext extends AssessmentExplicitOutcomeContext {
   subjectRevision: number | null;
+}
+
+interface AssessmentBranchTerminationContext extends AssessmentExplicitOutcomeContext {
+  branchId: string;
 }
 
 async function applyAssessmentBlockSubjectAction(
@@ -614,6 +643,54 @@ async function applyAssessmentEscalationAction(
   await logTaskGovernanceTransition(context.logService, {
     tenantId: context.tenantId,
     operation: 'task.assessment_escalated.applied',
+    executor: client,
+    task: context.completedTask,
+    payload,
+  });
+}
+
+async function applyAssessmentBranchTerminationAction(
+  client: DatabaseClient,
+  context: AssessmentBranchTerminationContext,
+) {
+  await terminateWorkflowBranch(client, {
+    tenantId: context.tenantId,
+    workflowId: context.workflowId,
+    branchId: context.branchId,
+    terminatedByType: 'task',
+    terminatedById: context.assessmentTaskId,
+    terminationReason: context.feedback,
+  });
+
+  const payload = {
+    event_type: 'task.assessment_branch_terminated',
+    workflow_id: context.workflowId,
+    assessment_task_id: context.assessmentTaskId,
+    assessment_task_work_item_id: context.assessmentWorkItemId,
+    subject_task_id: context.subjectTaskId,
+    subject_work_item_id: context.subjectWorkItemId,
+    branch_id: context.branchId,
+    decision_state: context.decisionState,
+    outcome_action: 'terminate_branch',
+    resolution_source: context.resolutionSource,
+    resolution_gate: context.resolutionGate,
+    explicit_subject_task_id: context.explicitSubjectTaskId,
+  };
+  await context.eventService.emit(
+    {
+      tenantId: context.tenantId,
+      type: 'task.assessment_branch_terminated',
+      entityType: 'task',
+      entityId: context.assessmentTaskId,
+      actorType: 'system',
+      actorId: 'assessment_resolver',
+      data: payload,
+    },
+    client,
+  );
+  await logTaskGovernanceTransition(context.logService, {
+    tenantId: context.tenantId,
+    operation: 'task.assessment_branch_terminated.applied',
     executor: client,
     task: context.completedTask,
     payload,
@@ -1274,6 +1351,19 @@ async function shouldQueueDependentTask(
 
 function asOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readBranchId(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  const direct = asOptionalString(record.branch_id);
+  if (direct) {
+    return direct;
+  }
+  const metadata = asRecord(record.metadata);
+  return asOptionalString(metadata.branch_id);
 }
 
 function readInteger(value: unknown) {

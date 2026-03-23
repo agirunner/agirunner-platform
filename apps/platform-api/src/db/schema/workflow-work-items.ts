@@ -14,6 +14,7 @@ import {
 import { taskPriorityEnum } from './enums.js';
 import { tenants } from './tenants.js';
 import { workflows } from './workflows.js';
+import { workflowBranches } from './workflow-branches.js';
 
 export const workflowWorkItems = pgTable(
   'workflow_work_items',
@@ -26,6 +27,7 @@ export const workflowWorkItems = pgTable(
       .notNull()
       .references(() => workflows.id),
     parentWorkItemId: uuid('parent_work_item_id').references((): AnyPgColumn => workflowWorkItems.id),
+    branchId: uuid('branch_id').references(() => workflowBranches.id),
     stageName: text('stage_name').notNull(),
     title: text('title').notNull(),
     goal: text('goal'),
@@ -57,5 +59,8 @@ export const workflowWorkItems = pgTable(
     index('idx_workflow_work_items_parent')
       .on(table.tenantId, table.parentWorkItemId)
       .where(sql`${table.parentWorkItemId} IS NOT NULL`),
+    index('idx_workflow_work_items_branch')
+      .on(table.tenantId, table.workflowId, table.branchId)
+      .where(sql`${table.branchId} IS NOT NULL`),
   ],
 );

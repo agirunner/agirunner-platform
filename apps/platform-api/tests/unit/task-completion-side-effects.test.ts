@@ -1942,4 +1942,143 @@ describe('applyTaskCompletionSideEffects', () => {
       client,
     );
   });
+
+  it('terminates the authored branch when assessment policy maps a rejected decision to terminate_branch', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count = $3')) {
+          return {
+            rows: [{ completion: 'full', resolution: 'rejected', summary: 'Terminate the deprecated branch.' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT p.definition') && sql.includes('FROM workflows w')) {
+          return {
+            rows: [{
+              definition: {
+                process_instructions: 'Assessors may terminate deprecated release branches.',
+                roles: ['release-editor', 'policy-auditor'],
+                board: { columns: [{ id: 'draft', label: 'Draft' }] },
+                checkpoints: [{ name: 'publication', goal: 'Publication assessment', human_gate: false }],
+                assessment_rules: [{
+                  subject_role: 'release-editor',
+                  assessed_by: 'policy-auditor',
+                  required: true,
+                  decision_states: ['approved', 'rejected'],
+                  outcome_actions: {
+                    rejected: { action: 'terminate_branch' },
+                  },
+                }],
+                branch_policies: [{
+                  branch_key: 'deprecated-release',
+                  termination_policy: 'stop_branch_and_descendants',
+                }],
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('AND state = ANY($4::task_state[])')) {
+          return {
+            rows: [{
+              id: 'task-editor',
+              workflow_id: 'workflow-1',
+              work_item_id: 'branch-item',
+              role: 'release-editor',
+              state: 'completed',
+              branch_id: 'branch-1',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_branches')) {
+          return {
+            rows: [{
+              id: 'branch-1',
+              parent_branch_id: null,
+              branch_key: 'deprecated-release',
+              termination_policy: 'stop_branch_and_descendants',
+              branch_status: 'active',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('UPDATE workflow_branches') && sql.includes("branch_status = 'terminated'")) {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes('branch_id = ANY')) {
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('UPDATE tasks') && sql.includes('branch_id = ANY')) {
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 1 };
+      }),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'publisher',
+        nextExpectedAction: 'handoff',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedAssessmentExpectation: true,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-policy',
+        workflow_id: 'workflow-1',
+        work_item_id: 'policy-item',
+        role: 'policy-auditor',
+        stage_name: 'publication',
+        is_orchestrator_task: false,
+        input: { subject_task_id: 'task-editor', subject_revision: 1, branch_id: 'branch-1' },
+        metadata: {
+          task_kind: 'assessment',
+          subject_task_id: 'task-editor',
+          subject_revision: 1,
+          branch_id: 'branch-1',
+        },
+        output: { verdict: 'rejected' },
+      },
+      client as never,
+    );
+
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.assessment_branch_terminated',
+        entityId: 'task-policy',
+        actorId: 'assessment_resolver',
+        data: expect.objectContaining({
+          subject_task_id: 'task-editor',
+          subject_work_item_id: 'branch-item',
+          branch_id: 'branch-1',
+          outcome_action: 'terminate_branch',
+        }),
+      }),
+      client,
+    );
+  });
 });

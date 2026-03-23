@@ -50,6 +50,8 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   id: string;
   workflow_id: string;
   parent_work_item_id: string | null;
+  branch_id?: string | null;
+  branch_status?: 'active' | 'completed' | 'blocked' | 'terminated' | null;
   stage_name: string | null;
   column_id: string | null;
   next_expected_actor: string | null;
@@ -120,6 +122,7 @@ const WORK_ITEM_BASE_COLUMNS = [
   'id',
   'workflow_id',
   'parent_work_item_id',
+  'branch_id',
   'request_id',
   'stage_name',
   'title',
@@ -977,6 +980,7 @@ export class WorkItemService {
 
     const result = await this.pool.query(
       `SELECT ${workItemColumnList('wi')},
+              branch.branch_status,
               COUNT(DISTINCT t.id)::int AS task_count,
               COUNT(DISTINCT child.id)::int AS children_count,
               COUNT(DISTINCT child.id) FILTER (WHERE child.completed_at IS NOT NULL)::int AS children_completed,
@@ -1024,6 +1028,10 @@ export class WorkItemService {
            ON ws.tenant_id = wi.tenant_id
           AND ws.workflow_id = wi.workflow_id
           AND ws.name = wi.stage_name
+         LEFT JOIN workflow_branches branch
+           ON branch.tenant_id = wi.tenant_id
+          AND branch.workflow_id = wi.workflow_id
+          AND branch.id = wi.branch_id
          LEFT JOIN LATERAL (
            SELECT th.completion AS latest_handoff_completion,
                   th.resolution AS latest_handoff_resolution,
@@ -1186,6 +1194,7 @@ export class WorkItemService {
                  assessment_rollup.blocking_assessment_count,
                  assessment_rollup.retained_assessment_count,
                  assessment_rollup.invalidated_assessment_count,
+                 branch.branch_status,
                  latest_gate.gate_status,
                  latest_gate.gate_decision_feedback,
                  latest_gate.gate_decided_at
@@ -1315,6 +1324,11 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     id: String(sanitizedRow.id ?? ''),
     workflow_id: String(sanitizedRow.workflow_id ?? ''),
     parent_work_item_id: typeof sanitizedRow.parent_work_item_id === 'string' ? sanitizedRow.parent_work_item_id : null,
+    branch_id: typeof sanitizedRow.branch_id === 'string' ? sanitizedRow.branch_id : null,
+    branch_status:
+      typeof sanitizedRow.branch_status === 'string'
+        ? sanitizedRow.branch_status as WorkItemReadModel['branch_status']
+        : null,
     stage_name: typeof sanitizedRow.stage_name === 'string' ? sanitizedRow.stage_name : null,
     column_id: typeof sanitizedRow.column_id === 'string' ? sanitizedRow.column_id : null,
     next_expected_actor:

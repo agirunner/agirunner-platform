@@ -20,6 +20,7 @@ import { workspaces } from './workspaces.js';
 import { tenants } from './tenants.js';
 import { workers } from './workers.js';
 import { workflowActivations } from './workflow-activations.js';
+import { workflowBranches } from './workflow-branches.js';
 import { workflowWorkItems } from './workflow-work-items.js';
 
 export const tasks = pgTable(
@@ -31,6 +32,7 @@ export const tasks = pgTable(
       .references(() => tenants.id),
     workflowId: uuid('workflow_id').references(() => workflows.id),
     workItemId: uuid('work_item_id').references(() => workflowWorkItems.id),
+    branchId: uuid('branch_id').references(() => workflowBranches.id),
     workspaceId: uuid('workspace_id').references(() => workspaces.id),
     title: text('title').notNull(),
     role: text('role'),
@@ -77,6 +79,9 @@ export const tasks = pgTable(
     index('idx_tasks_tenant').on(table.tenantId),
     index('idx_tasks_workflow').on(table.workflowId),
     index('idx_tasks_work_item').on(table.tenantId, table.workItemId),
+    index('idx_tasks_branch')
+      .on(table.tenantId, table.workflowId, table.branchId)
+      .where(sql`${table.branchId} IS NOT NULL`),
     index('idx_tasks_workspace').on(table.workspaceId),
     index('idx_tasks_activation').on(table.tenantId, table.activationId),
     index('idx_tasks_stage').on(table.tenantId, table.workflowId, table.stageName),

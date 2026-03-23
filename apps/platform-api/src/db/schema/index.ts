@@ -6,6 +6,7 @@ export * from './workspace-spec-versions.js';
 export * from './playbooks.js';
 export * from './workflows.js';
 export * from './workflow-work-items.js';
+export * from './workflow-branches.js';
 export * from './workflow-subject-escalations.js';
 export * from './workflow-activations.js';
 export * from './workflow-stages.js';

@@ -46,6 +46,8 @@ interface ParentTaskRow {
 interface LinkedWorkItemRow {
   workflow_id: string;
   parent_work_item_id: string | null;
+  branch_id: string | null;
+  branch_status: 'active' | 'completed' | 'blocked' | 'terminated' | null;
   stage_name: string;
   workflow_lifecycle: string | null;
   stage_status: string | null;
@@ -110,6 +112,7 @@ export class TaskWriteService {
     const dependencies = normalizedInput.depends_on ?? [];
     const metadata = {
       ...(normalizedInput.metadata ?? {}),
+      ...(normalizedInput.branch_id ? { branch_id: normalizedInput.branch_id } : {}),
       ...selectPersistedSubjectLinkage(normalizedInput),
       ...(normalizedInput.retry_policy
         ? { lifecycle_policy: { retry_policy: readTemplateLifecyclePolicy({ retry_policy: normalizedInput.retry_policy }, 'retry_policy')?.retry_policy } }
@@ -170,8 +173,8 @@ export class TaskWriteService {
       `INSERT INTO tasks (
         tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
         requires_approval, requires_assessment, input, context, role_config, environment,
-        resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, metadata
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28)
+        resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, branch_id, metadata
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
       ON CONFLICT DO NOTHING
       RETURNING *`,
       [
@@ -202,6 +205,7 @@ export class TaskWriteService {
         normalizedInput.max_retries ?? 0,
         normalizedInput.max_iterations ?? null,
         normalizedInput.llm_max_retries ?? null,
+        normalizedInput.branch_id ?? null,
         metadata,
       ],
     );
@@ -363,6 +367,16 @@ export class TaskWriteService {
     if (input.workflow_id && linkedWorkItem.workflow_id !== input.workflow_id) {
       throw new ValidationError('work_item_id must belong to workflow_id');
     }
+    if (linkedWorkItem.branch_status === 'terminated') {
+      throw new ConflictError('Cannot create new tasks for terminated branch');
+    }
+    if (
+      input.branch_id
+      && linkedWorkItem.branch_id
+      && linkedWorkItem.branch_id !== input.branch_id
+    ) {
+      throw new ValidationError('branch_id must match the linked work item branch');
+    }
     if (input.stage_name && linkedWorkItem.stage_name !== input.stage_name) {
       throw new ValidationError(
         `stage_name '${input.stage_name}' does not match linked work item stage ` +
@@ -460,6 +474,7 @@ export class TaskWriteService {
     return {
       ...input,
       workflow_id: input.workflow_id ?? linkedWorkItem.workflow_id,
+      branch_id: input.branch_id ?? linkedWorkItem.branch_id ?? undefined,
       stage_name: input.stage_name ?? linkedWorkItem.stage_name,
     };
   }
@@ -472,6 +487,8 @@ export class TaskWriteService {
     const result = await db.query<LinkedWorkItemRow>(
       `SELECT wi.workflow_id,
               wi.parent_work_item_id,
+              wi.branch_id,
+              branch.branch_status,
               wi.stage_name,
               wi.owner_role,
               wi.next_expected_actor,
@@ -487,6 +504,10 @@ export class TaskWriteService {
            ON ws.tenant_id = wi.tenant_id
           AND ws.workflow_id = wi.workflow_id
           AND ws.name = wi.stage_name
+         LEFT JOIN workflow_branches branch
+           ON branch.tenant_id = wi.tenant_id
+          AND branch.workflow_id = wi.workflow_id
+          AND branch.id = wi.branch_id
         WHERE wi.tenant_id = $1
           AND wi.id = $2`,
       [tenantId, workItemId],
@@ -1121,6 +1142,7 @@ function buildExpectedCreateTaskReplay(
   return {
     workflow_id: input.workflow_id ?? null,
     work_item_id: input.work_item_id ?? null,
+    branch_id: input.branch_id ?? null,
     workspace_id: input.workspace_id ?? null,
     role: input.role ?? null,
     stage_name: input.stage_name ?? null,
@@ -1154,6 +1176,7 @@ function buildExpectedCreateTaskIntent(
     input: input.input ?? {},
     workflow_id: input.workflow_id ?? null,
     work_item_id: input.work_item_id ?? null,
+    branch_id: input.branch_id ?? null,
     workspace_id: input.workspace_id ?? null,
     role: input.role ?? null,
     stage_name: input.stage_name ?? null,
@@ -1183,6 +1206,7 @@ function assertMatchingCreateTaskReplay(
   if (
     (existing.workflow_id ?? null) !== expected.workflow_id ||
     (existing.work_item_id ?? null) !== expected.work_item_id ||
+    (existing.branch_id ?? null) !== expected.branch_id ||
     (existing.workspace_id ?? null) !== expected.workspace_id ||
     (existing.role ?? null) !== expected.role ||
     (existing.stage_name ?? null) !== expected.stage_name ||
@@ -1218,6 +1242,7 @@ function matchesCreateTaskIntent(
     areJsonValuesEquivalent(asRecord(existing.input), expected.input) &&
     (existing.workflow_id ?? null) === expected.workflow_id &&
     (existing.work_item_id ?? null) === expected.work_item_id &&
+    (existing.branch_id ?? null) === expected.branch_id &&
     (existing.workspace_id ?? null) === expected.workspace_id &&
     (existing.role ?? null) === expected.role &&
     (existing.stage_name ?? null) === expected.stage_name &&
@@ -1248,7 +1273,7 @@ function hasMatchingCreateMetadata(
 
 function selectReplayStableMetadata(metadata: Record<string, unknown>) {
   const stable: Record<string, unknown> = {};
-  for (const key of ['lifecycle_policy', 'task_type', 'task_kind', 'credential_refs', 'assessment_prompt']) {
+  for (const key of ['branch_id', 'lifecycle_policy', 'task_type', 'task_kind', 'credential_refs', 'assessment_prompt']) {
     if (key in metadata) {
       stable[key] = metadata[key];
     }
