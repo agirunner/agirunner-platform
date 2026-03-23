@@ -1,0 +1,146 @@
+{
+  "name": "Default Image Assessment Flow Pipeline",
+  "slug": "live-test-default-image-assessment-flow-v1",
+  "description": "Repository-backed assessment workflow that relies on the default execution image.",
+  "outcome": "The default role image path remains valid for generic assessment-driven work.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The planning lead frames the repository change. The implementation engineer delivers it. The acceptance assessor evaluates it. The release coordinator packages the approved result using the default execution image path only.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      },
+      {
+        "name": "scenario_name",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Stable scenario identifier that the CLI must echo in its assessment output"
+      },
+      {
+        "name": "assessment_contract",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Exact approval contract the acceptance assessor must enforce"
+      }
+    ],
+    "roles": [
+      "default-image-solution-architect",
+      "default-image-implementation-engineer",
+      "default-image-acceptance-assessor",
+      "default-image-release-coordinator"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "planning-pass",
+        "goal": "Technical direction exists.",
+        "involves": [
+          "default-image-solution-architect"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "The change is implemented and assessed.",
+        "involves": [
+          "default-image-implementation-engineer",
+          "default-image-acceptance-assessor"
+        ]
+      },
+      {
+        "name": "release-readiness",
+        "goal": "Release packaging is complete.",
+        "involves": [
+          "default-image-release-coordinator"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "planning-pass",
+        "goal": "Technical direction exists.",
+        "human_gate": false,
+        "entry_criteria": "The scoped request is available."
+      },
+      {
+        "name": "implementation",
+        "goal": "The change is implemented and assessed.",
+        "human_gate": false,
+        "entry_criteria": "Blueprint output is ready."
+      },
+      {
+        "name": "release-readiness",
+        "goal": "Release packaging is complete.",
+        "human_gate": false,
+        "entry_criteria": "The implementation assessment has cleared."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "default-image-solution-architect",
+        "to_role": "default-image-implementation-engineer",
+        "required": true
+      },
+      {
+        "from_role": "default-image-acceptance-assessor",
+        "to_role": "default-image-release-coordinator",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 3,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "default-image-implementation-engineer",
+        "assessed_by": "default-image-acceptance-assessor",
+        "checkpoint": "implementation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

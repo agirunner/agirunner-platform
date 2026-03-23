@@ -1,0 +1,37 @@
+{
+  "name": "host-directory-parallel-assessors",
+  "profile": "host-directory-parallel-assessors",
+  "workflow": {
+    "name": "Host Directory Parallel Assessors",
+    "goal": "Exercise required parallel assessment over host-mounted content before release packaging.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": false,
+    "storage": {
+      "type": "host_directory"
+    },
+    "memory": {
+      "workspace_kind": "host-directory"
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "host_files": [
+      {
+        "path": "README.md"
+      }
+    ]
+  },
+  "coverage": {
+    "assessor_cardinality": [
+      "two_required"
+    ],
+    "storage_execution": [
+      "host_directory_workspace"
+    ]
+  }
+}

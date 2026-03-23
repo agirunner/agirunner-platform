@@ -1,0 +1,35 @@
+{
+  "name": "default-image-assessment-flow",
+  "profile": "default-image-assessment-flow",
+  "workflow": {
+    "name": "Default Image Assessment Flow",
+    "goal": "Verify that a generic assessment-driven repository workflow succeeds using only the default role image path.",
+    "parameters": {
+      "scenario_name": "default-image-assessment-flow",
+      "assessment_contract": "Approve the first implementation revision when the seeded verification path passes and the delivery output stays within the default image tool contract."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {
+      "instructions": {
+        "content": "Use the default execution environment only. Keep the existing seeded stack and verify with ./scripts/verify.sh.",
+        "format": "markdown"
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "storage_execution": [
+      "default_image"
+    ],
+    "delivery_paths": [
+      "assessment_then_successor"
+    ]
+  }
+}

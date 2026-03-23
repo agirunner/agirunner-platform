@@ -1,0 +1,39 @@
+{
+  "name": "content-multiple-assessments-then-successor",
+  "profile": "content-multiple-assessments-then-successor",
+  "workflow": {
+    "name": "Content Multiple Assessments Then Successor",
+    "goal": "Draft a publishable content package that requires editorial quality and brand-risk approval before publication packaging.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "required_assessment_sets": [
+      {
+        "subject_role": "content-successor-delivery-engineer",
+        "required_assessors": [
+          "content-successor-quality-assessor",
+          "content-successor-security-assessor"
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "delivery_paths": [
+      "assessment_then_successor"
+    ],
+    "assessor_cardinality": [
+      "two_required"
+    ],
+    "multi_assessor_outcomes": [
+      "all_approve"
+    ]
+  }
+}

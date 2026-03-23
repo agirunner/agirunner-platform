@@ -1,0 +1,25 @@
+{
+  "name": "custom-checkpoint-names-multi-checkpoint",
+  "profile": "custom-checkpoint-names-multi-checkpoint",
+  "workflow": {
+    "name": "Custom Checkpoint Names Multi Checkpoint",
+    "goal": "Prove that arbitrary checkpoint names work across a multi-checkpoint workflow with assessment and packaging.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "playbook_shapes": [
+      "custom_checkpoint_names",
+      "multiple_checkpoints"
+    ]
+  }
+}

@@ -1,0 +1,5 @@
+Default release template
+
+- status: ready
+- audience: operators
+- channel: internal

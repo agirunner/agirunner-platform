@@ -1,0 +1,35 @@
+{
+  "name": "sdlc-required-plus-optional-assessor-approve",
+  "profile": "sdlc-required-plus-optional-assessor-approve",
+  "workflow": {
+    "name": "SDLC Required Plus Optional Assessor Approve",
+    "goal": "Exercise a workflow where both the required assessor and an instantiated optional assessor approve before release packaging.",
+    "parameters": {
+      "change_request": "Add a deterministic low-risk report command to the seeded CLI and verify with ./scripts/verify.sh.",
+      "optional_assessor_contract": "Instantiate the optional security assessor and approve the first revision if it stays deterministic, local, and low risk."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {
+      "instructions": {
+        "content": "Keep the seeded Python CLI stack and verify with ./scripts/verify.sh.",
+        "format": "markdown"
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "assessor_cardinality": [
+      "mixed_required_optional"
+    ],
+    "multi_assessor_outcomes": [
+      "all_approve"
+    ]
+  }
+}

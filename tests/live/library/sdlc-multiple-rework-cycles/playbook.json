@@ -1,0 +1,164 @@
+{
+  "name": "SDLC Multiple Rework Cycles Pipeline",
+  "slug": "live-test-sdlc-multiple-rework-cycles-v1",
+  "description": "Software-delivery workflow with more than one real rework cycle before completion.",
+  "outcome": "Repeated subject rework remains revision-aware and does not corrupt lineage.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The workflow intentionally requires more than one rework cycle before the release candidate is accepted. Older assessment state must never clear a newer revision.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "multi-rework-architect",
+      "multi-rework-engineer",
+      "multi-rework-quality-assessor",
+      "multi-rework-integration-assessor",
+      "multi-rework-release-coordinator"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "architecture-pass",
+        "goal": "Design direction exists.",
+        "involves": [
+          "multi-rework-architect"
+        ]
+      },
+      {
+        "name": "implementation-pass",
+        "goal": "Implementation revisions are assessed.",
+        "involves": [
+          "multi-rework-engineer",
+          "multi-rework-quality-assessor",
+          "multi-rework-integration-assessor"
+        ]
+      },
+      {
+        "name": "release-pass",
+        "goal": "Release packaging is validated.",
+        "involves": [
+          "multi-rework-release-coordinator",
+          "multi-rework-quality-assessor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "architecture-pass",
+        "goal": "Design direction exists.",
+        "human_gate": false,
+        "entry_criteria": "The request is defined."
+      },
+      {
+        "name": "implementation-pass",
+        "goal": "Implementation revisions are assessed.",
+        "human_gate": false,
+        "entry_criteria": "Architecture output is ready."
+      },
+      {
+        "name": "release-pass",
+        "goal": "Release packaging is validated.",
+        "human_gate": false,
+        "entry_criteria": "Active implementation revision is approved."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "multi-rework-architect",
+        "to_role": "multi-rework-engineer",
+        "required": true
+      },
+      {
+        "from_role": "multi-rework-quality-assessor",
+        "to_role": "multi-rework-release-coordinator",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 4,
+      "max_active_tasks_per_work_item": 2,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "multi-rework-engineer",
+        "assessed_by": "multi-rework-quality-assessor",
+        "checkpoint": "implementation-pass",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "route_to_role",
+            "role": "multi-rework-architect"
+          }
+        }
+      },
+      {
+        "subject_role": "multi-rework-engineer",
+        "assessed_by": "multi-rework-integration-assessor",
+        "checkpoint": "implementation-pass",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "escalate"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      },
+      {
+        "subject_role": "multi-rework-release-coordinator",
+        "assessed_by": "multi-rework-quality-assessor",
+        "checkpoint": "release-pass",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

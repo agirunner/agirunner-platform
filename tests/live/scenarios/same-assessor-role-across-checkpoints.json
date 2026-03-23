@@ -1,0 +1,24 @@
+{
+  "name": "same-assessor-role-across-checkpoints",
+  "profile": "same-assessor-role-across-checkpoints",
+  "workflow": {
+    "name": "Same Assessor Role Across Checkpoints",
+    "goal": "Exercise a workflow where the same assessor role is reused across multiple checkpoints.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "playbook_shapes": [
+      "assessor_reused_across_checkpoints"
+    ]
+  }
+}

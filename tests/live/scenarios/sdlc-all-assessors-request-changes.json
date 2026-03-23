@@ -1,0 +1,33 @@
+{
+  "name": "sdlc-all-assessors-request-changes",
+  "profile": "sdlc-all-assessors-request-changes",
+  "workflow": {
+    "name": "SDLC All Assessors Request Changes",
+    "goal": "Exercise a delivery flow where both required assessors request changes before the final implementation revision clears.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "multi_assessor_outcomes": [
+      "request_changes_plus_approve"
+    ],
+    "subject_revisions": [
+      "one_rework"
+    ]
+  }
+}

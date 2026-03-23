@@ -1,0 +1,181 @@
+{
+  "name": "SDLC Optional Assessor Fails Required Pass Pipeline",
+  "slug": "live-test-sdlc-optional-assessor-fails-required-pass-v1",
+  "description": "Software-delivery workflow where the required assessor passes but the optional assessor forces one rework cycle.",
+  "outcome": "Once instantiated, optional assessor output must still be respected even though it is not structurally required for every scenario.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The required assessor approves the main implementation quality. The optional security assessor is instantiated and must request changes on the first revision before the later revision clears.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      },
+      {
+        "name": "change_request",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Concrete repository change to implement in the seeded CLI workspace"
+      },
+      {
+        "name": "optional_assessor_contract",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "When to skip or instantiate the optional assessor and what it must enforce"
+      },
+      {
+        "name": "initial_revision_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 1 must deliver before any required security rework is applied"
+      },
+      {
+        "name": "rework_completion_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 2 must add to satisfy the optional security assessor after request_changes"
+      }
+    ],
+    "roles": [
+      "opt-fails-design-architect",
+      "opt-fails-delivery-engineer",
+      "opt-fails-quality-assessor",
+      "opt-fails-security-assessor",
+      "opt-fails-release-manager"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "design-brief",
+        "goal": "The design is ready.",
+        "involves": [
+          "opt-fails-design-architect"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "The change is implemented and assessed.",
+        "involves": [
+          "opt-fails-delivery-engineer",
+          "opt-fails-quality-assessor",
+          "opt-fails-security-assessor"
+        ]
+      },
+      {
+        "name": "release-readiness",
+        "goal": "Release packaging is complete.",
+        "involves": [
+          "opt-fails-release-manager"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "design-brief",
+        "goal": "The design is ready.",
+        "human_gate": false,
+        "entry_criteria": "The request is authored."
+      },
+      {
+        "name": "implementation",
+        "goal": "The change is implemented and assessed.",
+        "human_gate": false,
+        "entry_criteria": "The design brief exists."
+      },
+      {
+        "name": "release-readiness",
+        "goal": "Release packaging is complete.",
+        "human_gate": false,
+        "entry_criteria": "All required assessments are approved."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "opt-fails-design-architect",
+        "to_role": "opt-fails-delivery-engineer",
+        "required": true
+      },
+      {
+        "from_role": "opt-fails-quality-assessor",
+        "to_role": "opt-fails-release-manager",
+        "required": true
+      },
+      {
+        "from_role": "opt-fails-security-assessor",
+        "to_role": "opt-fails-release-manager",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 4,
+      "max_active_tasks_per_work_item": 3,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "opt-fails-delivery-engineer",
+        "assessed_by": "opt-fails-quality-assessor",
+        "checkpoint": "implementation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      },
+      {
+        "subject_role": "opt-fails-delivery-engineer",
+        "assessed_by": "opt-fails-security-assessor",
+        "checkpoint": "implementation",
+        "optional": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "escalate"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

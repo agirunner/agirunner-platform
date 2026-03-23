@@ -33,6 +33,8 @@
   - realistic role and playbook fixtures for the assessment abstraction matrix
 - `lib/`
   - shared API client, catalog, and scenario helpers
+- `live_test_tracker.json`
+  - long-term corpus tracker for all supported scenarios plus documented future-design scenarios that MUST NOT be live-tested yet
 - `scenarios/`
   - scenario JSON files plus thin executable wrappers
 - `tests/`
@@ -79,6 +81,18 @@ The current corpus is intentionally realistic rather than toy-like. It spans:
 - host-directory maintenance flows
 - concurrency and race-condition stress scenarios
 - custom role-image coverage
+
+Long-term corpus planning lives in:
+
+- [live_test_tracker.json](/home/mark/codex/agirunner-platform/tests/live/live_test_tracker.json)
+  - `supported`
+    - every scenario that is currently valid to seed and run
+  - `unsupported_future_design`
+    - scenarios that are intentionally documented but MUST stay out of the live corpus until the product model supports them cleanly
+
+Future-design details for those deferred scenarios live in:
+
+- [unsupported-future-assessment-scenarios.md](/home/mark/codex/agirunner-docs/designv4/unsupported-future-assessment-scenarios.md)
 
 ## Artifacts
 

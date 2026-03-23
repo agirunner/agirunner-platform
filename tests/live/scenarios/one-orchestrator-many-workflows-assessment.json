@@ -1,0 +1,33 @@
+{
+  "name": "one-orchestrator-many-workflows-assessment",
+  "profile": "one-orchestrator-many-workflows-assessment",
+  "workflow": {
+    "name": "One Orchestrator Many Workflows Assessment",
+    "goal": "Exercise a concurrency slice designed for single-orchestrator multiplexing across many workflows.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [
+    {
+      "type": "create_work_items",
+      "dispatch": "parallel",
+      "count": 2,
+      "title_template": "single-orch-{index:02d}",
+      "request_id_template": "single-orch-{index:02d}"
+    }
+  ],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "concurrency": [
+      "multiple_workflows_concurrent",
+      "one_orchestrator_many_workflows"
+    ]
+  }
+}

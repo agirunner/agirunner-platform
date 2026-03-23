@@ -1,0 +1,32 @@
+{
+  "name": "memory-only-no-checkpoint-assessment",
+  "profile": "memory-only-no-checkpoint-assessment",
+  "workflow": {
+    "name": "Memory Only No Checkpoint Assessment",
+    "goal": "Produce and assess a memory-backed packet without checkpoints before final release editing.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": false,
+    "storage": {
+      "type": "workspace_artifacts"
+    },
+    "memory": {
+      "existing_context": "This workflow is intentionally memory-heavy and checkpoint-free."
+    },
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "playbook_shapes": [
+      "no_checkpoints"
+    ],
+    "storage_execution": [
+      "memory_heavy"
+    ]
+  }
+}

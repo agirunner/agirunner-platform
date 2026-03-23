@@ -1,0 +1,24 @@
+{
+  "name": "same-subject-role-different-assessors",
+  "profile": "same-subject-role-different-assessors",
+  "workflow": {
+    "name": "Same Subject Role Different Assessors",
+    "goal": "Prove that one subject role can be assessed by multiple distinct assessor roles before successor work continues.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "playbook_shapes": [
+      "subject_role_different_assessors"
+    ]
+  }
+}

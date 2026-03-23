@@ -1,0 +1,101 @@
+{
+  "name": "Memory Only No Checkpoint Assessment Pipeline",
+  "slug": "live-test-memory-only-no-checkpoint-assessment-v1",
+  "description": "Memory-heavy artifact workflow with assessment but no checkpoints.",
+  "outcome": "Workspace-memory-driven work remains valid without milestone checkpoints.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The memory brief lead drafts the output primarily in artifacts and workspace memory. The acceptance assessor reviews it. The release editor finalizes it. This workflow intentionally uses no checkpoints.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "memory-brief-lead",
+      "memory-acceptance-assessor",
+      "memory-release-editor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "memory-flow",
+        "goal": "The memory-backed draft is delivered and assessed.",
+        "involves": [
+          "memory-brief-lead",
+          "memory-acceptance-assessor",
+          "memory-release-editor"
+        ]
+      },
+      {
+        "name": "memory-release",
+        "goal": "The final memory-backed packet is complete.",
+        "involves": [
+          "memory-release-editor"
+        ]
+      }
+    ],
+    "checkpoints": [],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "memory-acceptance-assessor",
+        "to_role": "memory-release-editor",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 3,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "memory-brief-lead",
+        "assessed_by": "memory-acceptance-assessor",
+        "checkpoint": "memory-flow",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "sdlc-one-pending-one-approves",
+  "profile": "sdlc-one-pending-one-approves",
+  "workflow": {
+    "name": "SDLC One Pending One Approves",
+    "goal": "Exercise a delivery flow where one required assessor approves and the other remains pending, blocking successor work.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "active"
+  },
+  "coverage": {
+    "multi_assessor_outcomes": [
+      "pending_plus_approve"
+    ],
+    "successor_gating": [
+      "blocked_all_required_assessors"
+    ]
+  }
+}

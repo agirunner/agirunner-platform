@@ -1,0 +1,32 @@
+{
+  "name": "content-stale-assessment-arrives-after-rework",
+  "profile": "content-stale-assessment-arrives-after-rework",
+  "workflow": {
+    "name": "Content Stale Assessment After Rework",
+    "goal": "Exercise stale late assessment handling after a content draft is reworked to a newer revision.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "draft-pass",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "subject_revisions": [
+      "one_rework",
+      "stale_late_assessment",
+      "invalidate_prior_assessments"
+    ]
+  }
+}

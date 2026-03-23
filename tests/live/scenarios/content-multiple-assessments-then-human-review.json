@@ -1,0 +1,56 @@
+{
+  "name": "content-multiple-assessments-then-human-review",
+  "profile": "content-multiple-assessments-then-human-review",
+  "workflow": {
+    "name": "Content Multiple Assessments Then Human Review",
+    "goal": "Produce a content packet that requires fact-check approval, editorial-policy approval, and human approval before final publication release.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "operator-approval"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "operator-approval"
+        },
+        "expected_actions": [
+          "approve"
+        ]
+      }
+    ],
+    "required_assessment_sets": [
+      {
+        "subject_role": "content-review-research-lead",
+        "required_assessors": [
+          "content-review-fact-check-assessor",
+          "content-review-editorial-policy-assessor"
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "delivery_paths": [
+      "assessment_then_human_review_then_successor"
+    ],
+    "assessor_cardinality": [
+      "two_required"
+    ],
+    "multi_assessor_outcomes": [
+      "all_approve"
+    ]
+  }
+}

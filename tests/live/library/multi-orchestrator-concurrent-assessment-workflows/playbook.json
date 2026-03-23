@@ -1,0 +1,109 @@
+{
+  "name": "Multi Orchestrator Concurrent Assessment Workflows Pipeline",
+  "slug": "live-test-multi-orchestrator-concurrent-assessment-workflows-v1",
+  "description": "Concurrent workflow corpus slice intended for multiple orchestrators.",
+  "outcome": "Multiple orchestrators can coordinate concurrent assessment workflows while preserving correctness.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "This workflow is intended to be run alongside sibling workflows while multiple orchestrators are available. Correctness must not depend on a single orchestrator instance.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "multi-orchestrator-delivery-engineer",
+      "multi-orchestrator-quality-assessor",
+      "multi-orchestrator-compliance-assessor"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "multi-orchestrator-validation",
+        "goal": "Concurrent subjects are delivered and assessed cleanly.",
+        "involves": [
+          "multi-orchestrator-delivery-engineer",
+          "multi-orchestrator-quality-assessor",
+          "multi-orchestrator-compliance-assessor"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "multi-orchestrator-validation",
+        "goal": "Concurrent subjects are delivered and assessed cleanly.",
+        "human_gate": false,
+        "entry_criteria": "Concurrent work items exist."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 10,
+      "max_active_tasks_per_work_item": 3,
+      "allow_parallel_work_items": true
+    },
+    "assessment_rules": [
+      {
+        "subject_role": "multi-orchestrator-delivery-engineer",
+        "assessed_by": "multi-orchestrator-quality-assessor",
+        "checkpoint": "multi-orchestrator-validation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      },
+      {
+        "subject_role": "multi-orchestrator-delivery-engineer",
+        "assessed_by": "multi-orchestrator-compliance-assessor",
+        "checkpoint": "multi-orchestrator-validation",
+        "required": true,
+        "outcome_actions": {
+          "request_changes": {
+            "action": "reopen_subject"
+          },
+          "rejected": {
+            "action": "block_subject"
+          }
+        }
+      }
+    ]
+  }
+}

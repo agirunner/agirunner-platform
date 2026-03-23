@@ -1,0 +1,61 @@
+{
+  "name": "host-directory-human-review-request-changes",
+  "profile": "host-directory-human-review-request-changes",
+  "workflow": {
+    "name": "Host Directory Human Review Request Changes",
+    "goal": "Revise a host-mounted content packet once through human review before final packaging.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": false,
+    "storage": {
+      "type": "host_directory"
+    },
+    "memory": {
+      "workspace_kind": "host-directory"
+    },
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "request_changes"
+    },
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "expected_actions": [
+          "request_changes",
+          "approve"
+        ]
+      }
+    ],
+    "host_files": [
+      {
+        "path": "README.md"
+      }
+    ]
+  },
+  "coverage": {
+    "human_review_outcomes": [
+      "request_changes"
+    ],
+    "storage_execution": [
+      "host_directory_workspace"
+    ]
+  }
+}

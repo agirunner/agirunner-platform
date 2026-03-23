@@ -1,0 +1,52 @@
+{
+  "name": "artifact-only-human-review",
+  "profile": "artifact-only-human-review",
+  "workflow": {
+    "name": "Artifact Only Human Review",
+    "goal": "Produce an artifact-only launch packet that requires human approval before final release assembly.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": false,
+    "storage": {
+      "type": "workspace_artifacts"
+    },
+    "memory": {
+      "workspace_kind": "artifact-only"
+    },
+    "spec": {}
+  },
+  "approvals": [
+    {
+      "match": {
+        "stage_name": "approval-gate"
+      },
+      "action": "approve"
+    }
+  ],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "approval_sequences": [
+      {
+        "match": {
+          "stage_name": "approval-gate"
+        },
+        "expected_actions": [
+          "approve"
+        ]
+      }
+    ]
+  },
+  "coverage": {
+    "delivery_paths": [
+      "human_review_then_successor"
+    ],
+    "human_review_outcomes": [
+      "approved"
+    ],
+    "storage_execution": [
+      "artifact_heavy"
+    ]
+  }
+}

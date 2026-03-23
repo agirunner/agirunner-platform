@@ -1,0 +1,115 @@
+{
+  "name": "Host Directory Human Review Request Changes Pipeline",
+  "slug": "live-test-host-directory-human-review-request-changes-v1",
+  "description": "Host-directory workflow with human review and one routed rework cycle.",
+  "outcome": "A host-mounted content packet returns for revision once before final approval.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The host content strategist drafts the packet in a host-mounted workspace. The host technical editor prepares it. A human review gate requests one revision before approval. The host launch planner packages the final approved packet.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "host-review-product-strategist",
+      "host-review-technical-editor",
+      "host-review-launch-planner"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "drafting",
+        "goal": "A review-ready brief exists.",
+        "involves": [
+          "host-review-product-strategist",
+          "host-review-technical-editor"
+        ]
+      },
+      {
+        "name": "approval-gate",
+        "goal": "A human decision exists for the brief.",
+        "human_gate": true,
+        "involves": []
+      },
+      {
+        "name": "launch-packaging",
+        "goal": "The approved launch packet is ready.",
+        "involves": [
+          "host-review-launch-planner"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "drafting",
+        "goal": "A review-ready brief exists.",
+        "human_gate": false,
+        "entry_criteria": "The authored request is available."
+      },
+      {
+        "name": "approval-gate",
+        "goal": "A human decision exists for the brief.",
+        "human_gate": true,
+        "entry_criteria": "The review-ready brief is complete."
+      },
+      {
+        "name": "launch-packaging",
+        "goal": "The approved launch packet is ready.",
+        "human_gate": false,
+        "entry_criteria": "The human decision is approved."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "host-review-product-strategist",
+        "to_role": "host-review-technical-editor",
+        "required": true
+      },
+      {
+        "from_role": "host-review-technical-editor",
+        "to_role": "host-review-launch-planner",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": []
+  }
+}

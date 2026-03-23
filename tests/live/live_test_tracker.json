@@ -1,0 +1,114 @@
+{
+  "policy": {
+    "goal": "100_percent_supported_behavior_coverage",
+    "default_provider_auth": "openai_oauth",
+    "execution_mode": "single_scenario_sequential_until_explicit_parallel_reenable",
+    "notes": [
+      "Do not build or run unsupported semantics as fake live scenarios.",
+      "Conditional scenarios require product support review before harness creation.",
+      "Every live verdict requires artifact validation, DB inspection, and log anomaly inspection."
+    ]
+  },
+  "supported": {
+    "name": "all_supported_live_scenarios",
+    "total": 42,
+    "scenarios": [
+      "artifact-memory-publishing-approval",
+      "artifact-only-human-review",
+      "concurrency-assessment-race-matrix",
+      "content-direct-successor-no-assessment",
+      "content-multiple-assessments-then-human-review",
+      "content-multiple-assessments-then-successor",
+      "content-no-checkpoint-direct-flow",
+      "content-route-to-role-rework-policy",
+      "content-stale-assessment-arrives-after-rework",
+      "custom-checkpoint-names-multi-checkpoint",
+      "custom-role-image-assessment",
+      "default-image-assessment-flow",
+      "host-directory-content-assessment",
+      "host-directory-human-review-request-changes",
+      "host-directory-parallel-assessors",
+      "memory-only-no-checkpoint-assessment",
+      "multi-active-subjects-same-workflow",
+      "multi-orchestrator-concurrent-assessment-workflows",
+      "one-orchestrator-many-workflows-assessment",
+      "ongoing-intake-assessment-rework",
+      "requirements-human-review-approve",
+      "requirements-human-review-reject",
+      "requirements-human-review-request-changes",
+      "same-assessor-role-across-checkpoints",
+      "same-subject-role-different-assessors",
+      "sdlc-all-assessors-request-changes",
+      "sdlc-assessment-approve",
+      "sdlc-assessment-reject-blocks-successor",
+      "sdlc-assessment-request-changes-once",
+      "sdlc-mixed-parallel-completion-order",
+      "sdlc-multiple-rework-cycles",
+      "sdlc-one-pending-one-approves",
+      "sdlc-one-rejects-one-approves",
+      "sdlc-optional-assessor-blocking",
+      "sdlc-optional-assessor-fails-required-pass",
+      "sdlc-optional-assessor-skipped",
+      "sdlc-parallel-assessors-all-approve",
+      "sdlc-parallel-assessors-mixed-outcomes",
+      "sdlc-required-plus-optional-assessor-approve",
+      "sdlc-required-plus-optional-assessor-pending",
+      "sdlc-rework-invalidates-prior-assessments",
+      "sdlc-sequential-assessors-all-approve"
+    ]
+  },
+  "unsupported_future_design": {
+    "name": "documented_but_not_live_tested_yet",
+    "total": 8,
+    "scenarios": [
+      {
+        "name": "content-assessment-blocked",
+        "status": "unsupported_now",
+        "reason": "Assessment rollups model approved, request_changes, and rejected. An assessor submitting completion=blocked is accepted at handoff level but is not a first-class rolled-up assessment outcome for successor gating or continuity.",
+        "needed_support": "Define blocked as a real assessment outcome in continuity, work-item rollups, verifier expectations, and dashboard posture."
+      },
+      {
+        "name": "content-block-subject-policy",
+        "status": "conditionally_supported_only_via_reject_semantics",
+        "reason": "Blocking currently happens through existing rejected/request_changes resolution semantics. A distinct configurable outcome action path for block_subject is not clearly wired end-to-end through rule evaluation and continuity.",
+        "needed_support": "Implement explicit outcome-action handling for block_subject and prove it through subject/work-item/workflow state transitions."
+      },
+      {
+        "name": "content-escalate-policy",
+        "status": "conditionally_supported_only_via_task_escalation",
+        "reason": "Escalation exists as a task lifecycle behavior, but not as a clearly proven generic playbook outcome-action branch that can be configured and verified independently of agent choice.",
+        "needed_support": "Add explicit playbook-driven escalate action handling with deterministic continuity effects and verifier-visible evidence."
+      },
+      {
+        "name": "content-retain-prior-assessment-on-rework",
+        "status": "unsupported_now",
+        "reason": "Current product behavior is revision-scoped invalidation. Assessments are evaluated against the current subject_revision, and there is no schema/config support to retain earlier approvals across rework.",
+        "needed_support": "Add revision-retention policy to the playbook model, continuity logic, and assessment aggregation semantics."
+      },
+      {
+        "name": "content-terminate-branch-policy",
+        "status": "unsupported_now",
+        "reason": "terminate_branch is not an allowed assessment action in the current playbook model, so there is no legal way to author or execute this branch outcome.",
+        "needed_support": "Extend the playbook action schema and control plane with branch-termination semantics, legality checks, and operator/UI visibility."
+      },
+      {
+        "name": "publishing-approval-before-assessment",
+        "status": "conditionally_supported_only_as_separate_stage_modeling",
+        "reason": "The system can model approval before assessment only by splitting them across separate stages or checkpoints. It does not support a same-subject, same-checkpoint inversion where approval generically precedes assessment.",
+        "needed_support": "Define and implement explicit ordering semantics between approval and assessment at the same subject/checkpoint boundary."
+      },
+      {
+        "name": "requirements-human-review-blocked",
+        "status": "unsupported_as_distinct_review_outcome",
+        "reason": "Human review is currently modeled through stage-gate states such as awaiting_approval, approved, changes_requested, and rejected. There is no distinct blocked review decision.",
+        "needed_support": "Either keep this out of scope and model it as unresolved approval, or extend the gate-state model with a true blocked operator outcome."
+      },
+      {
+        "name": "requirements-stale-human-review-arrives-after-rework",
+        "status": "unsupported_now",
+        "reason": "Human review remains primarily stage-gate driven rather than a fully generic approval-task path with subject revision semantics comparable to assessment tasks.",
+        "needed_support": "Promote human approval to a fully revision-aware subject-linked task flow or define equivalent stale-gate invalidation semantics at the stage-gate layer."
+      }
+    ]
+  }
+}

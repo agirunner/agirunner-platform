@@ -1,0 +1,33 @@
+{
+  "name": "sdlc-mixed-parallel-completion-order",
+  "profile": "sdlc-mixed-parallel-completion-order",
+  "workflow": {
+    "name": "SDLC Mixed Parallel Completion Order",
+    "goal": "Exercise parallel assessor completion in different orders across revisions before final release packaging.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "multi_assessor_outcomes": [
+      "mixed_parallel_order"
+    ],
+    "concurrency": [
+      "out_of_order_completion"
+    ]
+  }
+}

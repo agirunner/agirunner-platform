@@ -1,0 +1,35 @@
+{
+  "name": "sdlc-required-plus-optional-assessor-pending",
+  "profile": "sdlc-required-plus-optional-assessor-pending",
+  "workflow": {
+    "name": "SDLC Required Plus Optional Assessor Pending",
+    "goal": "Exercise a workflow where required assessment clears and optional assessment does not block successor packaging.",
+    "parameters": {
+      "change_request": "Add a deterministic low-risk report command to the seeded CLI and verify with ./scripts/verify.sh.",
+      "optional_assessor_contract": "The optional security assessor does not need to run for this low-risk change and must not block successor work."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {
+      "instructions": {
+        "content": "Keep the seeded Python CLI stack and verify with ./scripts/verify.sh.",
+        "format": "markdown"
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "assessor_cardinality": [
+      "mixed_required_optional"
+    ],
+    "successor_gating": [
+      "allowed_optional_pending"
+    ]
+  }
+}

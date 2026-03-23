@@ -1,0 +1,43 @@
+{
+  "name": "sdlc-optional-assessor-fails-required-pass",
+  "profile": "sdlc-optional-assessor-fails-required-pass",
+  "workflow": {
+    "name": "SDLC Optional Assessor Fails Required Pass",
+    "goal": "Exercise a workflow where the required assessor passes but the instantiated optional assessor forces one rework cycle before release packaging.",
+    "parameters": {
+      "change_request": "Add a deterministic template preview command to the seeded CLI and verify with ./scripts/verify.sh.",
+      "optional_assessor_contract": "Instantiate the optional security assessor. It must request changes until template access is constrained to repository-owned templates only.",
+      "initial_revision_scope": "Revision 1 must intentionally leave template access insufficiently constrained so the optional assessor has a concrete finding.",
+      "rework_completion_scope": "Revision 2 must constrain template access to repository-owned templates and reverify the workflow."
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {
+      "instructions": {
+        "content": "Keep the seeded Python CLI stack and verify with ./scripts/verify.sh.",
+        "format": "markdown"
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "multi_assessor_outcomes": [
+      "optional_fails_required_approve"
+    ],
+    "subject_revisions": [
+      "one_rework"
+    ]
+  }
+}

@@ -1,0 +1,35 @@
+{
+  "name": "multi-active-subjects-same-workflow",
+  "profile": "multi-active-subjects-same-workflow",
+  "workflow": {
+    "name": "Multi Active Subjects Same Workflow",
+    "goal": "Exercise multiple active subject work items in one workflow while preserving assessment linkage.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [
+    {
+      "type": "create_work_items",
+      "dispatch": "parallel",
+      "count": 3,
+      "title_template": "active-subject-{index:02d}",
+      "request_id_template": "active-subject-{index:02d}"
+    }
+  ],
+  "expect": {
+    "state": "completed",
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 6
+    }
+  },
+  "coverage": {
+    "concurrency": [
+      "multiple_active_subjects_same_workflow"
+    ]
+  }
+}

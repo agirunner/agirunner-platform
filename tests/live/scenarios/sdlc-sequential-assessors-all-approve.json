@@ -1,0 +1,27 @@
+{
+  "name": "sdlc-sequential-assessors-all-approve",
+  "profile": "sdlc-sequential-assessors-all-approve",
+  "workflow": {
+    "name": "SDLC Sequential Assessors All Approve",
+    "goal": "Exercise a delivery flow where required assessors approve the same subject revision in sequence before release packaging.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed"
+  },
+  "coverage": {
+    "assessor_cardinality": [
+      "sequential_same_revision"
+    ],
+    "multi_assessor_outcomes": [
+      "all_approve"
+    ]
+  }
+}

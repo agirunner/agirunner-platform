@@ -1,0 +1,115 @@
+{
+  "name": "Artifact Human Review Pipeline",
+  "slug": "live-test-artifact-only-human-review-v1",
+  "description": "Artifact-only workflow with a human review gate and no repository dependency.",
+  "outcome": "An operator-approved artifact packet advances without repository-backed work.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "The artifact brief author drafts the packet. The artifact editor prepares it for operator review. A human review gate decides approval. Only after approval may the artifact release planner assemble the final artifact-only release packet.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What this live workflow should accomplish"
+      }
+    ],
+    "roles": [
+      "artifact-gate-product-strategist",
+      "artifact-gate-technical-editor",
+      "artifact-gate-launch-planner"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "drafting",
+        "goal": "A review-ready brief exists.",
+        "involves": [
+          "artifact-gate-product-strategist",
+          "artifact-gate-technical-editor"
+        ]
+      },
+      {
+        "name": "approval-gate",
+        "goal": "A human decision exists for the brief.",
+        "human_gate": true,
+        "involves": []
+      },
+      {
+        "name": "launch-packaging",
+        "goal": "The approved launch packet is ready.",
+        "involves": [
+          "artifact-gate-launch-planner"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "drafting",
+        "goal": "A review-ready brief exists.",
+        "human_gate": false,
+        "entry_criteria": "The authored request is available."
+      },
+      {
+        "name": "approval-gate",
+        "goal": "A human decision exists for the brief.",
+        "human_gate": true,
+        "entry_criteria": "The review-ready brief is complete."
+      },
+      {
+        "name": "launch-packaging",
+        "goal": "The approved launch packet is ready.",
+        "human_gate": false,
+        "entry_criteria": "The human decision is approved."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "artifact-gate-product-strategist",
+        "to_role": "artifact-gate-technical-editor",
+        "required": true
+      },
+      {
+        "from_role": "artifact-gate-technical-editor",
+        "to_role": "artifact-gate-launch-planner",
+        "required": true
+      }
+    ],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 5,
+      "max_active_tasks": 2,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    },
+    "assessment_rules": []
+  }
+}

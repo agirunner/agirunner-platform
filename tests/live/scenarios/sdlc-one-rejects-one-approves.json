@@ -1,0 +1,33 @@
+{
+  "name": "sdlc-one-rejects-one-approves",
+  "profile": "sdlc-one-rejects-one-approves",
+  "workflow": {
+    "name": "SDLC One Rejects One Approves",
+    "goal": "Exercise split required assessment outcomes where rejection blocks advancement until rework clears the subject.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "multi_assessor_outcomes": [
+      "reject_plus_approve"
+    ],
+    "successor_gating": [
+      "blocked_after_rejected"
+    ]
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "name": "content-route-to-role-rework-policy",
+  "profile": "content-route-to-role-rework-policy",
+  "workflow": {
+    "name": "Content Route To Role Rework Policy",
+    "goal": "Exercise a content workflow where brand findings route rework back to the strategist before the draft can be finalized.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "draft-revision",
+        "minimum_revision": 2
+      }
+    ]
+  },
+  "coverage": {
+    "rework_actions": [
+      "route_to_role"
+    ],
+    "subject_revisions": [
+      "one_rework",
+      "reassessment_new_revision"
+    ]
+  }
+}

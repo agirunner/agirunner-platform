@@ -1,0 +1,30 @@
+{
+  "name": "sdlc-multiple-rework-cycles",
+  "profile": "sdlc-multiple-rework-cycles",
+  "workflow": {
+    "name": "SDLC Multiple Rework Cycles",
+    "goal": "Exercise repeated delivery rework over multiple revisions before the release candidate is cleared.",
+    "parameters": {}
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {}
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "subject_revision_expectations": [
+      {
+        "stage_name": "implementation-pass",
+        "minimum_revision": 3
+      }
+    ]
+  },
+  "coverage": {
+    "subject_revisions": [
+      "multiple_rework"
+    ]
+  }
+}

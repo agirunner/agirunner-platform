@@ -5,6 +5,7 @@ import sys
 import subprocess
 import unittest
 from pathlib import Path
+import json
 
 
 LIVE_ROOT = Path(__file__).resolve().parents[1]
@@ -12,6 +13,7 @@ LIVE_LIB = LIVE_ROOT / "lib"
 SCENARIOS_DIR = LIVE_ROOT / "scenarios"
 LIBRARY_DIR = LIVE_ROOT / "library"
 README_FILE = LIVE_ROOT / "README.md"
+TRACKER_FILE = LIVE_ROOT / "live_test_tracker.json"
 sys.path.insert(0, str(LIVE_LIB))
 
 import live_test_catalog  # noqa: E402
@@ -19,6 +21,27 @@ import scenario_config  # noqa: E402
 
 
 class LiveTestCatalogTests(unittest.TestCase):
+    def test_tracker_supported_catalog_matches_expected_scenarios(self) -> None:
+        tracker = json.loads(TRACKER_FILE.read_text())
+        supported = tracker["supported"]["scenarios"]
+        self.assertEqual(sorted(live_test_catalog.EXPECTED_SCENARIOS), sorted(supported))
+        self.assertEqual(len(supported), tracker["supported"]["total"])
+
+    def test_tracker_unsupported_future_design_entries_are_descriptive(self) -> None:
+        tracker = json.loads(TRACKER_FILE.read_text())
+        deferred = tracker["unsupported_future_design"]
+        self.assertEqual(len(deferred["scenarios"]), deferred["total"])
+        for entry in deferred["scenarios"]:
+            with self.subTest(name=entry.get("name")):
+                self.assertIsInstance(entry.get("name"), str)
+                self.assertTrue(entry["name"].strip())
+                self.assertIsInstance(entry.get("status"), str)
+                self.assertTrue(entry["status"].strip())
+                self.assertIsInstance(entry.get("reason"), str)
+                self.assertTrue(entry["reason"].strip())
+                self.assertIsInstance(entry.get("needed_support"), str)
+                self.assertTrue(entry["needed_support"].strip())
+
     def test_expected_matrix_scenarios_exist_and_legacy_corpus_is_gone(self) -> None:
         actual = {path.stem for path in SCENARIOS_DIR.glob("*.json")}
         self.assertEqual(live_test_catalog.EXPECTED_SCENARIOS, actual)
