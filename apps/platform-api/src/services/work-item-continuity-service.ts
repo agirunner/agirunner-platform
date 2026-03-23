@@ -2,6 +2,7 @@ import type { DatabaseClient, DatabasePool } from '../db/database.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import type { LogService } from '../logging/log-service.js';
 import { logWorkItemContinuityTransition } from '../logging/work-item-continuity-log.js';
+import { resolveAssessmentOutcomeAction } from './playbook-governance-policy.js';
 import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
@@ -316,17 +317,28 @@ export class WorkItemContinuityService {
     const definition = parsePlaybookDefinition(context.definition);
     const role = readOptionalString(task.role) ?? context.owner_role ?? '';
     const checkpointName = readCheckpointName(task, context);
-    const evaluation = await this.resolveEvaluation(
+    const subjectRole = await this.resolveAssessmentSubjectRole(
       tenantId,
       context,
+      task,
       role,
+      event,
+      db,
+    );
+    const evaluation = await this.resolveEvaluation(
+      tenantId,
+      definition,
+      context,
+      role,
+      subjectRole,
       event,
       task,
       evaluatePlaybookRules({
         definition,
         event,
-        role,
+        role: subjectRole ?? role,
         checkpointName,
+        decisionState: readDecisionState(task),
       }),
       db,
     );
@@ -387,14 +399,45 @@ export class WorkItemContinuityService {
 
   private async resolveEvaluation(
     tenantId: string,
+    definition: ReturnType<typeof parsePlaybookDefinition>,
     context: WorkItemContinuityContextRow,
     role: string,
+    subjectRole: string | null,
     event: 'task_completed' | 'assessment_requested_changes',
     task: Record<string, unknown>,
     evaluation: PlaybookRuleEvaluationResult,
     db: DatabaseClient | DatabasePool,
   ) {
     if (event !== 'assessment_requested_changes' || evaluation.nextExpectedActor) {
+      return evaluation;
+    }
+
+    const outcomeAction = resolveAssessmentOutcomeAction({
+      definition,
+      subjectRole,
+      assessorRole: role,
+      checkpointName: readCheckpointName(task, context),
+      decisionState: readDecisionState(task) ?? 'request_changes',
+    });
+    if (outcomeAction?.action === 'route_to_role' && outcomeAction.role) {
+      return {
+        matchedRuleType: 'assessment',
+        nextExpectedActor: outcomeAction.role,
+        nextExpectedAction: 'rework',
+        requiresHumanApproval: false,
+        reworkDelta: Math.max(evaluation.reworkDelta, 1),
+      } satisfies PlaybookRuleEvaluationResult;
+    }
+    if (outcomeAction?.action === 'reopen_subject' && subjectRole) {
+      return {
+        matchedRuleType: 'assessment',
+        nextExpectedActor: subjectRole,
+        nextExpectedAction: 'rework',
+        requiresHumanApproval: false,
+        reworkDelta: Math.max(evaluation.reworkDelta, 1),
+      } satisfies PlaybookRuleEvaluationResult;
+    }
+    if (outcomeAction) {
       return evaluation;
     }
 
@@ -416,6 +459,36 @@ export class WorkItemContinuityService {
       requiresHumanApproval: false,
       reworkDelta: Math.max(evaluation.reworkDelta, 1),
     } satisfies PlaybookRuleEvaluationResult;
+  }
+
+  private async resolveAssessmentSubjectRole(
+    tenantId: string,
+    context: WorkItemContinuityContextRow,
+    task: Record<string, unknown>,
+    role: string,
+    event: 'task_completed' | 'assessment_requested_changes',
+    db: DatabaseClient | DatabasePool,
+  ) {
+    if (event !== 'assessment_requested_changes') {
+      return role;
+    }
+
+    const taskKind = readWorkflowTaskKind(task.metadata, task.is_orchestrator_task === true);
+    if (taskKind !== 'assessment') {
+      return role;
+    }
+
+    const linkage = readAssessmentSubjectLinkage(task.input, task.metadata);
+    if (!linkage.subjectTaskId) {
+      return role;
+    }
+
+    return await this.loadTaskRole(
+      tenantId,
+      context.workflow_id,
+      linkage.subjectTaskId,
+      db,
+    );
   }
 
   private async loadContext(
@@ -539,6 +612,21 @@ function readCheckpointName(
 
 function readOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readDecisionState(task: Record<string, unknown>) {
+  const metadata = asRecord(task.metadata);
+  const action = readOptionalString(metadata.assessment_action);
+  if (action === 'request_changes') {
+    return 'request_changes';
+  }
+  if (action === 'reject') {
+    return 'rejected';
+  }
+  if (action === 'block') {
+    return 'blocked';
+  }
+  return null;
 }
 
 function normalizeStringList(values: string[] | undefined): string[] | undefined {

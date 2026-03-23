@@ -49,6 +49,55 @@ describe('WorkItemContinuityService', () => {
     );
   });
 
+  it('keeps assessment continuity actor-agnostic when multiple required assessors share the subject', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            owner_role: 'developer',
+            next_expected_actor: null,
+            next_expected_action: null,
+            definition: {
+              process_instructions: 'Delivery must be assessed by both quality and security before release.',
+              roles: ['developer', 'quality-assessor', 'security-assessor'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              checkpoints: [{ name: 'implementation', goal: 'Implement work', human_gate: false }],
+              assessment_rules: [
+                { subject_role: 'developer', assessed_by: 'quality-assessor', required: true },
+                { subject_role: 'developer', assessed_by: 'security-assessor', required: true },
+              ],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordTaskCompleted('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'developer',
+      stage_name: 'implementation',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'assessment',
+      nextExpectedActor: null,
+      nextExpectedAction: 'assess',
+      satisfiedAssessmentExpectation: false,
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', null, 'assess', 0],
+    );
+  });
+
   it('records next expected handoff actor for planned intra-stage handoffs', async () => {
     const pool = {
       query: vi
@@ -246,6 +295,10 @@ describe('WorkItemContinuityService', () => {
           rows: [{ role: 'developer' }],
           rowCount: 1,
         })
+        .mockResolvedValueOnce({
+          rows: [{ role: 'developer' }],
+          rowCount: 1,
+        })
         .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
     };
 
@@ -273,6 +326,71 @@ describe('WorkItemContinuityService', () => {
     expect(pool.query).toHaveBeenLastCalledWith(
       expect.stringContaining('UPDATE workflow_work_items'),
       ['tenant-1', 'workflow-1', 'work-item-1', 'developer', 'rework', 1],
+    );
+  });
+
+  it('uses the assessor-specific route_to_role action for rejected assessment tasks', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            owner_role: 'developer',
+            next_expected_actor: null,
+            next_expected_action: null,
+            definition: {
+              process_instructions: 'Security rejections must route back to architecture.',
+              roles: ['developer', 'security-assessor', 'architect'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              checkpoints: [{ name: 'implementation', goal: 'Implementation is assessed', human_gate: false }],
+              assessment_rules: [{
+                subject_role: 'developer',
+                assessed_by: 'security-assessor',
+                checkpoint: 'implementation',
+                required: true,
+                outcome_actions: {
+                  rejected: { action: 'route_to_role', role: 'architect' },
+                },
+              }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ role: 'developer' }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordAssessmentRequestedChanges('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'security-assessor',
+      stage_name: 'implementation',
+      input: {
+        subject_task_id: 'subject-task-1',
+      },
+      metadata: {
+        task_kind: 'assessment',
+        assessment_action: 'reject',
+      },
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'assessment',
+      nextExpectedActor: 'architect',
+      nextExpectedAction: 'rework',
+      reworkDelta: 1,
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'architect', 'rework', 1],
     );
   });
 

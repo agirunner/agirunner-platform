@@ -1,4 +1,5 @@
 import type { PlaybookDefinition } from '../orchestration/playbook-model.js';
+import { resolveAssessmentExpectation } from './playbook-approval-ordering.js';
 
 export type PlaybookRuleEvent =
   | 'task_completed'
@@ -11,6 +12,7 @@ export interface EvaluatePlaybookRulesInput {
   event: PlaybookRuleEvent;
   role: string;
   checkpointName?: string | null;
+  decisionState?: 'approved' | 'request_changes' | 'rejected' | 'blocked' | null;
 }
 
 export interface PlaybookRuleEvaluationResult {
@@ -51,6 +53,25 @@ export function evaluatePlaybookRules(
 function evaluateAssessmentRule(
   input: EvaluatePlaybookRulesInput,
 ): PlaybookRuleEvaluationResult | null {
+  const expectation = resolveAssessmentExpectation(
+    input.definition,
+    input.role,
+    input.checkpointName ?? null,
+  );
+  if (!expectation) {
+    return null;
+  }
+
+  if (input.event === 'task_completed') {
+    return {
+      matchedRuleType: 'assessment',
+      nextExpectedActor: expectation.nextExpectedActor,
+      nextExpectedAction: 'assess',
+      requiresHumanApproval: false,
+      reworkDelta: 0,
+    };
+  }
+
   const rule = input.definition.assessment_rules.find(
     (candidate) =>
       candidate.required !== false
@@ -61,17 +82,8 @@ function evaluateAssessmentRule(
     return null;
   }
 
-  if (input.event === 'task_completed') {
-    return {
-      matchedRuleType: 'assessment',
-      nextExpectedActor: rule.assessed_by,
-      nextExpectedAction: 'assess',
-      requiresHumanApproval: false,
-      reworkDelta: 0,
-    };
-  }
-
-  const requestChanges = rule.outcome_actions?.request_changes;
+  const decisionState = input.decisionState ?? 'request_changes';
+  const requestChanges = rule.outcome_actions?.[decisionState];
   if (
     input.event === 'assessment_requested_changes' &&
     requestChanges?.action === 'route_to_role' &&

@@ -113,6 +113,46 @@ describe('evaluatePlaybookRules', () => {
     });
   });
 
+  it('leaves next expected actor unset when multiple required assessors share the same subject', () => {
+    const multiAssessorDefinition = parsePlaybookDefinition({
+      process_instructions: 'Delivery must be assessed by both quality and security before release.',
+      roles: ['developer', 'quality-assessor', 'security-assessor'],
+      board: {
+        entry_column_id: 'planned',
+        columns: [{ id: 'planned', label: 'Planned' }],
+      },
+      checkpoints: [{ name: 'implementation', goal: 'Implementation is assessed.' }],
+      assessment_rules: [
+        {
+          subject_role: 'developer',
+          assessed_by: 'quality-assessor',
+          checkpoint: 'implementation',
+          required: true,
+        },
+        {
+          subject_role: 'developer',
+          assessed_by: 'security-assessor',
+          checkpoint: 'implementation',
+          required: true,
+        },
+      ],
+    });
+
+    const result = evaluatePlaybookRules({
+      definition: multiAssessorDefinition,
+      event: 'task_completed',
+      role: 'developer',
+      checkpointName: 'implementation',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'assessment',
+      nextExpectedActor: null,
+      nextExpectedAction: 'assess',
+      requiresHumanApproval: false,
+    });
+  });
+
   it('routes assessment request-changes back to the configured role', () => {
     const result = evaluatePlaybookRules({
       definition,
