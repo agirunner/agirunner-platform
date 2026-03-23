@@ -71,7 +71,7 @@ const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspaces/work
 
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
 const OrchestratorPage = lazyWithRetry(() => import('../pages/config/orchestrator-page.js').then((m) => ({ default: m.OrchestratorPage })));
-const LlmProvidersPage = lazyWithRetry(() => import('../pages/config/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
+const LlmProvidersPage = lazyWithRetry(() => import('../pages/llm-providers/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
 const RuntimesPage = lazyWithRetry(() => import('../pages/config/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })));
 const PlatformInstructionsPage = lazyWithRetry(() => import('../pages/config/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
 const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/ai-config-assistant/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));

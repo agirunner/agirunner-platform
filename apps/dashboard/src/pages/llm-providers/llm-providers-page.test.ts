@@ -33,8 +33,8 @@ function readComponent(relPath: string): string {
 
 function readLlmProvidersSource(): string {
   return [
-    'pages/config/llm-providers-page.tsx',
-    'pages/config/llm-providers-page.support.ts',
+    'pages/llm-providers/llm-providers-page.tsx',
+    'pages/llm-providers/llm-providers-page.support.ts',
   ]
     .map((pathName) => readComponent(pathName))
     .join('\n');
