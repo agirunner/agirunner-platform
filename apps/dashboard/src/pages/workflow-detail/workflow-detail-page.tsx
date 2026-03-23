@@ -38,7 +38,7 @@ import {
   createStructuredEntryDraft,
   objectToStructuredDrafts,
   type StructuredEntryDraft,
-} from '../workspaces/workspace-detail-support.js';
+} from '../workspaces/workspace-detail/workspace-detail-support.js';
 import {
   buildWorkItemMetadata,
   normalizeWorkItemPriority,

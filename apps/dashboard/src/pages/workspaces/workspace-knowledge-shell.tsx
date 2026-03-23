@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 
 import { Card, CardContent } from '../../components/ui/card.js';
 import { cn } from '../../lib/utils.js';
-import type { WorkspaceOverview } from './workspace-detail-support.js';
+import type { WorkspaceOverview } from './workspace-detail/workspace-detail-support.js';
 
 type KnowledgePanelValue = 'artifacts' | 'memory';
 

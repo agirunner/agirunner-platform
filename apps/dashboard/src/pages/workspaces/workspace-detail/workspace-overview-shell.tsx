@@ -1,4 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card.js';
 import { type WorkspaceOverview } from './workspace-detail-support.js';
 import { WorkspaceMetricCard } from './workspace-detail-shared.js';
 

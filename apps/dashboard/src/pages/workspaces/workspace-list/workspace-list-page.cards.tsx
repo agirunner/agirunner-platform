@@ -11,7 +11,7 @@ import {
   buildWorkspaceReadiness,
   type WorkspaceListSortField,
 } from './workspace-list-page.support.js';
-import { readWorkspaceStorageLabel } from '../workspace-detail-support.js';
+import { readWorkspaceStorageLabel } from '../workspace-detail/workspace-detail-support.js';
 
 export function WorkspaceListGrid(props: {
   workspaces: DashboardWorkspaceRecord[];

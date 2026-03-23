@@ -6,7 +6,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Switch } from '../../components/ui/switch.js';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
-import { ErrorCard, LoadingCard, WorkspaceMetricCard } from './workspace-detail-shared.js';
+import { ErrorCard, LoadingCard, WorkspaceMetricCard } from './workspace-detail/workspace-detail-shared.js';
 
 interface ToolEntry {
   name: string;

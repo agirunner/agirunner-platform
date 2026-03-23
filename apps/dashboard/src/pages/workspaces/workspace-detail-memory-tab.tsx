@@ -1,4 +1,4 @@
-import type { StructuredEntryDraft } from './workspace-detail-support.js';
+import type { StructuredEntryDraft } from './workspace-detail/workspace-detail-support.js';
 import { Card, CardContent, CardTitle } from '../../components/ui/card.js';
 import { StructuredEntryEditor } from './workspace-structured-entry-editor.js';
 

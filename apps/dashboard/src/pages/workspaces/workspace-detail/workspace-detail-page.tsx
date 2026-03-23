@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
-import { dashboardApi } from '../../lib/api.js';
-import type { DashboardWorkspaceRecord } from '../../lib/api.js';
+import { dashboardApi } from '../../../lib/api.js';
+import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
 import {
   buildWorkspaceDetailHeaderState,
   buildWorkspaceKnowledgeOverview,
@@ -13,9 +13,9 @@ import {
   type WorkspaceDetailTabValue,
 } from './workspace-detail-support.js';
 import { WorkspaceDetailShell } from './workspace-detail-shell.js';
-import { WorkspaceKnowledgeTab } from './workspace-knowledge-tab.js';
+import { WorkspaceKnowledgeTab } from '../workspace-knowledge-tab.js';
 import { WorkspaceOverviewShell } from './workspace-overview-shell.js';
-import { WorkspaceSettingsTab } from './workspace-settings-tab.js';
+import { WorkspaceSettingsTab } from '../workspace-settings-tab.js';
 
 export function WorkspaceDetailPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();

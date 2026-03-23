@@ -49,7 +49,7 @@ import {
 import {
   buildStructuredObject,
   type StructuredEntryDraft,
-} from '../workspaces/workspace-detail-support.js';
+} from '../workspaces/workspace-detail/workspace-detail-support.js';
 import {
   buildMetadataRecord,
   createMetadataDraft,

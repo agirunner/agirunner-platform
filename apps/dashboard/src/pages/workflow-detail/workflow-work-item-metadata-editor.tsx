@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { Textarea } from '../../components/ui/textarea.js';
-import { createStructuredEntryDraft, type StructuredEntryDraft } from '../workspaces/workspace-detail-support.js';
+import { createStructuredEntryDraft, type StructuredEntryDraft } from '../workspaces/workspace-detail/workspace-detail-support.js';
 import {
   type StructuredEntryValidationResult,
 } from './workflow-work-item-form-support.js';

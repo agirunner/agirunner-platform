@@ -15,7 +15,7 @@ import {
   createStructuredEntryDraft,
   type StructuredEntryDraft,
   type StructuredValueType,
-} from './workspace-detail-support.js';
+} from './workspace-detail/workspace-detail-support.js';
 import { cn } from '../../lib/utils.js';
 
 export function StructuredEntryEditor(props: {
