@@ -1,7 +1,7 @@
 import { ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { DiffViewer } from '../../components/diff-viewer.js';
+import { DiffViewer } from '../../components/diff-viewer/diff-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';

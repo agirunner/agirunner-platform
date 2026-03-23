@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Copy, Download, Trash2, Lock, Unlock } from 'lucide-react';
-import { cn } from '../lib/utils.js';
-import { readSession } from '../lib/session.js';
-import { Button } from './ui/button.js';
+import { cn } from '../../lib/utils.js';
+import { readSession } from '../../lib/session.js';
+import { Button } from '../ui/button.js';
 import {
   Select,
   SelectTrigger,
   SelectContent,
   SelectItem,
   SelectValue,
-} from './ui/select.js';
+} from '../ui/select.js';
 
 const API_BASE_URL = import.meta.env.VITE_PLATFORM_API_URL ?? 'http://localhost:8080';
 

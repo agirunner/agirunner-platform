@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StructuredRecordView } from '../../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import { Link, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
@@ -35,7 +35,7 @@ import {
   CopyableIdBadge,
   OperatorStatusBadge,
   RelativeTimestamp,
-} from '../../components/operator-display.js';
+} from '../../components/operator-display/operator-display.js';
 import {
   describeReviewPacket,
   formatRelativeTimestamp,

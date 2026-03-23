@@ -8,8 +8,8 @@ import {
   type DashboardResolvedDocumentReference,
 } from '../../lib/api.js';
 import { buildArtifactPermalink } from '../../components/artifact-preview/artifact-preview-support.js';
-import { ChainStructuredEntryEditor } from '../../components/chain-workflow-parameters.js';
-import { StructuredRecordView } from '../../components/structured-data.js';
+import { ChainStructuredEntryEditor } from '../../components/chain-workflow/chain-workflow-parameters.js';
+import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import {

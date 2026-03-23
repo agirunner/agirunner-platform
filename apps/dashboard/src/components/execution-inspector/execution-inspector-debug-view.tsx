@@ -1,7 +1,7 @@
 import type { LogEntry } from '../../lib/api.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card.js';
 import { Badge } from '../ui/badge.js';
-import { StructuredRecordView } from '../structured-data.js';
+import { StructuredRecordView } from '../structured-data/structured-data.js';
 import {
   describeExecutionHeadline,
   describeExecutionNextAction,

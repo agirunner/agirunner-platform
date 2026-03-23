@@ -1,15 +1,15 @@
 import { Link } from 'react-router-dom';
 
-import type { DashboardWorkflowBudgetRecord } from '../lib/api.js';
-import { Badge } from './ui/badge.js';
-import { Button } from './ui/button.js';
+import type { DashboardWorkflowBudgetRecord } from '../../lib/api.js';
+import { Badge } from '../ui/badge.js';
+import { Button } from '../ui/button.js';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from './ui/card.js';
+} from '../ui/card.js';
 
 interface WorkflowBudgetCardProps {
   workflowId: string;

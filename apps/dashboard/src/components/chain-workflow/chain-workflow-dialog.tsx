@@ -3,8 +3,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Link2, Loader2 } from 'lucide-react';
 
-import { dashboardApi } from '../lib/api.js';
-import type { DashboardPlaybookRecord } from '../lib/api.js';
+import { dashboardApi } from '../../lib/api.js';
+import type { DashboardPlaybookRecord } from '../../lib/api.js';
 import {
   buildParametersFromDrafts,
   buildStructuredObject,
@@ -12,23 +12,23 @@ import {
   mergeStructuredObjects,
   readLaunchDefinition,
   type StructuredEntryDraft,
-} from '../pages/playbook-launch/playbook-launch-support.js';
-import { Button } from './ui/button.js';
+} from '../../pages/playbook-launch/playbook-launch-support.js';
+import { Button } from '../ui/button.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from './ui/dialog.js';
-import { Input } from './ui/input.js';
+} from '../ui/dialog.js';
+import { Input } from '../ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select.js';
+} from '../ui/select.js';
 import {
   ChainParameterField,
   ChainStructuredEntryEditor,

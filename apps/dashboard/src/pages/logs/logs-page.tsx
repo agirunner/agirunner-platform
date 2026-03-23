@@ -12,7 +12,7 @@ import { ExecutionInspectorFilterBar } from '../../components/execution-inspecto
 import { ExecutionInspectorSummaryView } from '../../components/execution-inspector/execution-inspector-summary-view.js';
 import { ExecutionInspectorDetailView } from '../../components/execution-inspector/execution-inspector-detail-view.js';
 import { ExecutionInspectorDebugView } from '../../components/execution-inspector/execution-inspector-debug-view.js';
-import { WorkflowBudgetCard } from '../../components/workflow-budget-card.js';
+import { WorkflowBudgetCard } from '../../components/workflow-budget-card/workflow-budget-card.js';
 import {
   buildLogFilters,
   DEFAULT_INSPECTOR_FILTERS,

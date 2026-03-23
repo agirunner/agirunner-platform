@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { Bookmark, Plus, Trash2, ChevronDown } from 'lucide-react';
-import { Button } from './ui/button.js';
-import { Input } from './ui/input.js';
+import { Button } from '../ui/button.js';
+import { Input } from '../ui/input.js';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu.js';
+} from '../ui/dropdown-menu.js';
 
 export interface SavedViewFilters {
   [key: string]: string;

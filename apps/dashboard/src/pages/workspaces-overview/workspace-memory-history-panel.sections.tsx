@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { History, Users } from 'lucide-react';
 
-import { StructuredRecordView } from '../../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import {
   Select,

@@ -3,7 +3,7 @@ import type { ComponentType } from 'react';
 import MonacoEditor from '@monaco-editor/react';
 import { FileText } from 'lucide-react';
 
-import { DiffViewer } from '../../components/diff-viewer.js';
+import { DiffViewer } from '../../components/diff-viewer/diff-viewer.js';
 import {
   Card,
   CardContent,

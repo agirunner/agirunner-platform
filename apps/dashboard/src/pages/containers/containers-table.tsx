@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import {
   RelativeTimestamp,
   statusVariantForOperatorState,
-} from '../../components/operator-display.js';
+} from '../../components/operator-display/operator-display.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
 import {

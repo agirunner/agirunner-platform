@@ -21,7 +21,7 @@ import {
   useArrayToggle,
   useDebounced,
 } from './log-filters.support.js';
-import { SavedViews, type SavedViewFilters } from '../saved-views.js';
+import { SavedViews, type SavedViewFilters } from '../saved-views/saved-views.js';
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import { applyLogScope, type LogScope } from './log-scope.js';

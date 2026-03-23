@@ -4,18 +4,18 @@ import type {
   LaunchParameterSpec,
   StructuredEntryDraft,
   StructuredValueType,
-} from '../pages/playbook-launch/playbook-launch-support.js';
-import { createStructuredEntryDraft } from '../pages/playbook-launch/playbook-launch-support.js';
-import { Button } from './ui/button.js';
-import { Input } from './ui/input.js';
+} from '../../pages/playbook-launch/playbook-launch-support.js';
+import { createStructuredEntryDraft } from '../../pages/playbook-launch/playbook-launch-support.js';
+import { Button } from '../ui/button.js';
+import { Input } from '../ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select.js';
-import { Textarea } from './ui/textarea.js';
+} from '../ui/select.js';
+import { Textarea } from '../ui/textarea.js';
 
 export function ChainParameterField(props: {
   spec: LaunchParameterSpec;

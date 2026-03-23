@@ -1,8 +1,8 @@
 import { useState } from 'react';
 
-import { Badge } from './ui/badge.js';
-import { Button } from './ui/button.js';
-import { cn } from '../lib/utils.js';
+import { Badge } from '../ui/badge.js';
+import { Button } from '../ui/button.js';
+import { cn } from '../../lib/utils.js';
 
 type StatusBadgeVariant = 'destructive' | 'outline' | 'secondary' | 'success' | 'warning';
 

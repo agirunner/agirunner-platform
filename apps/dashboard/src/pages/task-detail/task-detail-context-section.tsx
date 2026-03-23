@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
-import { StructuredRecordView } from '../../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import {
   readClarificationAnswers,
   readClarificationHistory,

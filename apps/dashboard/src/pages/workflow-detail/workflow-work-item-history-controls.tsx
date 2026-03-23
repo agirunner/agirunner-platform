@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
-import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views/saved-views.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';

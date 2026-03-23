@@ -34,7 +34,7 @@ import { Skeleton } from '../../components/ui/skeleton.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
-import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views/saved-views.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 import { buildTimelineContext, describeTimelineEvent } from '../workflow-detail/workflow-history-card.js';

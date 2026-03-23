@@ -5,7 +5,7 @@ import { Clock3, FileText, GitBranch, Inbox, Loader2, Search, Workflow } from 'l
 
 import { dashboardApi, type DashboardApprovalQueueResponse } from '../../lib/api.js';
 import { subscribeToEvents } from '../../lib/sse.js';
-import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views/saved-views.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';

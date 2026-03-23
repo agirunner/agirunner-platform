@@ -13,7 +13,7 @@ import {
   Workflow,
 } from 'lucide-react';
 import { dashboardApi } from '../../lib/api.js';
-import { StructuredRecordView } from '../../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';

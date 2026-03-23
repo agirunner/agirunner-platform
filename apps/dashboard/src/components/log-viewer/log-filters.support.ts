@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
-import type { SavedViewFilters } from '../saved-views.js';
+import type { SavedViewFilters } from '../saved-views/saved-views.js';
 
 export const DEBOUNCE_MS = 300;
 

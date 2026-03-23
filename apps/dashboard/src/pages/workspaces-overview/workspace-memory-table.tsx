@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Check, Pencil, Trash2, X } from 'lucide-react';
 
 import { dashboardApi } from '../../lib/api.js';
-import { StructuredRecordView } from '../../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import {

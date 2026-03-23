@@ -13,7 +13,7 @@ import {
 } from 'lucide-react';
 
 import type { DashboardApprovalStageGateRecord } from '../../lib/api.js';
-import { StructuredRecordView } from '../../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';

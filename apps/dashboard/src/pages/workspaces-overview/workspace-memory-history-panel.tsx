@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
-import { DiffViewer } from '../../components/diff-viewer.js';
+import { DiffViewer } from '../../components/diff-viewer/diff-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { SelectItem } from '../../components/ui/select.js';

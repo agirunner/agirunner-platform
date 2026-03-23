@@ -12,7 +12,7 @@ import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Input } from '../../components/ui/input.js';
-import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views/saved-views.js';
 import {
   Select,
   SelectContent,
