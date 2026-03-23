@@ -638,6 +638,56 @@ describe('WorkItemContinuityService', () => {
     );
   });
 
+  it('preserves canonical routing when orchestrator finish-state metadata proposes a different actor', async () => {
+    const pool = {
+      query: vi.fn().mockResolvedValue({
+        rowCount: 1,
+        rows: [{
+          next_expected_actor: 'human',
+          next_expected_action: 'approve',
+          metadata: {},
+        }],
+      }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.persistOrchestratorFinishState('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'orchestrator',
+      stage_name: 'approval-gate',
+    }, {
+      next_expected_actor: 'human-review-gate',
+      next_expected_action: 'review the approval-gate artifacts and record the requested gate decision',
+      status_summary: 'Approval gate is waiting on the next human decision.',
+    });
+
+    expect(result).toEqual({
+      nextExpectedActor: 'human',
+      nextExpectedAction: 'approve',
+      continuity: {
+        next_expected_event: null,
+        status_summary: 'Approval gate is waiting on the next human decision.',
+      },
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      [
+        'tenant-1',
+        'workflow-1',
+        'work-item-1',
+        'human',
+        'approve',
+        expect.objectContaining({
+          orchestrator_finish_state: expect.objectContaining({
+            status_summary: 'Approval gate is waiting on the next human decision.',
+          }),
+        }),
+      ],
+    );
+  });
+
   it('skips stale orchestrator finish-state writes once a newer specialist handoff exists', async () => {
     const pool = {
       query: vi

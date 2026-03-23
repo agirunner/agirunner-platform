@@ -197,8 +197,8 @@ export class WorkItemContinuityService {
         tenantId,
         workflowId,
         workItemId,
-        readOptionalString(update.next_expected_actor),
-        readOptionalString(update.next_expected_action),
+        current.next_expected_actor,
+        current.next_expected_action,
         metadataPatch,
       ],
     );

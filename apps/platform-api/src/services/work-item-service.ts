@@ -359,8 +359,8 @@ export class WorkItemService {
           input.acceptance_criteria?.trim() ?? null,
           columnId,
           input.owner_role ?? null,
-          null,
-          null,
+          humanGateContinuationForStage(definition, stageName).nextExpectedActor,
+          humanGateContinuationForStage(definition, stageName).nextExpectedAction,
           0,
           input.priority ?? 'normal',
           input.notes?.trim() ?? null,
@@ -1114,6 +1114,17 @@ function shouldAutoClosePredecessorCheckpoint(
     return false;
   }
   return successorIndex === predecessorIndex + 1;
+}
+
+function humanGateContinuationForStage(
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+  stageName: string,
+) {
+  const stage = definition.stages.find((entry) => entry.name === stageName);
+  if (!stage?.human_gate) {
+    return { nextExpectedActor: null, nextExpectedAction: null };
+  }
+  return { nextExpectedActor: 'human', nextExpectedAction: 'approve' };
 }
 
 function nextStageNameFor(

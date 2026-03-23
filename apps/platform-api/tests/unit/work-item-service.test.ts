@@ -4,6 +4,115 @@ import { ConflictError, ValidationError } from '../../src/errors/domain-errors.j
 import { WorkItemService } from '../../src/services/work-item-service.js';
 
 describe('WorkItemService', () => {
+  it('seeds canonical human-gate continuity on a human-gate work item', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'drafting',
+                lifecycle: 'planned',
+                definition: {
+                  roles: ['product-strategist', 'launch-planner'],
+                  lifecycle: 'planned',
+                  board: {
+                    columns: [
+                      { id: 'planned', label: 'Planned' },
+                      { id: 'done', label: 'Done', is_terminal: true },
+                    ],
+                    entry_column_id: 'planned',
+                  },
+                  stages: [
+                    { name: 'drafting', goal: 'Draft the brief' },
+                    { name: 'approval-gate', goal: 'Record a human decision', human_gate: true, involves: [] },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT COUNT(*)::int AS count') && sql.includes('FROM workflow_work_items')) {
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          expect(params?.[10]).toBe('human');
+          expect(params?.[11]).toBe('approve');
+          return {
+            rows: [
+              {
+                id: 'wi-approval-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                stage_name: 'approval-gate',
+                title: 'Human review gate',
+                goal: null,
+                acceptance_criteria: null,
+                column_id: 'planned',
+                owner_role: null,
+                next_expected_actor: 'human',
+                next_expected_action: 'approve',
+                rework_count: 0,
+                priority: 'normal',
+                notes: null,
+                completed_at: null,
+                metadata: {},
+                created_at: '2026-03-23T00:00:00.000Z',
+                updated_at: '2026-03-23T00:00:00.000Z',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          return { rows: [{ id: 'stage-approval-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM workflow_stages')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflow_work_items wi') || sql.includes('FROM tasks')) {
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const workItem = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-approval-gate-1',
+        stage_name: 'approval-gate',
+        title: 'Human review gate',
+      },
+    );
+
+    expect(workItem).toMatchObject({
+      id: 'wi-approval-1',
+      next_expected_actor: 'human',
+      next_expected_action: 'approve',
+    });
+  });
+
   it('rejects seeding the first planned stage work item with a successor-only role', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
