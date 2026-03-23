@@ -49,6 +49,66 @@ describe('WorkItemContinuityService', () => {
     );
   });
 
+  it('records next expected handoff actor for planned intra-stage handoffs', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'drafting',
+            owner_role: 'rework-product-strategist',
+            next_expected_actor: null,
+            next_expected_action: null,
+            definition: {
+              process_instructions: 'A strategist drafts and an editor refines in the same stage.',
+              roles: ['rework-product-strategist', 'rework-technical-editor'],
+              lifecycle: 'planned',
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              checkpoints: [{ name: 'drafting', goal: 'Drafting completes', human_gate: false }],
+              stages: [
+                {
+                  name: 'drafting',
+                  goal: 'Drafting completes',
+                  involves: ['rework-product-strategist', 'rework-technical-editor'],
+                },
+              ],
+              handoff_rules: [
+                {
+                  from_role: 'rework-product-strategist',
+                  to_role: 'rework-technical-editor',
+                  checkpoint: 'drafting',
+                  required: true,
+                },
+              ],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordTaskCompleted('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'rework-product-strategist',
+      stage_name: 'drafting',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'handoff',
+      nextExpectedActor: 'rework-technical-editor',
+      nextExpectedAction: 'handoff',
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'rework-technical-editor', 'handoff', 0],
+    );
+  });
+
   it('increments work-item rework count and routes assessment request-changes back to the source role', async () => {
     const pool = {
       query: vi

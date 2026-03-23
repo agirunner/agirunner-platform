@@ -123,10 +123,6 @@ function evaluateHandoffRule(
   if (input.event !== 'task_completed') {
     return null;
   }
-  if (input.definition.lifecycle === 'planned') {
-    return null;
-  }
-
   const rule = input.definition.handoff_rules.find(
     (candidate) =>
       candidate.required !== false
@@ -134,6 +130,12 @@ function evaluateHandoffRule(
       && matchesCheckpoint(candidate.checkpoint, input.checkpointName),
   );
   if (!rule) {
+    return null;
+  }
+  if (
+    input.definition.lifecycle === 'planned'
+    && !isPlannedIntraStageHandoff(input.definition, input.checkpointName, rule.from_role, rule.to_role)
+  ) {
     return null;
   }
 
@@ -154,4 +156,18 @@ function matchesCheckpoint(
     return true;
   }
   return ruleCheckpoint === (currentCheckpoint ?? null);
+}
+
+function isPlannedIntraStageHandoff(
+  definition: PlaybookDefinition,
+  checkpointName: string | null | undefined,
+  fromRole: string,
+  toRole: string,
+) {
+  if (!checkpointName) {
+    return false;
+  }
+  const stage = definition.stages.find((entry) => entry.name === checkpointName);
+  const stageRoles = stage?.involves?.filter((role) => role.trim().length > 0) ?? [];
+  return stageRoles.includes(fromRole) && stageRoles.includes(toRole);
 }

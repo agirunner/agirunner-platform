@@ -661,6 +661,108 @@ describe('WorkItemService', () => {
     );
   });
 
+  it('rejects planned successor work-item creation while a required handoff is still pending', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'drafting',
+                lifecycle: 'planned',
+                definition: {
+                  roles: ['rework-product-strategist', 'rework-technical-editor', 'launch-planner'],
+                  lifecycle: 'planned',
+                  board: {
+                    columns: [
+                      { id: 'planned', label: 'Planned' },
+                      { id: 'done', label: 'Done', is_terminal: true },
+                    ],
+                  },
+                  stages: [
+                    {
+                      name: 'drafting',
+                      goal: 'Draft the brief',
+                      involves: ['rework-product-strategist', 'rework-technical-editor'],
+                    },
+                    { name: 'approval-gate', goal: 'Human review gate', human_gate: true },
+                  ],
+                  handoff_rules: [
+                    {
+                      from_role: 'rework-product-strategist',
+                      to_role: 'rework-technical-editor',
+                      checkpoint: 'drafting',
+                      required: true,
+                    },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-drafting-1']);
+          return {
+            rows: [
+              {
+                id: 'wi-drafting-1',
+                title: 'Draft review-ready product brief',
+                stage_name: 'drafting',
+                column_id: 'planned',
+                completed_at: null,
+                human_gate: false,
+                gate_status: 'not_requested',
+                latest_handoff_completion: 'full',
+                latest_handoff_resolution: null,
+                next_expected_actor: 'rework-technical-editor',
+                next_expected_action: 'handoff',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          throw new Error('successor work item insert should not run while required handoff is still pending');
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    await expect(
+      service.createWorkItem(
+        {
+          id: 'admin:1',
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          ownerType: 'tenant',
+          ownerId: 'tenant-1',
+          keyPrefix: 'admin-key',
+        },
+        'workflow-1',
+        {
+          request_id: 'req-gate-1',
+          parent_work_item_id: 'wi-drafting-1',
+          stage_name: 'approval-gate',
+          title: 'Human review gate for revised requirements brief',
+        },
+      ),
+    ).rejects.toThrow(
+      "Cannot create successor work item in stage 'approval-gate' while predecessor 'Draft review-ready product brief' (drafting) still requires handoff by 'rework-technical-editor'.",
+    );
+  });
+
   it('rejects planned successor work-item creation when it skips the immediate next checkpoint', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {

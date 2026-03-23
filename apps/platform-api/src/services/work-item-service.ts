@@ -87,6 +87,8 @@ interface WorkflowStageContextRow {
   definition: unknown;
 }
 
+const SUCCESSOR_BLOCKING_NEXT_ACTIONS = new Set(['assess', 'approve', 'rework', 'handoff']);
+
 interface NonTerminalTaskStateCountRow {
   state: string;
   count: number;
@@ -526,6 +528,18 @@ export class WorkItemService {
           `'${predecessor.latest_handoff_resolution}'.`,
       );
     }
+    if (
+      predecessor.next_expected_actor
+      && predecessor.next_expected_action
+      && SUCCESSOR_BLOCKING_NEXT_ACTIONS.has(predecessor.next_expected_action)
+    ) {
+      throw new ValidationError(
+        `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}) still requires ` +
+          `${describePendingContinuation(predecessor.next_expected_action)} by ` +
+          `'${predecessor.next_expected_actor}'.`,
+      );
+    }
 
     const nonTerminalTaskStates = await this.loadNonTerminalWorkItemTaskStateCounts(
       tenantId,
@@ -751,6 +765,8 @@ export class WorkItemService {
       stage_name: string | null;
       column_id: string;
       completed_at: Date | null;
+      next_expected_actor: string | null;
+      next_expected_action: string | null;
       human_gate: boolean;
       gate_status: string;
       latest_handoff_completion: string | null;
@@ -761,6 +777,8 @@ export class WorkItemService {
               wi.stage_name,
               wi.column_id,
               wi.completed_at,
+              wi.next_expected_actor,
+              wi.next_expected_action,
               COALESCE(ws.human_gate, false) AS human_gate,
               COALESCE(ws.gate_status, 'not_requested') AS gate_status,
               latest_handoff.latest_handoff_completion,
@@ -1153,6 +1171,19 @@ function shouldBlockSuccessorCheckpointForOpenTasks(
 
 function terminalColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition>) {
   return definition.board.columns.find((column) => column.is_terminal)?.id ?? null;
+}
+
+function describePendingContinuation(action: string) {
+  switch (action) {
+    case 'approve':
+      return 'approval';
+    case 'rework':
+      return 'rework';
+    case 'handoff':
+      return 'handoff';
+    default:
+      return 'assessment';
+  }
 }
 
 function createdByForIdentity(identity: ApiKeyIdentity): 'api' | 'manual' | 'orchestrator' | 'webhook' {

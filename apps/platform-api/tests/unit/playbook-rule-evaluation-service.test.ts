@@ -145,18 +145,44 @@ describe('evaluatePlaybookRules', () => {
     });
   });
 
-  it('does not derive same-stage handoff continuity for planned workflows', () => {
+  it('preserves required intra-stage handoff continuity for planned workflows', () => {
+    const planned = parsePlaybookDefinition({
+      process_instructions: 'A strategist drafts and an editor refines within the same drafting stage.',
+      roles: ['strategist', 'editor'],
+      lifecycle: 'planned',
+      board: {
+        entry_column_id: 'planned',
+        columns: [{ id: 'planned', label: 'Planned' }],
+      },
+      checkpoints: [{ name: 'drafting', goal: 'Drafting completes.' }],
+      stages: [
+        {
+          name: 'drafting',
+          goal: 'Drafting completes.',
+          involves: ['strategist', 'editor'],
+        },
+      ],
+      handoff_rules: [
+        {
+          from_role: 'strategist',
+          to_role: 'editor',
+          checkpoint: 'drafting',
+          required: true,
+        },
+      ],
+    });
+
     const result = evaluatePlaybookRules({
-      definition,
+      definition: planned,
       event: 'task_completed',
-      role: 'reviewer',
-      checkpointName: 'verification',
+      role: 'strategist',
+      checkpointName: 'drafting',
     });
 
     expect(result).toMatchObject({
-      matchedRuleType: null,
-      nextExpectedActor: null,
-      nextExpectedAction: null,
+      matchedRuleType: 'handoff',
+      nextExpectedActor: 'editor',
+      nextExpectedAction: 'handoff',
     });
   });
 

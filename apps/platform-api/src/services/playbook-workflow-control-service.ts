@@ -101,7 +101,7 @@ interface BlockingStageWorkItemRow {
   next_expected_action?: string | null;
 }
 
-const COMPLETION_BLOCKING_NEXT_ACTIONS = new Set(['assess', 'approve', 'rework']);
+const COMPLETION_BLOCKING_NEXT_ACTIONS = new Set(['assess', 'approve', 'rework', 'handoff']);
 
 export interface UpdateWorkflowWorkItemInput {
   parent_work_item_id?: string | null;
@@ -2041,6 +2041,8 @@ function describePendingContinuation(action: string) {
       return 'approval';
     case 'rework':
       return 'rework';
+    case 'handoff':
+      return 'handoff';
     default:
       return 'assessment';
   }
