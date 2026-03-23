@@ -15,7 +15,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 
 ## Output
 - Before escalating, leave clean takeover state.
-- Repository-backed tasks MUST commit and push relevant work before escalation.
+- Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - Repository-backed containers already provide repo checkout, git, sh, and python3. Install anything else yourself.
 - Before completion, ensure one successful structured handoff exists with a unique request_id. Rejected attempts do not count. Do not duplicate unchanged handoffs.
 - Completion is rejected without a structured handoff.

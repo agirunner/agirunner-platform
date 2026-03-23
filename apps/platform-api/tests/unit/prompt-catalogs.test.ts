@@ -8,7 +8,7 @@ import {
 describe('prompt catalogs', () => {
   it('keeps platform instructions aligned with escalation and memory discipline', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave clean takeover state.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before escalation.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before completion or escalation.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'Repository-backed containers already provide repo checkout, git, sh, and python3.',
     );
