@@ -117,6 +117,143 @@ function runtimeDefaultQueryResult(sql: string, params?: unknown[]) {
 }
 
 describe('TaskClaimService', () => {
+  it('emits explicit runtime capabilities on claim responses', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-assessment-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'ready',
+              role: 'release-assessor',
+              title: 'Assess release package',
+              role_config: {},
+              input: { description: 'Assess the release package' },
+              metadata: { task_kind: 'assessment' },
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-assessment-1',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              workspace_id: null,
+              state: 'claimed',
+              role: 'release-assessor',
+              title: 'Assess release package',
+              role_config: {},
+              input: { description: 'Assess the release package' },
+              metadata: { task_kind: 'assessment' },
+              environment: {},
+              resource_bindings: [],
+              is_orchestrator_task: false,
+              timeout_minutes: null,
+              token_budget: null,
+              cost_cap_usd: null,
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT pb.definition')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                version: '1',
+                stages: [],
+                handoff_rules: [{ from_role: 'release-assessor', to_role: 'release-manager', required: true }],
+              },
+            }],
+          };
+        }
+        if (sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({
+        instructions: '',
+        instruction_layers: {},
+        workflow: {
+          playbook: {
+            definition: {
+              process_instructions: 'Assess the release package and hand off clearly.',
+              roles: ['release-assessor', 'release-manager'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              stages: [],
+              handoff_rules: [{ from_role: 'release-assessor', to_role: 'release-manager', required: true }],
+            },
+          },
+        },
+      })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const claimed = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['assessment', 'role:release-assessor'],
+    });
+
+    expect(claimed).toMatchObject({
+      runtime_capabilities: {
+        allows_handoff_resolution: true,
+        requires_structured_handoff: true,
+      },
+    });
+  });
+
   it('limits specialist agents to non-orchestrator tasks', async () => {
     const client = createClient('specialist');
     const service = createService(client);

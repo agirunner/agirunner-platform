@@ -17,6 +17,7 @@ import {
 } from '../lib/oauth-crypto.js';
 import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
 import type { LogService } from '../logging/log-service.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import { assertValidTransition, type TaskState } from '../orchestration/task-state-machine.js';
 import { EventService } from './event-service.js';
 import { readNativeSearchCapability } from './llm-discovery-service.js';
@@ -502,6 +503,7 @@ export class TaskClaimService {
         typeof instructionContext.instructions === 'string' ? instructionContext.instructions : '';
       const layers = (instructionContext.instruction_layers ?? {}) as Record<string, unknown>;
       const executionBrief = (instructionContext.execution_brief ?? null) as Record<string, unknown> | null;
+      const runtimeCapabilities = buildRuntimeTaskCapabilities(runtimeReadyTask, instructionContext);
       const mergedBase = mergeSystemPrompt(claimedTaskBase, layers);
       if ((payload.include_context ?? true) === false) {
         return {
@@ -510,6 +512,7 @@ export class TaskClaimService {
           max_iterations: loopContract.maxIterations,
           llm_max_retries: loopContract.llmMaxRetries,
           execution_container: executionContainer,
+          runtime_capabilities: runtimeCapabilities,
           tools: toolMatch,
           instructions,
           execution_brief: executionBrief,
@@ -522,6 +525,7 @@ export class TaskClaimService {
         max_iterations: loopContract.maxIterations,
         llm_max_retries: loopContract.llmMaxRetries,
         execution_container: executionContainer,
+        runtime_capabilities: runtimeCapabilities,
         tools: toolMatch,
         instructions,
         execution_brief: executionBrief,
@@ -1166,6 +1170,37 @@ function buildTaskLoopMode(task: Record<string, unknown>) {
   return task.is_orchestrator_task === true ? 'tpaov' : 'reactive';
 }
 
+function buildRuntimeTaskCapabilities(
+  task: Record<string, unknown>,
+  instructionContext: Record<string, unknown>,
+): Record<string, unknown> {
+  const taskKind = readPresentString(isRecord(task.metadata) ? task.metadata.task_kind : null) ?? '';
+  const allowsHandoffResolution = taskKind === 'assessment' || taskKind === 'approval';
+  return compactRecord({
+    requires_structured_handoff: roleRequiresStructuredHandoff(task, instructionContext),
+    allows_handoff_resolution: allowsHandoffResolution,
+    forbidden_mutation_tools: allowsHandoffResolution ? ['file_write', 'file_edit', 'git_commit', 'git_push'] : undefined,
+    isolate_shell_exec_workspace: allowsHandoffResolution || undefined,
+  });
+}
+
+function roleRequiresStructuredHandoff(
+  task: Record<string, unknown>,
+  instructionContext: Record<string, unknown>,
+): boolean {
+  const role = readPresentString(task.role);
+  if (!role) {
+    return false;
+  }
+  const workflow = isRecord(instructionContext.workflow) ? instructionContext.workflow : null;
+  const playbook = workflow && isRecord(workflow.playbook) ? workflow.playbook : null;
+  if (!playbook || !('definition' in playbook)) {
+    return false;
+  }
+  const definition = parsePlaybookDefinition(playbook.definition);
+  return definition.handoff_rules.some((rule) => rule.required !== false && rule.from_role === role);
+}
+
 function readNullableFloat(value: unknown): number | null {
   if (typeof value === 'number') {
     return Number.isFinite(value) ? value : null;
@@ -1195,6 +1230,12 @@ function stripClaimSecretEchoes(task: Record<string, unknown>): Record<string, u
     role_config: sanitizedRoleConfig,
     credentials: sanitizedCredentials,
   };
+}
+
+function compactRecord<T extends Record<string, unknown>>(value: T): T {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as T;
 }
 
 function mergeClaimRuntimeBindings(
