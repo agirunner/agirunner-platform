@@ -3,20 +3,58 @@
   "profile": "sdlc-revision-rework",
   "workflow": {
     "name": "SDLC Revision Invalidation",
-    "goal": "Ship a change that requires multiple rework cycles, reuses an assessor across checkpoints, and invalidates stale approvals after each new revision.",
+    "goal": "Ship a concrete `workflow_cli release-plan --change-id <id>` enhancement where revision 1 lands the baseline plan output, revision 2 resolves the quality assessor findings without yet satisfying the integration assessor, and revision 3 completes the architect-routed redesign so stale earlier approvals do not clear the newest revision.",
     "parameters": {
-      "assessment_contract": "Older approvals must not clear newer revisions; route redesign feedback back to the platform architect when specified."
+      "initial_revision_scope": "Revision 1 MUST add `python3 -m workflow_cli release-plan --change-id <id>` that emits deterministic JSON with `change_id`, `plan_status` set to `draft`, a non-empty `implementation_steps` array, and `release_readiness` set to `pending`. Revision 1 MUST NOT add `compatibility_checks`, `dependency_notes`, `rollback_plan`, or `operational_guardrails` yet.",
+      "architect_rework_scope": "Revision 2 MUST keep the revision 1 behavior intact and add a non-empty `compatibility_checks` array, a non-empty `dependency_notes` array, and README usage for the `release-plan` command. Revision 2 MUST still leave `rollback_plan` empty and MUST NOT add `operational_guardrails` yet.",
+      "final_revision_scope": "Revision 3 MUST keep the revision 2 behavior intact and add a non-empty `rollback_plan`, a non-empty `operational_guardrails` array, and set `release_readiness` to `approved`. Revision 3 MUST extend unit coverage so the release-plan output is fully verified through the final guarded contract.",
+      "revision_progression_contract": "The quality assessor MUST request_changes on revision 1 because the active subject still lacks compatibility_checks, dependency_notes, and README usage. The integration assessor MUST approve revision 1, reject revision 2 when rollback_plan and operational_guardrails are still missing, and approve only after revision 3 increases the subject revision and fully satisfies final_revision_scope. Older approvals must not clear newer revisions."
     }
   },
   "workspace": {
     "repo": true,
     "memory": {},
-    "spec": {}
+    "spec": {
+      "instructions": {
+        "format": "markdown",
+        "content": "This scenario uses an authored three-revision contract for the concrete `workflow_cli release-plan` command. Revision 1 MUST stop at `initial_revision_scope`. Revision 2 MUST satisfy `architect_rework_scope`. Revision 2 MUST NOT satisfy `final_revision_scope`. Revision 3 MUST satisfy the full `final_revision_scope` after the integration rejection is routed back through the architect. Treat early delivery of future-scope work, simulated later revisions, or one-pass implementations as contract noncompliance."
+      }
+    }
   },
   "approvals": [],
   "actions": [],
+  "timeout_seconds": 3600,
   "expect": {
     "state": "completed",
+    "assessment_sequences": [
+      {
+        "subject_role": "feature-engineer",
+        "assessed_by": "integration-quality-assessor",
+        "expected_resolutions": [
+          "request_changes",
+          "approved",
+          "approved"
+        ]
+      },
+      {
+        "subject_role": "feature-engineer",
+        "assessed_by": "integration-assessor",
+        "expected_resolutions": [
+          "approved",
+          "rejected",
+          "approved"
+        ]
+      }
+    ],
+    "continuity_rework_sequences": [
+      {
+        "stage_name": "implementation-pass",
+        "required_role": "feature-engineer",
+        "minimum_rework_count": 2,
+        "assessment_stage_name": "implementation-pass",
+        "assessment_task_min_count": 3
+      }
+    ],
     "subject_revision_expectations": [
       {
         "stage_name": "implementation-pass",
@@ -36,6 +74,9 @@
     ],
     "playbook_shapes": [
       "assessor_reused_across_checkpoints"
+    ],
+    "assessor_cardinality": [
+      "sequential_same_revision"
     ]
   }
 }

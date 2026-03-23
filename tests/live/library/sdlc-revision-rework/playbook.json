@@ -5,7 +5,7 @@
   "outcome": "Rework produces new subject revisions, invalidates stale assessments, and only the active revision may advance.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "The platform architect defines the change. The feature engineer implements it. The integration quality assessor evaluates the implementation revision. The integration assessor evaluates downstream compatibility. Request_changes should reopen the subject, route_to_role may send work back to the platform architect for redesign, and stale older assessments must never clear a newer revision. The integration quality assessor is reused across checkpoints and must reassess later release-readiness output when the playbook calls for it.",
+    "process_instructions": "The platform architect defines a concrete repository-backed three-revision contract for the seeded `workflow_cli release-plan` enhancement. The feature engineer implements only the active revision scope and must not satisfy future revision requirements early. The integration quality assessor evaluates the implementation revision first and drives the initial reopen_subject rework. The integration assessor evaluates the same subject after the quality findings are resolved and routes the revision back to the platform architect when the later integration-only contract is still missing. Stale older assessments must never clear a newer revision. The integration quality assessor is reused across checkpoints and must reassess later release-readiness output when the playbook calls for it.",
     "parameters": [
       {
         "name": "goal",
@@ -13,6 +13,34 @@
         "required": true,
         "category": "input",
         "description": "What this live workflow should accomplish"
+      },
+      {
+        "name": "initial_revision_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 1 must deliver before any rework begins"
+      },
+      {
+        "name": "architect_rework_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 2 must deliver after the first reopen_subject cycle"
+      },
+      {
+        "name": "final_revision_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 3 must deliver after the architect-routed redesign"
+      },
+      {
+        "name": "revision_progression_contract",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Authored assessor outcomes across the three revisions"
       }
     ],
     "roles": [
@@ -138,10 +166,11 @@
         "required": true,
         "outcome_actions": {
           "request_changes": {
-            "action": "escalate"
+            "action": "reopen_subject"
           },
           "rejected": {
-            "action": "block_subject"
+            "action": "route_to_role",
+            "role": "platform-architect"
           }
         }
       },

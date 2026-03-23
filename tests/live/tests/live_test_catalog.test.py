@@ -280,6 +280,90 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("Reject revision 2", security_prompt)
         self.assertIn("Approve only after revision 3", security_prompt)
 
+    def test_revision_rework_profile_authors_a_real_three_revision_contract(self) -> None:
+        scenario = scenario_config.load_scenario(
+            SCENARIOS_DIR / "sdlc-rework-invalidates-prior-assessments.json"
+        )
+        parameters = scenario["workflow"]["parameters"]
+        self.assertIn("initial_revision_scope", parameters)
+        self.assertIn("architect_rework_scope", parameters)
+        self.assertIn("final_revision_scope", parameters)
+        self.assertIn("revision_progression_contract", parameters)
+
+        staged_contract = (
+            LIBRARY_DIR
+            / "sdlc-revision-rework"
+            / "repo-seed"
+            / "docs"
+            / "staged-revision-contract.md"
+        )
+        self.assertTrue(staged_contract.is_file())
+        staged_contract_text = staged_contract.read_text()
+        self.assertIn("Revision 1", staged_contract_text)
+        self.assertIn("Revision 2 After Architect Rework", staged_contract_text)
+        self.assertIn("Revision 3 Final Implementation", staged_contract_text)
+
+        workspace_instructions = scenario["workspace"]["spec"]["instructions"]["content"]
+        self.assertIn("Revision 1 MUST stop at `initial_revision_scope`", workspace_instructions)
+        self.assertIn("Revision 2 MUST satisfy `architect_rework_scope`", workspace_instructions)
+        self.assertIn("Revision 2 MUST NOT satisfy `final_revision_scope`", workspace_instructions)
+        self.assertIn("Revision 3 MUST satisfy the full `final_revision_scope`", workspace_instructions)
+
+        playbook = live_test_catalog.read_fixture(
+            LIBRARY_DIR / "sdlc-revision-rework" / "playbook.json"
+        )
+        parameter_names = {entry["name"] for entry in playbook["definition"]["parameters"]}
+        self.assertIn("initial_revision_scope", parameter_names)
+        self.assertIn("architect_rework_scope", parameter_names)
+        self.assertIn("final_revision_scope", parameter_names)
+        self.assertIn("revision_progression_contract", parameter_names)
+
+        quality_rule, integration_rule, release_rule = playbook["definition"]["assessment_rules"]
+        self.assertEqual(
+            {"action": "reopen_subject"},
+            quality_rule["outcome_actions"]["request_changes"],
+        )
+        self.assertEqual(
+            {"action": "route_to_role", "role": "platform-architect"},
+            integration_rule["outcome_actions"]["rejected"],
+        )
+        self.assertEqual(
+            {"action": "reopen_subject"},
+            release_rule["outcome_actions"]["request_changes"],
+        )
+
+        roles = live_test_catalog.read_fixture(
+            LIBRARY_DIR / "sdlc-revision-rework" / "roles.json"
+        )
+        architect_prompt = next(
+            role["systemPrompt"] for role in roles if role["name"] == "platform-architect"
+        )
+        implementation_prompt = next(
+            role["systemPrompt"] for role in roles if role["name"] == "feature-engineer"
+        )
+        quality_prompt = next(
+            role["systemPrompt"]
+            for role in roles
+            if role["name"] == "integration-quality-assessor"
+        )
+        integration_prompt = next(
+            role["systemPrompt"]
+            for role in roles
+            if role["name"] == "integration-assessor"
+        )
+
+        self.assertIn("three-revision contract", architect_prompt)
+        self.assertIn("Revision 1 MUST stop at initial_revision_scope", implementation_prompt)
+        self.assertIn("Revision 2 MUST satisfy architect_rework_scope", implementation_prompt)
+        self.assertIn("Revision 2 MUST NOT satisfy final_revision_scope", implementation_prompt)
+        self.assertIn("Revision 3 MUST satisfy the full final_revision_scope", implementation_prompt)
+        self.assertIn("Do not satisfy future revision work early", implementation_prompt)
+        self.assertIn("request_changes on revision 1", quality_prompt)
+        self.assertIn("approve revisions 2 and 3", quality_prompt)
+        self.assertIn("approve revision 1", integration_prompt)
+        self.assertIn("reject revision 2", integration_prompt)
+        self.assertIn("approve only after revision 3", integration_prompt)
+
     def test_readme_documents_oauth_default_and_provider_auth_externalization(self) -> None:
         source = README_FILE.read_text()
         self.assertIn("OAuth MUST be the default live-test path.", source)
