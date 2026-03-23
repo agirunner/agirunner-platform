@@ -1073,6 +1073,85 @@ describe('HandoffService', () => {
     );
   });
 
+  it('anchors orchestrator handoffs to the activation work item when the task row is workflow-scoped', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: null,
+            role: 'orchestrator',
+            stage_name: 'operator-approval',
+            state: 'in_progress',
+            rework_count: 0,
+            is_orchestrator_task: true,
+            input: {
+              events: [{
+                type: 'stage.gate.approve',
+                work_item_id: 'work-item-approval-1',
+                stage_name: 'operator-approval',
+                payload: {
+                  gate_id: 'gate-1',
+                  stage_name: 'operator-approval',
+                  work_item_id: 'work-item-approval-1',
+                },
+              }],
+            },
+            metadata: { team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 0 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-anchored-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-approval-1',
+            task_id: 'task-1',
+            task_rework_count: 0,
+            request_id: 'req-anchored-1',
+            role: 'orchestrator',
+            team_name: 'delivery',
+            stage_name: 'operator-approval',
+            sequence: 0,
+            summary: 'Approval is complete and publication may proceed.',
+            completion: 'full',
+            changes: [],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            focus_areas: [],
+            known_risks: [],
+            successor_context: null,
+            role_data: {},
+            artifact_ids: [],
+            created_at: new Date('2026-03-23T12:00:00Z'),
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    const result = await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-anchored-1',
+      summary: 'Approval is complete and publication may proceed.',
+      completion: 'full',
+    });
+
+    expect(result).toEqual(expect.objectContaining({ work_item_id: 'work-item-approval-1' }));
+    const insertCall = pool.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
+    ) as [string, unknown[]] | undefined;
+    expect(insertCall?.[1]?.[2]).toBe('work-item-approval-1');
+  });
+
   it('serializes jsonb handoff fields before inserting them', async () => {
     const query = vi
       .fn()

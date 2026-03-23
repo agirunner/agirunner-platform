@@ -405,7 +405,7 @@ export class HandoffService {
     if (!result.rowCount) {
       throw new NotFoundError('Task not found');
     }
-    return result.rows[0];
+    return applyActivationEventAnchor(result.rows[0]);
   }
 
   private async loadWorkflowPlaybookDefinition(
@@ -607,6 +607,42 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
   };
   assertNoTaskLocalHandoffPaths(payload);
   return payload;
+}
+
+function applyActivationEventAnchor(task: TaskContextRow): TaskContextRow {
+  if (task.work_item_id) {
+    return task;
+  }
+  const activationAnchor = readActivationEventAnchor(task.input);
+  if (!activationAnchor.work_item_id && !activationAnchor.stage_name) {
+    return task;
+  }
+  return {
+    ...task,
+    work_item_id: activationAnchor.work_item_id ?? task.work_item_id,
+    stage_name: activationAnchor.stage_name ?? task.stage_name,
+  };
+}
+
+function readActivationEventAnchor(input: Record<string, unknown> | null | undefined) {
+  const events = Array.isArray(input?.events) ? input.events : [];
+  for (const entry of events) {
+    const event = normalizeRecord(entry);
+    const payload = normalizeRecord(event.payload);
+    const workItemId = readOptionalString(event.work_item_id) ?? readOptionalString(payload.work_item_id);
+    const stageName = readOptionalString(event.stage_name) ?? readOptionalString(payload.stage_name);
+    if (!workItemId && !stageName) {
+      continue;
+    }
+    return {
+      work_item_id: workItemId ?? null,
+      stage_name: stageName ?? null,
+    };
+  }
+  return {
+    work_item_id: null,
+    stage_name: null,
+  };
 }
 
 function assertMatchingTaskAttempt(task: TaskContextRow, input: SubmitTaskHandoffInput) {

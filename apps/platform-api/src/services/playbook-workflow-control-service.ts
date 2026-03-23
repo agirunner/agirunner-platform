@@ -103,6 +103,7 @@ interface WorkflowStageGateRow extends WorkflowStageGateRecord {
   decided_at: Date | null;
   superseded_at?: Date | null;
   superseded_by_revision?: number | null;
+  requested_by_work_item_id?: string | null;
 }
 
 interface SubjectTaskChangeService {
@@ -428,11 +429,25 @@ export class PlaybookWorkflowControlService {
       `INSERT INTO workflow_stage_gates (
           tenant_id, workflow_id, stage_id, stage_name, request_summary,
           recommendation, concerns, key_artifacts, status,
-          requested_by_type, requested_by_id, requested_at, subject_revision
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, 'awaiting_approval', $9, $10, now(), $11)
+          requested_by_type, requested_by_id, requested_at, subject_revision, requested_by_work_item_id
+        ) VALUES (
+          $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, 'awaiting_approval', $9, $10, now(), $11,
+          (
+            SELECT CASE
+              WHEN COUNT(*) = 1 THEN MIN(wi.id)
+              ELSE NULL
+            END
+            FROM workflow_work_items wi
+            WHERE wi.tenant_id = $1
+              AND wi.workflow_id = $2
+              AND wi.stage_name = $4
+              AND wi.completed_at IS NULL
+          )
+        )
       RETURNING id, workflow_id, stage_id, stage_name, status, request_summary, recommendation,
                 concerns, key_artifacts, requested_by_type, requested_by_id, requested_at,
                 updated_at, subject_revision, decided_by_type, decided_by_id, decision_feedback, decided_at,
+                requested_by_work_item_id,
                 superseded_at, superseded_by_revision`,
       [
         identity.tenantId,
@@ -1602,7 +1617,8 @@ export class PlaybookWorkflowControlService {
     const result = await db.query<WorkflowStageGateRow>(
       `SELECT id, workflow_id, stage_id, stage_name, status, request_summary, recommendation,
               concerns, key_artifacts, requested_by_type, requested_by_id, requested_at,
-              updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at
+              updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at,
+              requested_by_work_item_id
          FROM workflow_stage_gates
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -1622,7 +1638,8 @@ export class PlaybookWorkflowControlService {
     const result = await db.query<WorkflowStageGateRow>(
       `SELECT id, workflow_id, stage_id, stage_name, status, request_summary, recommendation,
               concerns, key_artifacts, requested_by_type, requested_by_id, requested_at,
-              updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at
+              updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at,
+              requested_by_work_item_id
          FROM workflow_stage_gates
         WHERE tenant_id = $1
           AND id = $2
@@ -1642,7 +1659,8 @@ export class PlaybookWorkflowControlService {
     const result = await db.query<WorkflowStageGateRow>(
       `SELECT id, workflow_id, stage_id, stage_name, status, request_summary, recommendation,
               concerns, key_artifacts, requested_by_type, requested_by_id, requested_at,
-              updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at
+              updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at,
+              requested_by_work_item_id
          FROM workflow_stage_gates
         WHERE tenant_id = $1
           AND id = $2
@@ -1661,7 +1679,8 @@ export class PlaybookWorkflowControlService {
     const result = await db.query<WorkflowStageGateRow>(
       `SELECT id, workflow_id, stage_id, stage_name, status, request_summary, recommendation,
               concerns, key_artifacts, requested_by_type, requested_by_id, requested_at,
-              updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at
+              updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at,
+              requested_by_work_item_id
          FROM workflow_stage_gates
         WHERE tenant_id = $1
           AND workflow_id = $2
@@ -1806,6 +1825,7 @@ export class PlaybookWorkflowControlService {
       RETURNING id, workflow_id, stage_id, stage_name, status, request_summary, recommendation,
                 concerns, key_artifacts, requested_by_type, requested_by_id, requested_at,
                 updated_at, subject_revision, decided_by_type, decided_by_id, decision_feedback,
+                requested_by_work_item_id,
                 decided_at, superseded_at, superseded_by_revision`,
       [
         identity.tenantId,
@@ -1923,7 +1943,14 @@ export class PlaybookWorkflowControlService {
         workflowId,
         reason: `stage.gate.${input.action}`,
         eventType: `stage.gate.${input.action}`,
-        payload: { stage_name: stage.name, feedback, gate_id: gate.id },
+        payload: {
+          stage_name: stage.name,
+          feedback,
+          gate_id: gate.id,
+          ...(updatedGateResult.rows[0]?.requested_by_work_item_id
+            ? { work_item_id: updatedGateResult.rows[0].requested_by_work_item_id }
+            : {}),
+        },
         actorType: identity.scope,
         actorId: identity.keyPrefix,
       },
