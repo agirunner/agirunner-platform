@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import { getRequestContext } from '../../observability/request-context.js';
 import { createLogger } from '../../observability/logger.js';
+import { safetynetTriggerCounter } from '../../observability/metrics.js';
 import type { SafetynetEntry } from './types.js';
 
 const logger = createLogger(process.env.LOG_LEVEL ?? 'info');
@@ -11,6 +12,7 @@ export function logSafetynetTriggered(
   triggerReason: string,
   payload: Record<string, unknown> = {},
 ): void {
+  safetynetTriggerCounter.inc({ behavior: entry.id });
   const requestContext = getRequestContext();
   logger.warn({
     event_type: 'platform.safetynet.triggered',

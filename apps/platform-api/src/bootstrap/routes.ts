@@ -11,6 +11,7 @@ import { executeRoutes } from '../api/routes/execute.routes.js';
 import { governanceRoutes } from '../api/routes/governance.routes.js';
 import { healthRoutes } from '../api/routes/health.routes.js';
 import { orchestratorGrantRoutes } from '../api/routes/orchestrator-grants.routes.js';
+import { safetynetRoutes } from '../api/routes/safetynet.routes.js';
 import { workflowRoutes } from '../api/routes/workflows.routes.js';
 import { workflowActivationRoutes } from '../api/routes/workflow-activations.routes.js';
 import { orchestratorConfigRoutes } from '../api/routes/orchestrator-config.routes.js';
@@ -40,6 +41,7 @@ import { orchestratorControlRoutes } from '../api/routes/orchestrator-control.ro
 
 export async function registerRoutes(app: FastifyInstance): Promise<void> {
   await app.register(healthRoutes);
+  await app.register(safetynetRoutes);
   await app.register(approvalQueueRoutes);
   await app.register(a2aRoutes);
   await app.register(acpRoutes);

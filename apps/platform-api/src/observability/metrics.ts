@@ -17,3 +17,10 @@ export const requestDuration = new Histogram({
   buckets: [0.01, 0.05, 0.1, 0.25, 0.5, 1, 2],
   registers: [metricsRegistry],
 });
+
+export const safetynetTriggerCounter = new Counter({
+  name: 'platform_safetynet_trigger_total',
+  help: 'Total registered platform safetynet behavior triggers grouped by behavior id',
+  labelNames: ['behavior'],
+  registers: [metricsRegistry],
+});

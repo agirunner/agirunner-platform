@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
+import { metricsRegistry } from '../../src/observability/metrics.js';
+import { logSafetynetTriggered } from '../../src/services/safetynet/logging.js';
 import {
   PLATFORM_APPROVAL_STALE_DECISION_SUPERSESSION_ID,
   PLATFORM_CONTINUITY_STALE_WRITE_SUPPRESSION_ID,
@@ -14,6 +16,10 @@ import {
 } from '../../src/services/safetynet/registry.js';
 
 describe('platform safetynet registry', () => {
+  afterEach(() => {
+    metricsRegistry.resetMetrics();
+  });
+
   it('includes the expected platform entries', () => {
     const ids = [
       PLATFORM_ORCHESTRATOR_SUBJECT_LINKAGE_INFERENCE_ID,
@@ -43,5 +49,21 @@ describe('platform safetynet registry', () => {
     expect(() => mustGetSafetynetEntry('platform.unknown')).toThrow(
       "unknown platform safetynet entry 'platform.unknown'",
     );
+  });
+
+  it('increments the platform safetynet trigger counter when a safetynet is logged', async () => {
+    const entry = mustGetSafetynetEntry(PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID);
+
+    logSafetynetTriggered(entry, 'test trigger');
+    logSafetynetTriggered(entry, 'test trigger');
+
+    const metrics = await metricsRegistry.getMetricsAsJSON();
+    const metric = metrics.find((candidate) => candidate.name === 'platform_safetynet_trigger_total');
+
+    expect(metric).toBeDefined();
+    expect(metric?.values).toContainEqual({
+      value: 2,
+      labels: { behavior: PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID },
+    });
   });
 });
