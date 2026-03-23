@@ -2011,7 +2011,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertFalse(verification["passed"])
         self.assertEqual(
             [
-                "expected 'task.handoff_submitted' for stage 'release' between stage.gate.request_changes and stage.gate.approve"
+                "expected 'task.handoff_submitted' for rework stage 'release' after gate stage 'release' between stage.gate.request_changes and stage.gate.approve"
             ],
             verification["failures"],
         )
@@ -2146,6 +2146,52 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                 ]
             },
             workflow=workflow,
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[
+                {
+                    "stage_name": "approval-gate",
+                    "action": "request_changes",
+                    "submitted_at": "2026-03-19T03:00:00Z",
+                },
+                {
+                    "stage_name": "approval-gate",
+                    "action": "approve",
+                    "submitted_at": "2026-03-19T03:10:00Z",
+                },
+            ],
+            events={"data": {"data": []}},
+        )
+
+        self.assertTrue(verification["passed"])
+
+    def test_evaluate_expectations_accepts_gate_rework_in_a_different_stage(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "gate_rework_sequences": [
+                    {
+                        "stage_name": "approval-gate",
+                        "rework_stage_name": "drafting",
+                        "request_action": "request_changes",
+                        "resume_action": "approve",
+                        "required_event_type": "task.handoff_submitted",
+                        "required_role": "rework-technical-editor",
+                    }
+                ]
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-drafting-rework",
+                        "role": "rework-technical-editor",
+                        "stage_name": "drafting",
+                        "completed_at": "2026-03-19T03:05:00Z",
+                    }
+                ],
+            },
             board={"data": {"data": {"columns": []}}},
             work_items={"data": {"data": []}},
             workspace={"memory": {}},

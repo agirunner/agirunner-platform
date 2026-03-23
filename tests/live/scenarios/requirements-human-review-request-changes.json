@@ -46,6 +46,7 @@
     "gate_rework_sequences": [
       {
         "stage_name": "approval-gate",
+        "rework_stage_name": "drafting",
         "required_role": "rework-technical-editor"
       }
     ]

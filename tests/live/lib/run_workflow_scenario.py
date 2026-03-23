@@ -1406,6 +1406,9 @@ def evaluate_expectations(
             stage_name = entry.get("stage_name")
             if not isinstance(stage_name, str) or stage_name.strip() == "":
                 continue
+            rework_stage_name = entry.get("rework_stage_name", stage_name)
+            if not isinstance(rework_stage_name, str) or rework_stage_name.strip() == "":
+                rework_stage_name = stage_name
             request_action = str(entry.get("request_action", "request_changes"))
             resume_action = str(entry.get("resume_action", "approve"))
             required_event_type = str(entry.get("required_event_type", "task.handoff_submitted"))
@@ -1445,7 +1448,7 @@ def evaluate_expectations(
                         continue
                     if actual.get("type") != required_event_type:
                         continue
-                    if data.get("stage_name") != stage_name:
+                    if data.get("stage_name") != rework_stage_name:
                         continue
                     role = data.get("role")
                     if require_non_orchestrator and role == "orchestrator":
@@ -1474,7 +1477,7 @@ def evaluate_expectations(
                 for task in workflow_tasks:
                     if not isinstance(task, dict):
                         continue
-                    if task.get("stage_name") != stage_name:
+                    if task.get("stage_name") != rework_stage_name:
                         continue
                     role = task.get("role")
                     if require_non_orchestrator and role == "orchestrator":
@@ -1494,7 +1497,9 @@ def evaluate_expectations(
             checks.append({"name": check_name, "passed": matched})
             if not matched:
                 failures.append(
-                    f"expected {required_event_type!r} for stage {stage_name!r} between "
+                    f"expected {required_event_type!r} for rework stage {rework_stage_name!r} after "
+                    f"gate stage {stage_name!r} "
+                    f"between "
                     f"stage.gate.{request_action} and stage.gate.{resume_action}"
                 )
 
