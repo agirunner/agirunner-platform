@@ -6,7 +6,7 @@ import {
   MAX_INLINE_ARTIFACT_PREVIEW_BYTES,
   buildArtifactPermalink,
   describeArtifactPreview,
-} from '../../components/artifact-preview-support.js';
+} from '../../components/artifact-preview/artifact-preview-support.js';
 import {
   buildWorkspaceArtifactBrowserPath,
   DEFAULT_WORKSPACE_ARTIFACT_ROUTE_STATE,

@@ -2,7 +2,7 @@ import { Component, lazy, Suspense, useEffect } from 'react';
 import type { ComponentType, ErrorInfo, ReactNode } from 'react';
 import { Navigate, Outlet, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { DashboardLayout } from '../components/layout.js';
+import { DashboardLayout } from '../components/layout/layout.js';
 import { resolveAuthCallbackSession } from '../lib/auth-callback.js';
 import {
   completeSsoBrowserSession,
@@ -63,7 +63,7 @@ const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail/
 const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/workflow-inspector/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
 const TaskListPage = lazyWithRetry(() => import('../pages/task-list/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
 const TaskDetailPage = lazyWithRetry(() => import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
-const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
+const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
 const ApprovalQueuePage = lazyWithRetry(() => import('../pages/approval-queue/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
 const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspace-list/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));

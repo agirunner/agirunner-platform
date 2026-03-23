@@ -2,7 +2,7 @@ import { FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import type { DashboardTaskArtifactRecord } from '../../lib/api.js';
-import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
+import { buildArtifactPermalink } from '../../components/artifact-preview/artifact-preview-support.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';

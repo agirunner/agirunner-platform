@@ -1,5 +1,5 @@
-import type { ArtifactPreviewReturnSource } from '../lib/artifact-navigation.js';
-import { buildWorkflowOperatorPermalink } from '../pages/work-shared/task-operator-flow.js';
+import type { ArtifactPreviewReturnSource } from '../../lib/artifact-navigation.js';
+import { buildWorkflowOperatorPermalink } from '../../pages/work-shared/task-operator-flow.js';
 
 import { MAX_INLINE_ARTIFACT_PREVIEW_BYTES } from './artifact-preview-support.js';
 

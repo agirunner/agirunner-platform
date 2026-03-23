@@ -1,7 +1,7 @@
 import {
   describeArtifactPreview,
   type ArtifactPreviewKind,
-} from '../../components/artifact-preview-support.js';
+} from '../../components/artifact-preview/artifact-preview-support.js';
 import type {
   DashboardWorkspaceArtifactRecord,
   DashboardWorkspaceArtifactSummary,

@@ -3,13 +3,13 @@ import { useQuery } from '@tanstack/react-query';
 import { Copy, Download, FileText, Loader2, Package } from 'lucide-react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 
-import { dashboardApi } from '../lib/api.js';
-import { readArtifactPreviewReturnState } from '../lib/artifact-navigation.js';
-import { toast } from '../lib/toast.js';
-import { Badge } from './ui/badge.js';
-import { Button } from './ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card.js';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs.js';
+import { dashboardApi } from '../../lib/api.js';
+import { readArtifactPreviewReturnState } from '../../lib/artifact-navigation.js';
+import { toast } from '../../lib/toast.js';
+import { Badge } from '../ui/badge.js';
+import { Button } from '../ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs.js';
 import {
   buildArtifactPermalink,
   describeArtifactPreview,

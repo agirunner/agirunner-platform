@@ -12,7 +12,7 @@ import {
   type DashboardWorkflowStageRecord,
   type DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
-import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
+import { buildArtifactPermalink } from '../../components/artifact-preview/artifact-preview-support.js';
 import {
   CopyableIdBadge,
   OperatorStatusBadge,

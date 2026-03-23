@@ -7,7 +7,7 @@ import {
   type DashboardWorkspaceRecord,
   type DashboardResolvedDocumentReference,
 } from '../../lib/api.js';
-import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
+import { buildArtifactPermalink } from '../../components/artifact-preview/artifact-preview-support.js';
 import { ChainStructuredEntryEditor } from '../../components/chain-workflow-parameters.js';
 import { StructuredRecordView } from '../../components/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';

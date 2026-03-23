@@ -1,4 +1,4 @@
-import type { DashboardSearchResult } from '../lib/api.js';
+import type { DashboardSearchResult } from '../../lib/api.js';
 
 export const COMMAND_PALETTE_MIN_QUERY_LENGTH = 2;
 export const COMMAND_PALETTE_DEBOUNCE_MS = 180;

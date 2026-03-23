@@ -35,10 +35,10 @@ import {
   Zap,
 } from 'lucide-react';
 
-import { dashboardApi, type DashboardSearchResult } from '../lib/api.js';
-import { readSession, clearSession } from '../lib/session.js';
-import { cn } from '../lib/utils.js';
-import { readTheme } from '../app/theme.js';
+import { dashboardApi, type DashboardSearchResult } from '../../lib/api.js';
+import { readSession, clearSession } from '../../lib/session.js';
+import { cn } from '../../lib/utils.js';
+import { readTheme } from '../../app/theme.js';
 import { BreadcrumbBar } from './breadcrumb-bar.js';
 import {
   Dialog,
@@ -46,7 +46,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogTitle,
-} from './ui/dialog.js';
+} from '../ui/dialog.js';
 import {
   buildCommandPaletteSections,
   clearRecentCommandPaletteItems,

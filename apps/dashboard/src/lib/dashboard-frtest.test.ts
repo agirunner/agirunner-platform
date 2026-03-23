@@ -256,7 +256,7 @@ describe('FR-156: dashboard is tenant-scoped', () => {
   });
 
   it('layout reads the active session for tenant-scoped operation', () => {
-    const source = readComponent('components/layout.tsx');
+    const source = readComponent('components/layout/layout.tsx');
     expect(source).toContain('readSession');
     expect(source).toContain('clearSession');
   });
@@ -316,7 +316,7 @@ describe('FR-420 / FR-424 / FR-426: playbook browser, workflow launch, API key m
 
   it('app and layout expose playbook-only configuration routes', () => {
     const appSource = readComponent('app/app.tsx');
-    const layoutSource = readComponent('components/layout.tsx');
+    const layoutSource = readComponent('components/layout/layout.tsx');
     expect(appSource).toContain('/config/playbooks');
     expect(appSource).not.toContain('/config/templates');
     expect(layoutSource).not.toContain('Templates (Legacy)');
@@ -334,7 +334,7 @@ describe('FR-RT-1620..1625: guided runtime customization flow', () => {
   });
 
   it('layout exposes runtime configuration navigation in the sidebar', () => {
-    const source = readComponent('components/layout.tsx');
+    const source = readComponent('components/layout/layout.tsx');
     expect(source).toContain('/config/runtimes');
     expect(source).toContain('Runtimes');
   });
@@ -345,12 +345,12 @@ describe('FR-RT-1620..1625: guided runtime customization flow', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-427: dashboard navigation and layout', () => {
   it('layout.tsx exports DashboardLayout component', () => {
-    const source = readComponent('components/layout.tsx');
+    const source = readComponent('components/layout/layout.tsx');
     expect(source).toContain('export function DashboardLayout');
   });
 
   it('layout includes navigation links to the shipped major sections and a trimmed fleet shell group', () => {
-    const source = readComponent('components/layout.tsx');
+    const source = readComponent('components/layout/layout.tsx');
     expect(source).toContain('Mission Control');
     expect(source).toContain('Work');
     expect(source).toContain('Workspaces');
@@ -365,12 +365,12 @@ describe('FR-427: dashboard navigation and layout', () => {
   });
 
   it('layout includes Cmd+K keyboard shortcut for search', () => {
-    const source = readComponent('components/layout.tsx');
+    const source = readComponent('components/layout/layout.tsx');
     expect(source).toContain("event.key.toLowerCase() === 'k'");
   });
 
   it('layout includes a logout control', () => {
-    const source = readComponent('components/layout.tsx');
+    const source = readComponent('components/layout/layout.tsx');
     expect(source).toContain('logout');
   });
 });

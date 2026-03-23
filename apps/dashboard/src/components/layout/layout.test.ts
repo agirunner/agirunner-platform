@@ -9,7 +9,7 @@ function readLayoutSource() {
 }
 
 function readDialogSource() {
-  return readFileSync(resolve(import.meta.dirname, './ui/dialog.tsx'), 'utf8');
+  return readFileSync(resolve(import.meta.dirname, '../ui/dialog.tsx'), 'utf8');
 }
 
 afterEach(() => {

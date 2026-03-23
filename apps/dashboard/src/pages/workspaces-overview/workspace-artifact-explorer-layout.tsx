@@ -3,12 +3,12 @@ import { useEffect, useState } from 'react';
 import {
   formatArtifactPreviewText,
   renderArtifactPreviewMarkup,
-} from '../../components/artifact-preview-support.js';
+} from '../../components/artifact-preview/artifact-preview-support.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import type {
   ArtifactPreviewDescriptor,
-} from '../../components/artifact-preview-support.js';
+} from '../../components/artifact-preview/artifact-preview-support.js';
 import type { WorkspaceArtifactEntry } from './workspace-artifact-explorer-support.js';
 import {
   WorkspaceArtifactExplorerList,

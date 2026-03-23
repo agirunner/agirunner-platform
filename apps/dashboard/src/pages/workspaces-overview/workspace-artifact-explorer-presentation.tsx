@@ -1,7 +1,7 @@
 import { ChevronLeft, ChevronRight, Eye, ExternalLink, FileText, Package, Workflow } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
+import { buildArtifactPermalink } from '../../components/artifact-preview/artifact-preview-support.js';
 import { StructuredRecordView } from '../../components/structured-data.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';

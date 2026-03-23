@@ -2,7 +2,7 @@ import { useEffect, type ReactNode } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 
 import type { DashboardWorkspaceRecord } from '../../lib/api.js';
-import { rememberWorkspaceBreadcrumbLabel } from '../../components/layout-breadcrumbs.js';
+import { rememberWorkspaceBreadcrumbLabel } from '../../components/layout/layout-breadcrumbs.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardHeader } from '../../components/ui/card.js';
