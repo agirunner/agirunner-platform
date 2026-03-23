@@ -201,12 +201,27 @@ class LiveTestCatalogTests(unittest.TestCase):
             SCENARIOS_DIR / "sdlc-parallel-assessors-mixed-outcomes.json"
         )
         self.assertEqual(3600, scenario["timeout_seconds"])
+        self.assertIn("release-audit", scenario["workflow"]["goal"])
 
         parameters = scenario["workflow"]["parameters"]
         self.assertIn("initial_revision_scope", parameters)
         self.assertIn("quality_rework_scope", parameters)
         self.assertIn("security_rework_scope", parameters)
         self.assertIn("mixed_outcome_contract", parameters)
+
+        staged_contract = (
+            LIBRARY_DIR
+            / "sdlc-parallel-assessors-mixed-outcomes"
+            / "repo-seed"
+            / "docs"
+            / "staged-delivery.md"
+        )
+        self.assertTrue(staged_contract.is_file())
+        staged_contract_text = staged_contract.read_text()
+        self.assertIn("Revision 1", staged_contract_text)
+        self.assertIn("Revision 2 After Quality Request Changes", staged_contract_text)
+        self.assertIn("Revision 3 After Security Rejection", staged_contract_text)
+        self.assertIn("release-audit", staged_contract_text)
 
         workspace_instructions = scenario["workspace"]["spec"]["instructions"]["content"]
         self.assertIn("Revision 1 MUST stop at `initial_revision_scope`", workspace_instructions)
@@ -259,6 +274,7 @@ class LiveTestCatalogTests(unittest.TestCase):
 
         self.assertIn("three-revision contract", architect_prompt)
         self.assertIn("Do not preemptively implement revision-3-only security hardening in revision 2", implementation_prompt)
+        self.assertIn("Do not build a simulator of later revisions", implementation_prompt)
         self.assertIn("first subject revision MUST return request_changes", quality_prompt)
         self.assertIn("Approve revision 1", security_prompt)
         self.assertIn("Reject revision 2", security_prompt)

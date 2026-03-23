@@ -1,11 +1,11 @@
 {
   "name": "SDLC Parallel Assessors Mixed Outcomes Pipeline",
   "slug": "live-test-sdlc-parallel-assessors-mixed-outcomes-v1",
-  "description": "Software-delivery pipeline with two required assessors on the same subject revision.",
-  "outcome": "A delivery output is cleared by multiple assessors before successor work can continue.",
+  "description": "Software-delivery pipeline with two required assessors on the same subject revision for a concrete repository-backed CLI enhancement.",
+  "outcome": "A repository-backed CLI enhancement is cleared by multiple assessors before successor work can continue.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "The platform architecture lead defines the change. The parallel delivery engineer implements it. The release quality and release security assessors both evaluate the same subject revision in parallel. The parallel release manager packages the result only after all required assessments are clear.",
+    "process_instructions": "The platform architecture lead defines a concrete `workflow_cli release-audit` enhancement in the seeded Python CLI. The parallel delivery engineer extends that CLI in place and must not simulate future revisions ahead of the current subject revision. The release quality and release security assessors both evaluate the same repository-backed subject revision in parallel. The parallel release manager packages the result only after all required assessments are clear.",
     "parameters": [
       {
         "name": "goal",

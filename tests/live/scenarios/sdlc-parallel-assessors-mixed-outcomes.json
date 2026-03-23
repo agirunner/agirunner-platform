@@ -3,12 +3,12 @@
   "profile": "sdlc-parallel-assessors-mixed-outcomes",
   "workflow": {
     "name": "SDLC Parallel Assessors Mixed Outcomes",
-    "goal": "Implement a feature where one assessor requests changes, another rejects on a later pass, and stale earlier approvals do not clear the new revision.",
+    "goal": "Ship a `workflow_cli release-audit --scenario-name <name>` command where revision 1 adds the baseline audit output, quality requests changes for missing rollback and compatibility release-readiness details, revision 2 resolves those quality findings but still omits the permission-boundary hardening, and revision 3 resolves the remaining security findings so stale earlier approvals do not clear the newest revision.",
     "parameters": {
-      "initial_revision_scope": "Revision 1 MUST deliver the initial feature implementation and verification baseline, but it MUST leave the release rollback checklist, compatibility coverage notes, and permission-boundary hardening unresolved. Revision 1 is intentionally quality-incomplete but not security-blocking.",
-      "quality_rework_scope": "Revision 2 MUST resolve the rollback checklist and compatibility coverage findings from the quality assessor, including updated verification evidence. Revision 2 MUST NOT yet implement the permission-boundary hardening, threat-model note, or guardrail validation that belong only to security_rework_scope.",
-      "security_rework_scope": "Revision 3 MUST add the remaining permission-boundary hardening, threat-model note, and security guardrail verification so the current subject revision clears both required assessors.",
-      "mixed_outcome_contract": "The quality assessor MUST request_changes on revision 1, then approve later revisions once quality_rework_scope is satisfied. The security assessor MUST approve revision 1, reject revision 2 while security_rework_scope is still missing, and approve revision 3 after the subject revision increases and fully satisfies security_rework_scope."
+      "initial_revision_scope": "Revision 1 MUST add `python3 -m workflow_cli release-audit --scenario-name <name>` that emits deterministic JSON with `scenario_name`, `audit_status` set to `draft`, `rollback_ready` set to `false`, and an empty `compatibility_notes` array. Revision 1 MUST NOT add a non-empty rollback checklist, README usage, `permission_boundary`, `threat_model_note`, or `guardrail_validation` yet.",
+      "quality_rework_scope": "Revision 2 MUST update `release-audit` to emit a non-empty `rollback_checklist`, `rollback_ready=true`, and a non-empty `compatibility_notes` array. Revision 2 MUST also document the command in `README.md` and extend unit coverage for the release-ready quality fields. Revision 2 MUST NOT yet add `permission_boundary`, `threat_model_note`, or `guardrail_validation`.",
+      "security_rework_scope": "Revision 3 MUST add the remaining security-only fields to the `release-audit` payload: non-empty `permission_boundary`, non-empty `threat_model_note`, and `guardrail_validation=true`. Revision 3 MUST extend unit coverage so the active subject revision fully verifies those security-only fields.",
+      "mixed_outcome_contract": "The quality assessor MUST request_changes on revision 1 because the active subject still lacks the rollback checklist, compatibility notes, and README usage. The security assessor MUST approve revision 1, reject revision 2 while the security-only fields are still missing, and approve revision 3 after the subject revision increases and fully satisfies `security_rework_scope`."
     }
   },
   "workspace": {
@@ -17,7 +17,7 @@
     "spec": {
       "instructions": {
         "format": "markdown",
-        "content": "This scenario uses an authored three-revision contract. Revision 1 MUST stop at `initial_revision_scope`. Revision 2 MUST satisfy `quality_rework_scope`. Revision 2 MUST NOT satisfy `security_rework_scope`. Revision 3 MUST satisfy the full `security_rework_scope` after the security rejection is routed back through the architect. Treat early delivery of later-scope items as contract noncompliance, not as helpfulness."
+        "content": "This scenario uses an authored three-revision contract for the concrete `workflow_cli release-audit` command. Revision 1 MUST stop at `initial_revision_scope`. Revision 2 MUST satisfy `quality_rework_scope`. Revision 2 MUST NOT satisfy `security_rework_scope`. Revision 3 MUST satisfy the full `security_rework_scope` after the security rejection is routed back through the architect. Treat simulator-style implementations, precomputed future revisions, or early delivery of later-scope items as contract noncompliance, not as helpfulness."
       }
     }
   },
