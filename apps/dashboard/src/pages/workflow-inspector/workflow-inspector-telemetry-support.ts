@@ -1,5 +1,5 @@
 import type { LogStatsResponse } from '../../lib/api.js';
-import { formatCost } from '../../components/execution-inspector-support.js';
+import { formatCost } from '../../components/execution-inspector/execution-inspector-support.js';
 
 export function buildWorkflowInspectorLink(
   workflowId: string,

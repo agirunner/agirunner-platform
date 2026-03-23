@@ -1,21 +1,21 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { ChevronDown, ChevronUp, Search, RotateCcw } from 'lucide-react';
 
-import { Button } from './ui/button.js';
-import { Card, CardContent } from './ui/card.js';
-import { Input } from './ui/input.js';
+import { Button } from '../ui/button.js';
+import { Card, CardContent } from '../ui/card.js';
+import { Input } from '../ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from './ui/select.js';
+} from '../ui/select.js';
 import {
   DEFAULT_INSPECTOR_FILTERS,
   type InspectorFilters,
 } from './execution-inspector-support.js';
-import { useDebounced, DEBOUNCE_MS } from './log-viewer/log-filters.support.js';
+import { useDebounced, DEBOUNCE_MS } from '../log-viewer/log-filters.support.js';
 
 interface ExecutionInspectorFilterBarProps {
   filters: InspectorFilters;

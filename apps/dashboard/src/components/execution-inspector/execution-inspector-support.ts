@@ -1,4 +1,4 @@
-import type { LogEntry } from '../lib/api.js';
+import type { LogEntry } from '../../lib/api.js';
 
 export type InspectorView = 'raw' | 'summary' | 'detailed' | 'debug';
 

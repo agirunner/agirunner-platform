@@ -1,4 +1,4 @@
-import { formatCost } from '../../components/execution-inspector-support.js';
+import { formatCost } from '../../components/execution-inspector/execution-inspector-support.js';
 
 export function describeSpendBreakdownCoverage(input: {
   nounSingular: string;

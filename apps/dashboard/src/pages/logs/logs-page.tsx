@@ -8,10 +8,10 @@ import {
   type LogEntry,
   type LogQueryResponse,
 } from '../../lib/api.js';
-import { ExecutionInspectorFilterBar } from '../../components/execution-inspector-filter-bar.js';
-import { ExecutionInspectorSummaryView } from '../../components/execution-inspector-summary-view.js';
-import { ExecutionInspectorDetailView } from '../../components/execution-inspector-detail-view.js';
-import { ExecutionInspectorDebugView } from '../../components/execution-inspector-debug-view.js';
+import { ExecutionInspectorFilterBar } from '../../components/execution-inspector/execution-inspector-filter-bar.js';
+import { ExecutionInspectorSummaryView } from '../../components/execution-inspector/execution-inspector-summary-view.js';
+import { ExecutionInspectorDetailView } from '../../components/execution-inspector/execution-inspector-detail-view.js';
+import { ExecutionInspectorDebugView } from '../../components/execution-inspector/execution-inspector-debug-view.js';
 import { WorkflowBudgetCard } from '../../components/workflow-budget-card.js';
 import {
   buildLogFilters,
@@ -23,7 +23,7 @@ import {
   readSelectedInspectorLogId,
   writeInspectorFilters,
   type InspectorFilters,
-} from '../../components/execution-inspector-support.js';
+} from '../../components/execution-inspector/execution-inspector-support.js';
 import { LogViewer } from '../../components/log-viewer/log-viewer.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';

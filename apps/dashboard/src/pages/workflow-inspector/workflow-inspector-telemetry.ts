@@ -1,5 +1,5 @@
 import type { DashboardWorkflowRecord, LogStatsResponse } from '../../lib/api.js';
-import { formatCost, formatDuration, shortId } from '../../components/execution-inspector-support.js';
+import { formatCost, formatDuration, shortId } from '../../components/execution-inspector/execution-inspector-support.js';
 import { readWorkflowRunSummary } from '../workflow-detail/workflow-detail-support.js';
 import {
   buildWorkflowInspectorExecutionSummaryPackets,

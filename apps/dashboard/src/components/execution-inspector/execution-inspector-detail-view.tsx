@@ -1,9 +1,9 @@
 import { useState } from 'react';
 
-import type { LogEntry } from '../lib/api.js';
-import { Badge } from './ui/badge.js';
-import { Card, CardContent } from './ui/card.js';
-import { Button } from './ui/button.js';
+import type { LogEntry } from '../../lib/api.js';
+import { Badge } from '../ui/badge.js';
+import { Card, CardContent } from '../ui/card.js';
+import { Button } from '../ui/button.js';
 import {
   describeExecutionHeadline,
   describeExecutionNextAction,
@@ -15,7 +15,7 @@ import {
   shortId,
   statusVariant,
 } from './execution-inspector-support.js';
-import { formatLogRelativeTime } from './log-viewer/log-time.js';
+import { formatLogRelativeTime } from '../log-viewer/log-time.js';
 
 const INITIAL_VISIBLE_COUNT = 20;
 const VISIBLE_INCREMENT = 20;

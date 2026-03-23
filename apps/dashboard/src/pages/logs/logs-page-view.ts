@@ -1,7 +1,7 @@
 import {
   readInspectorView,
   type InspectorView,
-} from '../../components/execution-inspector-support.js';
+} from '../../components/execution-inspector/execution-inspector-support.js';
 
 export function readLogsSurfaceView(searchParams: URLSearchParams): InspectorView {
   const view = readInspectorView(searchParams);

@@ -1,5 +1,5 @@
 import type { DashboardWorkItemMemoryHistoryEntry } from '../../lib/api.js';
-import { shortId } from '../../components/execution-inspector-support.js';
+import { shortId } from '../../components/execution-inspector/execution-inspector-support.js';
 import type { WorkflowInspectorFocusWorkItem } from './workflow-inspector-support.js';
 
 export interface WorkflowInspectorMemoryChange {

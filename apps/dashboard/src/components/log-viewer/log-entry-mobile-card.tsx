@@ -10,7 +10,7 @@ import {
   readExecutionSignals,
   statusVariant,
   summarizeLogContext,
-} from '../execution-inspector-support.js';
+} from '../execution-inspector/execution-inspector-support.js';
 import { Badge } from '../ui/badge.js';
 import { LogEntryDetail } from './log-entry-detail.js';
 import { formatLogRelativeTime } from './log-time.js';

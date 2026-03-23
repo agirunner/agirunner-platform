@@ -5,10 +5,10 @@ import type {
   LogOperationRecord,
   LogRoleRecord,
   LogStatsResponse,
-} from '../lib/api.js';
-import { Badge } from './ui/badge.js';
-import { Card, CardContent, CardHeader, CardTitle } from './ui/card.js';
-import { Skeleton } from './ui/skeleton.js';
+} from '../../lib/api.js';
+import { Badge } from '../ui/badge.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card.js';
+import { Skeleton } from '../ui/skeleton.js';
 import {
   describeExecutionOperationLabel,
   formatCost,
