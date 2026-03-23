@@ -41,6 +41,7 @@ interface WorkflowWorkItemRow {
   next_expected_action: string | null;
   blocked_state?: string | null;
   blocked_reason?: string | null;
+  escalation_status?: string | null;
   rework_count: number;
   priority: 'critical' | 'high' | 'normal' | 'low';
   notes: string | null;
@@ -105,6 +106,7 @@ interface BlockingStageWorkItemRow {
   blocking_resolution: string | null;
   blocked_state?: string | null;
   blocked_reason?: string | null;
+  escalation_status?: string | null;
   next_expected_actor?: string | null;
   next_expected_action?: string | null;
 }
@@ -547,6 +549,12 @@ export class PlaybookWorkflowControlService {
     }
 
     const nextStage = await this.loadStage(identity.tenantId, workflowId, nextStageName, db);
+    await this.assertStageHasNoPendingBlockingContinuation(
+      identity.tenantId,
+      workflowId,
+      sourceStage.name,
+      db,
+    );
     await this.assertStageHasNoBlockingAssessmentResolution(
       identity.tenantId,
       workflowId,
@@ -758,12 +766,22 @@ export class PlaybookWorkflowControlService {
   private assertNoPendingBlockingContinuation(
     workItem: Pick<
       WorkflowWorkItemRow,
-      'title' | 'next_expected_actor' | 'next_expected_action' | 'blocked_state' | 'blocked_reason'
+      'title'
+      | 'next_expected_actor'
+      | 'next_expected_action'
+      | 'blocked_state'
+      | 'blocked_reason'
+      | 'escalation_status'
     >,
   ) {
     if (workItem.blocked_state === 'blocked') {
       throw new ValidationError(
         `Cannot complete work item '${workItem.title}' while it is blocked${workItem.blocked_reason ? `: ${workItem.blocked_reason}` : '.'}`,
+      );
+    }
+    if (workItem.escalation_status === 'open') {
+      throw new ValidationError(
+        `Cannot complete work item '${workItem.title}' while it still has an open escalation.`,
       );
     }
     if (!workItem.next_expected_actor || !workItem.next_expected_action) {
@@ -790,6 +808,7 @@ export class PlaybookWorkflowControlService {
               wi.title,
               wi.blocked_state,
               wi.blocked_reason,
+              wi.escalation_status,
               wi.next_expected_actor,
               wi.next_expected_action
          FROM workflow_work_items wi
@@ -798,6 +817,7 @@ export class PlaybookWorkflowControlService {
           AND wi.stage_name = $3
           AND (
             wi.blocked_state = 'blocked'
+            OR wi.escalation_status = 'open'
             OR (
               wi.next_expected_actor IS NOT NULL
               AND wi.next_expected_action = ANY($4::text[])
@@ -811,6 +831,11 @@ export class PlaybookWorkflowControlService {
     if (row?.blocked_state === 'blocked') {
       throw new ValidationError(
         `Cannot complete workflow while stage '${stageName}' still has blocked work item '${row.title}'.`,
+      );
+    }
+    if (row?.escalation_status === 'open') {
+      throw new ValidationError(
+        `Cannot complete workflow while stage '${stageName}' still has open escalation on work item '${row.title}'.`,
       );
     }
     if (!row?.next_expected_actor || !row.next_expected_action) {
@@ -858,13 +883,13 @@ export class PlaybookWorkflowControlService {
       if (stage.human_gate && stage.gate_status !== 'approved') {
         throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`);
       }
-      await this.assertStageHasNoBlockingAssessmentResolution(
+      await this.assertStageHasNoPendingBlockingContinuation(
         identity.tenantId,
         workflowId,
         stage.name,
         db,
       );
-      await this.assertStageHasNoPendingBlockingContinuation(
+      await this.assertStageHasNoBlockingAssessmentResolution(
         identity.tenantId,
         workflowId,
         stage.name,
@@ -1051,6 +1076,7 @@ export class PlaybookWorkflowControlService {
               next_expected_action,
               blocked_state,
               blocked_reason,
+              escalation_status,
               rework_count,
               priority,
               notes,
@@ -1106,6 +1132,7 @@ export class PlaybookWorkflowControlService {
       normalizedUpdate.completed_at !== null
       && workItem.completed_at === null
     ) {
+      this.assertNoPendingBlockingContinuation(workItem);
       await this.assertWorkItemHasNoBlockingAssessmentResolution(
         identity.tenantId,
         workflowId,
@@ -1113,7 +1140,6 @@ export class PlaybookWorkflowControlService {
         workItem.title,
         db,
       );
-      this.assertNoPendingBlockingContinuation(workItem);
     }
     if (sameNormalizedWorkItem(workItem, normalizedUpdate)) {
       return toWorkItemResponse(workItem);
@@ -1148,6 +1174,7 @@ export class PlaybookWorkflowControlService {
                 owner_role,
                 next_expected_actor,
                 next_expected_action,
+                escalation_status,
                 rework_count,
                 priority,
                 notes,

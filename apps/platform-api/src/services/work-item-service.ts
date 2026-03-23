@@ -56,6 +56,7 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   next_expected_action: string | null;
   blocked_state?: 'blocked' | null;
   blocked_reason?: string | null;
+  escalation_status?: 'open' | null;
   rework_count: number;
   latest_handoff_completion?: string | null;
   latest_handoff_resolution?: string | null;
@@ -101,6 +102,7 @@ interface CheckpointPredecessorRow {
   next_expected_action: string | null;
   blocked_state?: string | null;
   blocked_reason?: string | null;
+  escalation_status?: string | null;
   human_gate: boolean;
   gate_status: string;
   latest_handoff_completion: string | null;
@@ -127,6 +129,7 @@ const WORK_ITEM_BASE_COLUMNS = [
   'next_expected_action',
   'blocked_state',
   'blocked_reason',
+  'escalation_status',
   'rework_count',
   'priority',
   'notes',
@@ -536,6 +539,12 @@ export class WorkItemService {
           `'${predecessor.title}' (${predecessor.stage_name}) is blocked${predecessor.blocked_reason ? `: ${predecessor.blocked_reason}` : '.'}`,
       );
     }
+    if (predecessor.escalation_status === 'open') {
+      throw new ValidationError(
+        `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}) still has an open escalation.`,
+      );
+    }
 
     if (predecessor.latest_handoff_completion !== 'full') {
       throw new ValidationError(
@@ -795,6 +804,7 @@ export class WorkItemService {
               wi.next_expected_action,
               wi.blocked_state,
               wi.blocked_reason,
+              wi.escalation_status,
               COALESCE(ws.human_gate, false) AS human_gate,
               COALESCE(ws.gate_status, 'not_requested') AS gate_status,
               latest_handoff.latest_handoff_completion,
@@ -1255,6 +1265,10 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     blocked_reason:
       typeof sanitizedRow.blocked_reason === 'string'
         ? sanitizedRow.blocked_reason
+        : null,
+    escalation_status:
+      typeof sanitizedRow.escalation_status === 'string'
+        ? sanitizedRow.escalation_status as WorkItemReadModel['escalation_status']
         : null,
     rework_count: readCount(sanitizedRow.rework_count),
     latest_handoff_completion:

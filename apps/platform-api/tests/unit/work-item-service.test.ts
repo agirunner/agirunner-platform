@@ -2216,6 +2216,47 @@ describe('WorkItemService', () => {
     });
   });
 
+  it('returns escalation posture in the read model', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'wi-1',
+            workflow_id: 'wf-1',
+            parent_work_item_id: null,
+            stage_name: 'security',
+            column_id: 'active',
+            owner_role: 'writer',
+            next_expected_actor: null,
+            next_expected_action: null,
+            blocked_state: null,
+            blocked_reason: null,
+            escalation_status: 'open',
+            rework_count: 0,
+            latest_handoff_completion: 'full',
+            task_count: 1,
+            children_count: 0,
+            children_completed: 0,
+            completed_at: null,
+            gate_status: null,
+            gate_decision_feedback: null,
+            gate_decided_at: null,
+          },
+        ],
+      })),
+    };
+
+    const service = new WorkItemService(pool as never, {} as never, {} as never, {} as never);
+
+    const workItem = await service.getWorkflowWorkItem('tenant-1', 'wf-1', 'wi-1');
+
+    expect(workItem).toMatchObject({
+      id: 'wi-1',
+      escalation_status: 'open',
+    });
+  });
+
   it('suppresses forward-looking continuity details for completed work items', async () => {
     const completedAt = new Date('2026-03-16T16:31:49.959Z');
     const pool = {

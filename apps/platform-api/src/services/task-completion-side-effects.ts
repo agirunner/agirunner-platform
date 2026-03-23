@@ -14,6 +14,7 @@ import { resolveAssessmentOutcomeAction } from './playbook-governance-policy.js'
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from './planned-work-item-auto-close.js';
 import { blockWorkflowWorkItem } from './work-item-blocking.js';
+import { openWorkItemEscalation } from './work-item-escalations.js';
 import type {
   WorkItemCompletionOutcome,
   WorkItemContinuityService,
@@ -447,7 +448,7 @@ async function maybeApplyExplicitAssessmentOutcomeAction(
     checkpointName: asOptionalString(completedTask.stage_name),
     decisionState,
   });
-  if (outcomeAction?.action !== 'block_subject' || !subjectWorkItemId) {
+  if (!outcomeAction || !subjectWorkItemId) {
     return false;
   }
 
@@ -458,47 +459,165 @@ async function maybeApplyExplicitAssessmentOutcomeAction(
       ? 'Assessment blocked the subject output.'
       : 'Assessment rejected the subject output.',
   );
+  if (outcomeAction.action === 'block_subject') {
+    await applyAssessmentBlockSubjectAction(client, {
+      tenantId: identity.tenantId,
+      workflowId,
+      assessmentTaskId,
+      assessmentWorkItemId: workItemId,
+      subjectTaskId: asOptionalString(subjectTask.id),
+      subjectWorkItemId,
+      decisionState,
+      feedback,
+      resolutionSource: candidates.resolutionSource,
+      resolutionGate: resolutionGate.reason,
+      explicitSubjectTaskId: candidates.explicitSubjectTaskId,
+      eventService,
+      logService,
+      completedTask,
+    });
+    return true;
+  }
+  if (outcomeAction.action === 'escalate') {
+    await applyAssessmentEscalationAction(client, {
+      tenantId: identity.tenantId,
+      workflowId,
+      assessmentTaskId,
+      assessmentWorkItemId: workItemId,
+      subjectTaskId: asOptionalString(subjectTask.id),
+      subjectWorkItemId,
+      subjectRevision: readSubjectRevision(completedTask),
+      decisionState,
+      feedback,
+      resolutionSource: candidates.resolutionSource,
+      resolutionGate: resolutionGate.reason,
+      explicitSubjectTaskId: candidates.explicitSubjectTaskId,
+      eventService,
+      logService,
+      completedTask,
+    });
+    return true;
+  }
+
+  return false;
+}
+
+interface AssessmentExplicitOutcomeContext {
+  tenantId: string;
+  workflowId: string;
+  assessmentTaskId: string;
+  assessmentWorkItemId: string;
+  subjectTaskId: string | null;
+  subjectWorkItemId: string;
+  decisionState: 'blocked' | 'rejected';
+  feedback: string;
+  resolutionSource: string;
+  resolutionGate: string;
+  explicitSubjectTaskId: string | null;
+  eventService: EventService;
+  logService?: LogService;
+  completedTask: Record<string, unknown>;
+}
+
+interface AssessmentEscalationContext extends AssessmentExplicitOutcomeContext {
+  subjectRevision: number | null;
+}
+
+async function applyAssessmentBlockSubjectAction(
+  client: DatabaseClient,
+  context: AssessmentExplicitOutcomeContext,
+) {
   await blockWorkflowWorkItem(client, {
-    tenantId: identity.tenantId,
-    workflowId,
-    workItemId: subjectWorkItemId,
-    reason: feedback,
+    tenantId: context.tenantId,
+    workflowId: context.workflowId,
+    workItemId: context.subjectWorkItemId,
+    reason: context.feedback,
   });
 
   const payload = {
     event_type: 'task.assessment_block_applied',
-    workflow_id: workflowId,
-    assessment_task_id: assessmentTaskId,
-    assessment_task_work_item_id: workItemId,
-    subject_task_id: asOptionalString(subjectTask.id),
-    subject_work_item_id: subjectWorkItemId,
-    decision_state: decisionState,
-    outcome_action: outcomeAction.action,
-    resolution_source: candidates.resolutionSource,
-    resolution_gate: resolutionGate.reason,
-    explicit_subject_task_id: candidates.explicitSubjectTaskId,
+    workflow_id: context.workflowId,
+    assessment_task_id: context.assessmentTaskId,
+    assessment_task_work_item_id: context.assessmentWorkItemId,
+    subject_task_id: context.subjectTaskId,
+    subject_work_item_id: context.subjectWorkItemId,
+    decision_state: context.decisionState,
+    outcome_action: 'block_subject',
+    resolution_source: context.resolutionSource,
+    resolution_gate: context.resolutionGate,
+    explicit_subject_task_id: context.explicitSubjectTaskId,
   };
-  await eventService.emit(
+  await context.eventService.emit(
     {
-      tenantId: identity.tenantId,
+      tenantId: context.tenantId,
       type: 'task.assessment_block_applied',
       entityType: 'task',
-      entityId: assessmentTaskId,
+      entityId: context.assessmentTaskId,
       actorType: 'system',
       actorId: 'assessment_resolver',
       data: payload,
     },
     client,
   );
-  await logTaskGovernanceTransition(logService, {
-    tenantId: identity.tenantId,
+  await logTaskGovernanceTransition(context.logService, {
+    tenantId: context.tenantId,
     operation: 'task.assessment_block.applied',
     executor: client,
-    task: completedTask,
+    task: context.completedTask,
     payload,
   });
+}
 
-  return true;
+async function applyAssessmentEscalationAction(
+  client: DatabaseClient,
+  context: AssessmentEscalationContext,
+) {
+  await openWorkItemEscalation(client, {
+    tenantId: context.tenantId,
+    workflowId: context.workflowId,
+    workItemId: context.subjectWorkItemId,
+    subjectRef: {
+      kind: 'task',
+      task_id: context.subjectTaskId,
+      work_item_id: context.subjectWorkItemId,
+    },
+    subjectRevision: context.subjectRevision,
+    reason: context.feedback,
+    createdByTaskId: context.assessmentTaskId,
+  });
+
+  const payload = {
+    event_type: 'task.assessment_escalated',
+    workflow_id: context.workflowId,
+    assessment_task_id: context.assessmentTaskId,
+    assessment_task_work_item_id: context.assessmentWorkItemId,
+    subject_task_id: context.subjectTaskId,
+    subject_work_item_id: context.subjectWorkItemId,
+    decision_state: context.decisionState,
+    outcome_action: 'escalate',
+    resolution_source: context.resolutionSource,
+    resolution_gate: context.resolutionGate,
+    explicit_subject_task_id: context.explicitSubjectTaskId,
+  };
+  await context.eventService.emit(
+    {
+      tenantId: context.tenantId,
+      type: 'task.assessment_escalated',
+      entityType: 'task',
+      entityId: context.assessmentTaskId,
+      actorType: 'system',
+      actorId: 'assessment_resolver',
+      data: payload,
+    },
+    client,
+  );
+  await logTaskGovernanceTransition(context.logService, {
+    tenantId: context.tenantId,
+    operation: 'task.assessment_escalated.applied',
+    executor: client,
+    task: context.completedTask,
+    payload,
+  });
 }
 
 async function loadWorkflowDefinition(
@@ -997,6 +1116,10 @@ async function loadSubjectTaskCandidates(
 
 function readSubjectTaskId(completedTask: Record<string, unknown>) {
   return readAssessmentSubjectLinkage(completedTask.input, completedTask.metadata).subjectTaskId;
+}
+
+function readSubjectRevision(completedTask: Record<string, unknown>) {
+  return readAssessmentSubjectLinkage(completedTask.input, completedTask.metadata).subjectRevision;
 }
 
 async function loadLatestTaskAttemptHandoffOutcome(

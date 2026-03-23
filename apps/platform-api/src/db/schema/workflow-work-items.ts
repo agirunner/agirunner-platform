@@ -36,6 +36,7 @@ export const workflowWorkItems = pgTable(
     nextExpectedAction: text('next_expected_action'),
     blockedState: text('blocked_state'),
     blockedReason: text('blocked_reason'),
+    escalationStatus: text('escalation_status'),
     reworkCount: integer('rework_count').notNull().default(0),
     priority: taskPriorityEnum('priority').notNull().default('normal'),
     requestId: text('request_id'),

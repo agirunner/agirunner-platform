@@ -1809,4 +1809,137 @@ describe('applyTaskCompletionSideEffects', () => {
       client,
     );
   });
+
+  it('opens a subject escalation when assessment policy maps a blocked decision to escalate', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count = $3')) {
+          return {
+            rows: [{ completion: 'full', resolution: 'blocked', summary: 'Blocked pending security waiver.' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT p.definition') && sql.includes('FROM workflows w')) {
+          return {
+            rows: [{
+              definition: {
+                process_instructions: 'Security assessors can escalate blocked outputs to operators.',
+                roles: ['writer', 'security-assessor'],
+                board: { columns: [{ id: 'draft', label: 'Draft' }] },
+                checkpoints: [{ name: 'security', goal: 'Security assessment', human_gate: false }],
+                assessment_rules: [{
+                  subject_role: 'writer',
+                  assessed_by: 'security-assessor',
+                  required: true,
+                  decision_states: ['approved', 'blocked'],
+                  outcome_actions: {
+                    blocked: { action: 'escalate' },
+                  },
+                }],
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('AND state = ANY($4::task_state[])')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-writer', ['output_pending_assessment', 'completed'], 'task-security']);
+          return {
+            rows: [{
+              id: 'task-writer',
+              workflow_id: 'workflow-1',
+              work_item_id: 'content-item',
+              role: 'writer',
+              state: 'output_pending_assessment',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_subject_escalations') && sql.includes("status = 'open'")) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'content-item']);
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('INSERT INTO workflow_subject_escalations')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'content-item',
+            {
+              kind: 'task',
+              task_id: 'task-writer',
+              work_item_id: 'content-item',
+            },
+            1,
+            'Blocked pending security waiver.',
+            'task-security',
+          ]);
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes("escalation_status = 'open'")) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'content-item']);
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 1 };
+      }),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'publisher',
+        nextExpectedAction: 'handoff',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedAssessmentExpectation: true,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-security',
+        workflow_id: 'workflow-1',
+        work_item_id: 'security-item',
+        role: 'security-assessor',
+        stage_name: 'security',
+        is_orchestrator_task: false,
+        input: { subject_task_id: 'task-writer', subject_revision: 1 },
+        metadata: { task_kind: 'assessment', subject_task_id: 'task-writer', subject_revision: 1 },
+        output: { verdict: 'blocked' },
+      },
+      client as never,
+    );
+
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.assessment_escalated',
+        entityId: 'task-security',
+        actorId: 'assessment_resolver',
+        data: expect.objectContaining({
+          subject_task_id: 'task-writer',
+          subject_work_item_id: 'content-item',
+          decision_state: 'blocked',
+          outcome_action: 'escalate',
+        }),
+      }),
+      client,
+    );
+  });
 });
