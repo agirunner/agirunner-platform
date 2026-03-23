@@ -1122,6 +1122,103 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
+  it('refreshes the reopened task description from the latest assessment feedback when no explicit rework scope exists', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') return { rows: [], rowCount: 0 };
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-feedback-scope',
+                state: 'ready',
+                workflow_id: null,
+                input: {
+                  description:
+                    'Implement the initial API baseline.\n\nRework required:\nAdd rollback coverage and refresh compatibility notes.',
+                  assessment_feedback: 'Add rollback coverage and refresh compatibility notes.',
+                },
+                metadata: {
+                  description:
+                    'Implement the initial API baseline.\n\nRework required:\nAdd rollback coverage and refresh compatibility notes.',
+                  assessment_action: 'request_changes',
+                },
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue({
+        id: 'task-feedback-scope',
+        state: 'output_pending_assessment',
+        workflow_id: null,
+        input: {
+          description: 'Implement the initial API baseline.',
+          assessment_feedback: 'Old feedback that should be replaced.',
+        },
+        rework_count: 0,
+        metadata: {
+          description: 'Implement the initial API baseline.',
+        },
+      }),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-feedback-scope',
+      {
+        feedback: 'Add rollback coverage and refresh compatibility notes.',
+      },
+    );
+
+    expect(result.input).toMatchObject({
+      description:
+        'Implement the initial API baseline.\n\nRework required:\nAdd rollback coverage and refresh compatibility notes.',
+      assessment_feedback: 'Add rollback coverage and refresh compatibility notes.',
+    });
+    expect(result.metadata).toMatchObject({
+      description:
+        'Implement the initial API baseline.\n\nRework required:\nAdd rollback coverage and refresh compatibility notes.',
+      assessment_action: 'request_changes',
+    });
+
+    const updateCall = client.query.mock.calls.find(([sql]) => typeof sql === 'string' && sql.startsWith('UPDATE tasks SET')) as
+      | [string, unknown[]]
+      | undefined;
+    expect(updateCall?.[1]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          description:
+            'Implement the initial API baseline.\n\nRework required:\nAdd rollback coverage and refresh compatibility notes.',
+          assessment_feedback: 'Add rollback coverage and refresh compatibility notes.',
+        }),
+        expect.objectContaining({
+          description:
+            'Implement the initial API baseline.\n\nRework required:\nAdd rollback coverage and refresh compatibility notes.',
+          assessment_action: 'request_changes',
+        }),
+      ]),
+    );
+  });
+
   it('enqueues a workflow activation when an assessment requests changes on a playbook-backed task', async () => {
     const eventService = { emit: vi.fn() };
     const activationDispatchService = { dispatchActivation: vi.fn(async () => 'orchestrator-task-2') };

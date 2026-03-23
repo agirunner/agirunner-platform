@@ -139,6 +139,7 @@ const ACTIVE_PARALLELISM_SLOT_STATES: TaskState[] = [
 ];
 const DEFAULT_ORCHESTRATOR_ESCALATION_TARGET = 'human';
 const DEFAULT_ORCHESTRATOR_MAX_ESCALATION_DEPTH = 1;
+const REWORK_REQUIRED_MARKER = '\n\nRework required:\n';
 
 function asRecord(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -209,13 +210,38 @@ function resolveRequestedChangesDescription(
 
   const taskInput = asRecord(task.input);
   const taskMetadata = asRecord(task.metadata);
-  return (
+  const explicitReworkScope =
     readOptionalText(taskInput.rework_completion_scope)
-    ?? readOptionalText(taskMetadata.rework_completion_scope)
-    ?? readOptionalText(nextInput.description)
+    ?? readOptionalText(taskMetadata.rework_completion_scope);
+  if (explicitReworkScope) {
+    return explicitReworkScope;
+  }
+
+  const latestFeedback = readOptionalText(nextInput.assessment_feedback);
+  const baseDescription = normalizeRequestedChangesBaseDescription(
+    readOptionalText(nextInput.description)
     ?? readOptionalText(taskInput.description)
-    ?? readOptionalText(taskMetadata.description)
+    ?? readOptionalText(taskMetadata.description),
   );
+  if (!latestFeedback) {
+    return baseDescription;
+  }
+  if (!baseDescription) {
+    return `Rework required:\n${latestFeedback}`;
+  }
+  return `${baseDescription}${REWORK_REQUIRED_MARKER}${latestFeedback}`;
+}
+
+function normalizeRequestedChangesBaseDescription(description: string | null) {
+  if (!description) {
+    return null;
+  }
+  const markerIndex = description.indexOf(REWORK_REQUIRED_MARKER);
+  if (markerIndex < 0) {
+    return description;
+  }
+  const base = description.slice(0, markerIndex).trimEnd();
+  return base.length > 0 ? base : null;
 }
 
 function matchesReviewMetadata(
