@@ -43,8 +43,10 @@ const taskHandoffSchema = z
     request_id: z.string().min(1).max(255),
     task_rework_count: z.number().int().min(0).optional(),
     summary: z.string().min(1).max(4000),
-    completion: z.enum(['full', 'blocked']),
+    completion: z.enum(['full', 'blocked']).optional(),
+    completion_state: z.enum(['full', 'blocked']).optional(),
     resolution: z.enum(['approved', 'request_changes', 'rejected', 'blocked']).optional(),
+    decision_state: z.enum(['approved', 'request_changes', 'rejected', 'blocked']).optional(),
     changes: z.array(z.unknown()).max(200).optional(),
     decisions: z.array(z.unknown()).max(200).optional(),
     remaining_items: z.array(z.unknown()).max(200).optional(),
@@ -53,9 +55,21 @@ const taskHandoffSchema = z
     known_risks: z.array(z.string().min(1).max(4000)).max(100).optional(),
     successor_context: z.string().max(8000).optional(),
     role_data: z.record(z.unknown()).optional(),
+    subject_ref: z.record(z.unknown()).optional(),
+    subject_revision: z.number().int().positive().optional(),
+    branch_id: z.string().uuid().optional(),
     artifact_ids: z.array(z.string().uuid()).max(100).optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((value, context) => {
+    if (!value.completion && !value.completion_state) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'completion or completion_state is required',
+        path: ['completion_state'],
+      });
+    }
+  });
 
 function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   if (result.success) {

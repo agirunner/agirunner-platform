@@ -28,8 +28,10 @@ export interface SubmitTaskHandoffInput {
   request_id?: string;
   task_rework_count?: number;
   summary: string;
-  completion: 'full' | 'blocked';
+  completion?: 'full' | 'blocked';
+  completion_state?: 'full' | 'blocked';
   resolution?: 'approved' | 'request_changes' | 'rejected' | 'blocked';
+  decision_state?: 'approved' | 'request_changes' | 'rejected' | 'blocked';
   changes?: unknown[];
   decisions?: unknown[];
   remaining_items?: unknown[];
@@ -38,6 +40,9 @@ export interface SubmitTaskHandoffInput {
   known_risks?: string[];
   successor_context?: string;
   role_data?: Record<string, unknown>;
+  subject_ref?: Record<string, unknown>;
+  subject_revision?: number;
+  branch_id?: string;
   artifact_ids?: string[];
 }
 
@@ -69,7 +74,9 @@ interface TaskHandoffRow extends Record<string, unknown> {
   sequence: number;
   summary: string;
   completion: string;
+  completion_state?: string | null;
   resolution: string | null;
+  decision_state?: string | null;
   changes: unknown[];
   decisions: unknown[];
   remaining_items: unknown[];
@@ -78,6 +85,10 @@ interface TaskHandoffRow extends Record<string, unknown> {
   known_risks: string[];
   successor_context: string | null;
   role_data: Record<string, unknown>;
+  subject_ref?: Record<string, unknown> | null;
+  subject_revision?: number | null;
+  outcome_action_applied?: string | null;
+  branch_id?: string | null;
   artifact_ids: string[];
   created_at: Date;
 }
@@ -146,9 +157,8 @@ export class HandoffService {
     }
 
     assertMatchingTaskAttempt(task, input);
-    assertHandoffResolutionAllowed(task, input);
-
     const payload = buildNormalizedHandoffPayload(task, input);
+    assertHandoffStateAllowed(task, payload);
     const replayMatch = await this.loadExistingHandoff(
       tenantId,
       task.workflow_id,
@@ -182,12 +192,12 @@ export class HandoffService {
     const result = await db.query<TaskHandoffRow>(
       `INSERT INTO task_handoffs (
          tenant_id, workflow_id, work_item_id, task_id, task_rework_count, request_id, role, team_name, stage_name, sequence,
-         summary, completion, resolution, changes, decisions, remaining_items, blockers, focus_areas,
-         known_risks, successor_context, role_data, artifact_ids
+         summary, completion, completion_state, resolution, decision_state, changes, decisions, remaining_items, blockers, focus_areas,
+         known_risks, successor_context, role_data, subject_ref, subject_revision, outcome_action_applied, branch_id, artifact_ids
        ) VALUES (
          $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-         $11, $12, $13, $14::jsonb, $15::jsonb, $16::jsonb, $17::jsonb, $18::text[],
-         $19::text[], $20, $21::jsonb, $22::uuid[]
+         $11, $12, $13, $14, $15, $16::jsonb, $17::jsonb, $18::jsonb, $19::jsonb, $20::text[],
+         $21::text[], $22, $23::jsonb, $24::jsonb, $25, $26, $27::uuid, $28::uuid[]
        )
        ON CONFLICT DO NOTHING
        RETURNING *`,
@@ -204,7 +214,9 @@ export class HandoffService {
         sequence,
         payload.summary,
         payload.completion,
+        payload.completion_state,
         payload.resolution,
+        payload.decision_state,
         serializeJsonb(payload.changes),
         serializeJsonb(payload.decisions),
         serializeJsonb(payload.remaining_items),
@@ -213,6 +225,10 @@ export class HandoffService {
         payload.known_risks,
         payload.successor_context,
         serializeJsonb(payload.role_data),
+        serializeJsonb(payload.subject_ref),
+        payload.subject_revision,
+        payload.outcome_action_applied,
+        payload.branch_id,
         payload.artifact_ids,
       ],
     );
@@ -264,7 +280,9 @@ export class HandoffService {
           role: task.role,
           stage_name: task.stage_name,
           completion: payload.completion,
+          completion_state: payload.completion_state,
           resolution: payload.resolution,
+          decision_state: payload.decision_state,
           handoff_request_id: payload.request_id,
         },
         actorType: 'system',
@@ -328,7 +346,9 @@ export class HandoffService {
         handoff_request_id: payload.request_id,
         task_rework_count: payload.task_rework_count,
         completion: payload.completion,
+        completion_state: payload.completion_state,
         resolution: payload.resolution,
+        decision_state: payload.decision_state,
         sequence: readInteger(handoff.sequence),
         artifact_ids: Array.isArray(handoff.artifact_ids) ? handoff.artifact_ids : [],
       },
@@ -472,16 +492,22 @@ export class HandoffService {
               stage_name = $5,
               summary = $6,
               completion = $7,
-              resolution = $8,
-              changes = $9::jsonb,
-              decisions = $10::jsonb,
-              remaining_items = $11::jsonb,
-              blockers = $12::jsonb,
-              focus_areas = $13::text[],
-              known_risks = $14::text[],
-              successor_context = $15,
-              role_data = $16::jsonb,
-              artifact_ids = $17::uuid[]
+              completion_state = $8,
+              resolution = $9,
+              decision_state = $10,
+              changes = $11::jsonb,
+              decisions = $12::jsonb,
+              remaining_items = $13::jsonb,
+              blockers = $14::jsonb,
+              focus_areas = $15::text[],
+              known_risks = $16::text[],
+              successor_context = $17,
+              role_data = $18::jsonb,
+              subject_ref = $19::jsonb,
+              subject_revision = $20,
+              outcome_action_applied = $21,
+              branch_id = $22::uuid,
+              artifact_ids = $23::uuid[]
         WHERE id = $1
         RETURNING *`,
       [
@@ -492,7 +518,9 @@ export class HandoffService {
         payload.stage_name,
         payload.summary,
         payload.completion,
+        payload.completion_state,
         payload.resolution,
+        payload.decision_state,
         serializeJsonb(payload.changes),
         serializeJsonb(payload.decisions),
         serializeJsonb(payload.remaining_items),
@@ -501,6 +529,10 @@ export class HandoffService {
         payload.known_risks,
         payload.successor_context,
         serializeJsonb(payload.role_data),
+        serializeJsonb(payload.subject_ref),
+        payload.subject_revision,
+        payload.outcome_action_applied,
+        payload.branch_id,
         payload.artifact_ids,
       ],
     );
@@ -511,25 +543,32 @@ export class HandoffService {
   }
 }
 
-function assertHandoffResolutionAllowed(task: TaskContextRow, input: SubmitTaskHandoffInput) {
-  const resolution = normalizeHandoffResolution(input.resolution ?? input.role_data?.resolution);
+function assertHandoffStateAllowed(
+  task: TaskContextRow,
+  payload: ReturnType<typeof buildNormalizedHandoffPayload>,
+) {
   if (!allowsHandoffResolution(task)) {
-    if (!resolution) {
+    if (!payload.decision_state) {
       return;
     }
     throw new ValidationError('resolution is only allowed on assessment or approval handoffs');
   }
-  if (input.completion === 'full' && !resolution) {
+  if (payload.completion_state === 'full' && !payload.decision_state) {
     throw new ValidationError('resolution is required on full assessment or approval handoffs');
   }
-  if (!resolution) {
-    return;
+  if (payload.completion_state === 'blocked' && payload.decision_state) {
+    throw new ValidationError('decision_state is only allowed when completion_state is full');
   }
 }
 
 function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHandoffInput) {
   const taskReworkCount = input.task_rework_count ?? readInteger(task.rework_count) ?? 0;
   const summary = sanitizeHandoffValue(input.summary.trim());
+  const state = normalizeHandoffStates(input);
+  const branchId = normalizeUUIDString(input.branch_id ?? input.role_data?.branch_id ?? task.metadata?.branch_id);
+  const roleData = buildSystemOwnedRoleData(task, input, branchId);
+  const subjectRef = resolveSubjectRef(input, roleData, branchId);
+  const subjectRevision = resolveSubjectRevision(input, roleData);
   const payload = {
     task_rework_count: taskReworkCount,
     request_id: input.request_id?.trim() || null,
@@ -537,8 +576,10 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     team_name: readOptionalString(task.metadata?.team_name),
     stage_name: task.stage_name?.trim() || null,
     summary: typeof summary === 'string' ? summary : input.summary.trim(),
-    completion: input.completion,
-    resolution: normalizeHandoffResolution(input.resolution ?? input.role_data?.resolution),
+    completion: state.completion_state,
+    completion_state: state.completion_state,
+    resolution: state.decision_state,
+    decision_state: state.decision_state,
     changes: normalizeArray(sanitizeHandoffValue(input.changes)),
     decisions: normalizeArray(sanitizeHandoffValue(input.decisions)),
     remaining_items: normalizeArray(sanitizeHandoffValue(input.remaining_items)),
@@ -546,7 +587,11 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     focus_areas: normalizeStringArray(sanitizeHandoffValue(input.focus_areas)),
     known_risks: normalizeStringArray(sanitizeHandoffValue(input.known_risks)),
     successor_context: readOptionalString(sanitizeHandoffValue(input.successor_context)),
-    role_data: buildSystemOwnedRoleData(task, input),
+    role_data: roleData,
+    subject_ref: subjectRef,
+    subject_revision: subjectRevision,
+    outcome_action_applied: null,
+    branch_id: branchId,
     artifact_ids: normalizeStringArray(input.artifact_ids),
   };
   assertNoTaskLocalHandoffPaths(payload);
@@ -564,7 +609,11 @@ function assertMatchingTaskAttempt(task: TaskContextRow, input: SubmitTaskHandof
   throw new ConflictError('task handoff submission does not match the current task rework attempt');
 }
 
-function buildSystemOwnedRoleData(task: TaskContextRow, input: SubmitTaskHandoffInput) {
+function buildSystemOwnedRoleData(
+  task: TaskContextRow,
+  input: SubmitTaskHandoffInput,
+  branchId: string | null,
+) {
   const taskKind = readWorkflowTaskKind(task.metadata, task.is_orchestrator_task);
   const roleData = sanitizeHandoffRecord(input.role_data);
 
@@ -578,6 +627,7 @@ function buildSystemOwnedRoleData(task: TaskContextRow, input: SubmitTaskHandoff
       subject_task_id: task.id,
       ...(task.work_item_id ? { subject_work_item_id: task.work_item_id } : {}),
       ...(subjectRevision > 0 ? { subject_revision: subjectRevision } : {}),
+      ...(branchId ? { branch_id: branchId } : {}),
     });
   }
 
@@ -589,6 +639,7 @@ function buildSystemOwnedRoleData(task: TaskContextRow, input: SubmitTaskHandoff
     ...(linkage.subjectWorkItemId ? { subject_work_item_id: linkage.subjectWorkItemId } : {}),
     ...(linkage.subjectHandoffId ? { subject_handoff_id: linkage.subjectHandoffId } : {}),
     ...(linkage.subjectRevision !== null ? { subject_revision: linkage.subjectRevision } : {}),
+    ...(branchId ? { branch_id: branchId } : {}),
   });
 }
 
@@ -605,13 +656,24 @@ function matchesHandoffReplay(
   existing: TaskHandoffRow,
   expected: ReturnType<typeof buildNormalizedHandoffPayload>,
 ) {
+  const existingRoleData = normalizeRecord(existing.role_data);
+  const existingBranchId =
+    normalizeUUIDString(existing.branch_id)
+    ?? normalizeUUIDString(existingRoleData.branch_id);
+  const existingSubjectRef =
+    sanitizeNullableSubjectRef(existing.subject_ref)
+    ?? deriveSubjectRef(existingRoleData, existingBranchId);
+  const existingSubjectRevision =
+    readOptionalPositiveInteger(existing.subject_revision)
+    ?? readOptionalPositiveInteger(existingRoleData.subject_revision);
+
   return !(
     existing.role !== expected.role ||
     (existing.team_name ?? null) !== expected.team_name ||
     (existing.stage_name ?? null) !== expected.stage_name ||
     existing.summary !== expected.summary ||
-    existing.completion !== expected.completion ||
-    (existing.resolution ?? null) !== expected.resolution ||
+    normalizeCompletionState(existing.completion_state ?? existing.completion) !== expected.completion_state ||
+    normalizeHandoffResolution(existing.decision_state ?? existing.resolution) !== expected.decision_state ||
     !areJsonValuesEquivalent(existing.changes, expected.changes) ||
     !areJsonValuesEquivalent(existing.decisions, expected.decisions) ||
     !areJsonValuesEquivalent(existing.remaining_items, expected.remaining_items) ||
@@ -620,6 +682,10 @@ function matchesHandoffReplay(
     !areJsonValuesEquivalent(existing.known_risks, expected.known_risks) ||
     (existing.successor_context ?? null) !== expected.successor_context ||
     !areJsonValuesEquivalent(existing.role_data, expected.role_data) ||
+    !areJsonValuesEquivalent(existingSubjectRef, expected.subject_ref ?? null) ||
+    existingSubjectRevision !== expected.subject_revision ||
+    (existing.outcome_action_applied ?? null) !== expected.outcome_action_applied ||
+    existingBranchId !== expected.branch_id ||
     !areJsonValuesEquivalent(existing.artifact_ids, expected.artifact_ids)
   );
 }
@@ -644,10 +710,131 @@ function allowsHandoffResolution(task: TaskContextRow) {
   return taskKind === 'assessment' || taskKind === 'approval';
 }
 
+function normalizeHandoffStates(input: SubmitTaskHandoffInput) {
+  const completion = normalizeCompletionState(input.completion);
+  const completionState = normalizeCompletionState(input.completion_state);
+  const resolution = normalizeHandoffResolution(input.resolution ?? input.role_data?.resolution);
+  const decisionState = normalizeHandoffResolution(input.decision_state ?? input.role_data?.decision_state);
+
+  if (completion && completionState && completion !== completionState) {
+    throw new ValidationError(
+      'completion/completion_state and resolution/decision_state must agree when both are provided',
+    );
+  }
+  if (resolution && decisionState && resolution !== decisionState) {
+    throw new ValidationError(
+      'completion/completion_state and resolution/decision_state must agree when both are provided',
+    );
+  }
+
+  const normalizedCompletion = completionState ?? completion;
+  if (!normalizedCompletion) {
+    throw new ValidationError('completion or completion_state is required');
+  }
+
+  return {
+    completion_state: normalizedCompletion,
+    decision_state: decisionState ?? resolution,
+  };
+}
+
+function normalizeCompletionState(value: unknown): 'full' | 'blocked' | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'full' || normalized === 'blocked' ? normalized : null;
+}
+
+function resolveSubjectRef(
+  input: SubmitTaskHandoffInput,
+  roleData: Record<string, unknown>,
+  branchId: string | null,
+) {
+  const explicit = sanitizeNullableSubjectRef(input.subject_ref);
+  const derived = deriveSubjectRef(roleData, branchId);
+  if (explicit && derived && !areJsonValuesEquivalent(explicit, derived)) {
+    throw new ValidationError('subject_ref must match the task-linked subject metadata');
+  }
+  return explicit ?? derived;
+}
+
+function deriveSubjectRef(roleData: Record<string, unknown>, branchId: string | null) {
+  if (branchId) {
+    return compactRecord({
+      kind: 'branch',
+      branch_id: branchId,
+      task_id: readOptionalString(roleData.subject_task_id),
+      work_item_id: readOptionalString(roleData.subject_work_item_id),
+      handoff_id: readOptionalString(roleData.subject_handoff_id),
+    });
+  }
+
+  const taskId = readOptionalString(roleData.subject_task_id);
+  const workItemId = readOptionalString(roleData.subject_work_item_id);
+  const handoffId = readOptionalString(roleData.subject_handoff_id);
+  if (taskId) {
+    return compactRecord({
+      kind: 'task',
+      task_id: taskId,
+      work_item_id: workItemId,
+      handoff_id: handoffId,
+    });
+  }
+  if (workItemId) {
+    return compactRecord({
+      kind: 'work_item',
+      work_item_id: workItemId,
+      handoff_id: handoffId,
+    });
+  }
+  if (handoffId) {
+    return { kind: 'handoff', handoff_id: handoffId };
+  }
+  return null;
+}
+
+function sanitizeNullableSubjectRef(value: unknown) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+  return sanitizeHandoffRecord(value);
+}
+
+function normalizeUUIDString(value: unknown) {
+  return typeof value === 'string' && value.trim().length > 0 ? value.trim() : null;
+}
+
+function resolveSubjectRevision(
+  input: SubmitTaskHandoffInput,
+  roleData: Record<string, unknown>,
+) {
+  const explicit = readOptionalPositiveInteger(input.subject_revision);
+  const derived = readOptionalPositiveInteger(roleData.subject_revision);
+  if (explicit !== null && derived !== null && explicit !== derived) {
+    throw new ValidationError('subject_revision must match the task-linked subject metadata');
+  }
+  return explicit ?? derived;
+}
+
 function toTaskHandoffResponse(row: TaskHandoffRow) {
   const sanitized = sanitizeHandoffValue(row) as TaskHandoffRow;
+  const roleData = normalizeRecord(sanitized.role_data);
+  const branchId =
+    normalizeUUIDString(sanitized.branch_id)
+    ?? normalizeUUIDString(roleData.branch_id);
   return {
     ...sanitized,
+    completion_state: normalizeCompletionState(sanitized.completion_state ?? sanitized.completion),
+    decision_state: normalizeHandoffResolution(sanitized.decision_state ?? sanitized.resolution),
+    subject_ref:
+      sanitizeNullableSubjectRef(sanitized.subject_ref)
+      ?? deriveSubjectRef(roleData, branchId),
+    subject_revision:
+      readOptionalPositiveInteger(sanitized.subject_revision)
+      ?? readOptionalPositiveInteger(roleData.subject_revision),
+    outcome_action_applied: readOptionalString(sanitized.outcome_action_applied),
+    branch_id: branchId,
     created_at: row.created_at.toISOString(),
   };
 }
@@ -678,6 +865,23 @@ function normalizeRecord(value: unknown) {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : {};
+}
+
+function compactRecord(value: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== null && entry !== undefined),
+  );
+}
+
+function readOptionalPositiveInteger(value: unknown) {
+  if (typeof value === 'number' && Number.isInteger(value) && value > 0) {
+    return value;
+  }
+  if (typeof value === 'string' && /^\d+$/.test(value.trim())) {
+    const parsed = Number.parseInt(value.trim(), 10);
+    return parsed > 0 ? parsed : null;
+  }
+  return null;
 }
 
 function assertNoTaskLocalHandoffPaths(value: unknown) {

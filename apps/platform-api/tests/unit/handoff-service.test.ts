@@ -112,7 +112,7 @@ describe('HandoffService', () => {
     const insertCall = pool.query.mock.calls.find(
       ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
     ) as [string, unknown[]] | undefined;
-    expect(JSON.parse(String(insertCall?.[1]?.[20] ?? '{}'))).toEqual(
+    expect(JSON.parse(String(insertCall?.[1]?.[22] ?? '{}'))).toEqual(
       expect.objectContaining({
         task_kind: 'delivery',
         subject_task_id: 'task-1',
@@ -183,7 +183,7 @@ describe('HandoffService', () => {
     const insertCall = pool.query.mock.calls.find(
       ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
     ) as [string, unknown[]] | undefined;
-    expect(JSON.parse(String(insertCall?.[1]?.[20] ?? '{}'))).toEqual(
+    expect(JSON.parse(String(insertCall?.[1]?.[22] ?? '{}'))).toEqual(
       expect.objectContaining({
         task_kind: 'delivery',
         subject_task_id: 'task-1',
@@ -308,7 +308,7 @@ describe('HandoffService', () => {
     const insertCall = pool.query.mock.calls.find(
       ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
     ) as [string, unknown[]] | undefined;
-    expect(JSON.parse(String(insertCall?.[1]?.[20] ?? '{}'))).toEqual(
+    expect(JSON.parse(String(insertCall?.[1]?.[22] ?? '{}'))).toEqual(
       expect.objectContaining({
         task_kind: 'assessment',
         subject_task_id: 'task-dev-1',
@@ -528,6 +528,150 @@ describe('HandoffService', () => {
         completion: 'full',
         resolution: 'blocked',
       }),
+    );
+  });
+
+  it('accepts explicit completion_state and decision_state on assessment handoffs', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-qa-3',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-verify-1',
+            role: 'policy-reviewer',
+            stage_name: 'verification',
+            state: 'in_progress',
+            rework_count: 0,
+            is_orchestrator_task: false,
+            input: {
+              subject_task_id: 'task-dev-1',
+              subject_work_item_id: 'work-item-impl-1',
+              subject_revision: 3,
+            },
+            metadata: { task_kind: 'assessment', team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 3 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-qa-3',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-verify-1',
+            task_id: 'task-qa-3',
+            task_rework_count: 0,
+            request_id: 'req-qa-3',
+            role: 'policy-reviewer',
+            team_name: 'delivery',
+            stage_name: 'verification',
+            sequence: 3,
+            summary: 'Policy blocked the release packet pending legal clarification.',
+            completion: 'full',
+            completion_state: 'full',
+            resolution: 'blocked',
+            decision_state: 'blocked',
+            changes: [],
+            decisions: [],
+            remaining_items: [],
+            blockers: ['Legal clarification is required before release.'],
+            focus_areas: [],
+            known_risks: [],
+            successor_context: null,
+            role_data: {
+              task_kind: 'assessment',
+              subject_task_id: 'task-dev-1',
+              subject_work_item_id: 'work-item-impl-1',
+              subject_revision: 3,
+            },
+            subject_ref: {
+              kind: 'task',
+              task_id: 'task-dev-1',
+              work_item_id: 'work-item-impl-1',
+            },
+            subject_revision: 3,
+            outcome_action_applied: null,
+            branch_id: null,
+            artifact_ids: [],
+            created_at: new Date('2026-03-23T12:00:00Z'),
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+    const result = await service.submitTaskHandoff('tenant-1', 'task-qa-3', {
+      request_id: 'req-qa-3',
+      summary: 'Policy blocked the release packet pending legal clarification.',
+      completion_state: 'full',
+      decision_state: 'blocked',
+      blockers: ['Legal clarification is required before release.'],
+    } as never);
+
+    expect(result).toEqual(
+      expect.objectContaining({
+        id: 'handoff-qa-3',
+        completion_state: 'full',
+        decision_state: 'blocked',
+        subject_revision: 3,
+        subject_ref: expect.objectContaining({
+          kind: 'task',
+          task_id: 'task-dev-1',
+          work_item_id: 'work-item-impl-1',
+        }),
+      }),
+    );
+    const insertCall = pool.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
+    ) as [string, unknown[]] | undefined;
+    expect(insertCall?.[0]).toContain('completion_state');
+    expect(insertCall?.[0]).toContain('decision_state');
+    expect(insertCall?.[0]).toContain('subject_ref');
+    expect(insertCall?.[0]).toContain('subject_revision');
+  });
+
+  it('rejects conflicting legacy and explicit handoff state fields', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-qa-4',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-verify-1',
+            role: 'policy-reviewer',
+            stage_name: 'verification',
+            state: 'in_progress',
+            rework_count: 0,
+            is_orchestrator_task: false,
+            input: {
+              subject_task_id: 'task-dev-1',
+              subject_work_item_id: 'work-item-impl-1',
+              subject_revision: 3,
+            },
+            metadata: { task_kind: 'assessment', team_name: 'delivery' },
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+
+    await expect(service.submitTaskHandoff('tenant-1', 'task-qa-4', {
+      request_id: 'req-qa-4',
+      summary: 'Conflicting payload',
+      completion: 'full',
+      completion_state: 'blocked',
+      resolution: 'approved',
+      decision_state: 'blocked',
+    } as never)).rejects.toThrowError(
+      new ValidationError('completion/completion_state and resolution/decision_state must agree when both are provided'),
     );
   });
 
@@ -922,11 +1066,11 @@ describe('HandoffService', () => {
 
     const insertParams = query.mock.calls[4][1] as unknown[];
     expect(insertParams[4]).toBe(0);
-    expect(insertParams[13]).toBe(JSON.stringify(['requirements summary']));
-    expect(insertParams[14]).toBe(JSON.stringify([{ owner: 'developer' }]));
-    expect(insertParams[15]).toBe(JSON.stringify(['review findings']));
-    expect(insertParams[16]).toBe(JSON.stringify(['Need human scope confirmation']));
-    expect(insertParams[20]).toBe(
+    expect(insertParams[15]).toBe(JSON.stringify(['requirements summary']));
+    expect(insertParams[16]).toBe(JSON.stringify([{ owner: 'developer' }]));
+    expect(insertParams[17]).toBe(JSON.stringify(['review findings']));
+    expect(insertParams[18]).toBe(JSON.stringify(['Need human scope confirmation']));
+    expect(insertParams[22]).toBe(
       JSON.stringify({
         branch: 'feature/hello-world',
         task_kind: 'delivery',
@@ -1112,16 +1256,16 @@ describe('HandoffService', () => {
 
     const insertParams = query.mock.calls[4][1] as unknown[];
     expect(insertParams[10]).toBe('redacted://handoff-secret');
-    expect(insertParams[13]).toBe(JSON.stringify([{ api_key: 'redacted://handoff-secret' }]));
-    expect(insertParams[14]).toBe(
+    expect(insertParams[15]).toBe(JSON.stringify([{ api_key: 'redacted://handoff-secret' }]));
+    expect(insertParams[16]).toBe(
       JSON.stringify([{ authorization: 'redacted://handoff-secret' }]),
     );
-    expect(insertParams[15]).toBe(JSON.stringify(['redacted://handoff-secret']));
-    expect(insertParams[16]).toBe(JSON.stringify([{ token: 'redacted://handoff-secret' }]));
-    expect(insertParams[17]).toEqual(['redacted://handoff-secret']);
-    expect(insertParams[18]).toEqual(['redacted://handoff-secret']);
-    expect(insertParams[19]).toBe('redacted://handoff-secret');
-    expect(insertParams[20]).toBe(
+    expect(insertParams[17]).toBe(JSON.stringify(['redacted://handoff-secret']));
+    expect(insertParams[18]).toBe(JSON.stringify([{ token: 'redacted://handoff-secret' }]));
+    expect(insertParams[19]).toEqual(['redacted://handoff-secret']);
+    expect(insertParams[20]).toEqual(['redacted://handoff-secret']);
+    expect(insertParams[21]).toBe('redacted://handoff-secret');
+    expect(insertParams[22]).toBe(
       JSON.stringify({
         api_key: 'redacted://handoff-secret',
         task_kind: 'delivery',
