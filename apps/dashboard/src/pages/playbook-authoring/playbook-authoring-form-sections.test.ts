@@ -22,6 +22,7 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Process Instructions');
     expect(source).toContain('Assessment Rules');
     expect(source).toContain('Approval Rules');
+    expect(source).toContain('Branch Policies');
     expect(source).toContain('Handoff Rules');
     expect(source).toContain('Workflow Checkpoints');
     expect(source).toContain('Launch Inputs');
@@ -35,6 +36,12 @@ describe('playbook authoring form sections source', () => {
     expect(source).toContain('Playbooks use active role definitions from the shared workspace configuration.');
     expect(source).toContain('On changes requested');
     expect(source).toContain('On rejected');
+    expect(source).toContain('On blocked');
+    expect(source).toContain('Allow blocked decision');
+    expect(source).toContain('Approval before assessment');
+    expect(source).toContain('Assessment retention');
+    expect(source).toContain('Approval retention');
+    expect(source).toContain('Terminate branch');
     expect(source).toContain('the next specialist always receives the right predecessor context');
     expect(source).toContain('workspace.credentials.git_token');
     expect(source).toContain('Help text');

@@ -91,6 +91,13 @@ describe('workflow work item detail panel source', () => {
     expect(source).toContain("workItem.stage_name ?? 'Unassigned stage'");
     expect(source).not.toContain('current_checkpoint');
     expect(source).toContain('readContinuitySummary(workItem)');
+    expect(source).toContain("workItem.blocked_state === 'blocked'");
+    expect(source).toContain('Blocked posture');
+    expect(source).toContain('Blocked reason');
+    expect(source).toContain('Escalation');
+    expect(source).toContain('Branch');
+    expect(source).toContain('Retained assessments');
+    expect(source).toContain('Invalidated assessments');
     expect(source).toContain('Operator next step:');
     expect(source).toContain('rework loop');
     expect(source).toContain('Stage and board routing');

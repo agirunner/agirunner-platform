@@ -1,6 +1,24 @@
 import { validateStructuredParameterDefaultValue } from './playbook-authoring-structured-controls.support.js';
 
 export type PlaybookLifecycle = 'planned' | 'ongoing';
+export type AssessmentOutcomeActionDraft =
+  | ''
+  | 'reopen_subject'
+  | 'route_to_role'
+  | 'block_subject'
+  | 'escalate'
+  | 'terminate_branch';
+export type RuleMaterialityDraft = '' | 'material' | 'non_material';
+export type RevisionRetentionDraft =
+  | ''
+  | 'invalidate_all'
+  | 'retain_advisory_only'
+  | 'retain_named_assessors'
+  | 'retain_non_material_only';
+export type BranchTerminationPolicyDraft =
+  | 'stop_branch_only'
+  | 'stop_branch_and_descendants'
+  | 'stop_all_siblings';
 
 export interface RoleDraft {
   value: string;
@@ -26,14 +44,32 @@ export interface AssessmentRuleDraft {
   assessed_by: string;
   checkpoint: string;
   required: boolean;
+  materiality: RuleMaterialityDraft;
+  assessment_retention: RevisionRetentionDraft;
+  approval_retention: RevisionRetentionDraft;
+  request_changes_action: 'reopen_subject' | 'route_to_role';
   request_changes_target: string;
+  rejected_action: 'block_subject' | 'route_to_role' | 'terminate_branch';
   rejected_target: string;
+  allow_blocked_decision: boolean;
+  blocked_action: 'block_subject' | 'route_to_role' | 'escalate' | 'terminate_branch';
+  blocked_target: string;
 }
 
 export interface ApprovalRuleDraft {
   on: 'checkpoint' | 'completion';
   checkpoint: string;
   required: boolean;
+  materiality: RuleMaterialityDraft;
+  assessment_retention: RevisionRetentionDraft;
+  approval_retention: RevisionRetentionDraft;
+  allow_blocked_decision: boolean;
+  approval_before_assessment: boolean;
+}
+
+export interface BranchPolicyDraft {
+  branch_key: string;
+  termination_policy: BranchTerminationPolicyDraft;
 }
 
 export interface HandoffRuleDraft {
@@ -64,6 +100,7 @@ export interface PlaybookAuthoringDraft {
   checkpoints: CheckpointDraft[];
   assessment_rules: AssessmentRuleDraft[];
   approval_rules: ApprovalRuleDraft[];
+  branch_policies: BranchPolicyDraft[];
   handoff_rules: HandoffRuleDraft[];
   parameters: ParameterDraft[];
   orchestrator: {
@@ -84,6 +121,7 @@ export interface PlaybookAuthoringSummary {
   assessmentRuleCount: number;
   requiredAssessmentRuleCount: number;
   approvalRuleCount: number;
+  branchPolicyCount: number;
   handoffRuleCount: number;
   columnCount: number;
   blockedColumnCount: number;
@@ -111,6 +149,9 @@ export interface WorkflowRuleValidationResult {
   }>;
   assessmentRuleErrors: Array<string | undefined>;
   approvalRuleErrors: Array<string | undefined>;
+  branchPolicyErrors: Array<{
+    branch_key?: string;
+  }>;
   handoffRuleErrors: Array<string | undefined>;
   blockingIssues: string[];
   isValid: boolean;
@@ -150,6 +191,7 @@ export function createDefaultAuthoringDraft(lifecycle: PlaybookLifecycle): Playb
     checkpoints: [],
     assessment_rules: [],
     approval_rules: [],
+    branch_policies: [],
     handoff_rules: [],
     parameters: [],
     orchestrator: {
@@ -185,13 +227,37 @@ export function createEmptyAssessmentRuleDraft(): AssessmentRuleDraft {
     assessed_by: '',
     checkpoint: '',
     required: true,
+    materiality: '',
+    assessment_retention: '',
+    approval_retention: '',
+    request_changes_action: 'reopen_subject',
     request_changes_target: '',
+    rejected_action: 'block_subject',
     rejected_target: '',
+    allow_blocked_decision: false,
+    blocked_action: 'block_subject',
+    blocked_target: '',
   };
 }
 
 export function createEmptyApprovalRuleDraft(): ApprovalRuleDraft {
-  return { on: 'checkpoint', checkpoint: '', required: true };
+  return {
+    on: 'checkpoint',
+    checkpoint: '',
+    required: true,
+    materiality: '',
+    assessment_retention: '',
+    approval_retention: '',
+    allow_blocked_decision: false,
+    approval_before_assessment: false,
+  };
+}
+
+export function createEmptyBranchPolicyDraft(): BranchPolicyDraft {
+  return {
+    branch_key: '',
+    termination_policy: 'stop_branch_only',
+  };
 }
 
 export function createEmptyHandoffRuleDraft(): HandoffRuleDraft {
@@ -225,6 +291,7 @@ export function hydratePlaybookAuthoringDraft(
   const checkpoints = readCheckpoints(record);
   const assessmentRules = readAssessmentRules(record.assessment_rules);
   const approvalRules = readApprovalRules(record.approval_rules);
+  const branchPolicies = readBranchPolicies(record.branch_policies);
   const handoffRules = readHandoffRules(record.handoff_rules);
 
   return {
@@ -238,6 +305,7 @@ export function hydratePlaybookAuthoringDraft(
     checkpoints: checkpoints.length > 0 ? checkpoints : fallback.checkpoints,
     assessment_rules: assessmentRules.length > 0 ? assessmentRules : fallback.assessment_rules,
     approval_rules: approvalRules.length > 0 ? approvalRules : fallback.approval_rules,
+    branch_policies: branchPolicies.length > 0 ? branchPolicies : fallback.branch_policies,
     handoff_rules: handoffRules.length > 0 ? handoffRules : fallback.handoff_rules,
     parameters: readParameters(record.parameters),
     orchestrator: { ...fallback.orchestrator, ...readOrchestrator(record.orchestrator) },
@@ -254,6 +322,7 @@ export function buildPlaybookDefinition(
   const checkpoints = buildCheckpoints(draft.checkpoints);
   const assessmentRules = buildAssessmentRules(draft.assessment_rules);
   const approvalRules = buildApprovalRules(draft.approval_rules);
+  const branchPolicies = buildBranchPolicies(draft.branch_policies);
   const handoffRules = buildHandoffRules(draft.handoff_rules);
   const parameters = buildParameters(draft.parameters);
   const boardValidation = validateBoardColumnsDraft(draft.columns, draft.entry_column_id);
@@ -310,6 +379,11 @@ export function buildPlaybookDefinition(
   if (approvalRules.length > 0) {
     definition.approval_rules = approvalRules.map((rule) =>
       compactRecord(rule as unknown as Record<string, unknown>),
+    );
+  }
+  if (branchPolicies.length > 0) {
+    definition.branch_policies = branchPolicies.map((policy) =>
+      compactRecord(policy as unknown as Record<string, unknown>),
     );
   }
   if (handoffRules.length > 0) {
@@ -385,12 +459,25 @@ export function validateBoardColumnsDraft(
 export function validateWorkflowRulesDraft(
   draft: Pick<
     PlaybookAuthoringDraft,
-    'roles' | 'checkpoints' | 'assessment_rules' | 'approval_rules' | 'handoff_rules'
+    | 'roles'
+    | 'checkpoints'
+    | 'assessment_rules'
+    | 'approval_rules'
+    | 'branch_policies'
+    | 'handoff_rules'
   >,
 ): WorkflowRuleValidationResult {
   const roleNames = new Set(draft.roles.map((entry) => entry.value.trim()).filter(Boolean));
   const checkpointNames = new Set(
     draft.checkpoints.map((entry) => entry.name.trim()).filter(Boolean),
+  );
+  const branchKeys = new Set(
+    draft.branch_policies.map((entry) => entry.branch_key.trim()).filter(Boolean),
+  );
+  const duplicateBranchKeys = new Set(
+    draft.branch_policies
+      .map((entry) => entry.branch_key.trim().toLowerCase())
+      .filter((value, index, values) => value && values.indexOf(value) !== index),
   );
   const duplicateCheckpointNames = new Set(
     draft.checkpoints
@@ -403,11 +490,14 @@ export function validateWorkflowRulesDraft(
     goal: readCheckpointGoalError(checkpoint),
   }));
   const assessmentRuleErrors = draft.assessment_rules.map((rule) =>
-    readAssessmentRuleError(rule, roleNames, checkpointNames)
+    readAssessmentRuleError(rule, roleNames, checkpointNames, branchKeys)
   );
   const approvalRuleErrors = draft.approval_rules.map((rule) =>
     readApprovalRuleError(rule, checkpointNames),
   );
+  const branchPolicyErrors = draft.branch_policies.map((policy) => ({
+    branch_key: readBranchPolicyKeyError(policy, duplicateBranchKeys),
+  }));
   const handoffRuleErrors = draft.handoff_rules.map((rule) => readHandoffRuleError(rule, roleNames));
 
   const blockingIssues = Array.from(
@@ -418,6 +508,9 @@ export function validateWorkflowRulesDraft(
         ),
         ...assessmentRuleErrors.filter((value): value is string => Boolean(value)),
         ...approvalRuleErrors.filter((value): value is string => Boolean(value)),
+        ...branchPolicyErrors.flatMap((entry) =>
+          [entry.branch_key].filter((value): value is string => Boolean(value)),
+        ),
         ...handoffRuleErrors.filter((value): value is string => Boolean(value)),
       ],
     ),
@@ -427,6 +520,7 @@ export function validateWorkflowRulesDraft(
     checkpointErrors,
     assessmentRuleErrors,
     approvalRuleErrors,
+    branchPolicyErrors,
     handoffRuleErrors,
     blockingIssues,
     isValid: blockingIssues.length === 0,
@@ -484,6 +578,7 @@ export function summarizePlaybookAuthoringDraft(
   const checkpoints = buildCheckpoints(draft.checkpoints);
   const assessmentRules = draft.assessment_rules.filter(hasAssessmentRuleValue);
   const approvalRules = draft.approval_rules.filter(hasApprovalRuleValue);
+  const branchPolicies = buildBranchPolicies(draft.branch_policies);
   const handoffRules = draft.handoff_rules.filter(hasHandoffRuleValue);
   const columns = buildBoardColumns(draft.columns);
   const parameters = buildParameters(draft.parameters);
@@ -496,6 +591,7 @@ export function summarizePlaybookAuthoringDraft(
     assessmentRuleCount: assessmentRules.length,
     requiredAssessmentRuleCount: assessmentRules.filter((rule) => rule.required !== false).length,
     approvalRuleCount: approvalRules.length,
+    branchPolicyCount: branchPolicies.length,
     handoffRuleCount: handoffRules.length,
     columnCount: columns.length,
     blockedColumnCount: columns.filter((column) => column.is_blocked).length,
@@ -551,19 +647,35 @@ function buildAssessmentRules(assessmentRules: AssessmentRuleDraft[]) {
       const checkpoint = readString(rule.checkpoint).trim();
       const requestChangesTarget = readString(rule.request_changes_target).trim();
       const rejectedTarget = readString(rule.rejected_target).trim();
+      const blockedTarget = readString(rule.blocked_target).trim();
+      const decisionStates = rule.allow_blocked_decision
+        ? ['approved', 'request_changes', 'rejected', 'blocked']
+        : undefined;
+      const revisionPolicy = compactRecord({
+        assessment_retention: readString(rule.assessment_retention).trim() || undefined,
+        approval_retention: readString(rule.approval_retention).trim() || undefined,
+      });
       return {
         subject_role: subjectRole,
         assessed_by: assessedBy,
         checkpoint,
         required: rule.required,
+        materiality: readString(rule.materiality).trim() || undefined,
+        decision_states: decisionStates,
         outcome_actions: compactRecord({
-          request_changes: requestChangesTarget
-            ? { action: 'route_to_role' as const, role: requestChangesTarget }
-            : { action: 'reopen_subject' as const },
-          rejected: rejectedTarget
-            ? { action: 'route_to_role' as const, role: rejectedTarget }
-            : { action: 'block_subject' as const },
+          request_changes: buildOutcomeAction(
+            resolveRequestChangesAction(rule.request_changes_action, requestChangesTarget),
+            requestChangesTarget,
+          ),
+          rejected: buildOutcomeAction(
+            resolveRejectedAction(rule.rejected_action, rejectedTarget),
+            rejectedTarget,
+          ),
+          blocked: rule.allow_blocked_decision
+            ? buildOutcomeAction(rule.blocked_action, blockedTarget)
+            : undefined,
         }),
+        revision_policy: Object.keys(revisionPolicy).length > 0 ? revisionPolicy : undefined,
       };
     })
     .filter(
@@ -572,19 +684,88 @@ function buildAssessmentRules(assessmentRules: AssessmentRuleDraft[]) {
         rule.assessed_by ||
         rule.checkpoint ||
         rule.required !== true ||
-        Object.keys(rule.outcome_actions).length > 0,
+        rule.materiality ||
+        Boolean(rule.decision_states) ||
+        Object.keys(rule.outcome_actions).length > 0 ||
+        Boolean(rule.revision_policy),
     );
+}
+
+function resolveRequestChangesAction(
+  action: AssessmentRuleDraft['request_changes_action'],
+  role: string,
+): AssessmentRuleDraft['request_changes_action'] {
+  return role && action === 'reopen_subject' ? 'route_to_role' : action;
+}
+
+function resolveRejectedAction(
+  action: AssessmentRuleDraft['rejected_action'],
+  role: string,
+): AssessmentRuleDraft['rejected_action'] {
+  return role && action === 'block_subject' ? 'route_to_role' : action;
+}
+
+function buildOutcomeAction(
+  action: AssessmentOutcomeActionDraft,
+  role: string,
+): { action: Exclude<AssessmentOutcomeActionDraft, ''>; role?: string } | undefined {
+  if (!action) {
+    return undefined;
+  }
+  if (action === 'route_to_role') {
+    return compactRecord({
+      action,
+      role: role || undefined,
+    }) as { action: 'route_to_role'; role?: string };
+  }
+  return { action };
 }
 
 function buildApprovalRules(approvalRules: ApprovalRuleDraft[]) {
   return approvalRules
-    .map((rule) => ({
-      on: rule.on as 'checkpoint' | 'completion',
-      checkpoint: rule.checkpoint.trim(),
-      approved_by: 'human' as const,
-      required: rule.required,
+    .map((rule) => {
+      const checkpoint = rule.checkpoint.trim();
+      const decisionStates = rule.allow_blocked_decision
+        ? ['approved', 'request_changes', 'rejected', 'blocked']
+        : undefined;
+      const revisionPolicy = compactRecord({
+        assessment_retention: readString(rule.assessment_retention).trim() || undefined,
+        approval_retention: readString(rule.approval_retention).trim() || undefined,
+      });
+      const orderingPolicy = compactRecord({
+        subject_boundary: rule.approval_before_assessment ? 'checkpoint' : undefined,
+        approval_before_assessment: rule.approval_before_assessment || undefined,
+      });
+      return {
+        on: rule.on as 'checkpoint' | 'completion',
+        checkpoint,
+        approved_by: 'human' as const,
+        required: rule.required,
+        materiality: readString(rule.materiality).trim() || undefined,
+        decision_states: decisionStates,
+        revision_policy: Object.keys(revisionPolicy).length > 0 ? revisionPolicy : undefined,
+        ordering_policy: Object.keys(orderingPolicy).length > 0 ? orderingPolicy : undefined,
+      };
+    })
+    .filter(
+      (rule) =>
+        rule.on === 'completion' ||
+        rule.checkpoint ||
+        rule.required !== true ||
+        Boolean(rule.materiality) ||
+        Boolean(rule.decision_states) ||
+        Boolean(rule.revision_policy) ||
+        Boolean(rule.ordering_policy),
+    );
+}
+
+function buildBranchPolicies(branchPolicies: BranchPolicyDraft[]) {
+  return branchPolicies
+    .map((policy) => ({
+      branch_key: policy.branch_key.trim(),
+      termination_policy: policy.termination_policy,
     }))
-    .filter((rule) => rule.on === 'completion' || rule.checkpoint || rule.required !== true);
+    .filter((policy) => policy.branch_key);
 }
 
 function buildHandoffRules(handoffRules: HandoffRuleDraft[]) {
@@ -710,6 +891,7 @@ function readAssessmentRuleError(
   rule: AssessmentRuleDraft,
   roleNames: Set<string>,
   checkpointNames: Set<string>,
+  branchKeys: Set<string>,
 ): string | undefined {
   if (!hasAssessmentRuleValue(rule)) {
     return undefined;
@@ -719,6 +901,7 @@ function readAssessmentRuleError(
   const checkpoint = readString(rule.checkpoint).trim();
   const requestChangesTarget = readString(rule.request_changes_target).trim();
   const rejectedTarget = readString(rule.rejected_target).trim();
+  const blockedTarget = readString(rule.blocked_target).trim();
   if (!subjectRole || !assessedBy) {
     return 'Assessment rules must define both the subject role and the assessor role.';
   }
@@ -728,11 +911,26 @@ function readAssessmentRuleError(
   if (checkpoint && !checkpointNames.has(checkpoint)) {
     return 'Assessment rules must reference an existing checkpoint when one is selected.';
   }
+  if (rule.request_changes_action === 'route_to_role' && !requestChangesTarget) {
+    return 'Requested changes must route to a selected team role when route_to_role is used.';
+  }
   if (requestChangesTarget && !roleNames.has(requestChangesTarget)) {
     return 'Requested changes must route to a selected team role when a role target is set.';
   }
+  if (rule.rejected_action === 'route_to_role' && !rejectedTarget) {
+    return 'Rejected work must route to a selected team role when route_to_role is used.';
+  }
   if (rejectedTarget && !roleNames.has(rejectedTarget)) {
     return 'Rejected work must route to a selected team role when a role target is set.';
+  }
+  if (rule.allow_blocked_decision && rule.blocked_action === 'route_to_role' && !blockedTarget) {
+    return 'Blocked decisions must route to a selected team role when route_to_role is used.';
+  }
+  if (blockedTarget && !roleNames.has(blockedTarget)) {
+    return 'Blocked decisions must route to a selected team role when a role target is set.';
+  }
+  if (usesTerminateBranch(rule) && branchKeys.size === 0) {
+    return 'Terminate branch actions require at least one branch policy.';
   }
   return undefined;
 }
@@ -742,8 +940,16 @@ function hasAssessmentRuleValue(rule: AssessmentRuleDraft): boolean {
     readString(rule.subject_role).trim().length > 0 ||
     readString(rule.assessed_by).trim().length > 0 ||
     readString(rule.checkpoint).trim().length > 0 ||
+    readString(rule.materiality).trim().length > 0 ||
+    readString(rule.assessment_retention).trim().length > 0 ||
+    readString(rule.approval_retention).trim().length > 0 ||
+    rule.request_changes_action !== 'reopen_subject' ||
     readString(rule.request_changes_target).trim().length > 0 ||
+    rule.rejected_action !== 'block_subject' ||
     readString(rule.rejected_target).trim().length > 0 ||
+    rule.allow_blocked_decision ||
+    rule.blocked_action !== 'block_subject' ||
+    readString(rule.blocked_target).trim().length > 0 ||
     rule.required === false
   );
 }
@@ -761,11 +967,48 @@ function readApprovalRuleError(
   if (rule.on === 'checkpoint' && !checkpointNames.has(rule.checkpoint.trim())) {
     return 'Checkpoint approvals must reference an existing checkpoint.';
   }
+  if (rule.approval_before_assessment && rule.on !== 'checkpoint') {
+    return 'Approval-before-assessment only applies to checkpoint approvals.';
+  }
   return undefined;
 }
 
 function hasApprovalRuleValue(rule: ApprovalRuleDraft): boolean {
-  return rule.on === 'completion' || rule.checkpoint.trim().length > 0 || rule.required === false;
+  return (
+    rule.on === 'completion' ||
+    rule.checkpoint.trim().length > 0 ||
+    readString(rule.materiality).trim().length > 0 ||
+    readString(rule.assessment_retention).trim().length > 0 ||
+    readString(rule.approval_retention).trim().length > 0 ||
+    rule.allow_blocked_decision ||
+    rule.approval_before_assessment ||
+    rule.required === false
+  );
+}
+
+function readBranchPolicyKeyError(
+  policy: BranchPolicyDraft,
+  duplicateKeys: Set<string>,
+): string | undefined {
+  if (!hasBranchPolicyValue(policy)) {
+    return undefined;
+  }
+  const branchKey = policy.branch_key.trim();
+  if (!branchKey) {
+    return 'Add a branch key.';
+  }
+  if (duplicateKeys.has(branchKey.toLowerCase())) {
+    return 'Branch policy keys must be unique.';
+  }
+  return undefined;
+}
+
+function hasBranchPolicyValue(policy: BranchPolicyDraft): boolean {
+  return policy.branch_key.trim().length > 0;
+}
+
+function usesTerminateBranch(rule: AssessmentRuleDraft): boolean {
+  return rule.rejected_action === 'terminate_branch' || rule.blocked_action === 'terminate_branch';
 }
 
 function readHandoffRuleError(rule: HandoffRuleDraft, roleNames: Set<string>): string | undefined {
@@ -920,20 +1163,42 @@ function readAssessmentRules(value: unknown): AssessmentRuleDraft[] {
     ? value
         .map((entry) => {
           const record = asRecord(entry);
+          const decisionStates = Array.isArray(record.decision_states)
+            ? record.decision_states.filter((state): state is string => typeof state === 'string')
+            : [];
           const outcomeActions = asRecord(record.outcome_actions);
           const requestChanges = asRecord(outcomeActions.request_changes);
           const rejected = asRecord(outcomeActions.rejected);
+          const blocked = asRecord(outcomeActions.blocked);
+          const revisionPolicy = asRecord(record.revision_policy);
           return {
             subject_role: readString(record.subject_role),
             assessed_by: readString(record.assessed_by),
             checkpoint: readString(record.checkpoint),
             required: typeof record.required === 'boolean' ? record.required : true,
+            materiality: readString(record.materiality) as RuleMaterialityDraft,
+            assessment_retention:
+              readString(revisionPolicy.assessment_retention) as RevisionRetentionDraft,
+            approval_retention:
+              readString(revisionPolicy.approval_retention) as RevisionRetentionDraft,
+            request_changes_action:
+              (readString(requestChanges.action) as AssessmentRuleDraft['request_changes_action']) ||
+              (readString(requestChanges.role) ? 'route_to_role' : 'reopen_subject'),
             request_changes_target:
               readString((record as { request_changes_target?: unknown }).request_changes_target) ||
               readString(requestChanges.role),
+            rejected_action:
+              (readString(rejected.action) as AssessmentRuleDraft['rejected_action']) ||
+              (readString(rejected.role) ? 'route_to_role' : 'block_subject'),
             rejected_target:
               readString((record as { rejected_target?: unknown }).rejected_target) ||
               readString(rejected.role),
+            allow_blocked_decision:
+              decisionStates.includes('blocked') || readString(blocked.action).length > 0,
+            blocked_action:
+              (readString(blocked.action) as AssessmentRuleDraft['blocked_action']) ||
+              'block_subject',
+            blocked_target: readString(blocked.role),
           };
         })
         .filter(hasAssessmentRuleValue)
@@ -945,15 +1210,44 @@ function readApprovalRules(value: unknown): ApprovalRuleDraft[] {
     ? value
         .map((entry) => {
           const record = asRecord(entry);
+          const decisionStates = Array.isArray(record.decision_states)
+            ? record.decision_states.filter((state): state is string => typeof state === 'string')
+            : [];
+          const revisionPolicy = asRecord(record.revision_policy);
+          const orderingPolicy = asRecord(record.ordering_policy);
           return {
             on: (record.on === 'completion' ? 'completion' : 'checkpoint') as
               | 'checkpoint'
               | 'completion',
             checkpoint: readString(record.checkpoint),
             required: typeof record.required === 'boolean' ? record.required : true,
+            materiality: readString(record.materiality) as RuleMaterialityDraft,
+            assessment_retention:
+              readString(revisionPolicy.assessment_retention) as RevisionRetentionDraft,
+            approval_retention:
+              readString(revisionPolicy.approval_retention) as RevisionRetentionDraft,
+            allow_blocked_decision: decisionStates.includes('blocked'),
+            approval_before_assessment:
+              orderingPolicy.approval_before_assessment === true,
           };
         })
         .filter(hasApprovalRuleValue)
+    : [];
+}
+
+function readBranchPolicies(value: unknown): BranchPolicyDraft[] {
+  return Array.isArray(value)
+    ? value
+        .map((entry) => {
+          const record = asRecord(entry);
+          return {
+            branch_key: readString(record.branch_key),
+            termination_policy:
+              (readString(record.termination_policy) as BranchTerminationPolicyDraft) ||
+              'stop_branch_only',
+          };
+        })
+        .filter(hasBranchPolicyValue)
     : [];
 }
 

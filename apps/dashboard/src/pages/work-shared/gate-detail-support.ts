@@ -29,6 +29,9 @@ export interface GateIdentityShape {
     feedback?: string | null;
     created_at?: string | null;
   }> | null;
+  superseded_at?: string | null;
+  superseded_by_revision?: number | null;
+  is_superseded?: boolean;
   requested_by_task?: {
     id?: string | null;
     title?: string | null;
@@ -149,6 +152,11 @@ export function readGatePacketSummary(gate: GateIdentityShape): string[] {
   if (decision) {
     summary.push(`decision: ${decision.replaceAll('_', ' ')}`);
   }
+  if (gate.is_superseded) {
+    summary.push(
+      `superseded${gate.superseded_by_revision ? ` at revision ${gate.superseded_by_revision}` : ''}`,
+    );
+  }
   return summary;
 }
 
@@ -166,6 +174,15 @@ export function buildGateRecoveryPacket(gate: GateIdentityShape): GateRecoveryPa
       title: 'Follow-up stalled after the decision',
       summary:
         'Open the linked activation or follow-up step diagnostics, capture the error details, then retry from the board gate once the blocker is clear.',
+    };
+  }
+
+  if (gate.is_superseded) {
+    return {
+      tone: 'warning',
+      title: 'Decision history is superseded',
+      summary:
+        'Keep the recorded operator decision for audit, but rely on the current subject revision before taking another gate action.',
     };
   }
 
@@ -260,7 +277,16 @@ export function readGateDecisionSummary(gate: GateIdentityShape): string {
     gate.human_decision?.decided_by_id ?? gate.decided_by_id,
   );
   const when = readTimeLabel(gate.human_decision?.decided_at ?? gate.decided_at);
-  return [action.replaceAll('_', ' '), actor ? `by ${actor}` : null, when ? `at ${when}` : null]
+  const superseded =
+    gate.is_superseded
+      ? `superseded${gate.superseded_by_revision ? ` at revision ${gate.superseded_by_revision}` : ''}`
+      : null;
+  return [
+    action.replaceAll('_', ' '),
+    actor ? `by ${actor}` : null,
+    when ? `at ${when}` : null,
+    superseded,
+  ]
     .filter(Boolean)
     .join(' ');
 }
@@ -305,6 +331,14 @@ export function readGateTimelineRows(
     rows.push({
       label: 'Last decision',
       value: readTimelineValue(gate.decided_at, decidedBy),
+    });
+  }
+  if (gate.is_superseded) {
+    rows.push({
+      label: 'Superseded',
+      value: gate.superseded_by_revision
+        ? `superseded at revision ${gate.superseded_by_revision}`
+        : 'superseded',
     });
   }
   const resumeState = readNonEmpty(gate.orchestrator_resume?.state);

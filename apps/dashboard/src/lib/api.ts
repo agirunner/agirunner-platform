@@ -442,6 +442,8 @@ export interface DashboardWorkflowWorkItemRecordBase {
   id: string;
   workflow_id: string;
   parent_work_item_id?: string | null;
+  branch_id?: string | null;
+  branch_status?: 'active' | 'completed' | 'blocked' | 'terminated' | null;
   stage_name: string;
   title: string;
   goal?: string | null;
@@ -450,6 +452,9 @@ export interface DashboardWorkflowWorkItemRecordBase {
   owner_role?: string | null;
   next_expected_actor?: string | null;
   next_expected_action?: string | null;
+  blocked_state?: 'blocked' | null;
+  blocked_reason?: string | null;
+  escalation_status?: 'open' | null;
   rework_count?: number | null;
   current_subject_revision?: number | null;
   latest_handoff_completion?: string | null;
@@ -459,6 +464,11 @@ export interface DashboardWorkflowWorkItemRecordBase {
   approved_assessment_count?: number | null;
   blocking_assessment_count?: number | null;
   pending_assessment_count?: number | null;
+  retained_assessment_count?: number | null;
+  invalidated_assessment_count?: number | null;
+  gate_status?: string | null;
+  gate_decision_feedback?: string | null;
+  gate_decided_at?: string | null;
   unresolved_findings?: string[];
   focus_areas?: string[];
   known_risks?: string[];
@@ -647,12 +657,22 @@ export interface DashboardApprovalStageGateRecord {
   decided_by_id?: string | null;
   decision_feedback?: string | null;
   human_decision?: {
-    action?: 'approve' | 'reject' | 'request_changes' | null;
+    action?: 'approve' | 'reject' | 'request_changes' | 'blocked' | null;
     decided_by_type?: string | null;
     decided_by_id?: string | null;
     feedback?: string | null;
     decided_at?: string | null;
   } | null;
+  decision_history?: Array<{
+    action?: string | null;
+    actor_type?: string | null;
+    actor_id?: string | null;
+    feedback?: string | null;
+    created_at?: string | null;
+  }>;
+  superseded_at?: string | null;
+  superseded_by_revision?: number | null;
+  is_superseded?: boolean;
   requested_by_task?: {
     id: string;
     title?: string | null;

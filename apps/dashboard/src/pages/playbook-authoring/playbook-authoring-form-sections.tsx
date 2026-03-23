@@ -15,6 +15,7 @@ import { Textarea } from '../../components/ui/textarea.js';
 import {
   createEmptyApprovalRuleDraft,
   createEmptyAssessmentRuleDraft,
+  createEmptyBranchPolicyDraft,
   createEmptyCheckpointDraft,
   createEmptyColumnDraft,
   createEmptyHandoffRuleDraft,
@@ -24,7 +25,9 @@ import {
   validateParameterDrafts,
   validateRoleDrafts,
   validateWorkflowRulesDraft,
+  type AssessmentRuleDraft,
   type BoardColumnDraft,
+  type BranchPolicyDraft,
   type ParameterDraft,
   type PlaybookAuthoringDraft,
 } from './playbook-authoring-support.js';
@@ -56,6 +59,44 @@ const PARAMETER_CATEGORY_OPTIONS = [
   { value: 'input', label: 'Input' },
   { value: 'repository', label: 'Repository' },
   { value: 'credential', label: 'Credential' },
+] as const;
+
+const RULE_MATERIALITY_OPTIONS = [
+  { value: '', label: 'Default materiality' },
+  { value: 'material', label: 'Material' },
+  { value: 'non_material', label: 'Non-material' },
+] as const;
+
+const REVISION_RETENTION_OPTIONS = [
+  { value: '', label: 'Invalidate on rework (default)' },
+  { value: 'invalidate_all', label: 'Invalidate all' },
+  { value: 'retain_advisory_only', label: 'Retain advisory only' },
+  { value: 'retain_named_assessors', label: 'Retain named assessors' },
+  { value: 'retain_non_material_only', label: 'Retain non-material only' },
+] as const;
+
+const REQUEST_CHANGES_ACTION_OPTIONS = [
+  { value: 'reopen_subject', label: 'Reopen subject' },
+  { value: 'route_to_role', label: 'Route to role' },
+] as const;
+
+const REJECTED_ACTION_OPTIONS = [
+  { value: 'block_subject', label: 'Block subject' },
+  { value: 'route_to_role', label: 'Route to role' },
+  { value: 'terminate_branch', label: 'Terminate branch' },
+] as const;
+
+const BLOCKED_ACTION_OPTIONS = [
+  { value: 'block_subject', label: 'Block subject' },
+  { value: 'route_to_role', label: 'Route to role' },
+  { value: 'escalate', label: 'Escalate' },
+  { value: 'terminate_branch', label: 'Terminate branch' },
+] as const;
+
+const BRANCH_TERMINATION_OPTIONS = [
+  { value: 'stop_branch_only', label: 'Stop branch only' },
+  { value: 'stop_branch_and_descendants', label: 'Stop branch and descendants' },
+  { value: 'stop_all_siblings', label: 'Stop all siblings' },
 ] as const;
 
 const WORKSPACE_MAPPING_OPTIONS = [
@@ -203,6 +244,71 @@ export function AssessmentRulesSection(
             key={`assessment-rule-${index}`}
             fieldsClassName="md:grid-cols-2 xl:grid-cols-5"
             error={ruleValidation.assessmentRuleErrors[index]}
+            details={
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <ToggleField
+                  label="Allow blocked decision"
+                  checked={rule.allow_blocked_decision}
+                  onCheckedChange={(checked) =>
+                    props.onChange((current) => ({
+                      ...current,
+                      assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
+                        entryIndex === index ? { ...entry, allow_blocked_decision: checked } : entry,
+                      ),
+                    }))
+                  }
+                />
+                <OutcomeActionRuleField
+                  label="On blocked"
+                  action={rule.blocked_action}
+                  role={rule.blocked_target}
+                  roleLabel="Route blocked work to"
+                  availableRoleNames={availableRoleNames}
+                  actionOptions={BLOCKED_ACTION_OPTIONS}
+                  disabled={!rule.allow_blocked_decision}
+                  onActionChange={(value) =>
+                    props.onChange((current) => ({
+                      ...current,
+                      assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
+                        entryIndex === index
+                          ? { ...entry, blocked_action: value as AssessmentRuleDraft['blocked_action'] }
+                          : entry,
+                      ),
+                    }))
+                  }
+                  onRoleChange={(value) =>
+                    updateAssessmentRule(props.onChange, index, 'blocked_target', value)
+                  }
+                />
+                <SelectRuleField
+                  label="Materiality"
+                  value={rule.materiality}
+                  placeholder="Default materiality"
+                  options={RULE_MATERIALITY_OPTIONS}
+                  onValueChange={(value) =>
+                    updateAssessmentRule(props.onChange, index, 'materiality', value)
+                  }
+                />
+                <SelectRuleField
+                  label="Assessment retention"
+                  value={rule.assessment_retention}
+                  placeholder="Invalidate on rework (default)"
+                  options={REVISION_RETENTION_OPTIONS}
+                  onValueChange={(value) =>
+                    updateAssessmentRule(props.onChange, index, 'assessment_retention', value)
+                  }
+                />
+                <SelectRuleField
+                  label="Approval retention"
+                  value={rule.approval_retention}
+                  placeholder="Invalidate on rework (default)"
+                  options={REVISION_RETENTION_OPTIONS}
+                  onValueChange={(value) =>
+                    updateAssessmentRule(props.onChange, index, 'approval_retention', value)
+                  }
+                />
+              </div>
+            }
             actions={
               <InlineRuleActions
                 required={rule.required}
@@ -274,29 +380,35 @@ export function AssessmentRulesSection(
                 placeholder="Optional checkpoint"
               />
             </InlineRuleField>
-            <RoleSelectField
+            <OutcomeActionRuleField
               label="On changes requested"
-              value={rule.request_changes_target}
+              action={rule.request_changes_action}
+              role={rule.request_changes_target}
+              roleLabel="Route requested changes to"
               availableRoleNames={availableRoleNames}
-              placeholder="Reopen subject"
-              allowUnset
               inline
               className="min-w-0"
-              triggerClassName="min-w-0"
-              onValueChange={(value) =>
+              actionOptions={REQUEST_CHANGES_ACTION_OPTIONS}
+              onActionChange={(value) =>
+                updateAssessmentRule(props.onChange, index, 'request_changes_action', value)
+              }
+              onRoleChange={(value) =>
                 updateAssessmentRule(props.onChange, index, 'request_changes_target', value)
               }
             />
-            <RoleSelectField
+            <OutcomeActionRuleField
               label="On rejected"
-              value={rule.rejected_target}
+              action={rule.rejected_action}
+              role={rule.rejected_target}
+              roleLabel="Route rejected work to"
               availableRoleNames={availableRoleNames}
-              placeholder="Block subject"
-              allowUnset
               inline
               className="min-w-0"
-              triggerClassName="min-w-0"
-              onValueChange={(value) =>
+              actionOptions={REJECTED_ACTION_OPTIONS}
+              onActionChange={(value) =>
+                updateAssessmentRule(props.onChange, index, 'rejected_action', value)
+              }
+              onRoleChange={(value) =>
                 updateAssessmentRule(props.onChange, index, 'rejected_target', value)
               }
             />
@@ -338,6 +450,51 @@ export function ApprovalRulesSection(props: SectionProps): JSX.Element {
             key={`approval-rule-${index}`}
             fieldsClassName="md:grid-cols-2"
             error={ruleValidation.approvalRuleErrors[index]}
+            details={
+              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <ToggleField
+                  label="Allow blocked decision"
+                  checked={rule.allow_blocked_decision}
+                  onCheckedChange={(checked) =>
+                    updateApprovalRule(props.onChange, index, 'allow_blocked_decision', checked)
+                  }
+                />
+                <ToggleField
+                  label="Approval before assessment"
+                  checked={rule.approval_before_assessment}
+                  onCheckedChange={(checked) =>
+                    updateApprovalRule(props.onChange, index, 'approval_before_assessment', checked)
+                  }
+                />
+                <SelectRuleField
+                  label="Materiality"
+                  value={rule.materiality}
+                  placeholder="Default materiality"
+                  options={RULE_MATERIALITY_OPTIONS}
+                  onValueChange={(value) =>
+                    updateApprovalRule(props.onChange, index, 'materiality', value)
+                  }
+                />
+                <SelectRuleField
+                  label="Assessment retention"
+                  value={rule.assessment_retention}
+                  placeholder="Invalidate on rework (default)"
+                  options={REVISION_RETENTION_OPTIONS}
+                  onValueChange={(value) =>
+                    updateApprovalRule(props.onChange, index, 'assessment_retention', value)
+                  }
+                />
+                <SelectRuleField
+                  label="Approval retention"
+                  value={rule.approval_retention}
+                  placeholder="Invalidate on rework (default)"
+                  options={REVISION_RETENTION_OPTIONS}
+                  onValueChange={(value) =>
+                    updateApprovalRule(props.onChange, index, 'approval_retention', value)
+                  }
+                />
+              </div>
+            }
             actions={
               <InlineRuleActions
                 required={rule.required}
@@ -390,6 +547,8 @@ export function ApprovalRulesSection(props: SectionProps): JSX.Element {
                             ...entry,
                             on: value as 'checkpoint' | 'completion',
                             checkpoint: value === 'completion' ? '' : entry.checkpoint,
+                            approval_before_assessment:
+                              value === 'completion' ? false : entry.approval_before_assessment,
                           }
                         : entry,
                     ),
@@ -457,6 +616,89 @@ export function ApprovalRulesSection(props: SectionProps): JSX.Element {
         >
           <Plus className="h-4 w-4" />
           Add Approval Rule
+        </Button>
+      </div>
+    </SectionCard>
+  );
+}
+
+export function BranchPoliciesSection(props: SectionProps): JSX.Element {
+  const ruleValidation = validateWorkflowRulesDraft(props.draft);
+
+  return (
+    <SectionCard
+      id="playbook-branch-policies"
+      title="Branch Policies"
+      description="Author branch termination semantics explicitly before any assessment rule can terminate a branch."
+    >
+      <div className="space-y-4">
+        {props.draft.branch_policies.map((policy, index) => (
+          <InlineRuleRow
+            key={`branch-policy-${index}`}
+            fieldsClassName="md:grid-cols-2"
+            error={ruleValidation.branchPolicyErrors[index]?.branch_key}
+            actions={
+              <InlineRuleActions
+                onMoveEarlier={
+                  canMoveDraftItem(index, props.draft.branch_policies.length, 'earlier')
+                    ? () =>
+                        props.onChange((current) => ({
+                          ...current,
+                          branch_policies: moveDraftItem(current.branch_policies, index, 'earlier'),
+                        }))
+                    : undefined
+                }
+                onMoveLater={
+                  canMoveDraftItem(index, props.draft.branch_policies.length, 'later')
+                    ? () =>
+                        props.onChange((current) => ({
+                          ...current,
+                          branch_policies: moveDraftItem(current.branch_policies, index, 'later'),
+                        }))
+                    : undefined
+                }
+                onRemove={() =>
+                  props.onChange((current) => ({
+                    ...current,
+                    branch_policies: current.branch_policies.filter(
+                      (_, entryIndex) => entryIndex !== index,
+                    ),
+                  }))
+                }
+              />
+            }
+          >
+            <InlineRuleField label="Branch key" className="min-w-0">
+              <Input
+                value={policy.branch_key}
+                onChange={(event) =>
+                  updateBranchPolicy(props.onChange, index, 'branch_key', event.target.value)
+                }
+                placeholder="regional-variant"
+              />
+            </InlineRuleField>
+            <SelectRuleField
+              label="Termination policy"
+              value={policy.termination_policy}
+              options={BRANCH_TERMINATION_OPTIONS}
+              onValueChange={(value) =>
+                updateBranchPolicy(props.onChange, index, 'termination_policy', value)
+              }
+            />
+          </InlineRuleRow>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            props.onChange((current) => ({
+              ...current,
+              branch_policies: [...current.branch_policies, createEmptyBranchPolicyDraft()],
+            }))
+          }
+        >
+          <Plus className="h-4 w-4" />
+          Add Branch Policy
         </Button>
       </div>
     </SectionCard>
@@ -996,6 +1238,7 @@ export function WorkflowRulesSection(
     <div className="space-y-4">
       <AssessmentRulesSection {...props} />
       <ApprovalRulesSection draft={props.draft} onChange={props.onChange} />
+      <BranchPoliciesSection draft={props.draft} onChange={props.onChange} />
       <HandoffRulesSection {...props} />
       <WorkflowCheckpointsSection draft={props.draft} onChange={props.onChange} />
     </div>
@@ -1174,6 +1417,99 @@ function RoleSelectField(props: {
   );
 }
 
+function SelectRuleField(props: {
+  label: string;
+  value: string;
+  options: ReadonlyArray<{ value: string; label: string }>;
+  placeholder?: string;
+  onValueChange(value: string): void;
+}): JSX.Element {
+  const hasExplicitEmptyOption = props.options.some((option) => option.value === '');
+  return (
+    <InlineRuleField label={props.label} className="min-w-0">
+      <Select
+        value={props.value || ENTRY_COLUMN_UNSET}
+        onValueChange={(value) => props.onValueChange(value === ENTRY_COLUMN_UNSET ? '' : value)}
+      >
+        <SelectTrigger className="min-w-0">
+          <SelectValue placeholder={props.placeholder ?? 'Select option'} />
+        </SelectTrigger>
+        <SelectContent>
+          {!hasExplicitEmptyOption ? (
+            <SelectItem value={ENTRY_COLUMN_UNSET}>
+              {props.placeholder ?? 'Select option'}
+            </SelectItem>
+          ) : null}
+          {props.options.map((option) => (
+            <SelectItem
+              key={option.value || `${props.label}-default`}
+              value={option.value || ENTRY_COLUMN_UNSET}
+            >
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </InlineRuleField>
+  );
+}
+
+function OutcomeActionRuleField(props: {
+  label: string;
+  action: string;
+  role: string;
+  roleLabel: string;
+  availableRoleNames: string[];
+  actionOptions: ReadonlyArray<{ value: string; label: string }>;
+  onActionChange(value: string): void;
+  onRoleChange(value: string): void;
+  disabled?: boolean;
+  inline?: boolean;
+  className?: string;
+}): JSX.Element {
+  const content = (
+    <div className="grid gap-2">
+      <Select
+        value={props.action || ENTRY_COLUMN_UNSET}
+        onValueChange={(value) => props.onActionChange(value === ENTRY_COLUMN_UNSET ? '' : value)}
+        disabled={props.disabled}
+      >
+        <SelectTrigger className="min-w-0">
+          <SelectValue placeholder="Select action" />
+        </SelectTrigger>
+        <SelectContent>
+          {props.actionOptions.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {props.action === 'route_to_role' ? (
+        <RoleSelectField
+          label={props.roleLabel}
+          value={props.role}
+          availableRoleNames={props.availableRoleNames}
+          allowUnset
+          inline
+          className="min-w-0"
+          triggerClassName="min-w-0"
+          onValueChange={props.onRoleChange}
+        />
+      ) : null}
+    </div>
+  );
+
+  if (props.inline) {
+    return (
+      <InlineRuleField label={props.label} className={props.className}>
+        {content}
+      </InlineRuleField>
+    );
+  }
+  return content;
+}
+
 function InlineRuleField(props: {
   label: string;
   children: ReactNode;
@@ -1197,6 +1533,7 @@ function InlineRuleRow(props: {
   children: ReactNode;
   actions: ReactNode;
   error?: string;
+  details?: ReactNode;
   fieldsClassName?: string;
 }): JSX.Element {
   return (
@@ -1212,23 +1549,30 @@ function InlineRuleRow(props: {
       {props.error ? (
         <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p>
       ) : null}
+      {props.details ? (
+        <div className="rounded-md border border-border/50 bg-background/70 p-3">
+          {props.details}
+        </div>
+      ) : null}
     </div>
   );
 }
 
 function InlineRuleActions(props: {
-  required: boolean;
-  onRequiredChange(checked: boolean): void;
+  required?: boolean;
+  onRequiredChange?(checked: boolean): void;
   onMoveEarlier?: () => void;
   onMoveLater?: () => void;
   onRemove?: () => void;
 }): JSX.Element {
   return (
     <div className="flex flex-nowrap items-center gap-1">
-      <label className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 px-1.5 text-[11px] font-medium text-foreground">
-        <Switch checked={props.required} onCheckedChange={props.onRequiredChange} />
-        <span>Required</span>
-      </label>
+      {typeof props.required === 'boolean' && props.onRequiredChange ? (
+        <label className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 px-1.5 text-[11px] font-medium text-foreground">
+          <Switch checked={props.required} onCheckedChange={props.onRequiredChange} />
+          <span>Required</span>
+        </label>
+      ) : null}
       {props.onMoveEarlier ? (
         <Button
           type="button"
@@ -1328,13 +1672,54 @@ function updateAssessmentRule(
     | 'subject_role'
     | 'assessed_by'
     | 'checkpoint'
+    | 'materiality'
+    | 'assessment_retention'
+    | 'approval_retention'
+    | 'request_changes_action'
     | 'request_changes_target'
-    | 'rejected_target',
+    | 'rejected_action'
+    | 'rejected_target'
+    | 'blocked_target'
+    | 'blocked_action',
   value: string,
 ): void {
   onChange((current) => ({
     ...current,
     assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
+      entryIndex === index ? { ...entry, [field]: value } : entry,
+    ),
+  }));
+}
+
+function updateApprovalRule(
+  onChange: SectionProps['onChange'],
+  index: number,
+  field:
+    | 'checkpoint'
+    | 'materiality'
+    | 'assessment_retention'
+    | 'approval_retention'
+    | 'allow_blocked_decision'
+    | 'approval_before_assessment',
+  value: string | boolean,
+): void {
+  onChange((current) => ({
+    ...current,
+    approval_rules: current.approval_rules.map((entry, entryIndex) =>
+      entryIndex === index ? { ...entry, [field]: value } : entry,
+    ),
+  }));
+}
+
+function updateBranchPolicy(
+  onChange: SectionProps['onChange'],
+  index: number,
+  field: 'branch_key' | 'termination_policy',
+  value: string,
+): void {
+  onChange((current) => ({
+    ...current,
+    branch_policies: current.branch_policies.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
     ),
   }));

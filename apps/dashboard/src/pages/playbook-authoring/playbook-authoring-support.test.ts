@@ -49,11 +49,28 @@ describe('playbook authoring support', () => {
         assessed_by: 'reviewer',
         checkpoint: '',
         required: true,
+        materiality: '',
+        assessment_retention: '',
+        approval_retention: '',
+        request_changes_action: 'reopen_subject',
         request_changes_target: 'developer',
+        rejected_action: 'block_subject',
         rejected_target: '',
+        allow_blocked_decision: false,
+        blocked_action: 'block_subject',
+        blocked_target: '',
       },
     ];
-    draft.approval_rules = [{ on: 'checkpoint', checkpoint: 'deliver', required: true }];
+    draft.approval_rules = [{
+      on: 'checkpoint',
+      checkpoint: 'deliver',
+      required: true,
+      materiality: '',
+      assessment_retention: '',
+      approval_retention: '',
+      allow_blocked_decision: false,
+      approval_before_assessment: false,
+    }];
     draft.handoff_rules = [{ from_role: 'architect', to_role: 'developer', required: true }];
     draft.orchestrator.max_iterations = '100';
     draft.orchestrator.llm_max_retries = '5';
@@ -165,6 +182,98 @@ describe('playbook authoring support', () => {
         expect.objectContaining({ runtime: expect.anything() }),
       );
     }
+  });
+
+  it('builds authored blocked, retention, ordering, and branch policy metadata', () => {
+    const draft = createDefaultAuthoringDraft('planned');
+    draft.process_instructions = 'Assess, escalate, and gate the work through explicit policy.';
+    draft.roles = [{ value: 'writer' }, { value: 'policy-reviewer' }];
+    draft.checkpoints = [
+      {
+        name: 'publish',
+        goal: 'Prepare the publishable packet.',
+        human_gate: true,
+        entry_criteria: '',
+      },
+    ];
+    draft.branch_policies = [
+      {
+        branch_key: 'regional-variant',
+        termination_policy: 'stop_branch_only',
+      },
+    ];
+    draft.assessment_rules = [
+      {
+        subject_role: 'writer',
+        assessed_by: 'policy-reviewer',
+        checkpoint: 'publish',
+        required: true,
+        materiality: 'non_material',
+        assessment_retention: 'retain_named_assessors',
+        approval_retention: '',
+        request_changes_action: 'route_to_role',
+        request_changes_target: 'writer',
+        rejected_action: 'terminate_branch',
+        rejected_target: '',
+        allow_blocked_decision: true,
+        blocked_action: 'escalate',
+        blocked_target: '',
+      },
+    ];
+    draft.approval_rules = [
+      {
+        on: 'checkpoint',
+        checkpoint: 'publish',
+        required: true,
+        materiality: 'material',
+        assessment_retention: '',
+        approval_retention: 'retain_non_material_only',
+        allow_blocked_decision: true,
+        approval_before_assessment: true,
+      },
+    ];
+
+    const built = buildPlaybookDefinition('planned', draft);
+    expect(built).toEqual(
+      expect.objectContaining({
+        ok: true,
+        value: expect.objectContaining({
+          branch_policies: [
+            {
+              branch_key: 'regional-variant',
+              termination_policy: 'stop_branch_only',
+            },
+          ],
+          assessment_rules: [
+            expect.objectContaining({
+              materiality: 'non_material',
+              decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
+              outcome_actions: expect.objectContaining({
+                request_changes: { action: 'route_to_role', role: 'writer' },
+                rejected: { action: 'terminate_branch' },
+                blocked: { action: 'escalate' },
+              }),
+              revision_policy: {
+                assessment_retention: 'retain_named_assessors',
+              },
+            }),
+          ],
+          approval_rules: [
+            expect.objectContaining({
+              materiality: 'material',
+              decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
+              revision_policy: {
+                approval_retention: 'retain_non_material_only',
+              },
+              ordering_policy: {
+                subject_boundary: 'checkpoint',
+                approval_before_assessment: true,
+              },
+            }),
+          ],
+        }),
+      }),
+    );
   });
 
   it('rejects incomplete or duplicate structured rows before submit', () => {
@@ -389,12 +498,21 @@ describe('playbook authoring support', () => {
       expect.objectContaining({
         subject_role: 'developer',
         assessed_by: 'reviewer',
+        request_changes_action: 'route_to_role',
         request_changes_target: 'developer',
+        rejected_action: 'block_subject',
         rejected_target: '',
+        allow_blocked_decision: false,
       }),
     );
     expect(draft.approval_rules[0]).toEqual(
-      expect.objectContaining({ on: 'completion', checkpoint: '', required: true }),
+      expect.objectContaining({
+        on: 'completion',
+        checkpoint: '',
+        required: true,
+        allow_blocked_decision: false,
+        approval_before_assessment: false,
+      }),
     );
     expect(draft.handoff_rules[0]).toEqual(
       expect.objectContaining({ from_role: 'developer', to_role: 'reviewer', required: true }),
@@ -414,6 +532,78 @@ describe('playbook authoring support', () => {
     expect(draft.orchestrator.max_active_tasks).toBe('6');
     expect(draft.orchestrator.allow_parallel_work_items).toBe(false);
     expect(draft.orchestrator).not.toEqual(expect.objectContaining({ tools: expect.anything() }));
+  });
+
+  it('hydrates authored blocked, retention, ordering, and branch policy metadata', () => {
+    const draft = hydratePlaybookAuthoringDraft('planned', {
+      process_instructions: 'Escalate blocked assessment work and preserve advisory approvals.',
+      roles: ['writer', 'policy-reviewer'],
+      board: {
+        columns: [{ id: 'active', label: 'Active' }],
+      },
+      branch_policies: [
+        {
+          branch_key: 'regional-variant',
+          termination_policy: 'stop_branch_only',
+        },
+      ],
+      assessment_rules: [
+        {
+          subject_role: 'writer',
+          assessed_by: 'policy-reviewer',
+          required: true,
+          materiality: 'non_material',
+          decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
+          outcome_actions: {
+            request_changes: { action: 'route_to_role', role: 'writer' },
+            rejected: { action: 'terminate_branch' },
+            blocked: { action: 'escalate' },
+          },
+          revision_policy: {
+            assessment_retention: 'retain_named_assessors',
+          },
+        },
+      ],
+      approval_rules: [
+        {
+          on: 'checkpoint',
+          checkpoint: 'publish',
+          approved_by: 'human',
+          materiality: 'material',
+          decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
+          revision_policy: {
+            approval_retention: 'retain_non_material_only',
+          },
+          ordering_policy: {
+            subject_boundary: 'checkpoint',
+            approval_before_assessment: true,
+          },
+        },
+      ],
+    });
+
+    expect(draft.branch_policies[0]).toEqual({
+      branch_key: 'regional-variant',
+      termination_policy: 'stop_branch_only',
+    });
+    expect(draft.assessment_rules[0]).toEqual(
+      expect.objectContaining({
+        materiality: 'non_material',
+        assessment_retention: 'retain_named_assessors',
+        request_changes_action: 'route_to_role',
+        rejected_action: 'terminate_branch',
+        allow_blocked_decision: true,
+        blocked_action: 'escalate',
+      }),
+    );
+    expect(draft.approval_rules[0]).toEqual(
+      expect.objectContaining({
+        materiality: 'material',
+        approval_retention: 'retain_non_material_only',
+        allow_blocked_decision: true,
+        approval_before_assessment: true,
+      }),
+    );
   });
 
   it('inherits task loop limits until a playbook explicitly overrides them', () => {
@@ -451,11 +641,34 @@ describe('playbook authoring support', () => {
         assessed_by: 'reviewer',
         checkpoint: '',
         required: true,
+        materiality: '',
+        assessment_retention: '',
+        approval_retention: '',
+        request_changes_action: 'reopen_subject',
         request_changes_target: 'developer',
+        rejected_action: 'block_subject',
         rejected_target: '',
+        allow_blocked_decision: false,
+        blocked_action: 'block_subject',
+        blocked_target: '',
       },
     ];
-    draft.approval_rules = [{ on: 'completion', checkpoint: '', required: true }];
+    draft.approval_rules = [{
+      on: 'completion',
+      checkpoint: '',
+      required: true,
+      materiality: '',
+      assessment_retention: '',
+      approval_retention: '',
+      allow_blocked_decision: false,
+      approval_before_assessment: false,
+    }];
+    draft.branch_policies = [
+      {
+        branch_key: 'regional-variant',
+        termination_policy: 'stop_branch_only',
+      },
+    ];
     draft.handoff_rules = [{ from_role: 'architect', to_role: 'developer', required: true }];
     draft.parameters = [
       {
@@ -497,11 +710,41 @@ describe('playbook authoring support', () => {
       assessmentRuleCount: 1,
       requiredAssessmentRuleCount: 1,
       approvalRuleCount: 1,
+      branchPolicyCount: 1,
       handoffRuleCount: 1,
       parameterCount: 2,
       requiredParameterCount: 1,
       secretParameterCount: 1,
       runtimeOverrideCount: 0,
+    });
+  });
+
+  it('rejects terminate-branch assessment rules without branch policies', () => {
+    const draft = createDefaultAuthoringDraft('planned');
+    draft.process_instructions = 'Terminate invalid branches explicitly.';
+    draft.roles = [{ value: 'writer' }, { value: 'policy-reviewer' }];
+    draft.assessment_rules = [
+      {
+        subject_role: 'writer',
+        assessed_by: 'policy-reviewer',
+        checkpoint: '',
+        required: true,
+        materiality: '',
+        assessment_retention: '',
+        approval_retention: '',
+        request_changes_action: 'reopen_subject',
+        request_changes_target: '',
+        rejected_action: 'terminate_branch',
+        rejected_target: '',
+        allow_blocked_decision: false,
+        blocked_action: 'block_subject',
+        blocked_target: '',
+      },
+    ];
+
+    expect(buildPlaybookDefinition('planned', draft)).toEqual({
+      ok: false,
+      error: 'Terminate branch actions require at least one branch policy.',
     });
   });
 });

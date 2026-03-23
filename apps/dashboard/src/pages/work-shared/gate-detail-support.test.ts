@@ -62,8 +62,16 @@ describe('gate detail support', () => {
         key_artifacts: [{ id: 'a1' }],
         recommendation: 'approve',
         human_decision: { action: 'request_changes' },
+        is_superseded: true,
+        superseded_by_revision: 3,
       }),
-    ).toEqual(['2 concerns', '1 artifact', 'recommendation: approve', 'decision: request changes']);
+    ).toEqual([
+      '2 concerns',
+      '1 artifact',
+      'recommendation: approve',
+      'decision: request changes',
+      'superseded at revision 3',
+    ]);
   });
 
   it('reads request-source, decision, and resumption summaries for operator surfaces', () => {
@@ -91,8 +99,10 @@ describe('gate detail support', () => {
           decided_by_id: 'user-1',
           decided_at: '2026-03-12T12:00:00.000Z',
         },
+        is_superseded: true,
+        superseded_by_revision: 4,
       }),
-    ).toContain('request changes by admin:user-1 at');
+    ).toContain('superseded at revision 4');
 
     expect(
       readGateResumptionSummary({
@@ -120,6 +130,17 @@ describe('gate detail support', () => {
   });
 
   it('builds recovery packets for waiting, stalled, and in-flight follow-up states', () => {
+    expect(
+      buildGateRecoveryPacket({
+        is_superseded: true,
+      }),
+    ).toEqual({
+      tone: 'warning',
+      title: 'Decision history is superseded',
+      summary:
+        'Keep the recorded operator decision for audit, but rely on the current subject revision before taking another gate action.',
+    });
+
     expect(
       buildGateRecoveryPacket({
         gate_status: 'awaiting_approval',
@@ -200,5 +221,19 @@ describe('gate detail support', () => {
     expect(rows[3].value).toContain('activation activation-1');
     expect(rows[4]).toEqual({ label: 'Activation', value: 'activation-1' });
     expect(rows[5]).toEqual({ label: 'Status', value: 'awaiting approval' });
+  });
+
+  it('adds superseded state to the operator timeline', () => {
+    const rows = readGateTimelineRows({
+      gate_status: 'approved',
+      requested_at: '2026-03-12T10:00:00.000Z',
+      is_superseded: true,
+      superseded_by_revision: 5,
+    });
+
+    expect(rows).toContainEqual({
+      label: 'Superseded',
+      value: 'superseded at revision 5',
+    });
   });
 });

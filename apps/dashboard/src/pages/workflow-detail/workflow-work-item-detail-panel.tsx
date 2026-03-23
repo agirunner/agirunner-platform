@@ -1247,6 +1247,14 @@ function WorkItemHeader(props: {
 }
 
 function readContinuitySummary(workItem: DashboardGroupedWorkItemRecord): string | null {
+  if (workItem.blocked_state === 'blocked') {
+    return workItem.blocked_reason?.trim()
+      ? `Blocked: ${workItem.blocked_reason.trim()}`
+      : 'Blocked until the current operator or control-plane blocker is cleared.';
+  }
+  if (workItem.escalation_status === 'open') {
+    return 'Escalation is open. Resolve it before routing successor work or completing this item.';
+  }
   const nextActor = workItem.next_expected_actor?.trim();
   const nextAction = workItem.next_expected_action?.trim();
   if (nextActor && nextAction) {
@@ -1593,6 +1601,41 @@ function WorkItemContinuitySection(props: {
       label: 'Subject revision',
       value: String(props.workItem?.current_subject_revision ?? 0),
     },
+    {
+      label: 'Assessment status',
+      value: props.workItem?.assessment_status ?? 'Not set',
+    },
+    {
+      label: 'Gate status',
+      value: props.workItem?.gate_status ?? 'Not set',
+    },
+    {
+      label: 'Blocked posture',
+      value: props.workItem?.blocked_state ?? 'Clear',
+    },
+    {
+      label: 'Blocked reason',
+      value: props.workItem?.blocked_reason ?? 'None',
+    },
+    {
+      label: 'Escalation',
+      value: props.workItem?.escalation_status ?? 'Clear',
+    },
+    {
+      label: 'Branch',
+      value:
+        props.workItem?.branch_id && props.workItem?.branch_status
+          ? `${props.workItem.branch_status} • ${props.workItem.branch_id}`
+          : props.workItem?.branch_status ?? 'Not branched',
+    },
+    {
+      label: 'Retained assessments',
+      value: String(props.workItem?.retained_assessment_count ?? 0),
+    },
+    {
+      label: 'Invalidated assessments',
+      value: String(props.workItem?.invalidated_assessment_count ?? 0),
+    },
   ];
 
   return (
@@ -1642,6 +1685,14 @@ function WorkItemContinuitySection(props: {
                 <Badge variant="outline">{props.latestHandoff.stage_name}</Badge>
               ) : null}
               <Badge variant="secondary">{props.latestHandoff.completion}</Badge>
+              {props.latestHandoff.role_data?.resolution || props.latestHandoff.role_data?.decision_state ? (
+                <Badge variant="outline">
+                  {String(
+                    props.latestHandoff.role_data?.decision_state ??
+                      props.latestHandoff.role_data?.resolution,
+                  ).replaceAll('_', ' ')}
+                </Badge>
+              ) : null}
               <Badge variant="outline">{props.handoffCount} handoffs</Badge>
             </div>
             <p className="text-sm leading-6 text-foreground">{props.latestHandoff.summary}</p>
