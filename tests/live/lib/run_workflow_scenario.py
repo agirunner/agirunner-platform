@@ -301,6 +301,49 @@ def _workflow_tasks(workflow: dict[str, Any]) -> list[dict[str, Any]]:
     return tasks if isinstance(tasks, list) else []
 
 
+def _task_rows(snapshot: Any) -> list[dict[str, Any]]:
+    if not isinstance(snapshot, dict):
+        return []
+    data = snapshot.get("data", [])
+    return data if isinstance(data, list) else []
+
+
+def _task_page_count(snapshot: Any) -> int:
+    if not isinstance(snapshot, dict):
+        return 1
+    meta = snapshot.get("meta", {})
+    if not isinstance(meta, dict):
+        return 1
+    pages = meta.get("pages")
+    return pages if isinstance(pages, int) and pages > 0 else 1
+
+
+def fetch_workflow_tasks(client: ApiClient, *, workflow_id: str, per_page: int = 200) -> list[dict[str, Any]]:
+    tasks: list[dict[str, Any]] = []
+    page = 1
+    total_pages = 1
+    while page <= total_pages:
+        snapshot = client.request(
+            "GET",
+            f"/api/v1/tasks?workflow_id={workflow_id}&page={page}&per_page={per_page}",
+            expected=(200,),
+            label=f"tasks.list:{page}",
+        )
+        tasks.extend(_task_rows(snapshot))
+        total_pages = _task_page_count(snapshot)
+        page += 1
+    return tasks
+
+
+def attach_workflow_tasks(workflow: dict[str, Any], tasks: list[dict[str, Any]]) -> dict[str, Any]:
+    if not tasks:
+        return workflow
+    return {
+        **workflow,
+        "tasks": tasks,
+    }
+
+
 def _execution_log_rows(snapshot: Any) -> list[dict[str, Any]]:
     data = _nested_data(snapshot)
     return data if isinstance(data, list) else []
@@ -1650,9 +1693,10 @@ def evaluate_progress_expectations(
     playbook_id: str,
     fleet_peaks: dict[str, int] | None,
 ) -> dict[str, Any]:
+    workflow_with_tasks = attach_workflow_tasks(workflow, fetch_workflow_tasks(client, workflow_id=workflow_id))
     verification = evaluate_expectations(
         expectations,
-        workflow=workflow,
+        workflow=workflow_with_tasks,
         board=board,
         work_items=work_items,
         workspace=workspace,
@@ -1675,14 +1719,14 @@ def evaluate_progress_expectations(
     events_snapshot = collect_workflow_events(client, workflow_id=workflow_id)
     execution_logs_snapshot = collect_execution_logs(client, workflow_id=workflow_id)
     efficiency_summary = summarize_efficiency(
-        workflow=workflow,
+        workflow=workflow_with_tasks,
         logs=execution_logs_snapshot,
         events=events_snapshot,
         approval_actions=approval_actions,
     )
     return evaluate_expectations(
         expectations,
-        workflow=workflow,
+        workflow=workflow_with_tasks,
         board=board,
         work_items=work_items,
         workspace=workspace,
@@ -2376,6 +2420,10 @@ def main() -> None:
         workflow=latest_workflow,
         max_attempts=final_settle_attempts,
         delay_seconds=final_settle_delay_seconds,
+    )
+    latest_workflow = attach_workflow_tasks(
+        latest_workflow,
+        fetch_workflow_tasks(client, workflow_id=workflow_id),
     )
 
     board_snapshot = client.best_effort_request(

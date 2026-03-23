@@ -73,6 +73,34 @@ class FakeWorkflowClient:
 
 
 class RunWorkflowScenarioTests(unittest.TestCase):
+    def test_fetch_workflow_tasks_collects_paginated_task_pages(self) -> None:
+        client = FakeWorkflowClient(
+            [
+                {
+                    "data": [{"id": "task-2"}, {"id": "task-1"}],
+                    "meta": {"page": 1, "pages": 2, "per_page": 2, "total": 3},
+                },
+                {
+                    "data": [{"id": "task-3"}],
+                    "meta": {"page": 2, "pages": 2, "per_page": 2, "total": 3},
+                },
+            ]
+        )
+
+        tasks = run_workflow_scenario.fetch_workflow_tasks(client, workflow_id="wf-1")
+
+        self.assertEqual(
+            [{"id": "task-2"}, {"id": "task-1"}, {"id": "task-3"}],
+            tasks,
+        )
+        self.assertEqual(
+            [
+                ("GET", "/api/v1/tasks?workflow_id=wf-1&page=1&per_page=200", None, (200,), "tasks.list:1"),
+                ("GET", "/api/v1/tasks?workflow_id=wf-1&page=2&per_page=200", None, (200,), "tasks.list:2"),
+            ],
+            client.calls,
+        )
+
     def test_default_final_settle_window_covers_one_minute(self) -> None:
         self.assertEqual(60, run_workflow_scenario.DEFAULT_FINAL_SETTLE_ATTEMPTS)
         self.assertEqual(1, run_workflow_scenario.DEFAULT_FINAL_SETTLE_DELAY_SECONDS)
@@ -2061,6 +2089,63 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                     }
                 ],
             },
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[
+                {
+                    "stage_name": "approval-gate",
+                    "action": "request_changes",
+                    "submitted_at": "2026-03-19T03:00:00Z",
+                },
+                {
+                    "stage_name": "approval-gate",
+                    "action": "approve",
+                    "submitted_at": "2026-03-19T03:10:00Z",
+                },
+            ],
+            events={"data": {"data": []}},
+        )
+
+        self.assertTrue(verification["passed"])
+
+    def test_evaluate_expectations_accepts_rework_between_scripted_approval_actions_with_explicit_task_load(
+        self,
+    ) -> None:
+        client = FakeWorkflowClient(
+            [
+                {
+                    "data": [
+                        {
+                            "id": "task-approval-gate-rework",
+                            "role": "rework-product-strategist",
+                            "stage_name": "approval-gate",
+                            "completed_at": "2026-03-19T03:05:00Z",
+                        }
+                    ],
+                    "meta": {"page": 1, "pages": 1, "per_page": 200, "total": 1},
+                }
+            ]
+        )
+        workflow = run_workflow_scenario.attach_workflow_tasks(
+            {"state": "completed"},
+            run_workflow_scenario.fetch_workflow_tasks(client, workflow_id="wf-1"),
+        )
+
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "gate_rework_sequences": [
+                    {
+                        "stage_name": "approval-gate",
+                        "request_action": "request_changes",
+                        "resume_action": "approve",
+                        "required_event_type": "task.handoff_submitted",
+                        "required_role": "rework-product-strategist",
+                    }
+                ]
+            },
+            workflow=workflow,
             board={"data": {"data": {"columns": []}}},
             work_items={"data": {"data": []}},
             workspace={"memory": {}},
