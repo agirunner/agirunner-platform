@@ -102,7 +102,7 @@ describe('WorkItemContinuityService', () => {
     );
   });
 
-  it('falls back to the predecessor handoff role when an assessment request-changes outcome has no direct rule', async () => {
+  it('falls back to the reopened subject role when request-changes has no direct rule', async () => {
     const pool = {
       query: vi
         .fn()
@@ -123,9 +123,60 @@ describe('WorkItemContinuityService', () => {
                 subject_role: 'developer',
                 assessed_by: 'reviewer',
                 required: true,
-                outcome_actions: {
-                  request_changes: { action: 'route_to_role', role: 'developer' },
-                },
+              }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({
+          rows: [{ role: 'reviewer' }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    const result = await service.recordAssessmentRequestedChanges('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'developer',
+      stage_name: 'review',
+    });
+
+    expect(result).toMatchObject({
+      matchedRuleType: 'assessment',
+      nextExpectedActor: 'developer',
+      nextExpectedAction: 'rework',
+      reworkDelta: 1,
+    });
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('UPDATE workflow_work_items'),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'developer', 'rework', 1],
+    );
+  });
+
+  it('routes request-changes back to the linked subject role when continuity is evaluated from an assessment task', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'review',
+            owner_role: 'reviewer',
+            next_expected_actor: null,
+            next_expected_action: null,
+            definition: {
+              process_instructions: 'Assessors request changes against a linked subject task.',
+              roles: ['developer', 'reviewer'],
+              board: { columns: [{ id: 'review', label: 'Review' }] },
+              checkpoints: [{ name: 'review', goal: 'Review the change', human_gate: false }],
+              assessment_rules: [{
+                subject_role: 'developer',
+                assessed_by: 'reviewer',
+                required: true,
               }],
             },
           }],
@@ -145,6 +196,12 @@ describe('WorkItemContinuityService', () => {
       work_item_id: 'work-item-1',
       role: 'reviewer',
       stage_name: 'review',
+      input: {
+        subject_task_id: 'subject-task-1',
+      },
+      metadata: {
+        task_kind: 'assessment',
+      },
     });
 
     expect(result).toMatchObject({

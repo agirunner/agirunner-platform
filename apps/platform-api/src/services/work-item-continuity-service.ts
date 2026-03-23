@@ -3,6 +3,10 @@ import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import type { LogService } from '../logging/log-service.js';
 import { logWorkItemContinuityTransition } from '../logging/work-item-continuity-log.js';
 import {
+  readAssessmentSubjectLinkage,
+  readWorkflowTaskKind,
+} from './assessment-subject-service.js';
+import {
   evaluatePlaybookRules,
   type PlaybookRuleEvaluationResult,
 } from './playbook-rule-evaluation-service.js';
@@ -317,6 +321,7 @@ export class WorkItemContinuityService {
       context,
       role,
       event,
+      task,
       evaluatePlaybookRules({
         definition,
         event,
@@ -385,6 +390,7 @@ export class WorkItemContinuityService {
     context: WorkItemContinuityContextRow,
     role: string,
     event: 'task_completed' | 'assessment_requested_changes',
+    task: Record<string, unknown>,
     evaluation: PlaybookRuleEvaluationResult,
     db: DatabaseClient | DatabasePool,
   ) {
@@ -392,19 +398,20 @@ export class WorkItemContinuityService {
       return evaluation;
     }
 
-    const predecessorRole = await this.loadLatestHandoffRole(
+    const reworkActor = await this.resolveAssessmentReworkActor(
       tenantId,
-      context.workflow_id,
-      context.work_item_id,
+      context,
+      task,
+      role,
       db,
     );
-    if (!predecessorRole || predecessorRole === role) {
+    if (!reworkActor) {
       return evaluation;
     }
 
     return {
       matchedRuleType: evaluation.matchedRuleType ?? 'assessment',
-      nextExpectedActor: predecessorRole,
+      nextExpectedActor: reworkActor,
       nextExpectedAction: 'rework',
       requiresHumanApproval: false,
       reworkDelta: Math.max(evaluation.reworkDelta, 1),
@@ -447,7 +454,58 @@ export class WorkItemContinuityService {
     return result.rows[0] ?? null;
   }
 
-  private async loadLatestHandoffRole(
+  private async resolveAssessmentReworkActor(
+    tenantId: string,
+    context: WorkItemContinuityContextRow,
+    task: Record<string, unknown>,
+    role: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const taskKind = readWorkflowTaskKind(task.metadata, task.is_orchestrator_task === true);
+    if (taskKind !== 'assessment' && role.length > 0) {
+      return role;
+    }
+
+    const linkage = readAssessmentSubjectLinkage(task.input, task.metadata);
+    if (linkage.subjectTaskId) {
+      const subjectRole = await this.loadTaskRole(
+        tenantId,
+        context.workflow_id,
+        linkage.subjectTaskId,
+        db,
+      );
+      if (subjectRole) {
+        return subjectRole;
+      }
+    }
+
+    return this.loadLatestDeliveryHandoffRole(
+      tenantId,
+      context.workflow_id,
+      context.work_item_id,
+      db,
+    );
+  }
+
+  private async loadTaskRole(
+    tenantId: string,
+    workflowId: string,
+    taskId: string,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const result = await db.query<{ role: string | null }>(
+      `SELECT role
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+        LIMIT 1`,
+      [tenantId, workflowId, taskId],
+    );
+    return readOptionalString(result.rows[0]?.role);
+  }
+
+  private async loadLatestDeliveryHandoffRole(
     tenantId: string,
     workflowId: string,
     workItemId: string,
@@ -459,6 +517,7 @@ export class WorkItemContinuityService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND work_item_id = $3
+          AND COALESCE(role_data->>'task_kind', '') = 'delivery'
         ORDER BY sequence DESC, created_at DESC
         LIMIT 1`,
       [tenantId, workflowId, workItemId],
