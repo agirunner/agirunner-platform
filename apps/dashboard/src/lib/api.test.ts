@@ -1731,36 +1731,6 @@ describe('dashboard api auth/session behavior', () => {
       .mockResolvedValueOnce(
         new Response(
           JSON.stringify({
-            data: [
-              {
-                id: 'runtime:runtime-1',
-                kind: 'runtime',
-                container_id: 'runtime-container-1',
-                name: 'runtime-specialist-1',
-                state: 'running',
-                status: 'Up 4 minutes',
-                image: 'ghcr.io/agirunner/runtime:local',
-                cpu_limit: '2',
-                memory_limit: '1536m',
-                started_at: '2026-03-21T18:24:00.000Z',
-                last_seen_at: '2026-03-21T18:30:00.000Z',
-                role_name: 'developer',
-                playbook_id: 'playbook-1',
-                playbook_name: 'Bug Investigation',
-                workflow_id: 'workflow-1',
-                workflow_name: 'Fix login bug',
-                task_id: 'task-1',
-                task_title: 'Investigate auth timeout',
-                activity_state: 'executing',
-              },
-            ],
-          }),
-          { status: 200 },
-        ),
-      )
-      .mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({
             data: {
               entries: [
                 {
@@ -1893,7 +1863,7 @@ describe('dashboard api auth/session behavior', () => {
   });
 
   it('surfaces schema validation details in HTTP error messages', async () => {
-    writeSession({ accessToken: 'trigger-token', tenantId: 'tenant-1' });
+    writeSession({ accessToken: 'content-token', tenantId: 'tenant-1' });
 
     const fetcher = vi.fn().mockResolvedValue(
       new Response(
@@ -1932,9 +1902,9 @@ describe('dashboard api auth/session behavior', () => {
     });
 
     await expect(
-      api.createScheduledWorkItemTrigger({
-        name: 'Broken schedule',
-        workflow_id: 'wf-1',
+      api.createWorkflowDocument('wf-1', {
+        logical_name: 'broken-schedule',
+        source: 'repository',
       }),
     ).rejects.toThrow(
       'HTTP 422: Invalid request body (cadence_minutes is required for interval schedules)',
