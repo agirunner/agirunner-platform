@@ -2,7 +2,7 @@ import type { DashboardPlaybookRecord } from '../../lib/api.js';
 import {
   hydratePlaybookAuthoringDraft,
   type PlaybookAuthoringDraft,
-} from './playbook-authoring-support.js';
+} from '../config/playbook-authoring-support.js';
 
 export interface PlaybookRevisionDiffRow {
   label: string;

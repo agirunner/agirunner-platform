@@ -76,7 +76,7 @@ const RuntimesPage = lazyWithRetry(() => import('../pages/config/runtimes-page.j
 const PlatformInstructionsPage = lazyWithRetry(() => import('../pages/platform-instructions/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
 const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/ai-config-assistant/ai-config-assistant-page.js').then((m) => ({ default: m.AiConfigAssistantPage })));
 const PlaybookListPage = lazyWithRetry(() => import('../pages/playbook-list/playbook-list-page.js').then((m) => ({ default: m.PlaybookListPage })));
-const PlaybookDetailPage = lazyWithRetry(() => import('../pages/config/playbook-detail-page.js').then((m) => ({ default: m.PlaybookDetailPage })));
+const PlaybookDetailPage = lazyWithRetry(() => import('../pages/playbook-detail/playbook-detail-page.js').then((m) => ({ default: m.PlaybookDetailPage })));
 const PlaybookLaunchPage = lazyWithRetry(() => import('../pages/config/playbook-launch-page.js').then((m) => ({ default: m.PlaybookLaunchPage })));
 const ToolsPage = lazyWithRetry(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
 const WebhooksPage = lazyWithRetry(() => import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
