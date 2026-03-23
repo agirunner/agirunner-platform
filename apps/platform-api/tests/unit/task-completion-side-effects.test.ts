@@ -1696,4 +1696,117 @@ describe('applyTaskCompletionSideEffects', () => {
       }),
     );
   });
+
+  it('blocks the subject work item when assessment policy maps a blocked decision to block_subject', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count = $3')) {
+          return {
+            rows: [{ completion: 'full', resolution: 'blocked', summary: 'Blocked pending legal sign-off.' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT p.definition') && sql.includes('FROM workflows w')) {
+          return {
+            rows: [{
+              definition: {
+                process_instructions: 'Writers draft content and policy reviewers may block publication.',
+                roles: ['writer', 'policy-reviewer'],
+                board: { columns: [{ id: 'draft', label: 'Draft' }] },
+                checkpoints: [{ name: 'policy', goal: 'Policy review', human_gate: false }],
+                assessment_rules: [{
+                  subject_role: 'writer',
+                  assessed_by: 'policy-reviewer',
+                  required: true,
+                  decision_states: ['approved', 'blocked'],
+                  outcome_actions: {
+                    blocked: { action: 'block_subject' },
+                  },
+                }],
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('AND state = ANY($4::task_state[])')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-writer', ['output_pending_assessment', 'completed'], 'task-policy']);
+          return {
+            rows: [{
+              id: 'task-writer',
+              workflow_id: 'workflow-1',
+              work_item_id: 'content-item',
+              role: 'writer',
+              state: 'output_pending_assessment',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes("blocked_state = 'blocked'")) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'content-item', 'Blocked pending legal sign-off.']);
+          return { rows: [], rowCount: 1 };
+        }
+        return { rows: [], rowCount: 1 };
+      }),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: 'handoff',
+        nextExpectedActor: 'publisher',
+        nextExpectedAction: 'handoff',
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedAssessmentExpectation: true,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-policy',
+        workflow_id: 'workflow-1',
+        work_item_id: 'policy-item',
+        role: 'policy-reviewer',
+        stage_name: 'policy',
+        is_orchestrator_task: false,
+        input: { subject_task_id: 'task-writer', subject_revision: 1 },
+        metadata: { task_kind: 'assessment', subject_task_id: 'task-writer', subject_revision: 1 },
+        output: { verdict: 'blocked' },
+      },
+      client as never,
+    );
+
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.assessment_block_applied',
+        entityId: 'task-policy',
+        actorId: 'assessment_resolver',
+        data: expect.objectContaining({
+          subject_task_id: 'task-writer',
+          subject_work_item_id: 'content-item',
+          decision_state: 'blocked',
+          outcome_action: 'block_subject',
+        }),
+      }),
+      client,
+    );
+  });
 });

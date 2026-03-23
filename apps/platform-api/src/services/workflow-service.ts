@@ -206,6 +206,7 @@ export class WorkflowService {
                   ELSE jsonb_build_object(
                     'total_work_items', COALESCE(work_item_summary.total_work_items, 0),
                     'open_work_item_count', COALESCE(work_item_summary.open_work_item_count, 0),
+                    'blocked_work_item_count', COALESCE(work_item_summary.blocked_work_item_count, 0),
                     'completed_work_item_count', COALESCE(work_item_summary.completed_work_item_count, 0),
                     'active_stage_count', CASE
                       WHEN w.lifecycle = 'ongoing'
@@ -241,6 +242,7 @@ export class WorkflowService {
            LEFT JOIN LATERAL (
              SELECT COUNT(*)::int AS total_work_items,
                     COUNT(*) FILTER (WHERE completed_at IS NULL)::int AS open_work_item_count,
+                    COUNT(*) FILTER (WHERE completed_at IS NULL AND blocked_state = 'blocked')::int AS blocked_work_item_count,
                     COUNT(*) FILTER (WHERE completed_at IS NOT NULL)::int AS completed_work_item_count,
                     COUNT(DISTINCT stage_name) FILTER (WHERE completed_at IS NULL)::int AS active_stage_count,
                     ARRAY_REMOVE(

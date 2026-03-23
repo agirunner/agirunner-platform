@@ -44,7 +44,7 @@ const taskHandoffSchema = z
     task_rework_count: z.number().int().min(0).optional(),
     summary: z.string().min(1).max(4000),
     completion: z.enum(['full', 'blocked']),
-    resolution: z.enum(['approved', 'request_changes', 'rejected']).optional(),
+    resolution: z.enum(['approved', 'request_changes', 'rejected', 'blocked']).optional(),
     changes: z.array(z.unknown()).max(200).optional(),
     decisions: z.array(z.unknown()).max(200).optional(),
     remaining_items: z.array(z.unknown()).max(200).optional(),

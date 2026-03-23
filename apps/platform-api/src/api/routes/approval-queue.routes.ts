@@ -13,7 +13,7 @@ const requestIdSchema = z.string().min(1).max(255);
 
 const gateDecisionSchema = z.object({
   request_id: requestIdSchema,
-  action: z.enum(['approve', 'reject', 'request_changes']),
+  action: z.enum(['approve', 'reject', 'request_changes', 'block']),
   feedback: z.string().min(1).max(4000).optional(),
 });
 

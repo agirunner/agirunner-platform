@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
 import { workflows } from './workflows.js';
@@ -27,10 +27,13 @@ export const workflowStageGates = pgTable(
     requestedByType: text('requested_by_type').notNull(),
     requestedById: text('requested_by_id'),
     requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+    subjectRevision: integer('subject_revision'),
     decisionFeedback: text('decision_feedback'),
     decidedByType: text('decided_by_type'),
     decidedById: text('decided_by_id'),
     decidedAt: timestamp('decided_at', { withTimezone: true }),
+    supersededAt: timestamp('superseded_at', { withTimezone: true }),
+    supersededByRevision: integer('superseded_by_revision'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

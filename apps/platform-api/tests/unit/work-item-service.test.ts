@@ -2174,6 +2174,48 @@ describe('WorkItemService', () => {
     expect(workItem.gate_decided_at).toEqual(new Date('2026-03-16T16:31:49.959Z'));
   });
 
+  it('returns blocked work-item posture in the read model', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'wi-1',
+            workflow_id: 'wf-1',
+            parent_work_item_id: null,
+            stage_name: 'policy',
+            column_id: 'active',
+            owner_role: 'writer',
+            next_expected_actor: null,
+            next_expected_action: null,
+            blocked_state: 'blocked',
+            blocked_reason: 'Policy review blocked release until trademark clearance is attached.',
+            rework_count: 1,
+            latest_handoff_completion: 'full',
+            task_count: 1,
+            children_count: 0,
+            children_completed: 0,
+            completed_at: null,
+            gate_status: 'blocked',
+            gate_decision_feedback: 'Trademark clearance is still missing.',
+            gate_decided_at: new Date('2026-03-16T16:31:49.959Z'),
+          },
+        ],
+      })),
+    };
+
+    const service = new WorkItemService(pool as never, {} as never, {} as never, {} as never);
+
+    const workItem = await service.getWorkflowWorkItem('tenant-1', 'wf-1', 'wi-1');
+
+    expect(workItem).toMatchObject({
+      id: 'wi-1',
+      blocked_state: 'blocked',
+      blocked_reason: 'Policy review blocked release until trademark clearance is attached.',
+      gate_status: 'blocked',
+    });
+  });
+
   it('suppresses forward-looking continuity details for completed work items', async () => {
     const completedAt = new Date('2026-03-16T16:31:49.959Z');
     const pool = {

@@ -54,6 +54,8 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   column_id: string | null;
   next_expected_actor: string | null;
   next_expected_action: string | null;
+  blocked_state?: 'blocked' | null;
+  blocked_reason?: string | null;
   rework_count: number;
   latest_handoff_completion?: string | null;
   latest_handoff_resolution?: string | null;
@@ -89,6 +91,22 @@ interface WorkflowStageContextRow {
 
 const SUCCESSOR_BLOCKING_NEXT_ACTIONS = new Set(['assess', 'approve', 'rework', 'handoff']);
 
+interface CheckpointPredecessorRow {
+  id: string;
+  title: string;
+  stage_name: string | null;
+  column_id: string;
+  completed_at: Date | null;
+  next_expected_actor: string | null;
+  next_expected_action: string | null;
+  blocked_state?: string | null;
+  blocked_reason?: string | null;
+  human_gate: boolean;
+  gate_status: string;
+  latest_handoff_completion: string | null;
+  latest_handoff_resolution: string | null;
+}
+
 interface NonTerminalTaskStateCountRow {
   state: string;
   count: number;
@@ -107,6 +125,8 @@ const WORK_ITEM_BASE_COLUMNS = [
   'owner_role',
   'next_expected_actor',
   'next_expected_action',
+  'blocked_state',
+  'blocked_reason',
   'rework_count',
   'priority',
   'notes',
@@ -510,6 +530,12 @@ export class WorkItemService {
           `'${predecessor.title}' (${predecessor.stage_name}) still awaits gate approval.`,
       );
     }
+    if (predecessor.blocked_state === 'blocked') {
+      throw new ValidationError(
+        `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
+          `'${predecessor.title}' (${predecessor.stage_name}) is blocked${predecessor.blocked_reason ? `: ${predecessor.blocked_reason}` : '.'}`,
+      );
+    }
 
     if (predecessor.latest_handoff_completion !== 'full') {
       throw new ValidationError(
@@ -759,19 +785,7 @@ export class WorkItemService {
     parentWorkItemId: string,
     client: DatabaseClient,
   ) {
-    const predecessorResult = await client.query<{
-      id: string;
-      title: string;
-      stage_name: string | null;
-      column_id: string;
-      completed_at: Date | null;
-      next_expected_actor: string | null;
-      next_expected_action: string | null;
-      human_gate: boolean;
-      gate_status: string;
-      latest_handoff_completion: string | null;
-      latest_handoff_resolution: string | null;
-    }>(
+    const predecessorResult = await client.query<CheckpointPredecessorRow>(
       `SELECT wi.id,
               wi.title,
               wi.stage_name,
@@ -779,6 +793,8 @@ export class WorkItemService {
               wi.completed_at,
               wi.next_expected_actor,
               wi.next_expected_action,
+              wi.blocked_state,
+              wi.blocked_reason,
               COALESCE(ws.human_gate, false) AS human_gate,
               COALESCE(ws.gate_status, 'not_requested') AS gate_status,
               latest_handoff.latest_handoff_completion,
@@ -1232,6 +1248,14 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
         : typeof sanitizedRow.next_expected_action === 'string'
           ? sanitizedRow.next_expected_action
           : null,
+    blocked_state:
+      typeof sanitizedRow.blocked_state === 'string'
+        ? sanitizedRow.blocked_state as WorkItemReadModel['blocked_state']
+        : null,
+    blocked_reason:
+      typeof sanitizedRow.blocked_reason === 'string'
+        ? sanitizedRow.blocked_reason
+        : null,
     rework_count: readCount(sanitizedRow.rework_count),
     latest_handoff_completion:
       typeof sanitizedRow.latest_handoff_completion === 'string'

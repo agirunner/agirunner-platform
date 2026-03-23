@@ -15,6 +15,7 @@ import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.js';
 import { toGateResponse, type WorkflowStageGateRecord } from './workflow-stage-gate-service.js';
 import { WorkflowStateService } from './workflow-state-service.js';
+import { blockWorkflowStageItems } from './work-item-blocking.js';
 
 interface WorkflowContextRow {
   id: string;
@@ -38,6 +39,8 @@ interface WorkflowWorkItemRow {
   owner_role: string | null;
   next_expected_actor: string | null;
   next_expected_action: string | null;
+  blocked_state?: string | null;
+  blocked_reason?: string | null;
   rework_count: number;
   priority: 'critical' | 'high' | 'normal' | 'low';
   notes: string | null;
@@ -80,8 +83,11 @@ interface WorkflowStageGateRow extends WorkflowStageGateRecord {
   key_artifacts: unknown;
   requested_at: Date;
   updated_at: Date;
+  subject_revision?: number | null;
   decision_feedback: string | null;
   decided_at: Date | null;
+  superseded_at?: Date | null;
+  superseded_by_revision?: number | null;
 }
 
 interface SubjectTaskChangeService {
@@ -97,6 +103,8 @@ interface BlockingStageWorkItemRow {
   id: string;
   title: string;
   blocking_resolution: string | null;
+  blocked_state?: string | null;
+  blocked_reason?: string | null;
   next_expected_actor?: string | null;
   next_expected_action?: string | null;
 }
@@ -126,7 +134,7 @@ export interface StageGateRequestInput {
 }
 
 export interface StageGateDecisionInput {
-  action: 'approve' | 'reject' | 'request_changes';
+  action: 'approve' | 'reject' | 'request_changes' | 'block';
   feedback?: string;
 }
 
@@ -679,6 +687,8 @@ export class PlaybookWorkflowControlService {
     const result = await db.query<BlockingStageWorkItemRow>(
       `SELECT wi.id,
               wi.title,
+              wi.blocked_state,
+              wi.blocked_reason,
               COALESCE(blocking_assessment.blocking_resolution, latest_handoff.latest_handoff_resolution) AS blocking_resolution
          FROM workflow_work_items wi
          LEFT JOIN LATERAL (
@@ -722,7 +732,10 @@ export class PlaybookWorkflowControlService {
         WHERE wi.tenant_id = $1
           AND wi.workflow_id = $2
           AND wi.stage_name = $3
-          AND COALESCE(blocking_assessment.blocking_resolution, latest_handoff.latest_handoff_resolution) IN ('request_changes', 'rejected')
+          AND (
+            wi.blocked_state = 'blocked'
+            OR COALESCE(blocking_assessment.blocking_resolution, latest_handoff.latest_handoff_resolution) IN ('request_changes', 'rejected')
+          )
         ORDER BY wi.created_at ASC
         LIMIT 1`,
       [tenantId, workflowId, stageName],
@@ -731,6 +744,11 @@ export class PlaybookWorkflowControlService {
     if (!row) {
       return;
     }
+    if (row.blocked_state === 'blocked') {
+      throw new ValidationError(
+        `Cannot complete workflow while stage '${stageName}' still has blocked work item '${row.title}'.`,
+      );
+    }
 
     throw new ValidationError(
       `Cannot complete workflow while stage '${stageName}' still has a blocking ${row.blocking_resolution ?? 'assessment'} assessment on work item '${row.title}'.`,
@@ -738,8 +756,16 @@ export class PlaybookWorkflowControlService {
   }
 
   private assertNoPendingBlockingContinuation(
-    workItem: Pick<WorkflowWorkItemRow, 'title' | 'next_expected_actor' | 'next_expected_action'>,
+    workItem: Pick<
+      WorkflowWorkItemRow,
+      'title' | 'next_expected_actor' | 'next_expected_action' | 'blocked_state' | 'blocked_reason'
+    >,
   ) {
+    if (workItem.blocked_state === 'blocked') {
+      throw new ValidationError(
+        `Cannot complete work item '${workItem.title}' while it is blocked${workItem.blocked_reason ? `: ${workItem.blocked_reason}` : '.'}`,
+      );
+    }
     if (!workItem.next_expected_actor || !workItem.next_expected_action) {
       return;
     }
@@ -762,19 +788,31 @@ export class PlaybookWorkflowControlService {
     const result = await db.query<BlockingStageWorkItemRow>(
       `SELECT wi.id,
               wi.title,
+              wi.blocked_state,
+              wi.blocked_reason,
               wi.next_expected_actor,
               wi.next_expected_action
          FROM workflow_work_items wi
         WHERE wi.tenant_id = $1
           AND wi.workflow_id = $2
           AND wi.stage_name = $3
-          AND wi.next_expected_actor IS NOT NULL
-          AND wi.next_expected_action = ANY($4::text[])
+          AND (
+            wi.blocked_state = 'blocked'
+            OR (
+              wi.next_expected_actor IS NOT NULL
+              AND wi.next_expected_action = ANY($4::text[])
+            )
+          )
         ORDER BY wi.created_at ASC
         LIMIT 1`,
       [tenantId, workflowId, stageName, Array.from(COMPLETION_BLOCKING_NEXT_ACTIONS)],
     );
     const row = result.rows[0];
+    if (row?.blocked_state === 'blocked') {
+      throw new ValidationError(
+        `Cannot complete workflow while stage '${stageName}' still has blocked work item '${row.title}'.`,
+      );
+    }
     if (!row?.next_expected_actor || !row.next_expected_action) {
       return;
     }
@@ -1011,6 +1049,8 @@ export class PlaybookWorkflowControlService {
               owner_role,
               next_expected_actor,
               next_expected_action,
+              blocked_state,
+              blocked_reason,
               rework_count,
               priority,
               notes,
@@ -1504,7 +1544,9 @@ export class PlaybookWorkflowControlService {
         ? { gate_status: 'approved', status: 'active', iterations: stage.iteration_count }
         : input.action === 'request_changes'
           ? { gate_status: 'changes_requested', status: 'active', iterations: stage.iteration_count + 1 }
-          : { gate_status: 'rejected', status: 'blocked', iterations: stage.iteration_count + 1 };
+          : input.action === 'block'
+            ? { gate_status: 'blocked', status: 'blocked', iterations: stage.iteration_count + 1 }
+            : { gate_status: 'rejected', status: 'blocked', iterations: stage.iteration_count + 1 };
     const feedback = nullableText(input.feedback);
 
     const updatedGateResult = await db.query<WorkflowStageGateRow>(
@@ -1520,7 +1562,8 @@ export class PlaybookWorkflowControlService {
           AND id = $3
       RETURNING id, workflow_id, stage_id, stage_name, status, request_summary, recommendation,
                 concerns, key_artifacts, requested_by_type, requested_by_id, requested_at,
-                updated_at, decided_by_type, decided_by_id, decision_feedback, decided_at`,
+                updated_at, subject_revision, decided_by_type, decided_by_id, decision_feedback,
+                decided_at, superseded_at, superseded_by_revision`,
       [
         identity.tenantId,
         workflowId,
@@ -1591,10 +1634,18 @@ export class PlaybookWorkflowControlService {
                 updated_at = now()
           WHERE tenant_id = $1
             AND workflow_id = $2
-            AND stage_name = $3
-            AND next_expected_action IN ('approve', 'rework')`,
+          AND stage_name = $3
+          AND next_expected_action IN ('approve', 'rework')`,
         [identity.tenantId, workflowId, stage.name],
       );
+      if (input.action === 'block') {
+        await blockWorkflowStageItems(db, {
+          tenantId: identity.tenantId,
+          workflowId,
+          stageName: stage.name,
+          reason: feedback,
+        });
+      }
     }
 
     await this.deps.eventService.emit(
@@ -1818,7 +1869,9 @@ function gateStatusForAction(action: StageGateDecisionInput['action']) {
     ? 'approved'
     : action === 'request_changes'
       ? 'changes_requested'
-      : 'rejected';
+      : action === 'block'
+        ? 'blocked'
+        : 'rejected';
 }
 
 function mergeRecord(

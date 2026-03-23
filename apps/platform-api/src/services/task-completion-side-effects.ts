@@ -2,6 +2,7 @@ import type { ApiKeyIdentity } from '../auth/api-key.js';
 import type { DatabaseClient } from '../db/database.js';
 import type { LogService } from '../logging/log-service.js';
 import { logTaskGovernanceTransition } from '../logging/task-governance-log.js';
+import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import type { TaskState } from '../orchestration/task-state-machine.js';
 import { registerTaskOutputDocuments } from './document-reference-service.js';
 import { EventService } from './event-service.js';
@@ -9,8 +10,10 @@ import {
   readAssessmentSubjectLinkage,
   readWorkflowTaskKind,
 } from './assessment-subject-service.js';
+import { resolveAssessmentOutcomeAction } from './playbook-governance-policy.js';
 import { PlaybookTaskParallelismService } from './playbook-task-parallelism-service.js';
 import { maybeAutoCloseCompletedPlannedPredecessorWorkItem } from './planned-work-item-auto-close.js';
+import { blockWorkflowWorkItem } from './work-item-blocking.js';
 import type {
   WorkItemCompletionOutcome,
   WorkItemContinuityService,
@@ -216,8 +219,18 @@ export async function applyTaskCompletionSideEffects(
             logService,
           )
         : false;
-    const assessmentRejectionApplied =
+    const explicitOutcomeApplied =
       continuityEvent === 'task_completed'
+        ? await maybeApplyExplicitAssessmentOutcomeAction(
+            eventService,
+            identity,
+            task,
+            client,
+            logService,
+          )
+        : false;
+    const assessmentRejectionApplied =
+      continuityEvent === 'task_completed' && !explicitOutcomeApplied
         ? await maybeRejectSubjectTask(
             reviewTaskChangeService,
             eventService,
@@ -237,7 +250,7 @@ export async function applyTaskCompletionSideEffects(
           client,
         );
     if (continuityEvent === 'task_completed') {
-      if (!assessmentRejectionApplied) {
+      if (!assessmentRejectionApplied && !explicitOutcomeApplied) {
         await maybeResolveAssessmentSubject(
           eventService,
           identity,
@@ -375,6 +388,137 @@ async function maybeRequestSubjectTaskChanges(
   });
 
   return true;
+}
+
+async function maybeApplyExplicitAssessmentOutcomeAction(
+  eventService: EventService,
+  identity: ApiKeyIdentity,
+  completedTask: Record<string, unknown>,
+  client: DatabaseClient,
+  logService?: LogService,
+) {
+  const resolutionGate = resolveAssessmentResolutionGate(completedTask, null);
+  if (!resolutionGate.shouldAttempt) {
+    return false;
+  }
+
+  const latestHandoffOutcome = await loadLatestTaskAttemptHandoffOutcome(
+    client,
+    identity.tenantId,
+    completedTask,
+  );
+  const decisionState = normalizeAssessmentOutcome(latestHandoffOutcome?.resolution);
+  if (decisionState !== 'blocked' && decisionState !== 'rejected') {
+    return false;
+  }
+
+  const workflowId = asOptionalString(completedTask.workflow_id);
+  const workItemId = asOptionalString(completedTask.work_item_id);
+  const assessmentTaskId = asOptionalString(completedTask.id);
+  if (!workflowId || !workItemId || !assessmentTaskId) {
+    return false;
+  }
+  const definition = await loadWorkflowDefinition(client, identity.tenantId, workflowId);
+  if (!definition) {
+    return false;
+  }
+
+  const candidates = await loadSubjectTaskCandidates(
+    client,
+    identity.tenantId,
+    workflowId,
+    workItemId,
+    assessmentTaskId,
+    completedTask,
+    { allowCompletedExplicitTask: true },
+  );
+  if (candidates.result.rowCount !== 1) {
+    return false;
+  }
+
+  const subjectTask = candidates.result.rows[0];
+  const subjectWorkItemId = asOptionalString(subjectTask.work_item_id);
+  const subjectRole = asOptionalString(subjectTask.role);
+  const assessorRole = asOptionalString(completedTask.role);
+  const outcomeAction = resolveAssessmentOutcomeAction({
+    definition,
+    subjectRole,
+    assessorRole,
+    checkpointName: asOptionalString(completedTask.stage_name),
+    decisionState,
+  });
+  if (outcomeAction?.action !== 'block_subject' || !subjectWorkItemId) {
+    return false;
+  }
+
+  const feedback = readAssessmentResolutionFeedback(
+    completedTask,
+    latestHandoffOutcome,
+    decisionState === 'blocked'
+      ? 'Assessment blocked the subject output.'
+      : 'Assessment rejected the subject output.',
+  );
+  await blockWorkflowWorkItem(client, {
+    tenantId: identity.tenantId,
+    workflowId,
+    workItemId: subjectWorkItemId,
+    reason: feedback,
+  });
+
+  const payload = {
+    event_type: 'task.assessment_block_applied',
+    workflow_id: workflowId,
+    assessment_task_id: assessmentTaskId,
+    assessment_task_work_item_id: workItemId,
+    subject_task_id: asOptionalString(subjectTask.id),
+    subject_work_item_id: subjectWorkItemId,
+    decision_state: decisionState,
+    outcome_action: outcomeAction.action,
+    resolution_source: candidates.resolutionSource,
+    resolution_gate: resolutionGate.reason,
+    explicit_subject_task_id: candidates.explicitSubjectTaskId,
+  };
+  await eventService.emit(
+    {
+      tenantId: identity.tenantId,
+      type: 'task.assessment_block_applied',
+      entityType: 'task',
+      entityId: assessmentTaskId,
+      actorType: 'system',
+      actorId: 'assessment_resolver',
+      data: payload,
+    },
+    client,
+  );
+  await logTaskGovernanceTransition(logService, {
+    tenantId: identity.tenantId,
+    operation: 'task.assessment_block.applied',
+    executor: client,
+    task: completedTask,
+    payload,
+  });
+
+  return true;
+}
+
+async function loadWorkflowDefinition(
+  client: DatabaseClient,
+  tenantId: string,
+  workflowId: string,
+) {
+  const result = await client.query<{ definition: unknown }>(
+    `SELECT p.definition
+       FROM workflows w
+       JOIN playbooks p
+         ON p.tenant_id = w.tenant_id
+        AND p.id = w.playbook_id
+      WHERE w.tenant_id = $1
+        AND w.id = $2
+      LIMIT 1`,
+    [tenantId, workflowId],
+  );
+  const definition = result.rows[0]?.definition;
+  return definition ? parsePlaybookDefinition(definition) : null;
 }
 
 async function maybeRejectSubjectTask(
@@ -945,7 +1089,10 @@ function readsAssessmentApprovedOutcome(
 
 function normalizeAssessmentOutcome(value: unknown) {
   const normalized = asOptionalString(value)?.toLowerCase();
-  return normalized === 'approved' || normalized === 'request_changes' || normalized === 'rejected'
+  return normalized === 'approved'
+    || normalized === 'request_changes'
+    || normalized === 'rejected'
+    || normalized === 'blocked'
     ? normalized
     : null;
 }
