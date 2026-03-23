@@ -22,7 +22,7 @@ import {
 import {
   SelectWithCustomControl,
   type StructuredChoiceOption,
-} from './playbook-authoring-structured-controls.js';
+} from '../playbook-authoring/playbook-authoring-structured-controls.js';
 import { StructuredEntryEditor } from './playbook-launch-entries.js';
 import {
   availableRoleOverrideOptions,

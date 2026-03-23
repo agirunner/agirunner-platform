@@ -4,8 +4,8 @@ import type {
   LaunchParameterSpec,
   StructuredEntryDraft,
   StructuredValueType,
-} from '../pages/config/playbook-launch-support.js';
-import { createStructuredEntryDraft } from '../pages/config/playbook-launch-support.js';
+} from '../pages/playbook-launch/playbook-launch-support.js';
+import { createStructuredEntryDraft } from '../pages/playbook-launch/playbook-launch-support.js';
 import { Button } from './ui/button.js';
 import { Input } from './ui/input.js';
 import {

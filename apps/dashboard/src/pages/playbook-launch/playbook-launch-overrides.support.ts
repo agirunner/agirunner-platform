@@ -7,7 +7,7 @@ import {
   buildModelOverrides,
   type RoleOverrideDraft,
 } from './playbook-launch-support.js';
-import type { StructuredChoiceOption } from './playbook-authoring-structured-controls.js';
+import type { StructuredChoiceOption } from '../playbook-authoring/playbook-authoring-structured-controls.js';
 
 export function countConfiguredWorkflowOverrides(drafts: RoleOverrideDraft[]): number {
   return drafts.filter(

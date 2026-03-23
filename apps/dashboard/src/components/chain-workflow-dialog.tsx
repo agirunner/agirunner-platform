@@ -12,7 +12,7 @@ import {
   mergeStructuredObjects,
   readLaunchDefinition,
   type StructuredEntryDraft,
-} from '../pages/config/playbook-launch-support.js';
+} from '../pages/playbook-launch/playbook-launch-support.js';
 import { Button } from './ui/button.js';
 import {
   Dialog,
