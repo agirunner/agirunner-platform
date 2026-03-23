@@ -294,6 +294,10 @@ async function resolveContinuityWorkItemId(
     if (resolvedCount > 1) {
       throw new ValidationError(
         'This continuity update spans multiple work items; specify work_item_id explicitly',
+        {
+          recovery_hint: 'skip_optional_continuity_write',
+          reason_code: 'ambiguous_work_item_scope',
+        },
       );
     }
   }

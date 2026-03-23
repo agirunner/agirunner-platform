@@ -46,6 +46,10 @@ export function registerErrorHandler(app: FastifyInstance): void {
       error: {
         code: domainError?.code ?? fallbackCodeForStatus(statusCode),
         message: domainError?.message ?? 'Internal server error',
+        recovery_hint:
+          typeof domainError?.details?.recovery_hint === 'string'
+            ? domainError.details.recovery_hint
+            : undefined,
         details: domainError?.details,
       },
       meta: {

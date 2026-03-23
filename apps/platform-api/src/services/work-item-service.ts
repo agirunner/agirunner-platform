@@ -556,6 +556,10 @@ export class WorkItemService {
       throw new ValidationError(
         `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
           `'${predecessor.title}' (${predecessor.stage_name}) still awaits gate approval.`,
+        {
+          recovery_hint: 'wait_for_workflow_event',
+          reason_code: 'predecessor_waiting_for_gate',
+        },
       );
     }
     if (predecessor.blocked_state === 'blocked') {
@@ -576,6 +580,10 @@ export class WorkItemService {
         `Cannot create successor work item in stage '${successorStageName}' before predecessor ` +
           `'${predecessor.title}' (${predecessor.stage_name}) has a full handoff. ` +
           `Wait for the checkpoint specialist to complete and submit the handoff first.`,
+        {
+          recovery_hint: 'wait_for_workflow_event',
+          reason_code: 'predecessor_waiting_for_handoff',
+        },
       );
     }
     if (
@@ -612,6 +620,10 @@ export class WorkItemService {
         `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
           `'${predecessor.title}' (${predecessor.stage_name}) still has non-terminal tasks. ` +
           `Wait for the current checkpoint task to finish before routing to the next stage.`,
+        {
+          recovery_hint: 'wait_for_workflow_event',
+          reason_code: 'predecessor_not_ready',
+        },
       );
     }
   }
