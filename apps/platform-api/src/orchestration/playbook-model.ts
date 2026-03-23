@@ -26,7 +26,14 @@ const checkpointSchema = z.object({
 });
 
 const assessmentOutcomeActionSchema = z.object({
-  action: z.enum(['continue', 'reopen_subject', 'route_to_role', 'block_subject', 'escalate']),
+  action: z.enum([
+    'continue',
+    'reopen_subject',
+    'route_to_role',
+    'block_subject',
+    'escalate',
+    'terminate_branch',
+  ]),
   role: z.string().min(1).max(120).optional(),
 }).superRefine((value, context) => {
   if (value.action === 'route_to_role' && !value.role) {
@@ -38,19 +45,44 @@ const assessmentOutcomeActionSchema = z.object({
   }
 });
 
+const decisionStateSchema = z.enum(['approved', 'request_changes', 'rejected', 'blocked']);
+
+const revisionPolicySchema = z.object({
+  assessment_retention: z.enum([
+    'invalidate_all',
+    'retain_advisory_only',
+    'retain_named_assessors',
+    'retain_non_material_only',
+  ]).optional(),
+  approval_retention: z.enum([
+    'invalidate_all',
+    'retain_advisory_only',
+    'retain_named_assessors',
+    'retain_non_material_only',
+  ]).optional(),
+});
+
+const orderingPolicySchema = z.object({
+  subject_boundary: z.enum(['checkpoint']).optional(),
+  approval_before_assessment: z.boolean().optional(),
+});
+
 const assessmentRuleSchema = z.object({
   subject_role: z.string().min(1).max(120),
   assessed_by: z.string().min(1).max(120),
   checkpoint: z.string().min(1).max(120).optional(),
   required: z.boolean().optional(),
   optional: z.boolean().optional(),
+  decision_states: z.array(decisionStateSchema).optional(),
   outcome_actions: z
     .object({
       approved: assessmentOutcomeActionSchema.optional(),
       request_changes: assessmentOutcomeActionSchema.optional(),
       rejected: assessmentOutcomeActionSchema.optional(),
+      blocked: assessmentOutcomeActionSchema.optional(),
     })
     .optional(),
+  revision_policy: revisionPolicySchema.optional(),
 });
 
 const approvalRuleSchema = z.object({
@@ -58,6 +90,8 @@ const approvalRuleSchema = z.object({
   checkpoint: z.string().min(1).max(120).optional(),
   approved_by: z.enum(['human']),
   required: z.boolean().optional(),
+  decision_states: z.array(decisionStateSchema).optional(),
+  ordering_policy: orderingPolicySchema.optional(),
 });
 
 const handoffRuleSchema = z.object({
@@ -84,6 +118,15 @@ const runtimeSchema = runtimePoolSchema.extend({
   specialist_pool: runtimePoolSchema.optional(),
 });
 
+const branchPolicySchema = z.object({
+  branch_key: z.string().min(1).max(120),
+  termination_policy: z.enum([
+    'stop_branch_only',
+    'stop_branch_and_descendants',
+    'stop_all_siblings',
+  ]),
+});
+
 const playbookDefinitionSchema = z.object({
   process_instructions: z.string().min(1).max(12000).optional(),
   roles: z.array(z.string().min(1).max(120)).default([]),
@@ -96,6 +139,7 @@ const playbookDefinitionSchema = z.object({
   assessment_rules: z.array(assessmentRuleSchema).default([]),
   approval_rules: z.array(approvalRuleSchema).default([]),
   handoff_rules: z.array(handoffRuleSchema).default([]),
+  branch_policies: z.array(branchPolicySchema).default([]),
   lifecycle: z.enum(['planned', 'ongoing']).default('planned'),
   orchestrator: z
     .object({
@@ -111,7 +155,17 @@ const playbookDefinitionSchema = z.object({
     .optional(),
   runtime: runtimeSchema.optional(),
   parameters: z.array(z.record(z.unknown())).optional(),
-}).strict();
+}).strict().superRefine((definition, context) => {
+  const usesTerminateBranch = definition.assessment_rules.some((rule) =>
+    Object.values(rule.outcome_actions ?? {}).some((entry) => entry?.action === 'terminate_branch'));
+  if (usesTerminateBranch && definition.branch_policies.length === 0) {
+    context.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: 'terminate_branch requires at least one branch policy',
+      path: ['branch_policies'],
+    });
+  }
+});
 
 export type PlaybookDefinition = z.infer<typeof playbookDefinitionSchema>;
 export type PlaybookRuntimeConfig = z.infer<typeof runtimeSchema>;

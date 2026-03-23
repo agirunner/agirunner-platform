@@ -29,7 +29,7 @@ export interface SubmitTaskHandoffInput {
   task_rework_count?: number;
   summary: string;
   completion: 'full' | 'blocked';
-  resolution?: 'approved' | 'request_changes' | 'rejected';
+  resolution?: 'approved' | 'request_changes' | 'rejected' | 'blocked';
   changes?: unknown[];
   decisions?: unknown[];
   remaining_items?: unknown[];
@@ -624,12 +624,17 @@ function matchesHandoffReplay(
   );
 }
 
-function normalizeHandoffResolution(value: unknown): 'approved' | 'request_changes' | 'rejected' | null {
+function normalizeHandoffResolution(
+  value: unknown,
+): 'approved' | 'request_changes' | 'rejected' | 'blocked' | null {
   if (typeof value !== 'string') {
     return null;
   }
   const normalized = value.trim().toLowerCase();
-  return normalized === 'approved' || normalized === 'request_changes' || normalized === 'rejected'
+  return normalized === 'approved'
+    || normalized === 'request_changes'
+    || normalized === 'rejected'
+    || normalized === 'blocked'
     ? normalized
     : null;
 }

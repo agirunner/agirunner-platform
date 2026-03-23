@@ -252,6 +252,108 @@ describe('playbook model runtime pools', () => {
     expect(definition.approval_rules[0]?.checkpoint).toBe('release');
   });
 
+  it('parses blocked decision state, revision policy, ordering policy, and branch policy metadata', () => {
+    const definition = parsePlaybookDefinition({
+      process_instructions: 'Operator approval may block or terminate branch-scoped work.',
+      roles: ['delivery-editor', 'policy-auditor', 'operator'],
+      board: { columns: [{ id: 'planned', label: 'Planned' }] },
+      checkpoints: [{ name: 'publication', goal: 'Publication is ready.' }],
+      assessment_rules: [
+        {
+          subject_role: 'delivery-editor',
+          assessed_by: 'policy-auditor',
+          checkpoint: 'publication',
+          required: true,
+          decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
+          outcome_actions: {
+            blocked: {
+              action: 'escalate',
+            },
+            rejected: {
+              action: 'block_subject',
+            },
+          },
+          revision_policy: {
+            assessment_retention: 'retain_named_assessors',
+            approval_retention: 'invalidate_all',
+          },
+        },
+      ],
+      approval_rules: [
+        {
+          on: 'checkpoint',
+          checkpoint: 'publication',
+          approved_by: 'human',
+          required: true,
+          decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
+          ordering_policy: {
+            subject_boundary: 'checkpoint',
+            approval_before_assessment: true,
+          },
+        },
+      ],
+      branch_policies: [
+        {
+          branch_key: 'publication-release',
+          termination_policy: 'stop_branch_only',
+        },
+      ],
+    });
+
+    expect(definition.assessment_rules[0]?.decision_states).toEqual([
+      'approved',
+      'request_changes',
+      'rejected',
+      'blocked',
+    ]);
+    expect(definition.assessment_rules[0]?.outcome_actions?.blocked).toEqual({
+      action: 'escalate',
+    });
+    expect(definition.assessment_rules[0]?.revision_policy).toEqual({
+      assessment_retention: 'retain_named_assessors',
+      approval_retention: 'invalidate_all',
+    });
+    expect(definition.approval_rules[0]?.decision_states).toEqual([
+      'approved',
+      'request_changes',
+      'rejected',
+      'blocked',
+    ]);
+    expect(definition.approval_rules[0]?.ordering_policy).toEqual({
+      subject_boundary: 'checkpoint',
+      approval_before_assessment: true,
+    });
+    expect(definition.branch_policies).toEqual([
+      {
+        branch_key: 'publication-release',
+        termination_policy: 'stop_branch_only',
+      },
+    ]);
+  });
+
+  it('rejects branch termination actions without a branch policy', () => {
+    expect(() =>
+      parsePlaybookDefinition({
+        process_instructions: 'A blocked branch may be terminated after operator decision.',
+        roles: ['delivery-editor', 'policy-auditor'],
+        board: { columns: [{ id: 'planned', label: 'Planned' }] },
+        assessment_rules: [
+          {
+            subject_role: 'delivery-editor',
+            assessed_by: 'policy-auditor',
+            required: true,
+            decision_states: ['approved', 'rejected'],
+            outcome_actions: {
+              rejected: {
+                action: 'terminate_branch',
+              },
+            },
+          },
+        ],
+      }),
+    ).toThrow(SchemaValidationFailedError);
+  });
+
   it('derives fallback process instructions for legacy definitions', () => {
     const definition = parsePlaybookDefinition({
       roles: ['developer'],

@@ -38,6 +38,8 @@ export interface WorkflowStageGateRecord {
   resume_activation_error?: Record<string, unknown> | null;
   resume_activation_history?: unknown;
   decision_history?: unknown;
+  superseded_at?: Date | null;
+  superseded_by_revision?: number | null;
 }
 
 export function toGateResponse(row: WorkflowStageGateRecord) {
@@ -75,6 +77,9 @@ export function toGateResponse(row: WorkflowStageGateRecord) {
       decided_at: row.decided_at?.toISOString() ?? null,
     },
     decision_history: normalizeDecisionHistory(row.decision_history),
+    superseded_at: row.superseded_at?.toISOString() ?? null,
+    superseded_by_revision: row.superseded_by_revision ?? null,
+    is_superseded: Boolean(row.superseded_at),
     requested_by_task: row.requested_by_task_id
       ? {
           id: row.requested_by_task_id,
@@ -161,6 +166,9 @@ function decisionActionForStatus(status: string | null | undefined) {
   }
   if (status === 'rejected') {
     return 'reject';
+  }
+  if (status === 'blocked') {
+    return 'block';
   }
   return null;
 }

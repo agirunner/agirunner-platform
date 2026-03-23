@@ -50,4 +50,50 @@ describe('workflow stage gate service', () => {
       decision_to_continuation_completed_seconds: null,
     });
   });
+
+  it('maps blocked gate status to a blocked human decision action', () => {
+    const response = toGateResponse({
+      id: 'gate-3',
+      workflow_id: 'workflow-3',
+      stage_name: 'approval',
+      status: 'blocked',
+      recommendation: null,
+      concerns: [],
+      key_artifacts: [],
+      requested_at: new Date('2026-03-20T10:00:00Z'),
+    } as never);
+
+    expect(response.human_decision).toEqual({
+      action: 'block',
+      decided_by_type: null,
+      decided_by_id: null,
+      feedback: null,
+      decided_at: null,
+    });
+  });
+
+  it('preserves superseded decision metadata in the gate response', () => {
+    const response = toGateResponse({
+      id: 'gate-4',
+      workflow_id: 'workflow-4',
+      stage_name: 'approval',
+      status: 'approved',
+      recommendation: 'approve',
+      concerns: [],
+      key_artifacts: [],
+      requested_at: new Date('2026-03-20T10:00:00Z'),
+      decided_at: new Date('2026-03-20T10:00:10Z'),
+      decision_history: [],
+      superseded_at: new Date('2026-03-20T10:15:00Z'),
+      superseded_by_revision: 3,
+    } as never);
+
+    expect(response).toEqual(
+      expect.objectContaining({
+        superseded_at: '2026-03-20T10:15:00.000Z',
+        superseded_by_revision: 3,
+        is_superseded: true,
+      }),
+    );
+  });
 });
