@@ -1,6 +1,6 @@
 import type { DashboardApiKeyRecord } from '../../lib/api.js';
 
-import { isWithinDays } from './governance-lifecycle.support.js';
+import { isWithinDays } from '../governance-shared/governance-lifecycle.support.js';
 
 export type ApiKeyScopeVariant = 'default' | 'success' | 'destructive' | 'warning' | 'secondary';
 

@@ -15,7 +15,7 @@ import {
   formatAbsoluteTimestamp,
   formatDateLabel,
   formatRelativeTimestamp,
-} from './governance-lifecycle.support.js';
+} from '../governance-shared/governance-lifecycle.support.js';
 import {
   formatRoleLabel,
   roleVariant,

@@ -14,7 +14,7 @@ import {
 import { Input } from '../../components/ui/input.js';
 import { dashboardApi, type DashboardAgentRecord, type DashboardWorkflowRecord } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
-import { formatAbsoluteTimestamp, formatRelativeTimestamp } from './governance-lifecycle.support.js';
+import { formatAbsoluteTimestamp, formatRelativeTimestamp } from '../governance-shared/governance-lifecycle.support.js';
 import {
   agentDisplayName,
   buildAgentItems,

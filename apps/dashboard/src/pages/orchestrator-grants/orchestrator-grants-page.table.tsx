@@ -12,7 +12,7 @@ import {
   TableRow,
 } from '../../components/ui/table.js';
 import type { DashboardAgentRecord, DashboardWorkflowRecord } from '../../lib/api.js';
-import { formatAbsoluteTimestamp, formatRelativeTimestamp } from './governance-lifecycle.support.js';
+import { formatAbsoluteTimestamp, formatRelativeTimestamp } from '../governance-shared/governance-lifecycle.support.js';
 import {
   agentDisplayName,
   findAgent,

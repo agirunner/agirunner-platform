@@ -11,12 +11,12 @@ import {
 } from '../../components/ui/dialog.js';
 import { Input } from '../../components/ui/input.js';
 import { toast } from '../../lib/toast.js';
-import { GovernanceReviewField } from './governance-review-field.js';
+import { GovernanceReviewField } from '../governance-shared/governance-review-field.js';
 import {
   formatAbsoluteTimestamp,
   formatDateLabel,
   formatRelativeTimestamp,
-} from './governance-lifecycle.support.js';
+} from '../governance-shared/governance-lifecycle.support.js';
 import { formatRoleLabel, roleVariant, type User } from './user-management-page.support.js';
 
 export function DeactivateDialog(props: {

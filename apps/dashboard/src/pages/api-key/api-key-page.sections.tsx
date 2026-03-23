@@ -9,7 +9,7 @@ import {
   formatDateLabel,
   formatExpiryLabel,
   formatRelativeTimestamp,
-} from './governance-lifecycle.support.js';
+} from '../governance-shared/governance-lifecycle.support.js';
 import { describeOwner, scopeVariant, summarizeApiKeys } from './api-key-page.support.js';
 
 export function ApiKeyHeader(props: { onCreate(): void }): JSX.Element {

@@ -18,11 +18,11 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { toast } from '../../lib/toast.js';
-import { GovernanceReviewField } from './governance-review-field.js';
+import { GovernanceReviewField } from '../governance-shared/governance-review-field.js';
 import {
   formatAbsoluteTimestamp,
   formatRelativeTimestamp,
-} from './governance-lifecycle.support.js';
+} from '../governance-shared/governance-lifecycle.support.js';
 import {
   describeRole,
   formatRoleLabel,

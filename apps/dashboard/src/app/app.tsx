@@ -85,10 +85,10 @@ const AgentProtocolsPage = lazyWithRetry(() => import('../pages/agent-protocols/
 
 const ContainersPage = lazyWithRetry(() => import('../pages/containers/containers-page.js').then((m) => ({ default: m.ContainersPage })));
 
-const ApiKeyPage = lazyWithRetry(() => import('../pages/governance/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
-const UserManagementPage = lazyWithRetry(() => import('../pages/governance/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
-const RetentionPolicyPage = lazyWithRetry(() => import('../pages/governance/retention-policy-page.js').then((m) => ({ default: m.RetentionPolicyPage })));
-const SettingsPage = lazyWithRetry(() => import('../pages/governance/settings-page.js').then((m) => ({ default: m.SettingsPage })));
+const ApiKeyPage = lazyWithRetry(() => import('../pages/api-key/api-key-page.js').then((m) => ({ default: m.ApiKeyPage })));
+const UserManagementPage = lazyWithRetry(() => import('../pages/user-management/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
+const RetentionPolicyPage = lazyWithRetry(() => import('../pages/retention-policy/retention-policy-page.js').then((m) => ({ default: m.RetentionPolicyPage })));
+const SettingsPage = lazyWithRetry(() => import('../pages/settings/settings-page.js').then((m) => ({ default: m.SettingsPage })));
 const LogsPage = lazyWithRetry(() => import('../pages/logs/logs-page.js').then((m) => ({ default: m.LogsPage })));
 
 function PageFallback(): JSX.Element {
