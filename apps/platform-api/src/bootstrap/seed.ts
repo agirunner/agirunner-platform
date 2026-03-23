@@ -368,7 +368,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'platform.workflow_activation_heartbeat_interval_ms',
-    configValue: '900000',
+    configValue: '1800000',
     configType: 'number',
     description:
       'Minimum interval in milliseconds between watchdog heartbeat activations for the same workflow',

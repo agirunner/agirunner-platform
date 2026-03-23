@@ -38,7 +38,7 @@ describe('continuous workflow work-item activation integration', () => {
       ['agent.max_iterations', '10'],
       ['agent.llm_max_retries', '5'],
       ['platform.workflow_activation_delay_ms', '10000'],
-      ['platform.workflow_activation_heartbeat_interval_ms', '900000'],
+      ['platform.workflow_activation_heartbeat_interval_ms', '1800000'],
       ['platform.workflow_activation_stale_after_ms', '300000'],
       ['platform.task_cancel_signal_grace_period_ms', '60000'],
       ['platform.worker_dispatch_ack_timeout_ms', '15000'],

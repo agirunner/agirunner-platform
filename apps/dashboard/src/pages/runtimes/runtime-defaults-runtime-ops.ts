@@ -842,7 +842,7 @@ function buildWorkflowActivationFields(): FieldDefinition[] {
       description:
         'Minimum spacing between no-op watchdog heartbeat activations for the same workflow.',
       configType: 'number',
-      placeholder: '900000',
+      placeholder: '1800000',
       section: 'workflow_activation',
       inputMode: 'numeric',
       min: 1,
