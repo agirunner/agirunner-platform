@@ -2910,4 +2910,89 @@ describe('TaskWriteService', () => {
       /Route successor work into stage 'verification' before dispatching role 'live-test-qa'/i,
     );
   });
+
+  it('rejects creating a planned-stage task for a role that is not defined in the workflow playbook', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (isLinkedWorkItemLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{
+              workflow_id: 'workflow-1',
+              stage_name: 'approval-gate',
+              workflow_lifecycle: 'planned',
+              stage_status: 'active',
+              stage_gate_status: 'changes_requested',
+              owner_role: 'rework-technical-editor',
+              next_expected_actor: null,
+              next_expected_action: null,
+            }],
+          };
+        }
+        if (isPlaybookDefinitionLookup(sql)) {
+          return {
+            rowCount: 1,
+            rows: [{
+              definition: {
+                process_instructions: 'A human review gate decides after the technical editor prepares the packet.',
+                roles: ['rework-product-strategist', 'rework-technical-editor', 'rework-launch-planner'],
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                  entry_column_id: 'planned',
+                },
+                checkpoints: [
+                  { name: 'approval-gate', goal: 'A human decision exists for the brief.', human_gate: true },
+                ],
+                stages: [
+                  { name: 'approval-gate', goal: 'A human decision exists for the brief.', human_gate: true, involves: [] },
+                ],
+                assessment_rules: [],
+                approval_rules: [],
+                handoff_rules: [],
+                lifecycle: 'planned',
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+
+    const service = new TaskWriteService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      config: { TASK_DEFAULT_TIMEOUT_MINUTES: 30 },
+      hasOrchestratorPermission: vi.fn(async () => false),
+      subtaskPermission: 'create_subtasks',
+      loadTaskOrThrow: vi.fn(),
+      toTaskResponse: (task) => task,
+      parallelismService: {
+        shouldQueueForCapacity: vi.fn(async () => false),
+      } as never,
+    });
+
+    await expect(
+      service.createTask(
+        {
+          tenantId: 'tenant-1',
+          scope: 'admin',
+          keyPrefix: 'admin-key',
+        } as never,
+        {
+          title: 'Record the human gate decision',
+          workflow_id: 'workflow-1',
+          work_item_id: 'work-item-1',
+          request_id: 'undefined-human-gate-role-1',
+          role: 'human-review-gate',
+          stage_name: 'approval-gate',
+        },
+      ),
+    ).rejects.toThrow(/Role 'human-review-gate' is not defined in planned workflow playbook 'workflow-1'/i);
+  });
 });

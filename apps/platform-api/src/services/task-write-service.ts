@@ -415,27 +415,35 @@ export class TaskWriteService {
       return;
     }
 
+    const roleName = input.role.trim();
+    const definedRoles = definition.roles.filter((role) => role.trim().length > 0);
+    if (definedRoles.length > 0 && !definedRoles.includes(roleName)) {
+      throw new ValidationError(
+        `Role '${roleName}' is not defined in planned workflow playbook '${linkedWorkItem.workflow_id}'.`,
+      );
+    }
+
     const stage = definition.stages.find((entry) => entry.name === linkedWorkItem.stage_name);
     const allowedRoles = stage?.involves ?? [];
-    if (allowedRoles.length === 0 || allowedRoles.includes(input.role.trim())) {
+    if (allowedRoles.length === 0 || allowedRoles.includes(roleName)) {
       return;
     }
 
     const successorStageName = findNextStageForRole(
       definition.stages,
       linkedWorkItem.stage_name,
-      input.role.trim(),
+      roleName,
     );
     if (successorStageName) {
       throw new ValidationError(
-        `Role '${input.role.trim()}' is not allowed on planned workflow stage ` +
+        `Role '${roleName}' is not allowed on planned workflow stage ` +
           `'${linkedWorkItem.stage_name}'. Route successor work into stage ` +
-          `'${successorStageName}' before dispatching role '${input.role.trim()}'.`,
+          `'${successorStageName}' before dispatching role '${roleName}'.`,
       );
     }
 
     throw new ValidationError(
-      `Role '${input.role.trim()}' is not allowed on planned workflow stage ` +
+      `Role '${roleName}' is not allowed on planned workflow stage ` +
         `'${linkedWorkItem.stage_name}'.`,
     );
   }
