@@ -2,8 +2,8 @@ import { Bot, Loader2 } from 'lucide-react';
 
 import {
   OrchestratorControlPlane,
-} from '../config/role-definitions-orchestrator.js';
-import { useRolePageOrchestratorState } from '../config/role-definitions-page.orchestrator.js';
+} from '../role-definitions/role-definitions-orchestrator.js';
+import { useRolePageOrchestratorState } from '../role-definitions/role-definitions-page.orchestrator.js';
 
 export function OrchestratorPage(): JSX.Element {
   const orchestratorState = useRolePageOrchestratorState();

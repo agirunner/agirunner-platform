@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '../../components/ui/select.js';
 import { cn } from '../../lib/utils.js';
-import { ConfigField } from '../config/config-form-controls.js';
+import { ConfigField } from './config-form-controls.js';
 import { PLATFORM_DEFAULT_SELECT_VALUE } from './runtime-defaults.schema.js';
 import type {
   FieldDefinition,
