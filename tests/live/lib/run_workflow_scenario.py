@@ -446,6 +446,10 @@ def update_fleet_peaks(peaks: dict[str, int], fleet: Any, *, playbook_id: str) -
             peaks[peak_key] = max(peaks.get(peak_key, 0), value)
 
 
+def _fleet_pool_requires_current_snapshot(expectations: dict[str, Any]) -> bool:
+    return any(field in expectations for field in ("max_runtimes", "active_workflows"))
+
+
 def _parse_timestamp(value: Any) -> datetime | None:
     if not isinstance(value, str):
         return None
@@ -1303,7 +1307,8 @@ def evaluate_expectations(
         pool_expectations = fleet_expectations.get("playbook_pool", {})
         if isinstance(pool_expectations, dict) and pool_expectations:
             pool = _playbook_pool_status(fleet, playbook_id=playbook_id)
-            if pool is None:
+            requires_current_pool = _fleet_pool_requires_current_snapshot(pool_expectations)
+            if pool is None and requires_current_pool:
                 checks.append(
                     {
                         "name": "fleet.playbook_pool.present",
@@ -1313,11 +1318,19 @@ def evaluate_expectations(
                 )
                 failures.append(f"expected fleet pool entry for playbook {playbook_id!r}")
             else:
+                if pool is not None:
+                    checks.append(
+                        {
+                            "name": "fleet.playbook_pool.present",
+                            "passed": True,
+                            "playbook_id": playbook_id,
+                        }
+                    )
                 for field in ("max_runtimes", "active_workflows"):
                     if field not in pool_expectations:
                         continue
                     expected_value = int(pool_expectations[field])
-                    actual_value = int(pool.get(field, 0))
+                    actual_value = int((pool or {}).get(field, 0))
                     passed = actual_value == expected_value
                     checks.append(
                         {
