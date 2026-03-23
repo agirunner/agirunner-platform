@@ -2,25 +2,25 @@ import { useState, type ChangeEvent, type ReactNode } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { ChevronDown, Save } from 'lucide-react';
 
-import type { DashboardWorkspaceRecord } from '../../lib/api.js';
-import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
-import { Card, CardContent } from '../../components/ui/card.js';
-import { Input } from '../../components/ui/input.js';
+import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
+import { Badge } from '../../../components/ui/badge.js';
+import { Button } from '../../../components/ui/button.js';
+import { Card, CardContent } from '../../../components/ui/card.js';
+import { Input } from '../../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../components/ui/select.js';
-import { Textarea } from '../../components/ui/textarea.js';
-import { ToggleCard } from '../../components/ui/toggle-card.js';
-import { dashboardApi } from '../../lib/api.js';
-import { toast } from '../../lib/toast.js';
-import { cn } from '../../lib/utils.js';
-import { DeleteWorkspaceDialog } from './workspace-list/workspace-list-page.dialogs.js';
-import type { WorkspaceOverview } from './workspace-detail/workspace-detail-support.js';
+} from '../../../components/ui/select.js';
+import { Textarea } from '../../../components/ui/textarea.js';
+import { ToggleCard } from '../../../components/ui/toggle-card.js';
+import { dashboardApi } from '../../../lib/api.js';
+import { toast } from '../../../lib/toast.js';
+import { cn } from '../../../lib/utils.js';
+import { DeleteWorkspaceDialog } from '../workspace-list/workspace-list-page.dialogs.js';
+import type { WorkspaceOverview } from './workspace-detail-support.js';
 import { WorkspaceSettingsShell } from './workspace-settings-shell.js';
 import {
   buildWorkspaceSecretPostureSummary,

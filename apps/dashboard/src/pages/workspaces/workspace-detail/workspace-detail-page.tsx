@@ -13,9 +13,9 @@ import {
   type WorkspaceDetailTabValue,
 } from './workspace-detail-support.js';
 import { WorkspaceDetailShell } from './workspace-detail-shell.js';
-import { WorkspaceKnowledgeTab } from '../workspace-knowledge-tab.js';
+import { WorkspaceKnowledgeTab } from './workspace-knowledge-tab.js';
 import { WorkspaceOverviewShell } from './workspace-overview-shell.js';
-import { WorkspaceSettingsTab } from '../workspace-settings-tab.js';
+import { WorkspaceSettingsTab } from './workspace-settings-tab.js';
 
 export function WorkspaceDetailPage(): JSX.Element {
   const { id } = useParams<{ id: string }>();

@@ -2,15 +2,15 @@ import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Save } from 'lucide-react';
 
-import { dashboardApi } from '../../lib/api.js';
-import { Button } from '../../components/ui/button.js';
+import { dashboardApi } from '../../../lib/api.js';
+import { Button } from '../../../components/ui/button.js';
 import {
   buildStructuredObject,
   objectToStructuredDrafts,
   type WorkspaceOverview,
   type StructuredEntryDraft,
-} from './workspace-detail/workspace-detail-support.js';
-import { ErrorCard, LoadingCard } from './workspace-detail/workspace-detail-shared.js';
+} from './workspace-detail-support.js';
+import { ErrorCard, LoadingCard } from './workspace-detail-shared.js';
 import { WorkspaceArtifactFilesPanel } from './workspace-artifact-files-panel.js';
 import { WorkspaceDetailMemoryTab } from './workspace-detail-memory-tab.js';
 import { WorkspaceKnowledgeShell } from './workspace-knowledge-shell.js';
