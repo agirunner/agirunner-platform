@@ -200,6 +200,8 @@ class LiveTestCatalogTests(unittest.TestCase):
         scenario = scenario_config.load_scenario(
             SCENARIOS_DIR / "sdlc-parallel-assessors-mixed-outcomes.json"
         )
+        self.assertEqual(3600, scenario["timeout_seconds"])
+
         parameters = scenario["workflow"]["parameters"]
         self.assertIn("initial_revision_scope", parameters)
         self.assertIn("quality_rework_scope", parameters)

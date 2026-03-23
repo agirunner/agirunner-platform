@@ -23,6 +23,7 @@
   },
   "approvals": [],
   "actions": [],
+  "timeout_seconds": 3600,
   "expect": {
     "state": "completed",
     "assessment_sequences": [
