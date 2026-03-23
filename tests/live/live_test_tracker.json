@@ -64,8 +64,8 @@
       {
         "name": "content-assessment-blocked",
         "status": "unsupported_now",
-        "reason": "Assessment rollups model approved, request_changes, and rejected. An assessor submitting completion=blocked is accepted at handoff level but is not a first-class rolled-up assessment outcome for successor gating or continuity.",
-        "needed_support": "Define blocked as a real assessment outcome in continuity, work-item rollups, verifier expectations, and dashboard posture."
+        "reason": "Assessment rollups model approved, request_changes, and rejected. blocked is currently a task-completion state, not a subject-decision outcome, and turning it into one would risk breaking existing assessment semantics.",
+        "needed_support": "Keep blocked as task-completion state by default. If a true blocked decision is ever needed, design it separately with explicit control-plane, verifier, and dashboard semantics."
       },
       {
         "name": "content-block-subject-policy",
@@ -94,20 +94,20 @@
       {
         "name": "publishing-approval-before-assessment",
         "status": "conditionally_supported_only_as_separate_stage_modeling",
-        "reason": "The system can model approval before assessment only by splitting them across separate stages or checkpoints. It does not support a same-subject, same-checkpoint inversion where approval generically precedes assessment.",
-        "needed_support": "Define and implement explicit ordering semantics between approval and assessment at the same subject/checkpoint boundary."
+        "reason": "The system can model approval before assessment only by splitting them across separate stages or checkpoints. Same-subject, same-checkpoint ordering inversion is intentionally not part of the current safe model.",
+        "needed_support": "Continue using separate-stage modeling unless a concrete need justifies a dedicated ordering design."
       },
       {
         "name": "requirements-human-review-blocked",
         "status": "unsupported_as_distinct_review_outcome",
-        "reason": "Human review is currently modeled through stage-gate states such as awaiting_approval, approved, changes_requested, and rejected. There is no distinct blocked review decision.",
-        "needed_support": "Either keep this out of scope and model it as unresolved approval, or extend the gate-state model with a true blocked operator outcome."
+        "reason": "Human review is currently modeled through stage-gate states such as awaiting_approval, approved, changes_requested, and rejected. A distinct blocked review decision is not part of the current safe model.",
+        "needed_support": "Model this as unresolved approval unless a real operator workflow requires a new gate outcome."
       },
       {
         "name": "requirements-stale-human-review-arrives-after-rework",
         "status": "unsupported_now",
-        "reason": "Human review remains primarily stage-gate driven rather than a fully generic approval-task path with subject revision semantics comparable to assessment tasks.",
-        "needed_support": "Promote human approval to a fully revision-aware subject-linked task flow or define equivalent stale-gate invalidation semantics at the stage-gate layer."
+        "reason": "Human review remains intentionally stage-gate driven in the near-term model, so stale approval invalidation is not yet expressed with explicit revision semantics.",
+        "needed_support": "Define stale-gate invalidation semantics at the stage-gate layer without promoting approval to a generic approval-task model in the current phase."
       }
     ]
   }
