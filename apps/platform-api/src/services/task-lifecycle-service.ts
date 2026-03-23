@@ -99,7 +99,7 @@ interface TaskLifecycleDependencies {
   finalizeOrchestratorActivation?: (
     tenantId: string,
     task: Record<string, unknown>,
-    status: 'completed' | 'failed',
+    status: 'completed' | 'failed' | 'escalated',
     client: DatabaseClient,
   ) => Promise<void>;
   evaluateWorkflowBudget?: (
@@ -858,12 +858,21 @@ export class TaskLifecycleService {
       if (
         this.deps.finalizeOrchestratorActivation &&
         updatedTask.is_orchestrator_task &&
-        (resolvedNextState === 'completed' || resolvedNextState === 'failed' || resolvedNextState === 'cancelled')
+        (
+          resolvedNextState === 'completed' ||
+          resolvedNextState === 'failed' ||
+          resolvedNextState === 'cancelled' ||
+          resolvedNextState === 'escalated'
+        )
       ) {
         await this.deps.finalizeOrchestratorActivation(
           identity.tenantId,
           updatedTask,
-          resolvedNextState === 'completed' ? 'completed' : 'failed',
+          resolvedNextState === 'completed'
+            ? 'completed'
+            : resolvedNextState === 'escalated'
+              ? 'escalated'
+              : 'failed',
           client,
         );
       }

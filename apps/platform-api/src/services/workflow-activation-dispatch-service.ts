@@ -389,7 +389,7 @@ export class WorkflowActivationDispatchService {
   async finalizeActivationForTask(
     tenantId: string,
     task: Record<string, unknown>,
-    status: 'completed' | 'failed',
+    status: 'completed' | 'failed' | 'escalated',
     client: DatabaseClient,
   ): Promise<void> {
     if (!task.is_orchestrator_task || !task.activation_id || !task.workflow_id) {
@@ -424,7 +424,7 @@ export class WorkflowActivationDispatchService {
     const summary = buildActivationSummary(task, status);
     const error = status === 'failed' ? task.error ?? { message: 'Orchestrator activation failed' } : null;
     const activationResult = await client.query<QueuedActivationRow>(
-      status === 'completed'
+      status !== 'failed'
         ? `UPDATE workflow_activations
               SET state = 'completed',
                   consumed_at = now(),
@@ -456,7 +456,7 @@ export class WorkflowActivationDispatchService {
               AND consumed_at IS NULL
           RETURNING id, tenant_id, workflow_id, activation_id, request_id, reason, event_type, payload,
                     state, dispatch_attempt, dispatch_token, queued_at, started_at, consumed_at, completed_at, summary, error`,
-      status === 'completed'
+      status !== 'failed'
         ? [tenantId, task.workflow_id, task.activation_id, summary]
         : [tenantId, task.workflow_id, task.activation_id, summary, error],
     );
@@ -470,7 +470,7 @@ export class WorkflowActivationDispatchService {
     await this.deps.eventService.emit(
       {
         tenantId,
-        type: status === 'completed' ? 'workflow.activation_completed' : 'workflow.activation_failed',
+        type: status === 'failed' ? 'workflow.activation_failed' : 'workflow.activation_completed',
         entityType: 'workflow',
         entityId: activation.workflow_id,
         actorType: 'system',
@@ -1128,8 +1128,13 @@ export class WorkflowActivationDispatchService {
       return { kind: 'active', taskId: existingTask.id };
     }
 
-    if (existingTask.state === 'completed') {
-      await this.finalizeActivationForTask(tenantId, { ...existingTask }, 'completed', client);
+    if (existingTask.state === 'completed' || existingTask.state === 'escalated') {
+      await this.finalizeActivationForTask(
+        tenantId,
+        { ...existingTask },
+        existingTask.state === 'escalated' ? 'escalated' : 'completed',
+        client,
+      );
       return { kind: 'finalized', taskId: existingTask.id };
     }
 
@@ -1835,12 +1840,20 @@ function buildActivationResourceBindings(repository: WorkflowRepositoryContext):
 
 function buildActivationSummary(
   task: Record<string, unknown>,
-  status: 'completed' | 'failed',
+  status: 'completed' | 'failed' | 'escalated',
 ): string | null {
   if (status === 'failed') {
     const error = task.error as Record<string, unknown> | null;
     const message = typeof error?.message === 'string' ? error.message.trim() : '';
     return message || 'Orchestrator activation failed';
+  }
+
+  if (status === 'escalated') {
+    const metadata = asRecord(task.metadata);
+    const escalationReason = asNullableString(metadata.escalation_reason);
+    if (escalationReason) {
+      return escalationReason;
+    }
   }
 
   const output = task.output as Record<string, unknown> | null;
