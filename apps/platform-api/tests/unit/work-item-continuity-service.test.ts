@@ -516,6 +516,46 @@ describe('WorkItemContinuityService', () => {
     });
   });
 
+  it('clears stale orchestrator finish-state metadata when specialist continuity changes', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            stage_name: 'implementation',
+            owner_role: 'developer',
+            next_expected_actor: null,
+            next_expected_action: null,
+            definition: {
+              process_instructions: 'Delivery must be reassessed after each revision.',
+              roles: ['developer', 'reviewer'],
+              board: { columns: [{ id: 'planned', label: 'Planned' }] },
+              checkpoints: [{ name: 'implementation', goal: 'Implementation is assessed', human_gate: false }],
+              assessment_rules: [{ subject_role: 'developer', assessed_by: 'reviewer', required: true }],
+            },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 1 }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+
+    await service.recordTaskCompleted('tenant-1', {
+      workflow_id: 'workflow-1',
+      work_item_id: 'work-item-1',
+      role: 'developer',
+      stage_name: 'implementation',
+    });
+
+    expect(pool.query).toHaveBeenLastCalledWith(
+      expect.stringContaining("metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state'"),
+      ['tenant-1', 'workflow-1', 'work-item-1', 'reviewer', 'assess', 0],
+    );
+  });
+
   it('emits a continuity transition log when task completion updates the next expected step', async () => {
     const pool = {
       query: vi
