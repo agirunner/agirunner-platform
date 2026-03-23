@@ -27,6 +27,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use repo-relative or tool-returned workspace paths, never guessed absolute /tmp/workspace paths.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Only assessment or approval handoffs may include resolution.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Delivery handoffs MUST omit resolution entirely.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Completion and decision are separate.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Full assessment or approval handoffs MUST set resolution to approved, request_changes, rejected, or blocked.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Blocked completions MUST omit resolution.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff accepts only its documented schema fields.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent extras such as tests_run or verification_results');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Optional context files may not exist.');
@@ -35,6 +38,7 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Treat continuity fields such as next_expected_actor and next_expected_action as authoritative workflow routing state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('In workflows with multiple open work items, stay scoped to the current work item or explicitly linked subject.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not infer routing, approval, or review policy from role names, stage names, or playbook names.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
@@ -91,6 +95,18 @@ describe('prompt catalogs', () => {
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Outcome actions such as continue, reopen_subject, route_to_role, block_subject, escalate, and terminate_branch are metadata-driven.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'A blocked work item, unresolved escalation, or unsatisfied approval or assessment requirement makes successor dispatch and completion illegal.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Superseded approvals or assessments are historical evidence, not current authorization.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'When approval_before_assessment is authored, request and resolve the gate before dispatching downstream assessment for that boundary.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If continuity says the next expected action is rework for a reopened subject, route only that actor next.',
