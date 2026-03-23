@@ -66,7 +66,7 @@ const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-pag
 const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
 const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
-const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspaces/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));
+const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspaces/workspace-list/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));
 const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspaces/workspace-detail-page.js').then((m) => ({ default: m.WorkspaceDetailPage })));
 
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));

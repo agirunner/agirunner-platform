@@ -19,7 +19,7 @@ import { ToggleCard } from '../../components/ui/toggle-card.js';
 import { dashboardApi } from '../../lib/api.js';
 import { toast } from '../../lib/toast.js';
 import { cn } from '../../lib/utils.js';
-import { DeleteWorkspaceDialog } from './workspace-list-page.dialogs.js';
+import { DeleteWorkspaceDialog } from './workspace-list/workspace-list-page.dialogs.js';
 import type { WorkspaceOverview } from './workspace-detail-support.js';
 import { WorkspaceSettingsShell } from './workspace-settings-shell.js';
 import {

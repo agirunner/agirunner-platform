@@ -1,17 +1,17 @@
 import { FolderOpen } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import type { DashboardWorkspaceRecord } from '../../lib/api.js';
-import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
+import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
+import { Badge } from '../../../components/ui/badge.js';
+import { Button } from '../../../components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card.js';
 import { CreateWorkspaceDialog } from './workspace-list-page.dialogs.js';
 import {
   buildWorkspaceMetrics,
   buildWorkspaceReadiness,
   type WorkspaceListSortField,
 } from './workspace-list-page.support.js';
-import { readWorkspaceStorageLabel } from './workspace-detail-support.js';
+import { readWorkspaceStorageLabel } from '../workspace-detail-support.js';
 
 export function WorkspaceListGrid(props: {
   workspaces: DashboardWorkspaceRecord[];

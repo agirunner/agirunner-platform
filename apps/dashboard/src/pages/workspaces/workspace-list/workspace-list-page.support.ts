@@ -1,5 +1,5 @@
-import type { DashboardWorkspaceRecord } from '../../lib/api.js';
-import { readWorkspaceStorageLabel } from './workspace-detail-support.js';
+import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
+import { readWorkspaceStorageLabel } from '../workspace-detail-support.js';
 
 export interface WorkspaceListReadiness {
   label: 'Active' | 'Inactive';
