@@ -13,8 +13,8 @@ import {
   createDefaultAuthoringDraft,
   summarizePlaybookAuthoringDraft,
   type PlaybookAuthoringDraft,
-} from './playbook-authoring-support.js';
-import { PlaybookAuthoringForm } from './playbook-authoring-form.js';
+} from '../config/playbook-authoring-support.js';
+import { PlaybookAuthoringForm } from '../config/playbook-authoring-form.js';
 import {
   Select,
   SelectContent,
