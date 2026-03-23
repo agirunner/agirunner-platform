@@ -13,6 +13,34 @@
         "required": true,
         "category": "input",
         "description": "What this live workflow should accomplish"
+      },
+      {
+        "name": "initial_revision_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 1 must complete before any assessor-driven rework begins"
+      },
+      {
+        "name": "quality_rework_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 2 must add to clear the quality assessor without yet satisfying security-only rework"
+      },
+      {
+        "name": "security_rework_scope",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What revision 3 must add after the security rejection route is exercised"
+      },
+      {
+        "name": "mixed_outcome_contract",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Authored assessor outcome sequence across the three revisions"
       }
     ],
     "roles": [
@@ -145,7 +173,8 @@
             "role": "mixed-architecture-lead"
           },
           "rejected": {
-            "action": "block_subject"
+            "action": "route_to_role",
+            "role": "mixed-architecture-lead"
           }
         }
       }

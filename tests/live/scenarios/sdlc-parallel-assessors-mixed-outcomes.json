@@ -5,18 +5,46 @@
     "name": "SDLC Parallel Assessors Mixed Outcomes",
     "goal": "Implement a feature where one assessor requests changes, another rejects on a later pass, and stale earlier approvals do not clear the new revision.",
     "parameters": {
-      "assessment_contract": "Exercise mixed assessor outcomes across multiple revisions with out-of-order completion."
+      "initial_revision_scope": "Revision 1 MUST deliver the initial feature implementation and verification baseline, but it MUST leave the release rollback checklist, compatibility coverage notes, and permission-boundary hardening unresolved. Revision 1 is intentionally quality-incomplete but not security-blocking.",
+      "quality_rework_scope": "Revision 2 MUST resolve the rollback checklist and compatibility coverage findings from the quality assessor, including updated verification evidence. Revision 2 MUST NOT yet implement the permission-boundary hardening, threat-model note, or guardrail validation that belong only to security_rework_scope.",
+      "security_rework_scope": "Revision 3 MUST add the remaining permission-boundary hardening, threat-model note, and security guardrail verification so the current subject revision clears both required assessors.",
+      "mixed_outcome_contract": "The quality assessor MUST request_changes on revision 1, then approve later revisions once quality_rework_scope is satisfied. The security assessor MUST approve revision 1, reject revision 2 while security_rework_scope is still missing, and approve revision 3 after the subject revision increases and fully satisfies security_rework_scope."
     }
   },
   "workspace": {
     "repo": true,
     "memory": {},
-    "spec": {}
+    "spec": {
+      "instructions": {
+        "format": "markdown",
+        "content": "This scenario uses an authored three-revision contract. Revision 1 MUST stop at `initial_revision_scope`. Revision 2 MUST satisfy `quality_rework_scope`. Revision 2 MUST NOT satisfy `security_rework_scope`. Revision 3 MUST satisfy the full `security_rework_scope` after the security rejection is routed back through the architect. Treat early delivery of later-scope items as contract noncompliance, not as helpfulness."
+      }
+    }
   },
   "approvals": [],
   "actions": [],
   "expect": {
     "state": "completed",
+    "assessment_sequences": [
+      {
+        "subject_role": "mixed-delivery-engineer",
+        "assessed_by": "mixed-quality-assessor",
+        "expected_resolutions": [
+          "request_changes",
+          "approved",
+          "approved"
+        ]
+      },
+      {
+        "subject_role": "mixed-delivery-engineer",
+        "assessed_by": "mixed-security-assessor",
+        "expected_resolutions": [
+          "approved",
+          "rejected",
+          "approved"
+        ]
+      }
+    ],
     "subject_revision_expectations": [
       {
         "stage_name": "implementation",
@@ -39,7 +67,8 @@
       "out_of_order_completion"
     ],
     "rework_actions": [
-      "block_subject"
+      "reopen_subject",
+      "route_to_role"
     ]
   }
 }

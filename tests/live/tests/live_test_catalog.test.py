@@ -196,6 +196,72 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("resolve every cited finding", implementation_prompt)
         self.assertIn("before resubmitting", implementation_prompt)
 
+    def test_parallel_mixed_outcomes_profile_authors_a_real_three_revision_contract(self) -> None:
+        scenario = scenario_config.load_scenario(
+            SCENARIOS_DIR / "sdlc-parallel-assessors-mixed-outcomes.json"
+        )
+        parameters = scenario["workflow"]["parameters"]
+        self.assertIn("initial_revision_scope", parameters)
+        self.assertIn("quality_rework_scope", parameters)
+        self.assertIn("security_rework_scope", parameters)
+        self.assertIn("mixed_outcome_contract", parameters)
+
+        workspace_instructions = scenario["workspace"]["spec"]["instructions"]["content"]
+        self.assertIn("Revision 1 MUST stop at `initial_revision_scope`", workspace_instructions)
+        self.assertIn("Revision 2 MUST satisfy `quality_rework_scope`", workspace_instructions)
+        self.assertIn("Revision 2 MUST NOT satisfy `security_rework_scope`", workspace_instructions)
+        self.assertIn("Revision 3 MUST satisfy the full `security_rework_scope`", workspace_instructions)
+
+        playbook = live_test_catalog.read_fixture(
+            LIBRARY_DIR / "sdlc-parallel-assessors-mixed-outcomes" / "playbook.json"
+        )
+        parameter_names = {entry["name"] for entry in playbook["definition"]["parameters"]}
+        self.assertIn("initial_revision_scope", parameter_names)
+        self.assertIn("quality_rework_scope", parameter_names)
+        self.assertIn("security_rework_scope", parameter_names)
+        self.assertIn("mixed_outcome_contract", parameter_names)
+
+        quality_rule, security_rule = playbook["definition"]["assessment_rules"]
+        self.assertEqual(
+            {"action": "reopen_subject"},
+            quality_rule["outcome_actions"]["request_changes"],
+        )
+        self.assertEqual(
+            {"action": "route_to_role", "role": "mixed-architecture-lead"},
+            security_rule["outcome_actions"]["rejected"],
+        )
+
+        roles = live_test_catalog.read_fixture(
+            LIBRARY_DIR / "sdlc-parallel-assessors-mixed-outcomes" / "roles.json"
+        )
+        architect_prompt = next(
+            role["systemPrompt"]
+            for role in roles
+            if role["name"] == "mixed-architecture-lead"
+        )
+        implementation_prompt = next(
+            role["systemPrompt"]
+            for role in roles
+            if role["name"] == "mixed-delivery-engineer"
+        )
+        quality_prompt = next(
+            role["systemPrompt"]
+            for role in roles
+            if role["name"] == "mixed-quality-assessor"
+        )
+        security_prompt = next(
+            role["systemPrompt"]
+            for role in roles
+            if role["name"] == "mixed-security-assessor"
+        )
+
+        self.assertIn("three-revision contract", architect_prompt)
+        self.assertIn("Do not preemptively implement revision-3-only security hardening in revision 2", implementation_prompt)
+        self.assertIn("first subject revision MUST return request_changes", quality_prompt)
+        self.assertIn("Approve revision 1", security_prompt)
+        self.assertIn("Reject revision 2", security_prompt)
+        self.assertIn("Approve only after revision 3", security_prompt)
+
     def test_readme_documents_oauth_default_and_provider_auth_externalization(self) -> None:
         source = README_FILE.read_text()
         self.assertIn("OAuth MUST be the default live-test path.", source)
