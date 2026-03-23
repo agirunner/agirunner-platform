@@ -46,6 +46,7 @@ const assessmentOutcomeActionSchema = z.object({
 });
 
 const decisionStateSchema = z.enum(['approved', 'request_changes', 'rejected', 'blocked']);
+const materialitySchema = z.enum(['material', 'non_material']);
 
 const revisionPolicySchema = z.object({
   assessment_retention: z.enum([
@@ -73,6 +74,7 @@ const assessmentRuleSchema = z.object({
   checkpoint: z.string().min(1).max(120).optional(),
   required: z.boolean().optional(),
   optional: z.boolean().optional(),
+  materiality: materialitySchema.optional(),
   decision_states: z.array(decisionStateSchema).optional(),
   outcome_actions: z
     .object({
@@ -90,7 +92,9 @@ const approvalRuleSchema = z.object({
   checkpoint: z.string().min(1).max(120).optional(),
   approved_by: z.enum(['human']),
   required: z.boolean().optional(),
+  materiality: materialitySchema.optional(),
   decision_states: z.array(decisionStateSchema).optional(),
+  revision_policy: revisionPolicySchema.optional(),
   ordering_policy: orderingPolicySchema.optional(),
 });
 

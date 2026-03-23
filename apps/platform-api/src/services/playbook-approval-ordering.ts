@@ -5,6 +5,12 @@ export interface AssessmentExpectation {
   requiredAssessorRoles: string[];
 }
 
+export interface ApprovalRetentionPolicy {
+  approval_retention?: 'invalidate_all' | 'retain_advisory_only' | 'retain_named_assessors' | 'retain_non_material_only';
+  required?: boolean;
+  materiality?: 'material' | 'non_material';
+}
+
 export function approvalBeforeAssessmentEnabled(
   definition: PlaybookDefinition,
   checkpointName: string | null,
@@ -18,6 +24,29 @@ export function approvalBeforeAssessmentEnabled(
     && rule.on === 'checkpoint'
     && rule.checkpoint === checkpointName
     && rule.ordering_policy?.approval_before_assessment === true);
+}
+
+export function resolveApprovalRetentionPolicy(
+  definition: PlaybookDefinition,
+  checkpointName: string | null,
+): ApprovalRetentionPolicy | null {
+  if (!checkpointName) {
+    return null;
+  }
+
+  const rule = definition.approval_rules.find((candidate) =>
+    candidate.on === 'checkpoint'
+    && candidate.checkpoint === checkpointName,
+  );
+  if (!rule) {
+    return null;
+  }
+
+  return {
+    approval_retention: rule.revision_policy?.approval_retention ?? 'invalidate_all',
+    required: rule.required ?? true,
+    materiality: rule.materiality ?? 'material',
+  };
 }
 
 export function resolveAssessmentExpectation(

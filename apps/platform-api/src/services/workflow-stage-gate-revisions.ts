@@ -11,6 +11,12 @@ interface SupersedeStageGateInput {
   subjectRevision: number | null;
 }
 
+interface GateRetentionPolicy {
+  approval_retention?: 'invalidate_all' | 'retain_advisory_only' | 'retain_named_assessors' | 'retain_non_material_only';
+  required?: boolean;
+  materiality?: 'material' | 'non_material';
+}
+
 export async function loadLatestStageSubjectRevision(
   db: DatabaseClient | DatabasePool,
   tenantId: string,
@@ -61,6 +67,7 @@ export function gateRequiresSupersession(
   subjectRevision: number | null,
   latestGateRevision: number | null | undefined,
   supersededAt: Date | null | undefined,
+  retentionPolicy?: GateRetentionPolicy,
 ) {
   if (supersededAt) {
     return false;
@@ -68,5 +75,19 @@ export function gateRequiresSupersession(
   if (!subjectRevision || subjectRevision <= 0) {
     return false;
   }
-  return (latestGateRevision ?? 0) > 0 && subjectRevision > (latestGateRevision ?? 0);
+  if ((latestGateRevision ?? 0) <= 0 || subjectRevision <= (latestGateRevision ?? 0)) {
+    return false;
+  }
+
+  const approvalRetention = retentionPolicy?.approval_retention ?? 'invalidate_all';
+  if (approvalRetention === 'invalidate_all') {
+    return true;
+  }
+  if (approvalRetention === 'retain_non_material_only') {
+    return retentionPolicy?.materiality !== 'non_material';
+  }
+  if (approvalRetention === 'retain_advisory_only') {
+    return retentionPolicy?.required !== false;
+  }
+  return false;
 }

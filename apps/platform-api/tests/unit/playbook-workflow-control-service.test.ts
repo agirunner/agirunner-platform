@@ -5309,6 +5309,143 @@ describe('PlaybookWorkflowControlService', () => {
     );
   });
 
+  it('retains a non-material approved gate when approval retention allows it across revisions', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const stateService = { recomputeWorkflowState: vi.fn(async () => 'active') };
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'approval',
+              state: 'active',
+              definition: {
+                process_instructions: 'Non-material approval may survive rework.',
+                roles: ['writer', 'operator'],
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                checkpoints: [{ name: 'approval', goal: 'Approval', human_gate: true }],
+                approval_rules: [{
+                  on: 'checkpoint',
+                  checkpoint: 'approval',
+                  approved_by: 'human',
+                  required: true,
+                  materiality: 'non_material',
+                  revision_policy: {
+                    approval_retention: 'retain_non_material_only',
+                  },
+                }],
+              },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_stages') && sql.includes('AND name = $3')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-approval',
+              name: 'approval',
+              position: 0,
+              goal: 'Approval',
+              guidance: null,
+              human_gate: true,
+              status: 'awaiting_gate',
+              gate_status: 'approved',
+              iteration_count: 0,
+              summary: null,
+              metadata: {},
+              started_at: null,
+              completed_at: null,
+              updated_at: new Date('2026-03-23T03:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('SELECT COALESCE(MAX(subject_revision), 0)::int AS latest_subject_revision')) {
+          return { rowCount: 1, rows: [{ latest_subject_revision: 3 }] };
+        }
+        if (sql.includes('FROM workflow_stage_gates') && sql.includes('ORDER BY requested_at DESC')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'gate-approved-1',
+              workflow_id: 'workflow-1',
+              stage_id: 'stage-approval',
+              stage_name: 'approval',
+              status: 'approved',
+              request_summary: 'Previously approved',
+              recommendation: null,
+              concerns: [],
+              key_artifacts: [],
+              requested_by_type: 'admin',
+              requested_by_id: 'k0',
+              requested_at: new Date('2026-03-22T00:00:00Z'),
+              updated_at: new Date('2026-03-22T00:05:00Z'),
+              subject_revision: 2,
+              decision_feedback: 'Still fine',
+              decided_at: new Date('2026-03-22T00:04:00Z'),
+              superseded_at: null,
+              superseded_by_revision: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE workflow_stage_gates') && sql.includes('superseded_at = now()')) {
+          throw new Error('approved gate should not be superseded when retention preserves it');
+        }
+        if (sql.includes('UPDATE workflow_stages') && sql.includes("status = 'active'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'stage-approval',
+              name: 'approval',
+              position: 0,
+              goal: 'Approval',
+              guidance: null,
+              human_gate: true,
+              status: 'active',
+              gate_status: 'approved',
+              iteration_count: 0,
+              summary: null,
+              metadata: {},
+              started_at: null,
+              completed_at: null,
+              updated_at: new Date('2026-03-23T03:10:00Z'),
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: eventService as never,
+      stateService: stateService as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    const stage = await service.requestStageGateApproval(
+      {
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: 'user-1',
+        keyPrefix: 'k1',
+        id: 'key-1',
+      },
+      'workflow-1',
+      'approval',
+      { summary: 'No-op refresh' },
+      pool as never,
+    );
+
+    expect(stage.gate_status).toBe('approved');
+    expect(stage.status).toBe('active');
+  });
+
   it('restores assessment expectation after approval when approval-before-assessment is authored', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const activationService = {

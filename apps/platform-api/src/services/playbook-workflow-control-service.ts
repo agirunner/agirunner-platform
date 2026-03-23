@@ -12,6 +12,7 @@ import { areJsonValuesEquivalent } from './json-equivalence.js';
 import {
   approvalBeforeAssessmentEnabled,
   resolveAssessmentExpectation,
+  resolveApprovalRetentionPolicy,
 } from './playbook-approval-ordering.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
@@ -366,13 +367,22 @@ export class PlaybookWorkflowControlService {
       workflowId,
       stageName,
     );
+    const approvalRetentionPolicy = resolveApprovalRetentionPolicy(
+      parsePlaybookDefinition(workflow.definition),
+      stageName,
+    );
     let latestGate = stage.gate_status === 'approved'
       ? await this.loadLatestGateForStage(identity.tenantId, workflowId, stage.id, db)
       : null;
     if (
       stage.gate_status === 'approved'
       && latestGate
-      && gateRequiresSupersession(subjectRevision, latestGate.subject_revision, latestGate.superseded_at)
+      && gateRequiresSupersession(
+        subjectRevision,
+        latestGate.subject_revision,
+        latestGate.superseded_at,
+        approvalRetentionPolicy ?? undefined,
+      )
     ) {
       await supersedeStageGatesForRevision(db, {
         tenantId: identity.tenantId,

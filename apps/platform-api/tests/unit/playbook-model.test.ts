@@ -277,6 +277,7 @@ describe('playbook model runtime pools', () => {
             assessment_retention: 'retain_named_assessors',
             approval_retention: 'invalidate_all',
           },
+          materiality: 'non_material',
         },
       ],
       approval_rules: [
@@ -286,10 +287,14 @@ describe('playbook model runtime pools', () => {
           approved_by: 'human',
           required: true,
           decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
+          revision_policy: {
+            approval_retention: 'retain_non_material_only',
+          },
           ordering_policy: {
             subject_boundary: 'checkpoint',
             approval_before_assessment: true,
           },
+          materiality: 'non_material',
         },
       ],
       branch_policies: [
@@ -313,16 +318,21 @@ describe('playbook model runtime pools', () => {
       assessment_retention: 'retain_named_assessors',
       approval_retention: 'invalidate_all',
     });
+    expect(definition.assessment_rules[0]?.materiality).toBe('non_material');
     expect(definition.approval_rules[0]?.decision_states).toEqual([
       'approved',
       'request_changes',
       'rejected',
       'blocked',
     ]);
+    expect(definition.approval_rules[0]?.revision_policy).toEqual({
+      approval_retention: 'retain_non_material_only',
+    });
     expect(definition.approval_rules[0]?.ordering_policy).toEqual({
       subject_boundary: 'checkpoint',
       approval_before_assessment: true,
     });
+    expect(definition.approval_rules[0]?.materiality).toBe('non_material');
     expect(definition.branch_policies).toEqual([
       {
         branch_key: 'publication-release',

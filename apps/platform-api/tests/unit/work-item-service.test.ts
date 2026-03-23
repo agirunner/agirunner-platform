@@ -503,6 +503,57 @@ describe('WorkItemService', () => {
     expect((workItem as Record<string, unknown>).assessment_status).toBe('pending');
   });
 
+  it('exposes retained and invalidated assessment counts when revision policy preserves prior approvals', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflow_work_items wi')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1']);
+          expect(sql).toContain('retained_assessment_count');
+          expect(sql).toContain('invalidated_assessment_count');
+          expect(sql).toContain("revision_policy->>'assessment_retention'");
+          expect(sql).toContain('materiality text');
+          return {
+            rows: [
+              {
+                id: 'wi-review-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                stage_name: 'review',
+                title: 'Editorial review',
+                column_id: 'planned',
+                task_count: '1',
+                children_count: '0',
+                children_completed: '0',
+                current_subject_revision: 3,
+                required_assessment_count: 2,
+                approved_assessment_count: 1,
+                blocking_assessment_count: 0,
+                pending_assessment_count: 1,
+                retained_assessment_count: 1,
+                invalidated_assessment_count: 1,
+                assessment_status: 'pending',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+    };
+    const service = new WorkItemService(
+      pool as never,
+      { emit: vi.fn() } as never,
+      { enqueueForWorkflow: vi.fn() } as never,
+      { dispatchActivation: vi.fn() } as never,
+    );
+
+    const [workItem] = await service.listWorkflowWorkItems('tenant-1', 'workflow-1');
+
+    expect((workItem as Record<string, unknown>).retained_assessment_count).toBe(1);
+    expect((workItem as Record<string, unknown>).invalidated_assessment_count).toBe(1);
+    expect((workItem as Record<string, unknown>).assessment_status).toBe('pending');
+  });
+
   it('compares nullable delivery subject task ids without coercing uuids to empty strings', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
