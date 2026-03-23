@@ -17,10 +17,10 @@ import {
   PieChart as RechartsPieChart,
   Legend,
 } from 'recharts';
-import { Button } from '../../components/ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
-import { Badge } from '../../components/ui/badge.js';
-import { dashboardApi } from '../../lib/api.js';
+import { Button } from '../../../components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card.js';
+import { Badge } from '../../../components/ui/badge.js';
+import { dashboardApi } from '../../../lib/api.js';
 import {
   buildCostPosture,
   budgetPercentUsed,

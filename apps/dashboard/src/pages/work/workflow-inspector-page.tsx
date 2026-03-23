@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { ClipboardList, ExternalLink, Workflow } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 
-import { LogsSurface } from '../mission-control/logs-page.js';
+import { LogsSurface } from '../mission-control/logs/logs-page.js';
 import { dashboardApi } from '../../lib/api.js';
 import { buildWorkspaceArtifactBrowserPath } from '../../lib/artifact-navigation.js';
 import { Badge } from '../../components/ui/badge.js';

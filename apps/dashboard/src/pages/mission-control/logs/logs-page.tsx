@@ -7,12 +7,12 @@ import {
   dashboardApi,
   type LogEntry,
   type LogQueryResponse,
-} from '../../lib/api.js';
-import { ExecutionInspectorFilterBar } from '../../components/execution-inspector-filter-bar.js';
-import { ExecutionInspectorSummaryView } from '../../components/execution-inspector-summary-view.js';
-import { ExecutionInspectorDetailView } from '../../components/execution-inspector-detail-view.js';
-import { ExecutionInspectorDebugView } from '../../components/execution-inspector-debug-view.js';
-import { WorkflowBudgetCard } from '../../components/workflow-budget-card.js';
+} from '../../../lib/api.js';
+import { ExecutionInspectorFilterBar } from '../../../components/execution-inspector-filter-bar.js';
+import { ExecutionInspectorSummaryView } from '../../../components/execution-inspector-summary-view.js';
+import { ExecutionInspectorDetailView } from '../../../components/execution-inspector-detail-view.js';
+import { ExecutionInspectorDebugView } from '../../../components/execution-inspector-debug-view.js';
+import { WorkflowBudgetCard } from '../../../components/workflow-budget-card.js';
 import {
   buildLogFilters,
   DEFAULT_INSPECTOR_FILTERS,
@@ -23,12 +23,12 @@ import {
   readSelectedInspectorLogId,
   writeInspectorFilters,
   type InspectorFilters,
-} from '../../components/execution-inspector-support.js';
-import { LogViewer } from '../../components/log-viewer/log-viewer.js';
-import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
+} from '../../../components/execution-inspector-support.js';
+import { LogViewer } from '../../../components/log-viewer/log-viewer.js';
+import { Badge } from '../../../components/ui/badge.js';
+import { Button } from '../../../components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs.js';
 import { LogsPageActivityPackets } from './logs-page-activity-packets.js';
 import {
   buildLogWorkflowContextLink,

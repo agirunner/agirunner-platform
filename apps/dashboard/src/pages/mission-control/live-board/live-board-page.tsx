@@ -26,22 +26,22 @@ import {
   type DashboardEventRecord,
   type DashboardWorkflowActivationRecord,
   type DashboardWorkflowBoardResponse,
-} from '../../lib/api.js';
-import { subscribeToEvents } from '../../lib/sse.js';
-import { cn } from '../../lib/utils.js';
-import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/card.js';
-import { Skeleton } from '../../components/ui/skeleton.js';
-import { Badge } from '../../components/ui/badge.js';
-import { Button } from '../../components/ui/button.js';
-import { Input } from '../../components/ui/input.js';
-import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
-import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
-import { buildTimelineContext, describeTimelineEvent } from '../workflow-detail/workflow-history-card.js';
-import { buildTimelineEntryActions } from '../workflow-detail/workflow-history-card.actions.js';
-import { WorkflowControlActions } from '../workflow-detail/workflow-control-actions.js';
-import type { DashboardWorkflowTaskRow } from '../workflow-detail/workflow-detail-support.js';
-import { formatCountLabel, formatUsdDisplay } from '../workflow-detail/workflow-ux-formatting.js';
+} from '../../../lib/api.js';
+import { subscribeToEvents } from '../../../lib/sse.js';
+import { cn } from '../../../lib/utils.js';
+import { Card, CardHeader, CardTitle, CardContent } from '../../../components/ui/card.js';
+import { Skeleton } from '../../../components/ui/skeleton.js';
+import { Badge } from '../../../components/ui/badge.js';
+import { Button } from '../../../components/ui/button.js';
+import { Input } from '../../../components/ui/input.js';
+import { SavedViews, type SavedViewFilters } from '../../../components/saved-views.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../components/ui/tabs.js';
+import { buildWorkflowDetailPermalink } from '../../workflow-detail/workflow-detail-permalinks.js';
+import { buildTimelineContext, describeTimelineEvent } from '../../workflow-detail/workflow-history-card.js';
+import { buildTimelineEntryActions } from '../../workflow-detail/workflow-history-card.actions.js';
+import { WorkflowControlActions } from '../../workflow-detail/workflow-control-actions.js';
+import type { DashboardWorkflowTaskRow } from '../../workflow-detail/workflow-detail-support.js';
+import { formatCountLabel, formatUsdDisplay } from '../../workflow-detail/workflow-ux-formatting.js';
 import { buildAttentionTaskActions } from './live-board-attention-actions.js';
 import {
   countActiveSpecialistSteps,
