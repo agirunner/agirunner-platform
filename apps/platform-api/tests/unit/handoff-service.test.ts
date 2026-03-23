@@ -193,6 +193,79 @@ describe('HandoffService', () => {
     );
   });
 
+  it('uses the retried delivery task input subject revision when it is newer than stale metadata', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'task-1',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            role: 'developer',
+            stage_name: 'implementation',
+            state: 'in_progress',
+            rework_count: 1,
+            is_orchestrator_task: false,
+            input: { subject_revision: 3 },
+            metadata: { team_name: 'delivery', output_revision: 2 },
+          }],
+          rowCount: 1,
+        })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [], rowCount: 0 })
+        .mockResolvedValueOnce({ rows: [{ next_sequence: 4 }], rowCount: 1 })
+        .mockResolvedValueOnce({
+          rows: [{
+            id: 'handoff-3',
+            tenant_id: 'tenant-1',
+            workflow_id: 'workflow-1',
+            work_item_id: 'work-item-1',
+            task_id: 'task-1',
+            task_rework_count: 1,
+            request_id: 'req-3',
+            role: 'developer',
+            team_name: 'delivery',
+            stage_name: 'implementation',
+            sequence: 4,
+            summary: 'Implemented the revision 3 rework.',
+            completion: 'full',
+            changes: [],
+            decisions: [],
+            remaining_items: [],
+            blockers: [],
+            focus_areas: [],
+            known_risks: [],
+            successor_context: null,
+            role_data: {},
+            artifact_ids: [],
+            created_at: new Date('2026-03-23T12:00:00Z'),
+          }],
+          rowCount: 1,
+        }),
+    };
+
+    const service = new HandoffService(pool as never);
+    await service.submitTaskHandoff('tenant-1', 'task-1', {
+      request_id: 'req-3',
+      summary: 'Implemented the revision 3 rework.',
+      completion: 'full',
+    });
+
+    const insertCall = pool.query.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO task_handoffs'),
+    ) as [string, unknown[]] | undefined;
+    expect(JSON.parse(String(insertCall?.[1]?.[22] ?? '{}'))).toEqual(
+      expect.objectContaining({
+        task_kind: 'delivery',
+        subject_task_id: 'task-1',
+        subject_work_item_id: 'work-item-1',
+        subject_revision: 3,
+      }),
+    );
+  });
+
   it('rejects stale handoff submissions from an older task rework attempt', async () => {
     const pool = {
       query: vi
