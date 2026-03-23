@@ -205,6 +205,10 @@ const orchestratorActivationCheckpointSchema = z.object({
   }).strict(),
 }).strict();
 
+const orchestratorActivationFinishSchema = z.object({
+  request_id: z.string().min(1).max(255),
+}).strict();
+
 const orchestratorContinuityWriteSchema = z.object({
   request_id: z.string().min(1).max(255),
   work_item_id: z.string().uuid().optional(),
@@ -1087,6 +1091,41 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
             {
               ...body.activation_checkpoint,
               activation_id: body.activation_checkpoint.activation_id ?? taskScope.activation_id,
+            },
+            client,
+          ).then((checkpoint) => ({
+            last_activation_checkpoint: checkpoint,
+          })),
+      );
+      return { data: stored };
+    },
+  );
+
+  app.post(
+    '/api/v1/orchestrator/tasks/:taskId/activation-finish',
+    { preHandler: [authenticateApiKey, withScope('agent')] },
+    async (request) => {
+      const params = request.params as { taskId: string };
+      const body = parseOrThrow(orchestratorActivationFinishSchema.safeParse(request.body));
+      const taskScope = await taskScopeService.loadAgentOwnedOrchestratorTask(
+        request.auth!,
+        params.taskId,
+      );
+      const stored = await runIdempotentMutation(
+        app,
+        toolResultService,
+        request.auth!.tenantId,
+        taskScope.workflow_id,
+        'activation_finish',
+        body.request_id,
+        (client) =>
+          activationCheckpointService.persistDerivedCheckpoint(
+            request.auth!.tenantId,
+            {
+              task_id: taskScope.id,
+              workflow_id: taskScope.workflow_id,
+              work_item_id: taskScope.work_item_id,
+              activation_id: taskScope.activation_id,
             },
             client,
           ).then((checkpoint) => ({

@@ -5290,7 +5290,7 @@ describe('orchestratorControlRoutes', () => {
     expect(response.statusCode).toBe(200);
     expect(sendToWorker).toHaveBeenCalledTimes(1);
     expect(messageRow.delivery_state).toBe('delivered');
-    expect(response.json().data).toEqual(
+  expect(response.json().data).toEqual(
       expect.objectContaining({
         success: true,
         delivered: true,
@@ -5298,5 +5298,146 @@ describe('orchestratorControlRoutes', () => {
         delivery_state: 'delivered',
       }),
     );
+  });
+
+  it('persists a platform-owned activation finish checkpoint', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation_finish', 'finish-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes('WHERE tenant_id = $1')
+          && sql.includes('AND id = $2')
+          && !sql.includes('ANY($3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'task-replay']);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-replay',
+              workflow_id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              work_item_id: 'work-item-1',
+              stage_name: 'review',
+              activation_id: 'activation-1',
+              assigned_agent_id: 'agent-1',
+              is_orchestrator_task: true,
+              state: 'in_progress',
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_activations')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'activation-1']);
+          return {
+            rowCount: 1,
+            rows: [{ event_type: 'task.handoff_submitted' }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+          return {
+            rowCount: 1,
+            rows: [{
+              metadata: {
+                orchestrator_finish_state: {
+                  status_summary: 'Waiting on reviewer reassessment.',
+                  next_expected_event: 'task.output_pending_assessment',
+                  active_subordinate_tasks: ['task-review-1'],
+                },
+              },
+            }],
+          };
+        }
+        if (sql.includes('jsonb_build_object(\'last_activation_checkpoint\'')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'task-replay',
+            {
+              activation_id: 'activation-1',
+              trigger: 'task.handoff_submitted',
+              current_working_state: 'Waiting on reviewer reassessment.',
+              next_expected_event: 'task.output_pending_assessment',
+              important_ids: ['work-item-1', 'task-review-1'],
+            },
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              metadata: {
+                last_activation_checkpoint: {
+                  activation_id: 'activation-1',
+                  trigger: 'task.handoff_submitted',
+                  current_working_state: 'Waiting on reviewer reassessment.',
+                  next_expected_event: 'task.output_pending_assessment',
+                  important_ids: ['work-item-1', 'task-review-1'],
+                },
+              },
+            }],
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              response: {
+                last_activation_checkpoint: {
+                  activation_id: 'activation-1',
+                  trigger: 'task.handoff_submitted',
+                  current_working_state: 'Waiting on reviewer reassessment.',
+                  next_expected_event: 'task.output_pending_assessment',
+                  important_ids: ['work-item-1', 'task-review-1'],
+                },
+              },
+            }],
+          };
+        }
+        throw new Error(`unexpected pool query: ${sql}`);
+      }),
+      connect: vi.fn(async () => ({
+        query: pool.query,
+        release: vi.fn(),
+      })),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', { createTask: vi.fn() });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-replay/activation-finish',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'finish-1',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data.last_activation_checkpoint).toEqual({
+      activation_id: 'activation-1',
+      trigger: 'task.handoff_submitted',
+      current_working_state: 'Waiting on reviewer reassessment.',
+      next_expected_event: 'task.output_pending_assessment',
+      important_ids: ['work-item-1', 'task-review-1'],
+    });
   });
 });

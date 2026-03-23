@@ -11,6 +11,13 @@ export interface OrchestratorActivationCheckpoint {
   recent_memory_keys?: string[];
 }
 
+export interface ActivationFinishTaskScope {
+  task_id: string;
+  workflow_id: string;
+  work_item_id?: string | null;
+  activation_id?: string | null;
+}
+
 export class OrchestratorActivationCheckpointService {
   constructor(private readonly pool: DatabasePool) {}
 
@@ -38,6 +45,93 @@ export class OrchestratorActivationCheckpointService {
       asRecord(result.rows[0]?.metadata).last_activation_checkpoint as OrchestratorActivationCheckpoint,
     );
   }
+
+  async persistDerivedCheckpoint(
+    tenantId: string,
+    taskScope: ActivationFinishTaskScope,
+    db: DatabaseClient | DatabasePool = this.pool,
+  ): Promise<OrchestratorActivationCheckpoint> {
+    const continuity = await this.loadContinuityState(
+      tenantId,
+      taskScope.workflow_id,
+      taskScope.work_item_id ?? null,
+      db,
+    );
+    const checkpoint = normalizeCheckpoint({
+      activation_id: trimOrNull(taskScope.activation_id),
+      trigger: await this.loadActivationTrigger(
+        tenantId,
+        taskScope.workflow_id,
+        taskScope.activation_id ?? null,
+        db,
+      ),
+      current_working_state: trimOrNull(continuity.status_summary),
+      next_expected_event: trimOrNull(continuity.next_expected_event),
+      important_ids: normalizeStringList(compactStringValues([
+        taskScope.work_item_id,
+        ...(continuity.active_subordinate_tasks ?? []),
+      ])),
+    });
+    return this.persistCheckpoint(tenantId, taskScope.task_id, checkpoint, db);
+  }
+
+  private async loadActivationTrigger(
+    tenantId: string,
+    workflowId: string,
+    activationId: string | null,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<string | null | undefined> {
+    if (trimOrNull(activationId) == null) {
+      return undefined;
+    }
+    const result = await db.query<{ event_type: string }>(
+      `SELECT event_type
+         FROM workflow_activations
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND (id = $3 OR activation_id = $3)
+        ORDER BY CASE WHEN event_type = 'heartbeat' THEN 1 ELSE 0 END ASC,
+                 queued_at ASC,
+                 id ASC
+        LIMIT 1`,
+      [tenantId, workflowId, activationId],
+    );
+    return trimOrNull(result.rows[0]?.event_type);
+  }
+
+  private async loadContinuityState(
+    tenantId: string,
+    workflowId: string,
+    workItemId: string | null,
+    db: DatabaseClient | DatabasePool,
+  ): Promise<{
+    status_summary?: string | null;
+    next_expected_event?: string | null;
+    active_subordinate_tasks?: string[];
+  }> {
+    if (trimOrNull(workItemId) == null) {
+      return {};
+    }
+    const result = await db.query<{ metadata: Record<string, unknown> | null }>(
+      `SELECT metadata
+         FROM workflow_work_items
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+        LIMIT 1`,
+      [tenantId, workflowId, workItemId],
+    );
+    const continuity = asRecord(asRecord(result.rows[0]?.metadata).orchestrator_finish_state);
+    return {
+      status_summary: trimOrNull(continuity.status_summary as string | null | undefined),
+      next_expected_event: trimOrNull(continuity.next_expected_event as string | null | undefined),
+      active_subordinate_tasks: normalizeStringList(
+        Array.isArray(continuity.active_subordinate_tasks)
+          ? continuity.active_subordinate_tasks as string[]
+          : undefined,
+      ),
+    };
+  }
 }
 
 function normalizeCheckpoint(
@@ -63,6 +157,10 @@ function normalizeStringList(values: string[] | undefined): string[] | undefined
     .map((value) => (typeof value === 'string' ? value.trim() : ''))
     .filter((value) => value.length > 0);
   return filtered.length > 0 ? filtered : undefined;
+}
+
+function compactStringValues(values: Array<string | null | undefined>): string[] {
+  return values.filter((value): value is string => typeof value === 'string');
 }
 
 function trimOrNull(value: string | null | undefined): string | null | undefined {
