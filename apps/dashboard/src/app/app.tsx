@@ -70,7 +70,7 @@ const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspaces/worksp
 const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspaces/workspace-detail/workspace-detail-page.js').then((m) => ({ default: m.WorkspaceDetailPage })));
 
 const RoleDefinitionsPage = lazyWithRetry(() => import('../pages/config/role-definitions-page.js').then((m) => ({ default: m.RoleDefinitionsPage })));
-const OrchestratorPage = lazyWithRetry(() => import('../pages/config/orchestrator-page.js').then((m) => ({ default: m.OrchestratorPage })));
+const OrchestratorPage = lazyWithRetry(() => import('../pages/orchestrator/orchestrator-page.js').then((m) => ({ default: m.OrchestratorPage })));
 const LlmProvidersPage = lazyWithRetry(() => import('../pages/llm-providers/llm-providers-page.js').then((m) => ({ default: m.LlmProvidersPage })));
 const RuntimesPage = lazyWithRetry(() => import('../pages/config/runtimes-page.js').then((m) => ({ default: m.RuntimesPage })));
 const PlatformInstructionsPage = lazyWithRetry(() => import('../pages/config/platform-instructions-page.js').then((m) => ({ default: m.PlatformInstructionsPage })));
@@ -79,9 +79,9 @@ const PlaybookListPage = lazyWithRetry(() => import('../pages/config/playbook-li
 const PlaybookDetailPage = lazyWithRetry(() => import('../pages/config/playbook-detail-page.js').then((m) => ({ default: m.PlaybookDetailPage })));
 const PlaybookLaunchPage = lazyWithRetry(() => import('../pages/config/playbook-launch-page.js').then((m) => ({ default: m.PlaybookLaunchPage })));
 const ToolsPage = lazyWithRetry(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
-const WebhooksPage = lazyWithRetry(() => import('../pages/config/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
-const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/config/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
-const AgentProtocolsPage = lazyWithRetry(() => import('../pages/config/agent-protocols-page.js').then((m) => ({ default: m.AgentProtocolsPage })));
+const WebhooksPage = lazyWithRetry(() => import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
+const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
+const AgentProtocolsPage = lazyWithRetry(() => import('../pages/agent-protocols/agent-protocols-page.js').then((m) => ({ default: m.AgentProtocolsPage })));
 
 const ContainersPage = lazyWithRetry(() => import('../pages/fleet/containers-page.js').then((m) => ({ default: m.ContainersPage })));
 

@@ -1,4 +1,4 @@
-import { ConfigPlaceholderPage } from './config-placeholder-page.js';
+import { ConfigPlaceholderPage } from '../config-placeholder/config-placeholder-page.js';
 
 export function AgentProtocolsPage(): JSX.Element {
   return (
