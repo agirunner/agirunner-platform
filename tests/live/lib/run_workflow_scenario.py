@@ -21,6 +21,7 @@ from workflow_efficiency import (
 TERMINAL_STATES = {"completed", "failed", "cancelled"}
 DEFAULT_FINAL_SETTLE_ATTEMPTS = 60
 DEFAULT_FINAL_SETTLE_DELAY_SECONDS = 1
+TASK_LIST_PER_PAGE = 100
 
 
 def env(name: str, default: str | None = None, *, required: bool = False) -> str:
@@ -318,7 +319,12 @@ def _task_page_count(snapshot: Any) -> int:
     return pages if isinstance(pages, int) and pages > 0 else 1
 
 
-def fetch_workflow_tasks(client: ApiClient, *, workflow_id: str, per_page: int = 200) -> list[dict[str, Any]]:
+def fetch_workflow_tasks(
+    client: ApiClient,
+    *,
+    workflow_id: str,
+    per_page: int = TASK_LIST_PER_PAGE,
+) -> list[dict[str, Any]]:
     tasks: list[dict[str, Any]] = []
     page = 1
     total_pages = 1

@@ -95,8 +95,8 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         )
         self.assertEqual(
             [
-                ("GET", "/api/v1/tasks?workflow_id=wf-1&page=1&per_page=200", None, (200,), "tasks.list:1"),
-                ("GET", "/api/v1/tasks?workflow_id=wf-1&page=2&per_page=200", None, (200,), "tasks.list:2"),
+                ("GET", "/api/v1/tasks?workflow_id=wf-1&page=1&per_page=100", None, (200,), "tasks.list:1"),
+                ("GET", "/api/v1/tasks?workflow_id=wf-1&page=2&per_page=100", None, (200,), "tasks.list:2"),
             ],
             client.calls,
         )
@@ -2124,7 +2124,7 @@ class RunWorkflowScenarioTests(unittest.TestCase):
                             "completed_at": "2026-03-19T03:05:00Z",
                         }
                     ],
-                    "meta": {"page": 1, "pages": 1, "per_page": 200, "total": 1},
+                    "meta": {"page": 1, "pages": 1, "per_page": 100, "total": 1},
                 }
             ]
         )
