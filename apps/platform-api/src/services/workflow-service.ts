@@ -23,6 +23,7 @@ import {
   type StageGateRequestInput,
   type UpdateWorkflowWorkItemInput,
 } from './playbook-workflow-control-service.js';
+import type { TaskService } from './task-service.js';
 import {
   WorkItemService,
   type GetWorkflowWorkItemInput,
@@ -71,6 +72,7 @@ export class WorkflowService {
     config: WorkflowServiceConfig,
     connectionHub?: WorkerConnectionHub,
     logService?: LogService,
+    taskService?: Pick<TaskService, 'requestTaskChanges'>,
   ) {
     this.workspaceTimelineService = new WorkspaceTimelineService(pool);
     this.modelCatalogService = new ModelCatalogService(pool);
@@ -122,6 +124,7 @@ export class WorkflowService {
       stateService,
       activationService: this.activationService,
       activationDispatchService: this.activationDispatchService,
+      subjectTaskChangeService: taskService,
     });
     this.cancellationService = new WorkflowCancellationService({
       pool,

@@ -30,6 +30,7 @@ export const approvalQueueRoutes: FastifyPluginAsync = async (app) => {
       eventService: app.eventService,
       config: app.config,
     }),
+    subjectTaskChangeService: app.taskService,
   });
 
   app.get('/api/v1/approvals', { preHandler: [authenticateApiKey, withScope('agent')] }, async (request) => {

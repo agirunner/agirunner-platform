@@ -329,6 +329,7 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
       eventService: app.eventService,
       config: app.config,
     }),
+    subjectTaskChangeService: app.taskService,
   });
 
   const withManagedSpecialistTask = async (

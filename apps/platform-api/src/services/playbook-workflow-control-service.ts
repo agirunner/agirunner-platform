@@ -84,6 +84,15 @@ interface WorkflowStageGateRow extends WorkflowStageGateRecord {
   decided_at: Date | null;
 }
 
+interface SubjectTaskChangeService {
+  requestTaskChanges(
+    identity: ApiKeyIdentity,
+    taskId: string,
+    payload: { feedback: string },
+    client?: DatabaseClient,
+  ): Promise<unknown>;
+}
+
 interface BlockingStageWorkItemRow {
   id: string;
   title: string;
@@ -153,6 +162,7 @@ interface Dependencies {
   stateService: WorkflowStateService;
   activationService: WorkflowActivationService;
   activationDispatchService: WorkflowActivationDispatchService;
+  subjectTaskChangeService?: SubjectTaskChangeService;
 }
 
 export class PlaybookWorkflowControlService {
@@ -321,9 +331,10 @@ export class PlaybookWorkflowControlService {
     if (
       latestGate?.status === 'changes_requested'
       && latestGate.decided_at
-      && !(await this.hasNewStageHandoffSinceGateDecision(
+      && !(await this.hasNewGateRelatedHandoffSinceGateDecision(
         identity.tenantId,
         workflowId,
+        latestGate,
         stage.name,
         latestGate.decided_at,
         db,
@@ -1380,6 +1391,37 @@ export class PlaybookWorkflowControlService {
     return result.rows[0] ?? null;
   }
 
+  private async loadGateRequestChangeTargets(
+    tenantId: string,
+    workflowId: string,
+    gate: WorkflowStageGateRow,
+    db: DatabaseClient | DatabasePool,
+  ) {
+    const artifactTaskIds = gateArtifactTaskIds(gate.key_artifacts);
+    if (artifactTaskIds.length === 0) {
+      return [] as Array<{ task_id: string; owner_role: string | null }>;
+    }
+
+    const result = await db.query<{ id: string; owner_role: string | null }>(
+      `SELECT t.id,
+              COALESCE(wi.owner_role, NULLIF(BTRIM(t.role), '')) AS owner_role
+         FROM tasks t
+         LEFT JOIN workflow_work_items wi
+           ON wi.tenant_id = t.tenant_id
+          AND wi.workflow_id = t.workflow_id
+          AND wi.id = t.work_item_id
+        WHERE t.tenant_id = $1
+          AND t.workflow_id = $2
+          AND t.id = ANY($3::uuid[])`,
+      [tenantId, workflowId, artifactTaskIds],
+    );
+
+    return result.rows.map((row) => ({
+      task_id: row.id,
+      owner_role: row.owner_role,
+    }));
+  }
+
   private async reactivateApprovedStageIfAwaitingGate(
     tenantId: string,
     workflowId: string,
@@ -1406,13 +1448,30 @@ export class PlaybookWorkflowControlService {
     return result.rows[0] ?? { ...stage, status: 'active' };
   }
 
-  private async hasNewStageHandoffSinceGateDecision(
+  private async hasNewGateRelatedHandoffSinceGateDecision(
     tenantId: string,
     workflowId: string,
+    gate: WorkflowStageGateRow | null,
     stageName: string,
     decidedAt: Date,
     db: DatabaseClient | DatabasePool,
   ) {
+    const artifactTaskIds = gateArtifactTaskIds(gate?.key_artifacts);
+    if (artifactTaskIds.length > 0) {
+      const artifactResult = await db.query<{ has_rework: boolean }>(
+        `SELECT EXISTS (
+            SELECT 1
+              FROM task_handoffs h
+             WHERE h.tenant_id = $1
+               AND h.workflow_id = $2
+               AND h.task_id = ANY($3::uuid[])
+               AND h.created_at > $4
+          ) AS has_rework`,
+        [tenantId, workflowId, artifactTaskIds, decidedAt],
+      );
+      return artifactResult.rows[0]?.has_rework ?? false;
+    }
+
     const result = await db.query<{ has_rework: boolean }>(
       `SELECT EXISTS (
           SELECT 1
@@ -1495,16 +1554,34 @@ export class PlaybookWorkflowControlService {
     );
 
     if (input.action === 'request_changes') {
+      const changeTargets = await this.loadGateRequestChangeTargets(
+        identity.tenantId,
+        workflowId,
+        gate,
+        db,
+      );
+      const nextExpectedActor = singleResolvedOwnerRole(changeTargets);
+      if (this.deps.subjectTaskChangeService) {
+        const feedbackText = feedback ?? 'Changes requested during human gate review.';
+        for (const target of changeTargets) {
+          await this.deps.subjectTaskChangeService.requestTaskChanges(
+            identity,
+            target.task_id,
+            { feedback: feedbackText },
+            client,
+          );
+        }
+      }
       await db.query(
         `UPDATE workflow_work_items
-            SET next_expected_actor = COALESCE(owner_role, next_expected_actor),
+            SET next_expected_actor = COALESCE($4, owner_role, next_expected_actor),
                 next_expected_action = 'rework',
                 updated_at = now()
           WHERE tenant_id = $1
             AND workflow_id = $2
             AND stage_name = $3
             AND completed_at IS NULL`,
-        [identity.tenantId, workflowId, stage.name],
+        [identity.tenantId, workflowId, stage.name, nextExpectedActor],
       );
     } else {
       await db.query(
@@ -1615,6 +1692,26 @@ function normalizeArtifactList(
       return normalized;
     })
     .filter((artifact) => Object.keys(artifact).length > 0);
+}
+
+function gateArtifactTaskIds(value: unknown) {
+  const ids = new Set<string>();
+  for (const artifact of normalizeRecordArray(value)) {
+    const taskId = typeof artifact.task_id === 'string' ? artifact.task_id.trim() : '';
+    if (taskId) {
+      ids.add(taskId);
+    }
+  }
+  return [...ids];
+}
+
+function singleResolvedOwnerRole(targets: Array<{ owner_role: string | null }>) {
+  const roles = [...new Set(
+    targets
+      .map((target) => target.owner_role)
+      .filter((value): value is string => typeof value === 'string' && value.length > 0),
+  )];
+  return roles.length === 1 ? roles[0] : null;
 }
 
 function nullableTextOrNull(value: string | null | undefined, fallback: string | null): string | null {

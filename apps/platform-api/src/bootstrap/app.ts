@@ -142,7 +142,14 @@ export async function buildApp() {
     appConfig.WORKSPACE_ARTIFACT_MAX_UPLOAD_BYTES,
   );
   const playbookService = new PlaybookService(pool);
-  const workflowService = new WorkflowService(pool, eventService, appConfig, workerConnectionHub, logService);
+  const workflowService = new WorkflowService(
+    pool,
+    eventService,
+    appConfig,
+    workerConnectionHub,
+    logService,
+    taskService,
+  );
   const workflowActivationService = new WorkflowActivationService(pool, eventService);
   const workflowActivationDispatchService = new WorkflowActivationDispatchService({
     pool,

@@ -256,6 +256,7 @@ export const workflowRoutes: FastifyPluginAsync = async (app) => {
       eventService: app.eventService,
       config: app.config,
     }),
+    subjectTaskChangeService: app.taskService,
   });
   const workflowWorkItemTaskMutationPreHandler = [
     authenticateApiKey,
