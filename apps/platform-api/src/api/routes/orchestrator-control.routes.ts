@@ -1509,11 +1509,17 @@ async function normalizeOrchestratorTaskCreateInput(
     taskScope.workflow_id,
     topLevelNormalizedBody,
   );
-  const explicitLinkageBody = await normalizeExplicitAssessmentSubjectTaskLinkage(
+  const expectationTypedBody = await inferWorkItemExpectedTaskType(
     pool,
     tenantId,
     taskScope.workflow_id,
     stageAlignedBody,
+  );
+  const explicitLinkageBody = await normalizeExplicitAssessmentSubjectTaskLinkage(
+    pool,
+    tenantId,
+    taskScope.workflow_id,
+    expectationTypedBody,
   );
   if (hasExplicitReviewedTaskReference(explicitLinkageBody.input, explicitLinkageBody.metadata)) {
     return explicitLinkageBody;
@@ -1613,6 +1619,41 @@ async function normalizeOrchestratorTaskCreateInput(
     input: buildAssessmentSubjectInput(existingInput, resolvedLinkage),
     metadata: buildAssessmentSubjectMetadata(explicitLinkageBody.metadata, resolvedLinkage, 'activation_lineage_default'),
   };
+}
+
+async function inferWorkItemExpectedTaskType(
+  db: DatabaseQueryable,
+  tenantId: string,
+  workflowId: string,
+  body: z.infer<typeof orchestratorTaskCreateSchema>,
+): Promise<z.infer<typeof orchestratorTaskCreateSchema>> {
+  if (body.type || !body.work_item_id || !body.role) {
+    return body;
+  }
+
+  const result = await db.query<{
+    next_expected_actor: string | null;
+    next_expected_action: string | null;
+  }>(
+    `SELECT next_expected_actor, next_expected_action
+       FROM workflow_work_items
+      WHERE tenant_id = $1
+        AND workflow_id = $2
+        AND id = $3
+      LIMIT 1`,
+    [tenantId, workflowId, body.work_item_id],
+  );
+  const row = result.rows[0];
+  const expectedActor = readString(row?.next_expected_actor);
+  const expectedAction = readString(row?.next_expected_action);
+  if (!expectedActor || expectedActor !== body.role) {
+    return body;
+  }
+
+  if (expectedAction === 'assess') {
+    return { ...body, type: 'assessment' };
+  }
+  return body;
 }
 
 export async function normalizeExplicitAssessmentSubjectTaskLinkage(
