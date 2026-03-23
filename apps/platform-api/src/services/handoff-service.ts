@@ -138,7 +138,10 @@ export class HandoffService {
       return;
     }
 
-    throw new ValidationError('Task requires a structured handoff before completion');
+    throw new ValidationError('Task requires a structured handoff before completion', {
+      reason_code: 'required_structured_handoff',
+      recovery_hint: 'submit_required_handoff',
+    });
   }
 
   async submitTaskHandoff(

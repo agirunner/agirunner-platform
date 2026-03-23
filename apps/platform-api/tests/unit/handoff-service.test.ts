@@ -1780,7 +1780,13 @@ describe('HandoffService', () => {
         workflow_id: 'workflow-1',
         role: 'developer',
       }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      details: {
+        reason_code: 'required_structured_handoff',
+        recovery_hint: 'submit_required_handoff',
+      },
+    });
   });
 
   it('requires a fresh structured handoff for the current rework iteration before completion', async () => {

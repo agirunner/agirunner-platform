@@ -646,7 +646,10 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     };
     const handoffService = {
       assertRequiredTaskHandoffBeforeCompletion: vi.fn(async () => {
-        throw new ValidationError('Task requires a structured handoff before completion');
+        throw new ValidationError('Task requires a structured handoff before completion', {
+          reason_code: 'required_structured_handoff',
+          recovery_hint: 'submit_required_handoff',
+        });
       }),
     };
 
@@ -684,7 +687,13 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
           verification: { passed: true },
         },
       ),
-    ).rejects.toThrow('Task requires a structured handoff before completion');
+    ).rejects.toMatchObject({
+      code: 'VALIDATION_ERROR',
+      details: {
+        reason_code: 'required_structured_handoff',
+        recovery_hint: 'submit_required_handoff',
+      },
+    });
 
     expect(handoffService.assertRequiredTaskHandoffBeforeCompletion).toHaveBeenCalledWith(
       'tenant-1',
