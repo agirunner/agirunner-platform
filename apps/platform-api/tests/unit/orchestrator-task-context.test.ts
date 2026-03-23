@@ -203,6 +203,7 @@ describe('buildOrchestratorTaskContext', () => {
               playbook_name: 'Linear Flow',
               playbook_outcome: 'Ship work',
               playbook_definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 checkpoints: [{ name: 'implementation', goal: 'Build the work', human_gate: false }],
               },
             }],
@@ -248,6 +249,7 @@ describe('buildOrchestratorTaskContext', () => {
               playbook_name: 'Linear Flow',
               playbook_outcome: 'Ship work',
               playbook_definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 roles: ['product-manager', 'architect', 'reviewer'],
                 checkpoints: [{ name: 'requirements', goal: 'Define the work' }],
               },
@@ -302,6 +304,7 @@ describe('buildOrchestratorTaskContext', () => {
               playbook_name: 'Linear Flow',
               playbook_outcome: 'Ship work',
               playbook_definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 lifecycle: 'planned',
                 checkpoints: [
                   { name: 'implementation', goal: 'Build the work' },
@@ -416,6 +419,7 @@ describe('buildOrchestratorTaskContext', () => {
               playbook_name: 'Linear Flow',
               playbook_outcome: 'Ship work',
               playbook_definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 lifecycle: 'planned',
                 checkpoints: [
                   { name: 'implementation', goal: 'Build the work' },
@@ -512,6 +516,125 @@ describe('buildOrchestratorTaskContext', () => {
         work_item_id: 'review-item',
         stage_name: 'review',
         actor: 'reviewer',
+        action: 'assess',
+      }),
+    ]);
+  });
+
+  it('derives pending assessor dispatches when assessment continuity awaits multiple required assessors', async () => {
+    const db = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workflows w')) {
+          return {
+            rows: [{
+              id: 'workflow-1',
+              name: 'Workflow One',
+              lifecycle: 'planned',
+              metadata: {},
+              playbook_name: 'Linear Flow',
+              playbook_outcome: 'Ship work',
+              playbook_definition: {
+                board: { columns: [{ id: 'planned', label: 'Planned' }] },
+                lifecycle: 'planned',
+                roles: ['feature-engineer', 'security-assessor', 'qa-assessor'],
+                checkpoints: [
+                  { name: 'implementation-pass', goal: 'Build the work' },
+                ],
+                assessment_rules: [
+                  {
+                    checkpoint: 'implementation-pass',
+                    subject_role: 'feature-engineer',
+                    assessed_by: 'security-assessor',
+                    required: true,
+                  },
+                  {
+                    checkpoint: 'implementation-pass',
+                    subject_role: 'feature-engineer',
+                    assessed_by: 'qa-assessor',
+                    required: true,
+                  },
+                ],
+              },
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items')) {
+          return {
+            rows: [
+              {
+                id: 'implementation-item',
+                parent_work_item_id: null,
+                stage_name: 'implementation-pass',
+                title: 'Implement the release guardrails',
+                goal: 'Build the work',
+                column_id: 'planned',
+                owner_role: 'feature-engineer',
+                next_expected_actor: null,
+                next_expected_action: 'assess',
+                rework_count: 1,
+                priority: 'normal',
+                completed_at: null,
+                notes: null,
+                metadata: {},
+                current_subject_role: 'feature-engineer',
+                current_subject_revision: 3,
+              },
+            ],
+          };
+        }
+        if (sql.includes('FROM tasks')) {
+          return {
+            rows: [
+              {
+                id: 'delivery-task-3',
+                title: 'Implement revision 3',
+                role: 'feature-engineer',
+                state: 'output_pending_assessment',
+                work_item_id: 'implementation-item',
+                stage_name: 'implementation-pass',
+                activation_id: null,
+                assigned_agent_id: null,
+                claimed_at: null,
+                started_at: null,
+                completed_at: null,
+                is_orchestrator_task: false,
+                input: { subject_revision: 3 },
+                metadata: { task_kind: 'delivery', subject_revision: 3 },
+              },
+              {
+                id: 'security-assessment-3',
+                title: 'Security review revision 3',
+                role: 'security-assessor',
+                state: 'completed',
+                work_item_id: 'implementation-item',
+                stage_name: 'implementation-pass',
+                activation_id: null,
+                assigned_agent_id: null,
+                claimed_at: null,
+                started_at: null,
+                completed_at: '2026-03-23T19:55:00.000Z',
+                is_orchestrator_task: false,
+                input: { subject_task_id: 'delivery-task-3', subject_revision: 3 },
+                metadata: { task_kind: 'assessment', subject_task_id: 'delivery-task-3', subject_revision: 3 },
+              },
+            ],
+          };
+        }
+        return { rows: [] };
+      }),
+    };
+
+    const context = await buildOrchestratorTaskContext(db as never, 'tenant-1', {
+      id: 'task-1',
+      workflow_id: 'workflow-1',
+      is_orchestrator_task: true,
+    });
+
+    expect(context?.board.pending_dispatches).toEqual([
+      expect.objectContaining({
+        work_item_id: 'implementation-item',
+        stage_name: 'implementation-pass',
+        actor: 'qa-assessor',
         action: 'assess',
       }),
     ]);

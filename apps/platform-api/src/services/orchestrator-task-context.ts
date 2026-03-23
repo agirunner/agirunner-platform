@@ -1,6 +1,10 @@
 import type { DatabaseQueryable } from '../db/database.js';
 import { parsePlaybookDefinition } from '../orchestration/playbook-model.js';
 import {
+  readAssessmentSubjectLinkage,
+  readWorkflowTaskKind,
+} from './assessment-subject-service.js';
+import {
   deriveWorkflowStageProjection,
 } from './workflow-stage-projection.js';
 import {
@@ -107,8 +111,22 @@ export async function buildOrchestratorTaskContext(
                 priority,
                 completed_at,
                 notes,
-                metadata
+                metadata,
+                latest_delivery.subject_role AS current_subject_role,
+                latest_delivery.subject_revision AS current_subject_revision
            FROM workflow_work_items
+           LEFT JOIN LATERAL (
+             SELECT th.role AS subject_role,
+                    NULLIF(COALESCE(NULLIF(th.role_data->>'subject_revision', '')::int, 0), 0) AS subject_revision
+               FROM task_handoffs th
+              WHERE th.tenant_id = workflow_work_items.tenant_id
+                AND th.workflow_id = workflow_work_items.workflow_id
+                AND th.work_item_id = workflow_work_items.id
+                AND COALESCE(th.role_data->>'task_kind', 'delivery') = 'delivery'
+                AND th.completion = 'full'
+              ORDER BY th.sequence DESC, th.created_at DESC
+              LIMIT 1
+           ) latest_delivery ON true
           WHERE tenant_id = $1
             AND workflow_id = $2
           ORDER BY created_at ASC`,
@@ -127,7 +145,9 @@ export async function buildOrchestratorTaskContext(
                 claimed_at,
                 started_at,
                 completed_at,
-                is_orchestrator_task
+                is_orchestrator_task,
+                input,
+                metadata
            FROM tasks
           WHERE tenant_id = $1
             AND workflow_id = $2
@@ -161,6 +181,7 @@ export async function buildOrchestratorTaskContext(
     tenantId,
     workflow.playbook_definition,
   );
+  const definition = parsePlaybookDefinition(workflow.playbook_definition);
   const projection = deriveWorkflowStageProjection({
     lifecycle,
     stageRows,
@@ -169,7 +190,7 @@ export async function buildOrchestratorTaskContext(
   });
   const serializedWorkItems = workItemsRes.rows.map(serializeWorkItem);
   const serializedTasks = tasksRes.rows.map(serializeDates);
-  const pendingDispatches = derivePendingDispatches(serializedWorkItems, serializedTasks);
+  const pendingDispatches = derivePendingDispatches(serializedWorkItems, serializedTasks, definition);
   const workflowContext = {
     id: workflow.id,
     name: workflow.name,
@@ -260,6 +281,7 @@ function activeStageNames(rows: Record<string, unknown>[]): string[] {
 function derivePendingDispatches(
   workItems: Record<string, unknown>[],
   tasks: Record<string, unknown>[],
+  definition: ReturnType<typeof parsePlaybookDefinition>,
 ): PendingDispatch[] {
   return workItems.flatMap((workItem) => {
     if (workItem.completed_at !== null && workItem.completed_at !== undefined) {
@@ -269,7 +291,13 @@ function derivePendingDispatches(
     const workItemId = readOptionalString(workItem.id);
     const actor = readOptionalString(workItem.next_expected_actor);
     const action = readOptionalString(workItem.next_expected_action);
-    if (!workItemId || !actor || !action || actor === 'human') {
+    if (!workItemId || !action) {
+      return [];
+    }
+    if (!actor && action === 'assess') {
+      return derivePendingAssessmentDispatches(workItem, tasks, definition);
+    }
+    if (!actor || actor === 'human') {
       return [];
     }
     if (action === 'assess' && hasOpenChildAssessmentDispatchOwner(workItems, workItemId, actor)) {
@@ -297,6 +325,59 @@ function derivePendingDispatches(
   });
 }
 
+function derivePendingAssessmentDispatches(
+  workItem: Record<string, unknown>,
+  tasks: Record<string, unknown>[],
+  definition: ReturnType<typeof parsePlaybookDefinition>,
+): PendingDispatch[] {
+  const workItemId = readOptionalString(workItem.id);
+  const stageName = readOptionalString(workItem.stage_name);
+  const title = readOptionalString(workItem.title);
+  const subjectRole = readOptionalString(workItem.current_subject_role)
+    ?? readOptionalString(workItem.owner_role);
+  const subjectRevision = readOptionalPositiveInteger(workItem.current_subject_revision);
+  if (!workItemId || !stageName || !subjectRole || subjectRevision === null) {
+    return [];
+  }
+
+  const assessorRoles = Array.from(
+    new Set(
+      definition.assessment_rules
+        .filter(
+          (rule) =>
+            rule.subject_role === subjectRole
+            && ruleAppliesToCheckpoint(rule.checkpoint, stageName)
+            && rule.required !== false,
+        )
+        .map((rule) => rule.assessed_by)
+        .filter((role): role is string => typeof role === 'string' && role.trim().length > 0),
+    ),
+  );
+
+  return assessorRoles.flatMap((actor) => {
+    const matchingTasks = tasks.filter(
+      (task) =>
+        task.is_orchestrator_task !== true
+        && readOptionalString(task.work_item_id) === workItemId
+        && readOptionalString(task.role) === actor
+        && isAssessmentTaskForSubjectRevision(task, subjectRevision),
+    );
+    if (matchingTasks.some(isOpenSpecialistTask)) {
+      return [];
+    }
+    if (matchingTasks.some((task) => readOptionalString(task.state) === 'completed')) {
+      return [];
+    }
+    return [{
+      work_item_id: workItemId,
+      stage_name: stageName,
+      actor,
+      action: 'assess',
+      title,
+    }];
+  });
+}
+
 function hasOpenChildAssessmentDispatchOwner(
   workItems: Record<string, unknown>[],
   parentWorkItemId: string,
@@ -320,6 +401,18 @@ function isOpenSpecialistTask(task: Record<string, unknown>): boolean {
     || state === 'output_pending_assessment';
 }
 
+function isAssessmentTaskForSubjectRevision(
+  task: Record<string, unknown>,
+  subjectRevision: number,
+) {
+  const metadata = asRecord(task.metadata);
+  if (readWorkflowTaskKind(metadata, Boolean(task.is_orchestrator_task)) !== 'assessment') {
+    return false;
+  }
+  const linkage = readAssessmentSubjectLinkage(asRecord(task.input), metadata);
+  return linkage.subjectRevision === subjectRevision;
+}
+
 function asRecord(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown>
@@ -328,6 +421,19 @@ function asRecord(value: unknown): Record<string, unknown> {
 
 function readOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
+}
+
+function readOptionalPositiveInteger(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : null;
+}
+
+function ruleAppliesToCheckpoint(ruleCheckpoint: string | undefined, checkpointName: string | null) {
+  if (!ruleCheckpoint) {
+    return true;
+  }
+  return checkpointName === ruleCheckpoint;
 }
 
 async function loadPlaybookRoleDefinitions(
