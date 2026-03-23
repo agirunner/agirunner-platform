@@ -78,7 +78,7 @@ const AiConfigAssistantPage = lazyWithRetry(() => import('../pages/ai-config-ass
 const PlaybookListPage = lazyWithRetry(() => import('../pages/playbook-list/playbook-list-page.js').then((m) => ({ default: m.PlaybookListPage })));
 const PlaybookDetailPage = lazyWithRetry(() => import('../pages/playbook-detail/playbook-detail-page.js').then((m) => ({ default: m.PlaybookDetailPage })));
 const PlaybookLaunchPage = lazyWithRetry(() => import('../pages/config/playbook-launch-page.js').then((m) => ({ default: m.PlaybookLaunchPage })));
-const ToolsPage = lazyWithRetry(() => import('../pages/config/tools-page.js').then((m) => ({ default: m.ToolsPage })));
+const ToolsPage = lazyWithRetry(() => import('../pages/tools/tools-page.js').then((m) => ({ default: m.ToolsPage })));
 const WebhooksPage = lazyWithRetry(() => import('../pages/webhooks/webhooks-page.js').then((m) => ({ default: m.WebhooksPage })));
 const WorkItemTriggersPage = lazyWithRetry(() => import('../pages/work-item-triggers/work-item-triggers-page.js').then((m) => ({ default: m.WorkItemTriggersPage })));
 const AgentProtocolsPage = lazyWithRetry(() => import('../pages/agent-protocols/agent-protocols-page.js').then((m) => ({ default: m.AgentProtocolsPage })));
