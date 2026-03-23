@@ -1218,7 +1218,7 @@ export class TaskLifecycleService {
             AND th.resolution = 'request_changes'
             AND (
               COALESCE(th.role_data->>'subject_task_id', '') = $4
-              OR COALESCE(th.role_data->>'subject_work_item_id', '') = $3
+              OR COALESCE(th.role_data->>'subject_work_item_id', '') = $3::text
               OR EXISTS (
                 SELECT 1
                   FROM descendant_work_items review_wi

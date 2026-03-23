@@ -1607,6 +1607,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes("th.resolution = 'request_changes'")) {
+          expect(sql).toContain("COALESCE(th.role_data->>'subject_work_item_id', '') = $3::text");
           expect(params).toEqual([
             'tenant-1',
             'workflow-1',
