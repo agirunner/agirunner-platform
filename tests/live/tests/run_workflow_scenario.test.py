@@ -2037,6 +2037,51 @@ class RunWorkflowScenarioTests(unittest.TestCase):
 
         self.assertTrue(verification["passed"])
 
+    def test_evaluate_expectations_accepts_rework_between_scripted_approval_actions(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "gate_rework_sequences": [
+                    {
+                        "stage_name": "approval-gate",
+                        "request_action": "request_changes",
+                        "resume_action": "approve",
+                        "required_event_type": "task.handoff_submitted",
+                        "required_role": "rework-product-strategist",
+                    }
+                ]
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-approval-gate-rework",
+                        "role": "rework-product-strategist",
+                        "stage_name": "approval-gate",
+                        "completed_at": "2026-03-19T03:05:00Z",
+                    }
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[
+                {
+                    "stage_name": "approval-gate",
+                    "action": "request_changes",
+                    "submitted_at": "2026-03-19T03:00:00Z",
+                },
+                {
+                    "stage_name": "approval-gate",
+                    "action": "approve",
+                    "submitted_at": "2026-03-19T03:10:00Z",
+                },
+            ],
+            events={"data": {"data": []}},
+        )
+
+        self.assertTrue(verification["passed"])
+
     def test_evaluate_expectations_requires_specialist_rework_between_assessment_events(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {

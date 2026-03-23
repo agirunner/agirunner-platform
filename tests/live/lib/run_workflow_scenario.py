@@ -421,6 +421,29 @@ def _event_role(data: dict[str, Any]) -> Any:
     return data.get("task_role")
 
 
+def _approval_action_timestamp(
+    approval_actions: list[dict[str, Any]],
+    *,
+    stage_name: str,
+    action: str,
+    after: datetime | None = None,
+) -> datetime | None:
+    for item in approval_actions:
+        if not isinstance(item, dict):
+            continue
+        if item.get("stage_name") != stage_name:
+            continue
+        if item.get("action") != action:
+            continue
+        submitted_at = _parse_timestamp(item.get("submitted_at"))
+        if submitted_at is None:
+            continue
+        if after is not None and submitted_at <= after:
+            continue
+        return submitted_at
+    return None
+
+
 def _matches_rework_sequence(
     *,
     event_list: list[dict[str, Any]],
@@ -1385,23 +1408,36 @@ def evaluate_expectations(
             if not matched and request_event is not None and resume_event is not None:
                 request_at = _parse_timestamp(request_event.get("created_at"))
                 resume_at = _parse_timestamp(resume_event.get("created_at"))
-                if request_at is not None and resume_at is not None:
-                    for task in workflow_tasks:
-                        if not isinstance(task, dict):
-                            continue
-                        if task.get("stage_name") != stage_name:
-                            continue
-                        role = task.get("role")
-                        if require_non_orchestrator and role == "orchestrator":
-                            continue
-                        if required_role is not None and role != required_role:
-                            continue
-                        completed_at = _parse_timestamp(task.get("completed_at"))
-                        if completed_at is None:
-                            continue
-                        if request_at < completed_at < resume_at:
-                            matched = True
-                            break
+            else:
+                request_at = _approval_action_timestamp(
+                    approval_actions,
+                    stage_name=stage_name,
+                    action=request_action,
+                )
+                resume_at = _approval_action_timestamp(
+                    approval_actions,
+                    stage_name=stage_name,
+                    action=resume_action,
+                    after=request_at,
+                )
+
+            if not matched and request_at is not None and resume_at is not None:
+                for task in workflow_tasks:
+                    if not isinstance(task, dict):
+                        continue
+                    if task.get("stage_name") != stage_name:
+                        continue
+                    role = task.get("role")
+                    if require_non_orchestrator and role == "orchestrator":
+                        continue
+                    if required_role is not None and role != required_role:
+                        continue
+                    completed_at = _parse_timestamp(task.get("completed_at"))
+                    if completed_at is None:
+                        continue
+                    if request_at < completed_at < resume_at:
+                        matched = True
+                        break
 
             check_name = (
                 f"gate_rework_sequences:{stage_name}:{request_action}->{required_event_type}->{resume_action}"
