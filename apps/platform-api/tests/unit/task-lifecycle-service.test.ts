@@ -1607,7 +1607,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes("th.resolution = 'request_changes'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'work-item-1',
+            'task-review-loop-consumed',
+          ]);
           return {
             rowCount: 1,
             rows: [{
@@ -1686,7 +1691,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
           return { rows: [], rowCount: 0 };
         }
         if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes("th.resolution = 'request_changes'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'work-item-1']);
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'work-item-1',
+            'task-review-loop-superseded',
+          ]);
           return {
             rowCount: 1,
             rows: [{
@@ -1757,7 +1767,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes("th.resolution = 'request_changes'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'implementation-item',
+            'task-qa-rework-superseded',
+          ]);
           return {
             rowCount: 1,
             rows: [{
@@ -1817,6 +1832,83 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'task-qa-rework-superseded',
       {
         feedback: 'The same QA request-changes verdict was replayed after a fresh developer submission.',
+      },
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(client.query).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not reapply the same same-work-item assessment request after it was already applied', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('WITH RECURSIVE descendant_work_items') && sql.includes("th.resolution = 'request_changes'")) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'intake-item-1',
+            'task-intake-subject',
+          ]);
+          return {
+            rowCount: 1,
+            rows: [{
+              handoff_id: 'handoff-assessment-1',
+              assessment_task_id: 'task-assessment-1',
+              created_at: new Date('2026-03-23T00:19:38.000Z'),
+            }],
+          };
+        }
+        if (
+          sql.includes('FROM task_handoffs')
+          && sql.includes('task_id = $2')
+          && sql.includes('task_rework_count = $3')
+        ) {
+          expect(params).toEqual(['tenant-1', 'task-intake-subject', 1]);
+          return {
+            rowCount: 0,
+            rows: [],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-intake-subject',
+      state: 'output_pending_assessment',
+      workflow_id: 'workflow-1',
+      work_item_id: 'intake-item-1',
+      input: {
+        assessment_feedback: 'Earlier assessment feedback',
+      },
+      metadata: {
+        last_applied_assessment_request_handoff_id: 'handoff-assessment-1',
+        last_applied_assessment_request_task_id: 'task-assessment-1',
+      },
+      rework_count: 1,
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+    });
+
+    const result = await service.requestTaskChanges(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-intake-subject',
+      {
+        feedback: 'The same assessment verdict was replayed on the linked subject task.',
       },
     );
 

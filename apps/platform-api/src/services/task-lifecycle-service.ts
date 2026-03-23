@@ -1180,9 +1180,10 @@ export class TaskLifecycleService {
     task: Record<string, unknown>,
     db?: DatabaseClient,
   ): Promise<LatestAssessmentRequestHandoffRow | null> {
+    const taskId = readOptionalText(task.id);
     const workflowId = readOptionalText(task.workflow_id);
     const workItemId = readOptionalText(task.work_item_id);
-    if (!workflowId || !workItemId) {
+    if (!taskId || !workflowId || !workItemId) {
       return null;
     }
 
@@ -1211,16 +1212,23 @@ export class TaskLifecycleService {
           SELECT th.id AS handoff_id,
                  th.task_id AS assessment_task_id,
                  th.created_at
-           FROM descendant_work_items review_wi
-           JOIN task_handoffs th
-             ON th.tenant_id = $1
+           FROM task_handoffs th
+          WHERE th.tenant_id = $1
             AND th.workflow_id = $2
-            AND th.work_item_id = review_wi.id
-          WHERE review_wi.id <> $3
             AND th.resolution = 'request_changes'
+            AND (
+              COALESCE(th.role_data->>'subject_task_id', '') = $4
+              OR COALESCE(th.role_data->>'subject_work_item_id', '') = $3
+              OR EXISTS (
+                SELECT 1
+                  FROM descendant_work_items review_wi
+                 WHERE review_wi.id <> $3
+                   AND review_wi.id = th.work_item_id
+              )
+            )
           ORDER BY th.sequence DESC, th.created_at DESC
           LIMIT 1`,
-        [tenantId, workflowId, workItemId],
+        [tenantId, workflowId, workItemId, taskId],
       );
       return result.rows[0] ?? null;
     } finally {
