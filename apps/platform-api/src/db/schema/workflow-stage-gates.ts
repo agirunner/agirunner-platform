@@ -27,6 +27,7 @@ export const workflowStageGates = pgTable(
     requestedByType: text('requested_by_type').notNull(),
     requestedById: text('requested_by_id'),
     requestedAt: timestamp('requested_at', { withTimezone: true }).notNull().defaultNow(),
+    requestedByWorkItemId: uuid('requested_by_work_item_id'),
     subjectRevision: integer('subject_revision'),
     decisionFeedback: text('decision_feedback'),
     decidedByType: text('decided_by_type'),
