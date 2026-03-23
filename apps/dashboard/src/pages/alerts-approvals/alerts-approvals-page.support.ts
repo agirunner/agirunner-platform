@@ -1,4 +1,4 @@
-import { buildWorkflowDetailPermalink } from '../../workflow-detail/workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 
 interface TimestampedTaskLike {
   created_at?: string | null;

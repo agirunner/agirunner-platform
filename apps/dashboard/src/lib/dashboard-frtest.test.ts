@@ -142,7 +142,7 @@ describe('FR-035: workflow-level controls', () => {
       readComponent('pages/workflow-detail/workflow-detail-sections.tsx'),
       readComponent('pages/work/workflow-list-layouts.tsx'),
       readComponent('pages/work/workflow-list-board-view.tsx'),
-      readComponent('pages/mission-control/live-board/live-board-page.tsx'),
+      readComponent('pages/live-board/live-board-page.tsx'),
       readComponent('pages/workflow-detail/workflow-control-actions.tsx'),
     ].join('\n');
     expect(source).toContain('WorkflowControlActions');

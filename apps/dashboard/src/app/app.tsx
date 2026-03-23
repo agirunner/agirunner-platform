@@ -54,9 +54,9 @@ function isChunkLoadError(message: string): boolean {
 
 const LoginPage = lazyWithRetry(() => import('../pages/login/login-page.js').then((m) => ({ default: m.LoginPage })));
 
-const LiveBoardPage = lazyWithRetry(() => import('../pages/mission-control/live-board/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
-const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/mission-control/alerts-approvals/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
-const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/cost-dashboard/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
+const LiveBoardPage = lazyWithRetry(() => import('../pages/live-board/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
+const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/alerts-approvals/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
+const CostDashboardPage = lazyWithRetry(() => import('../pages/cost-dashboard/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
 
 const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
 const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
@@ -89,7 +89,7 @@ const ApiKeyPage = lazyWithRetry(() => import('../pages/governance/api-key-page.
 const UserManagementPage = lazyWithRetry(() => import('../pages/governance/user-management-page.js').then((m) => ({ default: m.UserManagementPage })));
 const RetentionPolicyPage = lazyWithRetry(() => import('../pages/governance/retention-policy-page.js').then((m) => ({ default: m.RetentionPolicyPage })));
 const SettingsPage = lazyWithRetry(() => import('../pages/governance/settings-page.js').then((m) => ({ default: m.SettingsPage })));
-const LogsPage = lazyWithRetry(() => import('../pages/mission-control/logs/logs-page.js').then((m) => ({ default: m.LogsPage })));
+const LogsPage = lazyWithRetry(() => import('../pages/logs/logs-page.js').then((m) => ({ default: m.LogsPage })));
 
 function PageFallback(): JSX.Element {
   return (

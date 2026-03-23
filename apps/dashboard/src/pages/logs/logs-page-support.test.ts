@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { DEFAULT_INSPECTOR_FILTERS } from '../../../components/execution-inspector-support.js';
+import { DEFAULT_INSPECTOR_FILTERS } from '../../components/execution-inspector-support.js';
 import {
   buildInspectorOverviewCards,
   buildRecentLogActivityPackets,

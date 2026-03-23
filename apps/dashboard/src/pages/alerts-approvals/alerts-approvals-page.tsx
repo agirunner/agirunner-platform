@@ -15,19 +15,19 @@ import {
   Zap,
 } from 'lucide-react';
 
-import { dashboardApi, type DashboardApprovalQueueResponse } from '../../../lib/api.js';
-import { toast } from '../../../lib/toast.js';
+import { dashboardApi, type DashboardApprovalQueueResponse } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
   CardDescription,
-} from '../../../components/ui/card.js';
-import { Badge } from '../../../components/ui/badge.js';
-import { Button } from '../../../components/ui/button.js';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../../components/ui/tabs.js';
-import { GateDetailCard } from '../../work/gate-detail-card.js';
+} from '../../components/ui/card.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs.js';
+import { GateDetailCard } from '../work/gate-detail-card.js';
 import {
   listFeedbackRecoveryHints,
   type FeedbackActionKind,

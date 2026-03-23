@@ -1,4 +1,4 @@
-import type { DashboardWorkflowBoardResponse } from '../../../lib/api.js';
+import type { DashboardWorkflowBoardResponse } from '../../lib/api.js';
 
 export interface LiveBoardWorkflowRecord {
   name?: string;

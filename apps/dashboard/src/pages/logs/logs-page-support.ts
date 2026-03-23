@@ -2,8 +2,8 @@ import type {
   LogEntry,
   LogOperationRecord,
   LogStatsResponse,
-} from '../../../lib/api.js';
-import type { InspectorFilters } from '../../../components/execution-inspector-support.js';
+} from '../../lib/api.js';
+import type { InspectorFilters } from '../../components/execution-inspector-support.js';
 import {
   describeExecutionNextAction,
   describeExecutionOperationLabel,
@@ -15,8 +15,8 @@ import {
   readExecutionSignals,
   shortId,
   summarizeLogContext,
-} from '../../../components/execution-inspector-support.js';
-import { formatLogRelativeTime } from '../../../components/log-viewer/log-time.js';
+} from '../../components/execution-inspector-support.js';
+import { formatLogRelativeTime } from '../../components/log-viewer/log-time.js';
 
 export interface InspectorOverviewCard {
   title: string;

@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 
-import { Badge } from '../../../components/ui/badge.js';
-import { Button } from '../../../components/ui/button.js';
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import type { RecentLogActivityPacket } from './logs-page-support.js';
 
 export function LogsPageActivityPackets(props: {

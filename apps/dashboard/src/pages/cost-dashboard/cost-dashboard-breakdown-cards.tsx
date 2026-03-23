@@ -1,4 +1,4 @@
-import { Card, CardContent, CardHeader, CardTitle } from '../../../components/ui/card.js';
+import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card.js';
 import type { CostSummaryRecord } from './cost-dashboard-page.support.js';
 import { buildCostBreakdownSummary } from './cost-dashboard-page.support.js';
 
