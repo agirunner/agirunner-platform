@@ -118,18 +118,18 @@ describe('FR-031a: live workflow execution view', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-032: workflow list view', () => {
   it('workflow-list-page exports WorkflowListPage component', () => {
-    const source = readComponent('pages/work/workflow-list-page.tsx');
+    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
     expect(source).toContain('export function WorkflowListPage');
   });
 
   it('workflow-list-page uses board posture and operator summaries', () => {
-    const source = readComponent('pages/work/workflow-list-page.tsx');
+    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
     expect(source).toContain('All Postures');
     expect(source).toContain('SavedViews');
   });
 
   it('workflow-list-page includes V2 launch controls', () => {
-    const source = readComponent('pages/work/workflow-list-page.tsx');
+    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
     expect(source).toContain('Launch Playbook');
     expect(source).toContain('SavedViews');
     expect(source).toContain('normalizeWorkflows');
@@ -140,8 +140,8 @@ describe('FR-035: workflow-level controls', () => {
   it('exposes workflow pause, resume, and cancel controls on summary surfaces', () => {
     const source = [
       readComponent('pages/workflow-detail/workflow-detail-sections.tsx'),
-      readComponent('pages/work/workflow-list-layouts.tsx'),
-      readComponent('pages/work/workflow-list-board-view.tsx'),
+      readComponent('pages/workflow-list/workflow-list-layouts.tsx'),
+      readComponent('pages/workflow-list/workflow-list-board-view.tsx'),
       readComponent('pages/live-board/live-board-page.tsx'),
       readComponent('pages/workflow-detail/workflow-control-actions.tsx'),
     ].join('\n');
@@ -165,25 +165,25 @@ describe('FR-035: workflow-level controls', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page', () => {
   it('task-detail-page exports TaskDetailPage component', () => {
-    const source = readComponent('pages/work/task-detail-page.tsx');
+    const source = readComponent('pages/task-detail/task-detail-page.tsx');
     expect(source).toContain('export function TaskDetailPage');
   });
 
   it('task-detail-page fetches full task data via getTask', () => {
-    const source = readComponent('pages/work/task-detail-page.tsx');
+    const source = readComponent('pages/task-detail/task-detail-page.tsx');
     expect(source).toContain('getTask');
     expect(source).toContain('useQuery');
   });
 
   it('task-detail-page renders structured task inspection views', () => {
-    const source = readComponent('pages/work/task-detail-page.tsx');
+    const source = readComponent('pages/task-detail/task-detail-page.tsx');
     expect(source).toContain('LogViewer');
     expect(source).toContain('Output');
     expect(source).toContain('TaskActionButtons');
   });
 
   it('task-detail-page uses work-item-first operator controls and current step labels', () => {
-    const source = readComponent('pages/work/task-detail-page.tsx');
+    const source = readComponent('pages/task-detail/task-detail-page.tsx');
     expect(source).toContain('Open Work Item Flow');
     expect(source).toContain('Specialist step');
     expect(source).toContain('Escalated specialist step');
@@ -191,7 +191,7 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
   });
 
   it('task-detail-page exposes produced artifact inspection links', () => {
-    const source = readComponent('pages/work/task-detail-page.tsx');
+    const source = readComponent('pages/task-detail/task-detail-page.tsx');
     expect(source).toContain('Artifacts');
     expect(source).toContain('TaskDetailArtifactsPanel');
   });
@@ -398,7 +398,7 @@ describe('operator information architecture', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-429: workflow list view with filters', () => {
   it('workflow-list-page renders the workflow table with board posture filtering capability', () => {
-    const source = readComponent('pages/work/workflow-list-page.tsx');
+    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
     expect(source).toContain('WorkflowListPage');
     expect(source).toContain('All Postures');
   });
@@ -410,7 +410,7 @@ describe('FR-429: workflow list view with filters', () => {
   });
 
   it('workflow-list-page subscribes to SSE to refresh list on workflow events', () => {
-    const source = readComponent('pages/work/workflow-list-page.tsx');
+    const source = readComponent('pages/workflow-list/workflow-list-page.tsx');
     expect(source).toContain('queryKey: [\'workflows\']');
     expect(source).toContain('dashboardApi.listWorkflows');
   });

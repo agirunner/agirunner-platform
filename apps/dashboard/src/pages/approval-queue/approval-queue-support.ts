@@ -2,13 +2,13 @@ import type {
   DashboardApprovalStageGateRecord,
   DashboardApprovalTaskRecord,
 } from '../../lib/api.js';
-import { readWorkflowOperatorFlowLabel } from './task-operator-flow.js';
+import { readWorkflowOperatorFlowLabel } from '../work-shared/task-operator-flow.js';
 import {
   buildGateBreadcrumbs,
   readGateDecisionSummary,
   readGateRequestSourceSummary,
   readGateResumptionSummary,
-} from './gate-detail-support.js';
+} from '../work-shared/gate-detail-support.js';
 
 export function computeWaitingTime(createdAt: string): string {
   const diffMs = Date.now() - new Date(createdAt).getTime();

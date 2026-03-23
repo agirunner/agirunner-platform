@@ -27,7 +27,7 @@ import {
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs.js';
-import { GateDetailCard } from '../work/gate-detail-card.js';
+import { GateDetailCard } from '../work-shared/gate-detail-card.js';
 import {
   listFeedbackRecoveryHints,
   type FeedbackActionKind,

@@ -33,7 +33,7 @@ import {
   buildWorkflowOperatorPermalink,
   usesWorkItemOperatorFlow,
   usesWorkflowOperatorFlow,
-} from './task-operator-flow.js';
+} from '../work-shared/task-operator-flow.js';
 import { TaskDetailArtifactsPanel } from './task-detail-artifacts-panel.js';
 import { TaskDetailContextSection } from './task-detail-context-section.js';
 import {

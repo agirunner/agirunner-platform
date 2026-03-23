@@ -58,13 +58,13 @@ const LiveBoardPage = lazyWithRetry(() => import('../pages/live-board/live-board
 const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/alerts-approvals/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
 const CostDashboardPage = lazyWithRetry(() => import('../pages/cost-dashboard/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
 
-const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
+const WorkflowListPage = lazyWithRetry(() => import('../pages/workflow-list/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
 const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
-const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/work/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
-const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
-const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
+const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/workflow-inspector/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
+const TaskListPage = lazyWithRetry(() => import('../pages/task-list/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
+const TaskDetailPage = lazyWithRetry(() => import('../pages/task-detail/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));
 const ArtifactPreviewPage = lazyWithRetry(() => import('../components/artifact-preview-page.js').then((m) => ({ default: m.ArtifactPreviewPage })));
-const ApprovalQueuePage = lazyWithRetry(() => import('../pages/work/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
+const ApprovalQueuePage = lazyWithRetry(() => import('../pages/approval-queue/approval-queue-page.js').then((m) => ({ default: m.ApprovalQueuePage })));
 
 const WorkspaceListPage = lazyWithRetry(() => import('../pages/workspaces/workspace-list/workspace-list-page.js').then((m) => ({ default: m.WorkspaceListPage })));
 const WorkspaceDetailPage = lazyWithRetry(() => import('../pages/workspaces/workspace-detail/workspace-detail-page.js').then((m) => ({ default: m.WorkspaceDetailPage })));

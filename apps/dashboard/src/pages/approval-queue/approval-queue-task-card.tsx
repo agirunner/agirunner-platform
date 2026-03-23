@@ -36,13 +36,13 @@ import {
   readTaskOperatorFlowLabel,
 } from './approval-queue-support.js';
 import { QueueInfoTile } from './approval-queue-layout.js';
-import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
+import { OperatorBreadcrumbTrail } from '../work-shared/operator-breadcrumb-trail.js';
 import { invalidateWorkflowQueries } from '../workflow-detail/workflow-detail-query.js';
 import {
   buildWorkflowOperatorPermalink,
   usesWorkItemOperatorFlow,
   usesWorkflowOperatorFlow,
-} from './task-operator-flow.js';
+} from '../work-shared/task-operator-flow.js';
 import {
   buildApprovalDecisionPacket,
   buildApprovalOutputPacket,

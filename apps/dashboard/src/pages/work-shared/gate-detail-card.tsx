@@ -28,7 +28,7 @@ import {
 import { actOnGate, getGateDetail, type DashboardGateDetailRecord } from './gate-api.js';
 import { GateHandoffTrail } from './gate-handoff-trail.js';
 import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
-import { computeWaitingTime } from './approval-queue-support.js';
+import { computeWaitingTime } from '../approval-queue/approval-queue-support.js';
 import {
   buildGateRecoveryPacket,
   buildGateBreadcrumbs,

@@ -3,7 +3,7 @@ import type { useSearchParams } from 'react-router-dom';
 
 import type { DashboardApprovalStageGateRecord } from '../../lib/api.js';
 import { invalidateWorkflowQueries } from '../workflow-detail/workflow-detail-query.js';
-import { readGateId } from './gate-detail-support.js';
+import { readGateId } from '../work-shared/gate-detail-support.js';
 
 export const APPROVAL_QUEUE_INITIAL_VISIBLE_COUNT = 25;
 export const APPROVAL_QUEUE_VISIBLE_INCREMENT = 25;

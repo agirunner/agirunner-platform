@@ -11,8 +11,8 @@ import {
   CardHeader,
   CardTitle,
 } from '../../components/ui/card.js';
-import { GateDetailCard } from './gate-detail-card.js';
-import { readGateResumeTaskSummary } from './gate-handoff-support.js';
+import { GateDetailCard } from '../work-shared/gate-detail-card.js';
+import { readGateResumeTaskSummary } from '../work-shared/gate-handoff-support.js';
 import { ApprovalQueueReviewDisclosure } from './approval-queue-review-disclosure.js';
 import {
   computeWaitingTime,
@@ -20,7 +20,7 @@ import {
   renderQueuePriorityLabel,
 } from './approval-queue-support.js';
 import { QueueInfoTile } from './approval-queue-layout.js';
-import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
+import { OperatorBreadcrumbTrail } from '../work-shared/operator-breadcrumb-trail.js';
 import {
   buildGateRecoveryPacket,
   buildGateBreadcrumbs,
@@ -28,7 +28,7 @@ import {
   readGatePacketSummary,
   readGateRequestSourceSummary,
   readGateResumptionSummary,
-} from './gate-detail-support.js';
+} from '../work-shared/gate-detail-support.js';
 import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 
 export function StageGateQueueCard(props: {

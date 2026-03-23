@@ -19,8 +19,8 @@ import {
   describeTaskGraphPacket,
   type DashboardWorkflowTaskRow,
 } from './workflow-detail-support.js';
-import { listWorkflowGates, type DashboardGateDetailRecord } from '../work/gate-api.js';
-import { GateDetailCard } from '../work/gate-detail-card.js';
+import { listWorkflowGates, type DashboardGateDetailRecord } from '../work-shared/gate-api.js';
+import { GateDetailCard } from '../work-shared/gate-detail-card.js';
 import {
   buildWorkflowDetailPermalink,
   isWorkflowDetailTargetHighlighted,

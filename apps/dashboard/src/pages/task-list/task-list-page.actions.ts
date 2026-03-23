@@ -1,7 +1,7 @@
 import {
   buildWorkflowOperatorPermalink,
   usesWorkItemOperatorFlow,
-} from './task-operator-flow.js';
+} from '../work-shared/task-operator-flow.js';
 
 export interface TaskListOperatorScope {
   id: string;
