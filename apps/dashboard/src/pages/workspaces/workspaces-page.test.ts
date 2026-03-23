@@ -10,7 +10,7 @@ describe('workspaces page source', () => {
   it('reuses the workspace delivery-history packet surface instead of raw timeline rows', () => {
     const source = readSource();
 
-    expect(source).toContain("import { WorkspaceDeliveryHistory } from './workspaces/workspace-delivery-history.js';");
+    expect(source).toContain("import { WorkspaceDeliveryHistory } from './workspace-delivery-history.js';");
     expect(source).toContain('<WorkspaceDeliveryHistory workspaceId={activeWorkspaceId} />');
     expect(source).not.toContain('status-badge status-${entry.state}');
     expect(source).not.toContain('Loading workspace timeline...');

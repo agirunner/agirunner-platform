@@ -1,6 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 
-import { Button } from '../components/ui/button.js';
+import { Button } from '../../components/ui/button.js';
 
 export function WorkflowSurfaceRecoveryState(props: {
   title: string;

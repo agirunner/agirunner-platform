@@ -1,4 +1,4 @@
-import type { DashboardEventRecord } from '../lib/api.js';
+import type { DashboardEventRecord } from '../../lib/api.js';
 import { describeTimelineEvent } from './workflow-history-card.js';
 import { formatRelativeTimestamp } from './workflow-detail-presentation.js';
 

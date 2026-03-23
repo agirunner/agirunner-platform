@@ -4,8 +4,8 @@ import { describe, expect, it } from 'vitest';
 
 function readSource() {
   return [
-    './work/task-detail-page.tsx',
-    './work/task-detail-artifacts-panel.tsx',
+    './task-detail-page.tsx',
+    './task-detail-artifacts-panel.tsx',
   ]
     .map((path) => readFileSync(resolve(import.meta.dirname, path), 'utf8'))
     .join('\n');
@@ -32,7 +32,7 @@ describe('secondary task detail page source', () => {
   it('renders the artifacts tab as a review packet instead of a raw file list', () => {
     const source = readSource();
     expect(source).toContain('TaskDetailArtifactsPanel');
-    expect(source).toContain('Artifact review packet');
+    expect(source).toContain('Artifact evidence packet');
     expect(source).toContain('Open preview workspace');
     expect(source).toContain('Download-first files');
   });

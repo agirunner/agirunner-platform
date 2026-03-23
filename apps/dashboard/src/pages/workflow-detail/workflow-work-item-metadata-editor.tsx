@@ -1,16 +1,16 @@
 import { Plus, Trash2 } from 'lucide-react';
 
-import { Button } from '../components/ui/button.js';
-import { Input } from '../components/ui/input.js';
+import { Button } from '../../components/ui/button.js';
+import { Input } from '../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select.js';
-import { Textarea } from '../components/ui/textarea.js';
-import { createStructuredEntryDraft, type StructuredEntryDraft } from './workspaces/workspace-detail-support.js';
+} from '../../components/ui/select.js';
+import { Textarea } from '../../components/ui/textarea.js';
+import { createStructuredEntryDraft, type StructuredEntryDraft } from '../workspaces/workspace-detail-support.js';
 import {
   type StructuredEntryValidationResult,
 } from './workflow-work-item-form-support.js';

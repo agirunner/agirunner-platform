@@ -3,7 +3,7 @@ import { ChevronDown, ChevronRight, Copy, Filter } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { cn } from '../../lib/utils.js';
 import type { LogEntry } from '../../lib/api.js';
-import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../../pages/workflow-detail/workflow-detail-permalinks.js';
 import { Button } from '../ui/button.js';
 import { LogEntryDetailLlm } from './log-entry-detail-llm.js';
 import { LogEntryDetailTool } from './log-entry-detail-tool.js';

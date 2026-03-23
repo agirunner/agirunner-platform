@@ -11,32 +11,32 @@ import {
   type DashboardWorkflowBoardColumn,
   type DashboardWorkflowStageRecord,
   type DashboardWorkflowWorkItemRecord,
-} from '../lib/api.js';
-import { buildArtifactPermalink } from '../components/artifact-preview-support.js';
+} from '../../lib/api.js';
+import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
 import {
   CopyableIdBadge,
   OperatorStatusBadge,
   RelativeTimestamp,
-} from '../components/operator-display.js';
-import { StructuredRecordView } from '../components/structured-data.js';
-import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
+} from '../../components/operator-display.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card.js';
+} from '../../components/ui/card.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog.js';
-import { Input } from '../components/ui/input.js';
-import { Textarea } from '../components/ui/textarea.js';
+} from '../../components/ui/dialog.js';
+import { Input } from '../../components/ui/input.js';
+import { Textarea } from '../../components/ui/textarea.js';
 import {
   Table,
   TableBody,
@@ -44,18 +44,18 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../components/ui/table.js';
+} from '../../components/ui/table.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select.js';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
-import { cn } from '../lib/utils.js';
-import { normalizeTaskState } from '../lib/task-state.js';
-import type { StructuredEntryDraft } from './workspaces/workspace-detail-support.js';
+} from '../../components/ui/select.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
+import { cn } from '../../lib/utils.js';
+import { normalizeTaskState } from '../../lib/task-state.js';
+import type { StructuredEntryDraft } from '../workspaces/workspace-detail-support.js';
 import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';
 import {
   areWorkItemMetadataDraftsEqual,

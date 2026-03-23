@@ -17,9 +17,9 @@ import {
   type DashboardWorkspaceTimelineEntry,
   type DashboardResolvedDocumentReference,
   type DashboardResolvedConfigResponse,
-} from '../lib/api.js';
-import { buildWorkspaceArtifactBrowserPath } from '../lib/artifact-navigation.js';
-import { subscribeToEvents } from '../lib/sse.js';
+} from '../../lib/api.js';
+import { buildWorkspaceArtifactBrowserPath } from '../../lib/artifact-navigation.js';
+import { subscribeToEvents } from '../../lib/sse.js';
 import {
   deriveWorkflowRoleOptions,
   groupTasksByStage,
@@ -38,7 +38,7 @@ import {
   createStructuredEntryDraft,
   objectToStructuredDrafts,
   type StructuredEntryDraft,
-} from './workspaces/workspace-detail-support.js';
+} from '../workspaces/workspace-detail-support.js';
 import {
   buildWorkItemMetadata,
   normalizeWorkItemPriority,
@@ -73,40 +73,40 @@ import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { deriveWorkflowStageDisplay } from './workflow-detail-stage-presentation.js';
 import { WorkflowSurfaceRecoveryState } from './workflow-surface-recovery-state.js';
 import { formatUsdDisplay } from './workflow-ux-formatting.js';
-import { ChainWorkflowDialog } from '../components/chain-workflow-dialog.js';
+import { ChainWorkflowDialog } from '../../components/chain-workflow-dialog.js';
 import {
   CopyableIdBadge,
   OperatorStatusBadge,
   RelativeTimestamp,
-} from '../components/operator-display.js';
-import { StructuredRecordView } from '../components/structured-data.js';
-import { WorkflowBudgetCard } from '../components/workflow-budget-card.js';
-import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
+} from '../../components/operator-display.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
+import { WorkflowBudgetCard } from '../../components/workflow-budget-card.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card.js';
+} from '../../components/ui/card.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog.js';
-import { Input } from '../components/ui/input.js';
-import { Textarea } from '../components/ui/textarea.js';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs.js';
+} from '../../components/ui/dialog.js';
+import { Input } from '../../components/ui/input.js';
+import { Textarea } from '../../components/ui/textarea.js';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select.js';
+} from '../../components/ui/select.js';
 
 interface TaskListResult {
   data: DashboardWorkflowTaskRow[];

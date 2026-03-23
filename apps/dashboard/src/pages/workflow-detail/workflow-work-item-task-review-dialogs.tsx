@@ -1,15 +1,15 @@
-import type { DashboardAgentRecord } from '../lib/api.js';
-import { SearchableCombobox, type ComboboxItem } from '../components/log-viewer/ui/searchable-combobox.js';
-import { Button } from '../components/ui/button.js';
+import type { DashboardAgentRecord } from '../../lib/api.js';
+import { SearchableCombobox, type ComboboxItem } from '../../components/log-viewer/ui/searchable-combobox.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog.js';
-import { Input } from '../components/ui/input.js';
-import { Textarea } from '../components/ui/textarea.js';
+} from '../../components/ui/dialog.js';
+import { Input } from '../../components/ui/input.js';
+import { Textarea } from '../../components/ui/textarea.js';
 
 function sortAgents(agents: DashboardAgentRecord[]): DashboardAgentRecord[] {
   return [...agents].sort((left, right) => agentDisplayName(left).localeCompare(agentDisplayName(right)));

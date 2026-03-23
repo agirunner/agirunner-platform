@@ -2,31 +2,31 @@ import { useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Copy, Key, Loader2, Plus, ShieldAlert } from 'lucide-react';
 
-import { dashboardApi, type DashboardApiKeyRecord } from '../lib/api.js';
-import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
+import { dashboardApi, type DashboardApiKeyRecord } from '../../lib/api.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card.js';
+} from '../../components/ui/card.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog.js';
-import { Input } from '../components/ui/input.js';
+} from '../../components/ui/dialog.js';
+import { Input } from '../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select.js';
+} from '../../components/ui/select.js';
 import {
   Table,
   TableBody,
@@ -34,7 +34,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../components/ui/table.js';
+} from '../../components/ui/table.js';
 
 type ApiKeyScope = 'agent' | 'worker' | 'admin';
 type ApiKeyOwnerType = 'user' | 'agent' | 'worker';

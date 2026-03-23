@@ -1,4 +1,4 @@
-import type { DashboardEventRecord } from '../lib/api.js';
+import type { DashboardEventRecord } from '../../lib/api.js';
 import type {
   TimelineDescriptor,
   TimelineLookupContext,

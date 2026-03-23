@@ -4,7 +4,7 @@ import type {
   DashboardWorkflowRelationRef,
   DashboardWorkflowStageRecord,
   DashboardWorkflowWorkItemRecord,
-} from '../lib/api.js';
+} from '../../lib/api.js';
 import type { DashboardWorkflowTaskRow } from './workflow-detail-support.js';
 import {
   capitalizeToken,

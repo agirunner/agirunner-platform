@@ -29,7 +29,7 @@ import {
   readGateRequestSourceSummary,
   readGateResumptionSummary,
 } from './gate-detail-support.js';
-import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 
 export function StageGateQueueCard(props: {
   gate: DashboardApprovalStageGateRecord;

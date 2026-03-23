@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { dashboardApi } from '../lib/api.js';
+import { dashboardApi } from '../../lib/api.js';
 
 export function LoginPage(): JSX.Element {
   const navigate = useNavigate();

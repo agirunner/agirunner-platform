@@ -102,13 +102,13 @@ describe('FR-030: modern SPA structure', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-031a: live workflow execution view', () => {
   it('workflow-detail-page fetches workflow data with a reactive query', () => {
-    const source = readComponent('pages/workflow-detail-page.tsx');
+    const source = readComponent('pages/workflow-detail/workflow-detail-page.tsx');
     expect(source).toContain('useQuery');
     expect(source).toContain('getWorkflow');
   });
 
   it('workflow-detail-page shows workflow state in the view', () => {
-    const source = readComponent('pages/workflow-detail-page.tsx');
+    const source = readComponent('pages/workflow-detail/workflow-detail-page.tsx');
     expect(source).toContain('.state');
   });
 });
@@ -139,11 +139,11 @@ describe('FR-032: workflow list view', () => {
 describe('FR-035: workflow-level controls', () => {
   it('exposes workflow pause, resume, and cancel controls on summary surfaces', () => {
     const source = [
-      readComponent('pages/workflow-detail-sections.tsx'),
+      readComponent('pages/workflow-detail/workflow-detail-sections.tsx'),
       readComponent('pages/work/workflow-list-layouts.tsx'),
       readComponent('pages/work/workflow-list-board-view.tsx'),
       readComponent('pages/mission-control/live-board-page.tsx'),
-      readComponent('pages/workflow-control-actions.tsx'),
+      readComponent('pages/workflow-detail/workflow-control-actions.tsx'),
     ].join('\n');
     expect(source).toContain('WorkflowControlActions');
     expect(source).toContain('dashboardApi.pauseWorkflow');
@@ -204,23 +204,23 @@ describe('FR-033 / FR-034 / FR-035 / FR-035a / FR-036 / FR-213: task detail page
 // ─────────────────────────────────────────────────────────────────────────────
 describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () => {
   it('workflow-detail-page exports WorkflowDetailPage component', () => {
-    const source = readComponent('pages/workflow-detail-page.tsx');
+    const source = readComponent('pages/workflow-detail/workflow-detail-page.tsx');
     expect(source).toContain('export function WorkflowDetailPage');
   });
 
   it('workflow-detail-page renders task dependency graph as a list', () => {
-    const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
+    const source = `${readComponent('pages/workflow-detail/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-sections.tsx')}`;
     expect(source).toContain('Execution Steps');
     expect(source).toContain('WorkflowWorkItemDetailPanel');
   });
 
   it('workflow-detail-page renders task state column for live status tracking', () => {
-    const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
+    const source = `${readComponent('pages/workflow-detail/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-sections.tsx')}`;
     expect(source).toContain('.state');
   });
 
   it('workflow-detail-page exposes playbook board state, resolved config, and workspace timeline', () => {
-    const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}`;
+    const source = `${readComponent('pages/workflow-detail/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-sections.tsx')}`;
     expect(source).toContain('Create Work Item');
     expect(source).toContain('deriveWorkflowStageDisplay');
     expect(source).toContain('Orchestrator Activations');
@@ -231,7 +231,7 @@ describe('FR-036a / FR-423 / FR-717: workflow detail and dependency graph', () =
   });
 
   it('workflow-detail-page exposes workflow documents and workspace memory controls', () => {
-    const source = `${readComponent('pages/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail-sections.tsx')}\n${readComponent('pages/workflow-detail-content.tsx')}`;
+    const source = `${readComponent('pages/workflow-detail/workflow-detail-page.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-sections.tsx')}\n${readComponent('pages/workflow-detail/workflow-detail-content.tsx')}`;
     expect(source).toContain('Workflow Documents');
     expect(source).toContain('Workspace Memory');
     expect(source).toContain('listWorkflowDocuments');
@@ -377,7 +377,7 @@ describe('FR-427: dashboard navigation and layout', () => {
 
 describe('operator information architecture', () => {
   it('workspaces page exposes workspace continuity controls', () => {
-    const source = readComponent('pages/workspaces-page.tsx');
+    const source = readComponent('pages/workspaces/workspaces-page.tsx');
     expect(source).toContain('export function WorkspacesPage');
     expect(source).toContain('Workspace Timeline');
     expect(source).toContain('Run Summary');
@@ -386,7 +386,7 @@ describe('operator information architecture', () => {
   });
 
   it('governance page exposes retention controls', () => {
-    const source = readComponent('pages/governance-page.tsx');
+    const source = readComponent('pages/governance/governance-page.tsx');
     expect(source).toContain('export function GovernancePage');
     expect(source).toContain('getRetentionPolicy');
     expect(source).toContain('updateRetentionPolicy');

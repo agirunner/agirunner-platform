@@ -1,6 +1,6 @@
-import type { DashboardEventRecord } from '../lib/api.js';
-import { Badge } from '../components/ui/badge.js';
-import { StructuredRecordView } from '../components/structured-data.js';
+import type { DashboardEventRecord } from '../../lib/api.js';
+import { Badge } from '../../components/ui/badge.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
 import type { TimelineDescriptor } from './workflow-history-card.narrative.js';
 import { describeTimelineEventPacket } from './workflow-history-card.packet.support.js';
 import { toStructuredDetailViewData } from './workflow-detail-presentation.js';

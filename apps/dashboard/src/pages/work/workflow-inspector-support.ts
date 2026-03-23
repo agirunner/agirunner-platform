@@ -6,7 +6,7 @@ import type {
   DashboardWorkflowStageRecord,
   DashboardWorkflowWorkItemRecord,
 } from '../../lib/api.js';
-import { readWorkflowRunSummary } from '../workflow-detail-support.js';
+import { readWorkflowRunSummary } from '../workflow-detail/workflow-detail-support.js';
 import {
   buildWorkflowInspectorTraceLinks,
   readHighlightedWorkItem,

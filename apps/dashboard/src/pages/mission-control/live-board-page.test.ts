@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import { formatCountLabel } from '../workflow-ux-formatting.js';
+import { formatCountLabel } from '../workflow-detail/workflow-ux-formatting.js';
 
 function readSource() {
   return [

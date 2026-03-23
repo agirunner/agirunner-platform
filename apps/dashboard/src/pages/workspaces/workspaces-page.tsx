@@ -1,15 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { StructuredRecordView } from '../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
 import {
   dashboardApi,
   type DashboardWorkspaceRecord,
   type DashboardWorkspaceResourceRecord,
   type DashboardWorkspaceSpecRecord,
   type DashboardWorkspaceToolCatalog,
-} from '../lib/api.js';
-import { WorkspaceDeliveryHistory } from './workspaces/workspace-delivery-history.js';
+} from '../../lib/api.js';
+import { WorkspaceDeliveryHistory } from './workspace-delivery-history.js';
 
 export function WorkspacesPage(): JSX.Element {
   const queryClient = useQueryClient();

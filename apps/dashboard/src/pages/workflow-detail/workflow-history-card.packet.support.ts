@@ -1,4 +1,4 @@
-import type { DashboardEventRecord } from '../lib/api.js';
+import type { DashboardEventRecord } from '../../lib/api.js';
 import type { DashboardPacketFact } from './workflow-detail-support.js';
 import type { TimelineDescriptor } from './workflow-history-card.narrative.js';
 import { buildBudgetSummary, capitalizeToken, humanizeToken, readString, readStringArray } from './workflow-history-card.narrative.helpers.js';

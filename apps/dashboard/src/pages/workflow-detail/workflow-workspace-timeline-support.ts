@@ -1,4 +1,4 @@
-import type { DashboardWorkspaceTimelineEntry } from '../lib/api.js';
+import type { DashboardWorkspaceTimelineEntry } from '../../lib/api.js';
 
 export interface WorkflowWorkspaceTimelineMetric {
   label: string;

@@ -2,18 +2,18 @@ import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Pause, Play, XCircle } from 'lucide-react';
 
-import type { ButtonProps } from '../components/ui/button.js';
-import { Button } from '../components/ui/button.js';
+import type { ButtonProps } from '../../components/ui/button.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '../components/ui/dialog.js';
-import { dashboardApi } from '../lib/api.js';
-import { toast } from '../lib/toast.js';
-import { cn } from '../lib/utils.js';
+} from '../../components/ui/dialog.js';
+import { dashboardApi } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
+import { cn } from '../../lib/utils.js';
 import { invalidateWorkflowQueries } from './workflow-detail-query.js';
 import { getWorkflowControlAvailability } from './workflow-control-actions.support.js';
 

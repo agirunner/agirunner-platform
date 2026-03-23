@@ -1,4 +1,4 @@
-import type { DashboardResolvedDocumentReference } from '../lib/api.js';
+import type { DashboardResolvedDocumentReference } from '../../lib/api.js';
 
 export interface WorkspaceMemoryEntryPacket {
   typeLabel: string;

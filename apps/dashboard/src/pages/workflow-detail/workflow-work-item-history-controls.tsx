@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react';
 
-import { SavedViews, type SavedViewFilters } from '../components/saved-views.js';
-import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
-import { Card, CardContent } from '../components/ui/card.js';
-import { Input } from '../components/ui/input.js';
+import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
+import { Card, CardContent } from '../../components/ui/card.js';
+import { Input } from '../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select.js';
+} from '../../components/ui/select.js';
 import type {
   WorkItemHistoryFilters,
   WorkItemHistorySignalFilter,

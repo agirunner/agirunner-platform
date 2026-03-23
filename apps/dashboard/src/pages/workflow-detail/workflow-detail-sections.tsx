@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { StructuredRecordView } from '../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
 import { Link, useLocation } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router-dom';
@@ -12,15 +12,15 @@ import type {
   DashboardWorkflowStageRecord,
   DashboardWorkflowState,
   DashboardWorkflowWorkItemRecord,
-} from '../lib/api.js';
-import { dashboardApi } from '../lib/api.js';
-import { cn } from '../lib/utils.js';
+} from '../../lib/api.js';
+import { dashboardApi } from '../../lib/api.js';
+import { cn } from '../../lib/utils.js';
 import {
   describeTaskGraphPacket,
   type DashboardWorkflowTaskRow,
 } from './workflow-detail-support.js';
-import { listWorkflowGates, type DashboardGateDetailRecord } from './work/gate-api.js';
-import { GateDetailCard } from './work/gate-detail-card.js';
+import { listWorkflowGates, type DashboardGateDetailRecord } from '../work/gate-api.js';
+import { GateDetailCard } from '../work/gate-detail-card.js';
 import {
   buildWorkflowDetailPermalink,
   isWorkflowDetailTargetHighlighted,
@@ -35,7 +35,7 @@ import {
   CopyableIdBadge,
   OperatorStatusBadge,
   RelativeTimestamp,
-} from '../components/operator-display.js';
+} from '../../components/operator-display.js';
 import {
   describeReviewPacket,
   formatRelativeTimestamp,
@@ -46,23 +46,23 @@ import {
   groupWorkflowWorkItems,
   type DashboardGroupedWorkItemRecord,
 } from './workflow-work-item-detail-support.js';
-import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card.js';
+} from '../../components/ui/card.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select.js';
-import { Textarea } from '../components/ui/textarea.js';
+} from '../../components/ui/select.js';
+import { Textarea } from '../../components/ui/textarea.js';
 import {
   Table,
   TableBody,
@@ -70,7 +70,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from '../components/ui/table.js';
+} from '../../components/ui/table.js';
 
 interface MissionControlSummary {
   total: number;

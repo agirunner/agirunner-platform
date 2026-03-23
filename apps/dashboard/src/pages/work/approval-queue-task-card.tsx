@@ -37,7 +37,7 @@ import {
 } from './approval-queue-support.js';
 import { QueueInfoTile } from './approval-queue-layout.js';
 import { OperatorBreadcrumbTrail } from './operator-breadcrumb-trail.js';
-import { invalidateWorkflowQueries } from '../workflow-detail-query.js';
+import { invalidateWorkflowQueries } from '../workflow-detail/workflow-detail-query.js';
 import {
   buildWorkflowOperatorPermalink,
   usesWorkItemOperatorFlow,

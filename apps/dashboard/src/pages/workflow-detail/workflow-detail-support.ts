@@ -1,8 +1,8 @@
 import type {
   DashboardEffectiveModelResolution,
   DashboardWorkflowWorkItemRecord,
-} from '../lib/api.js';
-import { normalizeTaskState } from '../lib/task-state.js';
+} from '../../lib/api.js';
+import { normalizeTaskState } from '../../lib/task-state.js';
 
 export interface DashboardWorkflowTaskRow {
   id: string;

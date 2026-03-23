@@ -1,16 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 
-import type { DashboardEventRecord } from '../lib/api.js';
-import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
+import type { DashboardEventRecord } from '../../lib/api.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card.js';
+} from '../../components/ui/card.js';
 import { buildTimelineEntryActions } from './workflow-history-card.actions.js';
 import {
   buildTimelineRecords,

@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-import { StructuredRecordView } from '../components/structured-data.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
 import {
   dashboardApi,
   type DashboardGovernanceRetentionPolicy,
-} from '../lib/api.js';
+} from '../../lib/api.js';
 
 export function GovernancePage(): JSX.Element {
   const queryClient = useQueryClient();

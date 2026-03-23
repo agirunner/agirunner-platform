@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom';
 
-import { StructuredRecordView } from '../components/structured-data.js';
-import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import { summarizeStructuredValue } from './workflow-work-item-detail-support.js';
 import type { WorkItemHistoryPacket } from './workflow-work-item-history-support.js';
 

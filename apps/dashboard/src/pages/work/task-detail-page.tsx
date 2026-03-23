@@ -28,7 +28,7 @@ import {
   buildTaskNextStep,
   readAssessmentSignals,
   readReworkDetails,
-} from '../task-detail-support.js';
+} from './task-detail-support.js';
 import {
   buildWorkflowOperatorPermalink,
   usesWorkItemOperatorFlow,
@@ -42,7 +42,7 @@ import {
   WorkItemReassignDialog,
   formatOutputOverrideDraft,
   parseOutputOverrideDraft,
-} from '../workflow-work-item-task-review-dialogs.js';
+} from '../workflow-detail/workflow-work-item-task-review-dialogs.js';
 
 interface Task {
   id: string;

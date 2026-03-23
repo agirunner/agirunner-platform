@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Badge } from '../../components/ui/badge.js';
 import { Button } from '../../components/ui/button.js';
 import { Card, CardContent } from '../../components/ui/card.js';
-import { WorkflowControlActions } from '../workflow-control-actions.js';
+import { WorkflowControlActions } from '../workflow-detail/workflow-control-actions.js';
 import {
   Table,
   TableBody,

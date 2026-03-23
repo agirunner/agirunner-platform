@@ -43,7 +43,7 @@ import {
   readGateTimelineRows,
   readGateId,
 } from './gate-detail-support.js';
-import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
 
 function readArtifactLabel(artifact: Record<string, unknown>, index: number): string {
   const label = artifact.label ?? artifact.path ?? artifact.name ?? artifact.id;

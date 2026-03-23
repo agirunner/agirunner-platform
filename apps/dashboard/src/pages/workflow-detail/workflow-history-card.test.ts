@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import type { DashboardEventRecord } from '../lib/api.js';
+import type { DashboardEventRecord } from '../../lib/api.js';
 import { buildTimelineContext, describeTimelineEvent } from './workflow-history-card.js';
 
 function buildEvent(overrides: Partial<DashboardEventRecord>): DashboardEventRecord {

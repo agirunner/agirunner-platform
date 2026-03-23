@@ -2,16 +2,16 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Activity, RefreshCw, Search } from 'lucide-react';
 
-import { dashboardApi } from '../lib/api.js';
-import { Button } from '../components/ui/button.js';
+import { dashboardApi } from '../../lib/api.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card.js';
-import { Input } from '../components/ui/input.js';
+} from '../../components/ui/card.js';
+import { Input } from '../../components/ui/input.js';
 
 function splitMetricLines(metrics: string | undefined): string[] {
   return (metrics ?? '')

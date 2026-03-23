@@ -2,7 +2,7 @@ import type {
   DashboardEventRecord,
   DashboardWorkflowRelationRef,
   DashboardWorkflowWorkItemRecord,
-} from '../lib/api.js';
+} from '../../lib/api.js';
 import type { DashboardWorkflowTaskRow } from './workflow-detail-support.js';
 import {
   buildBudgetSummary,

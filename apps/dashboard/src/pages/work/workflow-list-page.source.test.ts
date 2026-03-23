@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 function readSource() {
-  return readFileSync(resolve(import.meta.dirname, './work/workflow-list-page.tsx'), 'utf8');
+  return readFileSync(resolve(import.meta.dirname, './workflow-list-page.tsx'), 'utf8');
 }
 
 describe('workflow list page source', () => {

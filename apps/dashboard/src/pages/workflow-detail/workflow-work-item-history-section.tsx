@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 
-import type { DashboardEventRecord } from '../lib/api.js';
-import { Badge } from '../components/ui/badge.js';
+import type { DashboardEventRecord } from '../../lib/api.js';
+import { Badge } from '../../components/ui/badge.js';
 import { WorkItemHistoryFilterBar, WorkItemHistoryPagination } from './workflow-work-item-history-controls.js';
 import { WorkItemHistoryEntry } from './workflow-work-item-history-entry.js';
 import {

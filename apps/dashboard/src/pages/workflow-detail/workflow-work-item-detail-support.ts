@@ -4,8 +4,8 @@ import type {
   DashboardWorkItemMemoryEntry,
   DashboardWorkItemMemoryHistoryEntry,
   DashboardWorkflowWorkItemRecord,
-} from '../lib/api.js';
-import { normalizeTaskState } from '../lib/task-state.js';
+} from '../../lib/api.js';
+import { normalizeTaskState } from '../../lib/task-state.js';
 
 export interface DashboardWorkItemTaskRecord {
   id: string;

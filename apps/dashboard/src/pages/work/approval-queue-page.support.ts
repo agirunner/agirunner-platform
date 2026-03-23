@@ -2,7 +2,7 @@ import type { useQueryClient } from '@tanstack/react-query';
 import type { useSearchParams } from 'react-router-dom';
 
 import type { DashboardApprovalStageGateRecord } from '../../lib/api.js';
-import { invalidateWorkflowQueries } from '../workflow-detail-query.js';
+import { invalidateWorkflowQueries } from '../workflow-detail/workflow-detail-query.js';
 import { readGateId } from './gate-detail-support.js';
 
 export const APPROVAL_QUEUE_INITIAL_VISIBLE_COUNT = 25;

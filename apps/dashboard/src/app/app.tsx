@@ -52,14 +52,14 @@ function isChunkLoadError(message: string): boolean {
 
 /* ── Lazy page imports ────────────────────────────────────────────────── */
 
-const LoginPage = lazyWithRetry(() => import('../pages/login-page.js').then((m) => ({ default: m.LoginPage })));
+const LoginPage = lazyWithRetry(() => import('../pages/login/login-page.js').then((m) => ({ default: m.LoginPage })));
 
 const LiveBoardPage = lazyWithRetry(() => import('../pages/mission-control/live-board-page.js').then((m) => ({ default: m.LiveBoardPage })));
 const AlertsApprovalsPage = lazyWithRetry(() => import('../pages/mission-control/alerts-approvals-page.js').then((m) => ({ default: m.AlertsApprovalsPage })));
 const CostDashboardPage = lazyWithRetry(() => import('../pages/mission-control/cost-dashboard-page.js').then((m) => ({ default: m.CostDashboardPage })));
 
 const WorkflowListPage = lazyWithRetry(() => import('../pages/work/workflow-list-page.js').then((m) => ({ default: m.WorkflowListPage })));
-const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
+const WorkflowDetailPage = lazyWithRetry(() => import('../pages/workflow-detail/workflow-detail-page.js').then((m) => ({ default: m.WorkflowDetailPage })));
 const WorkflowInspectorPage = lazyWithRetry(() => import('../pages/work/workflow-inspector-page.js').then((m) => ({ default: m.WorkflowInspectorPage })));
 const TaskListPage = lazyWithRetry(() => import('../pages/work/task-list-page.js').then((m) => ({ default: m.TaskListPage })));
 const TaskDetailPage = lazyWithRetry(() => import('../pages/work/task-detail-page.js').then((m) => ({ default: m.TaskDetailPage })));

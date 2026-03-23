@@ -36,12 +36,12 @@ import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
 import { SavedViews, type SavedViewFilters } from '../../components/saved-views.js';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
-import { buildWorkflowDetailPermalink } from '../workflow-detail-permalinks.js';
-import { buildTimelineContext, describeTimelineEvent } from '../workflow-history-card.js';
-import { buildTimelineEntryActions } from '../workflow-history-card.actions.js';
-import { WorkflowControlActions } from '../workflow-control-actions.js';
-import type { DashboardWorkflowTaskRow } from '../workflow-detail-support.js';
-import { formatCountLabel, formatUsdDisplay } from '../workflow-ux-formatting.js';
+import { buildWorkflowDetailPermalink } from '../workflow-detail/workflow-detail-permalinks.js';
+import { buildTimelineContext, describeTimelineEvent } from '../workflow-detail/workflow-history-card.js';
+import { buildTimelineEntryActions } from '../workflow-detail/workflow-history-card.actions.js';
+import { WorkflowControlActions } from '../workflow-detail/workflow-control-actions.js';
+import type { DashboardWorkflowTaskRow } from '../workflow-detail/workflow-detail-support.js';
+import { formatCountLabel, formatUsdDisplay } from '../workflow-detail/workflow-ux-formatting.js';
 import { buildAttentionTaskActions } from './live-board-attention-actions.js';
 import {
   countActiveSpecialistSteps,

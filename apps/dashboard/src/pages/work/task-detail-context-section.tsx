@@ -6,7 +6,7 @@ import {
   readExecutionSummary,
   readHumanEscalationResponse,
   readAssessmentSignals,
-} from '../task-detail-support.js';
+} from './task-detail-support.js';
 import {
   buildActivationCheckpointPacket,
   buildClarificationPacket,

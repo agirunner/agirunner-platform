@@ -6,28 +6,28 @@ import {
   dashboardApi,
   type DashboardWorkspaceRecord,
   type DashboardResolvedDocumentReference,
-} from '../lib/api.js';
-import { buildArtifactPermalink } from '../components/artifact-preview-support.js';
-import { ChainStructuredEntryEditor } from '../components/chain-workflow-parameters.js';
-import { StructuredRecordView } from '../components/structured-data.js';
-import { Badge } from '../components/ui/badge.js';
-import { Button } from '../components/ui/button.js';
+} from '../../lib/api.js';
+import { buildArtifactPermalink } from '../../components/artifact-preview-support.js';
+import { ChainStructuredEntryEditor } from '../../components/chain-workflow-parameters.js';
+import { StructuredRecordView } from '../../components/structured-data.js';
+import { Badge } from '../../components/ui/badge.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from '../components/ui/card.js';
-import { Input } from '../components/ui/input.js';
+} from '../../components/ui/card.js';
+import { Input } from '../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../components/ui/select.js';
-import { Textarea } from '../components/ui/textarea.js';
+} from '../../components/ui/select.js';
+import { Textarea } from '../../components/ui/textarea.js';
 import type {
   DashboardWorkspaceMemoryEntry,
   DashboardWorkflowTaskRow,
@@ -49,7 +49,7 @@ import {
 import {
   buildStructuredObject,
   type StructuredEntryDraft,
-} from './workspaces/workspace-detail-support.js';
+} from '../workspaces/workspace-detail-support.js';
 import {
   buildMetadataRecord,
   createMetadataDraft,
@@ -57,7 +57,7 @@ import {
   type MetadataDraft,
   type MetadataValueType,
   updateMetadataDraft,
-} from './workspaces/content-browser-metadata-support.js';
+} from '../workspaces/content-browser-metadata-support.js';
 import {
   buildWorkflowDocumentCreatePayload,
   buildWorkflowDocumentUpdatePayload,

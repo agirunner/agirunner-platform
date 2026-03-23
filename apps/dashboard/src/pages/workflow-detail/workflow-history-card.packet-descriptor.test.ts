@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import type { DashboardEventRecord } from '../lib/api.js';
+import type { DashboardEventRecord } from '../../lib/api.js';
 import { buildTimelineContext, describeTimelineEvent } from './workflow-history-card.js';
 import { describeTimelineEventPacket } from './workflow-history-card.packet.support.js';
 

@@ -2,7 +2,7 @@ import type {
   DashboardResolvedDocumentReference,
   DashboardWorkflowDocumentCreateInput,
   DashboardWorkflowDocumentUpdateInput,
-} from '../lib/api.js';
+} from '../../lib/api.js';
 
 export interface WorkflowDocumentDraft {
   logicalName: string;
