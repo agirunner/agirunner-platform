@@ -3,17 +3,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-import { dashboardApi, type DashboardWorkspaceRecord } from '../../../lib/api.js';
-import { toast } from '../../../lib/toast.js';
-import { Button } from '../../../components/ui/button.js';
+import { dashboardApi, type DashboardWorkspaceRecord } from '../../lib/api.js';
+import { toast } from '../../lib/toast.js';
+import { Button } from '../../components/ui/button.js';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '../../../components/ui/dialog.js';
-import { Input } from '../../../components/ui/input.js';
+} from '../../components/ui/dialog.js';
+import { Input } from '../../components/ui/input.js';
 
 interface WorkspaceFormData {
   name: string;

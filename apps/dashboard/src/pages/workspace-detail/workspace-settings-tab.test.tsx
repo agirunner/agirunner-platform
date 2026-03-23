@@ -30,7 +30,7 @@ describe('workspace settings tab source', () => {
     expect(tabSource).toContain('SettingsDisclosureSection');
     expect(tabSource).toContain('SelectTrigger');
     expect(tabSource).toContain('aria-invalid');
-    expect(tabSource).toContain('max-w-3xl text-sm leading-5 text-muted');
+    expect(tabSource).toContain('text-sm leading-6 text-muted');
     expect(tabSource).not.toContain('Settings overview');
     expect(tabSource).not.toContain('General');
     expect(tabSource).not.toContain('Repository defaults');

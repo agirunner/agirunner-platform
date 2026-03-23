@@ -49,7 +49,7 @@ import {
 import {
   buildStructuredObject,
   type StructuredEntryDraft,
-} from '../workspaces/workspace-detail/workspace-detail-support.js';
+} from '../workspace-detail/workspace-detail-support.js';
 import {
   buildMetadataRecord,
   createMetadataDraft,
@@ -57,7 +57,7 @@ import {
   type MetadataDraft,
   type MetadataValueType,
   updateMetadataDraft,
-} from '../workspaces/content-browser-metadata-support.js';
+} from '../workspace-shared/content-browser-metadata-support.js';
 import {
   buildWorkflowDocumentCreatePayload,
   buildWorkflowDocumentUpdatePayload,

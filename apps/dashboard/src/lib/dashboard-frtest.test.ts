@@ -377,7 +377,7 @@ describe('FR-427: dashboard navigation and layout', () => {
 
 describe('operator information architecture', () => {
   it('workspaces page exposes workspace continuity controls', () => {
-    const source = readComponent('pages/workspaces/workspaces-page.tsx');
+    const source = readComponent('pages/workspaces-overview/workspaces-page.tsx');
     expect(source).toContain('export function WorkspacesPage');
     expect(source).toContain('Workspace Timeline');
     expect(source).toContain('Run Summary');

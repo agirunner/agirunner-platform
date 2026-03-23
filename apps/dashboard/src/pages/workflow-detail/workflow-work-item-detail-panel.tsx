@@ -55,7 +55,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs.js';
 import { cn } from '../../lib/utils.js';
 import { normalizeTaskState } from '../../lib/task-state.js';
-import type { StructuredEntryDraft } from '../workspaces/workspace-detail/workspace-detail-support.js';
+import type { StructuredEntryDraft } from '../workspace-detail/workspace-detail-support.js';
 import { WorkItemEventHistorySection } from './workflow-work-item-history-section.js';
 import {
   areWorkItemMetadataDraftsEqual,

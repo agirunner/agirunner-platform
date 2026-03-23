@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
+import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 import type { WorkspaceOverview } from './workspace-detail-support.js';
 
 interface WorkspaceSettingsShellProps {

@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
-import { dashboardApi } from '../../../lib/api.js';
-import type { DashboardWorkspaceRecord } from '../../../lib/api.js';
+import { dashboardApi } from '../../lib/api.js';
+import type { DashboardWorkspaceRecord } from '../../lib/api.js';
 import {
   buildWorkspaceDetailHeaderState,
   buildWorkspaceKnowledgeOverview,

@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from 'lucide-react';
 
-import { Button } from '../../../components/ui/button.js';
-import { Input } from '../../../components/ui/input.js';
+import { Button } from '../../components/ui/button.js';
+import { Input } from '../../components/ui/input.js';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '../../../components/ui/select.js';
-import { Textarea } from '../../../components/ui/textarea.js';
+} from '../../components/ui/select.js';
+import { Textarea } from '../../components/ui/textarea.js';
 import {
   createStructuredEntryDraft,
   type StructuredEntryDraft,
   type StructuredValueType,
 } from './workspace-detail-support.js';
-import { cn } from '../../../lib/utils.js';
+import { cn } from '../../lib/utils.js';
 
 export function StructuredEntryEditor(props: {
   title: string;

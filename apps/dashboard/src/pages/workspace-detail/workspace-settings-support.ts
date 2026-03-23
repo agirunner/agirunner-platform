@@ -4,7 +4,7 @@ import type {
   DashboardWorkspaceSettingsInput,
   DashboardWorkspaceSettingsRecord,
   DashboardWorkspaceStorageType,
-} from '../../../lib/api.js';
+} from '../../lib/api.js';
 
 export type WorkspaceSecretMode = 'preserve' | 'replace' | 'clear';
 

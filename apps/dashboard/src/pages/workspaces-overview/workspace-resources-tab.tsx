@@ -5,7 +5,7 @@ import type { DashboardWorkspaceResourceRecord } from '../../lib/api.js';
 import { Badge } from '../../components/ui/badge.js';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card.js';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table.js';
-import { ErrorCard, LoadingCard, WorkspaceMetricCard } from './workspace-detail/workspace-detail-shared.js';
+import { ErrorCard, LoadingCard, WorkspaceMetricCard } from '../workspace-detail/workspace-detail-shared.js';
 
 export function WorkspaceResourcesTab({ workspaceId }: { workspaceId: string }): JSX.Element {
   const { data, isLoading, error } = useQuery({
