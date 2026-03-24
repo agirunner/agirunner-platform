@@ -70,14 +70,14 @@ export function PlaybookControlCenterCard(
             href="#playbook-orchestrator-controls"
           />
           <SignalCard
-            title="Parallelism policy"
-            value={summary.parallelism}
-            href="#playbook-orchestrator-controls"
+            title="Board structure"
+            value={summary.board}
+            href="#playbook-board"
           />
           <SignalCard
-            title="Checkpoints and rules"
-            value={summary.checkpoints}
-            href="#playbook-checkpoints"
+            title="Workflow stages"
+            value={summary.stages}
+            href="#playbook-stages"
           />
           <SignalCard
             title="Launch parameters"

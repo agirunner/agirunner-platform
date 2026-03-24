@@ -1,8 +1,4 @@
 import type { DashboardPlaybookRecord } from '../../lib/api.js';
-import {
-  hydratePlaybookAuthoringDraft,
-  type PlaybookAuthoringDraft,
-} from '../playbook-authoring/playbook-authoring-support.js';
 
 export interface PlaybookRevisionDiffRow {
   label: string;
@@ -14,9 +10,9 @@ export interface PlaybookRevisionDiffRow {
 export interface PlaybookControlSummary {
   roles: string;
   process: string;
-  rules: string;
+  stages: string;
+  board: string;
   parallelism: string;
-  checkpoints: string;
   parameters: string;
 }
 
@@ -33,8 +29,8 @@ export function buildPlaybookRevisionDiff(
   current: DashboardPlaybookRecord,
   compared: DashboardPlaybookRecord,
 ): PlaybookRevisionDiffRow[] {
-  const currentDraft = readPlaybookDraft(current);
-  const comparedDraft = readPlaybookDraft(compared);
+  const currentDefinition = readDefinition(current);
+  const comparedDefinition = readDefinition(compared);
 
   return [
     diffRow('Name', current.name, compared.name),
@@ -46,21 +42,20 @@ export function buildPlaybookRevisionDiff(
       current.is_active === false ? 'inactive' : 'active',
       compared.is_active === false ? 'inactive' : 'active',
     ),
-    diffRow('Roles', formatRoles(currentDraft), formatRoles(comparedDraft)),
+    diffRow('Roles', formatRoles(currentDefinition), formatRoles(comparedDefinition)),
     diffRow(
       'Process instructions',
-      formatProcessInstructions(currentDraft),
-      formatProcessInstructions(comparedDraft),
+      formatProcessInstructions(currentDefinition),
+      formatProcessInstructions(comparedDefinition),
     ),
-    diffRow('Rules', formatRules(currentDraft), formatRules(comparedDraft)),
-    diffRow('Entry column', formatEntryColumn(currentDraft), formatEntryColumn(comparedDraft)),
-    diffRow('Board columns', formatColumns(currentDraft), formatColumns(comparedDraft)),
-    diffRow('Checkpoints', formatCheckpoints(currentDraft), formatCheckpoints(comparedDraft)),
-    diffRow('Parameters', formatParameters(currentDraft), formatParameters(comparedDraft)),
+    diffRow('Stages', formatStages(currentDefinition), formatStages(comparedDefinition)),
+    diffRow('Entry column', formatEntryColumn(currentDefinition), formatEntryColumn(comparedDefinition)),
+    diffRow('Board columns', formatColumns(currentDefinition), formatColumns(comparedDefinition)),
+    diffRow('Parameters', formatParameters(currentDefinition), formatParameters(comparedDefinition)),
     diffRow(
       'Parallelism policy',
-      formatParallelism(currentDraft),
-      formatParallelism(comparedDraft),
+      formatParallelism(currentDefinition),
+      formatParallelism(comparedDefinition),
     ),
   ];
 }
@@ -68,14 +63,14 @@ export function buildPlaybookRevisionDiff(
 export function summarizePlaybookControls(
   playbook: DashboardPlaybookRecord,
 ): PlaybookControlSummary {
-  const draft = readPlaybookDraft(playbook);
+  const definition = readDefinition(playbook);
   return {
-    roles: formatRoles(draft),
-    process: formatProcessInstructions(draft),
-    rules: formatRules(draft),
-    parallelism: formatParallelism(draft),
-    checkpoints: formatCheckpoints(draft),
-    parameters: formatParameters(draft),
+    roles: formatRoles(definition),
+    process: formatProcessInstructions(definition),
+    stages: formatStages(definition),
+    board: formatColumns(definition),
+    parallelism: formatParallelism(definition),
+    parameters: formatParameters(definition),
   };
 }
 
@@ -94,8 +89,8 @@ export function renderPlaybookSnapshot(playbook: DashboardPlaybookRecord): strin
   );
 }
 
-function readPlaybookDraft(playbook: DashboardPlaybookRecord): PlaybookAuthoringDraft {
-  return hydratePlaybookAuthoringDraft(playbook.lifecycle ?? 'ongoing', playbook.definition);
+function readDefinition(playbook: DashboardPlaybookRecord): Record<string, unknown> {
+  return isRecord(playbook.definition) ? playbook.definition : {};
 }
 
 function diffRow(label: string, current: string, compared: string): PlaybookRevisionDiffRow {
@@ -107,21 +102,24 @@ function diffRow(label: string, current: string, compared: string): PlaybookRevi
   };
 }
 
-function formatRoles(draft: PlaybookAuthoringDraft): string {
-  const roles = draft.roles.map((role) => role.value.trim()).filter(Boolean);
+function formatRoles(definition: Record<string, unknown>): string {
+  const roles = readStringArray(definition.roles);
   return roles.length > 0 ? roles.join(', ') : 'none';
 }
 
-function formatColumns(draft: PlaybookAuthoringDraft): string {
-  const columns = draft.columns
+function formatColumns(definition: Record<string, unknown>): string {
+  const board = asRecord(definition.board);
+  const columns = readArray(board.columns)
     .map((column) => {
-      const label = column.label.trim() || column.id.trim();
+      const record = asRecord(column);
+      const id = readString(record.id);
+      const label = readString(record.label) || id;
       if (!label) {
         return '';
       }
       const flags = [
-        column.is_blocked ? 'blocked' : '',
-        column.is_terminal ? 'terminal' : '',
+        record.is_blocked === true ? 'blocked' : '',
+        record.is_terminal === true ? 'terminal' : '',
       ].filter(Boolean);
       return flags.length > 0 ? `${label} (${flags.join(', ')})` : label;
     })
@@ -129,58 +127,56 @@ function formatColumns(draft: PlaybookAuthoringDraft): string {
   return columns.length > 0 ? columns.join(', ') : 'none';
 }
 
-function formatEntryColumn(draft: PlaybookAuthoringDraft): string {
-  const entryColumnId = draft.entry_column_id.trim();
+function formatEntryColumn(definition: Record<string, unknown>): string {
+  const board = asRecord(definition.board);
+  const entryColumnId = readString(board.entry_column_id);
   if (!entryColumnId) {
     return 'none';
   }
-  const matchingColumn = draft.columns.find((column) => column.id.trim() === entryColumnId);
+  const matchingColumn = readArray(board.columns).find(
+    (column) => readString(asRecord(column).id) === entryColumnId,
+  );
   if (!matchingColumn) {
     return entryColumnId;
   }
-  return matchingColumn.label.trim() || entryColumnId;
+  return readString(asRecord(matchingColumn).label) || entryColumnId;
 }
 
-function formatProcessInstructions(draft: PlaybookAuthoringDraft): string {
-  const instructions = draft.process_instructions.trim();
+function formatProcessInstructions(definition: Record<string, unknown>): string {
+  const instructions = readString(definition.process_instructions);
   return instructions ? instructions : 'none';
 }
 
-function formatRules(draft: PlaybookAuthoringDraft): string {
-  return [
-    `${draft.assessment_rules.filter((rule) => rule.subject_role.trim() && rule.assessed_by.trim()).length} assessments`,
-    `${draft.approval_rules.filter((rule) => rule.on === 'completion' || rule.checkpoint.trim()).length} approvals`,
-    `${draft.handoff_rules.filter((rule) => rule.from_role.trim() && rule.to_role.trim()).length} handoffs`,
-  ].join(' • ');
-}
-
-function formatCheckpoints(draft: PlaybookAuthoringDraft): string {
-  const checkpoints = draft.checkpoints
-    .map((checkpoint) => {
-      const name = checkpoint.name.trim();
-      if (!name) {
-        return '';
-      }
-      const flags = [checkpoint.human_gate ? 'gate' : '', checkpoint.entry_criteria.trim() ? 'criteria' : '']
-        .filter(Boolean)
-        .join(', ');
-      return flags ? `${name} (${flags})` : name;
-    })
-    .filter(Boolean);
-  return checkpoints.length > 0 ? checkpoints.join(', ') : 'none';
-}
-
-function formatParameters(draft: PlaybookAuthoringDraft): string {
-  const parameters = draft.parameters
-    .map((parameter) => {
-      const name = parameter.name.trim();
+function formatStages(definition: Record<string, unknown>): string {
+  const stages = readArray(definition.stages)
+    .map((stage) => {
+      const record = asRecord(stage);
+      const name = readString(record.name);
       if (!name) {
         return '';
       }
       const flags = [
-        parameter.required ? 'required' : '',
-        parameter.secret ? 'secret' : '',
-        parameter.maps_to.trim() ? `maps ${parameter.maps_to.trim()}` : '',
+        readString(record.goal) ? 'goal' : '',
+        readString(record.guidance) ? 'guidance' : '',
+      ].filter(Boolean);
+      return flags.length > 0 ? `${name} (${flags.join(', ')})` : name;
+    })
+    .filter(Boolean);
+  return stages.length > 0 ? stages.join(', ') : 'none';
+}
+
+function formatParameters(definition: Record<string, unknown>): string {
+  const parameters = readArray(definition.parameters)
+    .map((parameter) => {
+      const record = asRecord(parameter);
+      const name = readString(record.name);
+      if (!name) {
+        return '';
+      }
+      const flags = [
+        record.required === true ? 'required' : '',
+        record.secret === true ? 'secret' : '',
+        readString(record.maps_to) ? `maps ${readString(record.maps_to)}` : '',
       ].filter(Boolean);
       return flags.length > 0 ? `${name} (${flags.join(', ')})` : name;
     })
@@ -203,18 +199,43 @@ function normalizeSnapshotValue(value: unknown): unknown {
   return value;
 }
 
-function formatParallelism(draft: PlaybookAuthoringDraft): string {
+function formatParallelism(definition: Record<string, unknown>): string {
+  const orchestrator = asRecord(definition.orchestrator);
   const loopPolicy = [
-    `rework ${draft.orchestrator.max_rework_iterations || 'inherit'}`,
-    `task loops ${draft.orchestrator.max_iterations || 'inherit'}`,
-    `llm retries ${draft.orchestrator.llm_max_retries || 'inherit'}`,
+    `rework ${readNumber(orchestrator.max_rework_iterations) ?? 'inherit'}`,
+    `task loops ${readNumber(orchestrator.max_iterations) ?? 'inherit'}`,
+    `llm retries ${readNumber(orchestrator.llm_max_retries) ?? 'inherit'}`,
   ].join(' • ');
   return [
     loopPolicy,
-    `max tasks ${draft.orchestrator.max_active_tasks || 'inherit'}`,
-    `per item ${draft.orchestrator.max_active_tasks_per_work_item || 'inherit'}`,
-    draft.orchestrator.allow_parallel_work_items
-      ? 'parallel work items on'
-      : 'parallel work items off',
+    `max tasks ${readNumber(orchestrator.max_active_tasks) ?? 'inherit'}`,
+    `per item ${readNumber(orchestrator.max_active_tasks_per_work_item) ?? 'inherit'}`,
+    orchestrator.allow_parallel_work_items === true ? 'parallel work items on' : 'parallel work items off',
   ].join(' • ');
+}
+
+function readArray(value: unknown): unknown[] {
+  return Array.isArray(value) ? value : [];
+}
+
+function readStringArray(value: unknown): string[] {
+  return readArray(value)
+    .map((entry) => (typeof entry === 'string' ? entry.trim() : ''))
+    .filter(Boolean);
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return isRecord(value) ? value : {};
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function readString(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function readNumber(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
 }

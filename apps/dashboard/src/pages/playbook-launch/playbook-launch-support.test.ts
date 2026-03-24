@@ -35,7 +35,7 @@ describe('playbook launch support', () => {
             { id: 'doing', label: 'Doing' },
           ],
         },
-        checkpoints: [
+        stages: [
           { name: 'triage', goal: 'Triage new work' },
           { name: 'delivery', goal: 'Deliver the outcome' },
         ],
@@ -48,7 +48,7 @@ describe('playbook launch support', () => {
     });
 
     expect(summary.roles).toEqual(['architect', 'developer']);
-    expect(summary.checkpointNames).toEqual(['triage', 'delivery']);
+    expect(summary.stageNames).toEqual(['triage', 'delivery']);
     expect(summary.boardColumns).toEqual([
       { id: 'triage', label: 'Triage' },
       { id: 'doing', label: 'Doing' },

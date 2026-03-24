@@ -35,8 +35,8 @@ describe('playbook list page source', () => {
     expect(source).toContain('summarizePlaybookProcess');
     expect(source).toContain('Process');
     expect(source).toContain('roles');
-    expect(source).toContain('assessments');
-    expect(source).toContain('handoffs /');
+    expect(source).toContain('stages');
+    expect(source).toContain('inputs');
     expect(source).toContain('Most revisions');
     expect(source).toContain('families ·');
     expect(source).toContain('statusFilter');

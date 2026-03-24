@@ -47,6 +47,7 @@ describe('playbook launch model override source', () => {
     expect(source).toContain('Process Snapshot');
     expect(source).toContain('LaunchReadinessPanel');
     expect(source).toContain('LaunchDefinitionSnapshot');
+    expect(source).toContain('Workflow stages');
     expect(source).toContain('Resolution order');
     expect(source).toContain('Playbook default');
     expect(source).toContain('Workspace autofill');

@@ -20,7 +20,7 @@ export interface LaunchParameterSpec {
 
 export interface LaunchDefinitionSummary {
   roles: string[];
-  checkpointNames: string[];
+  stageNames: string[];
   boardColumns: Array<{ id: string; label: string }>;
   parameterSpecs: LaunchParameterSpec[];
 }
@@ -89,7 +89,7 @@ export function readLaunchDefinition(
   const definition = asRecord(playbook?.definition);
   return {
     roles: readStringArray(definition.roles),
-    checkpointNames: readCheckpointNames(definition),
+    stageNames: readStageNames(definition),
     boardColumns: readBoardColumns(definition.board),
     parameterSpecs: readParameterSpecs(definition.parameters),
   };
@@ -519,11 +519,7 @@ function inferInputType(
   return 'string';
 }
 
-function readCheckpointNames(definition: Record<string, unknown>): string[] {
-  const checkpoints = readNamedFlowEntries(definition.checkpoints);
-  if (checkpoints.length > 0) {
-    return checkpoints;
-  }
+function readStageNames(definition: Record<string, unknown>): string[] {
   return readNamedFlowEntries(definition.stages);
 }
 

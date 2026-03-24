@@ -224,28 +224,21 @@ export function summarizePlaybookStructure(playbook: DashboardPlaybookRecord): {
   stages: number;
 } {
   const boardColumns = readDefinitionArray(playbook.definition, 'board', 'columns').length;
-  const checkpoints = readDefinitionArray(playbook.definition, 'checkpoints');
-  const stages = checkpoints.length > 0 ? checkpoints.length : readDefinitionArray(playbook.definition, 'stages').length;
+  const stages = readDefinitionArray(playbook.definition, 'stages').length;
   return { boardColumns, stages };
 }
 
 export function summarizePlaybookProcess(playbook: DashboardPlaybookRecord): {
   processInstructions: string;
   roleCount: number;
-  assessmentRuleCount: number;
-  approvalRuleCount: number;
-  handoffRuleCount: number;
-  checkpointCount: number;
+  stageCount: number;
   inputCount: number;
 } {
   const definition = playbook.definition;
   return {
     processInstructions: readDefinitionString(definition, 'process_instructions'),
     roleCount: readDefinitionArray(definition, 'roles').length,
-    assessmentRuleCount: readDefinitionArray(definition, 'assessment_rules').length,
-    approvalRuleCount: readDefinitionArray(definition, 'approval_rules').length,
-    handoffRuleCount: readDefinitionArray(definition, 'handoff_rules').length,
-    checkpointCount: readDefinitionArray(definition, 'checkpoints').length,
+    stageCount: readDefinitionArray(definition, 'stages').length,
     inputCount: readDefinitionArray(definition, 'parameters').length,
   };
 }

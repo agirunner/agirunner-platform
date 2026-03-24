@@ -117,20 +117,14 @@ describe('playbook list support', () => {
         definition: {
           process_instructions: 'Developer implements. Reviewer assesses. Human approves.',
           roles: ['developer', 'reviewer'],
-          assessment_rules: [{}],
-          approval_rules: [{}],
-          handoff_rules: [{}],
-          checkpoints: [{}, {}],
+          stages: [{}, {}],
           parameters: [{}, {}],
         },
       }),
     ).toEqual({
       processInstructions: 'Developer implements. Reviewer assesses. Human approves.',
       roleCount: 2,
-      assessmentRuleCount: 1,
-      approvalRuleCount: 1,
-      handoffRuleCount: 1,
-      checkpointCount: 2,
+      stageCount: 2,
       inputCount: 2,
     });
   });

@@ -63,7 +63,6 @@ describe('playbook detail support', () => {
           {
             name: 'delivery',
             goal: 'Ship the change',
-            human_gate: true,
             guidance: 'Require a final human check',
           },
         ],
@@ -81,27 +80,31 @@ describe('playbook detail support', () => {
     const snapshot = renderPlaybookSnapshot(playbook);
 
     expect(summary.roles).toContain('developer');
+    expect(summary.stages).toContain('delivery');
     expect(snapshot).toContain('"slug": "delivery-playbook"');
     expect(snapshot).toContain('"entry_column_id": "active"');
     expect(snapshot).toContain('"guidance": "Require a final human check"');
   });
 
-  it('summarizes assessment rules instead of review rules', () => {
+  it('summarizes stages instead of deleted governance rules', () => {
     const playbook = createPlaybook(4, {
       definition: {
-        assessment_rules: [
+        stages: [
           {
-            subject_role: 'developer',
-            assessed_by: 'reviewer',
-            outcome_actions: {
-              request_changes: { action: 'route_to_role', role: 'developer' },
-            },
+            name: 'triage',
+            goal: 'Clarify the request',
+          },
+          {
+            name: 'delivery',
+            goal: 'Ship the change',
           },
         ],
       },
     });
 
-    expect(summarizePlaybookControls(playbook).rules).toContain('1 assessments');
+    const summary = summarizePlaybookControls(playbook);
+    expect(summary.stages).toContain('triage');
+    expect(summary.stages).toContain('delivery');
   });
 });
 
@@ -119,7 +122,7 @@ function createPlaybook(
         { id: 'done', label: 'Done', is_terminal: true },
       ],
     },
-    stages: [{ name: 'delivery', goal: 'Ship the change', human_gate: version % 2 === 0 }],
+    stages: [{ name: 'delivery', goal: 'Ship the change' }],
     lifecycle: 'ongoing',
     orchestrator: {
       max_rework_iterations: 5,
