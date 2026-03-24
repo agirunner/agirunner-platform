@@ -24,7 +24,6 @@ import {
   Server,
   Settings2,
   Shield,
-  Sparkles,
   Sun,
   Users,
   Webhook,
@@ -114,7 +113,6 @@ const NAV_SECTIONS: NavSection[] = [
       { label: 'Platform Instructions', href: '/config/instructions', icon: ScrollText },
       { label: 'Model Routing', href: '/config/llm', icon: Cog },
       { label: 'Tools', href: '/config/tools', icon: Wrench },
-      { label: 'AI Assistant', href: '/config/assistant', icon: Sparkles },
     ],
   },
   {

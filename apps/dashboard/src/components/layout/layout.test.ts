@@ -68,6 +68,11 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain("href: '/config/roles'");
   });
 
+  it('hides the AI Assistant page from primary navigation', () => {
+    const source = readLayoutSource();
+    expect(source).not.toContain("label: 'AI Assistant'");
+  });
+
   it('keeps user management out of the primary general navigation', () => {
     const source = readLayoutSource();
     expect(source).toContain("label: 'General'");
