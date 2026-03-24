@@ -788,6 +788,151 @@ describe('WorkItemService', () => {
     });
   });
 
+  it('allows planned successor work-item creation when approval continuity is stale but the human gate is approved', async () => {
+    const eventService = { emit: vi.fn().mockResolvedValue(undefined) };
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'approval-gate',
+                lifecycle: 'planned',
+                definition: {
+                  roles: ['writer', 'publisher'],
+                  lifecycle: 'planned',
+                  board: {
+                    columns: [
+                      { id: 'planned', label: 'Planned' },
+                      { id: 'done', label: 'Done', is_terminal: true },
+                    ],
+                    entry_column_id: 'planned',
+                  },
+                  stages: [
+                    { name: 'drafting', goal: 'Draft content' },
+                    { name: 'approval-gate', goal: 'Record human decision', human_gate: true, involves: [] },
+                    { name: 'publication', goal: 'Publish content' },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-gate-1']);
+          return {
+            rows: [
+              {
+                id: 'wi-gate-1',
+                title: 'Human approval gate',
+                stage_name: 'approval-gate',
+                column_id: 'planned',
+                completed_at: null,
+                human_gate: true,
+                gate_status: 'approved',
+                latest_handoff_completion: null,
+                latest_handoff_resolution: null,
+                next_expected_actor: 'human',
+                next_expected_action: 'approve',
+                blocked_state: null,
+                blocked_reason: null,
+                escalation_status: null,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT COUNT(*)::int AS count') && sql.includes('FROM workflow_work_items')) {
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id = $3') && sql.includes('FOR UPDATE')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT state, COUNT(*)::int AS count') && sql.includes('GROUP BY state')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-gate-1']);
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM tasks') && sql.includes("state NOT IN ('completed', 'failed', 'cancelled')")) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-gate-1']);
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          return {
+            rows: [
+              {
+                id: 'wi-publish-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: 'wi-gate-1',
+                stage_name: 'publication',
+                title: 'Publication checkpoint',
+                goal: null,
+                acceptance_criteria: null,
+                column_id: 'planned',
+                owner_role: null,
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                priority: 'normal',
+                notes: null,
+                completed_at: null,
+                metadata: {},
+                created_at: '2026-03-24T00:36:00.000Z',
+                updated_at: '2026-03-24T00:36:00.000Z',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          return { rows: [{ id: 'stage-publication-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM workflow_stages')) {
+          return { rows: [], rowCount: 0 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      eventService as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const workItem = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-publication-2',
+        parent_work_item_id: 'wi-gate-1',
+        stage_name: 'publication',
+        title: 'Publication checkpoint',
+      },
+    );
+
+    expect(workItem).toMatchObject({
+      id: 'wi-publish-1',
+      stage_name: 'publication',
+      parent_work_item_id: 'wi-gate-1',
+    });
+  });
+
   it('summarizes required assessments against the current subject revision and ignores stale older approvals', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
@@ -1166,6 +1311,13 @@ describe('WorkItemService', () => {
                 next_expected_action: 'handoff',
               },
             ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'approval-gate']);
+          return {
+            rows: [{ gate_status: 'not_requested' }],
             rowCount: 1,
           };
         }
@@ -2669,6 +2821,159 @@ describe('WorkItemService', () => {
       next_expected_actor: 'human',
       next_expected_action: 'approve',
       gate_status: 'not_requested',
+    });
+  });
+
+  it('does not stamp approval continuity on a new human-gate work item when the stage gate is already approved', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rows: [
+              {
+                id: 'workflow-1',
+                active_stage_name: 'drafting',
+                lifecycle: 'planned',
+                definition: {
+                  roles: ['writer'],
+                  lifecycle: 'planned',
+                  board: {
+                    columns: [
+                      { id: 'planned', label: 'Planned' },
+                      { id: 'done', label: 'Done', is_terminal: true },
+                    ],
+                    entry_column_id: 'planned',
+                  },
+                  stages: [
+                    { name: 'drafting', goal: 'Draft content' },
+                    { name: 'approval-gate', goal: 'Human approval gate', human_gate: true, involves: [] },
+                  ],
+                },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-drafting-1']);
+          return {
+            rows: [
+              {
+                id: 'wi-drafting-1',
+                title: 'Draft package',
+                stage_name: 'drafting',
+                column_id: 'planned',
+                completed_at: null,
+                human_gate: false,
+                gate_status: 'not_requested',
+                latest_handoff_completion: 'full',
+                latest_handoff_resolution: null,
+                next_expected_actor: null,
+                next_expected_action: null,
+                blocked_state: null,
+                blocked_reason: null,
+                escalation_status: null,
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT COUNT(*)::int AS count') && sql.includes('FROM workflow_work_items')) {
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('parent_work_item_id = $3') && sql.includes('FOR UPDATE')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT state, COUNT(*)::int AS count') && sql.includes('GROUP BY state')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM tasks') && sql.includes("state NOT IN ('completed', 'failed', 'cancelled')")) {
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'approval-gate']);
+          return {
+            rows: [{ gate_status: 'approved' }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          expect(params?.[10]).toBeNull();
+          expect(params?.[11]).toBeNull();
+          return {
+            rows: [
+              {
+                id: 'wi-approval-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: 'wi-drafting-1',
+                stage_name: 'approval-gate',
+                title: 'Human approval gate',
+                goal: null,
+                acceptance_criteria: null,
+                column_id: 'planned',
+                owner_role: null,
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                priority: 'normal',
+                notes: null,
+                completed_at: null,
+                metadata: {},
+                created_at: '2026-03-23T00:00:00.000Z',
+                updated_at: '2026-03-23T00:00:00.000Z',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes("metadata = COALESCE(metadata, '{}'::jsonb) - 'orchestrator_finish_state'")) {
+          return { rows: [{ id: 'wi-drafting-1' }], rowCount: 1 };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          return { rows: [{ id: 'stage-approval-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM workflow_stages')) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflow_work_items wi') || sql.includes('FROM tasks')) {
+          return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        throw new Error(`Unexpected SQL: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const service = new WorkItemService(
+      { connect: vi.fn().mockResolvedValue(client) } as never,
+      { emit: vi.fn().mockResolvedValue(undefined) } as never,
+      { enqueueForWorkflow: vi.fn().mockResolvedValue({ id: 'activation-1' }) } as never,
+      { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
+    );
+
+    const workItem = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-approval-gate-approved-1',
+        parent_work_item_id: 'wi-drafting-1',
+        stage_name: 'approval-gate',
+        title: 'Human approval gate',
+      },
+    );
+
+    expect(workItem).toMatchObject({
+      id: 'wi-approval-1',
+      next_expected_actor: null,
+      next_expected_action: null,
     });
   });
 

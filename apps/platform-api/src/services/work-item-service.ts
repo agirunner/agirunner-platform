@@ -360,6 +360,13 @@ export class WorkItemService {
         input,
         client,
       );
+      const humanGateContinuation = await this.resolveHumanGateContinuation(
+        identity.tenantId,
+        workflowId,
+        definition,
+        stageName,
+        client,
+      );
 
       if (workflow.lifecycle === 'planned') {
         await this.assertSuccessorCheckpointReady(
@@ -415,8 +422,8 @@ export class WorkItemService {
           input.acceptance_criteria?.trim() ?? null,
           columnId,
           input.owner_role ?? null,
-          humanGateContinuationForStage(definition, stageName).nextExpectedActor,
-          humanGateContinuationForStage(definition, stageName).nextExpectedAction,
+          humanGateContinuation.nextExpectedActor,
+          humanGateContinuation.nextExpectedAction,
           0,
           input.priority ?? 'normal',
           input.notes?.trim() ?? null,
@@ -616,6 +623,7 @@ export class WorkItemService {
     if (
       predecessor.next_expected_actor
       && predecessor.next_expected_action
+      && !(predecessorReadyByApprovedGate && predecessor.next_expected_action === 'approve')
       && SUCCESSOR_BLOCKING_NEXT_ACTIONS.has(predecessor.next_expected_action)
     ) {
       throw new ValidationError(
@@ -828,6 +836,34 @@ export class WorkItemService {
       throw new NotFoundError('Parent workflow work item not found');
     }
     return result.rows[0];
+  }
+
+  private async resolveHumanGateContinuation(
+    tenantId: string,
+    workflowId: string,
+    definition: ReturnType<typeof parsePlaybookDefinition>,
+    stageName: string,
+    client: DatabaseClient,
+  ) {
+    const stage = definition.stages.find((entry) => entry.name === stageName);
+    if (!stage?.human_gate) {
+      return { nextExpectedActor: null, nextExpectedAction: null };
+    }
+
+    const stageResult = await client.query<{ gate_status: string | null }>(
+      `SELECT gate_status
+         FROM workflow_stages
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND name = $3
+        LIMIT 1`,
+      [tenantId, workflowId, stageName],
+    );
+    if (stageResult.rows[0]?.gate_status === 'approved') {
+      return { nextExpectedActor: null, nextExpectedAction: null };
+    }
+
+    return { nextExpectedActor: 'human', nextExpectedAction: 'approve' };
   }
 
   private async assertPlannedStageEntryRoleCanStart(
@@ -1361,17 +1397,6 @@ function shouldAutoClosePredecessorCheckpoint(
     return false;
   }
   return successorIndex === predecessorIndex + 1;
-}
-
-function humanGateContinuationForStage(
-  definition: ReturnType<typeof parsePlaybookDefinition>,
-  stageName: string,
-) {
-  const stage = definition.stages.find((entry) => entry.name === stageName);
-  if (!stage?.human_gate) {
-    return { nextExpectedActor: null, nextExpectedAction: null };
-  }
-  return { nextExpectedActor: 'human', nextExpectedAction: 'approve' };
 }
 
 function nextStageNameFor(
