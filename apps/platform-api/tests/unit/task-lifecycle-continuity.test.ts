@@ -235,7 +235,6 @@ describe('TaskLifecycleService continuity hooks', () => {
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
         role: 'developer',
-        requires_assessment: true,
         is_orchestrator_task: false,
         metadata: {},
       }),

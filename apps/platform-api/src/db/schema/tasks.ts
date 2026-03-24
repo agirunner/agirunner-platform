@@ -45,8 +45,6 @@ export const tasks = pgTable(
     claimedAt: timestamp('claimed_at', { withTimezone: true }),
     startedAt: timestamp('started_at', { withTimezone: true }),
     dependsOn: uuid('depends_on').array().notNull().default([]),
-    requiresApproval: boolean('requires_approval').notNull().default(false),
-    requiresAssessment: boolean('requires_assessment').notNull().default(false),
     input: jsonb('input').notNull().default({}),
     context: jsonb('context').notNull().default({}),
     output: jsonb('output'),

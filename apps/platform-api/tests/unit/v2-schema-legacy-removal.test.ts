@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { eventEntityTypeEnum } from '../../src/db/schema/enums.js';
+import { tasks } from '../../src/db/schema/tasks.js';
 
 const initMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0001_init.sql';
@@ -34,6 +35,13 @@ describe('v2 schema legacy removal', () => {
     expect(source).not.toContain('idx_fleet_events_template');
     expect(source).not.toContain('workflows_template_id_fkey');
     expect(source).not.toContain('runtime_heartbeats_template_id_fkey');
+    expect(source).not.toContain('requires_approval boolean');
+    expect(source).not.toContain('requires_assessment boolean');
+  });
+
+  it('removes legacy task governance columns from the canonical tasks schema', () => {
+    expect(tasks).not.toHaveProperty('requiresApproval');
+    expect(tasks).not.toHaveProperty('requiresAssessment');
   });
 
   it('keeps follow-on cleanup migrations V2-only once the base schema is clean', () => {
