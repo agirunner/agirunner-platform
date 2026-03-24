@@ -283,6 +283,7 @@ function derivePendingDispatches(
   tasks: Record<string, unknown>[],
   definition: ReturnType<typeof parsePlaybookDefinition>,
 ): PendingDispatch[] {
+  void definition;
   return workItems.flatMap((workItem) => {
     if (workItem.completed_at !== null && workItem.completed_at !== undefined) {
       return [];
@@ -293,9 +294,6 @@ function derivePendingDispatches(
     const action = readOptionalString(workItem.next_expected_action);
     if (!workItemId || !action) {
       return [];
-    }
-    if (!actor && action === 'assess') {
-      return derivePendingAssessmentDispatches(workItem, tasks, definition);
     }
     if (!actor || actor === 'human') {
       return [];
@@ -321,59 +319,6 @@ function derivePendingDispatches(
       actor,
       action,
       title: readOptionalString(workItem.title),
-    }];
-  });
-}
-
-function derivePendingAssessmentDispatches(
-  workItem: Record<string, unknown>,
-  tasks: Record<string, unknown>[],
-  definition: ReturnType<typeof parsePlaybookDefinition>,
-): PendingDispatch[] {
-  const workItemId = readOptionalString(workItem.id);
-  const stageName = readOptionalString(workItem.stage_name);
-  const title = readOptionalString(workItem.title);
-  const subjectRole = readOptionalString(workItem.current_subject_role)
-    ?? readOptionalString(workItem.owner_role);
-  const subjectRevision = readOptionalPositiveInteger(workItem.current_subject_revision);
-  if (!workItemId || !stageName || !subjectRole || subjectRevision === null) {
-    return [];
-  }
-
-  const assessorRoles = Array.from(
-    new Set(
-      definition.assessment_rules
-        .filter(
-          (rule) =>
-            rule.subject_role === subjectRole
-            && ruleAppliesToCheckpoint(rule.checkpoint, stageName)
-            && rule.required !== false,
-        )
-        .map((rule) => rule.assessed_by)
-        .filter((role): role is string => typeof role === 'string' && role.trim().length > 0),
-    ),
-  );
-
-  return assessorRoles.flatMap((actor) => {
-    const matchingTasks = tasks.filter(
-      (task) =>
-        task.is_orchestrator_task !== true
-        && readOptionalString(task.work_item_id) === workItemId
-        && readOptionalString(task.role) === actor
-        && isAssessmentTaskForSubjectRevision(task, subjectRevision),
-    );
-    if (matchingTasks.some(isOpenSpecialistTask)) {
-      return [];
-    }
-    if (matchingTasks.some((task) => readOptionalString(task.state) === 'completed')) {
-      return [];
-    }
-    return [{
-      work_item_id: workItemId,
-      stage_name: stageName,
-      actor,
-      action: 'assess',
-      title,
     }];
   });
 }
@@ -429,12 +374,6 @@ function readOptionalPositiveInteger(value: unknown): number | null {
     : null;
 }
 
-function ruleAppliesToCheckpoint(ruleCheckpoint: string | undefined, checkpointName: string | null) {
-  if (!ruleCheckpoint) {
-    return true;
-  }
-  return checkpointName === ruleCheckpoint;
-}
 
 async function loadPlaybookRoleDefinitions(
   db: DatabaseQueryable,

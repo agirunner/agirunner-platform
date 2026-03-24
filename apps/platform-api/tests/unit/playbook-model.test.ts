@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  defaultCheckpointName,
+  defaultStageName,
   parsePlaybookDefinition,
   readPlaybookRuntimePools,
 } from '../../src/orchestration/playbook-model.js';
@@ -88,283 +88,63 @@ describe('playbook model runtime pools', () => {
     ]);
   });
 
-  it('requires process instructions and exposes checkpoints plus stages', () => {
+  it('parses stage-only definitions and does not expose checkpoint config', () => {
     const definition = parsePlaybookDefinition({
-      process_instructions:
-        'Developer implements. Reviewer must assess every code change. QA validates before completion.',
-      roles: ['developer', 'reviewer', 'qa'],
-      board: { entry_column_id: 'planned', columns: [{ id: 'planned', label: 'Planned' }] },
-      checkpoints: [
-        {
-          name: 'implementation-complete',
-          goal: 'Implementation is complete and ready for review.',
-          human_gate: false,
-          entry_criteria: 'Requirements are clear and work is underway.',
-        },
-      ],
-      assessment_rules: [
-        {
-          subject_role: 'developer',
-          assessed_by: 'reviewer',
-          checkpoint: 'implementation-complete',
-          required: true,
-          outcome_actions: {
-            request_changes: {
-              action: 'route_to_role',
-              role: 'developer',
-            },
-          },
-        },
-      ],
-      approval_rules: [
-        {
-          on: 'completion',
-          approved_by: 'human',
-          required: true,
-        },
-      ],
-      handoff_rules: [
-        {
-          from_role: 'developer',
-          to_role: 'reviewer',
-          checkpoint: 'implementation-complete',
-          required: true,
-        },
-      ],
-      lifecycle: 'planned',
-    });
-
-    expect(definition.process_instructions).toContain('Reviewer must assess');
-    expect(definition.checkpoints).toHaveLength(1);
-    expect(definition.stages).toHaveLength(1);
-    expect(definition.stages[0]).toMatchObject({
-      name: 'implementation-complete',
-      goal: 'Implementation is complete and ready for review.',
-      human_gate: false,
-    });
-    expect(definition.assessment_rules[0]?.assessed_by).toBe('reviewer');
-    expect(definition.assessment_rules[0]?.checkpoint).toBe('implementation-complete');
-    expect(definition.handoff_rules[0]?.checkpoint).toBe('implementation-complete');
-    expect(defaultCheckpointName(definition)).toBe('implementation-complete');
-  });
-
-  it('derives checkpoints from legacy stages when explicit checkpoints are absent', () => {
-    const definition = parsePlaybookDefinition({
-      process_instructions: 'Keep work moving through the requirements and implementation checkpoints.',
+      process_instructions: 'Move work through requirements and implementation.',
       roles: ['product-manager', 'developer'],
       board: { columns: [{ id: 'planned', label: 'Planned' }] },
       stages: [
         {
           name: 'requirements',
           goal: 'Requirements are clear.',
-          human_gate: true,
         },
         {
           name: 'implementation',
           goal: 'Working code exists.',
+          guidance: 'Deliver tested code and a clear handoff.',
         },
       ],
     });
 
-    expect(definition.checkpoints).toEqual([
+    expect(definition.process_instructions).toContain('Move work through requirements');
+    expect(definition.stages).toEqual([
       {
         name: 'requirements',
         goal: 'Requirements are clear.',
-        human_gate: true,
-        entry_criteria: undefined,
       },
       {
         name: 'implementation',
         goal: 'Working code exists.',
-        human_gate: false,
-        entry_criteria: undefined,
+        guidance: 'Deliver tested code and a clear handoff.',
       },
     ]);
+    expect(defaultStageName(definition)).toBe('requirements');
+    expect('checkpoints' in definition).toBe(false);
   });
 
-  it('allows multiple required assessment rules for the same subject role', () => {
-    const definition = parsePlaybookDefinition({
-      process_instructions: 'All developer work is assessed before completion.',
-      roles: ['developer', 'reviewer', 'qa'],
-      board: { columns: [{ id: 'planned', label: 'Planned' }] },
-      assessment_rules: [
-        {
-          subject_role: 'developer',
-          assessed_by: 'reviewer',
-          required: true,
-        },
-        {
-          subject_role: 'developer',
-          assessed_by: 'qa',
-          required: true,
-        },
-      ],
-    });
-
-    expect(definition.assessment_rules.map((rule) => rule.assessed_by)).toEqual(['reviewer', 'qa']);
-  });
-
-  it('rejects unknown authored playbook keys such as review_rules', () => {
+  it('rejects deleted governance fields and stage human_gate config', () => {
     expect(() =>
       parsePlaybookDefinition({
-        process_instructions: 'All developer work is assessed before completion.',
+        process_instructions: 'Developer implements, reviewer reviews, human signs off.',
         roles: ['developer', 'reviewer'],
         board: { columns: [{ id: 'planned', label: 'Planned' }] },
-        review_rules: [
+        stages: [
           {
-            from_role: 'developer',
-            reviewed_by: 'reviewer',
-            required: true,
+            name: 'implementation',
+            goal: 'Working code exists.',
+            human_gate: true,
           },
         ],
+        checkpoints: [{ name: 'review', goal: 'Review is complete.' }],
+        assessment_rules: [{ subject_role: 'developer', assessed_by: 'reviewer', required: true }],
+        approval_rules: [{ on: 'completion', approved_by: 'human', required: true }],
+        handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
+        branch_policies: [{ branch_key: 'release', termination_policy: 'stop_branch_only' }],
       }),
     ).toThrow(SchemaValidationFailedError);
   });
 
-  it('allows the same role to route differently at different checkpoints', () => {
-    const definition = parsePlaybookDefinition({
-      process_instructions: 'Route product management differently at requirements and release.',
-      roles: ['product-manager', 'architect', 'human'],
-      board: { columns: [{ id: 'planned', label: 'Planned' }] },
-      checkpoints: [
-        { name: 'requirements', goal: 'Requirements are approved.' },
-        { name: 'release', goal: 'Release is approved.' },
-      ],
-      handoff_rules: [
-        {
-          from_role: 'product-manager',
-          to_role: 'architect',
-          checkpoint: 'requirements',
-          required: true,
-        },
-      ],
-      approval_rules: [
-        {
-          on: 'checkpoint',
-          checkpoint: 'release',
-          approved_by: 'human',
-          required: true,
-        },
-      ],
-    });
-
-    expect(definition.handoff_rules[0]?.checkpoint).toBe('requirements');
-    expect(definition.approval_rules[0]?.checkpoint).toBe('release');
-  });
-
-  it('parses blocked decision state, revision policy, ordering policy, and branch policy metadata', () => {
-    const definition = parsePlaybookDefinition({
-      process_instructions: 'Operator approval may block or terminate branch-scoped work.',
-      roles: ['delivery-editor', 'policy-auditor', 'operator'],
-      board: { columns: [{ id: 'planned', label: 'Planned' }] },
-      checkpoints: [{ name: 'publication', goal: 'Publication is ready.' }],
-      assessment_rules: [
-        {
-          subject_role: 'delivery-editor',
-          assessed_by: 'policy-auditor',
-          checkpoint: 'publication',
-          required: true,
-          decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
-          outcome_actions: {
-            blocked: {
-              action: 'escalate',
-            },
-            rejected: {
-              action: 'block_subject',
-            },
-          },
-          revision_policy: {
-            assessment_retention: 'retain_named_assessors',
-            approval_retention: 'invalidate_all',
-          },
-          materiality: 'non_material',
-        },
-      ],
-      approval_rules: [
-        {
-          on: 'checkpoint',
-          checkpoint: 'publication',
-          approved_by: 'human',
-          required: true,
-          decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
-          revision_policy: {
-            approval_retention: 'retain_non_material_only',
-          },
-          ordering_policy: {
-            subject_boundary: 'checkpoint',
-            approval_before_assessment: true,
-          },
-          materiality: 'non_material',
-        },
-      ],
-      branch_policies: [
-        {
-          branch_key: 'publication-release',
-          termination_policy: 'stop_branch_only',
-        },
-      ],
-    });
-
-    expect(definition.assessment_rules[0]?.decision_states).toEqual([
-      'approved',
-      'request_changes',
-      'rejected',
-      'blocked',
-    ]);
-    expect(definition.assessment_rules[0]?.outcome_actions?.blocked).toEqual({
-      action: 'escalate',
-    });
-    expect(definition.assessment_rules[0]?.revision_policy).toEqual({
-      assessment_retention: 'retain_named_assessors',
-      approval_retention: 'invalidate_all',
-    });
-    expect(definition.assessment_rules[0]?.materiality).toBe('non_material');
-    expect(definition.approval_rules[0]?.decision_states).toEqual([
-      'approved',
-      'request_changes',
-      'rejected',
-      'blocked',
-    ]);
-    expect(definition.approval_rules[0]?.revision_policy).toEqual({
-      approval_retention: 'retain_non_material_only',
-    });
-    expect(definition.approval_rules[0]?.ordering_policy).toEqual({
-      subject_boundary: 'checkpoint',
-      approval_before_assessment: true,
-    });
-    expect(definition.approval_rules[0]?.materiality).toBe('non_material');
-    expect(definition.branch_policies).toEqual([
-      {
-        branch_key: 'publication-release',
-        termination_policy: 'stop_branch_only',
-      },
-    ]);
-  });
-
-  it('rejects branch termination actions without a branch policy', () => {
-    expect(() =>
-      parsePlaybookDefinition({
-        process_instructions: 'A blocked branch may be terminated after operator decision.',
-        roles: ['delivery-editor', 'policy-auditor'],
-        board: { columns: [{ id: 'planned', label: 'Planned' }] },
-        assessment_rules: [
-          {
-            subject_role: 'delivery-editor',
-            assessed_by: 'policy-auditor',
-            required: true,
-            decision_states: ['approved', 'rejected'],
-            outcome_actions: {
-              rejected: {
-                action: 'terminate_branch',
-              },
-            },
-          },
-        ],
-      }),
-    ).toThrow(SchemaValidationFailedError);
-  });
-
-  it('derives fallback process instructions for legacy definitions', () => {
+  it('derives fallback process instructions for legacy definitions with stages only', () => {
     const definition = parsePlaybookDefinition({
       roles: ['developer'],
       board: { columns: [{ id: 'planned', label: 'Planned' }] },

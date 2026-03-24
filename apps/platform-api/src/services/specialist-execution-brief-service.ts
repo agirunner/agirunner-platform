@@ -88,12 +88,10 @@ export function buildSpecialistExecutionBrief(
   const workspace = asRecord(input.workspace);
   const taskInput = asRecord(input.taskInput);
   const stageName = readString(workItem.stage_name) ?? readString(workflow.current_stage);
-  const checkpoint = definition.checkpoints.find((entry) => entry.name === stageName) ?? null;
+  const stage = definition.stages.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(workItem.column_id)) ?? null;
   const workflowBrief = compactWorkflowBriefVariables(asRecord(workflow.variables));
   const assessmentOutputExpectations = buildAssessmentOutputExpectations(
-    definition,
-    checkpoint?.name ?? null,
     workItem,
     input.role ?? null,
     isRepositoryBacked(workspace, workflow, taskInput),
@@ -126,8 +124,8 @@ export function buildSpecialistExecutionBrief(
     acceptance_criteria: normalizeStrings(workItem.acceptance_criteria),
     current_focus: {
       lifecycle,
-      stage_name: checkpoint?.name ?? stageName ?? null,
-      stage_goal: checkpoint?.goal ?? null,
+      stage_name: stage?.name ?? stageName ?? null,
+      stage_goal: stage?.goal ?? null,
       board_position: boardColumn?.label ?? null,
       next_expected_actor: readString(workItem.next_expected_actor),
       next_expected_action: readString(workItem.next_expected_action),
@@ -157,29 +155,24 @@ export function buildSpecialistExecutionBrief(
 }
 
 function buildAssessmentOutputExpectations(
-  definition: ReturnType<typeof parsePlaybookDefinition>,
-  checkpointName: string | null,
   workItem: Record<string, unknown>,
   role: string | null,
   repoBacked: boolean,
 ): string[] {
-  const roleName = role ?? readString(workItem.owner_role);
   const lines: string[] = [];
-  const incomingAssessmentRule = definition.assessment_rules.find(
-    (entry) => entry.assessed_by === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName),
-  );
-  if (incomingAssessmentRule && incomingAssessmentRule.required !== false && roleName) {
-    lines.push(`Assessment required from ${roleName}.`);
-    lines.push(`${roleName} should assess the current output before completion.`);
-  } else {
-    const outgoingAssessmentRule = definition.assessment_rules.find(
-      (entry) => entry.subject_role === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName),
-    );
-    if (outgoingAssessmentRule && outgoingAssessmentRule.required !== false) {
-      lines.push(`Assessment required from ${outgoingAssessmentRule.assessed_by}.`);
-      lines.push(`${outgoingAssessmentRule.assessed_by} should assess the current output before completion.`);
-    }
+  const actor = readString(workItem.next_expected_actor);
+  const action = readString(workItem.next_expected_action);
+  if (action === 'assess' && actor) {
+    lines.push(`Expected review actor: ${actor}.`);
+    lines.push(`${actor} is expected to assess the current output before the work item moves forward.`);
+  } else if (action === 'approve') {
+    lines.push('A human approval step is currently active for this work item.');
+  } else if (action === 'handoff' && actor) {
+    lines.push(`Prepare a clear successor handoff for ${actor}.`);
+  } else if (action === 'rework' && actor) {
+    lines.push(`The current output is in rework for ${actor}. Address the requested changes directly.`);
   }
+  void role;
   lines.push(
     repoBacked
       ? 'Repository-backed output must be committed and pushed before completion or escalation.'
@@ -416,11 +409,6 @@ function summarizeValue(value: unknown) {
   if (typeof value === 'string' && value.trim().length > 0) return truncateInlineValue(value.trim(), 160);
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   return null;
-}
-
-function ruleAppliesToCheckpoint(ruleCheckpoint: string | undefined, checkpointName: string | null) {
-  if (!ruleCheckpoint) return true;
-  return checkpointName === ruleCheckpoint;
 }
 
 function isSecretLikeKey(key: string) {

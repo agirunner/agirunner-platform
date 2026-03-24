@@ -12,7 +12,7 @@ import { ConflictError, ValidationError } from '../../src/errors/domain-errors.j
 import { WorkItemService } from '../../src/services/work-item-service.js';
 
 describe('WorkItemService', () => {
-  it('seeds canonical human-gate continuity on a human-gate work item', async () => {
+  it('seeds approval continuity when the persisted stage gate is awaiting approval', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -37,7 +37,7 @@ describe('WorkItemService', () => {
                   },
                   stages: [
                     { name: 'drafting', goal: 'Draft the brief' },
-                    { name: 'approval-gate', goal: 'Record a human decision', human_gate: true, involves: [] },
+                    { name: 'approval-gate', goal: 'Record a human decision', involves: [] },
                   ],
                 },
               },
@@ -47,6 +47,10 @@ describe('WorkItemService', () => {
         }
         if (sql.includes('SELECT COUNT(*)::int AS count') && sql.includes('FROM workflow_work_items')) {
           return { rows: [{ count: 0 }], rowCount: 1 };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'approval-gate']);
+          return { rows: [{ gate_status: 'awaiting_approval' }], rowCount: 1 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
           expect(params?.[10]).toBe('human');
@@ -121,7 +125,7 @@ describe('WorkItemService', () => {
     });
   });
 
-  it('rejects seeding the first planned stage work item with a successor-only role', async () => {
+  it('allows seeding the first planned stage work item with any role involved in that stage', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -150,25 +154,76 @@ describe('WorkItemService', () => {
                       involves: ['market-researcher', 'managing-editor'],
                     },
                   ],
-                  handoff_rules: [
-                    {
-                      from_role: 'market-researcher',
-                      to_role: 'managing-editor',
-                      required: true,
-                    },
-                  ],
                 },
               },
             ],
             rowCount: 1,
           };
         }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'briefing']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
+        }
         if (sql.includes('SELECT COUNT(*)::int AS count') && sql.includes('FROM workflow_work_items')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'briefing']);
           return { rows: [{ count: 0 }], rowCount: 1 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
-          throw new Error('first stage work item insert should not run for a successor-only role');
+          expect(params?.[9]).toBe('managing-editor');
+          return {
+            rows: [
+              {
+                id: 'wi-briefing-1',
+                workflow_id: 'workflow-1',
+                parent_work_item_id: null,
+                stage_name: 'briefing',
+                title: 'Publish-ready brief from research memo',
+                goal: null,
+                acceptance_criteria: null,
+                column_id: 'planned',
+                owner_role: 'managing-editor',
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                priority: 'normal',
+                notes: null,
+                completed_at: null,
+                metadata: {},
+                created_at: '2026-03-23T00:00:00.000Z',
+                updated_at: '2026-03-23T00:00:00.000Z',
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('UPDATE workflow_stages')) {
+          return { rows: [{ id: 'stage-briefing-1' }], rowCount: 1 };
+        }
+        if (sql.includes('SELECT ws.id,') && sql.includes('FROM workflow_stages ws')) {
+          return {
+            rows: [
+              {
+                id: 'stage-briefing-1',
+                lifecycle: 'planned',
+                name: 'briefing',
+                position: 0,
+                goal: 'Produce the publication brief',
+                guidance: null,
+                human_gate: false,
+                status: 'active',
+                gate_status: 'not_requested',
+                iteration_count: 0,
+                summary: null,
+                started_at: new Date('2026-03-23T00:00:00.000Z'),
+                completed_at: null,
+                open_work_item_count: 1,
+                total_work_item_count: 1,
+                first_work_item_at: new Date('2026-03-23T00:00:00.000Z'),
+                last_completed_work_item_at: null,
+              },
+            ],
+            rowCount: 1,
+          };
         }
         throw new Error(`Unexpected SQL: ${sql}`);
       }),
@@ -181,30 +236,32 @@ describe('WorkItemService', () => {
       { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
     );
 
-    await expect(
-      service.createWorkItem(
-        {
-          id: 'admin:1',
-          tenantId: 'tenant-1',
-          scope: 'admin',
-          ownerType: 'tenant',
-          ownerId: 'tenant-1',
-          keyPrefix: 'admin-key',
-        },
-        'workflow-1',
-        {
-          request_id: 'req-briefing-seed-1',
-          stage_name: 'briefing',
-          title: 'Publish-ready brief from research memo',
-          owner_role: 'managing-editor',
-        },
-      ),
-    ).rejects.toThrow(
-      "Cannot seed planned stage 'briefing' with role 'managing-editor' before the required upstream handoff exists. Start with one of: market-researcher.",
+    const workItem = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-briefing-seed-1',
+        stage_name: 'briefing',
+        title: 'Publish-ready brief from research memo',
+        owner_role: 'managing-editor',
+      },
     );
+
+    expect(workItem).toMatchObject({
+      id: 'wi-briefing-1',
+      owner_role: 'managing-editor',
+      stage_name: 'briefing',
+    });
   });
 
-  it('creates and assigns an authored branch when a work item declares branch_key', async () => {
+  it('creates and assigns an explicit branch when a work item declares branch_key', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -225,17 +282,15 @@ describe('WorkItemService', () => {
                     entry_column_id: 'planned',
                   },
                   stages: [{ name: 'variant-draft', goal: 'Draft each branch variant.' }],
-                  branch_policies: [
-                    {
-                      branch_key: 'deprecated-release',
-                      termination_policy: 'stop_branch_only',
-                    },
-                  ],
                 },
               },
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'variant-draft']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('FROM workflow_branches') && sql.includes('branch_key = $3')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'deprecated-release']);
@@ -333,9 +388,9 @@ describe('WorkItemService', () => {
     });
   });
 
-  it('rejects work-item branch creation when branch_key is not authored in the playbook', async () => {
+  it('creates a branch when branch_key is supplied without authored branch policy', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
@@ -353,8 +408,58 @@ describe('WorkItemService', () => {
                     columns: [{ id: 'planned', label: 'Planned' }],
                   },
                   stages: [{ name: 'variant-draft', goal: 'Draft each branch variant.' }],
-                  branch_policies: [],
                 },
+              },
+            ],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'variant-draft']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM workflow_branches') && sql.includes('branch_key = $3')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'deprecated-release']);
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('INSERT INTO workflow_branches')) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            null,
+            { kind: 'workflow', workflow_id: 'workflow-1' },
+            'deprecated-release',
+            'stop_branch_only',
+            null,
+            {},
+          ]);
+          return { rows: [{ id: 'branch-1' }], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_work_items')) {
+          expect(params?.[17]).toBe('branch-1');
+          return {
+            rows: [
+              {
+                id: 'work-item-branch-1',
+                workflow_id: 'workflow-1',
+                request_id: 'req-branch-1',
+                parent_work_item_id: null,
+                branch_id: 'branch-1',
+                branch_status: 'active',
+                stage_name: 'variant-draft',
+                title: 'Draft deprecated release branch',
+                goal: null,
+                acceptance_criteria: null,
+                column_id: 'planned',
+                owner_role: null,
+                next_expected_actor: null,
+                next_expected_action: null,
+                rework_count: 0,
+                priority: 'normal',
+                notes: null,
+                metadata: {},
+                created_at: '2026-03-23T00:00:00.000Z',
+                updated_at: '2026-03-23T00:00:00.000Z',
               },
             ],
             rowCount: 1,
@@ -371,25 +476,28 @@ describe('WorkItemService', () => {
       { dispatchActivation: vi.fn().mockResolvedValue(undefined) } as never,
     );
 
-    await expect(
-      service.createWorkItem(
-        {
-          id: 'admin:1',
-          tenantId: 'tenant-1',
-          scope: 'admin',
-          ownerType: 'tenant',
-          ownerId: 'tenant-1',
-          keyPrefix: 'admin-key',
-        },
-        'workflow-1',
-        {
-          request_id: 'req-branch-1',
-          stage_name: 'variant-draft',
-          title: 'Draft deprecated release branch',
-          branch_key: 'deprecated-release',
-        },
-      ),
-    ).rejects.toThrow("Unknown branch_key 'deprecated-release' for this playbook");
+    const workItem = await service.createWorkItem(
+      {
+        id: 'admin:1',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'tenant',
+        ownerId: 'tenant-1',
+        keyPrefix: 'admin-key',
+      },
+      'workflow-1',
+      {
+        request_id: 'req-branch-1',
+        stage_name: 'variant-draft',
+        title: 'Draft deprecated release branch',
+        branch_key: 'deprecated-release',
+      },
+    );
+
+    expect(workItem).toMatchObject({
+      id: 'work-item-branch-1',
+      branch_id: 'branch-1',
+    });
   });
 
   it('rejects planned successor work-item creation while the predecessor still has a pending task', async () => {
@@ -418,6 +526,10 @@ describe('WorkItemService', () => {
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'design']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-req-1']);
@@ -501,6 +613,10 @@ describe('WorkItemService', () => {
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'design']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-req-1']);
@@ -586,6 +702,10 @@ describe('WorkItemService', () => {
             rowCount: 1,
           };
         }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'verification']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
+        }
         if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-review-1']);
           return {
@@ -669,7 +789,7 @@ describe('WorkItemService', () => {
                   },
                   stages: [
                     { name: 'drafting', goal: 'Draft content' },
-                    { name: 'approval-gate', goal: 'Record human decision', human_gate: true, involves: [] },
+                    { name: 'approval-gate', goal: 'Record human decision', involves: [] },
                     { name: 'publication', goal: 'Publish content' },
                   ],
                 },
@@ -677,6 +797,10 @@ describe('WorkItemService', () => {
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'publication']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-gate-1']);
@@ -814,7 +938,7 @@ describe('WorkItemService', () => {
                   },
                   stages: [
                     { name: 'drafting', goal: 'Draft content' },
-                    { name: 'approval-gate', goal: 'Record human decision', human_gate: true, involves: [] },
+                    { name: 'approval-gate', goal: 'Record human decision', involves: [] },
                     { name: 'publication', goal: 'Publish content' },
                   ],
                 },
@@ -822,6 +946,10 @@ describe('WorkItemService', () => {
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'publication']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-gate-1']);
@@ -1165,14 +1293,15 @@ describe('WorkItemService', () => {
                     { name: 'review', goal: 'Review the implementation' },
                     { name: 'release', goal: 'Release the change' },
                   ],
-                  assessment_rules: [
-                    { subject_role: 'developer', assessed_by: 'reviewer', checkpoint: 'implementation', required: true },
-                  ],
                 },
               },
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'review']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-impl-1']);
@@ -1277,15 +1406,7 @@ describe('WorkItemService', () => {
                       goal: 'Draft the brief',
                       involves: ['rework-product-strategist', 'rework-technical-editor'],
                     },
-                    { name: 'approval-gate', goal: 'Human review gate', human_gate: true },
-                  ],
-                  handoff_rules: [
-                    {
-                      from_role: 'rework-product-strategist',
-                      to_role: 'rework-technical-editor',
-                      checkpoint: 'drafting',
-                      required: true,
-                    },
+                    { name: 'approval-gate', goal: 'Human review gate' },
                   ],
                 },
               },
@@ -1386,6 +1507,10 @@ describe('WorkItemService', () => {
             rowCount: 1,
           };
         }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'release']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
+        }
         if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-impl-1']);
           return {
@@ -1475,6 +1600,10 @@ describe('WorkItemService', () => {
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'review']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('FROM workflow_work_items wi') && sql.includes('latest_handoff_completion')) {
           expect(params).toEqual(['tenant-1', 'workflow-1', 'implementation-item']);
@@ -1662,6 +1791,10 @@ describe('WorkItemService', () => {
             rowCount: 1,
           };
         }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'requirements']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
+        }
         if (sql.includes('FROM workflow_work_items') && sql.includes('request_id = $3')) {
           expect(sql).not.toContain('SELECT *');
           return { rows: [], rowCount: 0 };
@@ -1800,6 +1933,10 @@ describe('WorkItemService', () => {
             rowCount: 1,
           };
         }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'triage']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
+        }
         if (sql.includes('FROM workflow_work_items') && sql.includes('request_id = $3')) {
           expect(sql).not.toContain('SELECT *');
           return { rows: [], rowCount: 0 };
@@ -1907,6 +2044,10 @@ describe('WorkItemService', () => {
             rowCount: 1,
           };
         }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'triage']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
+        }
         if (sql.includes('INSERT INTO workflow_work_items')) {
           expect(sql).not.toContain('RETURNING *');
           return { rows: [], rowCount: 0 };
@@ -1995,7 +2136,7 @@ describe('WorkItemService', () => {
 
   it('rejects a request_id replay when the existing work item does not match the requested mutation', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
@@ -2016,6 +2157,10 @@ describe('WorkItemService', () => {
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'triage']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
           return { rows: [], rowCount: 0 };
@@ -2077,7 +2222,7 @@ describe('WorkItemService', () => {
 
   it('treats metadata with reordered object keys as the same work-item replay', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
@@ -2098,6 +2243,10 @@ describe('WorkItemService', () => {
             ],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'triage']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
           return { rows: [], rowCount: 0 };
@@ -2175,7 +2324,7 @@ describe('WorkItemService', () => {
 
   it('redacts plaintext secrets from create-work-item responses', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
           return { rows: [], rowCount: 0 };
         }
@@ -2194,6 +2343,10 @@ describe('WorkItemService', () => {
             }],
             rowCount: 1,
           };
+        }
+        if (sql.includes('SELECT gate_status') && sql.includes('FROM workflow_stages')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'triage']);
+          return { rows: [{ gate_status: 'not_requested' }], rowCount: 1 };
         }
         if (sql.includes('INSERT INTO workflow_work_items')) {
           return {
@@ -2849,7 +3002,7 @@ describe('WorkItemService', () => {
                   },
                   stages: [
                     { name: 'drafting', goal: 'Draft content' },
-                    { name: 'approval-gate', goal: 'Human approval gate', human_gate: true, involves: [] },
+                    { name: 'approval-gate', goal: 'Human approval gate', involves: [] },
                   ],
                 },
               },

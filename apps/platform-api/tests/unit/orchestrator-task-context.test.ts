@@ -204,7 +204,7 @@ describe('buildOrchestratorTaskContext', () => {
               playbook_outcome: 'Ship work',
               playbook_definition: {
                 board: { columns: [{ id: 'planned', label: 'Planned' }] },
-                checkpoints: [{ name: 'implementation', goal: 'Build the work', human_gate: false }],
+                stages: [{ name: 'implementation', goal: 'Build the work' }],
               },
             }],
           };
@@ -251,7 +251,7 @@ describe('buildOrchestratorTaskContext', () => {
               playbook_definition: {
                 board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 roles: ['product-manager', 'architect', 'reviewer'],
-                checkpoints: [{ name: 'requirements', goal: 'Define the work' }],
+                stages: [{ name: 'requirements', goal: 'Define the work' }],
               },
             }],
           };
@@ -306,7 +306,7 @@ describe('buildOrchestratorTaskContext', () => {
               playbook_definition: {
                 board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 lifecycle: 'planned',
-                checkpoints: [
+                stages: [
                   { name: 'implementation', goal: 'Build the work' },
                   { name: 'review', goal: 'Review the work' },
                 ],
@@ -421,7 +421,7 @@ describe('buildOrchestratorTaskContext', () => {
               playbook_definition: {
                 board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 lifecycle: 'planned',
-                checkpoints: [
+                stages: [
                   { name: 'implementation', goal: 'Build the work' },
                   { name: 'review', goal: 'Review the work' },
                 ],
@@ -521,7 +521,7 @@ describe('buildOrchestratorTaskContext', () => {
     ]);
   });
 
-  it('derives pending assessor dispatches when assessment continuity awaits multiple required assessors', async () => {
+  it('derives pending assessor dispatches from actual continuity actor state', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows w')) {
@@ -537,22 +537,8 @@ describe('buildOrchestratorTaskContext', () => {
                 board: { columns: [{ id: 'planned', label: 'Planned' }] },
                 lifecycle: 'planned',
                 roles: ['feature-engineer', 'security-assessor', 'qa-assessor'],
-                checkpoints: [
+                stages: [
                   { name: 'implementation-pass', goal: 'Build the work' },
-                ],
-                assessment_rules: [
-                  {
-                    checkpoint: 'implementation-pass',
-                    subject_role: 'feature-engineer',
-                    assessed_by: 'security-assessor',
-                    required: true,
-                  },
-                  {
-                    checkpoint: 'implementation-pass',
-                    subject_role: 'feature-engineer',
-                    assessed_by: 'qa-assessor',
-                    required: true,
-                  },
                 ],
               },
             }],
@@ -569,15 +555,13 @@ describe('buildOrchestratorTaskContext', () => {
                 goal: 'Build the work',
                 column_id: 'planned',
                 owner_role: 'feature-engineer',
-                next_expected_actor: null,
+                next_expected_actor: 'qa-assessor',
                 next_expected_action: 'assess',
                 rework_count: 1,
                 priority: 'normal',
                 completed_at: null,
                 notes: null,
                 metadata: {},
-                current_subject_role: 'feature-engineer',
-                current_subject_revision: 3,
               },
             ],
           };
@@ -614,8 +598,8 @@ describe('buildOrchestratorTaskContext', () => {
                 started_at: null,
                 completed_at: '2026-03-23T19:55:00.000Z',
                 is_orchestrator_task: false,
-                input: { subject_task_id: 'delivery-task-3', subject_revision: 3 },
-                metadata: { task_kind: 'assessment', subject_task_id: 'delivery-task-3', subject_revision: 3 },
+                input: {},
+                metadata: { task_kind: 'assessment' },
               },
             ],
           };

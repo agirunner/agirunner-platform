@@ -16,18 +16,16 @@ describe('buildSpecialistExecutionBrief', () => {
         playbook: {
           definition: {
             lifecycle: 'planned',
-            process_instructions: 'Developer implements and reviewer validates before release.',
+            process_instructions:
+              'Developer implements, reviewer inspects the output, and the orchestrator invokes explicit approvals or escalations only when needed.',
             board: {
               columns: [
                 { id: 'review', label: 'In Review' },
                 { id: 'done', label: 'Done', is_terminal: true },
               ],
             },
-            checkpoints: [
+            stages: [
               { name: 'implementation', goal: 'Build the refresh-token fix' },
-            ],
-            assessment_rules: [
-              { subject_role: 'developer', assessed_by: 'reviewer', checkpoint: 'implementation', required: true },
             ],
           },
         },
@@ -96,7 +94,7 @@ describe('buildSpecialistExecutionBrief', () => {
     };
   }
 
-  it('builds a specialist workflow brief with task-scoped context and selected refs', () => {
+  it('builds a specialist brief from stages, continuity, and actual next-step state', () => {
     const brief = buildSpecialistExecutionBrief(buildInput());
 
     expect(brief).not.toBeNull();
@@ -112,18 +110,16 @@ describe('buildSpecialistExecutionBrief', () => {
         board_position: 'In Review',
       }),
     );
-    expect(brief?.predecessor_handoff_summary).toEqual(
-      expect.objectContaining({
-        role: 'developer',
-        summary: 'Implementation is ready for review and release-note validation.',
-      }),
+    expect(brief?.assessment_output_expectations).toEqual(
+      expect.arrayContaining([
+        'Expected review actor: reviewer.',
+        'reviewer is expected to assess the current output before the work item moves forward.',
+      ]),
     );
     expect(brief?.likely_relevant_files).toEqual(['docs/release-notes.md', 'src/auth/refresh.ts']);
     expect(brief?.relevant_memory_refs).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          key: 'release_note',
-        }),
+        expect.objectContaining({ key: 'release_note' }),
       ]),
     );
     expect(brief?.relevant_artifact_refs).toEqual([
@@ -152,27 +148,14 @@ describe('buildSpecialistExecutionBrief', () => {
     expect(initial?.refresh_key).not.toBe(updated?.refresh_key);
   });
 
-  it('changes refresh_key when review focus changes', () => {
+  it('changes refresh_key when active workflow controls change', () => {
     const base = buildInput();
     const initial = buildSpecialistExecutionBrief(base);
     const updated = buildSpecialistExecutionBrief({
       ...base,
       workItem: {
         ...base.workItem,
-        focus_areas: ['Refresh-token expiry path', 'Release-note wording'],
-      },
-    });
-
-    expect(initial?.refresh_key).not.toBe(updated?.refresh_key);
-  });
-
-  it('changes refresh_key when gate outcome changes', () => {
-    const base = buildInput();
-    const initial = buildSpecialistExecutionBrief(base);
-    const updated = buildSpecialistExecutionBrief({
-      ...base,
-      workItem: {
-        ...base.workItem,
+        next_expected_action: 'approve',
         metadata: {
           stage_gate: {
             gate_status: 'changes_requested',

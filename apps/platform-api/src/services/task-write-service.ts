@@ -620,29 +620,9 @@ export class TaskWriteService {
     input: CreateTaskInput,
     db: DatabaseClient | DatabasePool,
   ): Promise<CreateTaskInput> {
-    if (!input.workflow_id || input.is_orchestrator_task) {
-      return input;
-    }
-    const roleName = input.role?.trim();
-    if (!roleName) {
-      return input;
-    }
-
-    const definition = await this.loadWorkflowPlaybookDefinition(tenantId, input.workflow_id, db);
-    if (!definition) {
-      return input;
-    }
-    const taskStageName = input.stage_name?.trim() || null;
-    const requiresAssessment = definition.assessment_rules.some(
-      (rule) =>
-        rule.required !== false
-        && rule.subject_role === roleName
-        && (!rule.checkpoint || rule.checkpoint === taskStageName),
-    );
-    return {
-      ...input,
-      requires_assessment: requiresAssessment,
-    };
+    void tenantId;
+    void db;
+    return input;
   }
 
   private async applyPlaybookTaskExecutionDefaults(

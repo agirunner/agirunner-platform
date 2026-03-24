@@ -83,7 +83,7 @@ export class WorkflowStageService {
           index,
           stage.goal,
           stage.guidance ?? null,
-          stage.human_gate ?? false,
+          false,
           isActive ? 'active' : 'pending',
         ],
       );

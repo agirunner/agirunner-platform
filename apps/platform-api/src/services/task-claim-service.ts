@@ -1188,17 +1188,9 @@ function roleRequiresStructuredHandoff(
   task: Record<string, unknown>,
   instructionContext: Record<string, unknown>,
 ): boolean {
-  const role = readPresentString(task.role);
-  if (!role) {
-    return false;
-  }
-  const workflow = isRecord(instructionContext.workflow) ? instructionContext.workflow : null;
-  const playbook = workflow && isRecord(workflow.playbook) ? workflow.playbook : null;
-  if (!playbook || !('definition' in playbook)) {
-    return false;
-  }
-  const definition = parsePlaybookDefinition(playbook.definition);
-  return definition.handoff_rules.some((rule) => rule.required !== false && rule.from_role === role);
+  void task;
+  void instructionContext;
+  return false;
 }
 
 function readNullableFloat(value: unknown): number | null {

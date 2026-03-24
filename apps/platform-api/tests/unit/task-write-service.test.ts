@@ -199,7 +199,7 @@ describe('TaskWriteService', () => {
     ).rejects.toThrow('Missing runtime default "agent.max_iterations"');
   });
 
-  it('derives output assessment from playbook rules instead of trusting reviewer task input', async () => {
+  it('does not derive output assessment from deleted playbook review config', async () => {
     let insertedRequiresOutputReview: boolean | null = null;
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -222,22 +222,13 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements, reviewer reviews, QA validates.',
                 roles: ['developer', 'reviewer', 'qa'],
-                assessment_rules: [
+                stages: [
                   {
-                    subject_role: 'developer',
-                    assessed_by: 'reviewer',
-                    required: true,
+                    name: 'implementation',
+                    goal: 'Implement and inspect the change.',
+                    involves: ['developer', 'reviewer', 'qa'],
                   },
                 ],
-                approval_rules: [],
-                handoff_rules: [
-                  {
-                    from_role: 'reviewer',
-                    to_role: 'qa',
-                    required: true,
-                  },
-                ],
-                checkpoints: [],
                 board: {
                   columns: [
                     { id: 'planned', label: 'Planned' },
@@ -309,14 +300,13 @@ describe('TaskWriteService', () => {
         type: 'assessment',
         subject_task_id: 'task-developer-1',
         subject_revision: 1,
-        requires_assessment: true,
       },
     );
 
     expect(insertedRequiresOutputReview).toBe(false);
   });
 
-  it('only requires output assessment on the checkpoint named by the playbook review rule', async () => {
+  it('does not infer output assessment from stage names alone', async () => {
     const insertedRequiresOutputReview: boolean[] = [];
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -347,16 +337,10 @@ describe('TaskWriteService', () => {
             rows: [{
               definition: {
                 roles: ['live-test-developer', 'live-test-qa', 'live-test-reviewer'],
-                assessment_rules: [
-                  {
-                    subject_role: 'live-test-developer',
-                    assessed_by: 'live-test-qa',
-                    checkpoint: 'test',
-                    required: true,
-                  },
+                stages: [
+                  { name: 'reproduce', goal: 'Reproduce the issue.' },
+                  { name: 'test', goal: 'Verify the fix.' },
                 ],
-                approval_rules: [],
-                handoff_rules: [],
                 board: {
                   columns: [
                     { id: 'planned', label: 'Planned' },
@@ -438,7 +422,7 @@ describe('TaskWriteService', () => {
       },
     );
 
-    expect(insertedRequiresOutputReview).toEqual([false, true]);
+    expect(insertedRequiresOutputReview).toEqual([false, false]);
   });
 
   it('rejects creating a task for a terminated workflow branch', async () => {
@@ -677,10 +661,6 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Implementation is assessed before release.',
                 roles: ['implementation-engineer', 'acceptance-gate-assessor'],
-                assessment_rules: [],
-                approval_rules: [],
-                handoff_rules: [],
-                checkpoints: [],
                 board: {
                   columns: [
                     { id: 'planned', label: 'Planned' },
@@ -804,10 +784,9 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements and reviewer checks it.',
                 roles: ['developer', 'reviewer'],
-                assessment_rules: [],
-                approval_rules: [],
-                handoff_rules: [],
-                checkpoints: [],
+                stages: [
+                  { name: 'implementation', goal: 'Implement the work.' },
+                ],
                 board: {
                   columns: [
                     { id: 'planned', label: 'Planned' },
@@ -920,10 +899,9 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements and reviewer checks it.',
                 roles: ['developer', 'reviewer'],
-                assessment_rules: [],
-                approval_rules: [],
-                handoff_rules: [],
-                checkpoints: [],
+                stages: [
+                  { name: 'implementation', goal: 'Implement the work.' },
+                ],
                 board: {
                   columns: [
                     { id: 'planned', label: 'Planned' },
@@ -1031,10 +1009,9 @@ describe('TaskWriteService', () => {
               definition: {
                 process_instructions: 'Developer implements and reviewer checks it.',
                 roles: ['developer', 'reviewer'],
-                assessment_rules: [],
-                approval_rules: [],
-                handoff_rules: [],
-                checkpoints: [],
+                stages: [
+                  { name: 'implementation', goal: 'Implement the work.' },
+                ],
                 board: {
                   columns: [
                     { id: 'planned', label: 'Planned' },
@@ -3115,17 +3092,10 @@ describe('TaskWriteService', () => {
                   ],
                   entry_column_id: 'review',
                 },
-                checkpoints: [
-                  { name: 'review', goal: 'Reviewer sign-off' },
-                  { name: 'verification', goal: 'QA validation' },
-                ],
                 stages: [
                   { name: 'review', goal: 'Reviewer sign-off', involves: ['live-test-reviewer'] },
                   { name: 'verification', goal: 'QA validation', involves: ['live-test-qa'] },
                 ],
-                assessment_rules: [],
-                approval_rules: [],
-                handoff_rules: [{ from_role: 'live-test-reviewer', to_role: 'live-test-qa', checkpoint: 'review', required: true }],
                 lifecycle: 'planned',
               },
             }],
@@ -3204,15 +3174,9 @@ describe('TaskWriteService', () => {
                   ],
                   entry_column_id: 'planned',
                 },
-                checkpoints: [
-                  { name: 'approval-gate', goal: 'A human decision exists for the brief.', human_gate: true },
-                ],
                 stages: [
-                  { name: 'approval-gate', goal: 'A human decision exists for the brief.', human_gate: true, involves: [] },
+                  { name: 'approval-gate', goal: 'A human decision exists for the brief.', involves: [] },
                 ],
-                assessment_rules: [],
-                approval_rules: [],
-                handoff_rules: [],
                 lifecycle: 'planned',
               },
             }],

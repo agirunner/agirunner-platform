@@ -14,39 +14,6 @@ export function resolveAssessmentOutcomeAction(input: {
   checkpointName?: string | null;
   decisionState: DecisionState;
 }) {
-  if (!input.subjectRole || !input.assessorRole) {
-    return null;
-  }
-
-  const matchedRule = input.definition.assessment_rules.find((rule) =>
-    rule.subject_role === input.subjectRole
-    && rule.assessed_by === input.assessorRole
-    && matchesCheckpoint(rule.checkpoint, input.checkpointName)
-    && decisionStateIsAllowed(rule.decision_states, input.decisionState),
-  );
-  if (!matchedRule) {
-    return null;
-  }
-
-  return (matchedRule.outcome_actions?.[input.decisionState] ?? null) as AssessmentOutcomeAction | null;
-}
-
-function matchesCheckpoint(
-  ruleCheckpoint: string | null | undefined,
-  currentCheckpoint: string | null | undefined,
-) {
-  if (!ruleCheckpoint) {
-    return true;
-  }
-  return ruleCheckpoint === (currentCheckpoint ?? null);
-}
-
-function decisionStateIsAllowed(
-  allowedStates: DecisionState[] | undefined,
-  decisionState: DecisionState,
-) {
-  if (!Array.isArray(allowedStates) || allowedStates.length === 0) {
-    return decisionState !== 'blocked';
-  }
-  return allowedStates.includes(decisionState);
+  void input;
+  return null as AssessmentOutcomeAction | null;
 }

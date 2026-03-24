@@ -114,42 +114,9 @@ export class HandoffService {
     task: Record<string, unknown>,
     db: DatabaseClient | DatabasePool = this.pool,
   ) {
-    const taskId = readOptionalString(task.id);
-    const workflowId = readOptionalString(task.workflow_id);
-    const role = readOptionalString(task.role);
-    const taskReworkCount = readInteger(task.rework_count) ?? 0;
-    if (!taskId || !workflowId || !role) {
-      return;
-    }
-
-    const definition = await this.loadWorkflowPlaybookDefinition(tenantId, workflowId, db);
-    if (!definition) {
-      return;
-    }
-    const requiresHandoff = definition.handoff_rules.some(
-      (rule) => rule.required !== false && rule.from_role === role,
-    );
-    if (!requiresHandoff) {
-      return;
-    }
-
-    const handoffResult = await db.query<{ id: string }>(
-      `SELECT id
-         FROM task_handoffs
-        WHERE tenant_id = $1
-          AND task_id = $2
-          AND task_rework_count = $3
-        LIMIT 1`,
-      [tenantId, taskId, taskReworkCount],
-    );
-    if (handoffResult.rowCount) {
-      return;
-    }
-
-    throw new ValidationError('Task requires a structured handoff before completion', {
-      reason_code: 'required_structured_handoff',
-      recovery_hint: 'submit_required_handoff',
-    });
+    void tenantId;
+    void task;
+    void db;
   }
 
   async submitTaskHandoff(

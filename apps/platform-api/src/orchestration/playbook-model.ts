@@ -14,95 +14,7 @@ const stageSchema = z.object({
   name: z.string().min(1).max(120),
   goal: z.string().min(1).max(4000),
   involves: z.array(z.string().min(1).max(120)).optional(),
-  human_gate: z.boolean().optional(),
   guidance: z.string().max(8000).optional(),
-});
-
-const checkpointSchema = z.object({
-  name: z.string().min(1).max(120),
-  goal: z.string().min(1).max(4000),
-  human_gate: z.boolean().optional(),
-  entry_criteria: z.string().max(4000).optional(),
-});
-
-const assessmentOutcomeActionSchema = z.object({
-  action: z.enum([
-    'continue',
-    'reopen_subject',
-    'route_to_role',
-    'block_subject',
-    'escalate',
-    'terminate_branch',
-  ]),
-  role: z.string().min(1).max(120).optional(),
-}).superRefine((value, context) => {
-  if (value.action === 'route_to_role' && !value.role) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Assessment outcome action route_to_role requires a role',
-      path: ['role'],
-    });
-  }
-});
-
-const decisionStateSchema = z.enum(['approved', 'request_changes', 'rejected', 'blocked']);
-const materialitySchema = z.enum(['material', 'non_material']);
-
-const revisionPolicySchema = z.object({
-  assessment_retention: z.enum([
-    'invalidate_all',
-    'retain_advisory_only',
-    'retain_named_assessors',
-    'retain_non_material_only',
-  ]).optional(),
-  approval_retention: z.enum([
-    'invalidate_all',
-    'retain_advisory_only',
-    'retain_named_assessors',
-    'retain_non_material_only',
-  ]).optional(),
-});
-
-const orderingPolicySchema = z.object({
-  subject_boundary: z.enum(['checkpoint']).optional(),
-  approval_before_assessment: z.boolean().optional(),
-});
-
-const assessmentRuleSchema = z.object({
-  subject_role: z.string().min(1).max(120),
-  assessed_by: z.string().min(1).max(120),
-  checkpoint: z.string().min(1).max(120).optional(),
-  required: z.boolean().optional(),
-  optional: z.boolean().optional(),
-  materiality: materialitySchema.optional(),
-  decision_states: z.array(decisionStateSchema).optional(),
-  outcome_actions: z
-    .object({
-      approved: assessmentOutcomeActionSchema.optional(),
-      request_changes: assessmentOutcomeActionSchema.optional(),
-      rejected: assessmentOutcomeActionSchema.optional(),
-      blocked: assessmentOutcomeActionSchema.optional(),
-    })
-    .optional(),
-  revision_policy: revisionPolicySchema.optional(),
-});
-
-const approvalRuleSchema = z.object({
-  on: z.enum(['checkpoint', 'completion']),
-  checkpoint: z.string().min(1).max(120).optional(),
-  approved_by: z.enum(['human']),
-  required: z.boolean().optional(),
-  materiality: materialitySchema.optional(),
-  decision_states: z.array(decisionStateSchema).optional(),
-  revision_policy: revisionPolicySchema.optional(),
-  ordering_policy: orderingPolicySchema.optional(),
-});
-
-const handoffRuleSchema = z.object({
-  from_role: z.string().min(1).max(120),
-  to_role: z.string().min(1).max(120),
-  checkpoint: z.string().min(1).max(120).optional(),
-  required: z.boolean().optional(),
 });
 
 const runtimePoolSchema = z.object({
@@ -122,15 +34,6 @@ const runtimeSchema = runtimePoolSchema.extend({
   specialist_pool: runtimePoolSchema.optional(),
 });
 
-const branchPolicySchema = z.object({
-  branch_key: z.string().min(1).max(120),
-  termination_policy: z.enum([
-    'stop_branch_only',
-    'stop_branch_and_descendants',
-    'stop_all_siblings',
-  ]),
-});
-
 const playbookDefinitionSchema = z.object({
   process_instructions: z.string().min(1).max(12000).optional(),
   roles: z.array(z.string().min(1).max(120)).default([]),
@@ -138,12 +41,7 @@ const playbookDefinitionSchema = z.object({
     entry_column_id: z.string().min(1).max(120).optional(),
     columns: z.array(boardColumnSchema).min(1),
   }),
-  checkpoints: z.array(checkpointSchema).default([]),
   stages: z.array(stageSchema).default([]),
-  assessment_rules: z.array(assessmentRuleSchema).default([]),
-  approval_rules: z.array(approvalRuleSchema).default([]),
-  handoff_rules: z.array(handoffRuleSchema).default([]),
-  branch_policies: z.array(branchPolicySchema).default([]),
   lifecycle: z.enum(['planned', 'ongoing']).default('planned'),
   orchestrator: z
     .object({
@@ -159,17 +57,7 @@ const playbookDefinitionSchema = z.object({
     .optional(),
   runtime: runtimeSchema.optional(),
   parameters: z.array(z.record(z.unknown())).optional(),
-}).strict().superRefine((definition, context) => {
-  const usesTerminateBranch = definition.assessment_rules.some((rule) =>
-    Object.values(rule.outcome_actions ?? {}).some((entry) => entry?.action === 'terminate_branch'));
-  if (usesTerminateBranch && definition.branch_policies.length === 0) {
-    context.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'terminate_branch requires at least one branch policy',
-      path: ['branch_policies'],
-    });
-  }
-});
+}).strict();
 
 export type PlaybookDefinition = z.infer<typeof playbookDefinitionSchema>;
 export type PlaybookRuntimeConfig = z.infer<typeof runtimeSchema>;
@@ -194,7 +82,6 @@ export function parsePlaybookDefinition(value: unknown): PlaybookDefinition {
   assertUniqueIds(normalized.board.columns.map((column) => column.id), 'board column');
   assertBoardEntryColumn(normalized);
   assertUniqueIds(normalized.stages.map((stage) => stage.name), 'stage');
-  assertUniqueIds(normalized.checkpoints.map((checkpoint) => checkpoint.name), 'checkpoint');
   return normalized;
 }
 
@@ -204,10 +91,6 @@ export function defaultColumnId(definition: PlaybookDefinition): string {
 
 export function defaultStageName(definition: PlaybookDefinition): string | null {
   return definition.stages[0]?.name ?? null;
-}
-
-export function defaultCheckpointName(definition: PlaybookDefinition): string | null {
-  return definition.checkpoints[0]?.name ?? null;
 }
 
 export function hasBoardColumn(definition: PlaybookDefinition, columnId: string): boolean {
@@ -278,22 +161,7 @@ function assertBoardEntryColumn(definition: PlaybookDefinition): void {
 }
 
 function normalizePlaybookDefinition(definition: PlaybookDefinition): PlaybookDefinition {
-  const checkpoints = definition.checkpoints.length > 0
-    ? definition.checkpoints
-    : definition.stages.map((stage) => ({
-        name: stage.name,
-        goal: stage.goal,
-        human_gate: stage.human_gate ?? false,
-        entry_criteria: undefined,
-      }));
-
-  const stages = definition.stages.length > 0
-    ? definition.stages
-    : checkpoints.map((checkpoint) => ({
-        name: checkpoint.name,
-        goal: checkpoint.goal,
-        human_gate: checkpoint.human_gate ?? false,
-      }));
+  const stages = definition.stages;
 
   return {
     ...definition,
@@ -301,27 +169,13 @@ function normalizePlaybookDefinition(definition: PlaybookDefinition): PlaybookDe
       definition.process_instructions?.trim() ||
       definition.orchestrator?.instructions?.trim() ||
       buildLegacyProcessInstructions(stages),
-    checkpoints,
     stages,
-    assessment_rules: definition.assessment_rules.map((rule) => ({
-      ...rule,
-      required: rule.optional === true ? false : (rule.required ?? true),
-      optional: rule.optional === true ? true : (rule.required === false),
-    })),
-    approval_rules: definition.approval_rules.map((rule) => ({
-      ...rule,
-      required: rule.required ?? true,
-    })),
-    handoff_rules: definition.handoff_rules.map((rule) => ({
-      ...rule,
-      required: rule.required ?? true,
-    })),
   };
 }
 
 function buildLegacyProcessInstructions(stages: PlaybookDefinition['stages']): string {
   if (stages.length === 0) {
-    return 'Move work forward through the defined board lanes and complete required assessments and approvals before finishing.';
+    return 'Move work forward through the defined board lanes and deliver the requested outcome with clear handoffs and evidence.';
   }
 
   return stages

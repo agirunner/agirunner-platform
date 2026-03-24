@@ -708,16 +708,7 @@ function checkpointRequiresHumanApproval(
   definition: ReturnType<typeof parsePlaybookDefinition>,
   checkpointName: string | null,
 ) {
-  if (!checkpointName) {
-    return false;
-  }
-  if (definition.checkpoints.some((checkpoint) => checkpoint.name === checkpointName && checkpoint.human_gate)) {
-    return true;
-  }
-  return definition.approval_rules.some((rule) => {
-    if (rule.required === false || rule.on !== 'checkpoint') {
-      return false;
-    }
-    return rule.checkpoint === checkpointName;
-  });
+  void definition;
+  void checkpointName;
+  return false;
 }

@@ -61,7 +61,7 @@ export function buildWorkflowInstructionLayer(
     ?? deriveSoleActiveStageName(workflow)
     ?? readString(workflow.current_stage)
     ?? null;
-  const checkpoint = definition.checkpoints.find((entry) => entry.name === stageName) ?? null;
+  const stage = definition.stages.find((entry) => entry.name === stageName) ?? null;
   const boardColumn = definition.board.columns.find((entry) => entry.id === readString(focusedWorkItem.column_id));
   const repoBacked = isRepositoryBacked(input.workspace, workflow, input.taskInput);
   const currentStageHasWorkItems = input.isOrchestratorTask
@@ -72,7 +72,7 @@ export function buildWorkflowInstructionLayer(
         lifecycle,
         definition,
         workflow: workflowInstructionContext,
-        checkpoint,
+        stage,
         boardColumn,
         focusedWorkItem,
         activeStages: readStringArray(workflowInstructionContext.active_stages),
@@ -106,7 +106,7 @@ function buildOrchestratorSections(params: {
   lifecycle: 'planned' | 'ongoing';
   definition: ReturnType<typeof parsePlaybookDefinition>;
   workflow: Record<string, unknown>;
-  checkpoint: { name: string; goal: string; human_gate?: boolean } | null;
+  stage: { name: string; goal: string; guidance?: string } | null;
   boardColumn?: { label: string } | null;
   focusedWorkItem: Record<string, unknown>;
   activeStages: string[];
@@ -122,16 +122,16 @@ function buildOrchestratorSections(params: {
     `## Progress Model\n${progressModelGuidance(params.definition)}`,
   ];
 
-  if (params.checkpoint) {
+  if (params.stage) {
     sections.push(
-      `## Current Stage\n${params.checkpoint.name}\nGoal: ${params.checkpoint.goal}\nHuman gate: ${params.checkpoint.human_gate ? 'yes' : 'no'}`,
+      `## Current Stage\n${params.stage.name}\nGoal: ${params.stage.goal}`,
     );
-    const successorCheckpoint = nextCheckpointName(params.definition, params.checkpoint.name);
+    const successorStage = nextStageName(params.definition, params.stage.name);
     if (params.lifecycle === 'planned') {
-      sections.push(`## Stage Routing\n${formatStageRouting(params.checkpoint.name, successorCheckpoint)}`);
+      sections.push(`## Stage Routing\n${formatStageRouting(params.stage.name, successorStage)}`);
       const emptyStageGuidance = formatEmptyPlannedStageGuidance(
         params.definition,
-        params.checkpoint.name,
+        params.stage.name,
         params.activationTransition.previousStageName,
         params.currentStageHasWorkItems,
       );
@@ -152,7 +152,7 @@ function buildOrchestratorSections(params: {
     sections.push(`## Available Roles\n${formatRoleCatalog(roleCatalog)}`);
   }
 
-  sections.push(`## Rule Results\n${formatRuleResults(params.definition, params.checkpoint?.name ?? null, params.focusedWorkItem)}`);
+  sections.push(`## Active Continuity\n${formatRuleResults(params.focusedWorkItem)}`);
   if (params.pendingDispatches.length > 0) {
     sections.push(`## Pending Dispatches\n${formatPendingDispatches(params.pendingDispatches)}`);
   }
@@ -349,18 +349,16 @@ function isSecretLikeValue(value: unknown) {
 
 function workflowModeGuidance(lifecycle: 'planned' | 'ongoing') {
   if (lifecycle === 'ongoing') {
-    return 'This workflow stays open and accepts work over time. Prioritize per-work-item continuity and backlog health over any single global checkpoint.';
+    return 'This workflow stays open and accepts work over time. Prioritize per-work-item continuity and backlog health over any single global stage.';
   }
-  return 'This workflow is bounded. Move work through the required checkpoints, close finished predecessor work items when routing to successor checkpoint work, and finish only after mandatory assessments and approvals are satisfied.';
+  return 'This workflow is bounded. Move work through the authored stage sequence, close accepted predecessor work items when routing to successor-stage work, and finish only after any actually-invoked approval, assessment, or escalation steps are resolved.';
 }
 
 function progressModelGuidance(
   definition: ReturnType<typeof parsePlaybookDefinition>,
 ) {
-  if (definition.checkpoints.length > 0) {
-    return 'Checkpoint-driven. Use the active checkpoint goal, mandatory rules, and board lane posture together when deciding the next action.';
-  }
-  return 'Board-driven. Use board lane posture and work-item continuity to drive progression because this playbook does not define explicit checkpoints.';
+  void definition;
+  return 'Stage-and-board driven. Use the current stage goal, board posture, work-item continuity, and detailed process instructions together when deciding the next action.';
 }
 
 function outputProtocol(repoBacked: boolean, orchestrator: boolean) {
@@ -375,8 +373,6 @@ function outputProtocol(repoBacked: boolean, orchestrator: boolean) {
 }
 
 function formatRuleResults(
-  definition: ReturnType<typeof parsePlaybookDefinition>,
-  checkpointName: string | null,
   workItem: Record<string, unknown>,
 ) {
   const lines: string[] = [];
@@ -410,92 +406,24 @@ function formatRuleResults(
   if (reworkCount !== null) {
     lines.push(`Current rework count: ${reworkCount}`);
   }
-  if (requiresHumanApproval(definition, checkpointName)) {
-    lines.push('Human approval required before completion.');
-    lines.push(
-      'If approval is required in a dedicated human-gate stage, request the gate on that gate stage itself, not on the predecessor stage that produced the accepted work.',
-    );
+  const blockedState = readString(workItem.blocked_state);
+  if (blockedState) {
+    lines.push(`Blocked state: ${blockedState}`);
   }
-  for (const rule of definition.assessment_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
-    if (rule.required === false) {
-      continue;
-    }
-    lines.push(`Required assessment: ${rule.subject_role} -> ${rule.assessed_by}`);
+  const escalationStatus = readString(workItem.escalation_status);
+  if (escalationStatus) {
+    lines.push(`Escalation status: ${escalationStatus}`);
   }
-  if (definition.lifecycle !== 'planned') {
-    for (const rule of definition.handoff_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
-      if (rule.required === false) {
-        continue;
-      }
-      lines.push(`Required handoff: ${rule.from_role} -> ${rule.to_role}`);
-    }
-  }
-  for (const rule of definition.approval_rules.filter((entry) => approvalRuleAppliesToCheckpoint(entry, checkpointName))) {
-    if (rule.required === false) {
-      continue;
-    }
-    if (rule.on === 'completion') {
-      lines.push('Human approval: required before completion');
-      continue;
-    }
-    lines.push(`Human approval: required at checkpoint "${rule.checkpoint}"`);
-  }
-  return lines.join('\n') || 'No mandatory routing is pending.';
+  return lines.join('\n') || 'No active continuity requirements are recorded.';
 }
 
 function formatPlannedHandoffSemantics() {
   return [
-    'Planned-workflow handoff rules describe the structured handoff that must exist before successor-stage routing.',
-    'They do not authorize dispatching successor-role tasks on the current stage work item.',
+    'Structured handoffs capture the accepted output that justifies successor-stage routing.',
+    'A handoff by itself does not authorize dispatching successor-role tasks on the current stage work item.',
     'Create or move successor work into the next stage before dispatching successor-role specialists.',
-    'If prose asks for approval or assessment but the persisted workflow metadata for this boundary does not configure it, treat the request as advisory only and do not block progress on that basis.',
+    'Only actual invoked approvals, assessments, and escalations create blocking workflow state. Process prose may instruct you to invoke those controls, but there is no separate governance metadata to consult.',
   ].join('\n');
-}
-
-function formatAssessmentExpectations(
-  definition: ReturnType<typeof parsePlaybookDefinition>,
-  checkpointName: string | null,
-  workItem: Record<string, unknown>,
-  role: string | null,
-) {
-  const lines: string[] = [];
-  const roleName = role ?? readString(workItem.owner_role);
-  const incomingAssessmentRule = definition.assessment_rules.find(
-    (entry) => entry.assessed_by === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition),
-  );
-  if (incomingAssessmentRule && incomingAssessmentRule.required !== false && roleName) {
-    lines.push(`Assessment required from ${roleName}`);
-    lines.push(`Mandatory assessment: ${roleName} should assess the current output before completion.`);
-  } else {
-    const outgoingAssessmentRule = definition.assessment_rules.find(
-      (entry) => entry.subject_role === roleName && ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition),
-    );
-    if (outgoingAssessmentRule && outgoingAssessmentRule.required !== false) {
-      lines.push(`Assessment required from ${outgoingAssessmentRule.assessed_by}`);
-      lines.push(`Mandatory assessment: ${outgoingAssessmentRule.assessed_by} should assess the current output before completion.`);
-    }
-  }
-  if (readString(workItem.next_expected_actor)) {
-    lines.push(`Next expected actor: ${readString(workItem.next_expected_actor)}`);
-  }
-  if (readString(workItem.next_expected_action)) {
-    lines.push(`Next expected action: ${readString(workItem.next_expected_action)}`);
-  }
-  if (requiresHumanApproval(definition, checkpointName)) {
-    lines.push('Human approval is required before completion.');
-  }
-  const reworkCount = readNumber(workItem.rework_count);
-  if (reworkCount !== null) {
-    lines.push(`Current rework count: ${reworkCount}`);
-  }
-  return lines.join('\n') || 'No mandatory assessment or approval is pending.';
-}
-
-function requiresHumanApproval(
-  definition: ReturnType<typeof parsePlaybookDefinition>,
-  checkpointName: string | null,
-) {
-  return definition.approval_rules.some((entry) => approvalRuleAppliesToCheckpoint(entry, checkpointName));
 }
 
 function formatStageRouting(
@@ -559,42 +487,18 @@ function formatEmptyPlannedStageGuidance(
   return lines.join('\n');
 }
 
-function nextCheckpointName(
+function nextStageName(
   definition: ReturnType<typeof parsePlaybookDefinition>,
-  checkpointName: string | null,
+  stageName: string | null,
 ) {
-  if (!checkpointName) {
+  if (!stageName) {
     return null;
   }
-  const checkpointIndex = definition.checkpoints.findIndex((entry) => entry.name === checkpointName);
-  if (checkpointIndex < 0) {
+  const stageIndex = definition.stages.findIndex((entry) => entry.name === stageName);
+  if (stageIndex < 0) {
     return null;
   }
-  return definition.checkpoints[checkpointIndex + 1]?.name ?? null;
-}
-
-function ruleAppliesToCheckpoint(
-  ruleCheckpoint: string | undefined,
-  checkpointName: string | null,
-  _definition: ReturnType<typeof parsePlaybookDefinition>,
-) {
-  if (!ruleCheckpoint) {
-    return true;
-  }
-  return checkpointName === ruleCheckpoint;
-}
-
-function approvalRuleAppliesToCheckpoint(
-  rule: { on: 'checkpoint' | 'completion'; checkpoint?: string | undefined; required?: boolean | undefined },
-  checkpointName: string | null,
-) {
-  if (rule.required === false) {
-    return false;
-  }
-  if (rule.on === 'completion') {
-    return true;
-  }
-  return Boolean(checkpointName) && rule.checkpoint === checkpointName;
+  return definition.stages[stageIndex + 1]?.name ?? null;
 }
 
 function starterRolesForStage(
@@ -602,24 +506,8 @@ function starterRolesForStage(
   stageName: string,
 ) {
   const stage = definition.stages.find((entry) => entry.name === stageName);
-  const stageRoles = stage?.involves ?? [];
-  if (stageRoles.length === 0) {
-    return [];
-  }
-
-  const blockedRoles = new Set(
-    definition.handoff_rules
-      .filter(
-        (rule) =>
-          rule.required !== false
-          && ruleAppliesToCheckpoint(rule.checkpoint, stageName, definition)
-          && stageRoles.includes(rule.from_role)
-          && stageRoles.includes(rule.to_role),
-      )
-      .map((rule) => rule.to_role),
-  );
-
-  return stageRoles.filter((role) => !blockedRoles.has(role));
+  void definition;
+  return stage?.involves ?? [];
 }
 
 function selectFocusedWorkItem(

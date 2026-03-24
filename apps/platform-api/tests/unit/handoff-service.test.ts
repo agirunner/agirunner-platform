@@ -1833,7 +1833,7 @@ describe('HandoffService', () => {
     expect(query.mock.calls[3]?.[0]).toContain('UPDATE task_handoffs');
   });
 
-  it('requires a structured handoff before completion when the playbook mandates it', async () => {
+  it('does not derive a completion-time handoff requirement from deleted playbook governance', async () => {
     const pool = {
       query: vi
         .fn()
@@ -1859,16 +1859,10 @@ describe('HandoffService', () => {
         workflow_id: 'workflow-1',
         role: 'developer',
       }),
-    ).rejects.toMatchObject({
-      code: 'VALIDATION_ERROR',
-      details: {
-        reason_code: 'required_structured_handoff',
-        recovery_hint: 'submit_required_handoff',
-      },
-    });
+    ).resolves.toBeUndefined();
   });
 
-  it('requires a fresh structured handoff for the current rework iteration before completion', async () => {
+  it('does not require a fresh handoff iteration from deleted playbook governance', async () => {
     const pool = {
       query: vi
         .fn()
@@ -1900,6 +1894,6 @@ describe('HandoffService', () => {
         role: 'developer',
         rework_count: 1,
       }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    ).resolves.toBeUndefined();
   });
 });

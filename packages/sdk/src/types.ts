@@ -266,7 +266,6 @@ export interface WorkflowStage {
   position: number;
   goal: string;
   guidance?: string | null;
-  human_gate: boolean;
   status: string;
   is_active: boolean;
   gate_status: string;
@@ -464,7 +463,6 @@ export interface Task {
   assigned_agent_id: string | null;
   assigned_worker_id: string | null;
   depends_on: string[];
-  requires_approval: boolean;
   timeout_minutes: number;
   auto_retry: boolean;
   max_retries: number;
@@ -498,7 +496,6 @@ export interface CreateTaskInput {
   role?: string;
   input?: Record<string, unknown>;
   depends_on?: string[];
-  requires_approval?: boolean;
   capabilities_required?: string[];
   role_config?: Record<string, unknown>;
   environment?: Record<string, unknown>;

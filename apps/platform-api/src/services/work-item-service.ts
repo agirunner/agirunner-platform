@@ -22,7 +22,6 @@ import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
 import { reconcilePlannedWorkflowStages } from './workflow-stage-reconciliation.js';
 import {
   ensureWorkflowBranch,
-  type BranchTerminationPolicy,
 } from './workflow-branch-service.js';
 import {
   PLATFORM_CONTROL_PLANE_IDEMPOTENT_MUTATION_REPLAY_ID,
@@ -773,9 +772,7 @@ export class WorkItemService {
     input: CreateWorkItemInput,
     client: DatabaseClient,
   ) {
-    const needsParentBranchLookup = Boolean(input.parent_work_item_id) && (
-      Boolean(input.branch_key?.trim()) || definition.branch_policies.length > 0
-    );
+    const needsParentBranchLookup = Boolean(input.parent_work_item_id) && Boolean(input.branch_key?.trim());
     const parentBranch = needsParentBranchLookup
       ? await this.loadParentWorkItemBranch(
           tenantId,
@@ -792,11 +789,7 @@ export class WorkItemService {
     if (!branchKey) {
       return parentBranch?.branch_id ?? null;
     }
-
-    const authoredPolicy = definition.branch_policies.find((entry) => entry.branch_key === branchKey);
-    if (!authoredPolicy) {
-      throw new ValidationError(`Unknown branch_key '${branchKey}' for this playbook`);
-    }
+    void definition;
 
     return ensureWorkflowBranch(client, {
       tenantId,
@@ -804,7 +797,7 @@ export class WorkItemService {
       parentBranchId: parentBranch?.branch_id ?? null,
       parentSubjectRef: { kind: 'workflow', workflow_id: workflowId },
       branchKey,
-      terminationPolicy: authoredPolicy.termination_policy as BranchTerminationPolicy,
+      terminationPolicy: 'stop_branch_only',
       metadata: {},
     });
   }
@@ -845,11 +838,7 @@ export class WorkItemService {
     stageName: string,
     client: DatabaseClient,
   ) {
-    const stage = definition.stages.find((entry) => entry.name === stageName);
-    if (!stage?.human_gate) {
-      return { nextExpectedActor: null, nextExpectedAction: null };
-    }
-
+    void definition;
     const stageResult = await client.query<{ gate_status: string | null }>(
       `SELECT gate_status
          FROM workflow_stages
@@ -859,7 +848,8 @@ export class WorkItemService {
         LIMIT 1`,
       [tenantId, workflowId, stageName],
     );
-    if (stageResult.rows[0]?.gate_status === 'approved') {
+    const status = stageResult.rows[0]?.gate_status ?? null;
+    if (!status || status === 'not_requested' || status === 'approved') {
       return { nextExpectedActor: null, nextExpectedAction: null };
     }
 
@@ -1652,22 +1642,6 @@ function starterRolesForPlannedStage(
   stageName: string,
 ) {
   const stage = definition.stages.find((entry) => entry.name === stageName);
-  const stageRoles = stage?.involves?.filter((role) => role.trim().length > 0) ?? [];
-  if (stageRoles.length === 0) {
-    return [];
-  }
-
-  const blockedRoles = new Set(
-    definition.handoff_rules
-      .filter(
-        (rule) =>
-          rule.required !== false
-          && (!rule.checkpoint || rule.checkpoint === stageName)
-          && stageRoles.includes(rule.from_role)
-          && stageRoles.includes(rule.to_role),
-      )
-      .map((rule) => rule.to_role),
-  );
-
-  return stageRoles.filter((role) => !blockedRoles.has(role));
+  void definition;
+  return stage?.involves?.filter((role) => role.trim().length > 0) ?? [];
 }
