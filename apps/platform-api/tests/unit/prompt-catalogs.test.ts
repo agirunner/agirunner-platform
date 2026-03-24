@@ -109,6 +109,9 @@ describe('prompt catalogs', () => {
       'Prior handoff prose is not authoritative gate state.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'request_gate_approval must target the human-gate stage that is awaiting approval, not the predecessor stage that produced the accepted work.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'When approval_before_assessment is authored, request and resolve the gate before dispatching downstream assessment for that boundary.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(

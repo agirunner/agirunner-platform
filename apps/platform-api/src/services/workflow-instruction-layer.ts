@@ -412,6 +412,9 @@ function formatRuleResults(
   }
   if (requiresHumanApproval(definition, checkpointName)) {
     lines.push('Human approval required before completion.');
+    lines.push(
+      'If approval is required in a dedicated human-gate stage, request the gate on that gate stage itself, not on the predecessor stage that produced the accepted work.',
+    );
   }
   for (const rule of definition.assessment_rules.filter((entry) => ruleAppliesToCheckpoint(entry.checkpoint, checkpointName, definition))) {
     if (rule.required === false) {

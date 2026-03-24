@@ -113,6 +113,9 @@ describe('buildWorkflowInstructionLayer', () => {
       'When active subordinate tasks are already in flight and continuity identifies the next expected event, finish this activation and wait for that event instead of polling for completion.',
     );
     expect(layer!.content).toContain('Human approval required before completion.');
+    expect(layer!.content).toContain(
+      'If approval is required in a dedicated human-gate stage, request the gate on that gate stage itself, not on the predecessor stage that produced the accepted work.',
+    );
     expect(layer!.content).toContain('Required assessment: reviewer -> qa');
     expect(layer!.content).not.toContain('Required handoff: reviewer -> qa');
     expect(layer!.content).not.toContain('Required assessment: developer -> reviewer');

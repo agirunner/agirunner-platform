@@ -92,6 +92,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If a workflow has multiple open work items, every work-item-scoped continuity or activation-checkpoint mutation MUST include the explicit work_item_id you intend to update. Never rely on inference when more than one work item is open.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.
 - Create successor work items and tasks in the successor stage, not the stage that just finished.
+- request_gate_approval must target the human-gate stage that is awaiting approval, not the predecessor stage that produced the accepted work.
 - For planned workflows, every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.
 - Do not keep successor-stage work anchored to the predecessor stage.
 - When a branch is terminated, stop creating tasks or work items in that branch and leave sibling branches unchanged unless policy says otherwise.
