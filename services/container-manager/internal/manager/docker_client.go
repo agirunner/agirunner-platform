@@ -155,9 +155,7 @@ func (d *RealDockerClient) StopContainer(ctx context.Context, containerID string
 
 // RemoveContainer forcefully removes a container.
 func (d *RealDockerClient) RemoveContainer(ctx context.Context, containerID string) error {
-	err := d.cli.ContainerRemove(ctx, containerID, container.RemoveOptions{
-		Force: true,
-	})
+	err := d.cli.ContainerRemove(ctx, containerID, managedContainerRemoveOptions())
 	if err != nil {
 		return fmt.Errorf("docker remove container %s: %w", containerID, err)
 	}
@@ -201,7 +199,7 @@ func (d *RealDockerClient) UpdateContainerLabels(ctx context.Context, containerI
 	// Tear down the old container.
 	stopTimeout := 10
 	_ = d.cli.ContainerStop(ctx, containerID, container.StopOptions{Timeout: &stopTimeout})
-	_ = d.cli.ContainerRemove(ctx, containerID, container.RemoveOptions{Force: true})
+	_ = d.cli.ContainerRemove(ctx, containerID, managedContainerRemoveOptions())
 
 	// Recreate with the same config but the snapshot image carrying new labels.
 	cfg := inspect.Config
@@ -217,6 +215,13 @@ func (d *RealDockerClient) UpdateContainerLabels(ctx context.Context, containerI
 	}
 
 	return nil
+}
+
+func managedContainerRemoveOptions() container.RemoveOptions {
+	return container.RemoveOptions{
+		Force:         true,
+		RemoveVolumes: true,
+	}
 }
 
 // ListImages returns all available Docker images.

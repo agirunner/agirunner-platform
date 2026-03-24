@@ -175,6 +175,17 @@ func TestAggregateNetworkBytesEmpty(t *testing.T) {
 	}
 }
 
+func TestManagedContainerRemoveOptions(t *testing.T) {
+	options := managedContainerRemoveOptions()
+
+	if !options.Force {
+		t.Fatal("expected managed container removal to force removal")
+	}
+	if !options.RemoveVolumes {
+		t.Fatal("expected managed container removal to remove attached volumes")
+	}
+}
+
 func TestRealDockerClientImplementsInterface(t *testing.T) {
 	// Compile-time check that RealDockerClient satisfies DockerClient.
 	var _ DockerClient = (*RealDockerClient)(nil)
