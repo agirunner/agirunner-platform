@@ -28,6 +28,9 @@ describe('logs page source', () => {
     expect(source).toContain("rawFirstSurface ? 'Delivery Packets' : 'Delivery'");
     expect(source).toContain("rawFirstSurface ? 'Trace Detail' : 'Debug'");
     expect(source).toContain('Failed to load delivery entries. Please refine filters and try again.');
+    expect(source).not.toContain('Export');
+    expect(source).not.toContain('Permalink');
+    expect(source).not.toContain('rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm sm:p-6');
   });
 
   it('MCL-004: uses shorter mobile tab labels to prevent truncation', () => {
@@ -106,8 +109,7 @@ describe('logs page source', () => {
     expect(source).toContain('readInspectorFilters(searchParams)');
     expect(source).toContain("next.set('log', String(logId))");
     expect(source).toContain("next.set('view', view)");
-    expect(source).toContain("return `/logs?");
-    expect(source).toContain('Permalink');
+    expect(source).not.toContain("return `/diagnostics/logs?");
   });
 
   it('shows segment-oriented pagination copy and lazy selected-detail loading', () => {

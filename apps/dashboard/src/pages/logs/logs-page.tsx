@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Download } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 
 import {
@@ -216,14 +215,11 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     );
   }
 
-  const selectedEntryPermalink = selectedEntry
-    ? buildInspectorPermalink(searchParams, selectedEntry.id, selectedView)
-    : null;
   const workflowContextLink = selectedEntry?.workflow_id
     ? buildWorkflowContextLink(selectedEntry)
     : null;
   const taskRecordLink = selectedEntry?.task_id
-    ? `/work/tasks/${selectedEntry.task_id}`
+    ? `/mission-control/tasks/${selectedEntry.task_id}`
     : null;
   const overviewCards = useMemo(
     () =>
@@ -252,58 +248,38 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
     packetCount: recentActivityPackets.length,
   });
 
-  async function handleExport(): Promise<void> {
-    const blob = await dashboardApi.exportLogs(baseFilters);
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'operator-log.jsonl';
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
-
   return (
     <div data-testid="operator-log-surface" className="flex flex-col gap-6 p-4 sm:p-6">
-      <section className="grid gap-4 rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm sm:p-6">
-        <div className="grid gap-4">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-bold tracking-tight">Operator Log</h1>
-            <p className="text-sm text-muted">
-              {rawFirstSurface
-                ? 'Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.'
-                : 'Browse execution traces with summary, delivery, and debug views. Raw logs stay accessible in the first tab.'}
-            </p>
-            {scopedWorkflowId ? (
-              <div className="text-sm">
-                <Link className="underline-offset-4 hover:underline" to={`/work/boards/${scopedWorkflowId}`}>
-                  Back to Workflow Board
-                </Link>
-              </div>
-            ) : null}
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" onClick={() => void handleExport()}>
-              <Download className="h-4 w-4" />
-              Export
+      <section className="grid gap-4">
+        <div className="space-y-1">
+          <h1 className="text-2xl font-bold tracking-tight">Operator Log</h1>
+          <p className="text-sm text-muted">
+            {rawFirstSurface
+              ? 'Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.'
+              : 'Browse execution traces with summary, delivery, and debug views. Raw logs stay accessible in the first tab.'}
+          </p>
+          {scopedWorkflowId ? (
+            <div className="text-sm">
+              <Link
+                className="underline-offset-4 hover:underline"
+                to={`/mission-control/workflows/${scopedWorkflowId}`}
+              >
+                Back to Workflow
+              </Link>
+            </div>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedView !== 'raw' && workflowContextLink ? (
+            <Button variant="outline" asChild>
+              <Link to={workflowContextLink}>Board context</Link>
             </Button>
-            {selectedView !== 'raw' && workflowContextLink ? (
-              <Button variant="outline" asChild>
-                <Link to={workflowContextLink}>Board context</Link>
-              </Button>
-            ) : null}
-            {selectedView !== 'raw' && taskRecordLink ? (
-              <Button variant="outline" asChild>
-                <Link to={taskRecordLink}>Step record</Link>
-              </Button>
-            ) : null}
-            {selectedView !== 'raw' && selectedEntryPermalink ? (
-              <Button variant="outline" asChild>
-                <a href={selectedEntryPermalink}>Permalink</a>
-              </Button>
-            ) : null}
-          </div>
+          ) : null}
+          {selectedView !== 'raw' && taskRecordLink ? (
+            <Button variant="outline" asChild>
+              <Link to={taskRecordLink}>Step record</Link>
+            </Button>
+          ) : null}
         </div>
       </section>
 
@@ -483,23 +459,8 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
   );
 }
 
-function buildInspectorPermalink(
-  searchParams: URLSearchParams,
-  logId: number,
-  view: InspectorView,
-): string {
-  const next = new URLSearchParams(searchParams);
-  next.set('log', String(logId));
-  if (view === 'raw' || view === 'summary') {
-    next.set('view', 'detailed');
-  } else {
-    next.set('view', view);
-  }
-  return `/logs?${next.toString()}`;
-}
-
 function buildWorkflowContextLink(entry: LogEntry): string {
-  return buildLogWorkflowContextLink(entry) ?? `/work/boards/${entry.workflow_id}`;
+  return buildLogWorkflowContextLink(entry) ?? `/mission-control/workflows/${entry.workflow_id}`;
 }
 
 function InspectorFiltersCard(props: {
