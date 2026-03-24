@@ -153,10 +153,7 @@ export interface DashboardWorkspaceCredentialInput {
   webhook_secret_configured?: boolean;
 }
 
-export type DashboardWorkspaceStorageType =
-  | 'git_remote'
-  | 'host_directory'
-  | 'workspace_artifacts';
+export type DashboardWorkspaceStorageType = 'git_remote' | 'host_directory' | 'workspace_artifacts';
 
 export interface DashboardWorkspaceStorageRecord extends Record<string, unknown> {
   repository_url?: string | null;
@@ -254,6 +251,9 @@ export interface DashboardToolTagRecord {
   description?: string | null;
   category?: string | null;
   owner?: 'runtime' | 'task';
+  access_scope?: 'specialist_and_orchestrator' | 'orchestrator_only';
+  usage_surface?: 'runtime' | 'task_sandbox' | 'provider_capability';
+  is_callable?: boolean;
   created_at?: string;
   is_built_in?: boolean;
 }
@@ -1409,8 +1409,12 @@ export interface LogRoleRecord {
 
 export interface LogActorRecord {
   actor_type: string;
-  actor_id: string;
-  actor_name: string;
+  actor_id: string | null;
+  actor_name: string | null;
+  latest_role?: string | null;
+  latest_workflow_id?: string | null;
+  latest_workflow_name?: string | null;
+  latest_workflow_label?: string | null;
   count: number;
 }
 
@@ -1488,7 +1492,9 @@ export interface DashboardApi {
     payload: DashboardWorkspacePatchInput,
   ): Promise<DashboardWorkspaceRecord>;
   getWorkspace(workspaceId: string): Promise<DashboardWorkspaceRecord>;
-  getWorkspaceModelOverrides(workspaceId: string): Promise<DashboardWorkspaceModelOverridesResponse>;
+  getWorkspaceModelOverrides(
+    workspaceId: string,
+  ): Promise<DashboardWorkspaceModelOverridesResponse>;
   getResolvedWorkspaceModels(
     workspaceId: string,
     roles?: string[],
@@ -1526,7 +1532,9 @@ export interface DashboardApi {
     workspaceId: string,
     payload: Record<string, unknown>,
   ): Promise<DashboardWorkspaceSpecRecord>;
-  listWorkspaceResources(workspaceId: string): Promise<{ data: DashboardWorkspaceResourceRecord[] }>;
+  listWorkspaceResources(
+    workspaceId: string,
+  ): Promise<{ data: DashboardWorkspaceResourceRecord[] }>;
   listWorkspaceTools(workspaceId: string): Promise<{ data: DashboardWorkspaceToolCatalog }>;
   patchWorkspaceMemory(
     workspaceId: string,
@@ -2305,18 +2313,24 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
     getWorkspaceSpec: (workspaceId) =>
       withRefresh(async () =>
         normalizeWorkspaceSpecRecord(
-          await requestData<DashboardWorkspaceSpecEnvelope>(`/api/v1/workspaces/${workspaceId}/spec`, {
-            method: 'GET',
-          }),
+          await requestData<DashboardWorkspaceSpecEnvelope>(
+            `/api/v1/workspaces/${workspaceId}/spec`,
+            {
+              method: 'GET',
+            },
+          ),
         ),
       ),
     updateWorkspaceSpec: (workspaceId, payload) =>
       withRefresh(async () =>
         normalizeWorkspaceSpecRecord(
-          await requestData<DashboardWorkspaceSpecEnvelope>(`/api/v1/workspaces/${workspaceId}/spec`, {
-            method: 'PUT',
-            body: payload,
-          }),
+          await requestData<DashboardWorkspaceSpecEnvelope>(
+            `/api/v1/workspaces/${workspaceId}/spec`,
+            {
+              method: 'PUT',
+              body: payload,
+            },
+          ),
         ),
       ),
     listWorkspaceResources: (workspaceId) =>
@@ -2330,9 +2344,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     listWorkspaceTools: (workspaceId) =>
       withRefresh(() =>
-        requestJson<{ data: DashboardWorkspaceToolCatalog }>(`/api/v1/workspaces/${workspaceId}/tools`, {
-          method: 'GET',
-        }),
+        requestJson<{ data: DashboardWorkspaceToolCatalog }>(
+          `/api/v1/workspaces/${workspaceId}/tools`,
+          {
+            method: 'GET',
+          },
+        ),
       ),
     patchWorkspaceMemory: (workspaceId, payload) =>
       withRefresh(() =>
@@ -2603,13 +2620,7 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       withRefresh(() => requestWorkflowWorkItemAction(workflowId, workItemId, 'skip', payload)),
     reassignWorkflowWorkItemTask: (workflowId, workItemId, taskId, payload) =>
       withRefresh(() =>
-        requestWorkflowWorkItemTaskAction(
-          workflowId,
-          workItemId,
-          taskId,
-          'reassign',
-          payload,
-        ),
+        requestWorkflowWorkItemTaskAction(workflowId, workItemId, taskId, 'reassign', payload),
       ),
     approveWorkflowWorkItemTask: (workflowId, workItemId, taskId) =>
       withRefresh(() =>
@@ -2761,9 +2772,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     getWorkspaceTimeline: (workspaceId) =>
       withRefresh(() =>
-        requestData<DashboardWorkspaceTimelineEntry[]>(`/api/v1/workspaces/${workspaceId}/timeline`, {
-          method: 'GET',
-        }),
+        requestData<DashboardWorkspaceTimelineEntry[]>(
+          `/api/v1/workspaces/${workspaceId}/timeline`,
+          {
+            method: 'GET',
+          },
+        ),
       ),
     listWorkspaceArtifacts: (workspaceId, filters) =>
       withRefresh(() =>
@@ -2776,9 +2790,12 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
       ),
     listWorkspaceArtifactFiles: (workspaceId) =>
       withRefresh(() =>
-        requestData<DashboardWorkspaceArtifactFileRecord[]>(`/api/v1/workspaces/${workspaceId}/files`, {
-          method: 'GET',
-        }),
+        requestData<DashboardWorkspaceArtifactFileRecord[]>(
+          `/api/v1/workspaces/${workspaceId}/files`,
+          {
+            method: 'GET',
+          },
+        ),
       ),
     downloadWorkspaceArtifactFile: (workspaceId, fileId) =>
       withRefresh(async () => {
@@ -3030,14 +3047,16 @@ export function createDashboardApi(options: DashboardApiOptions = {}): Dashboard
           return [];
         }
 
-        const [workflows, tasks, workers, agents, workspaces, playbooks] = await Promise.allSettled([
-          client.listWorkflows({ per_page: 50 }),
-          client.listTasks({ per_page: 50 }),
-          client.listWorkers(),
-          client.listAgents(),
-          client.listWorkspaces({ per_page: 50 }),
-          client.listPlaybooks(),
-        ]);
+        const [workflows, tasks, workers, agents, workspaces, playbooks] = await Promise.allSettled(
+          [
+            client.listWorkflows({ per_page: 50 }),
+            client.listTasks({ per_page: 50 }),
+            client.listWorkers(),
+            client.listAgents(),
+            client.listWorkspaces({ per_page: 50 }),
+            client.listPlaybooks(),
+          ],
+        );
 
         return buildSearchResults(normalizedQuery, {
           workflows: extractListResult(workflows),
@@ -3304,7 +3323,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.state ?? 'workflow',
-    href: `/work/boards/${item.id}`,
+    href: `/mission-control/workflows/${item.id}`,
   }));
 
   const taskMatches = filterRecords(collections.tasks, normalizedQuery).map((item) => ({
@@ -3312,7 +3331,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.title ?? item.name ?? item.id,
     subtitle: item.state ?? 'task',
-    href: `/work/tasks/${item.id}`,
+    href: `/mission-control/tasks/${item.id}`,
   }));
 
   const agentMatches = filterRecords(collections.agents, normalizedQuery).map((item) => ({
@@ -3320,7 +3339,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'agent',
-    href: '/fleet/containers',
+    href: '/diagnostics/containers',
   }));
 
   const workspaceMatches = filterRecords(collections.workspaces, normalizedQuery).map((item) => ({
@@ -3328,7 +3347,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'workspace',
-    href: `/workspaces/${item.id}`,
+    href: `/design/workspaces/${item.id}`,
   }));
 
   const playbookMatches = filterRecords(collections.playbooks, normalizedQuery).map((item) => ({
@@ -3336,7 +3355,7 @@ export function buildSearchResults(
     id: item.id,
     label: item.name ?? item.id,
     subtitle: item.status ?? 'playbook',
-    href: `/config/playbooks/${item.id}`,
+    href: `/design/playbooks/${item.id}`,
   }));
 
   return [

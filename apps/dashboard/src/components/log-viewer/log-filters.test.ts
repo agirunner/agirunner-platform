@@ -13,13 +13,13 @@ describe('log filters source', () => {
     expect(source).toContain('applyLogScope(toQueryParams(), scope)');
     expect(source).toContain('delete next.operation;');
     expect(source).toContain('delete next.role;');
-    expect(source).toContain('delete next.actor;');
+    expect(source).toContain('delete next.actor_type;');
     expect(source).toContain('operationItemsOverride');
     expect(source).toContain('roleItemsOverride');
     expect(source).toContain('actorItemsOverride');
     expect(source).toContain('useLogActors(actorOptionFilters, !actorItemsOverride)');
     expect(source).toContain("placeholder={\n            filters.actors.length > 0");
-    expect(source).toContain('allGroupLabel="Actors"');
+    expect(source).toContain('allGroupLabel="Kinds"');
     expect(source).toContain('allGroupLabel="Execution backend"');
     expect(source).toContain('allGroupLabel="Tool owner"');
     expect(source).toContain('allGroupLabel="Sources"');
@@ -56,10 +56,12 @@ describe('log filters source', () => {
   it('serializes source and status filters into log query params', () => {
     const source = readSource('./hooks/use-log-filters.ts');
     expect(source).toContain("statuses: parseList(searchParams.get('status'))");
+    expect(source).toContain("actors: parseList(searchParams.get('actor_type') ?? searchParams.get('actor'))");
     expect(source).toContain("if (filters.statuses.length > 0) params.status = filters.statuses.join(',');");
     expect(source).toContain("sources: parseList(searchParams.get('source'))");
     expect(source).toContain("executionBackend: parseList(searchParams.get('execution_backend'))");
     expect(source).toContain("toolOwner: parseList(searchParams.get('tool_owner'))");
+    expect(source).toContain("if (filters.actors.length > 0) params.actor_type = filters.actors.join(',');");
     expect(source).toContain('params.execution_backend = filters.executionBackend.join');
     expect(source).toContain('params.tool_owner = filters.toolOwner.join');
     expect(source).not.toContain('params.work_item_id = filters.workItem');

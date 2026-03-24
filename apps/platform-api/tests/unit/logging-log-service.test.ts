@@ -1183,7 +1183,7 @@ describe('LogService', () => {
         category: ['llm'],
         level: 'warn',
         role: ['developer'],
-        actorId: ['agent-1'],
+        actorType: ['agent'],
       });
 
       const [sql, params] = pool.query.mock.calls[0];
@@ -1191,7 +1191,7 @@ describe('LogService', () => {
       expect(sql).toContain('workflow_id = $');
       expect(sql).toContain('level = ANY(');
       expect(sql).toContain('role = ANY(');
-      expect(sql).toContain('actor_id = ANY(');
+      expect(sql).toContain('actor_type = ANY(');
       expect(params).toContain('wf-1');
     });
   });
@@ -1209,7 +1209,7 @@ describe('LogService', () => {
         since: new Date('2026-03-08T00:00:00Z').toISOString(),
         workflowId: 'wf-1',
         operation: ['tool.exec'],
-        actorId: ['agent-1'],
+        actorType: ['agent'],
       });
 
       expect(result).toEqual([{ role: 'developer', count: 12 }]);
@@ -1218,22 +1218,22 @@ describe('LogService', () => {
       expect(sql).not.toContain('UNION ALL');
       expect(sql).toContain('workflow_id = $');
       expect(sql).toContain('operation = ANY(');
-      expect(sql).toContain('actor_id = ANY(');
+      expect(sql).toContain('actor_type = ANY(');
       expect(params).toContain('wf-1');
     });
   });
 
   describe('actors', () => {
-    it('queriesDistinctActorsWithLatestWorkflowContext', async () => {
+    it('queriesDistinctActorKindsWithLatestWorkflowContext', async () => {
       const pool = createMockPool();
       pool.query.mockResolvedValue({
         rows: [
           {
-            actor_type: 'user',
-            actor_id: 'u-1',
-            actor_name: 'Mark',
+            actor_type: 'worker',
+            actor_id: null,
+            actor_name: null,
             count: '45',
-            latest_role: 'operator',
+            latest_role: 'developer',
             latest_workflow_id: 'wf-1',
             latest_workflow_name: 'Customer migration',
             latest_workflow_label: 'Customer migration',
@@ -1252,22 +1252,23 @@ describe('LogService', () => {
 
       expect(result).toEqual([
         {
-          actor_type: 'user',
-          actor_id: 'u-1',
-          actor_name: 'Mark',
+          actor_type: 'worker',
+          actor_id: null,
+          actor_name: null,
           count: 45,
-          latest_role: 'operator',
+          latest_role: 'developer',
           latest_workflow_id: 'wf-1',
           latest_workflow_name: 'Customer migration',
           latest_workflow_label: 'Customer migration',
         },
       ]);
       const [sql, params] = pool.query.mock.calls[0];
-      expect(sql).toContain('actor_id IS NOT NULL');
+      expect(sql).not.toContain('actor_id IS NOT NULL');
       expect(sql).toContain('ROW_NUMBER() OVER');
       expect(sql).toContain('workflow_id = $');
       expect(sql).toContain('operation = ANY(');
       expect(sql).toContain('role = ANY(');
+      expect(sql).toContain('GROUP BY actor_type');
       expect(params).toContain('wf-1');
     });
   });

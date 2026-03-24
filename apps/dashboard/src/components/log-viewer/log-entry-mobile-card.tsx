@@ -47,20 +47,27 @@ function describeWorkflow(entry: LogEntry): string {
   return 'No workflow';
 }
 
-function describeStep(entry: LogEntry): string {
+function describeStage(entry: LogEntry): string {
   const stageName = getCanonicalStageName(entry);
-  const parts = [entry.task_title?.trim() || '', stageName ? `Stage ${stageName}` : ''].filter(
-    Boolean,
-  );
-  return parts.join(' · ') || 'No step context';
+  return stageName ? `Stage ${stageName}` : '-';
 }
 
 function describeActor(entry: LogEntry): string {
-  if (entry.actor_name?.trim()) {
-    return entry.actor_name;
+  if (entry.actor_type === 'worker') {
+    return entry.role?.trim()?.toLowerCase() === 'orchestrator'
+      ? 'Orchestrator agent'
+      : 'Specialist agent';
   }
-  const actorType = entry.actor_type?.replace(/_/g, ' ') || 'unknown';
-  return actorType.charAt(0).toUpperCase() + actorType.slice(1);
+  if (entry.actor_type === 'agent') {
+    return 'Specialist task execution';
+  }
+  if (entry.actor_type === 'operator' || entry.actor_type === 'user' || entry.actor_type === 'api_key') {
+    return 'Operator';
+  }
+  if (entry.actor_type === 'system') {
+    return 'Platform system';
+  }
+  return entry.actor_name?.trim() || 'Platform system';
 }
 
 function describeActorDetail(entry: LogEntry): string {
@@ -126,7 +133,7 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
               Workflow
             </span>
             <span className="text-sm text-foreground">{describeWorkflow(entry)}</span>
-            <span>{describeStep(entry)}</span>
+            <span>{describeStage(entry)}</span>
           </div>
           <div className="grid gap-1">
             <span className="font-medium uppercase tracking-wide text-muted-foreground">

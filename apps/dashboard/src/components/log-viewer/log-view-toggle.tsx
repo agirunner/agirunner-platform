@@ -17,15 +17,16 @@ const VIEW_OPTIONS: { mode: LogViewMode; icon: typeof List; label: string }[] = 
 
 export function LogViewToggle({ mode, onChange }: LogViewToggleProps): JSX.Element {
   return (
-    <div className="flex items-center rounded-md border border-border">
+    <div className="flex items-center rounded-lg border border-border/70 bg-card/80 p-1 shadow-sm">
       {VIEW_OPTIONS.map(({ mode: optionMode, icon: Icon, label }) => (
         <Button
           key={optionMode}
           variant="ghost"
           size="sm"
           className={cn(
-            'h-7 rounded-none px-2 first:rounded-l-md last:rounded-r-md',
-            mode === optionMode && 'bg-muted',
+            'h-7 rounded-md border px-2 text-foreground/80 hover:border-border/80 hover:bg-accent/70 hover:text-foreground dark:text-foreground/75 dark:hover:bg-accent/60',
+            mode === optionMode &&
+              'border-stone-300 bg-white/92 text-slate-950 shadow-sm hover:border-stone-300 hover:bg-white hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900/80 dark:text-slate-100 dark:hover:border-slate-700 dark:hover:bg-slate-900 dark:hover:text-slate-100',
           )}
           onClick={() => onChange(optionMode)}
           title={label}

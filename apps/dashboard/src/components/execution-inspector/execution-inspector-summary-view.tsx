@@ -12,6 +12,7 @@ import { Skeleton } from '../ui/skeleton.js';
 import {
   describeActorDetail,
   describeActorPrimaryLabel,
+  sortActorKindRecords,
 } from '../log-viewer/log-actor-presentation.js';
 import { describeExecutionOperationLabel, formatDuration, formatNumber, topGroups } from './execution-inspector-support.js';
 
@@ -93,7 +94,7 @@ export function ExecutionInspectorSummaryView(
         <TopListCard
           title="Active runtimes and operators"
           description="Who is emitting matching activity and where that activity is landing"
-          items={topGroups(props.actors, 8).map((item) => ({
+          items={sortActorKindRecords(props.actors).slice(0, 8).map((item) => ({
             label: describeActorPrimaryLabel(item),
             count: item.count,
             meta: describeActorDetail(item),

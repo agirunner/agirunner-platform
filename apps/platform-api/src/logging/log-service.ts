@@ -99,6 +99,7 @@ export interface LogFilters {
   operation?: string[];
   status?: string[];
   role?: string[];
+  actorType?: string[];
   actorId?: string[];
   search?: string;
   since?: string;
@@ -125,6 +126,7 @@ export interface LogStatsFilters {
   operation?: string[];
   status?: string[];
   role?: string[];
+  actorType?: string[];
   actorId?: string[];
   search?: string;
   since?: string;
@@ -189,8 +191,8 @@ export interface LogBatchRejectionDetail {
 
 export interface ActorInfo {
   actor_type: string;
-  actor_id: string;
-  actor_name: string;
+  actor_id: string | null;
+  actor_name: string | null;
   count: number;
   latest_role?: string | null;
   latest_workflow_id?: string | null;
@@ -483,16 +485,16 @@ export class LogService {
   }
 
   async actors(tenantId: string, filters: LogFilters): Promise<ActorInfo[]> {
-    const conditions: string[] = ['tenant_id = $1', 'actor_id IS NOT NULL'];
+    const conditions: string[] = ['tenant_id = $1', 'actor_type IS NOT NULL'];
     const values: unknown[] = [tenantId];
-    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['actorId']);
+    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['actorType']);
     this.applyFilters(conditions, values, scopedFilters);
     const whereClause = conditions.join(' AND ');
 
     const result = await this.pool.query<{
       actor_type: string;
-      actor_id: string;
-      actor_name: string;
+      actor_id: string | null;
+      actor_name: string | null;
       count: string;
       latest_role: string | null;
       latest_workflow_id: string | null;
@@ -502,8 +504,6 @@ export class LogService {
       `WITH filtered AS (
          SELECT
            actor_type,
-           actor_id,
-           actor_name,
            role,
            workflow_id,
            workflow_name,
@@ -515,23 +515,21 @@ export class LogService {
        actor_counts AS (
          SELECT
            actor_type,
-           actor_id,
-           actor_name,
            COUNT(*)::text AS count
          FROM filtered
-         GROUP BY actor_type, actor_id, actor_name
+         GROUP BY actor_type
        ),
        actor_latest AS (
          SELECT
            actor_type,
-           actor_id,
-           actor_name,
+           NULL::text AS actor_id,
+           NULL::text AS actor_name,
            role AS latest_role,
            workflow_id::text AS latest_workflow_id,
            workflow_name AS latest_workflow_name,
            COALESCE(workflow_name, workflow_id::text) AS latest_workflow_label,
            ROW_NUMBER() OVER (
-             PARTITION BY actor_type, actor_id, actor_name
+             PARTITION BY actor_type
              ORDER BY created_at DESC, id DESC
            ) AS row_number
          FROM filtered
@@ -548,8 +546,6 @@ export class LogService {
        FROM actor_counts
        LEFT JOIN actor_latest
          ON actor_latest.actor_type = actor_counts.actor_type
-        AND actor_latest.actor_id = actor_counts.actor_id
-        AND actor_latest.actor_name IS NOT DISTINCT FROM actor_counts.actor_name
         AND actor_latest.row_number = 1
        ORDER BY actor_counts.count DESC
        LIMIT 100`,
@@ -759,6 +755,10 @@ export class LogService {
     if (filters.role?.length) {
       values.push(filters.role);
       conditions.push(`role = ANY($${values.length}::text[])`);
+    }
+    if (filters.actorType?.length) {
+      values.push(filters.actorType);
+      conditions.push(`actor_type = ANY($${values.length}::text[])`);
     }
     if (filters.actorId?.length) {
       values.push(filters.actorId);

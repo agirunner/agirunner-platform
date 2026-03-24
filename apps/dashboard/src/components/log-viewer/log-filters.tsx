@@ -67,7 +67,7 @@ export function LogFilters({
   }, [optionBaseFilters]);
   const actorOptionFilters = useMemo(() => {
     const next = { ...optionBaseFilters };
-    delete next.actor;
+    delete next.actor_type;
     return next;
   }, [optionBaseFilters]);
   const { data: operationsData } = useLogOperations(
@@ -228,11 +228,11 @@ export function LogFilters({
           onChange={toggleActor}
           placeholder={
             filters.actors.length > 0
-              ? `${filters.actors.length} actor${filters.actors.length > 1 ? 's' : ''}`
-              : 'Actors'
+              ? `${filters.actors.length} kind${filters.actors.length > 1 ? 's' : ''}`
+              : 'Kind'
           }
-          searchPlaceholder="Search actors..."
-          allGroupLabel="Actors"
+          searchPlaceholder="Search kinds..."
+          allGroupLabel="Kinds"
           className="w-40"
           multiSelect
           selectedIds={selectedActorIds}

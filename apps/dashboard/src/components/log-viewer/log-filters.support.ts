@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
 import type { SavedViewFilters } from '../saved-views/saved-views.js';
-import { describeActorComboboxSubtitle, describeActorPrimaryLabel } from './log-actor-presentation.js';
+import {
+  describeActorComboboxSubtitle,
+  describeActorPrimaryLabel,
+  sortActorKindRecords,
+} from './log-actor-presentation.js';
 
 export const DEBOUNCE_MS = 300;
 
@@ -79,8 +83,8 @@ export function toRoleItems(
 
 export function toActorItems(
   data: {
-    data: {
-      actor_id: string;
+  data: {
+      actor_id: string | null;
       actor_name: string | null;
       actor_type: string;
       latest_role?: string | null;
@@ -92,8 +96,8 @@ export function toActorItems(
   } | undefined,
 ): ComboboxItem[] {
   if (!data?.data) return [];
-  return data.data.map((row) => ({
-    id: row.actor_id,
+  return sortActorKindRecords(data.data).map((row) => ({
+    id: row.actor_type,
     label: describeActorPrimaryLabel(row),
     subtitle: describeActorComboboxSubtitle(row),
   }));

@@ -14,9 +14,11 @@ type ActorLike = Pick<
 export function describeActorTypeLabel(actorType: string): string {
   switch (actorType) {
     case 'worker':
-      return 'Agentic runtime';
+      return 'Specialist agent';
     case 'agent':
-      return 'Task execution';
+      return 'Specialist task execution';
+    case 'user':
+    case 'api_key':
     case 'operator':
       return 'Operator';
     case 'system':
@@ -27,38 +29,54 @@ export function describeActorTypeLabel(actorType: string): string {
 }
 
 export function describeActorPrimaryLabel(item: ActorLike): string {
-  const workflowLabel = describeActorWorkflowLabel(item);
-  const roleLabel = describeActorRoleLabel(item.latest_role);
-
-  if (workflowLabel && roleLabel) {
-    return `${roleLabel} on ${workflowLabel}`;
+  if (item.actor_type === 'worker' && item.latest_role?.trim()?.toLowerCase() === 'orchestrator') {
+    return 'Orchestrator agent';
   }
-  if (workflowLabel) {
-    return workflowLabel;
-  }
-  if (roleLabel) {
-    return roleLabel;
-  }
-
-  const actorName = item.actor_name?.trim();
-  if (actorName && !looksLikeOpaqueActorName(actorName)) {
-    return actorName;
-  }
-
   return describeActorTypeLabel(item.actor_type);
 }
 
 export function describeActorDetail(item: ActorLike): string {
-  const parts = [describeActorTypeLabel(item.actor_type)];
+  const workflowLabel = describeActorWorkflowLabel(item);
+  const roleLabel = describeActorRoleLabel(item.latest_role);
   const reference = describeActorReference(item);
+  const parts: string[] = [];
+
+  if (roleLabel && workflowLabel) {
+    parts.push(`${roleLabel} on ${workflowLabel}`);
+  } else if (roleLabel) {
+    parts.push(roleLabel);
+  } else if (workflowLabel) {
+    parts.push(workflowLabel);
+  }
+
   if (reference) {
     parts.push(reference);
   }
-  return parts.join(' · ');
+  return parts.join(' · ') || describeActorTypeLabel(item.actor_type);
 }
 
 export function describeActorComboboxSubtitle(item: ActorLike & { count: number }): string {
   return `${describeActorDetail(item)} · ${item.count} entries`;
+}
+
+export function sortActorKindRecords<T extends ActorLike & { count: number }>(items: T[]): T[] {
+  const order = new Map<string, number>([
+    ['worker', 0],
+    ['agent', 1],
+    ['operator', 2],
+    ['user', 2],
+    ['api_key', 2],
+    ['system', 3],
+  ]);
+
+  return [...items].sort((left, right) => {
+    const leftOrder = order.get(left.actor_type) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = order.get(right.actor_type) ?? Number.MAX_SAFE_INTEGER;
+    if (leftOrder !== rightOrder) {
+      return leftOrder - rightOrder;
+    }
+    return right.count - left.count;
+  });
 }
 
 function describeActorRoleLabel(role: string | null | undefined): string | null {

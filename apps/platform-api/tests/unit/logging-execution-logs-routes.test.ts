@@ -515,7 +515,7 @@ describe('execution-logs route helpers', () => {
 
       const response = await app!.inject({
         method: 'GET',
-        url: '/api/v1/logs/operations?category=agent_loop,tool,llm,task_lifecycle,container&workflow_id=wf-1&level=warn&role=developer&actor_id=agent-1&search=timeout',
+        url: '/api/v1/logs/operations?category=agent_loop,tool,llm,task_lifecycle,container&workflow_id=wf-1&level=warn&role=developer&actor_type=agent&search=timeout',
         headers: { authorization: 'Bearer test' },
       });
 
@@ -528,7 +528,7 @@ describe('execution-logs route helpers', () => {
           workflowId: 'wf-1',
           level: 'warn',
           role: ['developer'],
-          actorId: ['agent-1'],
+          actorType: ['agent'],
           search: 'timeout',
         }),
       );
@@ -539,7 +539,7 @@ describe('execution-logs route helpers', () => {
 
       const response = await app!.inject({
         method: 'GET',
-        url: '/api/v1/logs/roles?workflow_id=wf-1&operation=tool.exec&actor=agent-1',
+        url: '/api/v1/logs/roles?workflow_id=wf-1&operation=tool.exec&actor_type=agent',
         headers: { authorization: 'Bearer test' },
       });
 
@@ -549,7 +549,7 @@ describe('execution-logs route helpers', () => {
         expect.objectContaining({
           workflowId: 'wf-1',
           operation: ['tool.exec'],
-          actorId: ['agent-1'],
+          actorType: ['agent'],
         }),
       );
     });
@@ -579,8 +579,8 @@ describe('execution-logs route helpers', () => {
         actors: vi.fn().mockResolvedValue([
           {
             actor_type: 'worker',
-            actor_id: 'worker-1',
-            actor_name: 'Runtime worker 1',
+            actor_id: null,
+            actor_name: null,
             count: 12,
             latest_role: 'developer',
             latest_workflow_id: 'wf-1',
@@ -602,8 +602,8 @@ describe('execution-logs route helpers', () => {
         data: [
           {
             actor_type: 'worker',
-            actor_id: 'worker-1',
-            actor_name: 'Runtime worker 1',
+            actor_id: null,
+            actor_name: null,
             count: 12,
             latest_role: 'developer',
             latest_workflow_id: 'wf-1',
@@ -619,7 +619,7 @@ describe('execution-logs route helpers', () => {
 
       const response = await app!.inject({
         method: 'GET',
-        url: '/api/v1/logs/stats?group_by=category&workflow_id=wf-1&level=warn&operation=tool.exec&role=developer&actor_id=agent-1&search=timeout',
+        url: '/api/v1/logs/stats?group_by=category&workflow_id=wf-1&level=warn&operation=tool.exec&role=developer&actor_type=agent&search=timeout',
         headers: { authorization: 'Bearer test' },
       });
 
@@ -632,7 +632,7 @@ describe('execution-logs route helpers', () => {
           level: 'warn',
           operation: ['tool.exec'],
           role: ['developer'],
-          actorId: ['agent-1'],
+          actorType: ['agent'],
           search: 'timeout',
         }),
       );

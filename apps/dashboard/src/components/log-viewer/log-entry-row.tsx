@@ -80,21 +80,29 @@ const DOCKER_HASH_RE = /^[0-9a-f]{12,}$/i;
 const KEY_PREFIX_RE = /^(?:Key|Worker|Agent|User)\s+ar_/;
 
 function formatActorLabel(entry: LogEntry): string {
+  if (entry.actor_type === 'worker') {
+    return entry.role?.trim()?.toLowerCase() === 'orchestrator'
+      ? 'Orchestrator agent'
+      : 'Specialist agent';
+  }
+  if (entry.actor_type === 'agent') {
+    return 'Specialist task execution';
+  }
+  if (entry.actor_type === 'operator' || entry.actor_type === 'user' || entry.actor_type === 'api_key') {
+    return 'Operator';
+  }
   if (entry.actor_name) {
     if (KEY_PREFIX_RE.test(entry.actor_name)) {
       return entry.actor_name.split(' ')[0];
     }
-    if (entry.actor_name.startsWith(RUNTIME_PREFIX)) {
-      return 'Runtime Worker';
-    }
-    if (DOCKER_HASH_RE.test(entry.actor_name)) {
-      return 'Runtime Worker';
+    if (entry.actor_name.startsWith(RUNTIME_PREFIX) || DOCKER_HASH_RE.test(entry.actor_name)) {
+      return 'Platform system';
     }
     if (!UUID_RE.test(entry.actor_name)) {
       return entry.actor_name;
     }
   }
-  const type = entry.actor_type ?? 'unknown';
+  const type = entry.actor_type ?? 'system';
   return type.charAt(0).toUpperCase() + type.slice(1).replace(/_/g, ' ');
 }
 
@@ -249,7 +257,7 @@ export function LogTableHeader(): JSX.Element {
         <th className="px-3 py-2 text-left font-medium">Time</th>
         <th className="px-3 py-2 text-left font-medium">Level</th>
         <th className="px-3 py-2 text-left font-medium">Category</th>
-        <th className="px-3 py-2 text-left font-medium">Workflow / Step</th>
+        <th className="px-3 py-2 text-left font-medium">Workflow / Stage</th>
         <th className="px-3 py-2 text-left font-medium">Actor</th>
         <th className="px-3 py-2 text-left font-medium">Activity</th>
         <th className="px-3 py-2 text-right font-medium w-20">Duration</th>
@@ -264,7 +272,7 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
   const duration = formatDuration(entry.duration_ms);
   const role = getRole(entry);
-  const workflowStep = buildWorkflowStepSummary(entry);
+  const workflowStage = buildWorkflowStageSummary(entry);
   const actorDetail = buildActorDetail(entry, role);
   const activityHeadline = describeExecutionHeadline(entry);
 
@@ -316,11 +324,11 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
         </span>
       </td>
 
-      {/* Workflow / Step */}
+      {/* Workflow / Stage */}
       <td className="px-3 py-2.5 align-top">
         <div className="min-w-[14rem]">
-          <div className="break-words text-sm font-medium text-foreground">{workflowStep.workflow}</div>
-          <div className="mt-1 break-words text-xs text-muted-foreground">{workflowStep.step}</div>
+          <div className="break-words text-sm font-medium text-foreground">{workflowStage.workflow}</div>
+          <div className="mt-1 break-words text-xs text-muted-foreground">{workflowStage.stage}</div>
         </div>
       </td>
 
@@ -357,19 +365,15 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
   );
 }
 
-function buildWorkflowStepSummary(entry: LogEntry): { workflow: string; step: string } {
+function buildWorkflowStageSummary(entry: LogEntry): { workflow: string; stage: string } {
   const stageName = getCanonicalStageName(entry);
   const workflow =
     entry.workflow_name ??
     (entry.workflow_id ? `Workflow ${shortLabel(entry.workflow_id)}` : '-');
-  const stepParts = [
-    entry.task_title ? truncate(entry.task_title, 56) : '',
-    stageName ? `Stage ${stageName}` : '',
-  ].filter(Boolean);
 
   return {
     workflow,
-    step: stepParts.join(' · ') || '-',
+    stage: stageName ? `Stage ${stageName}` : '-',
   };
 }
 

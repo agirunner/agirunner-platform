@@ -8,9 +8,6 @@ export interface LogFilters {
   workspace: string | null;
   workflow: string | null;
   task: string | null;
-  workItem: string | null;
-  stage: string | null;
-  activation: string | null;
   trace: string | null;
   sources: string[];
   statuses: string[];
@@ -54,7 +51,7 @@ const PLURAL_TO_PARAM: Partial<Record<keyof LogFilters, string>> = {
   categories: 'category',
   operations: 'operation',
   roles: 'role',
-  actors: 'actor',
+  actors: 'actor_type',
   executionBackend: 'execution_backend',
   toolOwner: 'tool_owner',
 };
@@ -67,9 +64,6 @@ export function useLogFilters() {
       workspace: searchParams.get('workspace'),
       workflow: searchParams.get('workflow'),
       task: searchParams.get('task'),
-      workItem: searchParams.get('work_item'),
-      stage: searchParams.get('stage'),
-      activation: searchParams.get('activation'),
       trace: searchParams.get('trace'),
       sources: parseList(searchParams.get('source')),
       statuses: parseList(searchParams.get('status')),
@@ -79,7 +73,7 @@ export function useLogFilters() {
       search: searchParams.get('search') ?? '',
       operations: parseList(searchParams.get('operation')),
       roles: parseList(searchParams.get('role')),
-      actors: parseList(searchParams.get('actor')),
+      actors: parseList(searchParams.get('actor_type') ?? searchParams.get('actor')),
       executionBackend: parseList(searchParams.get('execution_backend')),
       toolOwner: parseList(searchParams.get('tool_owner')),
     }),
@@ -139,8 +133,6 @@ export function useLogFilters() {
         workspace: string | null;
         workflow: string | null;
         task: string | null;
-        workItem?: string | null;
-        activation?: string | null;
       },
     ) => {
       setSearchParams(
@@ -164,19 +156,6 @@ export function useLogFilters() {
           } else {
             next.delete('task');
           }
-
-          if (scope.workItem) {
-            next.set('work_item', scope.workItem);
-          } else {
-            next.delete('work_item');
-          }
-
-          if (scope.activation) {
-            next.set('activation', scope.activation);
-          } else {
-            next.delete('activation');
-          }
-
           return next;
         },
         { replace: true },
@@ -195,9 +174,6 @@ export function useLogFilters() {
     if (filters.workspace) params.workspace_id = filters.workspace;
     if (filters.workflow) params.workflow_id = filters.workflow;
     if (filters.task) params.task_id = filters.task;
-    if (filters.workItem) params.work_item_id = filters.workItem;
-    if (filters.stage) params.stage_name = filters.stage;
-    if (filters.activation) params.activation_id = filters.activation;
     if (filters.trace) params.trace_id = filters.trace;
     if (filters.sources.length > 0) params.source = filters.sources.join(',');
     if (filters.statuses.length > 0) params.status = filters.statuses.join(',');
@@ -206,7 +182,7 @@ export function useLogFilters() {
     if (filters.search) params.search = filters.search;
     if (filters.operations.length > 0) params.operation = filters.operations.join(',');
     if (filters.roles.length > 0) params.role = filters.roles.join(',');
-    if (filters.actors.length > 0) params.actor = filters.actors.join(',');
+    if (filters.actors.length > 0) params.actor_type = filters.actors.join(',');
     if (filters.executionBackend.length > 0) {
       params.execution_backend = filters.executionBackend.join(',');
     }
