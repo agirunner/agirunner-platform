@@ -59,7 +59,6 @@
       {
         "name": "approval-gate",
         "goal": "A human decision exists for the brief.",
-        "human_gate": true,
         "involves": []
       },
       {
@@ -70,46 +69,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "drafting",
-        "goal": "A review-ready brief exists.",
-        "human_gate": false,
-        "entry_criteria": "The authored request is available."
-      },
-      {
-        "name": "approval-gate",
-        "goal": "A human decision exists for the brief.",
-        "human_gate": true,
-        "entry_criteria": "The review-ready brief is complete."
-      },
-      {
-        "name": "launch-packaging",
-        "goal": "The approved launch packet is ready.",
-        "human_gate": false,
-        "entry_criteria": "The human decision is approved."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "rework-product-strategist",
-        "to_role": "rework-technical-editor",
-        "required": true
-      },
-      {
-        "from_role": "rework-technical-editor",
-        "to_role": "rework-launch-planner",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": []
+    }
   }
 }

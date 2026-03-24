@@ -58,52 +58,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "multi-subject-validation",
-        "goal": "Concurrent subjects are delivered and assessed cleanly.",
-        "human_gate": false,
-        "entry_criteria": "Concurrent work items exist."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 10,
       "max_active_tasks_per_work_item": 3,
       "allow_parallel_work_items": true
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "multi-subject-delivery-engineer",
-        "assessed_by": "multi-subject-quality-assessor",
-        "checkpoint": "multi-subject-validation",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      },
-      {
-        "subject_role": "multi-subject-delivery-engineer",
-        "assessed_by": "multi-subject-compliance-assessor",
-        "checkpoint": "multi-subject-validation",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

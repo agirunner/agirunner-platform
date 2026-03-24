@@ -74,81 +74,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "design-brief",
-        "goal": "The design is ready.",
-        "human_gate": false,
-        "entry_criteria": "The request is authored."
-      },
-      {
-        "name": "implementation",
-        "goal": "The change is implemented and assessed.",
-        "human_gate": false,
-        "entry_criteria": "The design brief exists."
-      },
-      {
-        "name": "release-readiness",
-        "goal": "Release packaging is complete.",
-        "human_gate": false,
-        "entry_criteria": "All required assessments are approved."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "all-request-architecture-lead",
-        "to_role": "all-request-delivery-engineer",
-        "required": true
-      },
-      {
-        "from_role": "all-request-quality-assessor",
-        "to_role": "all-request-release-manager",
-        "required": true
-      },
-      {
-        "from_role": "all-request-security-assessor",
-        "to_role": "all-request-release-manager",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 4,
       "max_active_tasks_per_work_item": 3,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "all-request-delivery-engineer",
-        "assessed_by": "all-request-quality-assessor",
-        "checkpoint": "implementation",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      },
-      {
-        "subject_role": "all-request-delivery-engineer",
-        "assessed_by": "all-request-security-assessor",
-        "checkpoint": "implementation",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "route_to_role",
-            "role": "all-request-architecture-lead"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

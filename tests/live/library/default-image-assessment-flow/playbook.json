@@ -86,61 +86,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "planning-pass",
-        "goal": "Technical direction exists.",
-        "human_gate": false,
-        "entry_criteria": "The scoped request is available."
-      },
-      {
-        "name": "implementation",
-        "goal": "The change is implemented and assessed.",
-        "human_gate": false,
-        "entry_criteria": "Blueprint output is ready."
-      },
-      {
-        "name": "release-readiness",
-        "goal": "Release packaging is complete.",
-        "human_gate": false,
-        "entry_criteria": "The implementation assessment has cleared."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "default-image-solution-architect",
-        "to_role": "default-image-implementation-engineer",
-        "required": true
-      },
-      {
-        "from_role": "default-image-acceptance-assessor",
-        "to_role": "default-image-release-coordinator",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 3,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "default-image-implementation-engineer",
-        "assessed_by": "default-image-acceptance-assessor",
-        "checkpoint": "implementation",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

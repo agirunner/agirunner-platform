@@ -103,91 +103,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "architecture-pass",
-        "goal": "Design direction exists.",
-        "human_gate": false,
-        "entry_criteria": "The request is defined."
-      },
-      {
-        "name": "implementation-pass",
-        "goal": "Implementation revisions are assessed.",
-        "human_gate": false,
-        "entry_criteria": "Architecture output is ready."
-      },
-      {
-        "name": "release-pass",
-        "goal": "Release packaging is validated.",
-        "human_gate": false,
-        "entry_criteria": "Active implementation revision is approved."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "platform-architect",
-        "to_role": "feature-engineer",
-        "required": true
-      },
-      {
-        "from_role": "integration-quality-assessor",
-        "to_role": "revision-release-coordinator",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 4,
       "max_active_tasks_per_work_item": 2,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "feature-engineer",
-        "assessed_by": "integration-quality-assessor",
-        "checkpoint": "implementation-pass",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "route_to_role",
-            "role": "platform-architect"
-          }
-        }
-      },
-      {
-        "subject_role": "feature-engineer",
-        "assessed_by": "integration-assessor",
-        "checkpoint": "implementation-pass",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "route_to_role",
-            "role": "platform-architect"
-          }
-        }
-      },
-      {
-        "subject_role": "revision-release-coordinator",
-        "assessed_by": "integration-quality-assessor",
-        "checkpoint": "release-pass",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

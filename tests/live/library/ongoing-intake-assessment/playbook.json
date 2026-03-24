@@ -56,38 +56,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "intake-triage",
-        "goal": "Each intake item is triaged and assessed.",
-        "human_gate": false,
-        "entry_criteria": "A root intake work item exists."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [],
     "lifecycle": "ongoing",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 4,
       "max_active_tasks_per_work_item": 2,
       "allow_parallel_work_items": true
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "intake-analyst",
-        "assessed_by": "policy-assessor",
-        "checkpoint": "intake-triage",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

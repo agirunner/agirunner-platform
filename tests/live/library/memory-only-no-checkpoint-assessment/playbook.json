@@ -65,37 +65,12 @@
         ]
       }
     ],
-    "checkpoints": [],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "memory-acceptance-assessor",
-        "to_role": "memory-release-editor",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 3,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "memory-brief-lead",
-        "assessed_by": "memory-acceptance-assessor",
-        "checkpoint": "memory-flow",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

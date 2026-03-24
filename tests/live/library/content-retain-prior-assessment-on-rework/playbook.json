@@ -75,89 +75,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "architecture-pass",
-        "goal": "Design direction exists.",
-        "human_gate": false,
-        "entry_criteria": "The request is defined."
-      },
-      {
-        "name": "implementation-pass",
-        "goal": "Implementation revisions are assessed.",
-        "human_gate": false,
-        "entry_criteria": "Architecture output is ready."
-      },
-      {
-        "name": "release-pass",
-        "goal": "Release packaging is validated.",
-        "human_gate": false,
-        "entry_criteria": "Active implementation revision is approved."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "retained-platform-architect",
-        "to_role": "retained-feature-engineer",
-        "required": true
-      },
-      {
-        "from_role": "retained-quality-assessor",
-        "to_role": "retained-release-coordinator",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 4,
       "max_active_tasks_per_work_item": 2,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "retained-feature-engineer",
-        "assessed_by": "retained-quality-assessor",
-        "checkpoint": "implementation-pass",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "route_to_role",
-            "role": "retained-platform-architect"
-          }
-        }
-      },
-      {
-        "subject_role": "retained-feature-engineer",
-        "assessed_by": "retained-advisory-assessor",
-        "checkpoint": "implementation-pass",
-        "optional": true,
-        "materiality": "non_material",
-        "decision_states": [
-          "approved"
-        ],
-        "revision_policy": {
-          "assessment_retention": "retain_non_material_only"
-        }
-      },
-      {
-        "subject_role": "retained-release-coordinator",
-        "assessed_by": "retained-quality-assessor",
-        "checkpoint": "release-pass",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

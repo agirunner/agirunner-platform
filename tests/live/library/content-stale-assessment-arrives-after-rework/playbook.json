@@ -75,90 +75,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "concept-pass",
-        "goal": "Design direction exists.",
-        "human_gate": false,
-        "entry_criteria": "The request is defined."
-      },
-      {
-        "name": "draft-pass",
-        "goal": "Implementation revisions are assessed.",
-        "human_gate": false,
-        "entry_criteria": "Architecture output is ready."
-      },
-      {
-        "name": "publish-pass",
-        "goal": "Release packaging is validated.",
-        "human_gate": false,
-        "entry_criteria": "Active implementation revision is approved."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "stale-content-strategist",
-        "to_role": "stale-content-author",
-        "required": true
-      },
-      {
-        "from_role": "stale-quality-assessor",
-        "to_role": "stale-publication-lead",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 4,
       "max_active_tasks_per_work_item": 2,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "stale-content-author",
-        "assessed_by": "stale-quality-assessor",
-        "checkpoint": "draft-pass",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "route_to_role",
-            "role": "stale-content-strategist"
-          }
-        }
-      },
-      {
-        "subject_role": "stale-content-author",
-        "assessed_by": "stale-policy-assessor",
-        "checkpoint": "draft-pass",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "escalate"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      },
-      {
-        "subject_role": "stale-publication-lead",
-        "assessed_by": "stale-quality-assessor",
-        "checkpoint": "publish-pass",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

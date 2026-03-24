@@ -61,7 +61,6 @@
       {
         "name": "operator-approval",
         "goal": "A human decision exists for the assessed draft.",
-        "human_gate": true,
         "involves": []
       },
       {
@@ -72,75 +71,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "reviewable-draft",
-        "goal": "The draft content and evidence are ready.",
-        "human_gate": false,
-        "entry_criteria": "The publishing request exists."
-      },
-      {
-        "name": "operator-approval",
-        "goal": "A human decision exists for the assessed draft.",
-        "human_gate": true,
-        "entry_criteria": "The assessed draft is ready."
-      },
-      {
-        "name": "publication-release",
-        "goal": "The publication packet is finalized.",
-        "human_gate": false,
-        "entry_criteria": "Assessment and human approval are clear."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "content-review-editorial-policy-assessor",
-        "to_role": "content-review-publication-editor",
-        "required": true
-      },
-      {
-        "from_role": "content-review-fact-check-assessor",
-        "to_role": "content-review-publication-editor",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 3,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "content-review-research-lead",
-        "assessed_by": "content-review-fact-check-assessor",
-        "checkpoint": "reviewable-draft",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      },
-      {
-        "subject_role": "content-review-research-lead",
-        "assessed_by": "content-review-editorial-policy-assessor",
-        "checkpoint": "reviewable-draft",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

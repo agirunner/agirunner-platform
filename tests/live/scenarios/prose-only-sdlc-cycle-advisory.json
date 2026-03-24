@@ -49,7 +49,6 @@
     "assessor_cardinality": ["zero"],
     "successor_gating": ["direct_after_handoff"],
     "playbook_shapes": ["custom_role_names", "multiple_checkpoints"],
-    "storage_execution": ["git_workspace", "cold_specialists", "warm_orchestrators"],
-    "configuration_optional_controls": ["approval_prose_only", "assessment_prose_only", "escalation_prose_only"]
+    "storage_execution": ["git_workspace", "cold_specialists", "warm_orchestrators"]
   }
 }

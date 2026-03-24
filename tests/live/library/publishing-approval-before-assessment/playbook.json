@@ -60,7 +60,6 @@
       {
         "name": "editorial-approval",
         "goal": "A human decision exists for the brief.",
-        "human_gate": true,
         "involves": []
       },
       {
@@ -78,78 +77,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "drafting",
-        "goal": "A review-ready brief exists.",
-        "human_gate": false,
-        "entry_criteria": "The authored request is available."
-      },
-      {
-        "name": "editorial-approval",
-        "goal": "A human decision exists for the brief.",
-        "human_gate": true,
-        "entry_criteria": "The review-ready brief is complete."
-      },
-      {
-        "name": "policy-assessment",
-        "goal": "The approved packet is assessed for policy compliance.",
-        "human_gate": false,
-        "entry_criteria": "The editorial decision is approved."
-      },
-      {
-        "name": "publication-packaging",
-        "goal": "The approved and assessed publication packet is ready.",
-        "human_gate": false,
-        "entry_criteria": "The policy assessment is approved."
-      }
-    ],
-    "approval_rules": [
-      {
-        "on": "checkpoint",
-        "checkpoint": "editorial-approval",
-        "approved_by": "human",
-        "required": true,
-        "ordering_policy": {
-          "subject_boundary": "checkpoint",
-          "approval_before_assessment": true
-        }
-      }
-    ],
-    "handoff_rules": [
-      {
-        "from_role": "preapproval-product-strategist",
-        "to_role": "preapproval-technical-editor",
-        "required": true
-      },
-      {
-        "from_role": "preapproval-policy-assessor",
-        "to_role": "preapproval-launch-planner",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "preapproval-technical-editor",
-        "assessed_by": "preapproval-policy-assessor",
-        "checkpoint": "policy-assessment",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

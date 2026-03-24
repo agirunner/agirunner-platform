@@ -27,19 +27,10 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertEqual(sorted(live_test_catalog.EXPECTED_SCENARIOS), sorted(supported))
         self.assertEqual(len(supported), tracker["supported"]["total"])
 
-    def test_tracker_prioritizes_prose_only_advisory_scenarios_first(self) -> None:
+    def test_tracker_starts_with_the_repo_backed_prose_sdlc_scenario(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         supported = tracker["supported"]["scenarios"]
-        self.assertEqual(
-            supported[:5],
-            [
-                "prose-only-sdlc-cycle-advisory",
-                "prose-only-approval-advisory",
-                "prose-only-assessment-advisory",
-                "prose-only-escalation-advisory",
-                "prose-only-handoff-advisory",
-            ],
-        )
+        self.assertEqual("prose-only-sdlc-cycle-advisory", supported[0])
 
     def test_tracker_unsupported_future_design_entries_are_descriptive(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
@@ -82,13 +73,19 @@ class LiveTestCatalogTests(unittest.TestCase):
                 self.assertNotIn("auth", scenario)
                 self.assertNotIn("models", scenario)
 
-    def test_playbook_fixtures_use_assessment_rules_and_no_review_rules(self) -> None:
+    def test_playbook_fixtures_use_stages_and_no_legacy_governance_config(self) -> None:
         for playbook_file in sorted(LIBRARY_DIR.glob("*/playbook.json")):
             with self.subTest(playbook=playbook_file.parent.name):
                 payload = live_test_catalog.read_fixture(playbook_file)
                 definition = payload.get("definition", {})
+                self.assertTrue(definition.get("process_instructions"))
+                self.assertTrue(definition.get("stages"))
                 self.assertNotIn("review_rules", definition)
-                self.assertIn("assessment_rules", definition)
+                self.assertNotIn("checkpoints", definition)
+                self.assertNotIn("assessment_rules", definition)
+                self.assertNotIn("approval_rules", definition)
+                self.assertNotIn("handoff_rules", definition)
+                self.assertNotIn("branch_policies", definition)
 
     def test_sdlc_single_assessment_profile_seeds_a_real_repo_and_verification_path(self) -> None:
         seed_root = LIBRARY_DIR / "sdlc-assessment-approve" / "repo-seed"
@@ -259,15 +256,10 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("security_rework_scope", parameter_names)
         self.assertIn("mixed_outcome_contract", parameter_names)
 
-        quality_rule, security_rule = playbook["definition"]["assessment_rules"]
-        self.assertEqual(
-            {"action": "reopen_subject"},
-            quality_rule["outcome_actions"]["request_changes"],
-        )
-        self.assertEqual(
-            {"action": "route_to_role", "role": "mixed-architecture-lead"},
-            security_rule["outcome_actions"]["rejected"],
-        )
+        process_instructions = playbook["definition"]["process_instructions"]
+        self.assertIn("must not simulate future revisions", process_instructions)
+        self.assertIn("both evaluate the same repository-backed subject revision in parallel", process_instructions)
+        self.assertNotIn("assessment_rules", playbook["definition"])
 
         roles = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-parallel-assessors-mixed-outcomes" / "roles.json"
@@ -339,19 +331,11 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("final_revision_scope", parameter_names)
         self.assertIn("revision_progression_contract", parameter_names)
 
-        quality_rule, integration_rule, release_rule = playbook["definition"]["assessment_rules"]
-        self.assertEqual(
-            {"action": "reopen_subject"},
-            quality_rule["outcome_actions"]["request_changes"],
-        )
-        self.assertEqual(
-            {"action": "route_to_role", "role": "platform-architect"},
-            integration_rule["outcome_actions"]["rejected"],
-        )
-        self.assertEqual(
-            {"action": "reopen_subject"},
-            release_rule["outcome_actions"]["request_changes"],
-        )
+        process_instructions = playbook["definition"]["process_instructions"]
+        self.assertIn("drives the initial reopen_subject rework", process_instructions)
+        self.assertIn("routes the revision back to the platform architect", process_instructions)
+        self.assertIn("must reassess later release-readiness output", process_instructions)
+        self.assertNotIn("assessment_rules", playbook["definition"])
 
         roles = live_test_catalog.read_fixture(
             LIBRARY_DIR / "sdlc-revision-rework" / "roles.json"

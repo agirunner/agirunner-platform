@@ -36,10 +36,6 @@ EXPECTED_SCENARIOS = {
     "ongoing-intake-assessment-rework",
     "publishing-approval-before-assessment",
     "prose-only-sdlc-cycle-advisory",
-    "prose-only-approval-advisory",
-    "prose-only-assessment-advisory",
-    "prose-only-escalation-advisory",
-    "prose-only-handoff-advisory",
     "requirements-human-review-approve",
     "requirements-human-review-blocked",
     "requirements-human-review-reject",
@@ -156,12 +152,6 @@ REQUIRED_COVERAGE = {
         "approval_before_assessment_ordering",
         "human_review_blocked_decision",
         "stale_human_review_after_rework",
-    },
-    "configuration_optional_controls": {
-        "approval_prose_only",
-        "assessment_prose_only",
-        "escalation_prose_only",
-        "handoff_prose_only",
     },
 }
 

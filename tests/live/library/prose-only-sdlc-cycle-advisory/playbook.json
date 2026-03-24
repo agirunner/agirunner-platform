@@ -85,51 +85,6 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "solution-design",
-        "goal": "Implementation-ready direction exists.",
-        "human_gate": false,
-        "entry_criteria": "The repository change request is available."
-      },
-      {
-        "name": "implementation",
-        "goal": "The repository change is implemented and verified.",
-        "human_gate": false,
-        "entry_criteria": "Solution direction is available."
-      },
-      {
-        "name": "release-review",
-        "goal": "An informal review of the verified change is complete.",
-        "human_gate": false,
-        "entry_criteria": "A verified implementation handoff is available."
-      },
-      {
-        "name": "release-packaging",
-        "goal": "The release-ready summary and packaging notes are complete.",
-        "human_gate": false,
-        "entry_criteria": "Informal review notes are available."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "prose-sdlc-solution-architect",
-        "to_role": "prose-sdlc-implementation-engineer",
-        "required": true
-      },
-      {
-        "from_role": "prose-sdlc-implementation-engineer",
-        "to_role": "prose-sdlc-release-reviewer",
-        "required": true
-      },
-      {
-        "from_role": "prose-sdlc-release-reviewer",
-        "to_role": "prose-sdlc-release-coordinator",
-        "required": true
-      }
-    ],
-    "assessment_rules": [],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 3,

@@ -43,10 +43,7 @@ class ScenarioConfigTests(unittest.TestCase):
             ],
             scenario["expect"]["direct_handoff_expectations"],
         )
-        self.assertEqual(
-            ["approval_prose_only", "assessment_prose_only", "escalation_prose_only"],
-            scenario["coverage"]["configuration_optional_controls"],
-        )
+        self.assertNotIn("configuration_optional_controls", scenario["coverage"])
 
     def test_ongoing_intake_scenario_requires_real_work_before_pending_counts_as_success(self) -> None:
         scenario_path = Path(__file__).resolve().parents[1] / "scenarios" / "ongoing-intake-assessment-rework.json"

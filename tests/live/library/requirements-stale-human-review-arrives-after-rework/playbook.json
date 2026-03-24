@@ -60,7 +60,6 @@
       {
         "name": "approval-gate",
         "goal": "A human decision exists for the brief.",
-        "human_gate": true,
         "involves": []
       },
       {
@@ -72,68 +71,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "drafting",
-        "goal": "A review-ready brief exists.",
-        "human_gate": false,
-        "entry_criteria": "The authored request is available."
-      },
-      {
-        "name": "approval-gate",
-        "goal": "A human decision exists for the brief.",
-        "human_gate": true,
-        "entry_criteria": "The review-ready brief is complete."
-      },
-      {
-        "name": "launch-packaging",
-        "goal": "The approved launch packet is ready.",
-        "human_gate": false,
-        "entry_criteria": "The human decision is approved."
-      }
-    ],
-    "approval_rules": [
-      {
-        "on": "checkpoint",
-        "checkpoint": "approval-gate",
-        "approved_by": "human",
-        "required": true,
-        "revision_policy": {
-          "approval_retention": "invalidate_all"
-        }
-      }
-    ],
-    "handoff_rules": [
-      {
-        "from_role": "stalegate-product-strategist",
-        "to_role": "stalegate-technical-editor",
-        "required": true
-      },
-      {
-        "from_role": "stalegate-technical-editor",
-        "to_role": "stalegate-launch-planner",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "stalegate-launch-planner",
-        "assessed_by": "stalegate-compliance-assessor",
-        "checkpoint": "launch-packaging",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

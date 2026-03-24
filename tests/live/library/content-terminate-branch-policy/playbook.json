@@ -59,49 +59,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "variant-draft",
-        "goal": "Each branch draft is assessed independently.",
-        "human_gate": false,
-        "entry_criteria": "The branch work item is created."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [],
-    "branch_policies": [
-      {
-        "branch_key": "branch-1",
-        "termination_policy": "stop_branch_only"
-      },
-      {
-        "branch_key": "branch-2",
-        "termination_policy": "stop_branch_only"
-      }
-    ],
     "lifecycle": "ongoing",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 6,
       "max_active_tasks_per_work_item": 2,
       "allow_parallel_work_items": true
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "branchterm-content-author",
-        "assessed_by": "branchterm-brand-assessor",
-        "checkpoint": "variant-draft",
-        "required": true,
-        "decision_states": [
-          "approved",
-          "rejected"
-        ],
-        "outcome_actions": {
-          "rejected": {
-            "action": "terminate_branch"
-          }
-        }
-      }
-    ]
+    }
   }
 }

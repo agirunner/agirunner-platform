@@ -56,38 +56,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "build-validation",
-        "goal": "The build output is delivered and assessed.",
-        "human_gate": false,
-        "entry_criteria": "The build request exists."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": [
-      {
-        "subject_role": "build-engineer",
-        "assessed_by": "release-assessor",
-        "checkpoint": "build-validation",
-        "required": true,
-        "outcome_actions": {
-          "request_changes": {
-            "action": "reopen_subject"
-          },
-          "rejected": {
-            "action": "block_subject"
-          }
-        }
-      }
-    ]
+    }
   }
 }

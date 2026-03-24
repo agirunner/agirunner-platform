@@ -56,29 +56,12 @@
         ]
       }
     ],
-    "checkpoints": [
-      {
-        "name": "briefing",
-        "goal": "The publication brief is ready for release.",
-        "human_gate": false,
-        "entry_criteria": "The publication request exists."
-      }
-    ],
-    "approval_rules": [],
-    "handoff_rules": [
-      {
-        "from_role": "market-researcher",
-        "to_role": "managing-editor",
-        "required": true
-      }
-    ],
     "lifecycle": "planned",
     "orchestrator": {
       "max_rework_iterations": 5,
       "max_active_tasks": 2,
       "max_active_tasks_per_work_item": 1,
       "allow_parallel_work_items": false
-    },
-    "assessment_rules": []
+    }
   }
 }
