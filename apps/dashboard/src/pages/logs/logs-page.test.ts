@@ -6,31 +6,35 @@ function readPage() {
   return readFileSync(resolve(import.meta.dirname, './logs-page.tsx'), 'utf8');
 }
 
-function readActivityPackets() {
-  return readFileSync(resolve(import.meta.dirname, './logs-page-activity-packets.tsx'), 'utf8');
-}
-
 describe('logs page source', () => {
-  it('keeps the mission-control logs route raw-log-first while preserving inspector tabs', () => {
+  it('keeps the mission-control logs route raw-log-first while preserving summary-only inspector tabs', () => {
     const source = readPage();
     expect(source).toContain('return <LogsSurface mode="logs" />;');
     expect(source).toContain("const surfaceMode = props.mode ?? (scopedWorkflowId ? 'inspector' : 'logs');");
-    expect(source).toContain('const [logsSurfaceView, setLogsSurfaceView] = useState<InspectorView>(() =>');
     expect(source).toContain('readLogsSurfaceView(searchParams)');
-    expect(source).toContain('setLogsSurfaceView(readLogsSurfaceView(searchParams));');
-    expect(source).toContain("const selectedView = rawFirstSurface");
+    expect(source).toContain("const selectedView = useMemo(() => readLogsSurfaceView(searchParams), [searchParams]);");
     expect(source).toContain('Operator Log</h1>');
     expect(source).toContain(
-      "Raw logs and events are always visible. Use the summary, delivery, and trace tabs for curated views when you need them.",
+      "Raw logs stay visible as the source of truth. Activity Summary highlights the current filtered results without leaving the stream.",
     );
     expect(source).toContain("rawFirstSurface ? 'Log Stream' : 'Raw Logs'");
     expect(source).toContain("rawFirstSurface ? 'Activity Summary' : 'Summary'");
-    expect(source).toContain("rawFirstSurface ? 'Delivery Packets' : 'Delivery'");
-    expect(source).toContain("rawFirstSurface ? 'Trace Detail' : 'Debug'");
-    expect(source).toContain('Failed to load delivery entries. Please refine filters and try again.');
+    expect(source).toContain('Chronological raw logs and events across the current filters.');
+    expect(source).toContain('A curated summary of the current log results');
+    expect(source).toContain('Top activity paths, role lanes, and');
+    expect(source).toContain('worker or operator activity reflect the current filters.');
+    expect(source).not.toContain('Focus the current log results');
+    expect(source).not.toContain('Delivery Packets');
+    expect(source).not.toContain('LogsPageActivityPackets');
+    expect(source).not.toContain('ExecutionInspectorDetailView');
+    expect(source).not.toContain('TabsContent value="detailed"');
     expect(source).not.toContain('Export');
     expect(source).not.toContain('Permalink');
     expect(source).not.toContain('rounded-3xl border border-border/70 bg-card/80 p-5 shadow-sm sm:p-6');
+    expect(source).not.toContain('LogsSurfacePanel');
+    expect(source).not.toContain('buildTabFacts');
+    expect(source).not.toContain('Board context');
+    expect(source).not.toContain('Step record');
   });
 
   it('MCL-004: uses shorter mobile tab labels to prevent truncation', () => {
@@ -43,82 +47,85 @@ describe('logs page source', () => {
 
   it('keeps the inspector surfaces available without forcing inspector summary cards onto raw logs', () => {
     const source = readPage();
-    expect(source).toContain('dashboardApi.queryLogs');
-    expect(source).toContain("detail: SUMMARY_DETAIL_MODE");
-    expect(source).toContain('dashboardApi.getLog');
+    expect(source).toContain('useLogFilters()');
+    expect(source).toContain('LogFilters');
+    expect(source).toContain('applyLogScope');
     expect(source).toContain('dashboardApi.getLogStats');
+    expect(source).toContain('dashboardApi.getLogOperations');
+    expect(source).toContain('dashboardApi.getLogRoles');
+    expect(source).toContain('dashboardApi.getLogActors');
     expect(source).toContain('dashboardApi.getWorkflowBudget(scopedWorkflowId)');
-    expect(source).toContain('buildInspectorOverviewCards');
     expect(source).toContain('WorkflowBudgetCard');
-    expect(source).toContain('describeExecutionOperationOption');
     expect(source).toContain('context="inspector"');
-    expect(source).toContain('LogViewer compact');
+    expect(source).toContain('<LogViewer');
+    expect(source).toContain('compact');
     expect(source).toContain('data-testid="operator-log-surface"');
     expect(source).toContain("aria-label=\"Log view\"");
+    expect(source).toContain("queryKey: ['operator-log', 'operations', filters, logScope]");
+    expect(source).toContain("queryKey: ['operator-log', 'roles', filters, logScope]");
+    expect(source).toContain("queryKey: ['operator-log', 'actors', filters, logScope]");
+    expect(source).toContain('operationItemsOverride={');
+    expect(source).toContain('roleItemsOverride={');
+    expect(source).toContain('actorItemsOverride={');
+    expect(source).toContain('enabled: selectedView === \'summary\'');
+    expect(source).toContain('refetchInterval: 10_000');
+    expect(source).toContain('refetchIntervalInBackground: true');
+    expect(source).toContain('refetchOnWindowFocus: true');
+    expect(source).not.toContain("category: 'agent_loop,tool,llm,task_lifecycle,container'");
+    expect(source).not.toContain('buildLogFilters(filters)');
+    expect(source).not.toContain('readInspectorFilters(searchParams)');
+    expect(source).not.toContain('InspectorFiltersCard');
   });
 
   it('raw tab renders only the log stream without inspector chrome', () => {
     const source = readPage();
-    const rawTabStart = source.indexOf('TabsContent value="raw"');
+    const rawTabStart = source.indexOf("{selectedView === 'raw' ? (");
     const rawTabEnd = source.indexOf('</TabsContent>', rawTabStart);
     const rawTabContent = source.slice(rawTabStart, rawTabEnd);
 
     expect(rawTabContent).toContain('<LogViewer');
-    expect(rawTabContent).not.toContain('LogsPageActivityPackets');
-    expect(rawTabContent).toContain('<LogsSurfacePanel');
-    expect(source).toContain("eyebrow: rawFirstSurface ? 'Raw log truth' : 'Inspector baseline'");
-    expect(source).toContain('chronological source-of-truth stream');
+    expect(rawTabContent).not.toContain('<LogsSurfacePanel');
+    expect(rawTabContent).toContain('Chronological raw logs and events across the current filters.');
+    expect(source).not.toContain('chronological source-of-truth stream');
   });
 
-  it('keeps activity packets additive on the summary tab', () => {
+  it('keeps summary focused on aggregate signals instead of packet drill-in', () => {
     const source = readPage();
-    const packetsSource = readActivityPackets();
-    expect(source).toContain('LogsPageActivityPackets');
-    expect(source).toContain('buildRecentLogActivityPackets(entries)');
-    expect(source).toContain("updateView('detailed')");
 
-    // Activity packets must be on the summary tab, not the raw tab
-    const summaryTabStart = source.indexOf('TabsContent value="summary"');
+    const summaryTabStart = source.indexOf("{selectedView === 'summary' ? (");
     const summaryTabEnd = source.indexOf('</TabsContent>', summaryTabStart);
     const summaryTabContent = source.slice(summaryTabStart, summaryTabEnd);
-    expect(summaryTabContent).toContain('<LogsSurfacePanel');
-    expect(summaryTabContent).toContain('LogsPageActivityPackets');
-    expect(summaryTabContent).toContain('operator-log-activity-packets');
+    expect(summaryTabContent).not.toContain('<LogsSurfacePanel');
+    expect(summaryTabContent).toContain('A curated summary of the current log results');
+    expect(summaryTabContent).toContain('<LogFilters');
     expect(summaryTabContent).toContain('ExecutionInspectorSummaryView');
-    expect(source).toContain("eyebrow: 'Curated summary'");
-
-    expect(packetsSource).toContain('Recent activity packets');
-    expect(packetsSource).toContain('packet.actorLabel');
-    expect(packetsSource).toContain('packet.emphasisLabel');
-    expect(packetsSource).toContain('packet.narrativeHeadline');
-    expect(packetsSource).toContain('Why surfaced');
-    expect(packetsSource).toContain('packet.whyItMatters');
-    expect(packetsSource).toContain('packet.facts.map((fact)');
-    expect(packetsSource).toContain('Trace context');
-    expect(packetsSource).toContain('packet.supportingContext.map((item)');
-    expect(packetsSource).toContain('packet.actions.map((action)');
-    expect(packetsSource).toContain('Open trace detail');
-    expect(packetsSource).toContain('dateTime={packet.createdAtIso}');
-    expect(packetsSource).toContain('title={packet.createdAtDetail}');
-    expect(packetsSource).toContain('Use these human-readable summaries to decide whether to stay in the raw stream');
+    expect(summaryTabContent).not.toContain('<Card key={card.title}');
+    expect(summaryTabContent).not.toContain('Recent activity packets');
+    expect(summaryTabContent).not.toContain('ExecutionInspectorDetailView');
   });
 
   it('drives inspector filters and selected entries from url search params', () => {
     const source = readPage();
     expect(source).toContain('useSearchParams');
-    expect(source).toContain('readInspectorFilters(searchParams)');
-    expect(source).toContain("next.set('log', String(logId))");
-    expect(source).toContain("next.set('view', view)");
+    expect(source).toContain('useLogFilters()');
+    expect(source).not.toContain('readInspectorView(searchParams)');
+    expect(source).toContain("next.set('view', 'summary')");
     expect(source).not.toContain("return `/diagnostics/logs?");
+    expect(source).not.toContain("setLogsSurfaceView(view)");
   });
 
-  it('shows segment-oriented pagination copy and lazy selected-detail loading', () => {
+  it('keeps the simplified summary tab free of delivery-detail pagination chrome', () => {
     const source = readPage();
-    expect(source).toContain('Loading selected trace detail…');
-    expect(source).toContain('isSelectedOutsideSegment');
-    expect(source).toContain('loadedCount={entries.length}');
-    expect(source).toContain('Action queue');
-    expect(source).toContain('Trace diagnostics');
-    expect(source).toContain('InspectorFiltersCard');
+    expect(source).toContain('<LogFilters');
+    expect(source).not.toContain('loadedCount={entries.length}');
+    expect(source).not.toContain('effectiveSelectedLogId');
+  });
+
+  it('does not mount inactive log tabs that would duplicate heavy aggregate queries', () => {
+    const source = readPage();
+    expect(source).toContain("{selectedView === 'raw' ? (");
+    expect(source).toContain("{selectedView === 'summary' ? (");
+    expect(source).toContain("{selectedView === 'raw' ? (\n          <TabsContent value=\"raw\"");
+    expect(source).toContain("{selectedView === 'summary' ? (\n          <TabsContent value=\"summary\"");
   });
 });

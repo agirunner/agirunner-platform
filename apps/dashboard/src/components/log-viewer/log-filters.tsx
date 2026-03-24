@@ -10,6 +10,7 @@ import { useLogFilters, type LogFilters as LogFilterState } from './hooks/use-lo
 import { useLogOperations } from './hooks/use-log-operations.js';
 import { useLogRoles } from './hooks/use-log-roles.js';
 import { useLogActors } from './hooks/use-log-actors.js';
+import type { LogActorRecord, LogOperationRecord, LogRoleRecord } from '../../lib/api.js';
 import {
   DEBOUNCE_MS,
   EXECUTION_BACKEND_ITEMS,
@@ -33,6 +34,9 @@ interface LogFiltersComponentProps {
   compact?: boolean;
   viewMode?: string; onViewModeChange?: (mode: string) => void;
   scope?: LogScope;
+  operationItemsOverride?: LogOperationRecord[];
+  roleItemsOverride?: LogRoleRecord[];
+  actorItemsOverride?: LogActorRecord[];
 }
 
 export function LogFilters({
@@ -41,13 +45,38 @@ export function LogFilters({
   viewMode,
   onViewModeChange,
   scope,
+  operationItemsOverride,
+  roleItemsOverride,
+  actorItemsOverride,
 }: LogFiltersComponentProps = {}): JSX.Element {
   const { filters, setFilter, setEntityScope, resetFilters, replaceAllParams, toQueryParams } =
     useLogFilters();
-  const scopedFilters = useMemo(() => applyLogScope({}, scope), [scope]);
-  const { data: operationsData } = useLogOperations(undefined, scopedFilters);
-  const { data: rolesData } = useLogRoles(scopedFilters);
-  const { data: actorsData } = useLogActors(scopedFilters);
+  const optionBaseFilters = useMemo(
+    () => applyLogScope(toQueryParams(), scope),
+    [scope, toQueryParams],
+  );
+  const operationOptionFilters = useMemo(() => {
+    const next = { ...optionBaseFilters };
+    delete next.operation;
+    return next;
+  }, [optionBaseFilters]);
+  const roleOptionFilters = useMemo(() => {
+    const next = { ...optionBaseFilters };
+    delete next.role;
+    return next;
+  }, [optionBaseFilters]);
+  const actorOptionFilters = useMemo(() => {
+    const next = { ...optionBaseFilters };
+    delete next.actor;
+    return next;
+  }, [optionBaseFilters]);
+  const { data: operationsData } = useLogOperations(
+    undefined,
+    operationOptionFilters,
+    !operationItemsOverride,
+  );
+  const { data: rolesData } = useLogRoles(roleOptionFilters, !roleItemsOverride);
+  const { data: actorsData } = useLogActors(actorOptionFilters, !actorItemsOverride);
 
   const [searchDraft, setSearchDraft] = useState(filters.search);
 
@@ -63,22 +92,7 @@ export function LogFilters({
     [],
   );
 
-  const [workItemDraft, setWorkItemDraft] = useState(filters.workItem ?? '');
-  const [stageDraft, setStageDraft] = useState(filters.stage ?? '');
-  const [activationDraft, setActivationDraft] = useState(filters.activation ?? '');
-
-  const commitWorkItem = useCallback((v: string) => setFilter('workItem', v), [setFilter]);
-  const commitStage = useCallback((v: string) => setFilter('stage', v), [setFilter]);
-  const commitActivation = useCallback((v: string) => setFilter('activation', v), [setFilter]);
-
-  useDebounced(workItemDraft, DEBOUNCE_MS, commitWorkItem);
-  useDebounced(stageDraft, DEBOUNCE_MS, commitStage);
-  useDebounced(activationDraft, DEBOUNCE_MS, commitActivation);
-
   useEffect(() => setSearchDraft(filters.search), [filters.search]);
-  useEffect(() => setWorkItemDraft(filters.workItem ?? ''), [filters.workItem]);
-  useEffect(() => setStageDraft(filters.stage ?? ''), [filters.stage]);
-  useEffect(() => setActivationDraft(filters.activation ?? ''), [filters.activation]);
 
   const toggleOperation = useArrayToggle(filters.operations, setFilter, 'operations');
   const clearOperations = useCallback(() => setFilter('operations', []), [setFilter]);
@@ -134,9 +148,9 @@ export function LogFilters({
   const clearStatuses = useCallback(() => setFilter('statuses', []), [setFilter]);
   const selectedStatusIds = useMemo(() => new Set(filters.statuses), [filters.statuses]);
 
-  const operationItems = toOperationItems(operationsData);
-  const roleItems = toRoleItems(rolesData);
-  const actorItems = toActorItems(actorsData);
+  const operationItems = operationItemsOverride ?? toOperationItems(operationsData);
+  const roleItems = roleItemsOverride ?? toRoleItems(rolesData);
+  const actorItems = actorItemsOverride ?? toActorItems(actorsData);
 
   const savedViewFilters = useMemo((): SavedViewFilters => {
     const params = toQueryParams();
@@ -154,9 +168,6 @@ export function LogFilters({
     (saved: SavedViewFilters) => {
       replaceAllParams(mapSavedViewToUrlParams(saved));
       setSearchDraft(saved.search ?? '');
-      setWorkItemDraft(saved.work_item_id ?? '');
-      setStageDraft(saved.stage_name ?? '');
-      setActivationDraft(saved.activation_id ?? '');
       if (saved.viewMode) onViewModeChange?.(saved.viewMode);
     },
     [replaceAllParams, onViewModeChange],
@@ -306,28 +317,6 @@ export function LogFilters({
           multiSelect
           selectedIds={selectedStatusIds}
           onClearAll={clearStatuses}
-        />
-      </div>
-
-      {/* Row 2b: Workflow execution context */}
-      <div className="grid gap-2 md:grid-cols-3">
-        <Input
-          value={workItemDraft}
-          onChange={(event) => setWorkItemDraft(event.target.value)}
-          placeholder="Work item ID"
-          className="h-8 text-xs"
-        />
-        <Input
-          value={stageDraft}
-          onChange={(event) => setStageDraft(event.target.value)}
-          placeholder="Stage name"
-          className="h-8 text-xs"
-        />
-        <Input
-          value={activationDraft}
-          onChange={(event) => setActivationDraft(event.target.value)}
-          placeholder="Activation ID"
-          className="h-8 text-xs"
         />
       </div>
 

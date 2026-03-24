@@ -7,12 +7,10 @@ import {
   describeExecutionSummary,
   formatDuration,
   levelVariant,
-  readExecutionSignals,
-  statusVariant,
-  summarizeLogContext,
 } from '../execution-inspector/execution-inspector-support.js';
 import { Badge } from '../ui/badge.js';
 import { LogEntryDetail } from './log-entry-detail.js';
+import { getCanonicalStageName } from './log-entry-context.js';
 import { formatLogRelativeTime } from './log-time.js';
 
 interface LogEntryMobileCardProps {
@@ -39,10 +37,49 @@ function formatAbsoluteTimestamp(iso: string): string {
   return Number.isFinite(date.getTime()) ? date.toLocaleString() : 'Unknown time';
 }
 
+function describeWorkflow(entry: LogEntry): string {
+  if (entry.workflow_name?.trim()) {
+    return entry.workflow_name;
+  }
+  if (entry.workflow_id?.trim()) {
+    return `Workflow ${entry.workflow_id.slice(0, 8)}`;
+  }
+  return 'No workflow';
+}
+
+function describeStep(entry: LogEntry): string {
+  const stageName = getCanonicalStageName(entry);
+  const parts = [entry.task_title?.trim() || '', stageName ? `Stage ${stageName}` : ''].filter(
+    Boolean,
+  );
+  return parts.join(' · ') || 'No step context';
+}
+
+function describeActor(entry: LogEntry): string {
+  if (entry.actor_name?.trim()) {
+    return entry.actor_name;
+  }
+  const actorType = entry.actor_type?.replace(/_/g, ' ') || 'unknown';
+  return actorType.charAt(0).toUpperCase() + actorType.slice(1);
+}
+
+function describeActorDetail(entry: LogEntry): string {
+  if (entry.role?.trim()) {
+    return entry.role;
+  }
+  const sourceLabel = entry.source.replace(/_/g, ' ');
+  return sourceLabel.charAt(0).toUpperCase() + sourceLabel.slice(1);
+}
+
+function formatStatusLabel(status: string): string {
+  if (!status) {
+    return 'Unknown';
+  }
+  return status.charAt(0).toUpperCase() + status.slice(1).replace(/_/g, ' ');
+}
+
 export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element {
   const { entry, isExpanded, onToggle, onFilterTrace } = props;
-  const signals = readExecutionSignals(entry);
-  const context = summarizeLogContext(entry).slice(0, 2);
 
   return (
     <article
@@ -59,8 +96,6 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
         <div className="flex items-start justify-between gap-3">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <Badge variant={levelVariant(entry.level)}>{entry.level}</Badge>
-            <Badge variant={statusVariant(entry.status)}>{entry.status}</Badge>
-            <Badge variant="outline">{CATEGORY_LABELS[entry.category] ?? entry.category}</Badge>
           </div>
           <span className="shrink-0 text-muted-foreground">
             {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
@@ -82,6 +117,32 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
         <div className="grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
           <div className="grid gap-1">
             <span className="font-medium uppercase tracking-wide text-muted-foreground">
+              Category
+            </span>
+            <span className="text-sm text-foreground">{CATEGORY_LABELS[entry.category] ?? entry.category}</span>
+          </div>
+          <div className="grid gap-1">
+            <span className="font-medium uppercase tracking-wide text-muted-foreground">
+              Workflow
+            </span>
+            <span className="text-sm text-foreground">{describeWorkflow(entry)}</span>
+            <span>{describeStep(entry)}</span>
+          </div>
+          <div className="grid gap-1">
+            <span className="font-medium uppercase tracking-wide text-muted-foreground">
+              Actor
+            </span>
+            <span className="text-sm text-foreground">{describeActor(entry)}</span>
+            <span>{describeActorDetail(entry)}</span>
+          </div>
+          <div className="grid gap-1">
+            <span className="font-medium uppercase tracking-wide text-muted-foreground">
+              Status
+            </span>
+            <span>{formatStatusLabel(entry.status)}</span>
+          </div>
+          <div className="grid gap-1">
+            <span className="font-medium uppercase tracking-wide text-muted-foreground">
               Recorded
             </span>
             <time dateTime={entry.created_at} title={formatAbsoluteTimestamp(entry.created_at)}>
@@ -96,28 +157,8 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
           </div>
         </div>
 
-        {context.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {context.map((item) => (
-              <Badge key={item} variant="outline" className="text-[11px]">
-                {item}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-
-        {signals.length > 0 ? (
-          <div className="flex flex-wrap gap-2">
-            {signals.map((signal) => (
-              <Badge key={signal} variant="outline" className="text-[11px]">
-                {signal}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-
         {entry.error?.message ? (
-          <div className="rounded-xl border border-red-300/60 bg-red-50/60 px-3 py-2 text-sm text-red-700 dark:border-red-700/60 dark:bg-red-950/25 dark:text-red-200">
+          <div className="rounded-xl border border-rose-300 bg-rose-100 px-3 py-2 text-sm text-rose-900 dark:border-rose-500/70 dark:bg-rose-500/12 dark:text-rose-100">
             {entry.error.message}
           </div>
         ) : null}

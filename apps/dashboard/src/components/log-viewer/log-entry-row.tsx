@@ -1,6 +1,8 @@
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import type { LogEntry } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
+import { Badge } from '../ui/badge.js';
+import { describeExecutionHeadline } from '../execution-inspector/execution-inspector-support.js';
 import { getCanonicalStageName } from './log-entry-context.js';
 import { formatLogRelativeTime } from './log-time.js';
 
@@ -10,18 +12,6 @@ export interface LogEntryRowProps {
   onToggle: () => void;
 }
 
-const CATEGORY_STYLES: Record<string, string> = {
-  llm: 'bg-indigo-100 text-indigo-700',
-  tool: 'bg-emerald-100 text-emerald-700',
-  agent_loop: 'bg-violet-100 text-violet-700',
-  task_lifecycle: 'bg-sky-100 text-sky-700',
-  runtime_lifecycle: 'bg-sky-100 text-sky-700',
-  container: 'bg-orange-100 text-orange-700',
-  api: 'bg-slate-100 text-slate-700',
-  config: 'bg-teal-100 text-teal-700',
-  auth: 'bg-yellow-100 text-yellow-700',
-};
-
 const LEVEL_ACCENT: Record<string, string> = {
   debug: 'border-l-transparent',
   info: 'border-l-blue-400',
@@ -29,11 +19,11 @@ const LEVEL_ACCENT: Record<string, string> = {
   error: 'border-l-red-500',
 };
 
-const LEVEL_BADGE: Record<string, string> = {
-  debug: 'bg-gray-100 text-gray-500',
-  info: 'bg-blue-50 text-blue-600',
-  warn: 'bg-amber-50 text-amber-700 font-semibold',
-  error: 'bg-red-50 text-red-700 font-semibold',
+const LEVEL_BADGE_VARIANT: Record<string, 'info' | 'warning' | 'destructive'> = {
+  debug: 'info',
+  info: 'info',
+  warn: 'warning',
+  error: 'destructive',
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -75,6 +65,13 @@ function num(v: unknown): string {
 
 function truncate(t: string, max: number): string {
   return t.length <= max ? t : `${t.slice(0, max)}…`;
+}
+
+function shortLabel(value: string | null | undefined, fallback = 'Unknown'): string {
+  if (value && value.trim() !== '') {
+    return value.length > 24 ? value.slice(0, 24) : value;
+  }
+  return fallback;
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -219,20 +216,6 @@ function appendTaskTitle(preview: string, entry: LogEntry): string {
   return preview ? `${preview} · ${titleSnippet}` : titleSnippet;
 }
 
-const STATUS_INDICATOR: Record<string, string> = {
-  completed: '●',
-  failed: '✕',
-  started: '◐',
-  skipped: '○',
-};
-
-const STATUS_COLOR: Record<string, string> = {
-  completed: 'text-green-500',
-  failed: 'text-red-500',
-  started: 'text-blue-500 animate-pulse',
-  skipped: 'text-gray-400',
-};
-
 function getRole(entry: LogEntry): string | null {
   const role = entry.role ?? (entry.payload?.role as string | undefined);
   return role && role !== '' ? role : null;
@@ -263,11 +246,13 @@ export function LogTableHeader(): JSX.Element {
     <thead>
       <tr className="border-b border-border bg-muted/30 text-[11px] uppercase tracking-wider text-muted-foreground">
         <th className="w-6 px-1 py-1.5" />
-        <th className="px-3 py-2 text-left font-medium">Signal</th>
-        <th className="px-3 py-2 text-left font-medium">Recorded</th>
-        <th className="px-3 py-2 text-left font-medium hidden lg:table-cell">Scope</th>
-        <th className="px-3 py-2 text-left font-medium">Activity</th>
+        <th className="px-3 py-2 text-left font-medium">Time</th>
         <th className="px-3 py-2 text-right font-medium w-20">Duration</th>
+        <th className="px-3 py-2 text-left font-medium">Level</th>
+        <th className="px-3 py-2 text-left font-medium">Category</th>
+        <th className="px-3 py-2 text-left font-medium">Workflow / Step</th>
+        <th className="px-3 py-2 text-left font-medium">Actor</th>
+        <th className="px-3 py-2 text-left font-medium">Activity</th>
       </tr>
     </thead>
   );
@@ -276,12 +261,12 @@ export function LogTableHeader(): JSX.Element {
 export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): JSX.Element {
   const preview = appendTaskTitle(buildPreview(entry), entry);
   const accent = LEVEL_ACCENT[entry.level] ?? LEVEL_ACCENT.info;
-  const levelBadge = LEVEL_BADGE[entry.level] ?? LEVEL_BADGE.info;
-  const catStyle = CATEGORY_STYLES[entry.category] ?? 'bg-slate-100 text-slate-700';
   const Chevron = isExpanded ? ChevronDown : ChevronRight;
   const duration = formatDuration(entry.duration_ms);
   const role = getRole(entry);
-  const scopeItems = buildScopeItems(entry, role);
+  const workflowStep = buildWorkflowStepSummary(entry);
+  const actorDetail = buildActorDetail(entry, role);
+  const activityHeadline = describeExecutionHeadline(entry);
 
   return (
     <tr
@@ -303,153 +288,102 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
         <Chevron className="h-3 w-3 text-muted-foreground" />
       </td>
 
-      {/* Signal */}
+      {/* Time */}
       <td className="px-3 py-2.5 align-top">
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span
-            className={cn(
-              'text-[11px] leading-none',
-              STATUS_COLOR[entry.status] ?? 'text-muted-foreground',
-            )}
-          >
-            {STATUS_INDICATOR[entry.status] ?? '○'}
-          </span>
-          <span
-            className={cn(
-              'inline-block rounded px-1.5 py-0.5 text-[11px] font-mono uppercase leading-tight',
-              levelBadge,
-            )}
-          >
-            {entry.level}
-          </span>
-          <span
-            className={cn(
-              'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium leading-tight whitespace-nowrap',
-              catStyle,
-            )}
-          >
-            {CATEGORY_LABELS[entry.category] ?? entry.category}
-          </span>
-          <span className="inline-block rounded border border-border/70 bg-background px-1.5 py-0.5 text-[11px] font-medium leading-tight text-muted-foreground">
-            {entry.status}
-          </span>
-        </div>
-        <div className="mt-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {formatActorLabel(entry)}
-        </div>
-        <div className="mt-1 break-words text-sm font-medium text-foreground">{entry.operation}</div>
-      </td>
-
-      {/* Recorded */}
-      <td
-        className="px-3 py-2.5 align-top text-muted-foreground tabular-nums whitespace-nowrap"
-        title={formatTimestamp(entry.created_at)}
-      >
-        <div className="text-sm font-medium text-foreground">
+        <div
+          className="text-sm font-medium text-foreground"
+          title={formatTimestamp(entry.created_at)}
+        >
           {formatLogRelativeTime(entry.created_at)}
         </div>
         <div className="mt-1 text-xs text-muted-foreground">{formatTimestamp(entry.created_at)}</div>
-      </td>
-
-      {/* Scope */}
-      <td className="hidden lg:table-cell px-3 py-2.5 align-top">
-        {scopeItems.length > 0 ? (
-          <div className="flex max-w-[16rem] flex-wrap gap-1.5">
-            {scopeItems.map((item) => (
-              <span
-                key={item.value}
-                className={cn(
-                  'inline-block rounded px-1.5 py-0.5 text-[11px] font-medium leading-tight whitespace-nowrap',
-                  item.tone,
-                )}
-                title={item.title}
-              >
-                {item.value}
-              </span>
-            ))}
-          </div>
-        ) : (
-          <span className="text-xs text-muted-foreground/70">No scoped entity</span>
-        )}
-      </td>
-
-      {/* Activity */}
-      <td className="px-3 py-2.5 align-top">
-        <div className="grid gap-1">
-          <div className="break-words text-sm font-medium text-foreground">
-            {preview ? truncate(preview, 120) : 'Recorded activity with no derived summary'}
-          </div>
-          {entry.error?.message ? (
-            <div className="rounded-md border border-red-300/60 bg-red-50/70 px-2 py-1 text-xs leading-5 text-red-700 dark:border-red-700/60 dark:bg-red-950/25 dark:text-red-200">
-              {truncate(entry.error.message, 160)}
-            </div>
-          ) : null}
-        </div>
       </td>
 
       {/* Duration */}
       <td className="px-3 py-2.5 align-top text-right font-mono tabular-nums text-muted-foreground whitespace-nowrap">
         {duration}
       </td>
+
+      {/* Level */}
+      <td className="px-3 py-2.5 align-top">
+        <Badge
+          variant={LEVEL_BADGE_VARIANT[entry.level] ?? 'info'}
+          className="px-1.5 py-0.5 font-mono text-[11px] uppercase leading-tight"
+        >
+          {entry.level}
+        </Badge>
+      </td>
+
+      {/* Category */}
+      <td className="px-3 py-2.5 align-top">
+        <span className="inline-block whitespace-nowrap text-sm font-medium text-foreground">
+          {CATEGORY_LABELS[entry.category] ?? entry.category}
+        </span>
+      </td>
+
+      {/* Workflow / Step */}
+      <td className="px-3 py-2.5 align-top">
+        <div className="min-w-[14rem]">
+          <div className="break-words text-sm font-medium text-foreground">{workflowStep.workflow}</div>
+          <div className="mt-1 break-words text-xs text-muted-foreground">{workflowStep.step}</div>
+        </div>
+      </td>
+
+      {/* Actor */}
+      <td className="px-3 py-2.5 align-top">
+        <div className="min-w-[11rem]">
+          <div className="break-words text-sm font-medium text-foreground">{formatActorLabel(entry)}</div>
+          <div className="mt-1 break-words text-xs text-muted-foreground">{actorDetail}</div>
+        </div>
+      </td>
+
+      {/* Activity */}
+      <td className="px-3 py-2.5 align-top">
+        <div className="grid min-w-[20rem] gap-1">
+          <div className="break-words text-sm font-medium text-foreground">
+            {activityHeadline}
+          </div>
+          <div className="break-words text-xs text-muted-foreground">
+            {preview ? truncate(preview, 140) : entry.operation}
+          </div>
+          {entry.error?.message ? (
+            <div className="rounded-md border border-rose-300 bg-rose-100 px-2 py-1 text-xs leading-5 text-rose-900 dark:border-rose-500/70 dark:bg-rose-500/12 dark:text-rose-100">
+              {truncate(entry.error.message, 160)}
+            </div>
+          ) : null}
+        </div>
+      </td>
     </tr>
   );
 }
 
-function buildScopeItems(
-  entry: LogEntry,
-  role: string | null,
-): Array<{ value: string; title: string; tone: string }> {
-  const scopeItems: Array<{ value: string; title: string; tone: string }> = [];
+function buildWorkflowStepSummary(entry: LogEntry): { workflow: string; step: string } {
   const stageName = getCanonicalStageName(entry);
+  const workflow =
+    entry.workflow_name ??
+    (entry.workflow_id ? `Workflow ${shortLabel(entry.workflow_id)}` : 'No workflow');
+  const stepParts = [
+    entry.task_title ? truncate(entry.task_title, 56) : '',
+    stageName ? `Stage ${stageName}` : '',
+  ].filter(Boolean);
 
-  if (entry.workspace_name || entry.workspace_id) {
-    scopeItems.push({
-      value: entry.workspace_name ?? entry.workspace_id!.slice(0, 8),
-      title: entry.workspace_name ?? entry.workspace_id ?? '',
-      tone: 'bg-cyan-50 text-cyan-700',
-    });
-  }
-  if (entry.workflow_name || entry.workflow_id) {
-    scopeItems.push({
-      value: entry.workflow_name ?? entry.workflow_id!.slice(0, 8),
-      title: entry.workflow_name ?? entry.workflow_id ?? '',
-      tone: 'bg-purple-50 text-purple-700',
-    });
-  }
-  if (stageName) {
-    scopeItems.push({
-      value: stageName,
-      title: stageName,
-      tone: 'bg-amber-50 text-amber-700',
-    });
-  }
-  if (role) {
-    scopeItems.push({
-      value: truncate(role, 16),
-      title: role,
-      tone: 'bg-rose-50 text-rose-600',
-    });
-  }
-  if (entry.execution_backend) {
-    const executionBackend = describeExecutionBackend(entry.execution_backend);
-    if (executionBackend) {
-      scopeItems.push({
-        value: executionBackend,
-        title: executionBackend,
-        tone: 'bg-slate-100 text-slate-700',
-      });
-    }
-  }
-  if (entry.tool_owner) {
-    const toolOwner = describeToolOwner(entry.tool_owner);
-    if (toolOwner) {
-      scopeItems.push({
-        value: toolOwner,
-        title: toolOwner,
-        tone: 'bg-emerald-50 text-emerald-700',
-      });
-    }
+  return {
+    workflow,
+    step: stepParts.join(' · ') || 'No step context',
+  };
+}
+
+function buildActorDetail(entry: LogEntry, role: string | null): string {
+  const parts = [
+    role,
+    describeExecutionBackend(entry.execution_backend),
+    describeToolOwner(entry.tool_owner),
+  ].filter(Boolean);
+
+  if (parts.length > 0) {
+    return parts.join(' · ');
   }
 
-  return scopeItems;
+  const sourceLabel = entry.source.replace(/_/g, ' ');
+  return sourceLabel.charAt(0).toUpperCase() + sourceLabel.slice(1);
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
 import type { SavedViewFilters } from '../saved-views/saved-views.js';
+import { describeActorComboboxSubtitle, describeActorPrimaryLabel } from './log-actor-presentation.js';
 
 export const DEBOUNCE_MS = 300;
 
@@ -44,17 +45,11 @@ export function mapSavedViewToUrlParams(saved: SavedViewFilters): Record<string,
         ? 'workspace'
         : key === 'workflow_id'
           ? 'workflow'
-          : key === 'task_id'
-            ? 'task'
-            : key === 'work_item_id'
-              ? 'work_item'
-              : key === 'stage_name'
-                ? 'stage'
-                : key === 'activation_id'
-                  ? 'activation'
-                  : key === 'trace_id'
-                    ? 'trace'
-                    : key;
+            : key === 'task_id'
+              ? 'task'
+              : key === 'trace_id'
+                ? 'trace'
+                : key;
     urlParams[urlKey] = value;
   }
   return urlParams;
@@ -84,14 +79,23 @@ export function toRoleItems(
 
 export function toActorItems(
   data: {
-    data: { actor_id: string; actor_name: string; actor_type: string; count: number }[];
+    data: {
+      actor_id: string;
+      actor_name: string | null;
+      actor_type: string;
+      latest_role?: string | null;
+      latest_workflow_id?: string | null;
+      latest_workflow_name?: string | null;
+      latest_workflow_label?: string | null;
+      count: number;
+    }[];
   } | undefined,
 ): ComboboxItem[] {
   if (!data?.data) return [];
   return data.data.map((row) => ({
     id: row.actor_id,
-    label: row.actor_name || `${row.actor_type}:${row.actor_id}`,
-    subtitle: `${row.count} entries`,
+    label: describeActorPrimaryLabel(row),
+    subtitle: describeActorComboboxSubtitle(row),
   }));
 }
 

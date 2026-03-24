@@ -1,4 +1,4 @@
-import { Activity, AlertTriangle, Clock3, DollarSign, Inbox } from 'lucide-react';
+import { Activity, Clock3, Inbox } from 'lucide-react';
 
 import type {
   LogActorRecord,
@@ -10,12 +10,10 @@ import { Badge } from '../ui/badge.js';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card.js';
 import { Skeleton } from '../ui/skeleton.js';
 import {
-  describeExecutionOperationLabel,
-  formatCost,
-  formatDuration,
-  formatNumber,
-  topGroups,
-} from './execution-inspector-support.js';
+  describeActorDetail,
+  describeActorPrimaryLabel,
+} from '../log-viewer/log-actor-presentation.js';
+import { describeExecutionOperationLabel, formatDuration, formatNumber, topGroups } from './execution-inspector-support.js';
 
 interface ExecutionInspectorSummaryViewProps {
   stats?: LogStatsResponse;
@@ -30,8 +28,7 @@ export function ExecutionInspectorSummaryView(
   props: ExecutionInspectorSummaryViewProps,
 ): JSX.Element {
   const totals = props.stats?.data.totals;
-  const groups = props.stats?.data.groups ?? [];
-  const isEmptySlice =
+  const isEmptyResults =
     !props.isLoading &&
     !props.hasError &&
     (totals?.count ?? 0) === 0 &&
@@ -39,12 +36,12 @@ export function ExecutionInspectorSummaryView(
     props.roles.length === 0 &&
     props.actors.length === 0;
 
-  if (isEmptySlice) {
+  if (isEmptyResults) {
     return (
       <Card>
         <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
           <Inbox className="h-10 w-10 text-muted" />
-          <p className="text-sm font-medium">No activity in the current slice</p>
+          <p className="text-sm font-medium">No activity in the current results</p>
           <p className="max-w-md text-sm text-muted">
             Widen the time window, adjust the level filter, or clear scoped filters to surface
             activity records for this summary.
@@ -56,64 +53,37 @@ export function ExecutionInspectorSummaryView(
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2">
         <MetricCard
           title="Activity coverage"
           value={formatNumber(totals?.count ?? 0)}
-          detail="captured records in the current slice"
+          detail="captured records in the current results"
           icon={<Activity className="h-4 w-4" />}
-          isLoading={props.isLoading}
-        />
-        <MetricCard
-          title="Review posture"
-          value={formatNumber(totals?.error_count ?? 0)}
-          detail="records that may need operator review"
-          icon={<AlertTriangle className="h-4 w-4" />}
           isLoading={props.isLoading}
         />
         <MetricCard
           title="Captured runtime"
           value={formatDuration(totals?.total_duration_ms ?? 0)}
-          detail="reported time across the visible slice"
+          detail="reported time across the visible results"
           icon={<Clock3 className="h-4 w-4" />}
-          isLoading={props.isLoading}
-        />
-        <MetricCard
-          title="Reported spend"
-          value={formatCost(
-            groups.reduce((sum, group) => sum + Number(group.agg.total_cost_usd ?? 0), 0),
-          )}
-          detail="visible telemetry with recorded cost"
-          icon={<DollarSign className="h-4 w-4" />}
           isLoading={props.isLoading}
         />
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        <TopListCard
-          title="Activity families"
-          description="Where the current slice is concentrating operator attention"
-          items={topGroups(groups, 8).map((group) => ({
-            label: describeActivityFamilyLabel(group.group),
-            count: group.count,
-            meta: `${formatDuration(group.avg_duration_ms)} avg • ${formatCost(group.agg.total_cost_usd)}`,
-            badge: group.error_count > 0 ? `${group.error_count} errors` : undefined,
-          }))}
-          isLoading={props.isLoading}
-        />
+      <div className="grid gap-4 lg:grid-cols-3">
         <TopListCard
           title="Top activity paths"
-          description="Execution paths showing up most often in this slice"
+          description="The most common kinds of activity in the current results"
           items={topGroups(props.operations, 10).map((item) => ({
             label: describeExecutionOperationLabel(item.operation),
             count: item.count,
-            meta: `Activity key · ${item.operation}`,
+            meta: describeActivityPathDetail(item.operation),
           }))}
           isLoading={props.isLoading}
         />
         <TopListCard
           title="Role lanes"
-          description="Roles driving visible activity in this slice"
+          description="Roles driving visible activity in these results"
           items={topGroups(props.roles, 8).map((item) => ({
             label: item.role,
             count: item.count,
@@ -121,12 +91,12 @@ export function ExecutionInspectorSummaryView(
           isLoading={props.isLoading}
         />
         <TopListCard
-          title="Workers and operators"
-          description="Actors contributing activity in the current slice"
+          title="Active runtimes and operators"
+          description="Who is emitting matching activity and where that activity is landing"
           items={topGroups(props.actors, 8).map((item) => ({
-            label: item.actor_name || `${item.actor_type}:${item.actor_id}`,
+            label: describeActorPrimaryLabel(item),
             count: item.count,
-            meta: `Actor key · ${item.actor_type}:${item.actor_id}`,
+            meta: describeActorDetail(item),
           }))}
           isLoading={props.isLoading}
         />
@@ -135,22 +105,38 @@ export function ExecutionInspectorSummaryView(
   );
 }
 
-function describeActivityFamilyLabel(value: string): string {
-  switch (value) {
-    case 'agent_loop':
-      return 'Agent loop';
-    case 'task_lifecycle':
-      return 'Task lifecycle';
-    case 'llm':
-      return 'LLM';
-    case 'container':
-      return 'Container runtime';
-    default:
-      return value
-        .split('_')
-        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-        .join(' ');
+function describeActivityPathDetail(operation: string): string {
+  if (operation.startsWith('tool.')) {
+    return 'Tool call activity during execution';
   }
+  if (operation.startsWith('llm.')) {
+    return 'Language model activity captured in the logs';
+  }
+  if (operation === 'task.awaiting_approval') {
+    return 'Task waiting for approval before work continues';
+  }
+  if (operation.startsWith('task.context.attachments')) {
+    return 'Task context and continuity were recorded';
+  }
+  if (operation.startsWith('task.context.predecessor_handoff')) {
+    return 'Predecessor handoff context was attached';
+  }
+  if (operation.includes('activation') && operation.includes('failed')) {
+    return 'Workflow activation ended in failure';
+  }
+  if (operation.includes('activation')) {
+    return 'Workflow activation activity';
+  }
+  if (operation.startsWith('task.')) {
+    return 'Task lifecycle activity in the current results';
+  }
+  if (operation.startsWith('runtime.')) {
+    return 'Runtime activity captured from execution infrastructure';
+  }
+  if (operation.startsWith('container.')) {
+    return 'Container activity captured from execution infrastructure';
+  }
+  return 'Execution activity captured in the current results';
 }
 
 function MetricCard(props: {
