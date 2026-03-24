@@ -28,6 +28,9 @@ describe('prompt catalogs', () => {
       'Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
       'For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(

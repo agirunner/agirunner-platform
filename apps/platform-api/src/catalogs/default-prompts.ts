@@ -26,6 +26,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
 - submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
+- When handoffs mention repository files, use repo-relative paths like workflow_cli/__main__.py, never repo/workflow_cli/__main__.py or /tmp/workspace paths.
 - For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.
 - Never use host absolute paths from instructions, logs, or prior output in tool calls or handoffs.
 - Do not call git tools or assume a repository exists unless the execution contract explicitly provides a repository-backed workspace.
