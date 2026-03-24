@@ -237,6 +237,16 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertIn("resolve every cited finding", implementation_prompt)
         self.assertIn("before resubmitting", implementation_prompt)
 
+    def test_assessment_race_profile_requires_explicit_work_item_and_workflow_completion_prose(self) -> None:
+        playbook = live_test_catalog.read_fixture(
+            LIBRARY_DIR / "assessment-race" / "playbook.json"
+        )
+        process_instructions = playbook["definition"]["process_instructions"]
+
+        self.assertIn("both assessor roles", process_instructions)
+        self.assertIn("all four race-case work items", process_instructions)
+        self.assertIn("keep that race-case open until both assessor roles", process_instructions.lower())
+
     def test_parallel_mixed_outcomes_profile_authors_a_real_three_revision_contract(self) -> None:
         scenario = scenario_config.load_scenario(
             SCENARIOS_DIR / "sdlc-parallel-assessors-mixed-outcomes.json"

@@ -74,7 +74,13 @@ describe('prompt catalogs', () => {
       'Use complete_work_item for accepted work; do not guess terminal column_id with update_work_item.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      "call it in the same activation once the work item's playbook-defined success criteria are satisfied and no further current-work-item role work is required.",
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'After final approval in a planned workflow, complete the accepted final-stage work item, then call complete_workflow.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Once every planned work item is complete and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation rather than leaving the workflow active with no successor stage.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use process instructions as the workflow contract.');
@@ -166,6 +172,6 @@ describe('prompt catalogs', () => {
 
   it('keeps the shared prompts bounded for routine execution', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(3000);
-    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5850);
+    expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(6500);
   });
 });

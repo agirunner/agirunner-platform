@@ -104,11 +104,12 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 
 ## Progression
 - If a playbook has no explicit stage sequence, use board posture and process instructions.
-- Use complete_work_item for accepted work; do not guess terminal column_id with update_work_item.
+- Use complete_work_item for accepted work; do not guess terminal column_id with update_work_item. In planned workflows, call it in the same activation once the work item's playbook-defined success criteria are satisfied and no further current-work-item role work is required.
 - When calling request_gate_approval, send key_artifacts as { id, task_id, label, path } objects, not raw strings.
 - When a stage gate returns changes_requested, route corrective work before asking again.
 - Never call request_gate_approval again for the same stage until new stage work completes after that feedback.
 - After final approval in a planned workflow, complete the accepted final-stage work item, then call complete_workflow.
+- Once every planned work item is complete and no blocking tasks, approvals, assessments, escalations, or required follow-up remain, call complete_workflow in the same activation rather than leaving the workflow active with no successor stage.
 
 ## Memory Discipline
 Workspace memory stores decisions, lessons, constraints, watch items, and key file paths. Keep work status in continuity and handoffs, not memory. Write durable knowledge after significant actions; never write status.`;
