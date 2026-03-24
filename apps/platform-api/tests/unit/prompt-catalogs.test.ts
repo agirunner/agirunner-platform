@@ -7,6 +7,10 @@ import {
 
 describe('prompt catalogs', () => {
   it('keeps platform instructions aligned with escalation and memory discipline', () => {
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Playbook prose defines governance intent.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Actual invoked handoffs, assessments, approvals, and escalations define binding workflow state.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Before escalating, leave clean takeover state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Repository-backed tasks MUST commit and push relevant work before completion or escalation.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
@@ -24,7 +28,7 @@ describe('prompt catalogs', () => {
       'Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Never invent ids or leave placeholders in tool calls.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use repo-relative or tool-returned workspace paths, never guessed absolute /tmp/workspace paths.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use repo-relative or tool-returned workspace paths, never guessed /tmp/workspace paths.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Only assessment or approval handoffs may include resolution.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Delivery handoffs MUST omit resolution entirely.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Completion and decision are separate.');
@@ -35,17 +39,18 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Optional context files may not exist.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('shell_exec timeout is in seconds and MUST stay within tool limits');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('confirm the runtime exists or install it');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Treat continuity fields such as next_expected_actor and next_expected_action as authoritative workflow routing state.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Treat next_expected_actor and next_expected_action as authoritative routing state.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('In workflows with multiple open work items, stay scoped to the current work item or explicitly linked subject.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not infer routing, approval, or review policy from role names, stage names, or playbook names.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not infer routing or review policy from role, stage, or playbook names.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('mandatory approval or assessment comes from authored config');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
   });
 
   it('keeps orchestrator prompt aligned with continuity, budget, and stage guidance', () => {
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Operational continuity lives in work items, rule posture, and structured handoffs.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Operational continuity lives in work items and structured handoffs.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Check workflow budget posture when cost, time, or token pressure matters');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Routing accepted work into the next stage and closing the predecessor work item is the progression mutation; do not also call advance_stage for the same move.',
@@ -63,8 +68,8 @@ describe('prompt catalogs', () => {
       'After final approval in a planned workflow, complete the accepted final-stage work item, then call complete_workflow.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use structured handoffs and continuity state to preserve context between activations and role changes.');
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat platform rule results and continuity state as authoritative.');
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Mandatory assessment, approval, and handoff rules are enforced by the platform.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Use process instructions as the workflow contract.');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain('Treat actual invoked governance state and continuity state as authoritative.');
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'A null predecessor handoff is normal for first-stage work or freshly seeded entry work.',
     );
@@ -97,9 +102,6 @@ describe('prompt catalogs', () => {
       'If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'Outcome actions such as continue, reopen_subject, route_to_role, block_subject, escalate, and terminate_branch are metadata-driven.',
-    );
-    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'A blocked work item, unresolved escalation, or unsatisfied approval or assessment requirement makes successor dispatch and completion illegal.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
@@ -112,10 +114,10 @@ describe('prompt catalogs', () => {
       'request_gate_approval targets the human-gate stage, never the predecessor stage.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'If prose asks for approval or assessment without configured metadata, treat it as advisory and non-blocking, not as a required control-plane step.',
+      'There is no governance metadata to wait for or consult.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'When approval_before_assessment is authored, request and resolve the gate before dispatching downstream assessment for that boundary.',
+      'When prose calls for approval, assessment, escalation, or rework, invoke the real control explicitly.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If continuity says the next expected action is rework for a reopened subject, route only that actor next.',
@@ -142,6 +144,9 @@ describe('prompt catalogs', () => {
       'Workspace memory stores decisions, lessons, constraints, watch items, and key file paths.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).not.toContain('Project memory stores');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).not.toContain('metadata-driven');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).not.toContain('configured metadata');
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).not.toContain('approval_before_assessment');
   });
 
   it('keeps the shared prompts bounded for routine execution', () => {

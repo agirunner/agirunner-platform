@@ -218,6 +218,6 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Current Stage\npublication-release');
     expect(layer!.content).toContain('## Successor Seeding');
     expect(layer!.content).toContain('This stage was entered from "draft-package"');
-    expect(layer!.content).toContain('Checkpoint starter roles for "publication-release": publisher, release-coordinator.');
+    expect(layer!.content).toContain('Starter roles for "publication-release": publisher, release-coordinator.');
   });
 });

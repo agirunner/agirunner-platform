@@ -301,7 +301,7 @@ describe('buildTaskContext active stage semantics', () => {
     expect((context.workflow as Record<string, unknown>).current_stage).toBe('implementation');
   });
 
-  it('injects checkpoint-driven workflow context for specialist tasks', async () => {
+  it('injects stage-driven workflow context for specialist tasks', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows p')) {
@@ -331,12 +331,10 @@ describe('buildTaskContext active stage semantics', () => {
                     { id: 'done', label: 'Done', is_terminal: true },
                   ],
                 },
-                checkpoints: [
-                  { name: 'implementation', goal: 'Implement the requested change', human_gate: false },
-                  { name: 'verification', goal: 'Verify the change', human_gate: true },
+                stages: [
+                  { name: 'implementation', goal: 'Implement the requested change' },
+                  { name: 'verification', goal: 'Verify the change' },
                 ],
-                assessment_rules: [{ subject_role: 'developer', assessed_by: 'reviewer', required: true }],
-                handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
               },
               workspace_spec_version: null,
             }],
@@ -353,7 +351,6 @@ describe('buildTaskContext active stage semantics', () => {
               position: 0,
               goal: 'Implement the requested change',
               guidance: null,
-              human_gate: false,
               status: 'active',
               is_active: true,
               gate_status: 'not_requested',
@@ -516,11 +513,10 @@ describe('buildTaskContext active stage semantics', () => {
                     { id: 'done', label: 'Done', is_terminal: true },
                   ],
                 },
-                checkpoints: [
-                  { name: 'requirements', goal: 'Clarify requirements', human_gate: true },
-                  { name: 'design', goal: 'Produce a technical design', human_gate: false },
+                stages: [
+                  { name: 'requirements', goal: 'Clarify requirements' },
+                  { name: 'design', goal: 'Produce a technical design' },
                 ],
-                handoff_rules: [{ from_role: 'product-manager', to_role: 'architect', required: true }],
               },
               workspace_spec_version: null,
             }],
@@ -537,7 +533,6 @@ describe('buildTaskContext active stage semantics', () => {
               position: 1,
               goal: 'Produce a technical design',
               guidance: null,
-              human_gate: false,
               status: 'active',
               is_active: true,
               gate_status: 'not_requested',
@@ -626,11 +621,10 @@ describe('buildTaskContext active stage semantics', () => {
                     { id: 'done', label: 'Done', is_terminal: true },
                   ],
                 },
-                checkpoints: [
+                stages: [
                   { name: 'verification', goal: 'Validate approved changes' },
-                  { name: 'release', goal: 'Confirm release readiness', human_gate: true },
+                  { name: 'release', goal: 'Confirm release readiness' },
                 ],
-                handoff_rules: [{ from_role: 'qa', to_role: 'product-manager', required: true }],
               },
               workspace_spec_version: null,
             }],
@@ -647,7 +641,6 @@ describe('buildTaskContext active stage semantics', () => {
               position: 1,
               goal: 'Confirm release readiness',
               guidance: null,
-              human_gate: true,
               status: 'active',
               gate_status: 'not_requested',
               iteration_count: 0,
@@ -821,11 +814,10 @@ describe('buildTaskContext active stage semantics', () => {
                     { id: 'done', label: 'Done', is_terminal: true },
                   ],
                 },
-                checkpoints: [
+                stages: [
                   { name: 'verification', goal: 'Validate approved changes' },
-                  { name: 'release', goal: 'Confirm release readiness', human_gate: true },
+                  { name: 'release', goal: 'Confirm release readiness' },
                 ],
-                handoff_rules: [{ from_role: 'qa', to_role: 'product-manager', required: true }],
               },
               workspace_spec_version: null,
             }],
@@ -842,7 +834,6 @@ describe('buildTaskContext active stage semantics', () => {
               position: 1,
               goal: 'Confirm release readiness',
               guidance: null,
-              human_gate: true,
               status: 'active',
               gate_status: 'not_requested',
               iteration_count: 0,
@@ -1318,7 +1309,7 @@ describe('buildTaskContext active stage semantics', () => {
     ]);
   });
 
-  it('injects board-driven workflow context when no checkpoints are defined', async () => {
+  it('injects board-driven workflow context when no stages are defined', async () => {
     const db = {
       query: vi.fn(async (sql: string) => {
         if (sql.includes('FROM workflows p')) {
@@ -1347,7 +1338,6 @@ describe('buildTaskContext active stage semantics', () => {
                     { id: 'done', label: 'Done', is_terminal: true },
                   ],
                 },
-                checkpoints: [],
                 stages: [],
               },
               workspace_spec_version: null,
@@ -1395,8 +1385,7 @@ describe('buildTaskContext active stage semantics', () => {
       {}) as Record<string, any>;
     expect(workflowLayer.content).toContain('## Workflow Mode: ongoing');
     expect(workflowLayer.content).toContain('## Progress Model');
-    expect(workflowLayer.content).toContain('Board-driven');
-    expect(workflowLayer.content).toContain('Use board lane posture');
+    expect(workflowLayer.content).toContain('Stage-and-board driven');
     expect(workflowLayer.content).toContain('Upload required artifacts before completion or escalation');
     expect(workflowLayer.content).not.toContain('## Board Position');
     expect(((context as Record<string, any>).execution_brief ?? {}).current_focus).toEqual(
