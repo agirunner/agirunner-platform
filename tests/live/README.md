@@ -122,9 +122,9 @@ No scenario counts as passing until all of these checks agree:
 - the scenario runner exits with code `0`
 - final artifact shows the expected workflow result
 - DB evidence shows clean workflow, task, and work-item settlement for the scenario semantics
-- board and stage progression evidence shows the scenario reached the expected work-item columns, completion markers, and stage/workflow terminal posture for that playbook
+- board and stage progression evidence shows each stage and each work item reached the expected board columns, transition sequence, completion markers, and stage/workflow terminal posture for that playbook
 - log anomaly review shows no unexplained terminal defect
 - container hygiene evidence shows no dangling task containers and no undrained cold runtimes left behind after the scenario has settled
 
 Container hygiene is mandatory because a workflow can appear complete while runtime ownership or cleanup is still broken. Review `live-containers.json`, `container-observations.json`, and `runtime-cleanup.json` before recording a pass.
-Board and stage progression is mandatory because a workflow can appear busy or complete while work items remain in the wrong board column, stages never reconcile, or the workflow stays active after all work is terminal. Review `db-state.json` and the workflow snapshot for work-item `completed_at`, board column, stage status, and workflow state before recording a pass.
+Board and stage progression is mandatory because a workflow can appear busy or complete while work items remain in the wrong board column, stages skip or repeat expected transitions, stages never reconcile, or the workflow stays active after all work is terminal. Review `db-state.json` and the workflow snapshot for per-stage status changes, per-work-item board column transitions, `completed_at`, and workflow state before recording a pass.
