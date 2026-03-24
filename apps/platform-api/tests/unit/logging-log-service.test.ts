@@ -1183,7 +1183,7 @@ describe('LogService', () => {
         category: ['llm'],
         level: 'warn',
         role: ['developer'],
-        actorType: ['agent'],
+        actorKind: ['specialist_task_execution'],
       });
 
       const [sql, params] = pool.query.mock.calls[0];
@@ -1191,8 +1191,9 @@ describe('LogService', () => {
       expect(sql).toContain('workflow_id = $');
       expect(sql).toContain('level = ANY(');
       expect(sql).toContain('role = ANY(');
-      expect(sql).toContain('actor_type = ANY(');
+      expect(sql).toContain('CASE');
       expect(params).toContain('wf-1');
+      expect(params).toContainEqual(['specialist_task_execution']);
     });
   });
 
@@ -1209,7 +1210,7 @@ describe('LogService', () => {
         since: new Date('2026-03-08T00:00:00Z').toISOString(),
         workflowId: 'wf-1',
         operation: ['tool.exec'],
-        actorType: ['agent'],
+        actorKind: ['specialist_task_execution'],
       });
 
       expect(result).toEqual([{ role: 'developer', count: 12 }]);
@@ -1218,8 +1219,9 @@ describe('LogService', () => {
       expect(sql).not.toContain('UNION ALL');
       expect(sql).toContain('workflow_id = $');
       expect(sql).toContain('operation = ANY(');
-      expect(sql).toContain('actor_type = ANY(');
+      expect(sql).toContain('CASE');
       expect(params).toContain('wf-1');
+      expect(params).toContainEqual(['specialist_task_execution']);
     });
   });
 
@@ -1229,7 +1231,7 @@ describe('LogService', () => {
       pool.query.mockResolvedValue({
         rows: [
           {
-            actor_type: 'worker',
+            actor_kind: 'specialist_agent',
             actor_id: null,
             actor_name: null,
             count: '45',
@@ -1252,7 +1254,7 @@ describe('LogService', () => {
 
       expect(result).toEqual([
         {
-          actor_type: 'worker',
+          actor_kind: 'specialist_agent',
           actor_id: null,
           actor_name: null,
           count: 45,
@@ -1268,7 +1270,7 @@ describe('LogService', () => {
       expect(sql).toContain('workflow_id = $');
       expect(sql).toContain('operation = ANY(');
       expect(sql).toContain('role = ANY(');
-      expect(sql).toContain('GROUP BY actor_type');
+      expect(sql).toContain('GROUP BY actor_kind');
       expect(params).toContain('wf-1');
     });
   });

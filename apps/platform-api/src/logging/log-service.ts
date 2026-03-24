@@ -99,6 +99,7 @@ export interface LogFilters {
   operation?: string[];
   status?: string[];
   role?: string[];
+  actorKind?: string[];
   actorType?: string[];
   actorId?: string[];
   search?: string;
@@ -126,6 +127,7 @@ export interface LogStatsFilters {
   operation?: string[];
   status?: string[];
   role?: string[];
+  actorKind?: string[];
   actorType?: string[];
   actorId?: string[];
   search?: string;
@@ -190,7 +192,7 @@ export interface LogBatchRejectionDetail {
 }
 
 export interface ActorInfo {
-  actor_type: string;
+  actor_kind: string;
   actor_id: string | null;
   actor_name: string | null;
   count: number;
@@ -206,6 +208,15 @@ const MAX_BATCH_SIZE = 100;
 const MAX_REJECTION_DETAILS = 10;
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+const ACTOR_KIND_SQL = `CASE
+  WHEN actor_type = 'worker' AND LOWER(COALESCE(role, '')) = 'orchestrator' THEN 'orchestrator_agent'
+  WHEN actor_type = 'worker' THEN 'specialist_agent'
+  WHEN actor_type = 'agent' THEN 'specialist_task_execution'
+  WHEN actor_type IN ('operator', 'user', 'api_key', 'admin', 'service') THEN 'operator'
+  WHEN actor_type = 'system' THEN 'platform_system'
+  ELSE COALESCE(actor_type, 'platform_system')
+END`;
 
 export function encodeCursor(id: string, createdAt: string): string {
   return Buffer.from(JSON.stringify({ id, created_at: createdAt })).toString('base64url');
@@ -487,12 +498,12 @@ export class LogService {
   async actors(tenantId: string, filters: LogFilters): Promise<ActorInfo[]> {
     const conditions: string[] = ['tenant_id = $1', 'actor_type IS NOT NULL'];
     const values: unknown[] = [tenantId];
-    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['actorType']);
+    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['actorKind', 'actorType']);
     this.applyFilters(conditions, values, scopedFilters);
     const whereClause = conditions.join(' AND ');
 
     const result = await this.pool.query<{
-      actor_type: string;
+      actor_kind: string;
       actor_id: string | null;
       actor_name: string | null;
       count: string;
@@ -503,7 +514,7 @@ export class LogService {
     }>(
       `WITH filtered AS (
          SELECT
-           actor_type,
+           ${ACTOR_KIND_SQL} AS actor_kind,
            role,
            workflow_id,
            workflow_name,
@@ -514,14 +525,14 @@ export class LogService {
        ),
        actor_counts AS (
          SELECT
-           actor_type,
+           actor_kind,
            COUNT(*)::text AS count
          FROM filtered
-         GROUP BY actor_type
+         GROUP BY actor_kind
        ),
        actor_latest AS (
          SELECT
-           actor_type,
+           actor_kind,
            NULL::text AS actor_id,
            NULL::text AS actor_name,
            role AS latest_role,
@@ -529,15 +540,15 @@ export class LogService {
            workflow_name AS latest_workflow_name,
            COALESCE(workflow_name, workflow_id::text) AS latest_workflow_label,
            ROW_NUMBER() OVER (
-             PARTITION BY actor_type
+             PARTITION BY actor_kind
              ORDER BY created_at DESC, id DESC
            ) AS row_number
          FROM filtered
        )
        SELECT
-         actor_counts.actor_type,
-         actor_counts.actor_id,
-         actor_counts.actor_name,
+         actor_counts.actor_kind,
+         NULL::text AS actor_id,
+         NULL::text AS actor_name,
          actor_counts.count,
          actor_latest.latest_role,
          actor_latest.latest_workflow_id,
@@ -545,7 +556,7 @@ export class LogService {
          actor_latest.latest_workflow_label
        FROM actor_counts
        LEFT JOIN actor_latest
-         ON actor_latest.actor_type = actor_counts.actor_type
+         ON actor_latest.actor_kind = actor_counts.actor_kind
         AND actor_latest.row_number = 1
        ORDER BY actor_counts.count DESC
        LIMIT 100`,
@@ -553,7 +564,7 @@ export class LogService {
     );
 
     return result.rows.map((row) => ({
-      actor_type: row.actor_type,
+      actor_kind: row.actor_kind,
       actor_id: row.actor_id,
       actor_name: row.actor_name,
       count: Number(row.count),
@@ -755,6 +766,10 @@ export class LogService {
     if (filters.role?.length) {
       values.push(filters.role);
       conditions.push(`role = ANY($${values.length}::text[])`);
+    }
+    if (filters.actorKind?.length) {
+      values.push(filters.actorKind);
+      conditions.push(`${ACTOR_KIND_SQL} = ANY($${values.length}::text[])`);
     }
     if (filters.actorType?.length) {
       values.push(filters.actorType);

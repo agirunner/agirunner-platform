@@ -15,5 +15,7 @@ describe('log viewer source', () => {
     expect(source).toContain('LIVE_ENTRY_LIMIT');
     expect(source).toContain('setLiveEntries((current) => {');
     expect(source).toContain("isLive && viewMode === 'flat'");
+    expect(source).not.toContain('LogExportButton');
+    expect(source).not.toContain('exportSlot={<LogExportButton');
   });
 });

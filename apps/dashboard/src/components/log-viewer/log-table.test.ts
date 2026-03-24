@@ -15,5 +15,6 @@ describe('log table source', () => {
     expect(source).toContain("className=\"hidden overflow-x-auto rounded-2xl border border-border/70 bg-card/90 shadow-sm md:block\"");
     expect(source).toContain('MobileSkeletonCards');
     expect(source).toContain('COL_COUNT = 8');
+    expect(source).not.toContain('exportSlot');
   });
 });

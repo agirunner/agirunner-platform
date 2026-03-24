@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef } from 'react';
 import type { ComboboxItem } from './ui/searchable-combobox.js';
 import type { SavedViewFilters } from '../saved-views/saved-views.js';
 import {
+  describeActorKindLabel,
   describeActorComboboxSubtitle,
-  describeActorPrimaryLabel,
   sortActorKindRecords,
 } from './log-actor-presentation.js';
 
@@ -83,10 +83,10 @@ export function toRoleItems(
 
 export function toActorItems(
   data: {
-  data: {
+    data: {
+      actor_kind: string;
       actor_id: string | null;
       actor_name: string | null;
-      actor_type: string;
       latest_role?: string | null;
       latest_workflow_id?: string | null;
       latest_workflow_name?: string | null;
@@ -95,11 +95,27 @@ export function toActorItems(
     }[];
   } | undefined,
 ): ComboboxItem[] {
-  if (!data?.data) return [];
-  return sortActorKindRecords(data.data).map((row) => ({
-    id: row.actor_type,
-    label: describeActorPrimaryLabel(row),
-    subtitle: describeActorComboboxSubtitle(row),
+  const actorRecords = new Map((data?.data ?? []).map((row) => [row.actor_kind, row] as const));
+  const kinds = [
+    'orchestrator_agent',
+    'specialist_agent',
+    'specialist_task_execution',
+    'operator',
+    'platform_system',
+  ];
+
+  return sortActorKindRecords(
+    kinds.map((actorKind) => {
+      const row = actorRecords.get(actorKind);
+      return row ?? { actor_kind: actorKind, actor_id: null, actor_name: null, count: 0 };
+    }),
+  ).map((row) => ({
+    id: row.actor_kind,
+    label: describeActorKindLabel(row.actor_kind),
+    subtitle:
+      row.count > 0
+        ? describeActorComboboxSubtitle(row)
+        : 'Filter the current results by this actor kind',
   }));
 }
 

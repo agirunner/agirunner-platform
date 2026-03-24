@@ -26,26 +26,41 @@ export function groupByTask(entries: LogEntry[]): {
   let ungroupedCount = 0;
 
   for (const entry of entries) {
-    const taskId = entry.task_id;
-    if (!taskId) {
+    const bucket = toTaskBucket(entry);
+    if (!bucket) {
       ungroupedCount++;
       continue;
     }
 
-    const existing = buckets.get(taskId);
+    const existing = buckets.get(bucket.taskId);
     if (existing) {
       existing.entries.push(entry);
     } else {
-      buckets.set(taskId, {
-        taskId,
-        taskTitle: entry.task_title ?? taskId.slice(0, 8),
-        role: entry.role ?? null,
-        entries: [entry],
-      });
+      buckets.set(bucket.taskId, { ...bucket, entries: [entry] });
     }
   }
 
   return { buckets: Array.from(buckets.values()), ungroupedCount };
+}
+
+function toTaskBucket(entry: LogEntry): Omit<TaskBucket, 'entries'> | null {
+  if (entry.task_id && !entry.is_orchestrator_task) {
+    return {
+      taskId: entry.task_id,
+      taskTitle: entry.task_title ?? entry.task_id.slice(0, 8),
+      role: entry.role ?? null,
+    };
+  }
+
+  if (!entry.workflow_id) {
+    return null;
+  }
+
+  return {
+    taskId: `workflow:${entry.workflow_id}`,
+    taskTitle: 'Workflow activity',
+    role: null,
+  };
 }
 
 function TaskGroupHeader({

@@ -21,7 +21,7 @@ export function groupByIteration(entries: LogEntry[]): {
   let ungroupedCount = 0;
 
   for (const entry of entries) {
-    if (entry.category === 'agent_loop' && typeof entry.payload?.iteration === 'number') {
+    if (typeof entry.payload?.iteration === 'number') {
       const iteration = entry.payload.iteration;
       const existing = buckets.get(iteration);
       if (existing) {

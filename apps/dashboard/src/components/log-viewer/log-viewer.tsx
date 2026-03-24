@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { LogEntry } from '../../lib/api.js';
 import { LogFilters } from './log-filters.js';
 import { LogTable } from './log-table.js';
-import { LogExportButton } from './log-export-button.js';
 import { LogViewToggle, type LogViewMode } from './log-view-toggle.js';
 import { LogIterationGroupedTable } from './log-iteration-grouped-table.js';
 import { LogTaskGroupedTable } from './log-task-grouped-table.js';
@@ -70,23 +69,10 @@ export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Eleme
     [setFilter],
   );
 
-  const handleViewModeChange = useCallback(
-    (mode: LogViewMode) => {
-      setViewMode(mode);
-      setCursor(null);
-
-      // Auto-apply category filters relevant to the grouping mode
-      if (mode === 'by-iteration') {
-        setFilter('categories', ['agent_loop']);
-      } else if (mode === 'by-task') {
-        setFilter('categories', ['agent_loop', 'llm', 'tool', 'task_lifecycle', 'container']);
-      } else {
-        // Flat view: clear category filter to show everything
-        setFilter('categories', []);
-      }
-    },
-    [setFilter],
-  );
+  const handleViewModeChange = useCallback((mode: LogViewMode) => {
+    setViewMode(mode);
+    setCursor(null);
+  }, []);
 
   const displayEntries = useMemo(() => {
     if (viewMode !== 'flat' || liveEntries.length === 0) {
@@ -131,7 +117,6 @@ export function LogViewer({ scope, compact = false }: LogViewerProps): JSX.Eleme
           prevCursor={logData?.pagination?.prev_cursor}
           onLoadMore={handleLoadMore}
           onFilterTrace={handleFilterTrace}
-          exportSlot={<LogExportButton scope={scope} />}
         />
       )}
 

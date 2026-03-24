@@ -2,7 +2,7 @@ import type { LogActorRecord } from '../../lib/api.js';
 
 type ActorLike = Pick<
   LogActorRecord,
-  | 'actor_type'
+  | 'actor_kind'
   | 'actor_id'
   | 'actor_name'
   | 'latest_role'
@@ -11,28 +11,25 @@ type ActorLike = Pick<
   | 'latest_workflow_label'
 >;
 
-export function describeActorTypeLabel(actorType: string): string {
-  switch (actorType) {
-    case 'worker':
+export function describeActorKindLabel(actorKind: string): string {
+  switch (actorKind) {
+    case 'orchestrator_agent':
+      return 'Orchestrator agent';
+    case 'specialist_agent':
       return 'Specialist agent';
-    case 'agent':
+    case 'specialist_task_execution':
       return 'Specialist task execution';
-    case 'user':
-    case 'api_key':
     case 'operator':
       return 'Operator';
-    case 'system':
+    case 'platform_system':
       return 'Platform system';
     default:
-      return humanize(actorType);
+      return humanize(actorKind);
   }
 }
 
 export function describeActorPrimaryLabel(item: ActorLike): string {
-  if (item.actor_type === 'worker' && item.latest_role?.trim()?.toLowerCase() === 'orchestrator') {
-    return 'Orchestrator agent';
-  }
-  return describeActorTypeLabel(item.actor_type);
+  return describeActorKindLabel(item.actor_kind);
 }
 
 export function describeActorDetail(item: ActorLike): string {
@@ -52,7 +49,7 @@ export function describeActorDetail(item: ActorLike): string {
   if (reference) {
     parts.push(reference);
   }
-  return parts.join(' · ') || describeActorTypeLabel(item.actor_type);
+  return parts.join(' · ') || describeActorKindLabel(item.actor_kind);
 }
 
 export function describeActorComboboxSubtitle(item: ActorLike & { count: number }): string {
@@ -61,17 +58,16 @@ export function describeActorComboboxSubtitle(item: ActorLike & { count: number 
 
 export function sortActorKindRecords<T extends ActorLike & { count: number }>(items: T[]): T[] {
   const order = new Map<string, number>([
-    ['worker', 0],
-    ['agent', 1],
-    ['operator', 2],
-    ['user', 2],
-    ['api_key', 2],
-    ['system', 3],
+    ['orchestrator_agent', 0],
+    ['specialist_agent', 1],
+    ['specialist_task_execution', 2],
+    ['operator', 3],
+    ['platform_system', 4],
   ]);
 
   return [...items].sort((left, right) => {
-    const leftOrder = order.get(left.actor_type) ?? Number.MAX_SAFE_INTEGER;
-    const rightOrder = order.get(right.actor_type) ?? Number.MAX_SAFE_INTEGER;
+    const leftOrder = order.get(left.actor_kind) ?? Number.MAX_SAFE_INTEGER;
+    const rightOrder = order.get(right.actor_kind) ?? Number.MAX_SAFE_INTEGER;
     if (leftOrder !== rightOrder) {
       return leftOrder - rightOrder;
     }

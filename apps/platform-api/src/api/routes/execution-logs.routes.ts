@@ -126,7 +126,7 @@ function parseCommonLogFilters(query: Record<string, string | undefined>): LogFi
     operation: parseCsv(query.operation),
     status: parseCsv(query.status),
     role: parseCsv(query.role),
-    actorType: parseCsv(query.actor_type ?? query.actor),
+    actorKind: parseCsv(query.actor_kind ?? query.actor_type ?? query.actor),
     actorId: parseCsv(query.actor_id),
     search: query.search,
     since: query.since,

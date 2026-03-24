@@ -51,7 +51,7 @@ const PLURAL_TO_PARAM: Partial<Record<keyof LogFilters, string>> = {
   categories: 'category',
   operations: 'operation',
   roles: 'role',
-  actors: 'actor_type',
+  actors: 'actor_kind',
   executionBackend: 'execution_backend',
   toolOwner: 'tool_owner',
 };
@@ -73,7 +73,7 @@ export function useLogFilters() {
       search: searchParams.get('search') ?? '',
       operations: parseList(searchParams.get('operation')),
       roles: parseList(searchParams.get('role')),
-      actors: parseList(searchParams.get('actor_type') ?? searchParams.get('actor')),
+      actors: parseList(searchParams.get('actor_kind') ?? searchParams.get('actor_type') ?? searchParams.get('actor')),
       executionBackend: parseList(searchParams.get('execution_backend')),
       toolOwner: parseList(searchParams.get('tool_owner')),
     }),
@@ -182,7 +182,7 @@ export function useLogFilters() {
     if (filters.search) params.search = filters.search;
     if (filters.operations.length > 0) params.operation = filters.operations.join(',');
     if (filters.roles.length > 0) params.role = filters.roles.join(',');
-    if (filters.actors.length > 0) params.actor_type = filters.actors.join(',');
+    if (filters.actors.length > 0) params.actor_kind = filters.actors.join(',');
     if (filters.executionBackend.length > 0) {
       params.execution_backend = filters.executionBackend.join(',');
     }

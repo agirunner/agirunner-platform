@@ -1408,7 +1408,7 @@ export interface LogRoleRecord {
 }
 
 export interface LogActorRecord {
-  actor_type: string;
+  actor_kind: string;
   actor_id: string | null;
   actor_name: string | null;
   latest_role?: string | null;

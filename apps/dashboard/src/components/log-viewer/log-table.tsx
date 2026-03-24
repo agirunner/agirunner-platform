@@ -1,5 +1,4 @@
 import { Fragment, useState } from 'react';
-import type { ReactNode } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import type { LogEntry } from '../../lib/api.js';
 import { LogEntryMobileCard } from './log-entry-mobile-card.js';
@@ -16,7 +15,6 @@ export interface LogTableProps {
   prevCursor: string | null | undefined;
   onLoadMore: (cursor: string) => void;
   onFilterTrace: (traceId: string) => void;
-  exportSlot?: ReactNode;
 }
 
 const SKELETON_COUNT = 12;
@@ -70,7 +68,6 @@ export function LogTable({
   prevCursor,
   onLoadMore,
   onFilterTrace,
-  exportSlot,
 }: LogTableProps): JSX.Element {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const isEmpty = entries.length === 0 && !isLoading;
@@ -161,7 +158,6 @@ export function LogTable({
               Older
               <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
-            {exportSlot}
           </div>
         </div>
       )}

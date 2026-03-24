@@ -51,14 +51,16 @@ describe('groupByTask', () => {
   it('counts entries without a task_id as ungrouped', () => {
     const entries: LogEntry[] = [
       makeEntry({ id: 1, task_id: 'task-a', task_title: 'Deploy' }),
-      makeEntry({ id: 2 }),
-      makeEntry({ id: 3 }),
+      makeEntry({ id: 2, workflow_id: 'wf-1', workflow_name: 'Delivery' }),
+      makeEntry({ id: 3, workflow_id: 'wf-1', is_orchestrator_task: true, task_id: 'orch-1', task_title: 'Orchestrate Content Assessment Blocked' }),
     ];
 
     const { buckets, ungroupedCount } = groupByTask(entries);
 
-    expect(buckets).toHaveLength(1);
-    expect(ungroupedCount).toBe(2);
+    expect(buckets).toHaveLength(2);
+    expect(buckets[1].taskTitle).toBe('Workflow activity');
+    expect(buckets[1].entries).toHaveLength(2);
+    expect(ungroupedCount).toBe(0);
   });
 
   it('returns empty buckets when no entries have task_id', () => {
@@ -71,6 +73,26 @@ describe('groupByTask', () => {
 
     expect(buckets).toHaveLength(0);
     expect(ungroupedCount).toBe(2);
+  });
+
+  it('keeps specialist delivery tasks separate from orchestrator workflow activity', () => {
+    const entries: LogEntry[] = [
+      makeEntry({ id: 1, workflow_id: 'wf-1', task_id: 'delivery-1', task_title: 'Review smoke result' }),
+      makeEntry({
+        id: 2,
+        workflow_id: 'wf-1',
+        is_orchestrator_task: true,
+        task_id: 'orch-1',
+        task_title: 'Orchestrate Content Assessment Blocked',
+        operation: 'task.assessment_requested_changes',
+      }),
+    ];
+
+    const { buckets } = groupByTask(entries);
+
+    expect(buckets).toHaveLength(2);
+    expect(buckets[0].taskTitle).toBe('Review smoke result');
+    expect(buckets[1].taskTitle).toBe('Workflow activity');
   });
 
   it('truncates task_id to first 8 chars when task_title is missing', () => {
