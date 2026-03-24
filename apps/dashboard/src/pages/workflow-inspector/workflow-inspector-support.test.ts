@@ -28,7 +28,6 @@ describe('workflow inspector support', () => {
             name: 'review',
             position: 0,
             goal: 'Review work',
-            human_gate: true,
             status: 'awaiting_gate',
             is_active: true,
             gate_status: 'awaiting_approval',
@@ -110,9 +109,9 @@ describe('workflow inspector support', () => {
         detail: '1 unresolved finding is still attached to the focus work item.',
       },
       {
-        label: 'Gate checkpoints',
+        label: 'Stage gates',
         value: '1',
-        detail: '1 waiting for operator decision across 1 gate stage.',
+        detail: '1 waiting for operator decision across 1 tracked gate stage.',
       },
       {
         label: 'Artifacts',

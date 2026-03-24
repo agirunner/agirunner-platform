@@ -426,7 +426,6 @@ export interface DashboardWorkflowStageRecord {
   position: number;
   goal: string;
   guidance?: string | null;
-  human_gate: boolean;
   status: string;
   is_active: boolean;
   gate_status: string;
@@ -464,8 +463,6 @@ export interface DashboardWorkflowWorkItemRecordBase {
   approved_assessment_count?: number | null;
   blocking_assessment_count?: number | null;
   pending_assessment_count?: number | null;
-  retained_assessment_count?: number | null;
-  invalidated_assessment_count?: number | null;
   gate_status?: string | null;
   gate_decision_feedback?: string | null;
   gate_decided_at?: string | null;

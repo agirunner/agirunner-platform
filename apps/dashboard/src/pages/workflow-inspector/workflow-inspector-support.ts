@@ -85,7 +85,7 @@ export function buildWorkflowInspectorTraceModel(input: {
         detail: describeContinuityDetail(focusWorkItem),
       },
       {
-        label: 'Gate checkpoints',
+        label: 'Stage gates',
         value: formatCount(readAttentionGateCount(stages, workItemSummary?.awaiting_gate_count ?? 0)),
         detail: describeGateMetric(stages, workItemSummary?.awaiting_gate_count ?? 0),
       },
@@ -277,14 +277,15 @@ function describeGateMetric(
   stages: DashboardWorkflowStageRecord[],
   awaitingGateCount: number,
 ): string {
-  const humanGateCount = stages.filter((stage) => stage.human_gate).length;
+  const trackedGateCount = stages.filter((stage) => stage.gate_status !== 'not_requested').length;
   if (awaitingGateCount > 0) {
-    return `${awaitingGateCount} waiting for operator decision across ${humanGateCount || stages.length} gate stage${humanGateCount === 1 ? '' : 's'}.`;
+    const stageCount = trackedGateCount || stages.length;
+    return `${awaitingGateCount} waiting for operator decision across ${stageCount} tracked gate stage${stageCount === 1 ? '' : 's'}.`;
   }
-  if (humanGateCount > 0) {
-    return `${humanGateCount} human-gated stage${humanGateCount === 1 ? '' : 's'} are tracked in the board trace.`;
+  if (trackedGateCount > 0) {
+    return `${trackedGateCount} stage gate${trackedGateCount === 1 ? '' : 's'} are tracked in the board trace.`;
   }
-  return 'No active gate checkpoints are waiting in this workflow trace.';
+  return 'No active stage gates are waiting in this workflow trace.';
 }
 
 function describeTopStageSpend(analytics: Record<string, unknown>): string | null {

@@ -42,7 +42,6 @@ const context = buildTimelineContext({
       name: 'implementation',
       position: 1,
       goal: 'Build the fix.',
-      human_gate: true,
       status: 'active',
       is_active: true,
       gate_status: 'requested',

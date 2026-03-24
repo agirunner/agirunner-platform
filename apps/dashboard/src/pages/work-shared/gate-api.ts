@@ -23,7 +23,7 @@ export interface DashboardGateDetailRecord {
   decided_by_id?: string | null;
   decision_feedback?: string | null;
   human_decision?: {
-    action?: 'approve' | 'reject' | 'request_changes' | null;
+    action?: 'approve' | 'reject' | 'request_changes' | 'blocked' | null;
     decided_by_type?: string | null;
     decided_by_id?: string | null;
     feedback?: string | null;

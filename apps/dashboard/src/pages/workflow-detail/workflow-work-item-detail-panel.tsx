@@ -1292,7 +1292,7 @@ function WorkItemStageProgressCard(props: { stage: DashboardWorkflowStageRecord 
           <Badge variant="outline">
             {progressPercent === null ? 'No percent yet' : `${progressPercent}% complete`}
           </Badge>
-          {props.stage.human_gate ? (
+          {props.stage.gate_status !== 'not_requested' ? (
             <Badge
               variant={
                 props.stage.gate_status === 'approved'
@@ -1627,14 +1627,6 @@ function WorkItemContinuitySection(props: {
         props.workItem?.branch_id && props.workItem?.branch_status
           ? `${props.workItem.branch_status} • ${props.workItem.branch_id}`
           : props.workItem?.branch_status ?? 'Not branched',
-    },
-    {
-      label: 'Retained assessments',
-      value: String(props.workItem?.retained_assessment_count ?? 0),
-    },
-    {
-      label: 'Invalidated assessments',
-      value: String(props.workItem?.invalidated_assessment_count ?? 0),
     },
   ];
 

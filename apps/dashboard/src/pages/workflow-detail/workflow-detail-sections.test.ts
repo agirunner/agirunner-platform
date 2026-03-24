@@ -64,11 +64,11 @@ describe('workflow detail sections source', () => {
     expect(source).toContain('summarizeStageMetrics');
     expect(source).toContain('StageSummaryMetric');
     expect(source).toContain('Awaiting gates');
+    expect(source).toContain('Tracked gates');
     expect(source).toContain('Review goal');
     expect(source).toContain('Operator posture');
     expect(source).toContain('Stage packet ready for operator review.');
     expect(source).toContain('Started');
-    expect(source).toContain('Human Gate');
     expect(source).toContain('listWorkflowGates');
     expect(source).toContain('GateDetailCard');
     expect(source).toContain('stable gate permalinks');

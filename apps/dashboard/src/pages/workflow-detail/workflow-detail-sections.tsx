@@ -742,7 +742,7 @@ function summarizeStageMetrics(stages: DashboardWorkflowStageRecord[]) {
     total: stages.length,
     active: stages.filter((stage) => stage.status !== 'completed').length,
     awaitingGate: stages.filter((stage) => stage.gate_status === 'awaiting_approval').length,
-    humanGates: stages.filter((stage) => stage.human_gate).length,
+    trackedGates: stages.filter((stage) => stage.gate_status !== 'not_requested').length,
   };
 }
 
@@ -788,7 +788,7 @@ export function WorkflowStagesCard(props: {
             <StageSummaryMetric label="Stages" value={String(stageMetrics.total)} />
             <StageSummaryMetric label="Live" value={String(stageMetrics.active)} />
             <StageSummaryMetric label="Awaiting gates" value={String(stageMetrics.awaitingGate)} />
-            <StageSummaryMetric label="Human gates" value={String(stageMetrics.humanGates)} />
+            <StageSummaryMetric label="Tracked gates" value={String(stageMetrics.trackedGates)} />
           </div>
         ) : null}
         <div className="grid gap-4">
@@ -833,7 +833,6 @@ export function WorkflowStagesCard(props: {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="secondary">Iterations: {stage.iteration_count}</Badge>
-              {stage.human_gate ? <Badge variant="outline">Human Gate</Badge> : null}
               {stage.started_at ? (
                 <RelativeTimestamp
                   value={stage.started_at}

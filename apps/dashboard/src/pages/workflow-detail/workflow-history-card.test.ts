@@ -42,7 +42,6 @@ describe('workflow interaction timeline', () => {
         name: 'implementation',
         position: 2,
         goal: 'Build the feature.',
-        human_gate: false,
         status: 'active',
         is_active: true,
         gate_status: 'not_requested',

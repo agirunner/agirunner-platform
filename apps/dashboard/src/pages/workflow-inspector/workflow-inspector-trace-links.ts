@@ -95,7 +95,7 @@ function readHighlightedGateStage(
   if (activeGate) {
     return activeGate;
   }
-  return stages.find((stage) => stage.human_gate) ?? null;
+  return stages.find((stage) => stage.gate_status !== 'not_requested') ?? null;
 }
 
 function buildWorkflowBoardLink(
