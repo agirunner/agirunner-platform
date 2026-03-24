@@ -332,6 +332,8 @@ describe('execution-logs route helpers', () => {
       stage_name: 'review',
       activation_id: 'activation-1',
       is_orchestrator_task: false,
+      execution_backend: 'runtime_plus_task',
+      tool_owner: 'task',
       task_title: 'Run work',
       role: 'developer',
       actor_type: 'system',
@@ -412,6 +414,8 @@ describe('execution-logs route helpers', () => {
         code: 'AUTH_FAILED',
         message: '[REDACTED]',
       });
+      expect(payload.data[0].execution_backend).toBe('runtime_plus_task');
+      expect(payload.data[0].tool_owner).toBe('task');
       expect(response.body).not.toContain('nested');
     });
 

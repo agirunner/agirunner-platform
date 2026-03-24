@@ -50,6 +50,8 @@ type ContainerSpec struct {
 	Image       string
 	CPULimit    string
 	MemoryLimit string
+	LogMaxSize  string
+	LogMaxFiles string
 	Environment map[string]string
 	Labels      map[string]string
 	NetworkName string
@@ -74,6 +76,8 @@ type Config struct {
 	HungRuntimeStaleAfter       time.Duration
 	HungRuntimeStopGrace        time.Duration
 	GlobalMaxRuntimes           int
+	RuntimeLogMaxSizeMB         int
+	RuntimeLogMaxFiles          int
 	RuntimeOrphanGraceCycles    int
 	RuntimeNetwork              string
 	RuntimeInternalNetwork      string

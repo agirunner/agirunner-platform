@@ -33,6 +33,7 @@ describe('ContainerInventoryService', () => {
         memory_limit: '512m',
         started_at: '2026-03-21T18:22:00.000Z',
         desired_state_id: '00000000-0000-0000-0000-000000000010',
+        execution_backend: 'runtime_only',
       },
       {
         container_id: 'runtime-container-1',
@@ -45,6 +46,7 @@ describe('ContainerInventoryService', () => {
         memory_limit: '1536m',
         started_at: '2026-03-21T18:24:00.000Z',
         runtime_id: 'runtime-1',
+        execution_backend: 'runtime_plus_task',
       },
       {
         container_id: 'task-container-1',
@@ -59,6 +61,7 @@ describe('ContainerInventoryService', () => {
         runtime_id: 'runtime-1',
         task_id: '00000000-0000-0000-0000-000000000111',
         workflow_id: '00000000-0000-0000-0000-000000000222',
+        execution_backend: 'runtime_plus_task',
         role_name: 'developer',
       },
     ];
@@ -77,6 +80,7 @@ describe('ContainerInventoryService', () => {
           memory_limit: '512m',
           started_at: new Date('2026-03-21T18:22:00.000Z'),
           last_seen_at: new Date('2026-03-21T18:30:00.000Z'),
+          execution_backend: 'runtime_only',
           role_name: 'orchestrator',
           playbook_id: null,
           playbook_name: null,
@@ -98,6 +102,7 @@ describe('ContainerInventoryService', () => {
           memory_limit: '1536m',
           started_at: new Date('2026-03-21T18:24:00.000Z'),
           last_seen_at: new Date('2026-03-21T18:30:00.000Z'),
+          execution_backend: 'runtime_plus_task',
           role_name: 'developer',
           playbook_id: '00000000-0000-0000-0000-000000000555',
           playbook_name: 'Bug Investigation',
@@ -119,6 +124,7 @@ describe('ContainerInventoryService', () => {
           memory_limit: '768m',
           started_at: new Date('2026-03-21T18:26:00.000Z'),
           last_seen_at: new Date('2026-03-21T18:30:00.000Z'),
+          execution_backend: 'runtime_plus_task',
           role_name: 'developer',
           playbook_id: '00000000-0000-0000-0000-000000000555',
           playbook_name: 'Bug Investigation',
@@ -149,6 +155,7 @@ describe('ContainerInventoryService', () => {
       kind: 'runtime',
       playbook_name: 'Bug Investigation',
       role_name: 'developer',
+      execution_backend: 'runtime_plus_task',
     });
     expect(rows[2]).toMatchObject({
       id: 'task:00000000-0000-0000-0000-000000000111',
@@ -156,18 +163,21 @@ describe('ContainerInventoryService', () => {
       image: 'agirunner-runtime-execution:local',
       task_title: 'Investigate auth timeout',
       stage_name: 'Implement',
+      execution_backend: 'runtime_plus_task',
     });
 
     const replaceQuery = pool.query.mock.calls[0]?.[0] as string;
     expect(replaceQuery).toContain('DELETE FROM live_container_inventory');
     expect(replaceQuery).toContain('INSERT INTO live_container_inventory');
     expect(replaceQuery).toContain('ON CONFLICT (tenant_id, container_id) DO UPDATE');
+    expect(replaceQuery).toContain('execution_backend');
 
     const listQuery = pool.query.mock.calls[1]?.[0] as string;
     expect(listQuery).toContain('FROM live_container_inventory live');
     expect(listQuery).toContain('LEFT JOIN runtime_heartbeats rh');
     expect(listQuery).toContain('LEFT JOIN tasks t');
     expect(listQuery).toContain('t.stage_name AS stage_name');
+    expect(listQuery).toContain('execution_backend');
     expect(listQuery).toContain('LEFT JOIN workflows w');
   });
 

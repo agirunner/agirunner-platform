@@ -33,6 +33,8 @@ export interface ExecutionLogEntry {
   stageName?: string | null;
   activationId?: string | null;
   isOrchestratorTask?: boolean | null;
+  executionBackend?: 'runtime_only' | 'runtime_plus_task' | null;
+  toolOwner?: 'runtime' | 'task' | null;
   taskTitle?: string | null;
   role?: string | null;
   actorType?: string | null;
@@ -67,6 +69,8 @@ export interface LogRow {
   stage_name: string | null;
   activation_id: string | null;
   is_orchestrator_task: boolean;
+  execution_backend: 'runtime_only' | 'runtime_plus_task' | null;
+  tool_owner: 'runtime' | 'task' | null;
   task_title: string | null;
   role: string | null;
   actor_type: string | null;
@@ -86,6 +90,8 @@ export interface LogFilters {
   stageName?: string;
   activationId?: string;
   isOrchestratorTask?: boolean;
+  executionBackend?: string[];
+  toolOwner?: string[];
   traceId?: string;
   source?: string[];
   category?: string[];
@@ -122,7 +128,9 @@ export interface LogStatsFilters {
     | 'stage_name'
     | 'activation_id'
     | 'is_orchestrator_task'
-    | 'source';
+    | 'source'
+    | 'execution_backend'
+    | 'tool_owner';
 }
 
 export interface LogStatsGroup {
@@ -299,6 +307,7 @@ export class LogService {
               payload, error,
               workspace_id, workflow_id, workflow_name, workspace_name, task_id,
               work_item_id, stage_name, activation_id, is_orchestrator_task,
+              execution_backend, tool_owner,
               task_title,
               role,
               actor_type, actor_id, actor_name,
@@ -338,6 +347,7 @@ export class LogService {
               payload, error,
               workspace_id, workflow_id, workflow_name, workspace_name, task_id,
               work_item_id, stage_name, activation_id, is_orchestrator_task,
+              execution_backend, tool_owner,
               task_title,
               role,
               actor_type, actor_id, actor_name,
@@ -517,6 +527,7 @@ export class LogService {
         payload, error,
         workspace_id, workflow_id, workflow_name, workspace_name, task_id,
         work_item_id, activation_id, task_title, stage_name, is_orchestrator_task,
+        execution_backend, tool_owner,
         role,
         actor_type, actor_id, actor_name,
         resource_type, resource_id, resource_name,
@@ -527,10 +538,11 @@ export class LogService {
         $11, $12,
         $13, $14, $15, $16, $17,
         $18, $19, $20, $21, $22,
-        $23,
-        $24, $25, $26,
-        $27, $28, $29,
-        COALESCE($30::timestamptz, now())
+        $23, $24,
+        $25,
+        $26, $27, $28,
+        $29, $30, $31,
+        COALESCE($32::timestamptz, now())
       )`,
       [
         entry.tenantId,
@@ -555,6 +567,8 @@ export class LogService {
         sanitizeOptionalLogText(entry.taskTitle),
         sanitizeOptionalLogText(stageName),
         entry.isOrchestratorTask ?? false,
+        entry.executionBackend ?? null,
+        entry.toolOwner ?? null,
         sanitizeOptionalLogText(entry.role),
         sanitizeOptionalLogText(entry.actorType),
         sanitizeOptionalLogText(entry.actorId),
@@ -630,6 +644,14 @@ export class LogService {
     if (filters.traceId) {
       values.push(filters.traceId);
       conditions.push(`trace_id = $${values.length}`);
+    }
+    if (filters.executionBackend?.length) {
+      values.push(filters.executionBackend);
+      conditions.push(`execution_backend = ANY($${values.length}::execution_backend[])`);
+    }
+    if (filters.toolOwner?.length) {
+      values.push(filters.toolOwner);
+      conditions.push(`tool_owner = ANY($${values.length}::tool_owner[])`);
     }
     if (filters.source?.length) {
       values.push(filters.source);
@@ -751,6 +773,8 @@ const GROUP_BY_EXPRESSIONS: Record<LogStatsFilters['groupBy'], string> = {
   activation_id: `COALESCE(activation_id::text, 'unassigned')`,
   is_orchestrator_task: `CASE WHEN is_orchestrator_task THEN 'orchestrator' ELSE 'task' END`,
   source: `COALESCE(source::text, 'unknown')`,
+  execution_backend: `COALESCE(execution_backend::text, 'unknown')`,
+  tool_owner: `COALESCE(tool_owner::text, 'unknown')`,
 };
 
 const LOG_SECRET_REDACTION = '[REDACTED]';

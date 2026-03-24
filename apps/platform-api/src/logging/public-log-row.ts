@@ -26,6 +26,8 @@ export const PUBLIC_LOG_CSV_COLUMNS = [
   'stage_name',
   'activation_id',
   'is_orchestrator_task',
+  'execution_backend',
+  'tool_owner',
   'actor_type',
   'actor_id',
   'actor_name',

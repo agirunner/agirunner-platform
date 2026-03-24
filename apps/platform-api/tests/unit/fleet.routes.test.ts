@@ -168,6 +168,8 @@ describe('fleet routes', () => {
         shutdown_task_stop_timeout_seconds: 2,
         docker_action_buffer_seconds: 15,
         global_max_runtimes: 10,
+        runtime_log_max_size_mb: 10,
+        runtime_log_max_files: 3,
       },
     });
     app.decorate('fleetService', {
@@ -215,6 +217,8 @@ describe('fleet routes', () => {
         shutdown_task_stop_timeout_seconds: 2,
         docker_action_buffer_seconds: 15,
         global_max_runtimes: 10,
+        runtime_log_max_size_mb: 10,
+        runtime_log_max_files: 3,
       },
     });
   });

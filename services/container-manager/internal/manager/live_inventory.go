@@ -40,12 +40,29 @@ func buildLiveContainerReports(containers []ContainerInfo) []LiveContainerReport
 			RuntimeID:      firstNonEmptyLiveLabel(container.Labels, labelDCMRuntimeID, legacyParentRuntimeLabel),
 			TaskID:         strings.TrimSpace(container.Labels[labelTaskID]),
 			WorkflowID:     strings.TrimSpace(container.Labels[labelWorkflowID]),
+			ExecutionBackend: resolveLiveContainerExecutionBackend(kind, container.Labels),
 			RoleName:       strings.TrimSpace(container.Labels[labelRoleName]),
 			PlaybookID:     strings.TrimSpace(container.Labels[labelDCMPlaybookID]),
 			PlaybookName:   strings.TrimSpace(container.Labels[labelDCMPlaybookName]),
 		})
 	}
 	return reports
+}
+
+func resolveLiveContainerExecutionBackend(kind string, labels map[string]string) string {
+	switch kind {
+	case containerKindOrchestrator:
+		return "runtime_only"
+	case containerKindTask:
+		return "runtime_plus_task"
+	case containerKindRuntime:
+		if normalizePoolKind(strings.TrimSpace(labels[labelDCMPoolKind])) == "orchestrator" {
+			return "runtime_only"
+		}
+		return "runtime_plus_task"
+	default:
+		return ""
+	}
 }
 
 func (m *Manager) reportLiveContainerInventory(ctx context.Context) error {

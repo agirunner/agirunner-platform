@@ -124,6 +124,8 @@ func (m *Manager) buildDCMRuntimeSpec(target RuntimeTarget) ContainerSpec {
 		Image:       target.Image,
 		CPULimit:    target.CPU,
 		MemoryLimit: target.Memory,
+		LogMaxSize:  fmt.Sprintf("%dm", m.config.RuntimeLogMaxSizeMB),
+		LogMaxFiles: strconv.Itoa(m.config.RuntimeLogMaxFiles),
 		Environment: m.buildDCMEnvironment(target, runtimeID, name),
 		Labels:      buildDCMLabels(target, runtimeID),
 		NetworkName: m.config.RuntimeNetwork,

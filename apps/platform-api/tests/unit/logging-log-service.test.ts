@@ -47,6 +47,8 @@ describe('LogService', () => {
         workspaceId: 'proj-1',
         workflowId: null,
         taskId: null,
+        executionBackend: 'runtime_only',
+        toolOwner: 'runtime',
         actorType: 'user',
         actorId: 'user-1',
         actorName: 'Mark',
@@ -66,6 +68,10 @@ describe('LogService', () => {
       expect(params[7]).toBe('api.get.workspaces');
       expect(params[8]).toBe('completed');
       expect(params[9]).toBe(45);
+      expect(sql).toContain('execution_backend');
+      expect(sql).toContain('tool_owner');
+      expect(params[22]).toBe('runtime_only');
+      expect(params[23]).toBe('runtime');
     });
 
     it('insertsLogEntryWithMinimalFields', async () => {
@@ -93,6 +99,8 @@ describe('LogService', () => {
       expect(params[18]).toBeNull();
       expect(params[20]).toBeNull();
       expect(params[21]).toBe(false);
+      expect(params[22]).toBeNull();
+      expect(params[23]).toBeNull();
     });
 
     it('storesStageContextOnlyInCanonicalStageField', async () => {
@@ -670,8 +678,8 @@ describe('LogService', () => {
       });
 
       const [, params] = getInsertCall(pool)!;
-      expect(params[27]).toBeNull();
-      expect(params[28]).toBe('runtime-a59dbff2-b12b9434');
+      expect(params[29]).toBeNull();
+      expect(params[30]).toBe('runtime-a59dbff2-b12b9434');
     });
 
     it('redactsEncryptedAndReferencedSecretsInNestedArraysAndErrors', async () => {

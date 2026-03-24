@@ -1317,6 +1317,8 @@ const CONTAINER_MANAGER_RUNTIME_DEFAULTS = {
   hungRuntimeStaleAfterSeconds: 'container_manager.hung_runtime_stale_after_seconds',
   hungRuntimeStopGracePeriodSeconds: 'container_manager.hung_runtime_stop_grace_period_seconds',
   globalMaxRuntimes: 'global_max_runtimes',
+  runtimeLogMaxSizeMB: 'container_manager.runtime_log_max_size_mb',
+  runtimeLogMaxFiles: 'container_manager.runtime_log_max_files',
 } as const;
 
 function buildContainerManagerConfig(defaults: Map<string, string>): ContainerManagerConfig {
@@ -1376,6 +1378,14 @@ function buildContainerManagerConfig(defaults: Map<string, string>): ContainerMa
     global_max_runtimes: readRequiredIntegerDefault(
       defaults,
       CONTAINER_MANAGER_RUNTIME_DEFAULTS.globalMaxRuntimes,
+    ),
+    runtime_log_max_size_mb: readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.runtimeLogMaxSizeMB,
+    ),
+    runtime_log_max_files: readRequiredIntegerDefault(
+      defaults,
+      CONTAINER_MANAGER_RUNTIME_DEFAULTS.runtimeLogMaxFiles,
     ),
   };
 }
@@ -1496,6 +1506,8 @@ export interface ContainerManagerConfig {
   hung_runtime_stale_after_seconds: number;
   hung_runtime_stop_grace_period_seconds: number;
   global_max_runtimes: number;
+  runtime_log_max_size_mb: number;
+  runtime_log_max_files: number;
 }
 
 export interface FleetStatus {

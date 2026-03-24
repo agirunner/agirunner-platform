@@ -23,6 +23,8 @@ func newDCMTestManager(docker *mockDockerClient, platform *mockPlatformClient) *
 		HungRuntimeStaleAfter:    90 * time.Second,
 		HungRuntimeStopGrace:     30 * time.Second,
 		GlobalMaxRuntimes:        10,
+		RuntimeLogMaxSizeMB:      10,
+		RuntimeLogMaxFiles:       3,
 		RuntimeOrphanGraceCycles: 3,
 	}
 	return NewWithPlatform(cfg, docker, platform, logger)
@@ -755,6 +757,26 @@ func TestBuildHeartbeatMap(t *testing.T) {
 	}
 	if m["rt-2"].State != "executing" {
 		t.Errorf("expected rt-2 state executing, got %s", m["rt-2"].State)
+	}
+}
+
+func TestCreateRuntimeContainersSetsDockerLogRotation(t *testing.T) {
+	docker := newMockDockerClient()
+	mgr := newDCMTestManager(docker, &mockPlatformClient{})
+
+	created := mgr.createRuntimeContainers(context.Background(), makeRuntimeTarget("tmpl-1", "runtime:v1", 1, 0, 10), 1)
+
+	if created != 1 {
+		t.Fatalf("expected one runtime created, got %d", created)
+	}
+	if len(docker.createdSpecs) != 1 {
+		t.Fatalf("expected one created spec, got %d", len(docker.createdSpecs))
+	}
+	if docker.createdSpecs[0].LogMaxSize != "10m" {
+		t.Fatalf("expected runtime log max size 10m, got %q", docker.createdSpecs[0].LogMaxSize)
+	}
+	if docker.createdSpecs[0].LogMaxFiles != "3" {
+		t.Fatalf("expected runtime log max files 3, got %q", docker.createdSpecs[0].LogMaxFiles)
 	}
 }
 

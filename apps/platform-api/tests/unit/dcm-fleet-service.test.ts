@@ -21,6 +21,8 @@ function createRuntimeTargetDefaultRows(overrides: Record<string, string> = {}) 
     specialist_runtime_bootstrap_claim_timeout_seconds: '30',
     specialist_runtime_drain_grace_seconds: '30',
     'container_manager.hung_runtime_stale_after_seconds': '90',
+    'container_manager.runtime_log_max_size_mb': '10',
+    'container_manager.runtime_log_max_files': '3',
     ...overrides,
   };
   return Object.entries(defaults).map(([config_key, config_value]) => ({ config_key, config_value }));
@@ -429,6 +431,8 @@ describe('FleetService DCM', () => {
               { config_key: 'container_manager.runtime_orphan_grace_cycles', config_value: '3' },
               { config_key: 'container_manager.hung_runtime_stale_after_seconds', config_value: '90' },
               { config_key: 'container_manager.hung_runtime_stop_grace_period_seconds', config_value: '30' },
+              { config_key: 'container_manager.runtime_log_max_size_mb', config_value: '10' },
+              { config_key: 'container_manager.runtime_log_max_files', config_value: '3' },
               { config_key: 'global_max_runtimes', config_value: '12' },
               { config_key: 'global_max_execution_containers', config_value: '20' },
               { config_key: 'specialist_runtime_default_image', config_value: 'agirunner-runtime:local' },
@@ -477,6 +481,8 @@ describe('FleetService DCM', () => {
         hung_runtime_stale_after_seconds: 90,
         hung_runtime_stop_grace_period_seconds: 30,
         global_max_runtimes: 12,
+        runtime_log_max_size_mb: 10,
+        runtime_log_max_files: 3,
       });
     });
 

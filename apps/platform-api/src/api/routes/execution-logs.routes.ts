@@ -26,6 +26,8 @@ const validCategories = [
 ] as const;
 const validLevels = ['debug', 'info', 'warn', 'error'] as const;
 const validStatuses = ['started', 'completed', 'failed', 'skipped'] as const;
+const validExecutionBackends = ['runtime_only', 'runtime_plus_task'] as const;
+const validToolOwners = ['runtime', 'task'] as const;
 const validGroupBy = [
   'category',
   'operation',
@@ -36,6 +38,8 @@ const validGroupBy = [
   'activation_id',
   'is_orchestrator_task',
   'source',
+  'execution_backend',
+  'tool_owner',
 ] as const;
 
 export const ingestEntrySchema = z.object({
@@ -66,6 +70,8 @@ export const ingestEntrySchema = z.object({
   stage_name: z.string().max(200).nullable().optional(),
   activation_id: z.string().uuid().nullable().optional(),
   is_orchestrator_task: z.boolean().optional(),
+  execution_backend: z.enum(validExecutionBackends).nullable().optional(),
+  tool_owner: z.enum(validToolOwners).nullable().optional(),
   task_title: z.string().max(200).nullable().optional(),
   role: z.string().max(100).nullable().optional(),
   actor_type: z.string().max(50).optional(),
@@ -136,6 +142,8 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
           stageName: entry.stage_name ?? null,
           activationId: entry.activation_id ?? null,
           isOrchestratorTask: entry.is_orchestrator_task ?? false,
+          executionBackend: entry.execution_backend ?? null,
+          toolOwner: entry.tool_owner ?? null,
           taskTitle: entry.task_title ?? null,
           role: entry.role ?? null,
           actorType: entry.actor_type ?? null,
@@ -167,6 +175,8 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         stageName: query.stage_name,
         activationId: query.activation_id,
         isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
+        executionBackend: parseCsv(query.execution_backend),
+        toolOwner: parseCsv(query.tool_owner),
         traceId: query.trace_id,
         source: parseCsv(query.source),
         category: parseCsv(query.category),
@@ -225,6 +235,8 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
         stageName: query.stage_name,
         activationId: query.activation_id,
         isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
+        executionBackend: parseCsv(query.execution_backend),
+        toolOwner: parseCsv(query.tool_owner),
         traceId: query.trace_id,
         operation: parseCsv(query.operation),
       };

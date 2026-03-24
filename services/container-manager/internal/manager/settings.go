@@ -33,6 +33,8 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 	m.config.PlatformAPIRequestTimeout = next.PlatformAPIRequestTimeout
 	m.config.PlatformLogIngestTimeout = next.PlatformLogIngestTimeout
 	m.config.GlobalMaxRuntimes = next.GlobalMaxRuntimes
+	m.config.RuntimeLogMaxSizeMB = next.RuntimeLogMaxSizeMB
+	m.config.RuntimeLogMaxFiles = next.RuntimeLogMaxFiles
 	applyManagerTimeouts(m.platform, m.logEmitter, m.dockerEventWatcher, next)
 
 	m.logger.Info(
@@ -51,6 +53,8 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 		"hung_runtime_stale_after", next.HungRuntimeStaleAfter,
 		"hung_runtime_stop_grace", next.HungRuntimeStopGrace,
 		"global_max_runtimes", next.GlobalMaxRuntimes,
+		"runtime_log_max_size_mb", next.RuntimeLogMaxSizeMB,
+		"runtime_log_max_files", next.RuntimeLogMaxFiles,
 	)
 	m.emitLog("container", "config.apply", "info", "completed", map[string]any{
 		"action":                               "apply_snapshot_config",
@@ -68,6 +72,8 @@ func (m *Manager) applySnapshotConfig(snapshot *ReconcileSnapshot) (bool, error)
 		"hung_runtime_stale_after_seconds":     int(next.HungRuntimeStaleAfter / time.Second),
 		"hung_runtime_stop_grace_seconds":      int(next.HungRuntimeStopGrace / time.Second),
 		"global_max_runtimes":                  next.GlobalMaxRuntimes,
+		"runtime_log_max_size_mb":              next.RuntimeLogMaxSizeMB,
+		"runtime_log_max_files":                next.RuntimeLogMaxFiles,
 	})
 	return true, nil
 }
@@ -88,6 +94,8 @@ func (m *Manager) currentContainerManagerConfig() Config {
 		HungRuntimeStaleAfter:       m.config.HungRuntimeStaleAfter,
 		HungRuntimeStopGrace:        m.config.HungRuntimeStopGrace,
 		GlobalMaxRuntimes:           m.config.GlobalMaxRuntimes,
+		RuntimeLogMaxSizeMB:         m.config.RuntimeLogMaxSizeMB,
+		RuntimeLogMaxFiles:          m.config.RuntimeLogMaxFiles,
 	}
 }
 
@@ -166,6 +174,20 @@ func validateContainerManagerConfig(config ContainerManagerConfig) (Config, erro
 	if err != nil {
 		return Config{}, err
 	}
+	runtimeLogMaxSizeMB, err := readRequiredPositiveInt(
+		config.RuntimeLogMaxSizeMB,
+		"container_manager.runtime_log_max_size_mb",
+	)
+	if err != nil {
+		return Config{}, err
+	}
+	runtimeLogMaxFiles, err := readRequiredPositiveInt(
+		config.RuntimeLogMaxFiles,
+		"container_manager.runtime_log_max_files",
+	)
+	if err != nil {
+		return Config{}, err
+	}
 
 	return Config{
 		PlatformAPIRequestTimeout:   platformAPIRequestTimeout,
@@ -182,6 +204,8 @@ func validateContainerManagerConfig(config ContainerManagerConfig) (Config, erro
 		HungRuntimeStaleAfter:       hungRuntimeStaleAfter,
 		HungRuntimeStopGrace:        hungRuntimeStopGrace,
 		GlobalMaxRuntimes:           globalMaxRuntimes,
+		RuntimeLogMaxSizeMB:         runtimeLogMaxSizeMB,
+		RuntimeLogMaxFiles:          runtimeLogMaxFiles,
 	}, nil
 }
 

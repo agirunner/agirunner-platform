@@ -91,6 +91,9 @@ func TestBuildLiveContainerReportsUsesDockerTruth(t *testing.T) {
 	if orchestrator.DesiredStateID != "worker-desired-1" {
 		t.Fatalf("expected desired state id worker-desired-1, got %q", orchestrator.DesiredStateID)
 	}
+	if orchestrator.ExecutionBackend != "runtime_only" {
+		t.Fatalf("expected orchestrator execution backend runtime_only, got %q", orchestrator.ExecutionBackend)
+	}
 
 	runtime := reports[1]
 	if runtime.Kind != "runtime" {
@@ -98,6 +101,9 @@ func TestBuildLiveContainerReportsUsesDockerTruth(t *testing.T) {
 	}
 	if runtime.PlaybookID != "specialist" || runtime.PlaybookName != "Specialist runtimes" {
 		t.Fatalf("expected runtime playbook labels to survive, got id=%q name=%q", runtime.PlaybookID, runtime.PlaybookName)
+	}
+	if runtime.ExecutionBackend != "runtime_plus_task" {
+		t.Fatalf("expected specialist runtime execution backend runtime_plus_task, got %q", runtime.ExecutionBackend)
 	}
 
 	task := reports[2]
@@ -115,5 +121,8 @@ func TestBuildLiveContainerReportsUsesDockerTruth(t *testing.T) {
 	}
 	if task.CPULimit != "1" || task.MemoryLimit != "768m" {
 		t.Fatalf("expected docker-inspected task limits, got cpu=%q memory=%q", task.CPULimit, task.MemoryLimit)
+	}
+	if task.ExecutionBackend != "runtime_plus_task" {
+		t.Fatalf("expected task execution backend runtime_plus_task, got %q", task.ExecutionBackend)
 	}
 }

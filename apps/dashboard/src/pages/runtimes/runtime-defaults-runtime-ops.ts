@@ -819,6 +819,30 @@ function buildContainerManagerFields(): FieldDefinition[] {
       min: 1,
       step: 1,
     },
+    {
+      key: 'container_manager.runtime_log_max_size_mb',
+      label: 'Runtime log max size (MB)',
+      description:
+        'Maximum size of a runtime container Docker log file before the Docker engine rotates it.',
+      configType: 'number',
+      placeholder: '10',
+      section: 'container_manager',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
+    {
+      key: 'container_manager.runtime_log_max_files',
+      label: 'Runtime log file count',
+      description:
+        'Maximum number of rotated Docker log files retained for each runtime container.',
+      configType: 'number',
+      placeholder: '3',
+      section: 'container_manager',
+      inputMode: 'numeric',
+      min: 1,
+      step: 1,
+    },
   ];
 }
 

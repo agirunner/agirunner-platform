@@ -6,6 +6,8 @@ export interface LogStreamFilters {
   source?: string[];
   category?: string[];
   level?: string;
+  executionBackend?: string[];
+  toolOwner?: string[];
   workspaceId?: string;
   workflowId?: string;
   taskId?: string;
@@ -32,6 +34,8 @@ interface LogNotification {
   stage_name: string | null;
   activation_id: string | null;
   is_orchestrator_task: boolean;
+  execution_backend: 'runtime_only' | 'runtime_plus_task' | null;
+  tool_owner: 'runtime' | 'task' | null;
   created_at: string;
 }
 
@@ -110,6 +114,7 @@ export class LogStreamService {
               payload, error,
               workspace_id, workflow_id, workflow_name, workspace_name, task_id,
               work_item_id, stage_name, activation_id, is_orchestrator_task,
+              execution_backend, tool_owner,
               task_title, role,
               actor_type, actor_id, actor_name,
               resource_type, resource_id, resource_name,
@@ -156,6 +161,18 @@ export class LogStreamService {
       const minLevel = LEVEL_ORDER[filters.level] ?? 0;
       const notifLevel = LEVEL_ORDER[notification.level] ?? 0;
       if (notifLevel < minLevel) {
+        return false;
+      }
+    }
+    if (filters.executionBackend?.length) {
+      const backend = notification.execution_backend ?? '';
+      if (!filters.executionBackend.includes(backend)) {
+        return false;
+      }
+    }
+    if (filters.toolOwner?.length) {
+      const toolOwner = notification.tool_owner ?? '';
+      if (!filters.toolOwner.includes(toolOwner)) {
         return false;
       }
     }

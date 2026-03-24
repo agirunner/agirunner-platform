@@ -41,6 +41,8 @@ function sampleRow(overrides: Record<string, unknown> = {}) {
     stage_name: 'implementation',
     activation_id: 'activation-1',
     is_orchestrator_task: true,
+    execution_backend: 'runtime_only',
+    tool_owner: 'runtime',
     task_title: 'Implement feature',
     role: 'developer',
     actor_type: 'worker',
@@ -127,6 +129,8 @@ describe('LogStreamService', () => {
           stage_name: 'implementation',
           activation_id: 'activation-1',
           is_orchestrator_task: true,
+          execution_backend: 'runtime_only',
+          tool_owner: 'runtime',
           created_at: '2026-03-09T15:30:00.000Z',
         }),
       );
@@ -135,6 +139,41 @@ describe('LogStreamService', () => {
       const [sql, params] = mockPool.pool.query.mock.calls[0];
       expect(sql).toContain('WHERE id = $1 AND created_at = $2');
       expect(params).toEqual([1, '2026-03-09T15:30:00.000Z']);
+    });
+
+    it('filtersByExecutionBackendAndToolOwner', async () => {
+      const callback = vi.fn();
+      mockPool.pool.query.mockResolvedValue({ rows: [sampleRow()], rowCount: 1 });
+
+      service.subscribe(
+        'tenant-1',
+        { executionBackend: ['runtime_plus_task'], toolOwner: ['task'] },
+        callback,
+      );
+      await service.start();
+
+      const notificationHandler = mockPool.client.on.mock.calls.find(
+        (call: unknown[]) => call[0] === 'notification',
+      )![1] as (msg: { channel: string; payload: string }) => void;
+
+      notificationHandler({
+        channel: 'agirunner_execution_logs',
+        payload: JSON.stringify({
+          id: 1,
+          tenant_id: 'tenant-1',
+          source: 'runtime',
+          category: 'tool',
+          level: 'info',
+          operation: 'tool.execute',
+          execution_backend: 'runtime_only',
+          tool_owner: 'runtime',
+          created_at: '2026-03-09T15:30:00.000Z',
+        }),
+      });
+
+      await new Promise((r) => setTimeout(r, 10));
+      expect(callback).not.toHaveBeenCalled();
+      expect(mockPool.pool.query).not.toHaveBeenCalled();
     });
 
     it('filtersOutNonMatchingTenant', async () => {

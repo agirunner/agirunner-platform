@@ -77,4 +77,14 @@ describe('execution log ingest contract', () => {
 
     expect(result.success).toBe(false);
   });
+
+  it('accepts execution backend and tool owner classifications', () => {
+    const result = ingestEntrySchema.safeParse({
+      ...createEntry(),
+      execution_backend: 'runtime_plus_task',
+      tool_owner: 'task',
+    });
+
+    expect(result.success).toBe(true);
+  });
 });

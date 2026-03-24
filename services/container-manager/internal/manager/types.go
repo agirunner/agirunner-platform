@@ -129,6 +129,8 @@ type ContainerManagerConfig struct {
 	HungRuntimeStaleAfterSeconds     int `json:"hung_runtime_stale_after_seconds"`
 	HungRuntimeStopGracePeriodSec    int `json:"hung_runtime_stop_grace_period_seconds"`
 	GlobalMaxRuntimes                int `json:"global_max_runtimes"`
+	RuntimeLogMaxSizeMB              int `json:"runtime_log_max_size_mb"`
+	RuntimeLogMaxFiles               int `json:"runtime_log_max_files"`
 }
 
 // ReconcileSnapshot bundles the worker desired state and DCM inputs needed for
@@ -174,6 +176,7 @@ type LiveContainerReport struct {
 	RuntimeID      string    `json:"runtime_id,omitempty"`
 	TaskID         string    `json:"task_id,omitempty"`
 	WorkflowID     string    `json:"workflow_id,omitempty"`
+	ExecutionBackend string  `json:"execution_backend,omitempty"`
 	RoleName       string    `json:"role_name,omitempty"`
 	PlaybookID     string    `json:"playbook_id,omitempty"`
 	PlaybookName   string    `json:"playbook_name,omitempty"`

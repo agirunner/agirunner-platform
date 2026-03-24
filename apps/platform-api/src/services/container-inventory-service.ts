@@ -22,6 +22,7 @@ WITH incoming AS (
     NULLIF(BTRIM(entry.runtime_id), '') AS runtime_id,
     entry.task_id,
     entry.workflow_id,
+    entry.execution_backend,
     NULLIF(BTRIM(entry.role_name), '') AS role_name,
     NULLIF(BTRIM(entry.playbook_id), '') AS playbook_id,
     NULLIF(BTRIM(entry.playbook_name), '') AS playbook_name
@@ -39,6 +40,7 @@ WITH incoming AS (
     runtime_id text,
     task_id uuid,
     workflow_id uuid,
+    execution_backend execution_backend,
     role_name text,
     playbook_id text,
     playbook_name text
@@ -70,6 +72,7 @@ upserted AS (
     runtime_id,
     task_id,
     workflow_id,
+    execution_backend,
     role_name,
     playbook_id,
     playbook_name,
@@ -90,6 +93,7 @@ upserted AS (
     incoming.runtime_id,
     incoming.task_id,
     incoming.workflow_id,
+    incoming.execution_backend,
     incoming.role_name,
     incoming.playbook_id,
     incoming.playbook_name,
@@ -109,6 +113,7 @@ upserted AS (
     runtime_id = EXCLUDED.runtime_id,
     task_id = EXCLUDED.task_id,
     workflow_id = EXCLUDED.workflow_id,
+    execution_backend = EXCLUDED.execution_backend,
     role_name = EXCLUDED.role_name,
     playbook_id = EXCLUDED.playbook_id,
     playbook_name = EXCLUDED.playbook_name,
@@ -151,6 +156,7 @@ live_rows AS (
     live.runtime_id,
     live.task_id AS live_task_id,
     live.workflow_id AS live_workflow_id,
+    live.execution_backend,
     live.role_name AS live_role_name,
     live.playbook_id AS live_playbook_id,
     live.playbook_name AS live_playbook_name,
@@ -193,6 +199,7 @@ SELECT
   COALESCE(w.id, live.live_workflow_id) AS workflow_id,
   w.name AS workflow_name,
   COALESCE(t.id, live.live_task_id, live.heartbeat_task_id, live.active_task_id) AS task_id,
+  live.execution_backend,
   t.title AS task_title,
   t.stage_name AS stage_name,
   CASE
@@ -229,6 +236,7 @@ export interface LiveContainerInventoryInput {
   runtime_id?: string | null;
   task_id?: string | null;
   workflow_id?: string | null;
+  execution_backend?: 'runtime_only' | 'runtime_plus_task' | null;
   role_name?: string | null;
   playbook_id?: string | null;
   playbook_name?: string | null;
@@ -253,6 +261,7 @@ export interface LiveContainerInventoryRow {
   workflow_id: string | null;
   workflow_name: string | null;
   task_id: string | null;
+  execution_backend: 'runtime_only' | 'runtime_plus_task' | null;
   task_title: string | null;
   stage_name: string | null;
   activity_state: string | null;

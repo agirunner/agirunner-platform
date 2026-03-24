@@ -110,6 +110,15 @@ func (d *RealDockerClient) CreateContainer(ctx context.Context, spec ContainerSp
 			Memory:   parseMemoryLimit(spec.MemoryLimit),
 		},
 	}
+	if strings.TrimSpace(spec.LogMaxSize) != "" || strings.TrimSpace(spec.LogMaxFiles) != "" {
+		hostCfg.LogConfig = container.LogConfig{
+			Type: "json-file",
+			Config: map[string]string{
+				"max-size": strings.TrimSpace(spec.LogMaxSize),
+				"max-file": strings.TrimSpace(spec.LogMaxFiles),
+			},
+		}
+	}
 
 	var netCfg *network.NetworkingConfig
 	if spec.NetworkName != "" {

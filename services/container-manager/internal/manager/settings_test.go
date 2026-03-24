@@ -45,6 +45,8 @@ func TestRunFailsFastWhenInitialSnapshotConfigIsInvalid(t *testing.T) {
 				HungRuntimeStaleAfterSeconds:     90,
 				HungRuntimeStopGracePeriodSec:    30,
 				GlobalMaxRuntimes:                12,
+				RuntimeLogMaxSizeMB:              10,
+				RuntimeLogMaxFiles:               3,
 			},
 		},
 	}
@@ -116,6 +118,8 @@ func TestRunReconcileCycleSkipsInvalidSnapshotConfig(t *testing.T) {
 				HungRuntimeStaleAfterSeconds:     90,
 				HungRuntimeStopGracePeriodSec:    30,
 				GlobalMaxRuntimes:                12,
+				RuntimeLogMaxSizeMB:              10,
+				RuntimeLogMaxFiles:               3,
 			},
 		},
 	}

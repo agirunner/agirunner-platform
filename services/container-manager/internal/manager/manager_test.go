@@ -322,6 +322,8 @@ func newTestManager(docker *mockDockerClient, platform *mockPlatformClient) *Man
 		HungRuntimeStaleAfter:       90 * time.Second,
 		HungRuntimeStopGrace:        30 * time.Second,
 		GlobalMaxRuntimes:           10,
+		RuntimeLogMaxSizeMB:         10,
+		RuntimeLogMaxFiles:          3,
 		RuntimeOrphanGraceCycles:    3,
 	}
 	return NewWithPlatform(cfg, docker, platform, logger)
@@ -343,6 +345,8 @@ func defaultTestContainerManagerConfig() ContainerManagerConfig {
 		HungRuntimeStaleAfterSeconds:     90,
 		HungRuntimeStopGracePeriodSec:    30,
 		GlobalMaxRuntimes:                10,
+		RuntimeLogMaxSizeMB:              10,
+		RuntimeLogMaxFiles:               3,
 	}
 }
 
@@ -414,6 +418,8 @@ func TestRunReconcileCycleUsesSharedSnapshot(t *testing.T) {
 				HungRuntimeStaleAfterSeconds:     90,
 				HungRuntimeStopGracePeriodSec:    30,
 				GlobalMaxRuntimes:                12,
+				RuntimeLogMaxSizeMB:              10,
+				RuntimeLogMaxFiles:               3,
 			},
 		},
 	}

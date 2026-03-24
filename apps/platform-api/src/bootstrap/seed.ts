@@ -596,6 +596,22 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
       'Grace period in seconds used when stopping runtime containers that are classified as hung',
   });
 
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.runtime_log_max_size_mb',
+    configValue: '10',
+    configType: 'number',
+    description:
+      'Maximum size in megabytes for each runtime container Docker log file before the engine rotates it',
+  });
+
+  await service.upsertDefault(DEFAULT_TENANT_ID, {
+    configKey: 'container_manager.runtime_log_max_files',
+    configValue: '3',
+    configType: 'number',
+    description:
+      'Maximum number of rotated Docker log files retained for each runtime container',
+  });
+
   await seedDashboardBackedRuntimeDefaults(service);
 }
 

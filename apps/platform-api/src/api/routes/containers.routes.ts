@@ -19,6 +19,7 @@ const liveContainerSchema = z
     runtime_id: z.string().min(1).max(200).optional(),
     task_id: z.string().uuid().optional(),
     workflow_id: z.string().uuid().optional(),
+    execution_backend: z.enum(['runtime_only', 'runtime_plus_task']).optional(),
     role_name: z.string().min(1).max(200).optional(),
     playbook_id: z.string().min(1).max(200).optional(),
     playbook_name: z.string().min(1).max(200).optional(),
