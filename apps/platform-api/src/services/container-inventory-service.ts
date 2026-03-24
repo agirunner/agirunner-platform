@@ -200,7 +200,21 @@ SELECT
   w.name AS workflow_name,
   COALESCE(t.id, live.live_task_id, live.active_task_id, live.heartbeat_task_id) AS task_id,
   live.execution_backend,
-  t.title AS task_title,
+  CASE
+    WHEN t.is_orchestrator_task IS TRUE
+      AND NULLIF(BTRIM(t.title), '') IS NOT NULL
+      AND NULLIF(BTRIM(t.metadata->>'activation_event_type'), '') IS NOT NULL
+      AND RIGHT(t.title, LENGTH(': ' || (t.metadata->>'activation_event_type')))
+        = ': ' || (t.metadata->>'activation_event_type')
+      THEN LEFT(t.title, LENGTH(t.title) - LENGTH(': ' || (t.metadata->>'activation_event_type')))
+    WHEN t.is_orchestrator_task IS TRUE
+      AND NULLIF(BTRIM(t.title), '') IS NOT NULL
+      AND NULLIF(BTRIM(t.metadata->>'activation_reason'), '') IS NOT NULL
+      AND RIGHT(t.title, LENGTH(': ' || (t.metadata->>'activation_reason')))
+        = ': ' || (t.metadata->>'activation_reason')
+      THEN LEFT(t.title, LENGTH(t.title) - LENGTH(': ' || (t.metadata->>'activation_reason')))
+    ELSE t.title
+  END AS task_title,
   t.stage_name AS stage_name,
   CASE
     WHEN live.kind = 'runtime' THEN COALESCE(NULLIF(BTRIM(live.heartbeat_state), ''), t.state::text)

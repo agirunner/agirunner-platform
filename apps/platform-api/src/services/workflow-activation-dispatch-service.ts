@@ -1528,9 +1528,8 @@ export class WorkflowActivationDispatchService {
 
 function buildActivationTaskTitle(
   workflow: WorkflowDispatchRow,
-  activation: QueuedActivationRow,
 ): string {
-  return `Orchestrate ${workflow.name}: ${activation.reason}`;
+  return `Orchestrate ${workflow.name}`;
 }
 
 function buildActivationTaskDefinition(
@@ -1542,7 +1541,7 @@ function buildActivationTaskDefinition(
   const activationReason = deriveActivationReason(activationBatch);
   const primaryEvent = derivePrimaryActivationEvent(activation, activationBatch);
   return {
-    title: buildActivationTaskTitle(workflow, primaryEvent),
+    title: buildActivationTaskTitle(workflow),
     stageName: activationTaskStageName(workflow, activationBatch),
     input: buildActivationTaskInput(workflow, activation, primaryEvent, activationBatch),
     roleConfig: buildActivationRoleConfig(),

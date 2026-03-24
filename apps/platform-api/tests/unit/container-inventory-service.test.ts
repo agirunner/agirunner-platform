@@ -289,4 +289,15 @@ describe('ContainerInventoryService', () => {
     expect(listQuery).toContain('t.id = COALESCE(live.live_task_id, live.active_task_id, live.heartbeat_task_id)');
     expect(listQuery).not.toContain('COALESCE(t.id, live.live_task_id, live.heartbeat_task_id, live.active_task_id) AS task_id');
   });
+
+  it('projects plain orchestrator task titles while keeping activation metadata separate', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await service.listCurrentContainers(TENANT_ID);
+
+    const listQuery = pool.query.mock.calls[0]?.[0] as string;
+    expect(listQuery).toContain("t.metadata->>'activation_event_type'");
+    expect(listQuery).toContain("t.metadata->>'activation_reason'");
+    expect(listQuery).not.toContain('t.title AS task_title');
+  });
 });

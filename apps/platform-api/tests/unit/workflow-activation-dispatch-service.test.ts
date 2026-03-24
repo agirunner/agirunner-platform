@@ -2374,7 +2374,7 @@ describe('WorkflowActivationDispatchService', () => {
               workflow_id: 'workflow-1',
               activation_id: 'activation-1',
               is_orchestrator_task: true,
-              title: 'Orchestrate Workflow One: work_item.created',
+              title: 'Orchestrate Workflow One',
               metadata: { activation_dispatch_attempt: 1 },
               output: null,
               error: null,
@@ -2514,7 +2514,7 @@ describe('WorkflowActivationDispatchService', () => {
               workflow_id: 'workflow-1',
               activation_id: 'activation-1',
               is_orchestrator_task: true,
-              title: 'Orchestrate Workflow One: work_item.created',
+              title: 'Orchestrate Workflow One',
               metadata: { activation_dispatch_attempt: 1 },
               output: { summary: 'old output' },
               error: { message: 'old failure' },
@@ -2524,7 +2524,7 @@ describe('WorkflowActivationDispatchService', () => {
         if (sql.includes('UPDATE tasks') && sql.includes("SET state = 'ready'")) {
           expect(params?.[0]).toBe('tenant-1');
           expect(params?.[1]).toBe('task-existing');
-          expect(params?.[2]).toBe('Orchestrate Workflow One: work_item.created');
+          expect(params?.[2]).toBe('Orchestrate Workflow One');
           expect(params?.[3]).toBe('implementation');
           expect(params?.[4]).toEqual(
             expect.objectContaining({
