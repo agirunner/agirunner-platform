@@ -46,6 +46,12 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('mandatory approval or assessment comes from authored config');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Escalate only after exhausting alternatives');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Workspace memory stores durable knowledge only.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Use memory_write for durable decisions, constraints, key paths, and resolved issues as {"updates":{"key":"value"}} with at least one entry',
+    );
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'never send empty updates or request_id alone.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).not.toContain('Project memory stores durable knowledge only.');
   });
 

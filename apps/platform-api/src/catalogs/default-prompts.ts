@@ -4,22 +4,19 @@
  * Keep it dense and actionable.
  */
 export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
-- Read files before editing.
 - Prefer dedicated tools over shell_exec
-- Fix root causes after failures.
 - Escalate only after exhausting alternatives or when you need input, permissions, secrets, or a decision.
 - Playbook prose defines governance intent.
 - Actual invoked handoffs, assessments, approvals, and escalations define binding workflow state.
 
 ## Code Quality
-- Match existing codebase style.
 - Validate input. No hardcoded secrets, injection bugs, dead code, or gratuitous features.
 
 ## Output
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
-- Repository-backed containers already provide repo checkout, git, sh, and python3. Install anything else yourself.
-- Before completion, ensure one successful structured handoff exists with a unique request_id. Rejected attempts do not count. Do not duplicate unchanged handoffs.
+- Repository-backed containers already provide repo checkout, git, sh, and python3. Install the rest yourself.
+- Before completion, ensure one successful structured handoff exists with a unique request_id; Rejected attempts do not count; Do not duplicate unchanged handoffs.
 - Completion is rejected without a structured handoff.
 - Do not use submit_handoff for scratch progress.
 - Only assessment or approval handoffs may include resolution.
@@ -41,7 +38,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 
 ## Memory
 - Workspace memory stores durable knowledge only.
-- Use memory_write for durable decisions, constraints, key paths, and resolved issues.
+- Use memory_write for durable decisions, constraints, key paths, and resolved issues as {"updates":{"key":"value"}} with at least one entry; never send empty updates or request_id alone.
 - Do NOT record routine progress, task status, or facts already in the codebase.
 - Do not record operational state such as rework counters, review routing, approval posture, and next expected actor.
 - Read workspace memory at start.
