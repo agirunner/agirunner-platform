@@ -47,6 +47,8 @@ test_shared_bootstrap_builds_stack_syncs_fixture_repo_and_writes_profile_registr
 
   cat >"${envfile}" <<'EOF'
 DEFAULT_ADMIN_API_KEY=test-admin-key
+JWT_SECRET=12345678901234567890123456789012
+WEBHOOK_ENCRYPTION_KEY=abcdefghijklmnopqrstuvwxyz123456
 LIVE_TEST_PROVIDER_AUTH_MODE=oauth
 LIVE_TEST_OAUTH_PROFILE_ID=openai-codex
 LIVE_TEST_OAUTH_SESSION_JSON='{"credentials":{"accessToken":"enc:v1:access","refreshToken":"enc:v1:refresh"}}'
@@ -81,4 +83,40 @@ EOF
   assert_contains "\"content-direct-successor\"" "${bootstrap_context_file}"
 }
 
+test_shared_bootstrap_requires_platform_startup_secrets() {
+  local tmpdir stubdir envfile runtime_root fixtures_root fake_platform_root
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  stubdir="${tmpdir}/bin"
+  envfile="${tmpdir}/env/local.env"
+  runtime_root="${tmpdir}/runtime"
+  fixtures_root="${tmpdir}/fixtures"
+  fake_platform_root="${tmpdir}/platform"
+  mkdir -p "${stubdir}" "${runtime_root}" "${fixtures_root}" "${fake_platform_root}/apps/platform-api" "${fake_platform_root}/tests/live/lib" "$(dirname "${envfile}")"
+  touch "${runtime_root}/Dockerfile.execution"
+  touch "${fake_platform_root}/docker-compose.yml"
+  touch "${fake_platform_root}/tests/live/lib/seed_live_test_shared_environment.py"
+
+  cat >"${envfile}" <<'EOF'
+DEFAULT_ADMIN_API_KEY=test-admin-key
+POSTGRES_DB=agirunner
+POSTGRES_USER=agirunner
+POSTGRES_PASSWORD=agirunner
+POSTGRES_PORT=5433
+PLATFORM_API_PORT=8080
+EOF
+
+  if PATH="${stubdir}:${PATH}" \
+    LIVE_TEST_ENV_FILE="${envfile}" \
+    LIVE_TEST_PLATFORM_ROOT="${fake_platform_root}" \
+    RUNTIME_REPO_PATH="${runtime_root}" \
+    FIXTURES_REPO_PATH="${fixtures_root}" \
+    "${SCRIPT_PATH}" >"${tmpdir}/stdout.log" 2>"${tmpdir}/stderr.log"; then
+    fail "expected bootstrap to fail when startup secrets are missing"
+  fi
+
+  assert_contains "[tests/live] JWT_SECRET is required" "${tmpdir}/stderr.log"
+}
+
 test_shared_bootstrap_builds_stack_syncs_fixture_repo_and_writes_profile_registry
+test_shared_bootstrap_requires_platform_startup_secrets

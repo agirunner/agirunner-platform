@@ -47,6 +47,8 @@ require_live_test_dir "${LIVE_TEST_LIBRARY_ROOT}" "live test library"
 require_live_test_file "${RUNTIME_REPO_PATH}/Dockerfile.execution" "execution Dockerfile"
 require_live_test_file "${LIVE_TEST_RUN_SCRIPT}" "shared live test seed script"
 require_live_test_value "DEFAULT_ADMIN_API_KEY" "${DEFAULT_ADMIN_API_KEY:-}"
+require_live_test_value "JWT_SECRET" "${JWT_SECRET:-}"
+require_live_test_value "WEBHOOK_ENCRYPTION_KEY" "${WEBHOOK_ENCRYPTION_KEY:-}"
 require_live_test_dir "${FIXTURES_REPO_PATH}" "fixtures repo"
 
 mkdir -p "${LIVE_TEST_BOOTSTRAP_DIR}" "${LIVE_TEST_TRACE_DIR}"
