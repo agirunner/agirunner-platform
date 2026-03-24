@@ -428,7 +428,7 @@ describe('buildTaskContext active stage semantics', () => {
     expect(workflowLayer.content).toContain('## Process Instructions');
     expect(workflowLayer.content).toContain('Developer implements, reviewer reviews');
     expect(workflowLayer.content).toContain('## Output Protocol');
-    expect(workflowLayer.content).toContain('Commit and push');
+    expect(workflowLayer.content).toContain('commit and push required changes before completion or escalation');
     expect(workflowLayer.content).not.toContain('## Current Stage');
     expect(workflowLayer.content).not.toContain('## Board Position');
     expect(workflowLayer.content).not.toContain('## Review Expectations');
