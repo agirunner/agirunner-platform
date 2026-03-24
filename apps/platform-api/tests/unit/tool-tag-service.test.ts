@@ -23,6 +23,7 @@ describe('ToolTagService', () => {
       const shellExec = result.data.find((t: Record<string, unknown>) => t.id === 'shell_exec');
       expect(shellExec).toBeDefined();
       expect(shellExec!.is_built_in).toBe(true);
+      expect(shellExec!.owner).toBe('task');
 
       const myTool = result.data.find((t: Record<string, unknown>) => t.id === 'my_tool');
       expect(myTool).toBeDefined();
@@ -46,6 +47,31 @@ describe('ToolTagService', () => {
       expect(ids.has('read_work_item_continuity')).toBe(true);
       expect(ids.has('read_latest_handoff')).toBe(true);
       expect(ids.has('read_handoff_chain')).toBe(true);
+      expect(ids.has('list_workflow_tasks')).toBe(true);
+      expect(ids.has('artifact_document_read')).toBe(true);
+      expect(ids.has('send_task_message')).toBe(true);
+    });
+
+    it('classifies built-in tools by runtime or task owner', async () => {
+      const pool = {
+        query: vi.fn(async () => ({ rowCount: 0, rows: [] })),
+      };
+
+      const service = new ToolTagService(pool as never);
+      const result = await service.listToolTags('tenant-1');
+      const byId = new Map(
+        result.data.map((entry: Record<string, unknown>) => [String(entry.id), entry]),
+      );
+
+      expect(byId.get('artifact_list')).toEqual(expect.objectContaining({ owner: 'runtime' }));
+      expect(byId.get('artifact_document_read')).toEqual(
+        expect.objectContaining({ owner: 'runtime' }),
+      );
+      expect(byId.get('native_search')).toEqual(expect.objectContaining({ owner: 'runtime' }));
+      expect(byId.get('shell_exec')).toEqual(expect.objectContaining({ owner: 'task' }));
+      expect(byId.get('web_fetch')).toEqual(expect.objectContaining({ owner: 'task' }));
+      expect(byId.get('grep')).toEqual(expect.objectContaining({ owner: 'task' }));
+      expect(byId.get('glob')).toEqual(expect.objectContaining({ owner: 'task' }));
     });
 
     it('exposes current task review controls while excluding legacy aliases', async () => {

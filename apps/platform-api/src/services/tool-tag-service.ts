@@ -15,6 +15,7 @@ export const toolCategoryValues = [
 ] as const;
 
 type ToolCategory = (typeof toolCategoryValues)[number];
+export type ToolOwner = 'runtime' | 'task';
 
 interface ToolTagRow {
   id: string;
@@ -33,52 +34,76 @@ interface AgentToolRequirements {
   optional: string[];
 }
 
-const builtInToolTags: Array<{ id: string; name: string; description: string; category: ToolCategory }> = [
-  { id: 'file_read', name: 'File Read', description: 'Read files with line numbers', category: 'files' },
-  { id: 'file_write', name: 'File Write', description: 'Write files to the workspace', category: 'files' },
-  { id: 'file_edit', name: 'File Edit', description: 'Exact string replacement with uniqueness enforcement', category: 'files' },
-  { id: 'file_list', name: 'File List', description: 'List files and directories', category: 'files' },
-  { id: 'grep', name: 'Grep', description: 'Search file contents using regex patterns', category: 'search' },
-  { id: 'glob', name: 'Glob', description: 'Find files by glob pattern', category: 'search' },
-  { id: 'tool_search', name: 'Tool Search', description: 'Search for available tools by name or description', category: 'search' },
-  { id: 'shell_exec', name: 'Shell Exec', description: 'Execute shell commands with output truncation', category: 'execution' },
-  { id: 'git_status', name: 'Git Status', description: 'Show working tree status', category: 'git' },
-  { id: 'git_diff', name: 'Git Diff', description: 'Show changes between commits or working tree', category: 'git' },
-  { id: 'git_log', name: 'Git Log', description: 'Show commit log history', category: 'git' },
-  { id: 'git_commit', name: 'Git Commit', description: 'Record changes to the repository', category: 'git' },
-  { id: 'git_push', name: 'Git Push', description: 'Push commits to remote repository', category: 'git' },
-  { id: 'artifact_upload', name: 'Artifact Upload', description: 'Upload a file as a task artifact', category: 'artifacts' },
-  { id: 'artifact_list', name: 'Artifact List', description: 'List workflow artifacts', category: 'artifacts' },
-  { id: 'artifact_read', name: 'Artifact Read', description: 'Read an artifact from the store', category: 'artifacts' },
-  { id: 'memory_read', name: 'Memory Read', description: 'Read workspace memory', category: 'memory' },
-  { id: 'memory_search', name: 'Memory Search', description: 'Search workspace memory by key or value', category: 'memory' },
-  { id: 'memory_write', name: 'Memory Write', description: 'Write workspace memory', category: 'memory' },
-  { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a workspace memory key', category: 'memory' },
-  { id: 'native_search', name: 'Native Search', description: 'Use the model provider native web search when the resolved model supports it', category: 'web' },
-  { id: 'web_fetch', name: 'Web Fetch', description: 'Fetch and extract content from URLs', category: 'web' },
-  { id: 'escalate', name: 'Escalate', description: 'Escalate to orchestrator or human when stuck', category: 'control' },
-  { id: 'create_work_item', name: 'Create Work Item', description: 'Create a workflow work item', category: 'workflow' },
-  { id: 'update_work_item', name: 'Update Work Item', description: 'Update a workflow work item', category: 'workflow' },
-  { id: 'complete_work_item', name: 'Complete Work Item', description: 'Complete a workflow work item using the playbook terminal column', category: 'workflow' },
-  { id: 'create_task', name: 'Create Task', description: 'Create a specialist task', category: 'workflow' },
-  { id: 'create_workflow', name: 'Create Workflow', description: 'Create a child workflow', category: 'workflow' },
-  { id: 'request_gate_approval', name: 'Request Gate Approval', description: 'Request human approval for a stage gate', category: 'workflow' },
-  { id: 'approve_task', name: 'Approve Task', description: 'Approve a specialist task awaiting approval', category: 'workflow' },
-  { id: 'approve_task_output', name: 'Approve Task Output', description: 'Approve a specialist task output pending assessment', category: 'workflow' },
-  { id: 'request_rework', name: 'Request Rework', description: 'Request concrete changes on a specialist task', category: 'workflow' },
-  { id: 'advance_stage', name: 'Advance Stage', description: 'Advance the active playbook stage', category: 'workflow' },
-  { id: 'complete_workflow', name: 'Complete Workflow', description: 'Complete the current workflow', category: 'workflow' },
-  { id: 'retry_task', name: 'Retry Task', description: 'Retry a failed or escalated task', category: 'workflow' },
-  { id: 'submit_handoff', name: 'Submit Handoff', description: 'Submit the structured handoff for the current task', category: 'workflow' },
-  { id: 'read_predecessor_handoff', name: 'Read Predecessor Handoff', description: 'Read the latest predecessor handoff for the current task', category: 'workflow' },
-  { id: 'read_work_item_continuity', name: 'Read Work Item Continuity', description: 'Read compact continuity state for a workflow work item', category: 'workflow' },
-  { id: 'read_latest_handoff', name: 'Read Latest Handoff', description: 'Read the latest structured handoff for a workflow work item', category: 'workflow' },
-  { id: 'read_handoff_chain', name: 'Read Handoff Chain', description: 'Read the structured handoff chain for a workflow work item', category: 'workflow' },
+const builtInToolTags: Array<{
+  id: string;
+  name: string;
+  description: string;
+  category: ToolCategory;
+  owner: ToolOwner;
+}> = [
+  { id: 'file_read', name: 'File Read', description: 'Read files with line numbers', category: 'files', owner: 'task' },
+  { id: 'file_write', name: 'File Write', description: 'Write files to the workspace', category: 'files', owner: 'task' },
+  { id: 'file_edit', name: 'File Edit', description: 'Exact string replacement with uniqueness enforcement', category: 'files', owner: 'task' },
+  { id: 'file_list', name: 'File List', description: 'List files and directories', category: 'files', owner: 'task' },
+  { id: 'grep', name: 'Grep', description: 'Search file contents using regex patterns', category: 'search', owner: 'task' },
+  { id: 'glob', name: 'Glob', description: 'Find files by glob pattern', category: 'search', owner: 'task' },
+  { id: 'tool_search', name: 'Tool Search', description: 'Search for available tools by name or description', category: 'search', owner: 'runtime' },
+  { id: 'shell_exec', name: 'Shell Exec', description: 'Execute shell commands with output truncation', category: 'execution', owner: 'task' },
+  { id: 'git_status', name: 'Git Status', description: 'Show working tree status', category: 'git', owner: 'task' },
+  { id: 'git_diff', name: 'Git Diff', description: 'Show changes between commits or working tree', category: 'git', owner: 'task' },
+  { id: 'git_log', name: 'Git Log', description: 'Show commit log history', category: 'git', owner: 'task' },
+  { id: 'git_commit', name: 'Git Commit', description: 'Record changes to the repository', category: 'git', owner: 'task' },
+  { id: 'git_push', name: 'Git Push', description: 'Push commits to remote repository', category: 'git', owner: 'task' },
+  { id: 'artifact_upload', name: 'Artifact Upload', description: 'Upload a file as a task artifact', category: 'artifacts', owner: 'task' },
+  { id: 'artifact_list', name: 'Artifact List', description: 'List workflow artifacts', category: 'artifacts', owner: 'runtime' },
+  { id: 'artifact_read', name: 'Artifact Read', description: 'Read an artifact from the store', category: 'artifacts', owner: 'runtime' },
+  { id: 'artifact_document_read', name: 'Artifact Document Read', description: 'Read extracted document content for an artifact', category: 'artifacts', owner: 'runtime' },
+  { id: 'memory_read', name: 'Memory Read', description: 'Read workspace memory', category: 'memory', owner: 'runtime' },
+  { id: 'memory_search', name: 'Memory Search', description: 'Search workspace memory by key or value', category: 'memory', owner: 'runtime' },
+  { id: 'memory_write', name: 'Memory Write', description: 'Write workspace memory', category: 'memory', owner: 'runtime' },
+  { id: 'memory_delete', name: 'Memory Delete', description: 'Delete a workspace memory key', category: 'memory', owner: 'runtime' },
+  { id: 'native_search', name: 'Native Search', description: 'Use the model provider native web search when the resolved model supports it', category: 'web', owner: 'runtime' },
+  { id: 'web_fetch', name: 'Web Fetch', description: 'Fetch and extract content from URLs', category: 'web', owner: 'task' },
+  { id: 'escalate', name: 'Escalate', description: 'Escalate to orchestrator or human when stuck', category: 'control', owner: 'runtime' },
+  { id: 'escalate_to_human', name: 'Escalate To Human', description: 'Escalate directly to a human operator', category: 'control', owner: 'runtime' },
+  { id: 'spawn_agent', name: 'Spawn Agent', description: 'Spawn a delegated sub-agent for bounded work', category: 'control', owner: 'runtime' },
+  { id: 'list_work_items', name: 'List Work Items', description: 'List workflow work items', category: 'workflow', owner: 'runtime' },
+  { id: 'list_workflow_tasks', name: 'List Workflow Tasks', description: 'List tasks inside the workflow context', category: 'workflow', owner: 'runtime' },
+  { id: 'read_task_output', name: 'Read Task Output', description: 'Read a task output packet', category: 'workflow', owner: 'runtime' },
+  { id: 'read_task_status', name: 'Read Task Status', description: 'Read current task status details', category: 'workflow', owner: 'runtime' },
+  { id: 'read_task_events', name: 'Read Task Events', description: 'Read task event history', category: 'workflow', owner: 'runtime' },
+  { id: 'read_escalation', name: 'Read Escalation', description: 'Read escalation state for a task or work item', category: 'workflow', owner: 'runtime' },
+  { id: 'read_stage_status', name: 'Read Stage Status', description: 'Read stage progress and active work', category: 'workflow', owner: 'runtime' },
+  { id: 'read_workflow_budget', name: 'Read Workflow Budget', description: 'Read workflow budget consumption and remaining budget', category: 'workflow', owner: 'runtime' },
+  { id: 'update_task_input', name: 'Update Task Input', description: 'Update a queued or blocked task input payload', category: 'workflow', owner: 'runtime' },
+  { id: 'create_work_item', name: 'Create Work Item', description: 'Create a workflow work item', category: 'workflow', owner: 'runtime' },
+  { id: 'update_work_item', name: 'Update Work Item', description: 'Update a workflow work item', category: 'workflow', owner: 'runtime' },
+  { id: 'complete_work_item', name: 'Complete Work Item', description: 'Complete a workflow work item using the playbook terminal column', category: 'workflow', owner: 'runtime' },
+  { id: 'create_task', name: 'Create Task', description: 'Create a specialist task', category: 'workflow', owner: 'runtime' },
+  { id: 'create_workflow', name: 'Create Workflow', description: 'Create a child workflow', category: 'workflow', owner: 'runtime' },
+  { id: 'request_gate_approval', name: 'Request Gate Approval', description: 'Request human approval for a stage gate', category: 'workflow', owner: 'runtime' },
+  { id: 'approve_task', name: 'Approve Task', description: 'Approve a specialist task awaiting approval', category: 'workflow', owner: 'runtime' },
+  { id: 'approve_task_output', name: 'Approve Task Output', description: 'Approve a specialist task output pending assessment', category: 'workflow', owner: 'runtime' },
+  { id: 'request_rework', name: 'Request Rework', description: 'Request concrete changes on a specialist task', category: 'workflow', owner: 'runtime' },
+  { id: 'advance_stage', name: 'Advance Stage', description: 'Advance the active playbook stage', category: 'workflow', owner: 'runtime' },
+  { id: 'complete_workflow', name: 'Complete Workflow', description: 'Complete the current workflow', category: 'workflow', owner: 'runtime' },
+  { id: 'cancel_task', name: 'Cancel Task', description: 'Cancel a task', category: 'workflow', owner: 'runtime' },
+  { id: 'retry_task', name: 'Retry Task', description: 'Retry a failed or escalated task', category: 'workflow', owner: 'runtime' },
+  { id: 'submit_handoff', name: 'Submit Handoff', description: 'Submit the structured handoff for the current task', category: 'workflow', owner: 'runtime' },
+  { id: 'read_predecessor_handoff', name: 'Read Predecessor Handoff', description: 'Read the latest predecessor handoff for the current task', category: 'workflow', owner: 'runtime' },
+  { id: 'read_work_item_continuity', name: 'Read Work Item Continuity', description: 'Read compact continuity state for a workflow work item', category: 'workflow', owner: 'runtime' },
+  { id: 'read_latest_handoff', name: 'Read Latest Handoff', description: 'Read the latest structured handoff for a workflow work item', category: 'workflow', owner: 'runtime' },
+  { id: 'read_handoff_chain', name: 'Read Handoff Chain', description: 'Read the structured handoff chain for a workflow work item', category: 'workflow', owner: 'runtime' },
+  { id: 'work_item_memory_read', name: 'Work Item Memory Read', description: 'Read work-item scoped memory', category: 'workflow', owner: 'runtime' },
+  { id: 'work_item_memory_history', name: 'Work Item Memory History', description: 'Read work-item memory history', category: 'workflow', owner: 'runtime' },
+  { id: 'reassign_task', name: 'Reassign Task', description: 'Reassign a task to another worker or agent', category: 'workflow', owner: 'runtime' },
+  { id: 'send_task_message', name: 'Send Task Message', description: 'Send a message to an active task', category: 'workflow', owner: 'runtime' },
 ];
 
 const allowedCategories = new Set<ToolCategory>(toolCategoryValues);
 
 const builtInToolIds = new Set(builtInToolTags.map((tag) => tag.id));
+const builtInToolOwners = new Map(builtInToolTags.map((tag) => [tag.id, tag.owner]));
 
 export class ToolTagService {
   constructor(private readonly pool: DatabasePool) {}
@@ -181,6 +206,10 @@ export class ToolTagService {
       throw new ValidationError('Tool not found');
     }
   }
+}
+
+export function resolveBuiltInToolOwner(toolId: string): ToolOwner | null {
+  return builtInToolOwners.get(toolId) ?? null;
 }
 
 export function validateWorkspaceToolTags(spec: Record<string, unknown>): void {

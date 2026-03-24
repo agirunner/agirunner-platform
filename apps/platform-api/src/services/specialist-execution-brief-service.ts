@@ -141,7 +141,7 @@ export function buildSpecialistExecutionBrief(
     work_item_continuity_summary: continuitySummaryFrom(workItem),
     assessment_output_expectations: assessmentOutputExpectations,
     repo_status_summary: isRepositoryBacked(workspace, workflow, taskInput)
-      ? 'Repository-backed task. Use the real repository state as the source of truth.'
+      ? 'Repository-backed task. Use task sandbox tools for repository, filesystem, shell, web fetch, and artifact upload work.'
       : 'Non-repository task. Base completion on artifacts, outputs, and recorded evidence.',
     likely_relevant_files: likelyRelevantFiles,
     verification_commands: normalizeStrings(taskInput.verification_commands),
@@ -210,6 +210,10 @@ function renderBrief(brief: SpecialistExecutionBrief): string {
   if (brief.likely_relevant_files.length > 0) {
     lines.push('', '## Likely Relevant Files');
     lines.push(...brief.likely_relevant_files.map((path) => `- ${path}`));
+  }
+  if (brief.repo_status_summary) {
+    lines.push('', '## Execution Surface');
+    lines.push(brief.repo_status_summary);
   }
   return lines.join('\n');
 }

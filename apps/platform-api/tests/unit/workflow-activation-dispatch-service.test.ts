@@ -4133,6 +4133,11 @@ describe('WorkflowActivationDispatchService', () => {
             }),
           );
           expect((params?.[7] as Record<string, unknown>).tools).not.toContain('web_search');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('file_read');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('shell_exec');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('git_status');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('artifact_upload');
+          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('web_fetch');
           expect((params?.[7] as Record<string, unknown>).tools).toContain('advance_stage');
           expect((params?.[7] as Record<string, unknown>).tools).not.toContain('advance_checkpoint');
           expect((params?.[7] as Record<string, unknown>).tools).toContain('approve_task');

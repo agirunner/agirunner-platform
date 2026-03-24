@@ -32,6 +32,7 @@ describe('buildSpecialistExecutionBrief', () => {
       },
       workspace: {
         description: 'Primary workspace for auth fixes.',
+        repository_url: 'https://github.com/example/auth-service',
         memory: {
           release_note: 'Mention the refresh-token expiry fix in release notes.',
           unrelated_note: 'Not relevant here.',
@@ -129,6 +130,9 @@ describe('buildSpecialistExecutionBrief', () => {
       }),
     ]);
     expect(brief?.rendered_markdown).toContain('## Workflow Brief');
+    expect(brief?.rendered_markdown).toContain(
+      'Repository-backed task. Use task sandbox tools for repository, filesystem, shell, web fetch, and artifact upload work.',
+    );
     expect(brief?.rendered_markdown).not.toContain('git_token_secret_ref');
     expect(brief?.rendered_markdown).not.toContain('secret:GITHUB_TOKEN');
   });

@@ -264,7 +264,8 @@ describe('TaskClaimService', () => {
     });
 
     const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
-    expect(taskSelectSql).toContain('tasks.is_orchestrator_task = false');
+    expect(taskSelectSql).toContain('execution_backend');
+    expect(taskSelectSql).toContain('runtime_plus_task');
   });
 
   it('limits orchestrator agents to orchestrator tasks', async () => {
@@ -277,7 +278,8 @@ describe('TaskClaimService', () => {
     });
 
     const taskSelectSql = String(client.query.mock.calls[3]?.[0] ?? '');
-    expect(taskSelectSql).toContain('tasks.is_orchestrator_task = true');
+    expect(taskSelectSql).toContain('execution_backend');
+    expect(taskSelectSql).toContain('runtime_only');
   });
 
   it('filters candidate tasks by playbook_id when provided', async () => {
@@ -809,7 +811,7 @@ describe('TaskClaimService', () => {
     });
   });
 
-  it('applies specialist execution defaults to orchestrator tasks', async () => {
+  it('does not attach execution-container contracts to runtime_only orchestrator tasks', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -884,12 +886,21 @@ describe('TaskClaimService', () => {
     };
 
     const pool = { connect: vi.fn(async () => client), query: client.query };
+    const executionContainerLeaseService = {
+      reserveForTask: vi.fn(async () => ({
+        reserved: true,
+        active: 0,
+        limit: 20,
+        leaseId: 'lease-orchestrator',
+      })),
+    };
     const service = new TaskClaimService({
       pool: pool as never,
       eventService: { emit: vi.fn(async () => undefined) } as never,
       toTaskResponse: (task) => task,
       getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
       resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      executionContainerLeaseService: executionContainerLeaseService as never,
       claimHandleSecret: 'test-claim-handle-secret',
     });
 
@@ -898,15 +909,12 @@ describe('TaskClaimService', () => {
       routing_tags: ['orchestrator'],
     });
 
-    expect(task?.execution_container).toEqual({
-      image: 'agirunner-runtime-execution:local',
-      cpu: '1',
-      memory: '1Gi',
-      pull_policy: 'if-not-present',
-    });
+    expect(task?.execution_backend).toBe('runtime_only');
+    expect(task?.execution_container).toBeNull();
+    expect(executionContainerLeaseService.reserveForTask).not.toHaveBeenCalled();
   });
 
-  it('applies role execution-container overrides to orchestrator tasks', async () => {
+  it('ignores role execution-container overrides for runtime_only orchestrator tasks', async () => {
     const client = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
@@ -1010,11 +1018,111 @@ describe('TaskClaimService', () => {
       routing_tags: ['orchestrator'],
     });
 
-    expect(task?.execution_container).toEqual({
-      image: 'agirunner-runtime-execution:orchestrator',
-      cpu: '2',
-      memory: '2Gi',
-      pull_policy: 'if-not-present',
+    expect(task?.execution_backend).toBe('runtime_only');
+    expect(task?.execution_container).toBeNull();
+  });
+
+  it('returns tool ownership for claimed specialist tasks', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT id, workflow_id, work_item_id, is_orchestrator_task, state')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT * FROM agents')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'agent-1',
+              worker_id: null,
+              current_task_id: null,
+              metadata: { execution_mode: 'specialist' },
+            }],
+          };
+        }
+        if (sql.includes('SELECT tasks.* FROM tasks')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-tool-ownership',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'ready',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {
+                tools: ['memory_read', 'artifact_read', 'shell_exec', 'web_fetch', 'grep'],
+              },
+              metadata: {},
+              is_orchestrator_task: false,
+              execution_backend: 'runtime_plus_task',
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes("SET state = 'claimed'")) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-tool-ownership',
+              workflow_id: 'wf-1',
+              work_item_id: 'wi-1',
+              state: 'claimed',
+              role: 'developer',
+              workspace_id: null,
+              role_config: {
+                tools: ['memory_read', 'artifact_read', 'shell_exec', 'web_fetch', 'grep'],
+              },
+              metadata: {},
+              is_orchestrator_task: false,
+              execution_backend: 'runtime_plus_task',
+              max_iterations: null,
+              llm_max_retries: null,
+            }],
+          };
+        }
+        if (sql.includes('UPDATE agents SET current_task_id')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT') && sql.includes('workflow_name')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('SELECT escalation_target, allowed_tools')) {
+          return { rowCount: 0, rows: [] };
+        }
+        const runtimeDefault = runtimeDefaultQueryResult(sql, params);
+        if (runtimeDefault) {
+          return runtimeDefault;
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+
+    const pool = { connect: vi.fn(async () => client), query: client.query };
+    const service = new TaskClaimService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      toTaskResponse: (task) => task,
+      getTaskContext: vi.fn(async () => ({ instructions: '', instruction_layers: {} })),
+      resolveRoleConfig: vi.fn(async () => defaultResolvedRoleConfig),
+      claimHandleSecret: 'test-claim-handle-secret',
+    });
+
+    const task = await service.claimTask(identity, {
+      agent_id: 'agent-1',
+      routing_tags: ['coding', 'role:developer'],
+    });
+
+    expect(task?.tool_owners).toEqual({
+      memory_read: 'runtime',
+      artifact_read: 'runtime',
+      shell_exec: 'task',
+      web_fetch: 'task',
+      grep: 'task',
     });
   });
 

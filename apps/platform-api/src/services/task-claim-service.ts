@@ -34,7 +34,13 @@ import {
 } from './runtime-default-values.js';
 import { matchesWorkerToTaskRouting } from './task-routing-contract.js';
 import { flattenInstructionLayers } from './task-context-service.js';
-import { computeToolMatch, readAgentToolRequirements, resolveWorkspaceToolTags } from './tool-tag-service.js';
+import {
+  computeToolMatch,
+  readAgentToolRequirements,
+  resolveBuiltInToolOwner,
+  resolveWorkspaceToolTags,
+  type ToolOwner,
+} from './tool-tag-service.js';
 import { resolveWorkspaceStorageBinding } from './workspace-storage.js';
 
 const priorityCase = "CASE priority WHEN 'critical' THEN 4 WHEN 'high' THEN 3 WHEN 'normal' THEN 2 ELSE 1 END";
@@ -505,14 +511,18 @@ export class TaskClaimService {
       const executionBrief = (instructionContext.execution_brief ?? null) as Record<string, unknown> | null;
       const runtimeCapabilities = buildRuntimeTaskCapabilities(runtimeReadyTask, instructionContext);
       const mergedBase = mergeSystemPrompt(claimedTaskBase, layers);
+      const executionBackend = readTaskExecutionBackend(runtimeReadyTask);
+      const toolOwners = buildToolOwnerContract(mergedBase);
       if ((payload.include_context ?? true) === false) {
         return {
           ...mergedBase,
+          execution_backend: executionBackend,
           loop_mode: loopContract.loopMode,
           max_iterations: loopContract.maxIterations,
           llm_max_retries: loopContract.llmMaxRetries,
           execution_container: executionContainer,
           runtime_capabilities: runtimeCapabilities,
+          tool_owners: toolOwners,
           tools: toolMatch,
           instructions,
           execution_brief: executionBrief,
@@ -521,11 +531,13 @@ export class TaskClaimService {
 
       return {
         ...mergedBase,
+        execution_backend: executionBackend,
         loop_mode: loopContract.loopMode,
         max_iterations: loopContract.maxIterations,
         llm_max_retries: loopContract.llmMaxRetries,
         execution_container: executionContainer,
         runtime_capabilities: runtimeCapabilities,
+        tool_owners: toolOwners,
         tools: toolMatch,
         instructions,
         execution_brief: executionBrief,
@@ -942,6 +954,9 @@ export class TaskClaimService {
     task: Record<string, unknown>,
     db: DatabaseClient,
   ): Promise<ExecutionContainerContract | null> {
+    if (readTaskExecutionBackend(task) !== 'runtime_plus_task') {
+      return null;
+    }
     const defaults = await readSpecialistExecutionDefaults(db, tenantId);
     const override = await this.readRoleExecutionContainerOverride(
       tenantId,
@@ -1157,13 +1172,20 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function buildExecutionModeCondition(mode: AgentExecutionMode): string {
+  const backendExpression = `COALESCE(
+    tasks.execution_backend::text,
+    CASE
+      WHEN tasks.is_orchestrator_task = true THEN 'runtime_only'
+      ELSE 'runtime_plus_task'
+    END
+  )`;
   if (mode === 'orchestrator') {
-    return 'tasks.is_orchestrator_task = true';
+    return `${backendExpression} = 'runtime_only'`;
   }
   if (mode === 'hybrid') {
     return 'true';
   }
-  return 'tasks.is_orchestrator_task = false';
+  return `${backendExpression} = 'runtime_plus_task'`;
 }
 
 function buildTaskLoopMode(task: Record<string, unknown>) {
@@ -1188,9 +1210,20 @@ function roleRequiresStructuredHandoff(
   task: Record<string, unknown>,
   instructionContext: Record<string, unknown>,
 ): boolean {
-  void task;
-  void instructionContext;
-  return false;
+  const roleName = readPresentString(task.role);
+  if (!roleName) {
+    return false;
+  }
+  const workflow = isRecord(instructionContext.workflow) ? instructionContext.workflow : {};
+  const playbook = isRecord(workflow.playbook) ? workflow.playbook : {};
+  const definition = isRecord(playbook.definition) ? playbook.definition : {};
+  const handoffRules = Array.isArray(definition.handoff_rules) ? definition.handoff_rules : [];
+  return handoffRules.some((rule) => {
+    if (!isRecord(rule)) {
+      return false;
+    }
+    return readPresentString(rule.from_role) === roleName && rule.required === true;
+  });
 }
 
 function readNullableFloat(value: unknown): number | null {
@@ -1228,6 +1261,23 @@ function compactRecord<T extends Record<string, unknown>>(value: T): T {
   return Object.fromEntries(
     Object.entries(value).filter(([, entry]) => entry !== undefined),
   ) as T;
+}
+
+function readTaskExecutionBackend(task: Record<string, unknown>): 'runtime_only' | 'runtime_plus_task' {
+  if (task.execution_backend === 'runtime_only' || task.execution_backend === 'runtime_plus_task') {
+    return task.execution_backend;
+  }
+  return task.is_orchestrator_task === true ? 'runtime_only' : 'runtime_plus_task';
+}
+
+function buildToolOwnerContract(task: Record<string, unknown>): Record<string, ToolOwner> {
+  const roleConfig = isRecord(task.role_config) ? task.role_config : {};
+  const tools = Array.isArray(roleConfig.tools) ? roleConfig.tools : [];
+  const entries = tools
+    .filter((tool): tool is string => typeof tool === 'string' && tool.trim().length > 0)
+    .map((tool) => [tool, resolveBuiltInToolOwner(tool)] as const)
+    .filter((entry): entry is readonly [string, ToolOwner] => entry[1] !== null);
+  return Object.fromEntries(entries);
 }
 
 function mergeClaimRuntimeBindings(

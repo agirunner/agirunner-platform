@@ -95,7 +95,8 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('- reviewer: Reviews implementation quality and correctness.');
     expect(layer!.content).toContain('## Parallelism');
     expect(layer!.content).toContain('Max active tasks: 4');
-    expect(layer!.content).toContain('Repository-backed workflow. Inspect files, diffs, and git state before deciding.');
+    expect(layer!.content).toContain('Repository-backed workflow. Use runtime-visible continuity, task outputs, and artifacts to decide what specialist work to dispatch next.');
+    expect(layer!.content).not.toContain('Inspect files, diffs, and git state before deciding.');
     expect(layer!.content).not.toContain('Human gate: yes');
   });
 
