@@ -48,7 +48,9 @@ describe('prompt catalogs', () => {
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Delivery handoffs MUST omit resolution entirely.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Completion and decision are separate.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Full assessment or approval handoffs MUST set resolution to approved, request_changes, rejected, or blocked.');
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('set submit_handoff.outcome_action_applied to that exact action instead of relying on summary prose');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Set submit_handoff.outcome_action_applied only for non-default workflow control actions');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Omit it for ordinary continuation');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('never set it to placeholders such as continue');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Blocked completions MUST omit resolution.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('submit_handoff accepts only its documented schema fields.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Do not invent extras such as tests_run or verification_results');

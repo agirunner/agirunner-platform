@@ -50,13 +50,12 @@ export interface SubmitTaskHandoffInput {
   role_data?: Record<string, unknown>;
   subject_ref?: Record<string, unknown>;
   subject_revision?: number;
-  outcome_action_applied?: 'continue' | 'reopen_subject' | 'route_to_role' | 'block_subject' | 'escalate' | 'terminate_branch';
+  outcome_action_applied?: 'reopen_subject' | 'route_to_role' | 'block_subject' | 'escalate' | 'terminate_branch';
   branch_id?: string;
   artifact_ids?: string[];
 }
 
 type HandoffOutcomeAction =
-  | 'continue'
   | 'reopen_subject'
   | 'route_to_role'
   | 'block_subject'
@@ -796,14 +795,18 @@ function normalizeOutcomeActionApplied(value: unknown): HandoffOutcomeAction | n
     return null;
   }
   const normalized = value.trim().toLowerCase();
-  return normalized === 'continue'
-    || normalized === 'reopen_subject'
+  if (
+    normalized === 'reopen_subject'
     || normalized === 'route_to_role'
     || normalized === 'block_subject'
     || normalized === 'escalate'
     || normalized === 'terminate_branch'
-    ? normalized
-    : null;
+  ) {
+    return normalized;
+  }
+  throw new ValidationError(
+    'outcome_action_applied must be omitted for ordinary continuation; use it only for reopen_subject, route_to_role, block_subject, escalate, or terminate_branch',
+  );
 }
 
 function resolveSubjectRef(
