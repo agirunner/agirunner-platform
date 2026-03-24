@@ -26,6 +26,7 @@ describe('log entry row source', () => {
     expect(source).toContain('buildWorkflowStepSummary');
     expect(source).toContain('buildActorDetail');
     expect(source).not.toContain('formatStatusLabel');
+    expect(source).toContain(": '-'");
     expect(source).not.toContain('font-mono text-[11px] text-muted-foreground/80');
     expect(source).not.toContain("bg-red-500/5");
     expect(source).not.toContain('bg-red-50 text-red-700');

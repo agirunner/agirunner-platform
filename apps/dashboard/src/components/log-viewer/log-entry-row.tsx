@@ -361,7 +361,7 @@ function buildWorkflowStepSummary(entry: LogEntry): { workflow: string; step: st
   const stageName = getCanonicalStageName(entry);
   const workflow =
     entry.workflow_name ??
-    (entry.workflow_id ? `Workflow ${shortLabel(entry.workflow_id)}` : 'No workflow');
+    (entry.workflow_id ? `Workflow ${shortLabel(entry.workflow_id)}` : '-');
   const stepParts = [
     entry.task_title ? truncate(entry.task_title, 56) : '',
     stageName ? `Stage ${stageName}` : '',
@@ -369,7 +369,7 @@ function buildWorkflowStepSummary(entry: LogEntry): { workflow: string; step: st
 
   return {
     workflow,
-    step: stepParts.join(' · ') || 'No step context',
+    step: stepParts.join(' · ') || '-',
   };
 }
 
