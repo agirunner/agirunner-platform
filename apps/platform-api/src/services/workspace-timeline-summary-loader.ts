@@ -138,7 +138,7 @@ export async function loadWorkflowSummarySnapshots(
       ],
     ),
     db.query(
-      `SELECT workflow_id, name, goal, human_gate, status, gate_status, iteration_count, summary, started_at, completed_at
+      `SELECT workflow_id, name, goal, status, gate_status, iteration_count, summary, started_at, completed_at
            FROM workflow_stages
           WHERE tenant_id = $1
             AND workflow_id = ANY($2::uuid[])

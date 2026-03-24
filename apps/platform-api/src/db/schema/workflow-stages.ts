@@ -1,4 +1,4 @@
-import { boolean, index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { index, integer, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 
 import { tenants } from './tenants.js';
 import { workflows } from './workflows.js';
@@ -17,7 +17,6 @@ export const workflowStages = pgTable(
     position: integer('position').notNull(),
     goal: text('goal').notNull(),
     guidance: text('guidance'),
-    humanGate: boolean('human_gate').notNull().default(false),
     status: text('status').notNull().default('pending'),
     gateStatus: text('gate_status').notNull().default('not_requested'),
     iterationCount: integer('iteration_count').notNull().default(0),

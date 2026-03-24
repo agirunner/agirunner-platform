@@ -4,15 +4,20 @@ import { describe, expect, it } from 'vitest';
 
 import { eventEntityTypeEnum } from '../../src/db/schema/enums.js';
 import { tasks } from '../../src/db/schema/tasks.js';
+import { workflowStages } from '../../src/db/schema/workflow-stages.js';
 
 const initMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0001_init.sql';
+const workflowStagesMigrationPath =
+  '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0003_workflow_stages.sql';
 const executionLogContextMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0007_execution_log_workflow_context.sql';
 const fleetPlaybookMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0008_fleet_playbook_contract.sql';
 const webhookWorkItemMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0009_webhook_work_item_triggers.sql';
+const workflowStageGatesMigrationPath =
+  '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0013_workflow_stage_gates.sql';
 const droppedTemplateMigrationPath =
   '/home/mark/codex/agirunner-platform/apps/platform-api/src/db/migrations/0010_drop_templates.sql';
 
@@ -42,6 +47,15 @@ describe('v2 schema legacy removal', () => {
   it('removes legacy task governance columns from the canonical tasks schema', () => {
     expect(tasks).not.toHaveProperty('requiresApproval');
     expect(tasks).not.toHaveProperty('requiresAssessment');
+  });
+
+  it('removes authored human-gate stage config from canonical schema and migrations', () => {
+    const stageSource = readFileSync(workflowStagesMigrationPath, 'utf8');
+    const stageGateSource = readFileSync(workflowStageGatesMigrationPath, 'utf8');
+
+    expect(workflowStages).not.toHaveProperty('humanGate');
+    expect(stageSource).not.toContain('human_gate boolean');
+    expect(stageGateSource).not.toContain('ws.human_gate = true');
   });
 
   it('keeps follow-on cleanup migrations V2-only once the base schema is clean', () => {

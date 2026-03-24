@@ -50,7 +50,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'implementation',
           goal: 'Build the feature',
-          human_gate: false,
           status: 'completed',
           gate_status: 'not_requested',
           iteration_count: 0,
@@ -61,7 +60,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'review',
           goal: 'Validate the result',
-          human_gate: true,
           status: 'completed',
           gate_status: 'approved',
           iteration_count: 1,
@@ -338,7 +336,6 @@ describe('buildPlaybookRunSummary', () => {
       }),
       expect.objectContaining({
         name: 'review',
-        human_gate: true,
         gate_history: [
           expect.objectContaining({ action: 'requested', recommendation: 'approve' }),
           expect.objectContaining({ action: 'approve', feedback: 'Looks good' }),
@@ -389,7 +386,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'triage',
           goal: 'Sort incoming work',
-          human_gate: false,
           status: 'pending',
           gate_status: 'not_requested',
           iteration_count: 0,
@@ -400,7 +396,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'review',
           goal: 'Review deliverables',
-          human_gate: true,
           status: 'pending',
           gate_status: 'awaiting_approval',
           iteration_count: 1,
@@ -411,7 +406,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'qa',
           goal: 'Handle rejected work',
-          human_gate: true,
           status: 'pending',
           gate_status: 'rejected',
           iteration_count: 1,
@@ -422,7 +416,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'done',
           goal: 'Finished work',
-          human_gate: false,
           status: 'pending',
           gate_status: 'not_requested',
           iteration_count: 0,
@@ -591,7 +584,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'triage',
           goal: 'Sort incoming work',
-          human_gate: false,
           status: 'active',
           gate_status: 'not_requested',
           iteration_count: 0,
@@ -602,7 +594,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'implementation',
           goal: 'Implement requested work',
-          human_gate: false,
           status: 'completed',
           gate_status: 'not_requested',
           iteration_count: 0,
@@ -669,7 +660,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'review',
           goal: 'Approve work',
-          human_gate: true,
           status: 'completed',
           gate_status: 'approved',
           iteration_count: 0,
@@ -740,7 +730,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'review',
           goal: 'Review work',
-          human_gate: false,
           status: 'completed',
           gate_status: 'not_requested',
           iteration_count: 0,
@@ -794,7 +783,6 @@ describe('buildPlaybookRunSummary', () => {
         {
           name: 'review',
           goal: 'Review work',
-          human_gate: true,
           status: 'completed',
           gate_status: 'approved',
           iteration_count: 0,

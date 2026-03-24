@@ -22,7 +22,6 @@ export function buildWorkflowSummary(
     stages: snapshot.stages.map((row) => ({
       name: String(row.name),
       goal: String(row.goal),
-      human_gate: Boolean(row.human_gate),
       status: String(row.status),
       gate_status: String(row.gate_status),
       iteration_count: Number(row.iteration_count ?? 0),

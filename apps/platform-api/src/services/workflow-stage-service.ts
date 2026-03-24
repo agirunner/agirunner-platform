@@ -9,7 +9,6 @@ export interface WorkflowStageViewInput {
   position: number;
   goal: string;
   guidance: string | null;
-  human_gate: boolean;
   status: string;
   gate_status: string;
   iteration_count: number;
@@ -28,7 +27,6 @@ export interface WorkflowStageResponse {
   position: number;
   goal: string;
   guidance: string | null;
-  human_gate: boolean;
   status: string;
   is_active: boolean;
   gate_status: string;
@@ -46,7 +44,6 @@ interface CreatedWorkflowStageRow {
   position: number;
   goal: string;
   guidance: string | null;
-  human_gate: boolean;
   status: string;
   gate_status: string;
   iteration_count: number;
@@ -73,9 +70,9 @@ export class WorkflowStageService {
       const isActive = definition.lifecycle === 'planned' && index === 0;
       const result = await client.query<CreatedWorkflowStageRow>(
         `INSERT INTO workflow_stages (
-           tenant_id, workflow_id, name, position, goal, guidance, human_gate, status, started_at
-         ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CASE WHEN $8 = 'active' THEN now() ELSE NULL END)
-         RETURNING id, name, position, goal, guidance, human_gate, status, gate_status, iteration_count, summary, started_at, completed_at`,
+           tenant_id, workflow_id, name, position, goal, guidance, status, started_at
+         ) VALUES ($1, $2, $3, $4, $5, $6, $7, CASE WHEN $7 = 'active' THEN now() ELSE NULL END)
+         RETURNING id, name, position, goal, guidance, status, gate_status, iteration_count, summary, started_at, completed_at`,
         [
           tenantId,
           workflowId,
@@ -83,7 +80,6 @@ export class WorkflowStageService {
           index,
           stage.goal,
           stage.guidance ?? null,
-          false,
           isActive ? 'active' : 'pending',
         ],
       );
@@ -125,7 +121,6 @@ export function normalizeWorkflowStageView(
     position: row.position,
     goal: row.goal,
     guidance: row.guidance,
-    human_gate: row.human_gate,
     status: derived.status,
     is_active: derived.is_active,
     gate_status: row.gate_status,
@@ -234,7 +229,7 @@ function derivePlannedStageStatus(
   if (row.gate_status === 'changes_requested') {
     return 'active';
   }
-  if (row.human_gate && row.gate_status === 'approved') {
+  if (row.gate_status === 'approved') {
     if (input.hasLaterOpenStage || row.status === 'completed') {
       return 'completed';
     }
@@ -289,7 +284,6 @@ export async function queryWorkflowStageViews(
             ws.position,
             ws.goal,
             ws.guidance,
-            ws.human_gate,
             ws.status,
             ws.gate_status,
             ws.iteration_count,

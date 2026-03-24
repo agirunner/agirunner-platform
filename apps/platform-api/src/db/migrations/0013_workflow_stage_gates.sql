@@ -90,7 +90,6 @@ SELECT
         )
     END
 FROM workflow_stages ws
-WHERE ws.human_gate = true
-  AND ws.gate_status IN ('awaiting_approval', 'approved', 'rejected', 'changes_requested');
+WHERE ws.gate_status IN ('awaiting_approval', 'approved', 'rejected', 'changes_requested');
 
 COMMIT;

@@ -9,11 +9,6 @@ import {
 } from '../orchestration/playbook-model.js';
 import { EventService } from './event-service.js';
 import { areJsonValuesEquivalent } from './json-equivalence.js';
-import {
-  approvalBeforeAssessmentEnabled,
-  resolveAssessmentExpectation,
-  resolveApprovalRetentionPolicy,
-} from './playbook-approval-ordering.js';
 import { WorkflowActivationDispatchService } from './workflow-activation-dispatch-service.js';
 import { WorkflowActivationService } from './workflow-activation-service.js';
 import { loadWorkflowStageProjection } from './workflow-stage-projection.js';
@@ -75,7 +70,6 @@ interface WorkflowStageRow {
   position: number;
   goal: string;
   guidance: string | null;
-  human_gate: boolean;
   status: string;
   gate_status: string;
   iteration_count: number;
@@ -360,17 +354,10 @@ export class PlaybookWorkflowControlService {
     }
 
     const stage = await this.loadStage(identity.tenantId, workflowId, stageName, db);
-    if (!stage.human_gate) {
-      throw new ValidationError(`Stage '${stageName}' does not require a human gate`);
-    }
     const subjectRevision = await loadLatestStageSubjectRevision(
       db,
       identity.tenantId,
       workflowId,
-      stageName,
-    );
-    const approvalRetentionPolicy = resolveApprovalRetentionPolicy(
-      parsePlaybookDefinition(workflow.definition),
       stageName,
     );
     let latestGate = stage.gate_status === 'approved'
@@ -383,7 +370,7 @@ export class PlaybookWorkflowControlService {
         subjectRevision,
         latestGate.subject_revision,
         latestGate.superseded_at,
-        approvalRetentionPolicy ?? undefined,
+        undefined,
       )
     ) {
       await supersedeStageGatesForRevision(db, {
@@ -484,7 +471,7 @@ export class PlaybookWorkflowControlService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND name = $3
-      RETURNING id, name, position, goal, guidance, human_gate, status, gate_status,
+      RETURNING id, name, position, goal, guidance, status, gate_status,
                 iteration_count, summary, metadata, started_at, completed_at, updated_at`,
       [identity.tenantId, workflowId, stageName, input.summary.trim()],
     );
@@ -528,9 +515,6 @@ export class PlaybookWorkflowControlService {
     const definition = parsePlaybookDefinition(workflow.definition);
 
     const stage = await this.loadStage(identity.tenantId, workflowId, stageName, db);
-    if (!stage.human_gate) {
-      throw new ValidationError(`Stage '${stageName}' does not require a human gate`);
-    }
 
     const gate = await this.loadAwaitingGate(identity.tenantId, workflowId, stage.id, db);
     if (!gate) {
@@ -641,7 +625,7 @@ export class PlaybookWorkflowControlService {
       }
       throw new ValidationError(`Stage '${stageName}' is not the current workflow stage`);
     }
-    if (sourceStage.human_gate && sourceStage.gate_status !== 'approved') {
+    if (sourceStage.gate_status === 'awaiting_approval') {
       throw new ValidationError(`Stage '${stageName}' requires human approval before it can advance`);
     }
 
@@ -988,7 +972,7 @@ export class PlaybookWorkflowControlService {
       if (completedStageNames.has(stage.name)) {
         break;
       }
-      if (stage.human_gate && stage.gate_status !== 'approved') {
+      if (stage.gate_status === 'awaiting_approval') {
         throw new ValidationError(`Stage '${stage.name}' requires human approval before workflow completion`);
       }
       await this.assertStageHasNoPendingBlockingContinuation(
@@ -1604,7 +1588,7 @@ export class PlaybookWorkflowControlService {
     db: DatabaseClient | DatabasePool,
   ) {
     const result = await db.query<WorkflowStageRow>(
-      `SELECT id, name, position, goal, guidance, human_gate, status, gate_status,
+      `SELECT id, name, position, goal, guidance, status, gate_status,
               iteration_count, summary, metadata, started_at, completed_at, updated_at
          FROM workflow_stages
         WHERE tenant_id = $1
@@ -1753,7 +1737,7 @@ export class PlaybookWorkflowControlService {
           AND name = $3
           AND gate_status = 'approved'
           AND status = 'awaiting_gate'
-      RETURNING id, name, position, goal, guidance, human_gate, status, gate_status,
+      RETURNING id, name, position, goal, guidance, status, gate_status,
                 iteration_count, summary, metadata, started_at, completed_at, updated_at`,
       [tenantId, workflowId, stage.name],
     );
@@ -1858,7 +1842,7 @@ export class PlaybookWorkflowControlService {
         WHERE tenant_id = $1
           AND workflow_id = $2
           AND name = $3
-      RETURNING id, name, position, goal, guidance, human_gate, status, gate_status,
+      RETURNING id, name, position, goal, guidance, status, gate_status,
                 iteration_count, summary, metadata, started_at, completed_at, updated_at`,
       [
         identity.tenantId,
@@ -1899,14 +1883,6 @@ export class PlaybookWorkflowControlService {
             AND stage_name = $3
             AND completed_at IS NULL`,
         [identity.tenantId, workflowId, stage.name, nextExpectedActor],
-      );
-    } else if (input.action === 'approve' && approvalBeforeAssessmentEnabled(definition, stage.name)) {
-      await this.seedPostApprovalAssessmentExpectations(
-        identity.tenantId,
-        workflowId,
-        stage.name,
-        definition,
-        db,
       );
     } else {
       await db.query(
@@ -1982,42 +1958,6 @@ export class PlaybookWorkflowControlService {
       stage: updatedStage.rows[0],
       activation,
     };
-  }
-
-  private async seedPostApprovalAssessmentExpectations(
-    tenantId: string,
-    workflowId: string,
-    stageName: string,
-    definition: PlaybookDefinition,
-    db: DatabaseClient | DatabasePool,
-  ) {
-    const workItems = await db.query<{ id: string; owner_role: string | null }>(
-      `SELECT id, owner_role
-         FROM workflow_work_items
-        WHERE tenant_id = $1
-          AND workflow_id = $2
-          AND stage_name = $3
-          AND completed_at IS NULL`,
-      [tenantId, workflowId, stageName],
-    );
-
-    for (const workItem of workItems.rows) {
-      const expectation = resolveAssessmentExpectation(definition, workItem.owner_role, stageName);
-      if (!expectation) {
-        continue;
-      }
-
-      await db.query(
-        `UPDATE workflow_work_items
-            SET next_expected_actor = $4,
-                next_expected_action = 'assess',
-                updated_at = now()
-          WHERE tenant_id = $1
-            AND workflow_id = $2
-            AND id = $3`,
-        [tenantId, workflowId, workItem.id, expectation.nextExpectedActor],
-      );
-    }
   }
 }
 
@@ -2377,7 +2317,6 @@ function toStageResponse(row: WorkflowStageRow) {
     position: row.position,
     goal: row.goal,
     guidance: row.guidance,
-    human_gate: row.human_gate,
     status: row.status,
     gate_status: row.gate_status,
     iteration_count: row.iteration_count,

@@ -116,7 +116,6 @@ interface CheckpointPredecessorRow {
   blocked_state?: string | null;
   blocked_reason?: string | null;
   escalation_status?: string | null;
-  human_gate: boolean;
   gate_status: string;
   latest_handoff_completion: string | null;
   latest_handoff_resolution: string | null;
@@ -571,7 +570,7 @@ export class WorkItemService {
       );
     }
 
-    if (predecessor.human_gate && predecessor.gate_status !== 'approved') {
+    if (predecessor.gate_status === 'awaiting_approval') {
       throw new ValidationError(
         `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
           `'${predecessor.title}' (${predecessor.stage_name}) still awaits gate approval.`,
@@ -594,7 +593,7 @@ export class WorkItemService {
       );
     }
 
-    const predecessorReadyByApprovedGate = predecessor.human_gate && predecessor.gate_status === 'approved';
+    const predecessorReadyByApprovedGate = predecessor.gate_status === 'approved';
     if (!predecessorReadyByApprovedGate && predecessor.latest_handoff_completion !== 'full') {
       throw new ValidationError(
         `Cannot create successor work item in stage '${successorStageName}' before predecessor ` +
@@ -679,7 +678,7 @@ export class WorkItemService {
     if (!shouldAutoClosePredecessorCheckpoint(definition, predecessorStageName, successorStageName)) {
       return;
     }
-    if (predecessor.human_gate && predecessor.gate_status !== 'approved') {
+    if (predecessor.gate_status === 'awaiting_approval') {
       return;
     }
 
@@ -957,7 +956,6 @@ export class WorkItemService {
               wi.blocked_state,
               wi.blocked_reason,
               wi.escalation_status,
-              COALESCE(ws.human_gate, false) AS human_gate,
               COALESCE(ws.gate_status, 'not_requested') AS gate_status,
               latest_handoff.latest_handoff_completion,
               latest_handoff.latest_handoff_resolution

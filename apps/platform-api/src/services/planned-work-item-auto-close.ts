@@ -13,7 +13,6 @@ interface WorkItemClosureCandidateRow {
   stage_name: string;
   column_id: string;
   completed_at: Date | null;
-  human_gate: boolean;
   gate_status: string;
 }
 
@@ -38,7 +37,7 @@ export async function maybeAutoCloseCompletedPlannedPredecessorWorkItem(
   if (!candidate || candidate.completed_at) {
     return false;
   }
-  if (candidate.human_gate && candidate.gate_status !== 'approved') {
+  if (candidate.gate_status === 'awaiting_approval') {
     return false;
   }
 
@@ -169,7 +168,6 @@ async function loadClosureCandidate(
     `SELECT wi.stage_name,
             wi.column_id,
             wi.completed_at,
-            ws.human_gate,
             ws.gate_status
        FROM workflow_work_items wi
        JOIN workflow_stages ws

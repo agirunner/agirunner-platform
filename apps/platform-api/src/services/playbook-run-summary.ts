@@ -20,7 +20,6 @@ interface ArtifactSummaryRow {
 interface WorkflowStageSummaryRow {
   name: string;
   goal: string;
-  human_gate: boolean;
   status: string;
   gate_status: string;
   iteration_count: number;
@@ -157,7 +156,6 @@ export function buildPlaybookRunSummary(params: {
       return {
         name: stage.name,
         goal: stage.goal,
-        human_gate: stage.human_gate,
         status: stage.status,
         gate_status: stage.gate_status,
         iteration_count: stage.iteration_count,

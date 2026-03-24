@@ -6,7 +6,6 @@ CREATE TABLE workflow_stages (
   position integer NOT NULL,
   goal text NOT NULL,
   guidance text,
-  human_gate boolean NOT NULL DEFAULT false,
   status text NOT NULL DEFAULT 'pending',
   gate_status text NOT NULL DEFAULT 'not_requested',
   iteration_count integer NOT NULL DEFAULT 0,
