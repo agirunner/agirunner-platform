@@ -125,6 +125,17 @@ interface ReworkWorkItemContextRow {
   definition: unknown;
 }
 
+interface WorkItemExecutionColumnContextRow {
+  workflow_id: string;
+  work_item_id: string;
+  stage_name: string | null;
+  column_id: string | null;
+  completed_at: Date | null;
+  blocked_state: string | null;
+  escalation_status: string | null;
+  definition: unknown;
+}
+
 interface LatestAssessmentRequestHandoffRow {
   handoff_id: string;
   assessment_task_id: string;
@@ -570,6 +581,120 @@ export class TaskLifecycleService {
     );
   }
 
+  private async reconcileWorkItemExecutionColumn(
+    identity: ApiKeyIdentity,
+    task: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const workflowId = readOptionalText(task.workflow_id);
+    const workItemId = readOptionalText(task.work_item_id);
+    if (!workflowId || !workItemId || task.is_orchestrator_task === true) {
+      return;
+    }
+
+    const workItemResult = await client.query<WorkItemExecutionColumnContextRow>(
+      `SELECT wi.workflow_id,
+              wi.id AS work_item_id,
+              wi.stage_name,
+              wi.column_id,
+              wi.completed_at,
+              wi.blocked_state,
+              wi.escalation_status,
+              p.definition
+         FROM workflow_work_items wi
+         JOIN workflows w
+           ON w.tenant_id = wi.tenant_id
+          AND w.id = wi.workflow_id
+         JOIN playbooks p
+           ON p.tenant_id = w.tenant_id
+          AND p.id = w.playbook_id
+        WHERE wi.tenant_id = $1
+          AND wi.workflow_id = $2
+          AND wi.id = $3
+        LIMIT 1
+        FOR UPDATE OF wi`,
+      [identity.tenantId, workflowId, workItemId],
+    );
+    const workItem = workItemResult.rows[0];
+    if (!workItem || workItem.completed_at || workItem.blocked_state === 'blocked' || workItem.escalation_status === 'open') {
+      return;
+    }
+
+    const definition = parsePlaybookDefinition(workItem.definition);
+    const entryColumnId = defaultColumnId(definition);
+    const activeColumnId = activeColumnIdFor(definition);
+    if (!entryColumnId || !activeColumnId) {
+      return;
+    }
+
+    const activeTaskCountResult = await client.query<{ active_task_count: string | number }>(
+      `SELECT COUNT(*)::int AS active_task_count
+         FROM tasks
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND work_item_id = $3
+          AND is_orchestrator_task = FALSE
+          AND state = 'in_progress'`,
+      [identity.tenantId, workflowId, workItemId],
+    );
+    const activeTaskCount = Number(activeTaskCountResult.rows[0]?.active_task_count ?? 0);
+    const nextColumnId = activeTaskCount > 0
+      ? activeColumnId
+      : workItem.column_id === activeColumnId
+        ? entryColumnId
+        : null;
+    if (!nextColumnId || nextColumnId === workItem.column_id) {
+      return;
+    }
+
+    const moveResult = await client.query<{ id: string }>(
+      `UPDATE workflow_work_items
+          SET column_id = $4,
+              updated_at = now()
+        WHERE tenant_id = $1
+          AND workflow_id = $2
+          AND id = $3
+          AND completed_at IS NULL
+      RETURNING id`,
+      [identity.tenantId, workflowId, workItemId, nextColumnId],
+    );
+    if (!moveResult.rowCount) {
+      return;
+    }
+
+    const eventData = {
+      workflow_id: workflowId,
+      work_item_id: workItemId,
+      stage_name: workItem.stage_name,
+      previous_column_id: workItem.column_id,
+      column_id: nextColumnId,
+    };
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'work_item.updated',
+        entityType: 'work_item',
+        entityId: workItemId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: eventData,
+      },
+      client,
+    );
+    await this.deps.eventService.emit(
+      {
+        tenantId: identity.tenantId,
+        type: 'work_item.moved',
+        entityType: 'work_item',
+        entityId: workItemId,
+        actorType: identity.scope,
+        actorId: identity.keyPrefix,
+        data: eventData,
+      },
+      client,
+    );
+  }
+
   private async logGovernanceTransition(
     tenantId: string,
     operation: string,
@@ -940,6 +1065,9 @@ export class TaskLifecycleService {
       }
       if (options.afterUpdate) {
         await options.afterUpdate(updatedTask, client);
+      }
+      if (!updatedTask.is_orchestrator_task) {
+        await this.reconcileWorkItemExecutionColumn(identity, updatedTask, client);
       }
 
       if (task.workflow_id) {
@@ -2882,6 +3010,19 @@ function releasesParallelismSlot(previousState: TaskState, nextState: TaskState)
     ACTIVE_PARALLELISM_SLOT_STATES.includes(previousState) &&
     !ACTIVE_PARALLELISM_SLOT_STATES.includes(nextState)
   );
+}
+
+function activeColumnIdFor(definition: ReturnType<typeof parsePlaybookDefinition>): string | null {
+  const explicitActive = definition.board.columns.find(
+    (column) => column.id === 'active' && !column.is_blocked && !column.is_terminal,
+  );
+  if (explicitActive) {
+    return explicitActive.id;
+  }
+  const entryColumnId = defaultColumnId(definition);
+  return definition.board.columns.find(
+    (column) => !column.is_blocked && !column.is_terminal && column.id !== entryColumnId,
+  )?.id ?? null;
 }
 
 interface WorkflowActivationTransition {
