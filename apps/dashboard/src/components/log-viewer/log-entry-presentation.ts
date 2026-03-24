@@ -61,6 +61,9 @@ export function describeLogActivityTitle(entry: LogEntry): string {
   if (entry.category === 'llm') {
     return 'Model call';
   }
+  if (entry.category === 'api') {
+    return describeApiTitle(entry.operation);
+  }
   return describeExecutionOperationLabel(entry.operation);
 }
 
@@ -190,6 +193,34 @@ function describeContainerDetail(payload: Record<string, unknown>): string {
   return parts.join(' · ') || '-';
 }
 
+function describeApiTitle(operation: string): string {
+  if (!operation.startsWith('api.')) {
+    return describeExecutionOperationLabel(operation);
+  }
+
+  const parts = operation
+    .split('.')
+    .slice(2)
+    .filter((part) => part.length > 0 && part !== ':param');
+
+  if (parts.length === 0) {
+    return 'API request';
+  }
+
+  if (parts.length === 1) {
+    return humanizeSentence(parts[0]);
+  }
+
+  const last = parts[parts.length - 1];
+  const previous = parts[parts.length - 2];
+
+  if (isActionWord(last)) {
+    return humanizeSentence(`${singularize(previous)} ${last}`);
+  }
+
+  return humanizeSentence(last);
+}
+
 function formatTokenWindow(input: unknown, output: unknown): string | null {
   if (typeof input !== 'number' || typeof output !== 'number') {
     return null;
@@ -221,4 +252,30 @@ function humanizeSentence(value: string): string {
 
   const [first, ...rest] = words;
   return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(' ');
+}
+
+function isActionWord(value: string): boolean {
+  return new Set([
+    'fail',
+    'complete',
+    'start',
+    'approve',
+    'reject',
+    'retry',
+    'cancel',
+    'pause',
+    'resume',
+    'claim',
+    'register',
+    'revoke',
+    'create',
+    'delete',
+    'update',
+    'patch',
+  ]).has(value.toLowerCase());
+}
+
+function singularize(value: string): string {
+  const normalized = value.toLowerCase();
+  return normalized.endsWith('s') ? normalized.slice(0, -1) : normalized;
 }

@@ -78,4 +78,18 @@ describe('log entry presentation', () => {
     expect(describeLogActivityDetail(entry)).not.toContain('/api/v1/tasks/:id/fail');
     expect(describeLogActivityDetail(entry)).not.toContain('POST');
   });
+
+  it('drops api route param tokens from compact activity titles', () => {
+    const entry = makeEntry({
+      category: 'api',
+      operation: 'api.get.assignments.:param',
+      payload: {
+        method: 'GET',
+        path: '/api/v1/assignments/:id',
+      },
+    });
+
+    expect(describeLogActivityTitle(entry)).toBe('Assignments');
+    expect(describeLogActivityTitle(entry)).not.toContain(':param');
+  });
 });
