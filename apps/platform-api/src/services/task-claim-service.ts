@@ -1205,36 +1205,26 @@ function buildTaskLoopMode(task: Record<string, unknown>) {
 
 function buildRuntimeTaskCapabilities(
   task: Record<string, unknown>,
-  instructionContext: Record<string, unknown>,
+  _instructionContext: Record<string, unknown>,
 ): Record<string, unknown> {
   const taskKind = readPresentString(isRecord(task.metadata) ? task.metadata.task_kind : null) ?? '';
   const allowsHandoffResolution = taskKind === 'assessment' || taskKind === 'approval';
+  const requiresStructuredHandoff = allowsHandoffResolution || taskInputRequiresStructuredHandoff(task);
   return compactRecord({
-    requires_structured_handoff: roleRequiresStructuredHandoff(task, instructionContext),
+    requires_structured_handoff: requiresStructuredHandoff,
     allows_handoff_resolution: allowsHandoffResolution,
+    handoff_satisfies_completion: allowsHandoffResolution,
     forbidden_mutation_tools: allowsHandoffResolution ? ['file_write', 'file_edit', 'git_commit', 'git_push'] : undefined,
     isolate_shell_exec_workspace: allowsHandoffResolution || undefined,
   });
 }
 
-function roleRequiresStructuredHandoff(
-  task: Record<string, unknown>,
-  instructionContext: Record<string, unknown>,
-): boolean {
-  const roleName = readPresentString(task.role);
-  if (!roleName) {
+function taskInputRequiresStructuredHandoff(task: Record<string, unknown>): boolean {
+  const input = isRecord(task.input) ? task.input : null;
+  if (!input) {
     return false;
   }
-  const workflow = isRecord(instructionContext.workflow) ? instructionContext.workflow : {};
-  const playbook = isRecord(workflow.playbook) ? workflow.playbook : {};
-  const definition = isRecord(playbook.definition) ? playbook.definition : {};
-  const handoffRules = Array.isArray(definition.handoff_rules) ? definition.handoff_rules : [];
-  return handoffRules.some((rule) => {
-    if (!isRecord(rule)) {
-      return false;
-    }
-    return readPresentString(rule.from_role) === roleName && rule.required === true;
-  });
+  return Array.isArray(input.handoff_requirements) || Array.isArray(input.final_handoff_requirements);
 }
 
 function readNullableFloat(value: unknown): number | null {

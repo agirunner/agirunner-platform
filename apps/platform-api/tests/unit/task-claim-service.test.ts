@@ -232,7 +232,6 @@ describe('TaskClaimService', () => {
               roles: ['release-assessor', 'release-manager'],
               board: { columns: [{ id: 'planned', label: 'Planned' }] },
               stages: [],
-              handoff_rules: [{ from_role: 'release-assessor', to_role: 'release-manager', required: true }],
             },
           },
         },
@@ -249,6 +248,7 @@ describe('TaskClaimService', () => {
     expect(claimed).toMatchObject({
       runtime_capabilities: {
         allows_handoff_resolution: true,
+        handoff_satisfies_completion: true,
         requires_structured_handoff: true,
       },
     });
