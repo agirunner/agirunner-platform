@@ -13,11 +13,11 @@ import {
 import {
   scopeLabel,
   scopeName,
-  scopeVariant,
   splitApiKeys,
   summarizeApiKeys,
-  type ApiKeyScopeVariant,
 } from './api-key-page.support.js';
+
+const TABLE_COLUMN_WIDTHS = ['18%', '14%', '26%', '14%', '14%', '7%', '7%'] as const;
 
 export function ApiKeyHeader(props: { onCreate(): void }): JSX.Element {
   return (
@@ -181,7 +181,12 @@ function ApiKeyTableSection(props: {
             </div>
             <div className="hidden lg:block">
               <div className="relative w-full overflow-x-auto">
-                <table className="w-full caption-bottom text-sm">
+                <table className="w-full table-fixed caption-bottom text-sm">
+                  <colgroup>
+                    {TABLE_COLUMN_WIDTHS.map((width) => (
+                      <col key={width} style={{ width }} />
+                    ))}
+                  </colgroup>
                   <thead className="[&_tr]:border-b">
                     <tr className="border-b border-border">
                       <th className="h-10 px-4 text-left font-medium text-muted">Key</th>
@@ -261,9 +266,7 @@ function ApiKeyMobileCard(props: {
       <CardContent className="grid gap-3 text-sm">
         <ReviewField
           label="Scope"
-          value={scopeName(props.record.scope)}
-          badgeVariant={scopeVariant(props.record.scope)}
-          badgeLabel={scopeLabel(props.record.scope)}
+          value={scopeLabel(props.record.scope)}
         />
         <ReviewField label="Label" value={props.record.label ?? 'Unlabeled'} />
         <ReviewField
@@ -283,12 +286,7 @@ function ApiKeyMobileCard(props: {
 }
 
 function ScopeCell(props: { scope: string }): JSX.Element {
-  return (
-    <div className="flex items-center gap-3">
-      <Badge variant={scopeVariant(props.scope)}>{scopeLabel(props.scope)}</Badge>
-      <span className="text-muted">{scopeName(props.scope)}</span>
-    </div>
-  );
+  return <span className="text-muted">{scopeName(props.scope)}</span>;
 }
 
 function StatusBadge(props: { record: DashboardApiKeyRecord }): JSX.Element {
@@ -323,24 +321,13 @@ function ReviewField(props: {
   label: string;
   value: string;
   title?: string;
-  badgeVariant?: ApiKeyScopeVariant;
-  badgeLabel?: string;
 }): JSX.Element {
   return (
     <div className="space-y-1">
       <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-muted">{props.label}</p>
-      {props.badgeVariant ? (
-        <div className="flex items-center gap-3">
-          <Badge variant={props.badgeVariant}>{props.badgeLabel ?? props.value}</Badge>
-          <p className="text-sm" title={props.title}>
-            {props.value}
-          </p>
-        </div>
-      ) : (
-        <p className="text-sm" title={props.title}>
-          {props.value}
-        </p>
-      )}
+      <p className="text-sm" title={props.title}>
+        {props.value}
+      </p>
     </div>
   );
 }

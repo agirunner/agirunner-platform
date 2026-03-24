@@ -26,7 +26,7 @@ import {
   formatExpiryLabel,
   formatRelativeTimestamp,
 } from '../governance-shared/governance-lifecycle.support.js';
-import { scopeDescription, scopeLabel, scopeVariant } from './api-key-page.support.js';
+import { scopeDescription, scopeLabel } from './api-key-page.support.js';
 
 type OperatorScope = 'admin' | 'service';
 
@@ -43,7 +43,7 @@ export function CreateApiKeyDialog(props: {
   const [hasCopied, setHasCopied] = useState(false);
 
   const mutation = useMutation({
-    mutationFn: (payload: { scope: OperatorScope; label: string; expires_at: string | null }) =>
+    mutationFn: (payload: { scope: OperatorScope; label: string; expires_at?: string }) =>
       dashboardApi.createApiKey({
         scope: payload.scope,
         label: payload.label || undefined,
@@ -78,7 +78,7 @@ export function CreateApiKeyDialog(props: {
     mutation.mutate({
       scope,
       label: label.trim(),
-      expires_at: hasNoExpiry ? null : new Date(expiryDate).toISOString(),
+      expires_at: hasNoExpiry ? undefined : new Date(expiryDate).toISOString(),
     });
   }
 
@@ -251,7 +251,6 @@ export function RevokeConfirmDialog(props: {
           <GovernanceReviewField
             label="Scope"
             value={scopeLabel(props.record.scope)}
-            badgeVariant={scopeVariant(props.record.scope)}
           />
           <GovernanceReviewField
             label="Expiry"

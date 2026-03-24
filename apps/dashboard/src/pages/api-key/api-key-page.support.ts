@@ -2,22 +2,7 @@ import type { DashboardApiKeyRecord } from '../../lib/api.js';
 
 import { isWithinDays } from '../governance-shared/governance-lifecycle.support.js';
 
-export type ApiKeyScopeVariant =
-  | 'default'
-  | 'success'
-  | 'destructive'
-  | 'warning'
-  | 'secondary'
-  | 'outline';
-
 const OPERATOR_SCOPES = new Set(['admin', 'service']);
-
-const SCOPE_VARIANT: Record<string, ApiKeyScopeVariant> = {
-  admin: 'default',
-  service: 'default',
-  worker: 'outline',
-  agent: 'outline',
-};
 
 const SCOPE_DESCRIPTION: Record<string, string> = {
   admin: 'Operator access for full dashboard and API control.',
@@ -47,10 +32,6 @@ export function splitApiKeys(apiKeys: DashboardApiKeyRecord[]) {
     operatorKeys: apiKeys.filter(isOperatorKey),
     systemKeys: apiKeys.filter((record) => !isOperatorKey(record)),
   };
-}
-
-export function scopeVariant(scope: string): ApiKeyScopeVariant {
-  return SCOPE_VARIANT[scope.toLowerCase()] ?? 'secondary';
 }
 
 export function scopeDescription(scope: string): string {

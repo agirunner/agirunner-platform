@@ -41,6 +41,9 @@ describe('governance api key page source', () => {
     expect(source).toContain('Task Execution');
     expect(source).toContain('created and deleted automatically with runtime lifecycle');
     expect(source).not.toContain('<th className="h-10 px-4 text-left font-medium text-muted">Owner</th>');
+    expect(source).toContain('<colgroup>');
+    expect(source).not.toContain('<Badge variant={scopeVariant(props.scope)}>');
+    expect(source).not.toContain('badgeVariant={scopeVariant(props.record.scope)}');
   });
 
   it('limits operator key creation to admin and service scopes with a no-expiry option', () => {
@@ -48,6 +51,7 @@ describe('governance api key page source', () => {
     expect(source).toContain('Admin and Service keys are unrestricted and grant full platform control');
     expect(source).toContain('<SelectItem value="service">Service</SelectItem>');
     expect(source).toContain('No expiry');
+    expect(source).toContain('expires_at: hasNoExpiry ? undefined : new Date(expiryDate).toISOString()');
     expect(source).not.toContain('<SelectItem value="agent">Agent</SelectItem>');
     expect(source).not.toContain('<SelectItem value="worker">Worker</SelectItem>');
     expect(source).toContain('Admin / Service scope');
