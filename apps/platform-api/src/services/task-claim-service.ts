@@ -36,6 +36,8 @@ import { matchesWorkerToTaskRouting } from './task-routing-contract.js';
 import { flattenInstructionLayers } from './task-context-service.js';
 import {
   computeToolMatch,
+  isGitBuiltInToolId,
+  isSpecialistSelectableToolId,
   readAgentToolRequirements,
   resolveBuiltInToolOwner,
   resolveWorkspaceToolTags,
@@ -669,24 +671,25 @@ export class TaskClaimService {
       roleName,
       sanitizedTask,
     );
+    const taskWithAllowedTools = sanitizeClaimRoleTools(taskWithRoleDefinition);
 
     let credentials: Record<string, unknown>;
     if (resolved.provider.authMode === 'oauth' && resolved.provider.providerId) {
       credentials = await this.enrichWithOAuthCredentials(
         String(sanitizedTask.id ?? ''),
-        taskWithRoleDefinition,
+        taskWithAllowedTools,
         resolved,
       );
     } else {
       credentials = await this.resolveApiKeyCredentials(
         tenantId,
         String(sanitizedTask.id ?? ''),
-        taskWithRoleDefinition,
+        taskWithAllowedTools,
         resolved,
       );
     }
 
-    return attachClaimCredentials(taskWithRoleDefinition, {
+    return attachClaimCredentials(taskWithAllowedTools, {
       ...credentials,
     });
   }
@@ -1262,6 +1265,33 @@ function stripClaimSecretEchoes(task: Record<string, unknown>): Record<string, u
     ...task,
     role_config: sanitizedRoleConfig,
     credentials: sanitizedCredentials,
+  };
+}
+
+function sanitizeClaimRoleTools(task: Record<string, unknown>): Record<string, unknown> {
+  if (task.is_orchestrator_task === true) {
+    return task;
+  }
+  const roleConfig = isRecord(task.role_config) ? task.role_config : {};
+  if (!Array.isArray(roleConfig.tools)) {
+    return task;
+  }
+  const workspaceBinding = isRecord(task.workspace_binding) ? task.workspace_binding : {};
+  const workspaceType = typeof workspaceBinding.type === 'string' ? workspaceBinding.type : null;
+  const allowsGitTools = workspaceType === 'git_remote';
+  const tools = roleConfig.tools.filter(
+    (tool): tool is string =>
+      typeof tool === 'string'
+      && tool.trim().length > 0
+      && isSpecialistSelectableToolId(tool)
+      && (allowsGitTools || !isGitBuiltInToolId(tool)),
+  );
+  return {
+    ...task,
+    role_config: {
+      ...roleConfig,
+      tools,
+    },
   };
 }
 

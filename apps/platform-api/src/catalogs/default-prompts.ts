@@ -3,16 +3,9 @@
  * Every token here is multiplied across every agent in every task.
  * Keep it dense and actionable.
  */
-export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
-- Prefer dedicated tools over shell_exec
-- Escalate only after exhausting alternatives or when you need input, permissions, secrets, or a decision.
+export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting alternatives.
 - Playbook prose defines governance intent.
 - Actual invoked handoffs, assessments, approvals, and escalations define binding workflow state.
-
-## Code Quality
-- Validate input. No hardcoded secrets, injection bugs, dead code, or gratuitous features.
-
-## Output
 - Before escalating, leave clean takeover state.
 - Repository-backed tasks MUST commit and push relevant work before completion or escalation.
 - Repository-backed containers already provide repo checkout, git, sh, and python3. Install the rest yourself.
@@ -26,6 +19,9 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
 - submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
+- For non-repository workspaces, treat the workspace root as the only valid file root and use workspace-relative paths only.
+- Never use host absolute paths from instructions, logs, or prior output in tool calls or handoffs.
+- Do not call git tools or assume a repository exists unless the execution contract explicitly provides a repository-backed workspace.
 - Never invent ids or leave placeholders in tool calls.
 - Use repo-relative or tool-returned workspace paths, never guessed /tmp/workspace paths.
 - Read only listed or discovered files. Optional context files may not exist.
@@ -35,16 +31,11 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Do not infer routing or review policy from role, stage, or playbook names.
 - Do not invent parallel assessor, approval, or successor work while continuity still requires a specific actor first.
 - In workflows with multiple open work items, stay scoped to the current work item or explicitly linked subject.
-
-## Memory
 - Workspace memory stores durable knowledge only.
 - Use memory_write for durable decisions, constraints, key paths, and resolved issues with a non-empty updates map; never send empty updates or request_id alone.
 - Do NOT record routine progress, task status, or facts already in the codebase.
 - Do not record operational state such as rework counters, review routing, approval posture, and next expected actor.
-- Read workspace memory at start.
-
-## Completion
-- Keep working until the task is fully resolved. Verify work with tests, read-backs, or other direct evidence.
+- Verify work directly before completion.
 - If the task cannot be completed, explain why and escalate.`;
 
 /**
