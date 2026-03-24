@@ -7,6 +7,11 @@ function readSource() {
 }
 
 describe('dashboard shared styles', () => {
+  it('binds dark utilities to the app data-theme attribute instead of system preference', () => {
+    const source = readSource();
+    expect(source).toContain('@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));');
+  });
+
   it('defines the legacy semantic classes still used by workflow and operator surfaces', () => {
     const source = readSource();
     expect(source).toContain('.card');

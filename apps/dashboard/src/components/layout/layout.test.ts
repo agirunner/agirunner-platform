@@ -210,10 +210,10 @@ describe('layout breadcrumbs', () => {
     expect(source).toContain('SIDEBAR_SHELL_CLASSES');
     expect(source).toContain('SIDEBAR_SECTION_GROUP_CLASSES');
     expect(source).toContain('SIDEBAR_ACTIVE_ITEM_CLASSES');
-    expect(source).toContain('bg-stone-50/96');
-    expect(source).toContain('bg-white text-slate-950');
+    expect(source).toContain('bg-stone-100/95');
+    expect(source).toContain('bg-sky-100 text-sky-950');
     expect(source).toContain('dark:bg-slate-100 dark:text-slate-950');
-    expect(source).toContain('bg-white/82');
+    expect(source).toContain('bg-stone-50/85');
     expect(source).not.toContain('border-l border-border pl-2');
     expect(source).not.toContain('bg-accent/10 font-medium text-accent');
   });

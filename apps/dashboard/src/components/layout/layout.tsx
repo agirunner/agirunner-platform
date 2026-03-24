@@ -159,22 +159,22 @@ const ICON_BUTTON_CLASSES = cn(
 );
 
 const SIDEBAR_SHELL_CLASSES =
-  'border-r border-stone-200/80 bg-stone-50/96 shadow-[inset_-1px_0_0_rgba(255,255,255,0.9)] dark:border-slate-800 dark:bg-slate-950 dark:shadow-none';
+  'border-r border-stone-200/90 bg-stone-100/95 shadow-[inset_-1px_0_0_rgba(255,255,255,0.72)] dark:border-slate-800 dark:bg-slate-950 dark:shadow-none';
 
 const SIDEBAR_SECTION_BUTTON_CLASSES =
   'flex w-full items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-[background-color,color,box-shadow]';
 
 const SIDEBAR_SECTION_ACTIVE_CLASSES =
-  'bg-white text-slate-950 shadow-sm ring-1 ring-stone-200 dark:bg-slate-900/80 dark:text-slate-100 dark:ring-slate-700';
+  'bg-white/92 text-slate-950 shadow-sm ring-1 ring-stone-300/90 dark:bg-slate-900/80 dark:text-slate-100 dark:ring-slate-700';
 
 const SIDEBAR_SECTION_INACTIVE_CLASSES =
-  'text-slate-700 hover:bg-white/85 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-slate-100';
+  'text-slate-700 hover:bg-stone-50/80 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-900/70 dark:hover:text-slate-100';
 
 const SIDEBAR_SECTION_GROUP_CLASSES =
-  'mt-1 rounded-xl bg-white/82 p-1.5 ring-1 ring-stone-200/90 dark:bg-slate-900/55 dark:ring-slate-800';
+  'mt-1 rounded-xl bg-stone-50/85 p-1.5 ring-1 ring-stone-200/90 dark:bg-slate-900/55 dark:ring-slate-800';
 
 const SIDEBAR_ACTIVE_ITEM_CLASSES =
-  'bg-white text-slate-950 shadow-sm ring-1 ring-stone-300 dark:bg-slate-100 dark:text-slate-950';
+  'bg-sky-100 text-sky-950 shadow-sm ring-1 ring-sky-200/90 dark:bg-slate-100 dark:text-slate-950';
 
 const SIDEBAR_INACTIVE_ITEM_CLASSES =
   'text-slate-700 hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/90 dark:hover:text-slate-100';
@@ -584,7 +584,7 @@ export function DashboardLayout({ onToggleTheme }: LayoutProps): JSX.Element {
 
   return (
     <div className="flex min-h-screen">
-      <div className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-stone-200/80 bg-stone-50/96 px-4 py-2 dark:border-slate-800 dark:bg-slate-950 lg:hidden">
+      <div className="fixed left-0 right-0 top-0 z-30 flex items-center justify-between border-b border-stone-200/90 bg-stone-100/95 px-4 py-2 dark:border-slate-800 dark:bg-slate-950 lg:hidden">
         <button
           ref={mobileMenuTriggerRef}
           type="button"
