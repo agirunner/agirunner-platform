@@ -7,7 +7,7 @@ function readSource(fileName: string): string {
 }
 
 describe('log filters source', () => {
-  it('exposes actor, source, and status controls in the raw logs filter bar', () => {
+  it('exposes actor and status controls while hiding transport-detail controls in the raw logs filter bar', () => {
     const source = readSource('./log-filters.tsx');
     expect(source).toContain('const optionBaseFilters = useMemo(');
     expect(source).toContain('applyLogScope(toQueryParams(), scope)');
@@ -22,10 +22,21 @@ describe('log filters source', () => {
     expect(source).toContain('!actorItemsOverride && !disableOptionQueries');
     expect(source).toContain("placeholder={\n            filters.actors.length > 0");
     expect(source).toContain('allGroupLabel="Actors"');
-    expect(source).toContain('allGroupLabel="Execution backend"');
-    expect(source).toContain('allGroupLabel="Tool owner"');
-    expect(source).toContain('allGroupLabel="Sources"');
     expect(source).toContain('allGroupLabel="Statuses"');
+    expect(source).not.toContain('allGroupLabel="Execution backend"');
+    expect(source).not.toContain('allGroupLabel="Tool owner"');
+    expect(source).not.toContain('allGroupLabel="Sources"');
+    expect(source).not.toContain('Execution backend');
+    expect(source).not.toContain('Tool owner');
+    expect(source).not.toContain('Sources');
+  });
+
+  it('moves reset into saved views instead of keeping a separate top-row button', () => {
+    const source = readSource('./log-filters.tsx');
+
+    expect(source).toContain('onReset={resetFilters}');
+    expect(source).not.toContain('<RotateCcw');
+    expect(source).not.toContain('>Reset<');
   });
 
   it('debounces text filter inputs to avoid per-keystroke refetches', () => {

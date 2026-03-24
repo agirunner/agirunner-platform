@@ -1,5 +1,5 @@
 import { useCallback, useState, useMemo, useEffect, type ChangeEvent } from 'react';
-import { RotateCcw, Search, X } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { LogEntityScope } from './log-entity-scope.js';
 import { LogClassificationTabs } from './log-classification-tabs.js';
 import { MultiSelectChips, CATEGORY_OPTIONS } from './ui/multi-select-chips.js';
@@ -13,10 +13,7 @@ import { useLogActors } from './hooks/use-log-actors.js';
 import type { LogActorRecord, LogOperationRecord, LogRoleRecord } from '../../lib/api.js';
 import {
   DEBOUNCE_MS,
-  EXECUTION_BACKEND_ITEMS,
-  SOURCE_ITEMS,
   STATUS_ITEMS,
-  TOOL_OWNER_ITEMS,
   mapSavedViewToUrlParams,
   toActorItems,
   toOperationItems,
@@ -25,7 +22,6 @@ import {
   useDebounced,
 } from './log-filters.support.js';
 import { SavedViews, type SavedViewFilters } from '../saved-views/saved-views.js';
-import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import { applyLogScope, type LogScope } from './log-scope.js';
 
@@ -113,35 +109,6 @@ export function LogFilters({
   const toggleActor = useArrayToggle(filters.actors, setFilter, 'actors');
   const clearActors = useCallback(() => setFilter('actors', []), [setFilter]);
   const selectedActorIds = useMemo(() => new Set(filters.actors), [filters.actors]);
-  const toggleExecutionBackend = useArrayToggle(
-    filters.executionBackend,
-    setFilter,
-    'executionBackend',
-  );
-  const clearExecutionBackends = useCallback(
-    () => setFilter('executionBackend', []),
-    [setFilter],
-  );
-  const selectedExecutionBackendIds = useMemo(
-    () => new Set(filters.executionBackend),
-    [filters.executionBackend],
-  );
-  const toggleToolOwner = useArrayToggle(filters.toolOwner, setFilter, 'toolOwner');
-  const clearToolOwners = useCallback(() => setFilter('toolOwner', []), [setFilter]);
-  const selectedToolOwnerIds = useMemo(() => new Set(filters.toolOwner), [filters.toolOwner]);
-
-  const toggleSource = useCallback(
-    (id: string | null) => {
-      if (!id) return;
-      const next = filters.sources.includes(id)
-        ? filters.sources.filter((value) => value !== id)
-        : [...filters.sources, id];
-      setFilter('sources', next);
-    },
-    [filters.sources, setFilter],
-  );
-  const clearSources = useCallback(() => setFilter('sources', []), [setFilter]);
-  const selectedSourceIds = useMemo(() => new Set(filters.sources), [filters.sources]);
 
   const toggleStatus = useCallback(
     (id: string | null) => {
@@ -192,14 +159,11 @@ export function LogFilters({
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           <TimeRangePicker value={filters.time} onChange={(range) => setFilter('time', range)} />
           <LevelSelector value={filters.level} onChange={(level) => setFilter('level', level)} />
-          <Button variant="ghost" size="sm" onClick={resetFilters}>
-            <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
-            Reset
-          </Button>
           <SavedViews
             storageKey="logs"
             currentFilters={savedViewFilters}
             onApply={applyFromSavedView}
+            onReset={resetFilters}
           />
         </div>
       </div>
@@ -261,54 +225,6 @@ export function LogFilters({
           multiSelect
           selectedIds={selectedOperationIds}
           onClearAll={clearOperations}
-        />
-        <SearchableCombobox
-          items={SOURCE_ITEMS}
-          value={null}
-          onChange={toggleSource}
-          placeholder={
-            filters.sources.length > 0
-              ? `${filters.sources.length} source${filters.sources.length > 1 ? 's' : ''}`
-              : 'Sources'
-          }
-          searchPlaceholder="Search sources..."
-          allGroupLabel="Sources"
-          className="w-40"
-          multiSelect
-          selectedIds={selectedSourceIds}
-          onClearAll={clearSources}
-        />
-        <SearchableCombobox
-          items={EXECUTION_BACKEND_ITEMS}
-          value={null}
-          onChange={toggleExecutionBackend}
-          placeholder={
-            filters.executionBackend.length > 0
-              ? `${filters.executionBackend.length} backend${filters.executionBackend.length > 1 ? 's' : ''}`
-              : 'Execution backend'
-          }
-          searchPlaceholder="Search backends..."
-          allGroupLabel="Execution backend"
-          className="w-44"
-          multiSelect
-          selectedIds={selectedExecutionBackendIds}
-          onClearAll={clearExecutionBackends}
-        />
-        <SearchableCombobox
-          items={TOOL_OWNER_ITEMS}
-          value={null}
-          onChange={toggleToolOwner}
-          placeholder={
-            filters.toolOwner.length > 0
-              ? `${filters.toolOwner.length} owner${filters.toolOwner.length > 1 ? 's' : ''}`
-              : 'Tool owner'
-          }
-          searchPlaceholder="Search tool owners..."
-          allGroupLabel="Tool owner"
-          className="w-36"
-          multiSelect
-          selectedIds={selectedToolOwnerIds}
-          onClearAll={clearToolOwners}
         />
         <SearchableCombobox
           items={STATUS_ITEMS}

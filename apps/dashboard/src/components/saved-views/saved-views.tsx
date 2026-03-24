@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bookmark, Plus, Trash2, ChevronDown } from 'lucide-react';
+import { Bookmark, Plus, RotateCcw, Trash2, ChevronDown } from 'lucide-react';
 import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import {
@@ -39,12 +39,14 @@ interface SavedViewsProps {
   storageKey: string;
   currentFilters: SavedViewFilters;
   onApply: (filters: SavedViewFilters) => void;
+  onReset?: () => void;
 }
 
 export function SavedViews({
   storageKey,
   currentFilters,
   onApply,
+  onReset,
 }: SavedViewsProps): JSX.Element {
   const [views, setViews] = useState<SavedView[]>(() => loadViews(storageKey));
   const [isSaving, setIsSaving] = useState(false);
@@ -134,15 +136,28 @@ export function SavedViews({
             </form>
           </div>
         ) : (
-          <DropdownMenuItem
-            onSelect={(e) => {
-              e.preventDefault();
-              setIsSaving(true);
-            }}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span className="text-sm">Save Current Filters</span>
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem
+              onSelect={(e) => {
+                e.preventDefault();
+                setIsSaving(true);
+              }}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span className="text-sm">Save Current Filters</span>
+            </DropdownMenuItem>
+            {onReset ? (
+              <DropdownMenuItem
+                onSelect={(e) => {
+                  e.preventDefault();
+                  onReset();
+                }}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                <span className="text-sm">Reset Filters</span>
+              </DropdownMenuItem>
+            ) : null}
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
