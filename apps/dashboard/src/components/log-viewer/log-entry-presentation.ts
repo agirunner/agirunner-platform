@@ -81,7 +81,7 @@ export function describeLogActivityDetail(entry: LogEntry): string {
     case 'container':
       return describeContainerDetail(payload);
     case 'api':
-      return [readString(payload.method), readString(payload.path)].filter(Boolean).join(' ') || '-';
+      return 'API request';
     case 'config':
       return readString(payload.entity_name) ?? readString(payload.action) ?? '-';
     case 'auth':

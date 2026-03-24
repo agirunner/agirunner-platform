@@ -62,4 +62,20 @@ describe('log entry presentation', () => {
       stage: '-',
     });
   });
+
+  it('hides raw api route templates from compact activity labels', () => {
+    const entry = makeEntry({
+      category: 'api',
+      operation: 'task.fail',
+      payload: {
+        method: 'POST',
+        path: '/api/v1/tasks/:id/fail',
+      },
+    });
+
+    expect(describeLogActivityTitle(entry)).toBe('Task fail');
+    expect(describeLogActivityDetail(entry)).toBe('API request');
+    expect(describeLogActivityDetail(entry)).not.toContain('/api/v1/tasks/:id/fail');
+    expect(describeLogActivityDetail(entry)).not.toContain('POST');
+  });
 });
