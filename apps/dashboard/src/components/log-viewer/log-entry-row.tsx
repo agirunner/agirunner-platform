@@ -244,15 +244,15 @@ function describeToolOwner(value: LogEntry['tool_owner']): string | null {
 export function LogTableHeader(): JSX.Element {
   return (
     <thead>
-      <tr className="border-b border-border bg-muted/30 text-[11px] uppercase tracking-wider text-muted-foreground">
+      <tr className="border-b border-border bg-muted/35 text-[11px] uppercase tracking-wider text-foreground/70">
         <th className="w-6 px-1 py-1.5" />
         <th className="px-3 py-2 text-left font-medium">Time</th>
-        <th className="px-3 py-2 text-right font-medium w-20">Duration</th>
         <th className="px-3 py-2 text-left font-medium">Level</th>
         <th className="px-3 py-2 text-left font-medium">Category</th>
         <th className="px-3 py-2 text-left font-medium">Workflow / Step</th>
         <th className="px-3 py-2 text-left font-medium">Actor</th>
         <th className="px-3 py-2 text-left font-medium">Activity</th>
+        <th className="px-3 py-2 text-right font-medium w-20">Duration</th>
       </tr>
     </thead>
   );
@@ -297,11 +297,6 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
           {formatLogRelativeTime(entry.created_at)}
         </div>
         <div className="mt-1 text-xs text-muted-foreground">{formatTimestamp(entry.created_at)}</div>
-      </td>
-
-      {/* Duration */}
-      <td className="px-3 py-2.5 align-top text-right font-mono tabular-nums text-muted-foreground whitespace-nowrap">
-        {duration}
       </td>
 
       {/* Level */}
@@ -352,6 +347,11 @@ export function LogEntryRow({ entry, isExpanded, onToggle }: LogEntryRowProps): 
             </div>
           ) : null}
         </div>
+      </td>
+
+      {/* Duration */}
+      <td className="px-3 py-2.5 align-top text-right font-mono tabular-nums text-muted-foreground whitespace-nowrap">
+        {duration}
       </td>
     </tr>
   );

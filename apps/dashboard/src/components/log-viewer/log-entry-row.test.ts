@@ -15,12 +15,13 @@ describe('log entry row source', () => {
     expect(source).toContain('title={formatTimestamp(entry.created_at)}');
     expect(source).toContain('{formatLogRelativeTime(entry.created_at)}');
     expect(source).toContain('>Time</th>');
-    expect(source).toContain('>Duration</th>');
     expect(source).toContain('>Level</th>');
     expect(source).toContain('>Category</th>');
     expect(source).toContain('>Workflow / Step</th>');
     expect(source).toContain('>Actor</th>');
     expect(source).toContain('>Activity</th>');
+    expect(source).toContain('>Duration</th>');
+    expect(source).toContain("text-[11px] uppercase tracking-wider text-foreground/70");
     expect(source).toContain('formatActorLabel');
     expect(source).toContain('buildWorkflowStepSummary');
     expect(source).toContain('buildActorDetail');
@@ -38,6 +39,9 @@ describe('log entry row source', () => {
     expect(source).not.toContain('>Scope</th>');
     expect(source).not.toContain('buildScopeItems(');
     expect(source).not.toContain('function unused()');
-    expect(source.indexOf('>Duration</th>')).toBeLessThan(source.indexOf('>Level</th>'));
+    const headerStart = source.indexOf('<thead>');
+    const headerEnd = source.indexOf('</thead>');
+    const headerSource = source.slice(headerStart, headerEnd);
+    expect(headerSource.indexOf('>Duration</th>')).toBeGreaterThan(headerSource.indexOf('>Activity</th>'));
   });
 });
