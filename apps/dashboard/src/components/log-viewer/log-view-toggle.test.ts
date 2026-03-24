@@ -14,8 +14,8 @@ describe('log view toggle source', () => {
     const source = readSource();
 
     expect(source).toContain('border border-border/70 bg-card/80');
-    expect(source).toContain('border-sky-600 bg-sky-600 text-white');
-    expect(source).toContain('dark:bg-sky-400');
+    expect(source).toContain('border-sky-600 bg-white text-sky-700');
+    expect(source).toContain('dark:bg-slate-950');
     expect(source).toContain('text-foreground/80');
     expect(source).not.toContain("mode === optionMode && 'bg-muted'");
   });
