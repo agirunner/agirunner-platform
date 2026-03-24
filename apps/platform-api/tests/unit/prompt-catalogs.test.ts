@@ -106,6 +106,9 @@ describe('prompt catalogs', () => {
       'Superseded approvals or assessments are historical evidence, not current authorization.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Prior handoff prose is not authoritative gate state.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'When approval_before_assessment is authored, request and resolve the gate before dispatching downstream assessment for that boundary.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(

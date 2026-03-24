@@ -2483,6 +2483,50 @@ describe('WorkItemService', () => {
     expect(workItem.gate_decided_at).toEqual(new Date('2026-03-16T16:31:49.959Z'));
   });
 
+  it('falls back to stage gate status when no stage gate row exists yet', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 1,
+        rows: [
+          {
+            id: 'wi-1',
+            workflow_id: 'wf-1',
+            parent_work_item_id: null,
+            stage_name: 'operator-approval',
+            column_id: 'planned',
+            owner_role: null,
+            next_expected_actor: 'human',
+            next_expected_action: 'approve',
+            rework_count: 0,
+            latest_handoff_completion: 'full',
+            unresolved_findings: [],
+            focus_areas: [],
+            known_risks: [],
+            task_count: 1,
+            children_count: 0,
+            children_completed: 0,
+            completed_at: null,
+            gate_status: null,
+            stage_gate_status: 'not_requested',
+            gate_decision_feedback: null,
+            gate_decided_at: null,
+          },
+        ],
+      })),
+    };
+
+    const service = new WorkItemService(pool as never, {} as never, {} as never, {} as never);
+
+    const workItem = await service.getWorkflowWorkItem('tenant-1', 'wf-1', 'wi-1');
+
+    expect(workItem).toMatchObject({
+      id: 'wi-1',
+      next_expected_actor: 'human',
+      next_expected_action: 'approve',
+      gate_status: 'not_requested',
+    });
+  });
+
   it('returns blocked work-item posture in the read model', async () => {
     const pool = {
       query: vi.fn(async () => ({

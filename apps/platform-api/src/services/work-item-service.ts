@@ -1125,6 +1125,7 @@ export class WorkItemService {
                   THEN 'approved'
                 ELSE 'pending'
               END AS assessment_status,
+              ws.gate_status AS stage_gate_status,
               latest_gate.gate_status,
               latest_gate.gate_decision_feedback,
               latest_gate.gate_decided_at
@@ -1311,6 +1312,7 @@ export class WorkItemService {
                  assessment_rollup.blocking_assessment_count,
                  assessment_rollup.retained_assessment_count,
                  assessment_rollup.invalidated_assessment_count,
+                 ws.gate_status,
                  branch.branch_status,
                  latest_gate.gate_status,
                  latest_gate.gate_decision_feedback,
@@ -1495,7 +1497,12 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
       typeof sanitizedRow.assessment_status === 'string'
         ? sanitizedRow.assessment_status as WorkItemReadModel['assessment_status']
         : null,
-    gate_status: typeof sanitizedRow.gate_status === 'string' ? sanitizedRow.gate_status : null,
+    gate_status:
+      typeof sanitizedRow.gate_status === 'string'
+        ? sanitizedRow.gate_status
+        : typeof sanitizedRow.stage_gate_status === 'string'
+          ? sanitizedRow.stage_gate_status
+          : null,
     gate_decision_feedback:
       typeof sanitizedRow.gate_decision_feedback === 'string'
         ? sanitizedRow.gate_decision_feedback

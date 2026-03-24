@@ -65,6 +65,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Treat platform rule results and continuity state as authoritative.
 - Outcome actions such as continue, reopen_subject, route_to_role, block_subject, escalate, and terminate_branch are metadata-driven. Never infer them from business names.
 - Superseded approvals or assessments are historical evidence, not current authorization.
+- Prior handoff prose is not authoritative gate state. If continuity or stage status says gate_status is not_requested or null, request the gate instead of assuming a human is already waiting.
 - Never use workspace memory as a substitute for work-item continuity.
 - If an assessment or approval is required, do not route around it because the work looks good enough.
 - A blocked work item, unresolved escalation, or unsatisfied approval or assessment requirement makes successor dispatch and completion illegal.
