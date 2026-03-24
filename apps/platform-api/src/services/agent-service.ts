@@ -17,6 +17,7 @@ interface RegisterAgentInput {
   protocol?: 'rest' | 'acp';
   routing_tags?: string[];
   execution_mode?: 'specialist' | 'orchestrator' | 'hybrid';
+  issue_api_key?: boolean;
   tools?: { required?: string[]; optional?: string[] };
   worker_id?: string;
   heartbeat_interval_seconds?: number;
@@ -64,14 +65,16 @@ export class AgentService {
     );
 
     const agent = result.rows[0];
-    const { apiKey } = await createApiKey(this.pool, {
-      tenantId: identity.tenantId,
-      scope: 'agent',
-      ownerType: 'agent',
-      ownerId: agent.id,
-      label: `agent:${agent.name}`,
-      expiresAt: new Date(Date.now() + timingDefaults.keyExpiryMs),
-    });
+    const apiKey = input.issue_api_key === false
+      ? undefined
+      : (await createApiKey(this.pool, {
+        tenantId: identity.tenantId,
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: agent.id,
+        label: `agent:${agent.name}`,
+        expiresAt: new Date(Date.now() + timingDefaults.keyExpiryMs),
+      })).apiKey;
 
     await this.eventService.emit({
       tenantId: identity.tenantId,

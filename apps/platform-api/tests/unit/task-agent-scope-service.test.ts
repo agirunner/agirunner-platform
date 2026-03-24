@@ -3,6 +3,41 @@ import { describe, expect, it, vi } from 'vitest';
 import { TaskAgentScopeService } from '../../src/services/task-agent-scope-service.js';
 
 describe('TaskAgentScopeService', () => {
+  it('allows worker identities to load worker-owned active tasks', async () => {
+    const pool = {
+      query: vi.fn(async () => ({
+        rowCount: 1,
+        rows: [{
+          id: 'task-1',
+          workflow_id: 'workflow-1',
+          workspace_id: 'workspace-1',
+          work_item_id: 'wi-1',
+          stage_name: 'implementation',
+          activation_id: 'activation-1',
+          assigned_agent_id: 'agent-1',
+          is_orchestrator_task: true,
+          state: 'claimed',
+          assigned_worker_id: 'worker-1',
+        }],
+      })),
+    };
+
+    const service = new TaskAgentScopeService(pool as never);
+    const scope = await service.loadAgentOwnedActiveTask(
+      {
+        id: 'key-1',
+        tenantId: 'tenant-1',
+        scope: 'worker',
+        ownerType: 'worker',
+        ownerId: 'worker-1',
+        keyPrefix: 'worker-1',
+      },
+      'task-1',
+    );
+
+    expect(scope.state).toBe('claimed');
+  });
+
   it('keeps canonical in-progress tasks active for task-scoped tools', async () => {
     const pool = {
       query: vi.fn(async () => ({
@@ -17,6 +52,7 @@ describe('TaskAgentScopeService', () => {
           assigned_agent_id: 'agent-1',
           is_orchestrator_task: false,
           state: 'in_progress',
+          assigned_worker_id: null,
         }],
       })),
     };
@@ -51,6 +87,7 @@ describe('TaskAgentScopeService', () => {
           assigned_agent_id: 'agent-1',
           is_orchestrator_task: false,
           state: 'running',
+          assigned_worker_id: null,
         }],
       })),
     };

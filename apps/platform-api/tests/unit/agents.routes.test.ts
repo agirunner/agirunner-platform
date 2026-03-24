@@ -58,4 +58,37 @@ describe('agents routes', () => {
     expect(response.statusCode).toBe(422);
     expect(registerAgent).not.toHaveBeenCalled();
   });
+
+  it('accepts explicit suppression of agent api key issuance', async () => {
+    const { agentRoutes } = await import('../../src/api/routes/agents.routes.js');
+    const registerAgent = vi.fn().mockResolvedValue({ id: 'agent-1' });
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('agentService', {
+      registerAgent,
+      heartbeat: vi.fn(),
+      listAgents: vi.fn(),
+    });
+
+    await app.register(agentRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/agents/register',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        name: 'agent-1',
+        execution_mode: 'orchestrator',
+        worker_id: '8f4408f0-d6f6-4ee6-b1d0-a33248b22d0f',
+        issue_api_key: false,
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(registerAgent).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ issue_api_key: false }),
+    );
+  });
 });
