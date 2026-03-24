@@ -22,7 +22,7 @@ export function describeActorKindLabel(actorKind: string): string {
     case 'operator':
       return 'Operator';
     case 'platform_system':
-      return 'Platform system';
+      return 'System';
     default:
       return humanize(actorKind);
   }

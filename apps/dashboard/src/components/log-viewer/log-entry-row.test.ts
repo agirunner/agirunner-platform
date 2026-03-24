@@ -11,7 +11,7 @@ describe('log entry row source', () => {
     const source = readSource();
 
     expect(source).toContain("import { formatLogRelativeTime } from './log-time.js';");
-    expect(source).toContain("import { describeExecutionHeadline } from '../execution-inspector/execution-inspector-support.js';");
+    expect(source).toContain("from './log-entry-presentation.js';");
     expect(source).toContain('title={formatTimestamp(entry.created_at)}');
     expect(source).toContain('{formatLogRelativeTime(entry.created_at)}');
     expect(source).toContain('>Time</th>');
@@ -22,11 +22,12 @@ describe('log entry row source', () => {
     expect(source).toContain('>Activity</th>');
     expect(source).toContain('>Duration</th>');
     expect(source).toContain("text-[11px] uppercase tracking-wider text-foreground/70");
-    expect(source).toContain('formatActorLabel');
-    expect(source).toContain('buildWorkflowStageSummary');
-    expect(source).toContain('buildActorDetail');
+    expect(source).toContain('describeLogActorLabel');
+    expect(source).toContain('describeWorkflowStageSummary');
+    expect(source).toContain('describeLogActorDetail');
     expect(source).not.toContain('formatStatusLabel');
-    expect(source).toContain(": '-'");
+    expect(source).not.toContain('describeExecutionHeadline(entry)');
+    expect(source).toContain('describeLogActivityDetail');
     expect(source).not.toContain('font-mono text-[11px] text-muted-foreground/80');
     expect(source).not.toContain("bg-red-500/5");
     expect(source).not.toContain('bg-red-50 text-red-700');

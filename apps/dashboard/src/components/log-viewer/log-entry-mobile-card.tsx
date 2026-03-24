@@ -3,15 +3,20 @@ import { ChevronDown, ChevronRight } from 'lucide-react';
 import type { LogEntry } from '../../lib/api.js';
 import { cn } from '../../lib/utils.js';
 import {
-  describeExecutionHeadline,
-  describeExecutionSummary,
   formatDuration,
   levelVariant,
 } from '../execution-inspector/execution-inspector-support.js';
 import { Badge } from '../ui/badge.js';
 import { LogEntryDetail } from './log-entry-detail.js';
-import { getCanonicalStageName } from './log-entry-context.js';
 import { formatLogRelativeTime } from './log-time.js';
+import {
+  describeLogActivityDetail,
+  describeLogActivityTitle,
+  describeLogActorDetail,
+  describeLogActorLabel,
+  describeLogCategoryLabel,
+  describeWorkflowStageSummary,
+} from './log-entry-presentation.js';
 
 interface LogEntryMobileCardProps {
   entry: LogEntry;
@@ -20,62 +25,9 @@ interface LogEntryMobileCardProps {
   onFilterTrace: (traceId: string) => void;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  llm: 'LLM',
-  tool: 'Tool',
-  agent_loop: 'Agent Loop',
-  task_lifecycle: 'Step',
-  runtime_lifecycle: 'Runtime',
-  container: 'Container',
-  api: 'API',
-  config: 'Config',
-  auth: 'Auth',
-};
-
 function formatAbsoluteTimestamp(iso: string): string {
   const date = new Date(iso);
   return Number.isFinite(date.getTime()) ? date.toLocaleString() : 'Unknown time';
-}
-
-function describeWorkflow(entry: LogEntry): string {
-  if (entry.workflow_name?.trim()) {
-    return entry.workflow_name;
-  }
-  if (entry.workflow_id?.trim()) {
-    return `Workflow ${entry.workflow_id.slice(0, 8)}`;
-  }
-  return 'No workflow';
-}
-
-function describeStage(entry: LogEntry): string {
-  const stageName = getCanonicalStageName(entry);
-  return stageName ? `Stage ${stageName}` : '-';
-}
-
-function describeActor(entry: LogEntry): string {
-  if (entry.actor_type === 'worker') {
-    return entry.role?.trim()?.toLowerCase() === 'orchestrator'
-      ? 'Orchestrator agent'
-      : 'Specialist agent';
-  }
-  if (entry.actor_type === 'agent') {
-    return 'Specialist task execution';
-  }
-  if (entry.actor_type === 'operator' || entry.actor_type === 'user' || entry.actor_type === 'api_key') {
-    return 'Operator';
-  }
-  if (entry.actor_type === 'system') {
-    return 'Platform system';
-  }
-  return entry.actor_name?.trim() || 'Platform system';
-}
-
-function describeActorDetail(entry: LogEntry): string {
-  if (entry.role?.trim()) {
-    return entry.role;
-  }
-  const sourceLabel = entry.source.replace(/_/g, ' ');
-  return sourceLabel.charAt(0).toUpperCase() + sourceLabel.slice(1);
 }
 
 function formatStatusLabel(status: string): string {
@@ -87,6 +39,7 @@ function formatStatusLabel(status: string): string {
 
 export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element {
   const { entry, isExpanded, onToggle, onFilterTrace } = props;
+  const workflowStage = describeWorkflowStageSummary(entry);
 
   return (
     <article
@@ -110,14 +63,11 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
         </div>
 
         <div className="space-y-2">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-            {entry.operation}
-          </div>
           <div className="font-medium leading-6 text-foreground">
-            {describeExecutionHeadline(entry)}
+            {describeLogActivityTitle(entry)}
           </div>
           <div className="text-sm leading-6 text-muted-foreground">
-            {describeExecutionSummary(entry)}
+            {describeLogActivityDetail(entry)}
           </div>
         </div>
 
@@ -126,21 +76,21 @@ export function LogEntryMobileCard(props: LogEntryMobileCardProps): JSX.Element 
             <span className="font-medium uppercase tracking-wide text-muted-foreground">
               Category
             </span>
-            <span className="text-sm text-foreground">{CATEGORY_LABELS[entry.category] ?? entry.category}</span>
+            <span className="text-sm text-foreground">{describeLogCategoryLabel(entry.category)}</span>
           </div>
           <div className="grid gap-1">
             <span className="font-medium uppercase tracking-wide text-muted-foreground">
               Workflow
             </span>
-            <span className="text-sm text-foreground">{describeWorkflow(entry)}</span>
-            <span>{describeStage(entry)}</span>
+            <span className="text-sm text-foreground">{workflowStage.workflow}</span>
+            <span>{workflowStage.stage}</span>
           </div>
           <div className="grid gap-1">
             <span className="font-medium uppercase tracking-wide text-muted-foreground">
               Actor
             </span>
-            <span className="text-sm text-foreground">{describeActor(entry)}</span>
-            <span>{describeActorDetail(entry)}</span>
+            <span className="text-sm text-foreground">{describeLogActorLabel(entry)}</span>
+            <span>{describeLogActorDetail(entry)}</span>
           </div>
           <div className="grid gap-1">
             <span className="font-medium uppercase tracking-wide text-muted-foreground">

@@ -35,7 +35,7 @@ describe('log actor presentation', () => {
       'Specialist agent',
       'Specialist task execution',
       'Operator',
-      'Platform system',
+      'System',
     ]);
   });
 
