@@ -12,7 +12,8 @@
 - Provider and auth configuration MUST stay externalized so the same scenario corpus can run against any supported provider/auth combination.
 - The same scenario corpus MUST run against any supported provider/auth combination.
 - `tests/live/env/local.env` SHOULD hold the current known-good OAuth session snapshot for repeatable runs.
-- `tests/live/export-current-oauth-session.sh` SHOULD be used to refresh that local env snapshot from the live database when the operator intentionally wants to promote the current DB session.
+- Live tests MUST use the env-provided OAuth session snapshot. Do not source OAuth session state from the live database.
+- `tests/live/export-current-oauth-session.sh` normalizes and validates the env-provided OAuth snapshot only; it is not a database export path.
 
 ## Layout
 
@@ -26,7 +27,7 @@
   - creates a unique git branch or host-directory root for that run
   - binds the run to the already-seeded profile registry from the shared bootstrap
 - `export-current-oauth-session.sh`
-  - exports the currently connected OAuth session for the configured profile from the live platform database
+  - validates and rewrites the env-provided OAuth session snapshot into `env/local.env`
 - `env/local.env.example`
   - local-only secret template for admin key, OAuth session snapshot, optional API-key paths, Git token, and ports
 - `library/`
@@ -118,6 +119,7 @@ These artifacts are designed for trace-first troubleshooting and later automated
 
 No scenario counts as passing until all of these checks agree:
 
+- the scenario runner exits with code `0`
 - final artifact shows the expected workflow result
 - DB evidence shows clean workflow, task, and work-item settlement for the scenario semantics
 - board and stage progression evidence shows the scenario reached the expected work-item columns, completion markers, and stage/workflow terminal posture for that playbook
