@@ -56,16 +56,17 @@ import { WorkflowActivationDispatchService } from '../../src/services/workflow-a
 
 function readInsertedActivationTask(params: unknown[] | undefined) {
   return {
-    input: params?.[6],
-    roleConfig: params?.[7],
-    environment: params?.[8],
-    resourceBindings: params?.[9],
-    activationId: params?.[10],
-    requestId: params?.[11],
-    timeoutMinutes: params?.[12],
-    maxIterations: params?.[13],
-    llmMaxRetries: params?.[14],
-    metadata: params?.[15],
+    workItemId: params?.[2],
+    input: params?.[7],
+    roleConfig: params?.[8],
+    environment: params?.[9],
+    resourceBindings: params?.[10],
+    activationId: params?.[11],
+    requestId: params?.[12],
+    timeoutMinutes: params?.[13],
+    maxIterations: params?.[14],
+    llmMaxRetries: params?.[15],
+    metadata: params?.[16],
   };
 }
 
@@ -482,7 +483,7 @@ describe('WorkflowActivationDispatchService', () => {
         }
         if (sql.includes('INSERT INTO tasks')) {
           const inserted = readInsertedActivationTask(params);
-          expect(params?.[5]).toBe('triage');
+          expect(params?.[6]).toBe('triage');
           expect(inserted.input).toEqual(
             expect.objectContaining({
               activation_id: 'activation-heartbeat',
@@ -1255,6 +1256,7 @@ describe('WorkflowActivationDispatchService', () => {
         }
         if (sql.includes('INSERT INTO tasks')) {
           const inserted = readInsertedActivationTask(params);
+          expect(inserted.workItemId).toBe('wi-9');
           expect(inserted.input).toEqual(
             expect.objectContaining({
               activation_id: 'activation-heartbeat',
@@ -1394,7 +1396,7 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[6]).toEqual(
+          expect(params?.[7]).toEqual(
             expect.objectContaining({
               activation_reason: 'queued_events',
               active_stages: ['triage'],
@@ -1535,7 +1537,7 @@ describe('WorkflowActivationDispatchService', () => {
         }
         if (sql.includes('INSERT INTO tasks')) {
           const inserted = readInsertedActivationTask(params);
-          expect(params?.[5]).toBe('implementation');
+          expect(params?.[6]).toBe('implementation');
           expect(inserted.input).not.toHaveProperty('current_stage');
           expect(inserted.input).toEqual(
             expect.objectContaining({
@@ -1648,8 +1650,8 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[5]).toBe('implementation');
-          expect(params?.[6]).toEqual(
+          expect(params?.[6]).toBe('implementation');
+          expect(params?.[7]).toEqual(
             expect.objectContaining({
               activation_id: 'activation-1',
               activation_reason: 'queued_events',
@@ -1662,7 +1664,7 @@ describe('WorkflowActivationDispatchService', () => {
               ]),
             }),
           );
-          expect((params?.[6] as { events: unknown[] }).events).toHaveLength(200);
+          expect((params?.[7] as { events: unknown[] }).events).toHaveLength(200);
           return { rowCount: 1, rows: [{ id: 'task-batched' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -2069,7 +2071,7 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          const input = params?.[6] as Record<string, unknown>;
+          const input = params?.[7] as Record<string, unknown>;
           expect(input).toEqual(
             expect.objectContaining({
               activation_reason: 'queued_events',
@@ -2193,7 +2195,7 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[6]).toEqual(
+          expect(params?.[7]).toEqual(
             expect.objectContaining({
               events: [
                 expect.objectContaining({
@@ -2526,7 +2528,8 @@ describe('WorkflowActivationDispatchService', () => {
           expect(params?.[1]).toBe('task-existing');
           expect(params?.[2]).toBe('Orchestrate Workflow One');
           expect(params?.[3]).toBe('implementation');
-          expect(params?.[4]).toEqual(
+          expect(params?.[4]).toBe('wi-1');
+          expect(params?.[5]).toEqual(
             expect.objectContaining({
               activation_id: 'activation-1',
               activation_reason: 'queued_events',
@@ -2539,10 +2542,10 @@ describe('WorkflowActivationDispatchService', () => {
               ],
             }),
           );
-          expect(params?.[5]).toEqual(expect.any(Object));
-          expect(params?.[6]).toEqual({ execution_mode: 'orchestrator' });
-          expect(params?.[7]).toBe('[]');
-          expect(params?.[8]).toEqual(
+          expect(params?.[6]).toEqual(expect.any(Object));
+          expect(params?.[7]).toEqual({ execution_mode: 'orchestrator' });
+          expect(params?.[8]).toBe('[]');
+          expect(params?.[9]).toEqual(
             expect.objectContaining({
               activation_event_count: 2,
               activation_dispatch_attempt: 1,
@@ -2552,9 +2555,9 @@ describe('WorkflowActivationDispatchService', () => {
               activation_request_id: 'req-1',
             }),
           );
-          expect(params?.[9]).toBe(500);
-          expect(params?.[10]).toBe(5);
-          expect(params?.[11]).toBe('activation-1');
+          expect(params?.[10]).toBe(500);
+          expect(params?.[11]).toBe(5);
+          expect(params?.[12]).toBe('activation-1');
           return { rowCount: 1, rows: [{ id: 'task-existing' }] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -4236,7 +4239,7 @@ describe('WorkflowActivationDispatchService', () => {
           };
         }
         if (sql.includes('INSERT INTO tasks')) {
-          expect(params?.[7]).toEqual(
+          expect(params?.[8]).toEqual(
             expect.objectContaining({
               tools: expect.arrayContaining([
                 'list_work_items',
@@ -4260,19 +4263,19 @@ describe('WorkflowActivationDispatchService', () => {
               ]),
             }),
           );
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('web_search');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('file_read');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('shell_exec');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('git_status');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('artifact_upload');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('web_fetch');
-          expect((params?.[7] as Record<string, unknown>).tools).toContain('advance_stage');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('advance_checkpoint');
-          expect((params?.[7] as Record<string, unknown>).tools).toContain('approve_task');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('approve_task_output');
-          expect((params?.[7] as Record<string, unknown>).tools).toContain('request_rework');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('request_task_changes');
-          expect((params?.[7] as Record<string, unknown>).tools).not.toContain('escalate_to_human');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('web_search');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('file_read');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('shell_exec');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('git_status');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('artifact_upload');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('web_fetch');
+          expect((params?.[8] as Record<string, unknown>).tools).toContain('advance_stage');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('advance_checkpoint');
+          expect((params?.[8] as Record<string, unknown>).tools).toContain('approve_task');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('approve_task_output');
+          expect((params?.[8] as Record<string, unknown>).tools).toContain('request_rework');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('request_task_changes');
+          expect((params?.[8] as Record<string, unknown>).tools).not.toContain('escalate_to_human');
           return { rowCount: 1, rows: [{ id: 'task-tools' }] };
         }
         throw new Error(`unexpected query: ${sql}`);

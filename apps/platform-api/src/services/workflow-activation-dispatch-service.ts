@@ -136,6 +136,7 @@ interface ExistingActivationTaskRow extends ActivationTaskRow {
 interface ActivationTaskDefinition {
   title: string;
   stageName: string | null;
+  workItemId: string | null;
   input: Record<string, unknown>;
   roleConfig: Record<string, unknown>;
   environment: Record<string, unknown>;
@@ -598,6 +599,7 @@ export class WorkflowActivationDispatchService {
         `INSERT INTO tasks (
            tenant_id,
            workflow_id,
+           work_item_id,
            workspace_id,
            title,
            role,
@@ -623,8 +625,8 @@ export class WorkflowActivationDispatchService {
            llm_max_retries,
            metadata
          ) VALUES (
-           $1, $2, $3, $4, $5, $6, 'high', 'ready', '{}'::uuid[],
-           $7, '{}'::jsonb, $8::jsonb, $9::jsonb, $10::jsonb, $11, $12, true, 'runtime_only', $13, NULL, NULL, false, 0, $14, $15, $16::jsonb
+           $1, $2, $3, $4, $5, $6, $7, 'high', 'ready', '{}'::uuid[],
+           $8, '{}'::jsonb, $9::jsonb, $10::jsonb, $11::jsonb, $12, $13, true, 'runtime_only', $14, NULL, NULL, false, 0, $15, $16, $17::jsonb
          )
          ON CONFLICT (tenant_id, workflow_id, request_id)
          WHERE request_id IS NOT NULL
@@ -634,6 +636,7 @@ export class WorkflowActivationDispatchService {
         [
           activationAnchor.tenant_id,
           activationAnchor.workflow_id,
+          taskDefinition.workItemId,
           workflow.workspace_id,
           taskDefinition.title,
           'orchestrator',
@@ -713,6 +716,7 @@ export class WorkflowActivationDispatchService {
             actorId: 'workflow_activation_dispatcher',
             data: {
               workflow_id: activationAnchor.workflow_id,
+              work_item_id: taskDefinition.workItemId,
               role: 'orchestrator',
               state: 'ready',
               activation_id: activationAnchor.id,
@@ -1179,14 +1183,15 @@ export class WorkflowActivationDispatchService {
               state_changed_at = now(),
               title = $3,
               stage_name = $4,
-              input = $5::jsonb,
-              role_config = $6::jsonb,
-              environment = $7::jsonb,
-              resource_bindings = $8::jsonb,
-              metadata = COALESCE(metadata, '{}'::jsonb) || $9::jsonb,
-              max_iterations = $10,
-              llm_max_retries = $11,
-              activation_id = $12::uuid,
+              work_item_id = $5,
+              input = $6::jsonb,
+              role_config = $7::jsonb,
+              environment = $8::jsonb,
+              resource_bindings = $9::jsonb,
+              metadata = COALESCE(metadata, '{}'::jsonb) || $10::jsonb,
+              max_iterations = $11,
+              llm_max_retries = $12,
+              activation_id = $13::uuid,
               assigned_agent_id = NULL,
               assigned_worker_id = NULL,
               claimed_at = NULL,
@@ -1205,6 +1210,7 @@ export class WorkflowActivationDispatchService {
         taskId,
         taskDefinition.title,
         taskDefinition.stageName,
+        taskDefinition.workItemId,
         taskDefinition.input,
         taskDefinition.roleConfig,
         taskDefinition.environment,
@@ -1543,6 +1549,7 @@ function buildActivationTaskDefinition(
   return {
     title: buildActivationTaskTitle(workflow),
     stageName: activationTaskStageName(workflow, activationBatch),
+    workItemId: activationTaskWorkItemId(activation, activationBatch),
     input: buildActivationTaskInput(workflow, activation, primaryEvent, activationBatch),
     roleConfig: buildActivationRoleConfig(),
     environment: buildActivationEnvironment(repository),
@@ -1716,12 +1723,39 @@ function activationTaskStageName(
   return null;
 }
 
+function activationTaskWorkItemId(
+  activation: QueuedActivationRow,
+  activationBatch: QueuedActivationRow[],
+): string | null {
+  const primaryWorkItemId = asNullableString(activation.payload.work_item_id);
+  if (primaryWorkItemId) {
+    return primaryWorkItemId;
+  }
+
+  const eventWorkItemIds = uniqueWorkItemIds(activationBatch);
+  if (eventWorkItemIds.length === 1) {
+    return eventWorkItemIds[0];
+  }
+
+  return null;
+}
+
 function uniqueStageNames(activationBatch: QueuedActivationRow[]): string[] {
   return Array.from(
     new Set(
       activationBatch
         .map((event) => asNullableString(event.payload.stage_name))
         .filter((stageName): stageName is string => Boolean(stageName)),
+    ),
+  );
+}
+
+function uniqueWorkItemIds(activationBatch: QueuedActivationRow[]): string[] {
+  return Array.from(
+    new Set(
+      activationBatch
+        .map((event) => asNullableString(event.payload.work_item_id))
+        .filter((workItemId): workItemId is string => Boolean(workItemId)),
     ),
   );
 }
