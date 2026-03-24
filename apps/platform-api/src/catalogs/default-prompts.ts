@@ -23,7 +23,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `## Working Principles
 - Completion and decision are separate.
 - Full assessment or approval handoffs MUST set resolution to approved, request_changes, rejected, or blocked.
 - Blocked completions MUST omit resolution.
-- Delivery handoffs MUST omit resolution entirely.
+- Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
 - submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields.
 - Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.
 - Never invent ids or leave placeholders in tool calls.
@@ -85,7 +85,7 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - When continuity requires rework, create the next task explicitly. Use send_task_message only if the correct successor task is already active.
 - If request_changes reuses an already reopened task, call update_task_input with the concrete rework contract before the specialist resumes.
 - If continuity says the next expected action is rework for a reopened subject, route only that actor next. Do not dispatch additional assessors, approvals, or successor tasks on that work item until the subject submits a new handoff and continuity changes.
-- Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output.
+- Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output, and after create_work_item returns reuse that id/work_item_id verbatim in later mutations.
 - If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.
 - When multiple work items are open, every continuity or activation-checkpoint mutation MUST include the exact work_item_id. Never infer scope.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.

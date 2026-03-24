@@ -101,7 +101,6 @@ SELECT jsonb_build_object(
         SELECT
           id,
           title,
-          state,
           stage_name,
           column_id,
           rework_count,

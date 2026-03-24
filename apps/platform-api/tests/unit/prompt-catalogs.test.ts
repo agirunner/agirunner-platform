@@ -28,6 +28,9 @@ describe('prompt catalogs', () => {
       'Never reference task-local paths such as output/, repo/, or /tmp/workspace in handoffs.',
     );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Never invent ids or leave placeholders in tool calls.');
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain(
+      'Omit the resolution key itself; do not send resolution: approved or placeholders.',
+    );
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Use repo-relative or tool-returned workspace paths, never guessed /tmp/workspace paths.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Only assessment or approval handoffs may include resolution.');
     expect(DEFAULT_PLATFORM_INSTRUCTIONS).toContain('Delivery handoffs MUST omit resolution entirely.');
@@ -102,6 +105,9 @@ describe('prompt catalogs', () => {
       'Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'after create_work_item returns reuse that id/work_item_id verbatim in later mutations.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
@@ -156,7 +162,7 @@ describe('prompt catalogs', () => {
   });
 
   it('keeps the shared prompts bounded for routine execution', () => {
-    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(2950);
+    expect(DEFAULT_PLATFORM_INSTRUCTIONS.length).toBeLessThanOrEqual(3000);
     expect(DEFAULT_ORCHESTRATOR_PROMPT.length).toBeLessThanOrEqual(5850);
   });
 });
