@@ -117,7 +117,7 @@ describe('PlaybookTaskParallelismService', () => {
     expect(eventService.emit).toHaveBeenCalledTimes(1);
   });
 
-  it('promotes queued approval tasks into awaiting_approval when capacity becomes available', async () => {
+  it('promotes queued tasks directly into ready when capacity becomes available', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
@@ -134,13 +134,13 @@ describe('PlaybookTaskParallelismService', () => {
           };
         }
         if (sql.includes("t.state = 'pending'")) {
+          expect(sql).not.toContain('requires_approval');
           return {
             rowCount: 1,
             rows: [{
-              id: 'task-approval-1',
+              id: 'task-ready-1',
               work_item_id: 'wi-1',
               state: 'pending',
-              requires_approval: true,
             }],
           };
         }
@@ -148,7 +148,7 @@ describe('PlaybookTaskParallelismService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.includes('SET state = $3')) {
-          expect(values).toEqual(['tenant-1', 'task-approval-1', 'awaiting_approval']);
+          expect(values).toEqual(['tenant-1', 'task-ready-1', 'ready']);
           return { rowCount: 1, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -167,10 +167,10 @@ describe('PlaybookTaskParallelismService', () => {
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
         type: 'task.state_changed',
-        entityId: 'task-approval-1',
+        entityId: 'task-ready-1',
         data: expect.objectContaining({
           from_state: 'pending',
-          to_state: 'awaiting_approval',
+          to_state: 'ready',
           reason: 'parallelism_slot_available',
         }),
       }),

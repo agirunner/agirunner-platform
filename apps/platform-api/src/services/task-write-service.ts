@@ -189,9 +189,9 @@ export class TaskWriteService {
     const insertResult = await db.query(
       `INSERT INTO tasks (
         tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
-        requires_approval, requires_assessment, input, context, role_config, environment,
+        input, context, role_config, environment,
         resource_bindings, activation_id, request_id, is_orchestrator_task, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, max_iterations, llm_max_retries, branch_id, metadata
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29)
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27)
       ON CONFLICT DO NOTHING
       RETURNING *`,
       [
@@ -205,8 +205,6 @@ export class TaskWriteService {
         normalizedInput.priority ?? 'normal',
         initialState,
         dependencies,
-        normalizedInput.requires_approval ?? false,
-        normalizedInput.requires_assessment ?? false,
         normalizedInput.input ?? {},
         normalizedInput.context ?? {},
         normalizedInput.role_config ?? null,
@@ -846,9 +844,6 @@ export class TaskWriteService {
     if (shouldQueue) {
       return 'pending';
     }
-    if (input.requires_approval) {
-      return 'awaiting_approval';
-    }
     return 'ready';
   }
 
@@ -1154,8 +1149,6 @@ function buildExpectedCreateTaskReplay(
     role: input.role ?? null,
     stage_name: input.stage_name ?? null,
     depends_on: dependencies,
-    requires_approval: input.requires_approval ?? false,
-    requires_assessment: input.requires_assessment ?? false,
     context: input.context ?? {},
     role_config: input.role_config ?? null,
     environment: input.environment ?? null,
@@ -1188,8 +1181,6 @@ function buildExpectedCreateTaskIntent(
     role: input.role ?? null,
     stage_name: input.stage_name ?? null,
     depends_on: dependencies,
-    requires_approval: input.requires_approval ?? false,
-    requires_assessment: input.requires_assessment ?? false,
     context: input.context ?? {},
     role_config: input.role_config ?? null,
     environment: input.environment ?? null,
@@ -1218,8 +1209,6 @@ function assertMatchingCreateTaskReplay(
     (existing.role ?? null) !== expected.role ||
     (existing.stage_name ?? null) !== expected.stage_name ||
     !areJsonValuesEquivalent(existing.depends_on ?? [], expected.depends_on) ||
-    Boolean(existing.requires_approval) !== expected.requires_approval ||
-    Boolean(existing.requires_assessment) !== expected.requires_assessment ||
     !areJsonValuesEquivalent(asRecord(existing.context), expected.context) ||
     !areJsonValuesEquivalent(existing.role_config ?? null, expected.role_config) ||
     !areJsonValuesEquivalent(existing.environment ?? null, expected.environment) ||
@@ -1254,8 +1243,6 @@ function matchesCreateTaskIntent(
     (existing.role ?? null) === expected.role &&
     (existing.stage_name ?? null) === expected.stage_name &&
     areJsonValuesEquivalent(existing.depends_on ?? [], expected.depends_on) &&
-    Boolean(existing.requires_approval) === expected.requires_approval &&
-    Boolean(existing.requires_assessment) === expected.requires_assessment &&
     areJsonValuesEquivalent(asRecord(existing.context), expected.context) &&
     areJsonValuesEquivalent(existing.role_config ?? null, expected.role_config) &&
     areJsonValuesEquivalent(existing.environment ?? null, expected.environment) &&

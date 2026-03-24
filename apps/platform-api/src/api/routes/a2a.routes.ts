@@ -23,7 +23,6 @@ const a2aTaskSchema = z.object({
     input: z.record(z.unknown()).optional(),
     context: z.record(z.unknown()).optional(),
     metadata: z.record(z.unknown()).optional(),
-    requires_approval: z.boolean().optional(),
   }).strict(),
 }).strict();
 

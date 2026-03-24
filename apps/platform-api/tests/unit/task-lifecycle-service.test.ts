@@ -315,18 +315,19 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(result.state).toBe('output_pending_assessment');
   });
 
-  it('records continuity expectations when completion routes to output assessment', async () => {
+  it('records continuity expectations even when completion stays completed', async () => {
     const client = {
-      query: vi.fn(async (sql: string) => {
+      query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
           return { rows: [], rowCount: 0 };
         }
         if (sql.startsWith('UPDATE tasks SET')) {
+          expect(values?.[2]).toBe('completed');
           return {
             rowCount: 1,
             rows: [{
               id: 'task-review-needed',
-              state: 'output_pending_assessment',
+              state: 'completed',
               workflow_id: 'workflow-1',
               work_item_id: 'work-item-1',
               stage_name: 'implementation',
@@ -388,7 +389,6 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
         role: 'developer',
-        requires_assessment: true,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         role_config: {},
@@ -413,12 +413,12 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       },
     );
 
-    expect(result.state).toBe('output_pending_assessment');
+    expect(result.state).toBe('completed');
     expect(workItemContinuityService.recordTaskCompleted).toHaveBeenCalledWith(
       'tenant-1',
       expect.objectContaining({
         id: 'task-review-needed',
-        state: 'output_pending_assessment',
+        state: 'completed',
         work_item_id: 'work-item-1',
         role: 'developer',
       }),
@@ -426,13 +426,14 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     );
   });
 
-  it('re-arms an open child review work item for the reviewer when rework resubmission returns to output assessment', async () => {
+  it('re-arms an open child review work item when verification failure returns work to output assessment', async () => {
     const client = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
           return { rows: [], rowCount: 0 };
         }
         if (sql.startsWith('UPDATE tasks SET')) {
+          expect(values?.[2]).toBe('output_pending_assessment');
           return {
             rowCount: 1,
             rows: [{
@@ -507,7 +508,6 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
         role: 'developer',
-        requires_assessment: true,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         rework_count: 1,
@@ -529,7 +529,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'task-rework-resubmitted',
       {
         output: { summary: 'ready for re-review' },
-        verification: { passed: true },
+        verification: { passed: false },
       },
     );
 
@@ -602,7 +602,6 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         work_item_id: 'work-item-1',
         stage_name: 'implementation',
         role: 'reviewer',
-        requires_assessment: true,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
         rework_count: 0,
@@ -2634,7 +2633,6 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
         is_orchestrator_task: false,
         assigned_agent_id: 'agent-1',
         assigned_worker_id: null,
-        requires_assessment: true,
         metadata: {},
       }),
       toTaskResponse: (task) => task,
@@ -2656,6 +2654,7 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
       'task-review-slot',
       {
         output: { summary: 'ready for review' },
+        verification: { passed: false },
       },
     );
 

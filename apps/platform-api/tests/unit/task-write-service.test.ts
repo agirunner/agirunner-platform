@@ -58,7 +58,7 @@ describe('TaskWriteService', () => {
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedTimeoutMinutes = (values?.[20] as number) ?? null;
+          insertedTimeoutMinutes = (values?.[18] as number) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -200,7 +200,7 @@ describe('TaskWriteService', () => {
   });
 
   it('does not derive output assessment from deleted playbook review config', async () => {
-    let insertedRequiresOutputReview: boolean | null = null;
+    let insertSql = '';
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
@@ -254,7 +254,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedRequiresOutputReview = (values?.[11] as boolean) ?? null;
+          insertSql = sql;
           return {
             rowCount: 1,
             rows: [{
@@ -262,7 +262,6 @@ describe('TaskWriteService', () => {
               tenant_id: 'tenant-1',
               workflow_id: 'workflow-1',
               work_item_id: 'work-item-1',
-              requires_assessment: insertedRequiresOutputReview,
             }],
           };
         }
@@ -303,11 +302,11 @@ describe('TaskWriteService', () => {
       },
     );
 
-    expect(insertedRequiresOutputReview).toBe(false);
+    expect(insertSql).not.toContain('requires_assessment');
   });
 
   it('does not infer output assessment from stage names alone', async () => {
-    const insertedRequiresOutputReview: boolean[] = [];
+    const insertStatements: string[] = [];
     const pool = {
       query: vi.fn(async (sql: string, values?: unknown[]) => {
         if (sql.includes('FROM tasks') && sql.includes('workflow_id = $2') && sql.includes('request_id = $3')) {
@@ -364,15 +363,14 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedRequiresOutputReview.push(Boolean(values?.[11]));
+          insertStatements.push(sql);
           return {
             rowCount: 1,
             rows: [{
-              id: `task-${insertedRequiresOutputReview.length}`,
+              id: `task-${insertStatements.length}`,
               tenant_id: 'tenant-1',
               workflow_id: 'workflow-1',
               work_item_id: values?.[2],
-              requires_assessment: Boolean(values?.[11]),
             }],
           };
         }
@@ -422,7 +420,8 @@ describe('TaskWriteService', () => {
       },
     );
 
-    expect(insertedRequiresOutputReview).toEqual([false, false]);
+    expect(insertStatements).toHaveLength(2);
+    expect(insertStatements.every((sql) => !sql.includes('requires_assessment'))).toBe(true);
   });
 
   it('rejects creating a task for a terminated workflow branch', async () => {
@@ -815,8 +814,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedMaxIterations = (values?.[25] as number | null) ?? null;
-          insertedLLMMaxRetries = (values?.[26] as number | null) ?? null;
+          insertedMaxIterations = (values?.[23] as number | null) ?? null;
+          insertedLLMMaxRetries = (values?.[24] as number | null) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -926,8 +925,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedMaxIterations = (values?.[25] as number | null) ?? null;
-          insertedLLMMaxRetries = (values?.[26] as number | null) ?? null;
+          insertedMaxIterations = (values?.[23] as number | null) ?? null;
+          insertedLLMMaxRetries = (values?.[24] as number | null) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1039,7 +1038,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedMetadata = (values?.[28] as Record<string, unknown>) ?? null;
+          insertedMetadata = (values?.[26] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1128,8 +1127,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedInput = (values?.[12] as Record<string, unknown>) ?? null;
-          insertedMetadata = (values?.[28] as Record<string, unknown>) ?? null;
+          insertedInput = (values?.[10] as Record<string, unknown>) ?? null;
+          insertedMetadata = (values?.[26] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1243,7 +1242,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedMetadata = (values?.[28] as Record<string, unknown>) ?? null;
+          insertedMetadata = (values?.[26] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1413,8 +1412,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedEnvironment = (values?.[15] as Record<string, unknown>) ?? null;
-          insertedBindings = (values?.[16] as string) ?? null;
+          insertedEnvironment = (values?.[13] as Record<string, unknown>) ?? null;
+          insertedBindings = (values?.[14] as string) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1525,7 +1524,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedEnvironment = (values?.[15] as Record<string, unknown>) ?? null;
+          insertedEnvironment = (values?.[13] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1629,7 +1628,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedBindings = (values?.[16] as string | null) ?? null;
+          insertedBindings = (values?.[14] as string | null) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1734,7 +1733,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedEnvironment = (values?.[15] as Record<string, unknown>) ?? null;
+          insertedEnvironment = (values?.[13] as Record<string, unknown>) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -1929,8 +1928,8 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedEnvironment = (values?.[15] as Record<string, unknown>) ?? null;
-          insertedBindings = (values?.[16] as string | null) ?? null;
+          insertedEnvironment = (values?.[13] as Record<string, unknown>) ?? null;
+          insertedBindings = (values?.[14] as string | null) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -2350,7 +2349,7 @@ describe('TaskWriteService', () => {
           return { rowCount: 0, rows: [] };
         }
         if (sql.startsWith('INSERT INTO tasks')) {
-          insertedTokenBudget = (values?.[21] as number) ?? null;
+          insertedTokenBudget = (values?.[19] as number) ?? null;
           return {
             rowCount: 1,
             rows: [{
@@ -2802,7 +2801,7 @@ describe('TaskWriteService', () => {
     ).rejects.toThrow(/secret-bearing fields/i);
   });
 
-  it('queues approval-required tasks when playbook parallelism capacity is full', async () => {
+  it('queues tasks when playbook parallelism capacity is full', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (isLinkedWorkItemLookup(sql)) {
@@ -2824,11 +2823,10 @@ describe('TaskWriteService', () => {
           return {
             rowCount: 1,
             rows: [{
-              id: 'task-approval-1',
+              id: 'task-pending-1',
               tenant_id: 'tenant-1',
               workflow_id: 'workflow-1',
               state: 'pending',
-              requires_approval: true,
             }],
           };
         }
@@ -2860,10 +2858,9 @@ describe('TaskWriteService', () => {
         keyPrefix: 'admin-key',
       } as never,
       {
-        title: 'Approval gated task',
+        title: 'Queued task',
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',
-        requires_approval: true,
       },
     );
 
@@ -2876,7 +2873,7 @@ describe('TaskWriteService', () => {
     expect(result.state).toBe('pending');
   });
 
-  it('keeps approval-required tasks in awaiting_approval when capacity is available', async () => {
+  it('keeps tasks ready when capacity is available', async () => {
     const pool = {
       query: vi.fn(async (sql: string) => {
         if (isLinkedWorkItemLookup(sql)) {
@@ -2898,11 +2895,10 @@ describe('TaskWriteService', () => {
           return {
             rowCount: 1,
             rows: [{
-              id: 'task-approval-2',
+              id: 'task-ready-2',
               tenant_id: 'tenant-1',
               workflow_id: 'workflow-1',
-              state: 'awaiting_approval',
-              requires_approval: true,
+              state: 'ready',
             }],
           };
         }
@@ -2933,14 +2929,13 @@ describe('TaskWriteService', () => {
         keyPrefix: 'admin-key',
       } as never,
       {
-        title: 'Approval gated task',
+        title: 'Ready task',
         workflow_id: 'workflow-1',
         work_item_id: 'work-item-1',
-        requires_approval: true,
       },
     );
 
-    expect(result.state).toBe('awaiting_approval');
+    expect(result.state).toBe('ready');
   });
 
   it('rejects creating a planned-workflow task once the linked stage gate is already approved', async () => {

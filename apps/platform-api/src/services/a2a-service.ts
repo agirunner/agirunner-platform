@@ -15,7 +15,6 @@ interface A2ATaskPayload {
   input?: Record<string, unknown>;
   context?: Record<string, unknown>;
   metadata?: Record<string, unknown>;
-  requires_approval?: boolean;
 }
 
 export function buildAgentCard(baseUrl: string) {
@@ -51,7 +50,6 @@ export function mapA2ATaskToCreateInput(task: A2ATaskPayload): CreateTaskInput {
     role: task.role,
     input: task.input ?? {},
     context: task.context ?? {},
-    requires_approval: task.requires_approval,
     metadata: {
       ...(task.metadata ?? {}),
       protocol_ingress: {

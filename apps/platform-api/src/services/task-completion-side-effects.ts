@@ -148,7 +148,7 @@ export async function applyTaskCompletionSideEffects(
 
   const completedTaskId = task.id as string;
   const dependents = await client.query(
-    `SELECT id, workflow_id, work_item_id, state, is_orchestrator_task, depends_on, requires_approval FROM tasks
+    `SELECT id, workflow_id, work_item_id, state, is_orchestrator_task, depends_on FROM tasks
      WHERE tenant_id = $1 AND state = 'pending' AND $2 = ANY(depends_on)`,
     [identity.tenantId, completedTaskId],
   );
@@ -162,16 +162,14 @@ export async function applyTaskCompletionSideEffects(
       continue;
     }
 
-    const nextState: TaskState = dependent.requires_approval
-      ? 'awaiting_approval'
-      : (await shouldQueueDependentTask(
-          parallelismService,
-          identity.tenantId,
-          dependent as Record<string, unknown>,
-          client,
-        ))
-          ? 'pending'
-          : 'ready';
+    const nextState: TaskState = (await shouldQueueDependentTask(
+      parallelismService,
+      identity.tenantId,
+      dependent as Record<string, unknown>,
+      client,
+    ))
+      ? 'pending'
+      : 'ready';
     await client.query('UPDATE tasks SET state = $3, state_changed_at = now() WHERE tenant_id = $1 AND id = $2', [
       identity.tenantId,
       dependent.id,

@@ -93,8 +93,6 @@ const orchestratorTaskCreateSchema = z.object({
   context: z.record(z.unknown()).optional(),
   depends_on: z.array(z.string().uuid()).optional(),
   credentials: credentialRefsSchema.optional(),
-  requires_approval: z.boolean().optional(),
-  requires_assessment: z.boolean().optional(),
   assessment_prompt: z.string().max(2000).optional(),
   role_config: z.record(z.unknown()).optional(),
   environment: z.record(z.unknown()).optional(),

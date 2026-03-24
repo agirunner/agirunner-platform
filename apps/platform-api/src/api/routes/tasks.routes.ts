@@ -34,8 +34,6 @@ const taskCreateSchema = z.object({
   input: z.record(z.unknown()).optional(),
   context: z.record(z.unknown()).optional(),
   depends_on: z.array(z.string().uuid()).optional(),
-  requires_approval: z.boolean().optional(),
-  requires_assessment: z.boolean().optional(),
   assessment_prompt: z.string().max(2000).optional(),
   role_config: z.record(z.unknown()).optional(),
   environment: z.record(z.unknown()).optional(),

@@ -1082,12 +1082,6 @@ export class TaskLifecycleService {
       existingClient,
     );
 
-    const approvedAssessmentHandoff = await this.readApprovedAssessmentHandoffOutcome(
-      identity.tenantId,
-      task,
-      existingClient,
-    );
-
     const outputValidation = validateOutputSchema(payload.output, this.extractOutputSchema(task));
     const verificationPassed = this.readVerificationPassed(payload.verification, payload.metrics);
     const persisted = this.deps.artifactService
@@ -1116,10 +1110,7 @@ export class TaskLifecycleService {
       : undefined;
     const outputRevisionMetadataPatch = buildOutputRevisionMetadataPatch(task);
 
-    const shouldMoveToOutputAssessment =
-      (Boolean(task.requires_assessment) && !approvedAssessmentHandoff)
-      || !outputValidation.valid
-      || verificationPassed === false;
+    const shouldMoveToOutputAssessment = !outputValidation.valid || verificationPassed === false;
 
     try {
       return shouldMoveToOutputAssessment
@@ -1134,11 +1125,9 @@ export class TaskLifecycleService {
             clearAssignment: true,
             clearLifecycleControlMetadata: true,
             clearEscalationMetadata: true,
-            reason: task.requires_assessment
-              ? 'output_assessment_required'
-              : !outputValidation.valid
-                ? 'output_schema_assessment_required'
-                : 'verification_assessment_required',
+            reason: !outputValidation.valid
+              ? 'output_schema_assessment_required'
+              : 'verification_assessment_required',
           }, existingClient)
         : await this.applyStateTransition(identity, taskId, 'completed', {
             expectedStates: ['in_progress'],
@@ -1166,47 +1155,6 @@ export class TaskLifecycleService {
         }
       }
       throw error;
-    }
-  }
-
-  private async readApprovedAssessmentHandoffOutcome(
-    tenantId: string,
-    task: Record<string, unknown>,
-    db?: DatabaseClient,
-  ) {
-    if (!isAssessmentTask(task)) {
-      return false;
-    }
-
-    const taskId = readOptionalText(task.id);
-    if (!taskId) {
-      return false;
-    }
-
-    const taskReworkCount = readInteger(task.rework_count) ?? 0;
-    const queryClient = db
-      ?? ('query' in this.deps.pool && typeof this.deps.pool.query === 'function'
-        ? this.deps.pool
-        : await this.deps.pool.connect());
-    const ownsClient = db == null && queryClient !== this.deps.pool;
-
-    try {
-      const result = await queryClient.query<{ resolution: unknown }>(
-        `SELECT resolution
-         FROM task_handoffs
-        WHERE tenant_id = $1
-          AND task_id = $2
-          AND task_rework_count = $3
-        ORDER BY sequence DESC, created_at DESC
-        LIMIT 1`,
-        [tenantId, taskId, taskReworkCount],
-      );
-
-      return normalizeAssessmentApprovalOutcome(result.rows[0]?.resolution) === 'approved';
-    } finally {
-      if (ownsClient && 'release' in queryClient && typeof queryClient.release === 'function') {
-        queryClient.release();
-      }
     }
   }
 
@@ -2561,10 +2509,10 @@ export class TaskLifecycleService {
     const escalationInsert = await client.query(
       `INSERT INTO tasks (
          tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
-         requires_approval, input, context, role_config, environment,
+         input, context, role_config, environment,
          resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,'high',$8::task_state,$9::uuid[],$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+         $1,$2,$3,$4,$5,$6,$7,'high',$8::task_state,$9::uuid[],$10,$11,$12,$13,$14,$15,$16,$17,$18,$19
        )
        RETURNING *`,
       [
@@ -2577,7 +2525,6 @@ export class TaskLifecycleService {
         sourceTask.stage_name ?? null,
         initialState,
         [],
-        false,
         input,
         { escalation: true },
         null,
@@ -2645,10 +2592,10 @@ export class TaskLifecycleService {
     const escalationInsert = await client.query(
       `INSERT INTO tasks (
          tenant_id, workflow_id, work_item_id, workspace_id, title, role, stage_name, priority, state, depends_on,
-         requires_approval, input, context, role_config, environment,
+         input, context, role_config, environment,
          resource_bindings, timeout_minutes, token_budget, cost_cap_usd, auto_retry, max_retries, metadata
        ) VALUES (
-         $1,$2,$3,$4,$5,$6,$7,$8,$9::task_state,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21
+         $1,$2,$3,$4,$5,$6,$7,$8,$9::task_state,$10::uuid[],$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
        )
        RETURNING *`,
       [
@@ -2662,7 +2609,6 @@ export class TaskLifecycleService {
         escalationTaskInput.priority ?? 'normal',
         initialState,
         [],
-        false,
         escalationTaskInput.input ?? {},
         escalationTaskInput.context ?? {},
         escalationTaskInput.role_config ?? null,

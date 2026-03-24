@@ -17,7 +17,6 @@ interface CandidateTaskRow {
   id: string;
   work_item_id: string | null;
   state: TaskState;
-  requires_approval: boolean;
 }
 
 interface ActiveTaskCountRow {
@@ -102,7 +101,6 @@ export class PlaybookTaskParallelismService {
 
     const candidates = await client.query<CandidateTaskRow>(
       `SELECT t.id, t.work_item_id, t.state
-              , t.requires_approval
          FROM tasks t
         WHERE t.tenant_id = $1
           AND t.workflow_id = $2
@@ -136,7 +134,6 @@ export class PlaybookTaskParallelismService {
         continue;
       }
 
-      const nextState = candidate.requires_approval ? 'awaiting_approval' : 'ready';
       const updated = await client.query(
         `UPDATE tasks
             SET state = $3,
@@ -144,7 +141,7 @@ export class PlaybookTaskParallelismService {
           WHERE tenant_id = $1
             AND id = $2
             AND state = 'pending'`,
-        [tenantId, candidate.id, toStoredTaskState(nextState)],
+        [tenantId, candidate.id, toStoredTaskState('ready')],
       );
       if (!updated.rowCount) {
         continue;
@@ -161,7 +158,7 @@ export class PlaybookTaskParallelismService {
           actorId: 'playbook_parallelism',
           data: {
             from_state: 'pending',
-            to_state: nextState,
+            to_state: 'ready',
             reason: 'parallelism_slot_available',
           },
         },

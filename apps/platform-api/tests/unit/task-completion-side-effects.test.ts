@@ -3,6 +3,80 @@ import { describe, expect, it, vi } from 'vitest';
 import { applyTaskCompletionSideEffects } from '../../src/services/task-completion-side-effects.js';
 
 describe('applyTaskCompletionSideEffects', () => {
+  it('releases dependency-blocked tasks directly into ready without legacy approval gating', async () => {
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          expect(sql).not.toContain('requires_approval');
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-dependent',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-1',
+              state: 'pending',
+              is_orchestrator_task: false,
+              depends_on: ['task-complete'],
+            }],
+          };
+        }
+        if (sql.includes("SELECT 1 FROM tasks WHERE tenant_id = $1 AND id = ANY($2::uuid[])")) {
+          expect(params).toEqual(['tenant-1', ['task-complete']]);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('UPDATE tasks SET state = $3')) {
+          expect(params).toEqual(['tenant-1', 'task-dependent', 'ready']);
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rowCount: 0, rows: [] };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      { recordTaskCompleted: vi.fn() } as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-complete',
+        workflow_id: 'workflow-1',
+        work_item_id: 'work-item-1',
+        role: 'developer',
+        stage_name: 'implementation',
+        is_orchestrator_task: false,
+        output: { summary: 'done' },
+        metadata: {},
+      },
+      client as never,
+    );
+
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.state_changed',
+        entityId: 'task-dependent',
+        actorId: 'dependency_resolver',
+        data: expect.objectContaining({
+          from_state: 'pending',
+          to_state: 'ready',
+        }),
+      }),
+      client,
+    );
+  });
+
   it('auto-completes the subject task when an assessment expectation is satisfied', async () => {
     const client = {
       query: vi.fn(async (sql: string) => {
@@ -1697,388 +1771,4 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
-  it('blocks the subject work item when assessment policy maps a blocked decision to block_subject', async () => {
-    const client = {
-      query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
-          return { rows: [], rowCount: 0 };
-        }
-        if (sql.includes('SELECT playbook_id FROM workflows')) {
-          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
-        }
-        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count = $3')) {
-          return {
-            rows: [{ completion: 'full', resolution: 'blocked', summary: 'Blocked pending legal sign-off.' }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('SELECT p.definition') && sql.includes('FROM workflows w')) {
-          return {
-            rows: [{
-              definition: {
-                process_instructions: 'Writers draft content and policy reviewers may block publication.',
-                roles: ['writer', 'policy-reviewer'],
-                board: { columns: [{ id: 'draft', label: 'Draft' }] },
-                checkpoints: [{ name: 'policy', goal: 'Policy review', human_gate: false }],
-                assessment_rules: [{
-                  subject_role: 'writer',
-                  assessed_by: 'policy-reviewer',
-                  required: true,
-                  decision_states: ['approved', 'blocked'],
-                  outcome_actions: {
-                    blocked: { action: 'block_subject' },
-                  },
-                }],
-              },
-            }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('FROM tasks') && sql.includes('AND state = ANY($4::task_state[])')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-writer', ['output_pending_assessment', 'completed'], 'task-policy']);
-          return {
-            rows: [{
-              id: 'task-writer',
-              workflow_id: 'workflow-1',
-              work_item_id: 'content-item',
-              role: 'writer',
-              state: 'output_pending_assessment',
-            }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('UPDATE workflow_work_items') && sql.includes("blocked_state = 'blocked'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'content-item', 'Blocked pending legal sign-off.']);
-          return { rows: [], rowCount: 1 };
-        }
-        return { rows: [], rowCount: 1 };
-      }),
-    };
-    const eventService = {
-      emit: vi.fn(async () => undefined),
-    };
-    const workItemContinuityService = {
-      recordTaskCompleted: vi.fn(async () => ({
-        matchedRuleType: 'handoff',
-        nextExpectedActor: 'publisher',
-        nextExpectedAction: 'handoff',
-        requiresHumanApproval: false,
-        reworkDelta: 0,
-        satisfiedAssessmentExpectation: true,
-      })),
-    };
-
-    await applyTaskCompletionSideEffects(
-      eventService as never,
-      undefined,
-      workItemContinuityService as never,
-      {
-        id: 'agent-key',
-        tenantId: 'tenant-1',
-        scope: 'agent',
-        ownerType: 'agent',
-        ownerId: 'agent-1',
-        keyPrefix: 'agent-key',
-      },
-      {
-        id: 'task-policy',
-        workflow_id: 'workflow-1',
-        work_item_id: 'policy-item',
-        role: 'policy-reviewer',
-        stage_name: 'policy',
-        is_orchestrator_task: false,
-        input: { subject_task_id: 'task-writer', subject_revision: 1 },
-        metadata: { task_kind: 'assessment', subject_task_id: 'task-writer', subject_revision: 1 },
-        output: { verdict: 'blocked' },
-      },
-      client as never,
-    );
-
-    expect(eventService.emit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'task.assessment_block_applied',
-        entityId: 'task-policy',
-        actorId: 'assessment_resolver',
-        data: expect.objectContaining({
-          subject_task_id: 'task-writer',
-          subject_work_item_id: 'content-item',
-          decision_state: 'blocked',
-          outcome_action: 'block_subject',
-        }),
-      }),
-      client,
-    );
-  });
-
-  it('opens a subject escalation when assessment policy maps a blocked decision to escalate', async () => {
-    const client = {
-      query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
-          return { rows: [], rowCount: 0 };
-        }
-        if (sql.includes('SELECT playbook_id FROM workflows')) {
-          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
-        }
-        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count = $3')) {
-          return {
-            rows: [{ completion: 'full', resolution: 'blocked', summary: 'Blocked pending security waiver.' }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('SELECT p.definition') && sql.includes('FROM workflows w')) {
-          return {
-            rows: [{
-              definition: {
-                process_instructions: 'Security assessors can escalate blocked outputs to operators.',
-                roles: ['writer', 'security-assessor'],
-                board: { columns: [{ id: 'draft', label: 'Draft' }] },
-                checkpoints: [{ name: 'security', goal: 'Security assessment', human_gate: false }],
-                assessment_rules: [{
-                  subject_role: 'writer',
-                  assessed_by: 'security-assessor',
-                  required: true,
-                  decision_states: ['approved', 'blocked'],
-                  outcome_actions: {
-                    blocked: { action: 'escalate' },
-                  },
-                }],
-              },
-            }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('FROM tasks') && sql.includes('AND state = ANY($4::task_state[])')) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'task-writer', ['output_pending_assessment', 'completed'], 'task-security']);
-          return {
-            rows: [{
-              id: 'task-writer',
-              workflow_id: 'workflow-1',
-              work_item_id: 'content-item',
-              role: 'writer',
-              state: 'output_pending_assessment',
-            }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('FROM workflow_subject_escalations') && sql.includes("status = 'open'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'content-item']);
-          return { rows: [], rowCount: 0 };
-        }
-        if (sql.includes('INSERT INTO workflow_subject_escalations')) {
-          expect(params).toEqual([
-            'tenant-1',
-            'workflow-1',
-            'content-item',
-            {
-              kind: 'task',
-              task_id: 'task-writer',
-              work_item_id: 'content-item',
-            },
-            1,
-            'Blocked pending security waiver.',
-            'task-security',
-          ]);
-          return { rows: [], rowCount: 1 };
-        }
-        if (sql.includes('UPDATE workflow_work_items') && sql.includes("escalation_status = 'open'")) {
-          expect(params).toEqual(['tenant-1', 'workflow-1', 'content-item']);
-          return { rows: [], rowCount: 1 };
-        }
-        return { rows: [], rowCount: 1 };
-      }),
-    };
-    const eventService = {
-      emit: vi.fn(async () => undefined),
-    };
-    const workItemContinuityService = {
-      recordTaskCompleted: vi.fn(async () => ({
-        matchedRuleType: 'handoff',
-        nextExpectedActor: 'publisher',
-        nextExpectedAction: 'handoff',
-        requiresHumanApproval: false,
-        reworkDelta: 0,
-        satisfiedAssessmentExpectation: true,
-      })),
-    };
-
-    await applyTaskCompletionSideEffects(
-      eventService as never,
-      undefined,
-      workItemContinuityService as never,
-      {
-        id: 'agent-key',
-        tenantId: 'tenant-1',
-        scope: 'agent',
-        ownerType: 'agent',
-        ownerId: 'agent-1',
-        keyPrefix: 'agent-key',
-      },
-      {
-        id: 'task-security',
-        workflow_id: 'workflow-1',
-        work_item_id: 'security-item',
-        role: 'security-assessor',
-        stage_name: 'security',
-        is_orchestrator_task: false,
-        input: { subject_task_id: 'task-writer', subject_revision: 1 },
-        metadata: { task_kind: 'assessment', subject_task_id: 'task-writer', subject_revision: 1 },
-        output: { verdict: 'blocked' },
-      },
-      client as never,
-    );
-
-    expect(eventService.emit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'task.assessment_escalated',
-        entityId: 'task-security',
-        actorId: 'assessment_resolver',
-        data: expect.objectContaining({
-          subject_task_id: 'task-writer',
-          subject_work_item_id: 'content-item',
-          decision_state: 'blocked',
-          outcome_action: 'escalate',
-        }),
-      }),
-      client,
-    );
-  });
-
-  it('terminates the authored branch when assessment policy maps a rejected decision to terminate_branch', async () => {
-    const client = {
-      query: vi.fn(async (sql: string, params?: unknown[]) => {
-        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
-          return { rows: [], rowCount: 0 };
-        }
-        if (sql.includes('SELECT playbook_id FROM workflows')) {
-          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
-        }
-        if (sql.includes('FROM task_handoffs') && sql.includes('task_rework_count = $3')) {
-          return {
-            rows: [{ completion: 'full', resolution: 'rejected', summary: 'Terminate the deprecated branch.' }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('SELECT p.definition') && sql.includes('FROM workflows w')) {
-          return {
-            rows: [{
-              definition: {
-                process_instructions: 'Assessors may terminate deprecated release branches.',
-                roles: ['release-editor', 'policy-auditor'],
-                board: { columns: [{ id: 'draft', label: 'Draft' }] },
-                checkpoints: [{ name: 'publication', goal: 'Publication assessment', human_gate: false }],
-                assessment_rules: [{
-                  subject_role: 'release-editor',
-                  assessed_by: 'policy-auditor',
-                  required: true,
-                  decision_states: ['approved', 'rejected'],
-                  outcome_actions: {
-                    rejected: { action: 'terminate_branch' },
-                  },
-                }],
-                branch_policies: [{
-                  branch_key: 'deprecated-release',
-                  termination_policy: 'stop_branch_and_descendants',
-                }],
-              },
-            }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('FROM tasks') && sql.includes('AND state = ANY($4::task_state[])')) {
-          return {
-            rows: [{
-              id: 'task-editor',
-              workflow_id: 'workflow-1',
-              work_item_id: 'branch-item',
-              role: 'release-editor',
-              state: 'completed',
-              branch_id: 'branch-1',
-            }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('FROM workflow_branches')) {
-          return {
-            rows: [{
-              id: 'branch-1',
-              parent_branch_id: null,
-              branch_key: 'deprecated-release',
-              termination_policy: 'stop_branch_and_descendants',
-              branch_status: 'active',
-            }],
-            rowCount: 1,
-          };
-        }
-        if (sql.includes('UPDATE workflow_branches') && sql.includes("branch_status = 'terminated'")) {
-          return { rows: [], rowCount: 1 };
-        }
-        if (sql.includes('UPDATE workflow_work_items') && sql.includes('branch_id = ANY')) {
-          return { rows: [], rowCount: 1 };
-        }
-        if (sql.includes('UPDATE tasks') && sql.includes('branch_id = ANY')) {
-          return { rows: [], rowCount: 1 };
-        }
-        return { rows: [], rowCount: 1 };
-      }),
-    };
-    const eventService = {
-      emit: vi.fn(async () => undefined),
-    };
-    const workItemContinuityService = {
-      recordTaskCompleted: vi.fn(async () => ({
-        matchedRuleType: 'handoff',
-        nextExpectedActor: 'publisher',
-        nextExpectedAction: 'handoff',
-        requiresHumanApproval: false,
-        reworkDelta: 0,
-        satisfiedAssessmentExpectation: true,
-      })),
-    };
-
-    await applyTaskCompletionSideEffects(
-      eventService as never,
-      undefined,
-      workItemContinuityService as never,
-      {
-        id: 'agent-key',
-        tenantId: 'tenant-1',
-        scope: 'agent',
-        ownerType: 'agent',
-        ownerId: 'agent-1',
-        keyPrefix: 'agent-key',
-      },
-      {
-        id: 'task-policy',
-        workflow_id: 'workflow-1',
-        work_item_id: 'policy-item',
-        role: 'policy-auditor',
-        stage_name: 'publication',
-        is_orchestrator_task: false,
-        input: { subject_task_id: 'task-editor', subject_revision: 1, branch_id: 'branch-1' },
-        metadata: {
-          task_kind: 'assessment',
-          subject_task_id: 'task-editor',
-          subject_revision: 1,
-          branch_id: 'branch-1',
-        },
-        output: { verdict: 'rejected' },
-      },
-      client as never,
-    );
-
-    expect(eventService.emit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        type: 'task.assessment_branch_terminated',
-        entityId: 'task-policy',
-        actorId: 'assessment_resolver',
-        data: expect.objectContaining({
-          subject_task_id: 'task-editor',
-          subject_work_item_id: 'branch-item',
-          branch_id: 'branch-1',
-          outcome_action: 'terminate_branch',
-        }),
-      }),
-      client,
-    );
-  });
 });

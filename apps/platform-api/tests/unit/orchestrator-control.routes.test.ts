@@ -209,6 +209,63 @@ describe('orchestratorControlRoutes', () => {
     loadTaskScopeSpy.mockRestore();
   });
 
+  it('rejects create_task when legacy governance flags are provided', async () => {
+    const createTask = vi.fn();
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', {
+      connect: vi.fn(),
+      query: vi.fn(),
+    });
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', { emit: vi.fn(async () => undefined) });
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {
+      createTask,
+    });
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+        id: 'task-orchestrator',
+        workflow_id: 'workflow-1',
+        workspace_id: 'workspace-1',
+        work_item_id: 'work-item-1',
+        stage_name: 'draft-package',
+        activation_id: 'activation-1',
+        assigned_agent_id: 'agent-1',
+        is_orchestrator_task: true,
+        state: 'in_progress',
+      });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/tasks',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-task-1',
+        title: 'Legacy governed task',
+        description: 'Do the work',
+        work_item_id: 'work-item-1',
+        stage_name: 'draft-package',
+        role: 'writer',
+        requires_approval: true,
+        requires_assessment: true,
+      },
+    });
+
+    expect(response.statusCode).toBe(422);
+    expect(createTask).not.toHaveBeenCalled();
+    loadTaskScopeSpy.mockRestore();
+  });
+
   it('replays stored create_work_item results after recovery without rerunning the mutation', async () => {
     const workflowService = {
       createWorkflowWorkItem: vi.fn(),

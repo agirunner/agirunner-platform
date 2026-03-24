@@ -29,6 +29,24 @@ describe('a2a service mapping', () => {
     );
   });
 
+  it('ignores legacy governance flags on inbound A2A task payloads', () => {
+    const input = mapA2ATaskToCreateInput({
+      id: 'external-legacy',
+      title: 'Legacy ingress',
+      requires_approval: true,
+    } as never);
+
+    expect(input).not.toHaveProperty('requires_approval');
+    expect(input.metadata).toEqual(
+      expect.objectContaining({
+        protocol_ingress: {
+          protocol: 'a2a',
+          external_task_id: 'external-legacy',
+        },
+      }),
+    );
+  });
+
   it('maps platform task states and events to A2A-facing status values', () => {
     expect(buildA2ATaskResponse({ id: 'task-1', state: 'ready', metadata: {} }).status).toBe('submitted');
     expect(buildA2ATaskResponse({ id: 'task-1', state: 'awaiting_approval', metadata: {} }).status).toBe('input-required');
