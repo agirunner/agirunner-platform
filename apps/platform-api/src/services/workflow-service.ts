@@ -507,9 +507,6 @@ export class WorkflowService {
          JOIN workflows w
            ON w.tenant_id = wi.tenant_id
           AND w.id = wi.workflow_id
-         LEFT JOIN playbooks pb
-           ON pb.tenant_id = w.tenant_id
-          AND pb.id = w.playbook_id
          LEFT JOIN workflow_stages ws
            ON ws.tenant_id = wi.tenant_id
           AND ws.workflow_id = wi.workflow_id
@@ -528,41 +525,34 @@ export class WorkflowService {
             LIMIT 1
          ) latest_delivery ON true
          LEFT JOIN LATERAL (
-           SELECT COALESCE(
-                    ARRAY_AGG(DISTINCT rule.assessed_by) FILTER (WHERE rule.assessed_by IS NOT NULL),
-                    ARRAY[]::text[]
-                  ) AS required_assessor_roles
-             FROM jsonb_to_recordset(COALESCE(pb.definition->'assessment_rules', '[]'::jsonb)) AS rule(
-               subject_role text,
-               assessed_by text,
-               checkpoint text,
-               required boolean,
-               optional boolean
-             )
-            WHERE latest_delivery.subject_role IS NOT NULL
-              AND rule.subject_role = latest_delivery.subject_role
-              AND (rule.checkpoint IS NULL OR rule.checkpoint = wi.stage_name)
-              AND COALESCE(rule.required, CASE WHEN rule.optional IS TRUE THEN FALSE ELSE TRUE END)
-         ) assessment_requirements ON true
-         LEFT JOIN LATERAL (
-           SELECT COUNT(*) FILTER (WHERE latest_assessment.resolution IN ('request_changes', 'rejected'))::int AS blocking_assessment_count
+           SELECT COUNT(*) FILTER (
+                    WHERE latest_assessment.decision_state IN ('request_changes', 'rejected')
+                  )::int AS blocking_assessment_count
              FROM (
-               SELECT DISTINCT ON (assessment_handoff.role)
-                      assessment_handoff.role,
-                      assessment_handoff.resolution
-                 FROM task_handoffs assessment_handoff
-                WHERE assessment_handoff.tenant_id = wi.tenant_id
-                  AND assessment_handoff.workflow_id = wi.workflow_id
-                  AND COALESCE(assessment_handoff.role_data->>'task_kind', '') = 'assessment'
-                  AND COALESCE(assessment_handoff.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
-                  AND COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
-                  AND (
-                    COALESCE(array_length(assessment_requirements.required_assessor_roles, 1), 0) = 0
-                    OR assessment_handoff.role = ANY(assessment_requirements.required_assessor_roles)
-                  )
-                ORDER BY assessment_handoff.role, assessment_handoff.sequence DESC, assessment_handoff.created_at DESC
+               SELECT DISTINCT ON (assessment_task.role)
+                      assessment_task.role,
+                      COALESCE(latest_assessment_handoff.decision_state, latest_assessment_handoff.resolution) AS decision_state
+                 FROM tasks assessment_task
+                 LEFT JOIN LATERAL (
+                   SELECT th.decision_state,
+                          th.resolution
+                     FROM task_handoffs th
+                    WHERE th.tenant_id = assessment_task.tenant_id
+                      AND th.workflow_id = assessment_task.workflow_id
+                      AND th.task_id = assessment_task.id
+                    ORDER BY th.sequence DESC, th.created_at DESC
+                    LIMIT 1
+                 ) latest_assessment_handoff ON true
+                WHERE assessment_task.tenant_id = wi.tenant_id
+                  AND assessment_task.workflow_id = wi.workflow_id
+                  AND COALESCE(assessment_task.metadata->>'task_kind', '') = 'assessment'
+                  AND COALESCE(assessment_task.metadata->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
+                  AND COALESCE(NULLIF(assessment_task.metadata->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
+                ORDER BY assessment_task.role,
+                         assessment_task.created_at DESC,
+                         assessment_task.id DESC
              ) latest_assessment
-         ) assessment_rollup ON true
+         ) assessment_rollup ON latest_delivery.subject_task_id IS NOT NULL
          LEFT JOIN LATERAL (
            SELECT g.status AS gate_status
              FROM workflow_stage_gates g

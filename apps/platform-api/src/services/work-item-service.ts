@@ -75,12 +75,9 @@ export interface WorkItemReadModel extends Record<string, unknown> {
   focus_areas?: string[];
   known_risks?: string[];
   current_subject_revision?: number | null;
-  required_assessment_count?: number;
   approved_assessment_count?: number;
   blocking_assessment_count?: number;
   pending_assessment_count?: number;
-  retained_assessment_count?: number;
-  invalidated_assessment_count?: number;
   assessment_status?: 'pending' | 'blocked' | 'approved' | null;
   gate_status?: string | null;
   gate_decision_feedback?: string | null;
@@ -1135,35 +1132,20 @@ export class WorkItemService {
               latest_handoff.focus_areas,
               latest_handoff.known_risks,
               latest_delivery.subject_revision AS current_subject_revision,
-              COALESCE(assessment_requirements.required_assessment_count, 0)::int AS required_assessment_count,
               COALESCE(assessment_rollup.approved_assessment_count, 0)::int AS approved_assessment_count,
               COALESCE(assessment_rollup.blocking_assessment_count, 0)::int AS blocking_assessment_count,
-              COALESCE(assessment_rollup.retained_assessment_count, 0)::int AS retained_assessment_count,
-              COALESCE(assessment_rollup.invalidated_assessment_count, 0)::int AS invalidated_assessment_count,
-              GREATEST(
-                COALESCE(assessment_requirements.required_assessment_count, 0)::int
-                  - COALESCE(assessment_rollup.approved_assessment_count, 0)::int
-                  - COALESCE(assessment_rollup.blocking_assessment_count, 0)::int,
-                0
-              )::int AS pending_assessment_count,
+              COALESCE(assessment_rollup.pending_assessment_count, 0)::int AS pending_assessment_count,
               CASE
-                WHEN COALESCE(assessment_requirements.required_assessment_count, 0) = 0 THEN NULL
+                WHEN COALESCE(assessment_rollup.actual_assessment_count, 0) = 0 THEN NULL
                 WHEN COALESCE(assessment_rollup.blocking_assessment_count, 0) > 0 THEN 'blocked'
-                WHEN COALESCE(assessment_rollup.approved_assessment_count, 0) >= COALESCE(assessment_requirements.required_assessment_count, 0)
-                  THEN 'approved'
-                ELSE 'pending'
+                WHEN COALESCE(assessment_rollup.pending_assessment_count, 0) > 0 THEN 'pending'
+                ELSE 'approved'
               END AS assessment_status,
               ws.gate_status AS stage_gate_status,
               latest_gate.gate_status,
               latest_gate.gate_decision_feedback,
               latest_gate.gate_decided_at
          FROM workflow_work_items wi
-         LEFT JOIN workflows wf
-           ON wf.tenant_id = wi.tenant_id
-          AND wf.id = wi.workflow_id
-         LEFT JOIN playbooks pb
-           ON pb.tenant_id = wf.tenant_id
-          AND pb.id = wf.playbook_id
          LEFT JOIN tasks t
            ON t.tenant_id = wi.tenant_id
           AND t.work_item_id = wi.id
@@ -1214,108 +1196,39 @@ export class WorkItemService {
             LIMIT 1
          ) latest_delivery ON true
          LEFT JOIN LATERAL (
-           SELECT COUNT(DISTINCT rule.assessed_by)::int AS required_assessment_count,
-                  COALESCE(
-                    ARRAY_AGG(DISTINCT rule.assessed_by) FILTER (WHERE rule.assessed_by IS NOT NULL),
-                    ARRAY[]::text[]
-                  ) AS required_assessor_roles,
-                  COALESCE(
-                    jsonb_agg(
-                      DISTINCT jsonb_build_object(
-                        'assessed_by', rule.assessed_by,
-                        'assessment_retention', COALESCE(rule.revision_policy->>'assessment_retention', 'invalidate_all'),
-                        'optional', COALESCE(rule.optional, false),
-                        'materiality', COALESCE(rule.materiality, 'material')
-                      )
-                    ) FILTER (WHERE rule.assessed_by IS NOT NULL),
-                    '[]'::jsonb
-                  ) AS required_rules
-             FROM jsonb_to_recordset(COALESCE(pb.definition->'assessment_rules', '[]'::jsonb)) AS rule(
-               subject_role text,
-               assessed_by text,
-               checkpoint text,
-               required boolean,
-               optional boolean,
-               materiality text,
-               revision_policy jsonb
-             )
-            WHERE latest_delivery.subject_role IS NOT NULL
-              AND rule.subject_role = latest_delivery.subject_role
-              AND (rule.checkpoint IS NULL OR rule.checkpoint = wi.stage_name)
-              AND COALESCE(rule.required, CASE WHEN rule.optional IS TRUE THEN FALSE ELSE TRUE END)
-         ) assessment_requirements ON true
-         LEFT JOIN LATERAL (
-           SELECT COUNT(*) FILTER (
-                    WHERE COALESCE(current_assessment.current_resolution, retained_prior.retained_resolution) = 'approved'
-                  )::int AS approved_assessment_count,
-                  COUNT(*) FILTER (
-                    WHERE COALESCE(current_assessment.current_resolution, retained_prior.retained_resolution) IN ('request_changes', 'rejected')
-                  )::int AS blocking_assessment_count,
-                  COUNT(*) FILTER (
-                    WHERE current_assessment.current_resolution IS NULL
-                      AND retained_prior.retained_resolution IS NOT NULL
-                  )::int AS retained_assessment_count,
-                  COUNT(*) FILTER (
-                    WHERE current_assessment.current_resolution IS NULL
-                      AND retained_prior.invalidated_resolution IS NOT NULL
-                  )::int AS invalidated_assessment_count
-             FROM jsonb_to_recordset(COALESCE(assessment_requirements.required_rules, '[]'::jsonb)) AS rule(
-               assessed_by text,
-               assessment_retention text,
-               optional boolean,
-               materiality text
-             )
-             LEFT JOIN LATERAL (
-               SELECT assessment_handoff.resolution AS current_resolution
-                 FROM task_handoffs assessment_handoff
-                WHERE assessment_handoff.tenant_id = wi.tenant_id
-                  AND assessment_handoff.workflow_id = wi.workflow_id
-                  AND COALESCE(assessment_handoff.role_data->>'task_kind', '') = 'assessment'
-                  AND COALESCE(assessment_handoff.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
-                  AND assessment_handoff.role = rule.assessed_by
-                  AND COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
-                ORDER BY assessment_handoff.sequence DESC, assessment_handoff.created_at DESC
-                LIMIT 1
-             ) current_assessment ON true
-             LEFT JOIN LATERAL (
-               SELECT CASE
-                        WHEN rule.assessment_retention = 'retain_named_assessors'
-                          THEN prior_assessment.resolution
-                        WHEN rule.assessment_retention = 'retain_advisory_only'
-                          AND COALESCE(rule.optional, false)
-                          THEN prior_assessment.resolution
-                        WHEN rule.assessment_retention = 'retain_non_material_only'
-                          AND COALESCE(rule.materiality, 'material') = 'non_material'
-                          THEN prior_assessment.resolution
-                        ELSE NULL
-                      END AS retained_resolution,
+           SELECT COUNT(*) FILTER (WHERE latest_assessment.decision_state = 'approved')::int AS approved_assessment_count,
+                  COUNT(*) FILTER (WHERE latest_assessment.decision_state IN ('request_changes', 'rejected'))::int AS blocking_assessment_count,
+                  COUNT(*) FILTER (WHERE latest_assessment.decision_state IS NULL)::int AS pending_assessment_count,
+                  COUNT(*)::int AS actual_assessment_count
+             FROM (
+               SELECT DISTINCT ON (assessment_task.role)
+                      assessment_task.role,
                       CASE
-                        WHEN rule.assessment_retention = 'invalidate_all'
-                          THEN prior_assessment.resolution
-                        WHEN rule.assessment_retention = 'retain_advisory_only'
-                          AND NOT COALESCE(rule.optional, false)
-                          THEN prior_assessment.resolution
-                        WHEN rule.assessment_retention = 'retain_non_material_only'
-                          AND COALESCE(rule.materiality, 'material') <> 'non_material'
-                          THEN prior_assessment.resolution
+                        WHEN COALESCE(latest_assessment_handoff.decision_state, latest_assessment_handoff.resolution) IN ('approved', 'request_changes', 'rejected')
+                          THEN COALESCE(latest_assessment_handoff.decision_state, latest_assessment_handoff.resolution)
                         ELSE NULL
-                      END AS invalidated_resolution
-                 FROM LATERAL (
-                   SELECT assessment_handoff.resolution
-                     FROM task_handoffs assessment_handoff
-                    WHERE assessment_handoff.tenant_id = wi.tenant_id
-                      AND assessment_handoff.workflow_id = wi.workflow_id
-                      AND COALESCE(assessment_handoff.role_data->>'task_kind', '') = 'assessment'
-                      AND COALESCE(assessment_handoff.role_data->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
-                      AND assessment_handoff.role = rule.assessed_by
-                      AND COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) < COALESCE(latest_delivery.subject_revision, -1)
-                    ORDER BY COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) DESC,
-                             assessment_handoff.sequence DESC,
-                             assessment_handoff.created_at DESC
+                      END AS decision_state
+                 FROM tasks assessment_task
+                 LEFT JOIN LATERAL (
+                   SELECT th.decision_state,
+                          th.resolution
+                     FROM task_handoffs th
+                    WHERE th.tenant_id = assessment_task.tenant_id
+                      AND th.workflow_id = assessment_task.workflow_id
+                      AND th.task_id = assessment_task.id
+                    ORDER BY th.sequence DESC, th.created_at DESC
                     LIMIT 1
-                 ) prior_assessment
-             ) retained_prior ON current_assessment.current_resolution IS NULL
-         ) assessment_rollup ON true
+                 ) latest_assessment_handoff ON true
+                WHERE assessment_task.tenant_id = wi.tenant_id
+                  AND assessment_task.workflow_id = wi.workflow_id
+                  AND COALESCE(assessment_task.metadata->>'task_kind', '') = 'assessment'
+                  AND COALESCE(assessment_task.metadata->>'subject_task_id', '') = COALESCE(latest_delivery.subject_task_id::text, '')
+                  AND COALESCE(NULLIF(assessment_task.metadata->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)
+                ORDER BY assessment_task.role,
+                         assessment_task.created_at DESC,
+                         assessment_task.id DESC
+             ) latest_assessment
+         ) assessment_rollup ON latest_delivery.subject_task_id IS NOT NULL
          LEFT JOIN LATERAL (
            SELECT g.status AS gate_status,
                   g.decision_feedback AS gate_decision_feedback,
@@ -1335,11 +1248,10 @@ export class WorkItemService {
                  latest_handoff.focus_areas,
                  latest_handoff.known_risks,
                  latest_delivery.subject_revision,
-                 assessment_requirements.required_assessment_count,
                  assessment_rollup.approved_assessment_count,
                  assessment_rollup.blocking_assessment_count,
-                 assessment_rollup.retained_assessment_count,
-                 assessment_rollup.invalidated_assessment_count,
+                 assessment_rollup.pending_assessment_count,
+                 assessment_rollup.actual_assessment_count,
                  ws.gate_status,
                  branch.branch_status,
                  latest_gate.gate_status,
@@ -1504,12 +1416,9 @@ function toWorkItemReadModel(row: Record<string, unknown>): WorkItemReadModel {
     focus_areas: completedWorkItem ? [] : readStringArray(sanitizedRow.focus_areas),
     known_risks: readStringArray(sanitizedRow.known_risks),
     current_subject_revision: readOptionalCount(sanitizedRow.current_subject_revision),
-    required_assessment_count: readCount(sanitizedRow.required_assessment_count),
     approved_assessment_count: readCount(sanitizedRow.approved_assessment_count),
     blocking_assessment_count: readCount(sanitizedRow.blocking_assessment_count),
     pending_assessment_count: readCount(sanitizedRow.pending_assessment_count),
-    retained_assessment_count: readCount(sanitizedRow.retained_assessment_count),
-    invalidated_assessment_count: readCount(sanitizedRow.invalidated_assessment_count),
     assessment_status:
       typeof sanitizedRow.assessment_status === 'string'
         ? sanitizedRow.assessment_status as WorkItemReadModel['assessment_status']

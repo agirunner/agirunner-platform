@@ -1061,19 +1061,22 @@ describe('WorkItemService', () => {
     });
   });
 
-  it('summarizes required assessments against the current subject revision and ignores stale older approvals', async () => {
+  it('summarizes actual assessments against the current subject revision without playbook rules', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflow_work_items wi')) {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
           expect(sql).toContain('latest_delivery.subject_revision AS current_subject_revision');
-          expect(sql).toContain('assessment_handoff.role_data->>\'subject_revision\'');
-          expect(sql).toContain("COALESCE(NULLIF(assessment_handoff.role_data->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)");
-          expect(sql).toContain('required_assessment_count');
+          expect(sql).toContain("COALESCE(NULLIF(assessment_task.metadata->>'subject_revision', '')::int, -1) = COALESCE(latest_delivery.subject_revision, -1)");
+          expect(sql).toContain("COALESCE(assessment_task.metadata->>'task_kind', '') = 'assessment'");
           expect(sql).toContain('approved_assessment_count');
           expect(sql).toContain('blocking_assessment_count');
           expect(sql).toContain('pending_assessment_count');
           expect(sql).toContain('assessment_status');
+          expect(sql).not.toContain('assessment_rules');
+          expect(sql).not.toContain('required_assessment_count');
+          expect(sql).not.toContain('retained_assessment_count');
+          expect(sql).not.toContain('invalidated_assessment_count');
           return {
             rows: [
               {
@@ -1087,7 +1090,6 @@ describe('WorkItemService', () => {
                 children_count: '0',
                 children_completed: '0',
                 current_subject_revision: 2,
-                required_assessment_count: 1,
                 approved_assessment_count: 0,
                 blocking_assessment_count: 0,
                 pending_assessment_count: 1,
@@ -1110,22 +1112,21 @@ describe('WorkItemService', () => {
     const [workItem] = await service.listWorkflowWorkItems('tenant-1', 'workflow-1');
 
     expect((workItem as Record<string, unknown>).current_subject_revision).toBe(2);
-    expect((workItem as Record<string, unknown>).required_assessment_count).toBe(1);
     expect((workItem as Record<string, unknown>).approved_assessment_count).toBe(0);
     expect((workItem as Record<string, unknown>).blocking_assessment_count).toBe(0);
     expect((workItem as Record<string, unknown>).pending_assessment_count).toBe(1);
     expect((workItem as Record<string, unknown>).assessment_status).toBe('pending');
   });
 
-  it('exposes retained and invalidated assessment counts when revision policy preserves prior approvals', async () => {
+  it('does not expose revision-retention assessment counters in prose-governed reads', async () => {
     const pool = {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflow_work_items wi')) {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
-          expect(sql).toContain('retained_assessment_count');
-          expect(sql).toContain('invalidated_assessment_count');
-          expect(sql).toContain("revision_policy->>'assessment_retention'");
-          expect(sql).toContain('materiality text');
+          expect(sql).not.toContain('retained_assessment_count');
+          expect(sql).not.toContain('invalidated_assessment_count');
+          expect(sql).not.toContain("revision_policy->>'assessment_retention'");
+          expect(sql).not.toContain('materiality text');
           return {
             rows: [
               {
@@ -1139,12 +1140,9 @@ describe('WorkItemService', () => {
                 children_count: '0',
                 children_completed: '0',
                 current_subject_revision: 3,
-                required_assessment_count: 2,
                 approved_assessment_count: 1,
                 blocking_assessment_count: 0,
                 pending_assessment_count: 1,
-                retained_assessment_count: 1,
-                invalidated_assessment_count: 1,
                 assessment_status: 'pending',
               },
             ],
@@ -1163,8 +1161,8 @@ describe('WorkItemService', () => {
 
     const [workItem] = await service.listWorkflowWorkItems('tenant-1', 'workflow-1');
 
-    expect((workItem as Record<string, unknown>).retained_assessment_count).toBe(1);
-    expect((workItem as Record<string, unknown>).invalidated_assessment_count).toBe(1);
+    expect((workItem as Record<string, unknown>).retained_assessment_count).toBeUndefined();
+    expect((workItem as Record<string, unknown>).invalidated_assessment_count).toBeUndefined();
     expect((workItem as Record<string, unknown>).assessment_status).toBe('pending');
   });
 
@@ -1173,7 +1171,7 @@ describe('WorkItemService', () => {
       query: vi.fn(async (sql: string, params?: unknown[]) => {
         if (sql.includes('FROM workflow_work_items wi')) {
           expect(params).toEqual(['tenant-1', 'workflow-1']);
-          expect(sql).toContain("COALESCE(assessment_handoff.role_data->>'subject_task_id', '')");
+          expect(sql).toContain("COALESCE(assessment_task.metadata->>'subject_task_id', '')");
           expect(sql).toContain("COALESCE(latest_delivery.subject_task_id::text, '')");
           expect(sql).not.toContain("COALESCE(latest_delivery.subject_task_id, '')");
           return {
@@ -1189,7 +1187,6 @@ describe('WorkItemService', () => {
                 children_count: '0',
                 children_completed: '0',
                 current_subject_revision: null,
-                required_assessment_count: 0,
                 approved_assessment_count: 0,
                 blocking_assessment_count: 0,
                 pending_assessment_count: 0,
@@ -1238,12 +1235,9 @@ describe('WorkItemService', () => {
                 children_count: '0',
                 children_completed: '0',
                 current_subject_revision: null,
-                required_assessment_count: 0,
                 approved_assessment_count: 0,
                 blocking_assessment_count: 0,
                 pending_assessment_count: 0,
-                retained_assessment_count: 0,
-                invalidated_assessment_count: 0,
                 assessment_status: null,
               },
             ],
