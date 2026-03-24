@@ -32,6 +32,7 @@ import { applyLogScope, type LogScope } from './log-scope.js';
 interface LogFiltersComponentProps {
   hideEntityScope?: boolean;
   compact?: boolean;
+  disableOptionQueries?: boolean;
   viewMode?: string; onViewModeChange?: (mode: string) => void;
   scope?: LogScope;
   operationItemsOverride?: LogOperationRecord[];
@@ -42,6 +43,7 @@ interface LogFiltersComponentProps {
 export function LogFilters({
   hideEntityScope = false,
   compact = false,
+  disableOptionQueries = false,
   viewMode,
   onViewModeChange,
   scope,
@@ -73,10 +75,16 @@ export function LogFilters({
   const { data: operationsData } = useLogOperations(
     undefined,
     operationOptionFilters,
-    !operationItemsOverride,
+    !operationItemsOverride && !disableOptionQueries,
   );
-  const { data: rolesData } = useLogRoles(roleOptionFilters, !roleItemsOverride);
-  const { data: actorsData } = useLogActors(actorOptionFilters, !actorItemsOverride);
+  const { data: rolesData } = useLogRoles(
+    roleOptionFilters,
+    !roleItemsOverride && !disableOptionQueries,
+  );
+  const { data: actorsData } = useLogActors(
+    actorOptionFilters,
+    !actorItemsOverride && !disableOptionQueries,
+  );
 
   const [searchDraft, setSearchDraft] = useState(filters.search);
 

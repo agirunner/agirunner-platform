@@ -67,6 +67,7 @@ describe('logs page source', () => {
     expect(source).toContain('operationItemsOverride={');
     expect(source).toContain('roleItemsOverride={');
     expect(source).toContain('actorItemsOverride={');
+    expect(source).toContain('disableOptionQueries');
     expect(source).toContain('enabled: selectedView === \'summary\'');
     expect(source).toContain('refetchInterval: 10_000');
     expect(source).toContain('refetchIntervalInBackground: true');
@@ -98,6 +99,7 @@ describe('logs page source', () => {
     expect(summaryTabContent).not.toContain('<LogsSurfacePanel');
     expect(summaryTabContent).toContain('A curated summary of the current log results');
     expect(summaryTabContent).toContain('<LogFilters');
+    expect(summaryTabContent).toContain('disableOptionQueries');
     expect(summaryTabContent).toContain('ExecutionInspectorSummaryView');
     expect(summaryTabContent).not.toContain('<Card key={card.title}');
     expect(summaryTabContent).not.toContain('Recent activity packets');

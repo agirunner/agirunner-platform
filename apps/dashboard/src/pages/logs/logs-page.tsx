@@ -157,6 +157,7 @@ export function LogsSurface(props: LogsPageProps = {}): JSX.Element {
             <LogFilters
               hideEntityScope={Boolean(logScope)}
               compact
+              disableOptionQueries
               scope={logScope}
               operationItemsOverride={operationsQuery.data?.data}
               roleItemsOverride={rolesQuery.data?.data}

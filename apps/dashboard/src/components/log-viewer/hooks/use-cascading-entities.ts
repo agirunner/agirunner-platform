@@ -75,6 +75,9 @@ export function useCascadingEntities(
       return res.data;
     },
     staleTime: 60_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
 
   const workflowsQuery = useQuery({
@@ -86,6 +89,9 @@ export function useCascadingEntities(
       return extractList<WorkflowRecord>(res);
     },
     staleTime: 30_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
 
   const tasksQuery = useQuery({
@@ -97,6 +103,9 @@ export function useCascadingEntities(
       return extractList<TaskRecord>(res);
     },
     staleTime: 30_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
   });
 
   const workspaces: ComboboxItem[] = useMemo(
@@ -173,24 +182,11 @@ export function useCascadingEntities(
     [onChange, workspaceId, workflowId, tasksQuery.data, workflowsQuery.data],
   );
 
-  const { refetch: refetchWorkspaces } = workspacesQuery;
-  const { refetch: refetchWorkflows } = workflowsQuery;
-  const { refetch: refetchTasks } = tasksQuery;
+  const searchWorkspaces = useCallback((_query: string) => {}, []);
 
-  const searchWorkspaces = useCallback(
-    (_query: string) => { refetchWorkspaces(); },
-    [refetchWorkspaces],
-  );
+  const searchWorkflows = useCallback((_query: string) => {}, []);
 
-  const searchWorkflows = useCallback(
-    (_query: string) => { refetchWorkflows(); },
-    [refetchWorkflows],
-  );
-
-  const searchTasks = useCallback(
-    (_query: string) => { refetchTasks(); },
-    [refetchTasks],
-  );
+  const searchTasks = useCallback((_query: string) => {}, []);
 
   return {
     workspaces,

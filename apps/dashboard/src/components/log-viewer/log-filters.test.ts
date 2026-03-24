@@ -17,7 +17,9 @@ describe('log filters source', () => {
     expect(source).toContain('operationItemsOverride');
     expect(source).toContain('roleItemsOverride');
     expect(source).toContain('actorItemsOverride');
-    expect(source).toContain('useLogActors(actorOptionFilters, !actorItemsOverride)');
+    expect(source).toContain('disableOptionQueries');
+    expect(source).toContain('useLogActors(');
+    expect(source).toContain('!actorItemsOverride && !disableOptionQueries');
     expect(source).toContain("placeholder={\n            filters.actors.length > 0");
     expect(source).toContain('allGroupLabel="Actors"');
     expect(source).toContain('allGroupLabel="Execution backend"');
@@ -51,6 +53,7 @@ describe('log filters source', () => {
     expect(source).toContain('const operationItems = operationItemsOverride ?? toOperationItems(operationsData);');
     expect(source).toContain('const roleItems = roleItemsOverride ?? toRoleItems(rolesData);');
     expect(source).toContain('const actorItems = actorItemsOverride ?? toActorItems(actorsData);');
+    expect(source).toContain('disableOptionQueries = false');
   });
 
   it('serializes source and status filters into log query params', () => {

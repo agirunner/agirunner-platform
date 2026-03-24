@@ -6,6 +6,9 @@ export function useLogActors(baseFilters: Record<string, string> = {}, enabled =
     queryKey: ['log-actors', baseFilters],
     queryFn: () => dashboardApi.getLogActors(baseFilters),
     staleTime: 60_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
     enabled,
   });
 }

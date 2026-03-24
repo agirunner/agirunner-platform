@@ -13,6 +13,9 @@ export function useLogOperations(
     queryKey: ['log-operations', filters],
     queryFn: () => dashboardApi.getLogOperations(filters),
     staleTime: 60_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: true,
     enabled,
   });
 }

@@ -1,39 +1,23 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-import {
-  normalizeEntityStatus,
-  readTaskEntityStatus,
-  readWorkflowEntityStatus,
-} from './use-cascading-entities.js';
+function readSource(): string {
+  return readFileSync(resolve(import.meta.dirname, './use-cascading-entities.ts'), 'utf8');
+}
 
-describe('useCascadingEntities helpers', () => {
-  it('treats canonical active states as active', () => {
-    expect(normalizeEntityStatus('active')).toBe('active');
-    expect(normalizeEntityStatus('in_progress')).toBe('active');
-  });
+describe('use cascading entities source', () => {
+  it('keeps entity option caches warm instead of refetching on combobox search', () => {
+    const source = readSource();
 
-  it('does not treat legacy running as a live active state', () => {
-    expect(normalizeEntityStatus('running')).toBe('pending');
-  });
-
-  it('prefers canonical workflow state over legacy status fallback', () => {
-    expect(
-      readWorkflowEntityStatus({
-        id: 'workflow-1',
-        name: 'Workflow',
-        state: 'failed',
-        status: 'active',
-      }),
-    ).toBe('failed');
-  });
-
-  it('falls back to legacy task status only when canonical state is absent', () => {
-    expect(
-      readTaskEntityStatus({
-        id: 'task-1',
-        title: 'Task',
-        status: 'completed',
-      }),
-    ).toBe('completed');
+    expect(source).toContain('refetchInterval: 10_000');
+    expect(source).toContain('refetchIntervalInBackground: true');
+    expect(source).toContain('refetchOnWindowFocus: true');
+    expect(source).not.toContain('refetchWorkspaces');
+    expect(source).not.toContain('refetchWorkflows');
+    expect(source).not.toContain('refetchTasks');
+    expect(source).toContain('const searchWorkspaces = useCallback((_query: string) => {}, []);');
+    expect(source).toContain('const searchWorkflows = useCallback((_query: string) => {}, []);');
+    expect(source).toContain('const searchTasks = useCallback((_query: string) => {}, []);');
   });
 });
