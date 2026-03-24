@@ -215,12 +215,14 @@ EOF
 
   printf '%s\n' '{}' >"${scenario_dir}/alpha.json"
   printf '%s\n' '{}' >"${scenario_dir}/beta.json"
+  printf '%s\n' '{}' >"${scenario_dir}/prose-only-sdlc-cycle-advisory.json"
   printf '%s\n' '{}' >"${scenario_dir}/prose-only-approval-advisory.json"
 
   cat >"${tracker_file}" <<'EOF'
 {
   "supported": {
     "scenarios": [
+      "prose-only-sdlc-cycle-advisory",
       "prose-only-approval-advisory",
       "alpha",
       "beta"
@@ -251,7 +253,7 @@ EOF
     LIVE_TEST_ARTIFACTS_DIR="${artifacts_dir}" \
     "${SCRIPT_PATH}" 1 >"${output_log}" 2>&1
 
-  if [[ "$(cat "${runner_log}")" != $'prose-only-approval-advisory\nalpha\nbeta' ]]; then
+  if [[ "$(cat "${runner_log}")" != $'prose-only-sdlc-cycle-advisory\nprose-only-approval-advisory\nalpha\nbeta' ]]; then
     fail "expected default scenario order to follow tracker order"
   fi
 }

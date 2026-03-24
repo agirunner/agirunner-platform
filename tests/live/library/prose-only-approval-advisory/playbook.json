@@ -5,7 +5,7 @@
   "outcome": "A release note is delivered without turning prose-only approval into a blocking workflow control.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "Create the release note packet. Team members may mention that an informal approval would be nice before release, but this playbook has no configured human gate and no approval rule. Prose-only approval requests are advisory and must not block completion.",
+    "process_instructions": "Run this as a compact but realistic release communication workflow. The specialist MUST produce a concise release note packet that names the change, audience, rollout expectation, and any operator caveats. The orchestrator SHOULD make sure the release note is actually complete and understandable before closing the workflow. Team members MAY mention in prose that a human approval would be nice before release, but this playbook has no configured human gate and no approval rule. Any prose-only approval request is advisory only, MUST be recorded only as narrative guidance, and MUST NOT block work-item or workflow completion.",
     "parameters": [
       {
         "name": "goal",

@@ -11,8 +11,9 @@
   },
   "supported": {
     "name": "all_supported_live_scenarios",
-    "total": 54,
+    "total": 55,
     "scenarios": [
+      "prose-only-sdlc-cycle-advisory",
       "prose-only-approval-advisory",
       "prose-only-assessment-advisory",
       "prose-only-escalation-advisory",

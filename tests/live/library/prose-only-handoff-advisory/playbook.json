@@ -5,7 +5,7 @@
   "outcome": "A briefing note is delivered without turning prose-only successor suggestions into a required handoff path.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "Create the briefing note. Team members may suggest in prose that an editor should polish it next, but this playbook has no configured handoff rule and no required successor task. Prose-only handoff suggestions are advisory and must not block completion.",
+    "process_instructions": "Run this as a lightweight operations briefing workflow. The specialist MUST produce a briefing note that is already clear enough to share. The orchestrator SHOULD close the workflow once that note is ready instead of inventing extra polishing work. Team members MAY suggest in prose that an editor should polish it next, but this playbook has no configured successor handoff rule and no required successor task. Any prose-only handoff suggestion is advisory only, MUST remain narrative guidance, and MUST NOT block completion or force successor creation.",
     "parameters": [
       {
         "name": "goal",

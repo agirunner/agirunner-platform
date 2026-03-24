@@ -5,7 +5,7 @@
   "outcome": "A policy memo is delivered without turning prose-only assessment into a blocking workflow control.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "Create the policy memo. Team members may mention that a peer assessment would be useful, but this playbook has no configured assessment rule. Prose-only assessment requests are advisory and must not block completion.",
+    "process_instructions": "Run this as a small policy-writing workflow. The specialist MUST produce a short policy memo that states the operating issue, the recommended action, and the most important constraint or tradeoff. The orchestrator SHOULD ensure the memo is coherent enough to circulate as written. Team members MAY mention in prose that peer assessment or validation would be helpful, but this playbook has no configured assessment rule. Any prose-only assessment request is advisory only, MUST remain narrative guidance, and MUST NOT create blocking workflow control.",
     "parameters": [
       {
         "name": "goal",

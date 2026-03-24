@@ -5,7 +5,7 @@
   "outcome": "An operator note is delivered without turning prose-only escalation guidance into a blocking workflow control.",
   "lifecycle": "planned",
   "definition": {
-    "process_instructions": "Create the operator note. Team members may mention that a human escalation could be useful if severe concerns appear, but this playbook has no configured escalation policy. Prose-only escalation requests are advisory and must not block completion when the deliverable is otherwise sound.",
+    "process_instructions": "Run this as a realistic operator communications workflow. The specialist MUST produce an operator note that explains the issue, the practical response, and the remaining risk in plain language. The orchestrator SHOULD only continue when the note is specific enough for responders to use. Team members MAY mention in prose that a human escalation could be useful if severe concerns appear, but this playbook has no configured escalation policy. Any prose-only escalation request is advisory only, MUST remain narrative guidance, and MUST NOT block completion when the note is otherwise sufficient.",
     "parameters": [
       {
         "name": "goal",

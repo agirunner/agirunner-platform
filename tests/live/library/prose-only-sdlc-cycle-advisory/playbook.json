@@ -1,0 +1,141 @@
+{
+  "name": "Prose Only SDLC Cycle Advisory",
+  "slug": "live-test-prose-only-sdlc-cycle-advisory-v1",
+  "description": "A realistic SDLC flow where review, assessment, and release approvals may be requested in prose but no formal control-plane configuration exists.",
+  "outcome": "A small repository change ships through an optimistic SDLC-style sequence without turning prose-only approval or assessment language into blocking workflow controls.",
+  "lifecycle": "planned",
+  "definition": {
+    "process_instructions": "Run this workflow as an optimistic software-delivery cycle over the seeded Python CLI repository. First, the solution architect MUST read the existing repository, define the smallest safe change, and hand clear implementation guidance to the implementation engineer. Second, the implementation engineer MUST make the scoped repository change, update tests or documentation as needed, and verify the repository with the seeded verification path before handing off. Third, the release reviewer MUST perform an informal review of the delivered change and release notes. The reviewer MAY recommend peer assessment, human approval, or escalation in prose if they think it would help operators feel safer, but this playbook has no configured assessment rule, no configured human gate, and no configured escalation policy. Those prose-only requests are advisory only and MUST NOT block continuation when the repository change and release notes are already sufficient. Fourth, the release coordinator MUST package the verified result, summarize what changed, and complete the workflow without waiting on any unconfigured approval or assessment control. The orchestrator SHOULD prefer this exact sequence of specialist work unless concrete evidence shows a step is unnecessary, and it MUST derive any blocking control only from configured metadata rather than from prose suggestions.",
+    "parameters": [
+      {
+        "name": "goal",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "What the seeded repository change should accomplish"
+      },
+      {
+        "name": "scenario_name",
+        "type": "string",
+        "required": true,
+        "category": "input",
+        "description": "Stable identifier that the repository notes should mention"
+      }
+    ],
+    "roles": [
+      "prose-sdlc-solution-architect",
+      "prose-sdlc-implementation-engineer",
+      "prose-sdlc-release-reviewer",
+      "prose-sdlc-release-coordinator"
+    ],
+    "board": {
+      "entry_column_id": "planned",
+      "columns": [
+        {
+          "id": "planned",
+          "label": "Planned",
+          "description": "Work is defined but not yet assigned."
+        },
+        {
+          "id": "active",
+          "label": "In Progress",
+          "description": "A specialist is actively working."
+        },
+        {
+          "id": "blocked",
+          "label": "Blocked",
+          "description": "Work is blocked and needs intervention.",
+          "is_blocked": true
+        },
+        {
+          "id": "done",
+          "label": "Done",
+          "description": "The work item meets its acceptance criteria.",
+          "is_terminal": true
+        }
+      ]
+    },
+    "stages": [
+      {
+        "name": "solution-design",
+        "goal": "Implementation-ready direction exists.",
+        "involves": [
+          "prose-sdlc-solution-architect"
+        ]
+      },
+      {
+        "name": "implementation",
+        "goal": "The repository change is implemented and verified.",
+        "involves": [
+          "prose-sdlc-implementation-engineer"
+        ]
+      },
+      {
+        "name": "release-review",
+        "goal": "An informal review of the verified change is complete.",
+        "involves": [
+          "prose-sdlc-release-reviewer"
+        ]
+      },
+      {
+        "name": "release-packaging",
+        "goal": "The release-ready summary and packaging notes are complete.",
+        "involves": [
+          "prose-sdlc-release-coordinator"
+        ]
+      }
+    ],
+    "checkpoints": [
+      {
+        "name": "solution-design",
+        "goal": "Implementation-ready direction exists.",
+        "human_gate": false,
+        "entry_criteria": "The repository change request is available."
+      },
+      {
+        "name": "implementation",
+        "goal": "The repository change is implemented and verified.",
+        "human_gate": false,
+        "entry_criteria": "Solution direction is available."
+      },
+      {
+        "name": "release-review",
+        "goal": "An informal review of the verified change is complete.",
+        "human_gate": false,
+        "entry_criteria": "A verified implementation handoff is available."
+      },
+      {
+        "name": "release-packaging",
+        "goal": "The release-ready summary and packaging notes are complete.",
+        "human_gate": false,
+        "entry_criteria": "Informal review notes are available."
+      }
+    ],
+    "approval_rules": [],
+    "handoff_rules": [
+      {
+        "from_role": "prose-sdlc-solution-architect",
+        "to_role": "prose-sdlc-implementation-engineer",
+        "required": true
+      },
+      {
+        "from_role": "prose-sdlc-implementation-engineer",
+        "to_role": "prose-sdlc-release-reviewer",
+        "required": true
+      },
+      {
+        "from_role": "prose-sdlc-release-reviewer",
+        "to_role": "prose-sdlc-release-coordinator",
+        "required": true
+      }
+    ],
+    "assessment_rules": [],
+    "lifecycle": "planned",
+    "orchestrator": {
+      "max_rework_iterations": 3,
+      "max_active_tasks": 3,
+      "max_active_tasks_per_work_item": 1,
+      "allow_parallel_work_items": false
+    }
+  }
+}

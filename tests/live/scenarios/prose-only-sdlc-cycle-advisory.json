@@ -1,0 +1,54 @@
+{
+  "name": "prose-only-sdlc-cycle-advisory",
+  "profile": "prose-only-sdlc-cycle-advisory",
+  "workflow": {
+    "name": "Prose Only SDLC Cycle Advisory",
+    "goal": "Extend the seeded Python CLI with a deterministic `plan` command and ship it through solution design, implementation, informal release review, and release packaging without any configured approval or assessment control.",
+    "parameters": {
+      "scenario_name": "prose-only-sdlc-cycle-advisory"
+    }
+  },
+  "workspace": {
+    "repo": true,
+    "memory": {},
+    "spec": {
+      "instructions": {
+        "content": "This workspace already contains a seeded Python standard-library CLI scaffold. Keep the existing stack and layout. Use `./scripts/verify.sh` as the verification path. Follow an optimistic SDLC rhythm: architecture, implementation, informal release review, then packaging. Team members may recommend approval, assessment, or escalation in prose, but none of those controls are configured in this playbook and they must remain advisory only.",
+        "format": "markdown"
+      }
+    }
+  },
+  "approvals": [],
+  "actions": [],
+  "expect": {
+    "state": "completed",
+    "workflow_tasks": {
+      "min_non_orchestrator_count": 4
+    },
+    "direct_handoff_expectations": [
+      {
+        "source_role": "prose-sdlc-solution-architect",
+        "successor_role": "prose-sdlc-implementation-engineer"
+      },
+      {
+        "source_role": "prose-sdlc-implementation-engineer",
+        "successor_role": "prose-sdlc-release-reviewer"
+      },
+      {
+        "source_role": "prose-sdlc-release-reviewer",
+        "successor_role": "prose-sdlc-release-coordinator"
+      }
+    ],
+    "work_items": {
+      "all_terminal": true
+    }
+  },
+  "coverage": {
+    "delivery_paths": ["direct_successor"],
+    "assessor_cardinality": ["zero"],
+    "successor_gating": ["direct_after_handoff"],
+    "playbook_shapes": ["custom_role_names", "multiple_checkpoints"],
+    "storage_execution": ["git_workspace", "cold_specialists", "warm_orchestrators"],
+    "configuration_optional_controls": ["approval_prose_only", "assessment_prose_only", "escalation_prose_only"]
+  }
+}

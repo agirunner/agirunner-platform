@@ -35,6 +35,7 @@ EXPECTED_SCENARIOS = {
     "one-orchestrator-many-workflows-assessment",
     "ongoing-intake-assessment-rework",
     "publishing-approval-before-assessment",
+    "prose-only-sdlc-cycle-advisory",
     "prose-only-approval-advisory",
     "prose-only-assessment-advisory",
     "prose-only-escalation-advisory",

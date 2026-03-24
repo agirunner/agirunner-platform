@@ -15,6 +15,35 @@ import scenario_config  # noqa: E402
 
 
 class ScenarioConfigTests(unittest.TestCase):
+    def test_prose_only_sdlc_scenario_requires_a_real_multi_role_repo_flow(self) -> None:
+        scenario_path = Path(__file__).resolve().parents[1] / "scenarios" / "prose-only-sdlc-cycle-advisory.json"
+
+        scenario = scenario_config.load_scenario(scenario_path)
+
+        self.assertTrue(scenario["workspace"]["repo"])
+        self.assertEqual(4, scenario["expect"]["workflow_tasks"]["min_non_orchestrator_count"])
+        self.assertEqual(
+            [
+                {
+                    "source_role": "prose-sdlc-solution-architect",
+                    "successor_role": "prose-sdlc-implementation-engineer",
+                },
+                {
+                    "source_role": "prose-sdlc-implementation-engineer",
+                    "successor_role": "prose-sdlc-release-reviewer",
+                },
+                {
+                    "source_role": "prose-sdlc-release-reviewer",
+                    "successor_role": "prose-sdlc-release-coordinator",
+                },
+            ],
+            scenario["expect"]["direct_handoff_expectations"],
+        )
+        self.assertEqual(
+            ["approval_prose_only", "assessment_prose_only", "escalation_prose_only"],
+            scenario["coverage"]["configuration_optional_controls"],
+        )
+
     def test_ongoing_intake_scenario_requires_real_work_before_pending_counts_as_success(self) -> None:
         scenario_path = Path(__file__).resolve().parents[1] / "scenarios" / "ongoing-intake-assessment-rework.json"
 

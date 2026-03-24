@@ -31,8 +31,9 @@ class LiveTestCatalogTests(unittest.TestCase):
         tracker = json.loads(TRACKER_FILE.read_text())
         supported = tracker["supported"]["scenarios"]
         self.assertEqual(
-            supported[:4],
+            supported[:5],
             [
+                "prose-only-sdlc-cycle-advisory",
                 "prose-only-approval-advisory",
                 "prose-only-assessment-advisory",
                 "prose-only-escalation-advisory",
@@ -91,6 +92,13 @@ class LiveTestCatalogTests(unittest.TestCase):
 
     def test_sdlc_single_assessment_profile_seeds_a_real_repo_and_verification_path(self) -> None:
         seed_root = LIBRARY_DIR / "sdlc-assessment-approve" / "repo-seed"
+        self.assertTrue((seed_root / "README.md").is_file())
+        self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
+        self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
+        self.assertTrue((seed_root / "tests" / "test_cli.py").is_file())
+
+    def test_prose_only_sdlc_profile_reuses_a_real_repo_seed(self) -> None:
+        seed_root = LIBRARY_DIR / "prose-only-sdlc-cycle-advisory" / "repo-seed"
         self.assertTrue((seed_root / "README.md").is_file())
         self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
         self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
