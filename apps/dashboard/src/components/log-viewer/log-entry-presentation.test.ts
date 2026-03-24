@@ -87,6 +87,26 @@ describe('log entry presentation', () => {
     expect(describeLogActivityDetail(entry)).toBe('Shell exec(npm test -- --runInBand src/compone…)');
   });
 
+  it('surfaces tool intent from llm response tool-call payloads', () => {
+    const entry = makeEntry({
+      category: 'agent_loop',
+      operation: 'agent.act',
+      payload: {
+        response_tool_calls: [
+          {
+            name: 'read_latest_handoff',
+            input: {
+              work_item_id: 'a3d68f2e-1111-2222-3333-444444444444',
+            },
+          },
+        ],
+      },
+    });
+
+    expect(describeLogToolDisplay(entry)).toContain('Read latest handoff(a3d68f2e-1111-2222-3333-');
+    expect(describeLogActivityDetail(entry)).toContain('Read latest handoff(a3d68f2e-1111-2222-3333-');
+  });
+
   it('does not treat lifecycle phases like populate as tool usage', () => {
     const entry = makeEntry({
       category: 'runtime_lifecycle',

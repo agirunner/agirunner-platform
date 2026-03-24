@@ -55,12 +55,16 @@ export function describeLogActorDetail(entry: LogEntry): string {
 }
 
 export function describeLogToolDisplay(entry: LogEntry): string | null {
-  const label = readActualToolLabel(entry.payload);
+  const invocation = readToolInvocation(entry.payload);
+  if (!invocation) {
+    return null;
+  }
+  const label = humanizeSentence(invocation.name);
   if (!label) {
     return null;
   }
 
-  const summary = readToolArgumentSummary(entry.payload);
+  const summary = describeToolArgumentSummaryByName(invocation.name, invocation.input, entry.payload ?? {});
   return summary ? `${label}(${summary})` : label;
 }
 
@@ -178,13 +182,8 @@ function readActualToolLabel(payload: Record<string, unknown> | null | undefined
 }
 
 function readToolArgumentSummary(payload: Record<string, unknown> | null | undefined): string | null {
-  if (!payload) {
-    return null;
-  }
-
-  const input = isRecord(payload.input) ? payload.input : null;
-  const toolName = readString(payload.tool_name);
-  return describeToolArgumentSummaryByName(toolName, input, payload);
+  const invocation = readToolInvocation(payload);
+  return invocation ? describeToolArgumentSummaryByName(invocation.name, invocation.input, payload ?? {}) : null;
 }
 
 function describeLlmDetail(payload: Record<string, unknown>): string {
@@ -519,6 +518,47 @@ function readStringArray(value: unknown): string[] {
     return [];
   }
   return value.filter((item): item is string => typeof item === 'string' && item.trim().length > 0);
+}
+
+function readToolInvocation(
+  payload: Record<string, unknown> | null | undefined,
+): { name: string; input: Record<string, unknown> | null } | null {
+  if (!payload) {
+    return null;
+  }
+
+  const directToolName = readString(payload.tool_name);
+  if (directToolName) {
+    return {
+      name: directToolName,
+      input: isRecord(payload.input) ? payload.input : null,
+    };
+  }
+
+  const responseToolCalls = Array.isArray(payload.response_tool_calls) ? payload.response_tool_calls : [];
+  for (const item of responseToolCalls) {
+    if (!isRecord(item)) {
+      continue;
+    }
+    const name = readString(item.name);
+    if (!name) {
+      continue;
+    }
+    return {
+      name,
+      input: isRecord(item.input) ? item.input : null,
+    };
+  }
+
+  const toolCalls = readStringArray(payload.tool_calls);
+  if (toolCalls.length > 0) {
+    return {
+      name: toolCalls[0] ?? '',
+      input: null,
+    };
+  }
+
+  return null;
 }
 
 function humanize(value: string): string {
