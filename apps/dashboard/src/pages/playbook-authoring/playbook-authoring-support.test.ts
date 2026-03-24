@@ -5,91 +5,53 @@ import {
   createDefaultAuthoringDraft,
   hydratePlaybookAuthoringDraft,
   summarizePlaybookAuthoringDraft,
-  validateParameterDrafts,
   validateBoardColumnsDraft,
+  validateParameterDrafts,
   validateRoleDrafts,
+  validateWorkflowRulesDraft,
 } from './playbook-authoring-support.js';
 
 describe('playbook authoring support', () => {
-  it('starts new drafts blank except for suggested board lanes', () => {
+  it('starts new drafts with stages instead of governance rules', () => {
     const draft = createDefaultAuthoringDraft('planned');
 
     expect(draft.roles).toEqual([]);
-    expect(draft.checkpoints).toEqual([]);
-    expect(draft.assessment_rules).toEqual([]);
-    expect(draft.approval_rules).toEqual([]);
-    expect(draft.handoff_rules).toEqual([]);
+    expect(draft.stages).toEqual([]);
     expect(draft.columns).toHaveLength(5);
+    expect(draft.process_instructions).toContain('stages');
+    expect(draft.process_instructions).toContain('assessments');
+    expect(draft.process_instructions).toContain('approvals');
   });
 
-  it('builds a process-first definition payload that matches the redesign contract', () => {
+  it('builds a prose-governed playbook definition', () => {
     const draft = createDefaultAuthoringDraft('planned');
     draft.roles = [{ value: 'architect' }, { value: 'developer' }, { value: 'reviewer' }];
     draft.process_instructions =
-      'Architect plans the change, developer implements it, reviewer assesses every code change, and human approval is required before completion.';
-    draft.entry_column_id = 'active';
-    draft.columns[0].description = 'New work waiting for orchestration';
-    draft.checkpoints = [
-      {
-        name: 'plan',
-        goal: 'Clarify the objective and produce an execution plan.',
-        human_gate: false,
-        entry_criteria: 'Objective and acceptance criteria are clear.',
-      },
+      'The architect clarifies scope, the developer implements, the reviewer performs a substantive release review, and the orchestrator pauses for human approval before publishing.';
+    draft.stages = [
+      { name: 'plan', goal: 'Clarify the objective and execution path.', guidance: '' },
       {
         name: 'deliver',
-        goal: 'Deliver and approve the bounded outcome.',
-        human_gate: true,
-        entry_criteria: '',
+        goal: 'Produce and package the requested change.',
+        guidance: 'Seek review and approval when the release packet is ready.',
       },
     ];
-    draft.assessment_rules = [
+    draft.parameters = [
       {
-        subject_role: 'developer',
-        assessed_by: 'reviewer',
-        checkpoint: '',
+        name: 'goal',
+        type: 'string',
         required: true,
-        materiality: '',
-        assessment_retention: '',
-        approval_retention: '',
-        request_changes_action: 'reopen_subject',
-        request_changes_target: 'developer',
-        rejected_action: 'block_subject',
-        rejected_target: '',
-        allow_blocked_decision: false,
-        blocked_action: 'block_subject',
-        blocked_target: '',
+        secret: false,
+        category: 'input',
+        maps_to: '',
+        description: 'Requested outcome',
+        default_value: '',
+        label: 'Workflow Goal',
+        help_text: 'Describe what the workflow should accomplish',
+        allowed_values: '',
       },
     ];
-    draft.approval_rules = [{
-      on: 'checkpoint',
-      checkpoint: 'deliver',
-      required: true,
-      materiality: '',
-      assessment_retention: '',
-      approval_retention: '',
-      allow_blocked_decision: false,
-      approval_before_assessment: false,
-    }];
-    draft.handoff_rules = [{ from_role: 'architect', to_role: 'developer', required: true }];
-    draft.orchestrator.max_iterations = '100';
-    draft.orchestrator.llm_max_retries = '5';
-    draft.parameters = [{
-      name: 'goal',
-      type: 'string',
-      required: true,
-      secret: false,
-      category: 'input',
-      maps_to: '',
-      description: 'What to build',
-      default_value: '',
-      label: 'Workflow Goal',
-      help_text: 'Describe what the workflow should accomplish',
-      allowed_values: '',
-    }];
-    draft.orchestrator.max_rework_iterations = '3';
-    draft.orchestrator.max_iterations = '100';
-    draft.orchestrator.llm_max_retries = '5';
+
     const built = buildPlaybookDefinition('planned', draft);
 
     expect(built).toEqual(
@@ -97,600 +59,60 @@ describe('playbook authoring support', () => {
         ok: true,
         value: expect.objectContaining({
           lifecycle: 'planned',
-          process_instructions:
-            'Architect plans the change, developer implements it, reviewer assesses every code change, and human approval is required before completion.',
           roles: ['architect', 'developer', 'reviewer'],
-          board: expect.objectContaining({
-            entry_column_id: 'active',
-            columns: expect.arrayContaining([
-              expect.objectContaining({
-                id: 'inbox',
-                label: 'Inbox',
-                description: 'New work waiting for orchestration',
-              }),
-            ]),
-          }),
-          checkpoints: expect.arrayContaining([
-            expect.objectContaining({
-              name: 'plan',
-              goal: 'Clarify the objective and produce an execution plan.',
-              entry_criteria: 'Objective and acceptance criteria are clear.',
-            }),
+          process_instructions: draft.process_instructions,
+          stages: expect.arrayContaining([
+            expect.objectContaining({ name: 'plan', goal: 'Clarify the objective and execution path.' }),
             expect.objectContaining({
               name: 'deliver',
-              human_gate: true,
-            }),
-          ]),
-          assessment_rules: expect.arrayContaining([
-            expect.objectContaining({
-              subject_role: 'developer',
-              assessed_by: 'reviewer',
-              required: true,
-              outcome_actions: expect.objectContaining({
-                request_changes: { action: 'route_to_role', role: 'developer' },
-              }),
-            }),
-          ]),
-          approval_rules: expect.arrayContaining([
-            expect.objectContaining({
-              on: 'checkpoint',
-              checkpoint: 'deliver',
-              approved_by: 'human',
-              required: true,
-            }),
-          ]),
-          handoff_rules: expect.arrayContaining([
-            expect.objectContaining({
-              from_role: 'architect',
-              to_role: 'developer',
-              required: true,
-            }),
-          ]),
-          orchestrator: expect.objectContaining({
-            max_rework_iterations: 3,
-            max_iterations: 100,
-            llm_max_retries: 5,
-            max_active_tasks: 4,
-            max_active_tasks_per_work_item: 2,
-            allow_parallel_work_items: true,
-          }),
-          parameters: expect.arrayContaining([
-            expect.objectContaining({
-              name: 'goal',
-              type: 'string',
-              required: true,
-              category: 'input',
-              description: 'What to build',
-              label: 'Workflow Goal',
-              help_text: 'Describe what the workflow should accomplish',
+              guidance: 'Seek review and approval when the release packet is ready.',
             }),
           ]),
         }),
       }),
     );
     if (built.ok) {
-    expect(built.value.orchestrator).not.toEqual(
-      expect.objectContaining({
-        check_interval: expect.anything(),
-        stale_threshold: expect.anything(),
-      }),
-    );
-      expect(built.value.orchestrator).not.toEqual(
-        expect.objectContaining({ tools: expect.anything() }),
-      );
-      expect(built.value).not.toEqual(
-        expect.objectContaining({ runtime: expect.anything() }),
-      );
+      expect(built.value).not.toHaveProperty('checkpoints');
+      expect(built.value).not.toHaveProperty('assessment_rules');
+      expect(built.value).not.toHaveProperty('approval_rules');
+      expect(built.value).not.toHaveProperty('handoff_rules');
+      expect(built.value).not.toHaveProperty('branch_policies');
     }
   });
 
-  it('builds authored blocked, retention, ordering, and branch policy metadata', () => {
-    const draft = createDefaultAuthoringDraft('planned');
-    draft.process_instructions = 'Assess, escalate, and gate the work through explicit policy.';
-    draft.roles = [{ value: 'writer' }, { value: 'policy-reviewer' }];
-    draft.checkpoints = [
-      {
-        name: 'publish',
-        goal: 'Prepare the publishable packet.',
-        human_gate: true,
-        entry_criteria: '',
-      },
-    ];
-    draft.branch_policies = [
-      {
-        branch_key: 'regional-variant',
-        termination_policy: 'stop_branch_only',
-      },
-    ];
-    draft.assessment_rules = [
-      {
-        subject_role: 'writer',
-        assessed_by: 'policy-reviewer',
-        checkpoint: 'publish',
-        required: true,
-        materiality: 'non_material',
-        assessment_retention: 'retain_named_assessors',
-        approval_retention: '',
-        request_changes_action: 'route_to_role',
-        request_changes_target: 'writer',
-        rejected_action: 'terminate_branch',
-        rejected_target: '',
-        allow_blocked_decision: true,
-        blocked_action: 'escalate',
-        blocked_target: '',
-      },
-    ];
-    draft.approval_rules = [
-      {
-        on: 'checkpoint',
-        checkpoint: 'publish',
-        required: true,
-        materiality: 'material',
-        assessment_retention: '',
-        approval_retention: 'retain_non_material_only',
-        allow_blocked_decision: true,
-        approval_before_assessment: true,
-      },
-    ];
-
-    const built = buildPlaybookDefinition('planned', draft);
-    expect(built).toEqual(
-      expect.objectContaining({
-        ok: true,
-        value: expect.objectContaining({
-          branch_policies: [
-            {
-              branch_key: 'regional-variant',
-              termination_policy: 'stop_branch_only',
-            },
-          ],
-          assessment_rules: [
-            expect.objectContaining({
-              materiality: 'non_material',
-              decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
-              outcome_actions: expect.objectContaining({
-                request_changes: { action: 'route_to_role', role: 'writer' },
-                rejected: { action: 'terminate_branch' },
-                blocked: { action: 'escalate' },
-              }),
-              revision_policy: {
-                assessment_retention: 'retain_named_assessors',
-              },
-            }),
-          ],
-          approval_rules: [
-            expect.objectContaining({
-              materiality: 'material',
-              decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
-              revision_policy: {
-                approval_retention: 'retain_non_material_only',
-              },
-              ordering_policy: {
-                subject_boundary: 'checkpoint',
-                approval_before_assessment: true,
-              },
-            }),
-          ],
-        }),
-      }),
-    );
-  });
-
-  it('rejects incomplete or duplicate structured rows before submit', () => {
-    const draft = createDefaultAuthoringDraft('ongoing');
-    draft.process_instructions = 'Triage, deliver, and complete the work.';
-    draft.columns[0].id = '';
-
-    expect(buildPlaybookDefinition('ongoing', draft)).toEqual({
-      ok: false,
-      error: 'Add a stable column ID.',
-    });
-
-    draft.columns[0].id = 'inbox';
-    draft.columns[1].id = 'inbox';
-    expect(buildPlaybookDefinition('ongoing', draft)).toEqual({
-      ok: false,
-      error: 'Column IDs must be unique.',
-    });
-  });
-
-  it('rejects invalid persisted object and list defaults before submit', () => {
-    const objectDraft = createDefaultAuthoringDraft('ongoing');
-    objectDraft.process_instructions = 'Triage, deliver, and complete the work.';
-    objectDraft.parameters = [
-      {
-        name: 'context',
-        type: 'object',
-        required: false,
-        secret: false,
-        category: 'input',
-        maps_to: '',
-        description: '',
-        default_value: '[1,2,3]',
-        label: '',
-        help_text: '',
-        allowed_values: '',
-      },
-    ];
-
-    expect(buildPlaybookDefinition('ongoing', objectDraft)).toEqual({
-      ok: false,
-      error: 'Object defaults must be valid structured object data.',
-    });
-
-    const arrayDraft = createDefaultAuthoringDraft('ongoing');
-    arrayDraft.process_instructions = 'Triage, deliver, and complete the work.';
-    arrayDraft.parameters = [
-      {
-        name: 'branches',
-        type: 'array',
-        required: false,
-        secret: false,
-        category: 'input',
-        maps_to: '',
-        description: '',
-        default_value: '{"branch":"main"}',
-        label: '',
-        help_text: '',
-        allowed_values: '',
-      },
-    ];
-
-    expect(buildPlaybookDefinition('ongoing', arrayDraft)).toEqual({
-      ok: false,
-      error: 'Array defaults must be valid structured list data.',
-    });
-  });
-
-  it('validates board columns inline while operators edit the draft', () => {
-    const draft = createDefaultAuthoringDraft('planned');
-    draft.columns = [
-      { id: '', label: '', description: '', is_blocked: false, is_terminal: false },
-      { id: 'inbox', label: 'Inbox', description: '', is_blocked: false, is_terminal: false },
-      { id: 'inbox', label: 'Doing', description: '', is_blocked: false, is_terminal: false },
-    ];
-    draft.entry_column_id = 'review';
-
-    expect(validateBoardColumnsDraft(draft.columns, draft.entry_column_id)).toEqual({
-      columnErrors: [
-        { id: 'Add a stable column ID.', label: 'Add a column label.' },
-        { id: 'Column IDs must be unique.', label: undefined },
-        { id: 'Column IDs must be unique.', label: undefined },
-      ],
-      entryColumnError: 'Choose a valid intake column from this board.',
-      blockingIssues: [
-        'Add a stable column ID.',
-        'Add a column label.',
-        'Column IDs must be unique.',
-        'Choose a valid intake column from this board.',
-      ],
-      isValid: false,
-    });
-  });
-
-  it('validates credential mappings without allowing repository workspace mappings', () => {
-    expect(
-      validateParameterDrafts([
-        {
-          name: 'git_token',
-          type: 'string',
-          required: false,
-          secret: false,
-          category: 'input',
-          maps_to: 'workspace.credentials.git_token',
-          description: '',
-          default_value: '',
-          label: '',
-          help_text: '',
-          allowed_values: '',
-        },
-      ]),
-    ).toEqual({
-      parameterErrors: [
-        {
-          category: 'Git token mappings should use the Credential category.',
-          secret: 'Git token mappings must be marked secret.',
-        },
-      ],
-      blockingIssues: [
-        'Git token mappings should use the Credential category.',
-        'Git token mappings must be marked secret.',
-      ],
-      isValid: false,
-    });
-  });
-
-  it('accepts aligned credential parameter mappings', () => {
-    expect(
-      validateParameterDrafts([
-        {
-          name: 'git_token',
-          type: 'string',
-          required: false,
-          secret: true,
-          category: 'credential',
-          maps_to: 'workspace.credentials.git_token',
-          description: '',
-          default_value: '',
-          label: '',
-          help_text: '',
-          allowed_values: '',
-        },
-      ]),
-    ).toEqual({
-      parameterErrors: [{}],
-      blockingIssues: [],
-      isValid: true,
-    });
-  });
-
-  it('flags playbook roles that are no longer active in the shared catalog', () => {
-    expect(
-      validateRoleDrafts(
-        [{ value: 'developer' }, { value: 'legacy-role' }, { value: '' }],
-        ['architect', 'developer'],
-      ),
-    ).toEqual({
-      roleErrors: [undefined, 'Select an active role definition from the shared catalog.', undefined],
-      blockingIssues: ['Select an active role definition from the shared catalog.'],
-      isValid: false,
-    });
-  });
-
-  it('hydrates a structured authoring draft from an existing playbook definition', () => {
-    const draft = hydratePlaybookAuthoringDraft('ongoing', {
-      process_instructions: 'Clarify, implement, assess, and complete the work.',
-      roles: ['developer', 'reviewer'],
-      board: {
-        columns: [
-          { id: 'triage', label: 'Triage', description: 'Incoming work' },
-          { id: 'done', label: 'Done', is_terminal: true },
-        ],
-        entry_column_id: 'triage',
-      },
-      checkpoints: [
-        {
-          name: 'triage',
-          goal: 'Clarify incoming work',
-          human_gate: false,
-          entry_criteria: 'The inbound request is captured.',
-        },
-      ],
-      assessment_rules: [
-        {
-          subject_role: 'developer',
-          assessed_by: 'reviewer',
-          required: true,
-          outcome_actions: {
-            request_changes: { action: 'route_to_role', role: 'developer' },
-          },
-        },
-      ],
-      approval_rules: [{ on: 'completion', approved_by: 'human', required: true }],
-      handoff_rules: [{ from_role: 'developer', to_role: 'reviewer', required: true }],
-      parameters: [
-        {
-          name: 'context',
-          type: 'object',
-          description: 'Additional context',
-          default: { branch: 'main' },
-        },
-      ],
-      orchestrator: {
-        max_iterations: 120,
-        llm_max_retries: 7,
-        max_active_tasks: 6,
-        allow_parallel_work_items: false,
-        tools: ['tool_search'],
-      },
-    });
-
-    expect(draft.roles).toEqual([{ value: 'developer' }, { value: 'reviewer' }]);
-    expect(draft.process_instructions).toBe('Clarify, implement, assess, and complete the work.');
-    expect(draft.columns[0]).toEqual(
-      expect.objectContaining({ id: 'triage', label: 'Triage' }),
-    );
-    expect(draft.entry_column_id).toBe('triage');
-    expect(draft.checkpoints[0]).toEqual(
-      expect.objectContaining({ name: 'triage', entry_criteria: 'The inbound request is captured.' }),
-    );
-    expect(draft.assessment_rules[0]).toEqual(
-      expect.objectContaining({
-        subject_role: 'developer',
-        assessed_by: 'reviewer',
-        request_changes_action: 'route_to_role',
-        request_changes_target: 'developer',
-        rejected_action: 'block_subject',
-        rejected_target: '',
-        allow_blocked_decision: false,
-      }),
-    );
-    expect(draft.approval_rules[0]).toEqual(
-      expect.objectContaining({
-        on: 'completion',
-        checkpoint: '',
-        required: true,
-        allow_blocked_decision: false,
-        approval_before_assessment: false,
-      }),
-    );
-    expect(draft.handoff_rules[0]).toEqual(
-      expect.objectContaining({ from_role: 'developer', to_role: 'reviewer', required: true }),
-    );
-    expect(draft.parameters[0]).toEqual(
-      expect.objectContaining({
-        name: 'context',
-        type: 'object',
-        default_value: '{\n  "branch": "main"\n}',
-        label: '',
-        help_text: '',
-        allowed_values: '',
-      }),
-    );
-    expect(draft.orchestrator.max_iterations).toBe('120');
-    expect(draft.orchestrator.llm_max_retries).toBe('7');
-    expect(draft.orchestrator.max_active_tasks).toBe('6');
-    expect(draft.orchestrator.allow_parallel_work_items).toBe(false);
-    expect(draft.orchestrator).not.toEqual(expect.objectContaining({ tools: expect.anything() }));
-  });
-
-  it('hydrates authored blocked, retention, ordering, and branch policy metadata', () => {
+  it('hydrates authoring drafts from stages and process instructions', () => {
     const draft = hydratePlaybookAuthoringDraft('planned', {
-      process_instructions: 'Escalate blocked assessment work and preserve advisory approvals.',
-      roles: ['writer', 'policy-reviewer'],
+      process_instructions: 'Use the stages as milestones and request human approval before release.',
+      roles: ['architect', 'developer'],
+      stages: [{ name: 'design', goal: 'Plan the solution.', guidance: 'Capture decisions.' }],
       board: {
+        entry_column_id: 'active',
         columns: [{ id: 'active', label: 'Active' }],
       },
-      branch_policies: [
-        {
-          branch_key: 'regional-variant',
-          termination_policy: 'stop_branch_only',
-        },
-      ],
-      assessment_rules: [
-        {
-          subject_role: 'writer',
-          assessed_by: 'policy-reviewer',
-          required: true,
-          materiality: 'non_material',
-          decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
-          outcome_actions: {
-            request_changes: { action: 'route_to_role', role: 'writer' },
-            rejected: { action: 'terminate_branch' },
-            blocked: { action: 'escalate' },
-          },
-          revision_policy: {
-            assessment_retention: 'retain_named_assessors',
-          },
-        },
-      ],
-      approval_rules: [
-        {
-          on: 'checkpoint',
-          checkpoint: 'publish',
-          approved_by: 'human',
-          materiality: 'material',
-          decision_states: ['approved', 'request_changes', 'rejected', 'blocked'],
-          revision_policy: {
-            approval_retention: 'retain_non_material_only',
-          },
-          ordering_policy: {
-            subject_boundary: 'checkpoint',
-            approval_before_assessment: true,
-          },
-        },
-      ],
+      orchestrator: { max_active_tasks: 6 },
+      parameters: [{ name: 'goal', type: 'string', default: 'ship it' }],
     });
 
-    expect(draft.branch_policies[0]).toEqual({
-      branch_key: 'regional-variant',
-      termination_policy: 'stop_branch_only',
-    });
-    expect(draft.assessment_rules[0]).toEqual(
-      expect.objectContaining({
-        materiality: 'non_material',
-        assessment_retention: 'retain_named_assessors',
-        request_changes_action: 'route_to_role',
-        rejected_action: 'terminate_branch',
-        allow_blocked_decision: true,
-        blocked_action: 'escalate',
-      }),
-    );
-    expect(draft.approval_rules[0]).toEqual(
-      expect.objectContaining({
-        materiality: 'material',
-        approval_retention: 'retain_non_material_only',
-        allow_blocked_decision: true,
-        approval_before_assessment: true,
-      }),
-    );
+    expect(draft.process_instructions).toContain('request human approval');
+    expect(draft.stages).toEqual([
+      { name: 'design', goal: 'Plan the solution.', guidance: 'Capture decisions.' },
+    ]);
+    expect(draft.entry_column_id).toBe('active');
+    expect(draft.orchestrator.max_active_tasks).toBe('6');
+    expect(draft.parameters[0]?.default_value).toBe('ship it');
   });
 
-  it('inherits task loop limits until a playbook explicitly overrides them', () => {
+  it('validates stages and workspace-mapped credential inputs', () => {
     const draft = createDefaultAuthoringDraft('planned');
-    draft.process_instructions = 'Plan, implement, review, and complete the work.';
-
-    expect(draft.orchestrator.max_iterations).toBe('');
-    expect(draft.orchestrator.llm_max_retries).toBe('');
-
-    const built = buildPlaybookDefinition('planned', draft);
-    if (!built.ok) {
-      throw new Error(`expected valid playbook definition, received: ${built.error}`);
-    }
-
-    expect(built.value.orchestrator).not.toEqual(
-      expect.objectContaining({
-        max_iterations: expect.anything(),
-        llm_max_retries: expect.anything(),
-      }),
-    );
-  });
-
-  it('summarizes process, rules, and inputs for guided review', () => {
-    const draft = createDefaultAuthoringDraft('ongoing');
-    draft.process_instructions = 'Triage, implement, assess, and complete the work.';
-    draft.roles = [{ value: 'architect' }, { value: 'developer' }];
-    draft.columns[0].is_blocked = true;
-    draft.checkpoints = [
-      { name: 'triage', goal: 'Clarify incoming work.', human_gate: false, entry_criteria: '' },
-      { name: 'delivery', goal: 'Deliver the requested outcome.', human_gate: true, entry_criteria: '' },
-    ];
-    draft.assessment_rules = [
-      {
-        subject_role: 'developer',
-        assessed_by: 'reviewer',
-        checkpoint: '',
-        required: true,
-        materiality: '',
-        assessment_retention: '',
-        approval_retention: '',
-        request_changes_action: 'reopen_subject',
-        request_changes_target: 'developer',
-        rejected_action: 'block_subject',
-        rejected_target: '',
-        allow_blocked_decision: false,
-        blocked_action: 'block_subject',
-        blocked_target: '',
-      },
-    ];
-    draft.approval_rules = [{
-      on: 'completion',
-      checkpoint: '',
-      required: true,
-      materiality: '',
-      assessment_retention: '',
-      approval_retention: '',
-      allow_blocked_decision: false,
-      approval_before_assessment: false,
-    }];
-    draft.branch_policies = [
-      {
-        branch_key: 'regional-variant',
-        termination_policy: 'stop_branch_only',
-      },
-    ];
-    draft.handoff_rules = [{ from_role: 'architect', to_role: 'developer', required: true }];
+    draft.stages = [{ name: '', goal: '', guidance: '' }];
     draft.parameters = [
       {
-        name: 'ticket_id',
-        type: 'string',
-        required: true,
-        secret: false,
-        category: 'input',
-        maps_to: '',
-        description: '',
-        default_value: '',
-        label: '',
-        help_text: '',
-        allowed_values: '',
-      },
-      {
-        name: 'api_token',
+        name: 'git_token',
         type: 'string',
         required: false,
         secret: true,
-        category: 'credential',
-        maps_to: '',
+        category: '',
+        maps_to: 'workspace.credentials.git_token',
         description: '',
         default_value: '',
         label: '',
@@ -699,52 +121,40 @@ describe('playbook authoring support', () => {
       },
     ];
 
-    expect(summarizePlaybookAuthoringDraft(draft)).toEqual({
-      hasProcessInstructions: true,
-      roleCount: 2,
-      columnCount: 5,
-      blockedColumnCount: 2,
-      terminalColumnCount: 1,
-      checkpointCount: 2,
-      gatedCheckpointCount: 1,
-      assessmentRuleCount: 1,
-      requiredAssessmentRuleCount: 1,
-      approvalRuleCount: 1,
-      branchPolicyCount: 1,
-      handoffRuleCount: 1,
-      parameterCount: 2,
-      requiredParameterCount: 1,
-      secretParameterCount: 1,
-      runtimeOverrideCount: 0,
-    });
+    const stageValidation = validateWorkflowRulesDraft(draft);
+    const parameterValidation = validateParameterDrafts(draft.parameters);
+
+    expect(stageValidation.isValid).toBe(false);
+    expect(stageValidation.blockingIssues).toContain('Every stage needs a name.');
+    expect(stageValidation.blockingIssues).toContain('Every stage needs a goal.');
+    expect(parameterValidation.isValid).toBe(false);
+    expect(parameterValidation.blockingIssues).toContain(
+      'Choose a category before mapping an input into the workspace.',
+    );
   });
 
-  it('rejects terminate-branch assessment rules without branch policies', () => {
+  it('summarizes stages instead of governance-rule counts', () => {
     const draft = createDefaultAuthoringDraft('planned');
-    draft.process_instructions = 'Terminate invalid branches explicitly.';
-    draft.roles = [{ value: 'writer' }, { value: 'policy-reviewer' }];
-    draft.assessment_rules = [
-      {
-        subject_role: 'writer',
-        assessed_by: 'policy-reviewer',
-        checkpoint: '',
-        required: true,
-        materiality: '',
-        assessment_retention: '',
-        approval_retention: '',
-        request_changes_action: 'reopen_subject',
-        request_changes_target: '',
-        rejected_action: 'terminate_branch',
-        rejected_target: '',
-        allow_blocked_decision: false,
-        blocked_action: 'block_subject',
-        blocked_target: '',
-      },
-    ];
+    draft.roles = [{ value: 'architect' }];
+    draft.stages = [{ name: 'deliver', goal: 'Ship the requested change.', guidance: '' }];
 
-    expect(buildPlaybookDefinition('planned', draft)).toEqual({
-      ok: false,
-      error: 'Terminate branch actions require at least one branch policy.',
-    });
+    expect(summarizePlaybookAuthoringDraft(draft)).toEqual(
+      expect.objectContaining({
+        hasProcessInstructions: true,
+        roleCount: 1,
+        stageCount: 1,
+        columnCount: 5,
+      }),
+    );
+  });
+
+  it('validates role membership and board entry columns', () => {
+    expect(validateRoleDrafts([{ value: 'architect' }], ['architect']).isValid).toBe(true);
+    expect(
+      validateBoardColumnsDraft(
+        [{ id: 'active', label: 'Active', description: '', is_blocked: false, is_terminal: false }],
+        'missing',
+      ).isValid,
+    ).toBe(false);
   });
 });

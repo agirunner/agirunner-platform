@@ -313,8 +313,8 @@ export function PlaybookListPage(): JSX.Element {
                 />
                 <ReadinessRow label="Lifecycle" value={describePlaybookLifecycle(lifecycle)} ready />
                 <ReadinessRow
-                  label="Workflow rules"
-                  value={`${summary.roleCount} roles • ${summary.checkpointCount} checkpoints`}
+                  label="Workflow structure"
+                  value={`${summary.roleCount} roles • ${summary.stageCount} stages`}
                   ready={summary.hasProcessInstructions && summary.roleCount > 0}
                 />
                 <ReadinessRow
@@ -335,7 +335,7 @@ export function PlaybookListPage(): JSX.Element {
               <CardContent className="grid gap-3 text-sm text-muted">
                 <div>
                   <div className="font-medium text-foreground">Process</div>
-                  Process instructions, team roles, checkpoints, and mandatory workflow rules.
+                  Process instructions, team roles, and workflow stages.
                 </div>
                 <div>
                   <div className="font-medium text-foreground">Inputs</div>

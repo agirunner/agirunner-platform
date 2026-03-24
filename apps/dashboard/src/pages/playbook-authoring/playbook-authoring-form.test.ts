@@ -12,8 +12,9 @@ describe('playbook authoring form source', () => {
     expect(source).toContain('dashboardApi.listRoleDefinitions');
     expect(source).toContain('Process-first authoring');
     expect(source).toContain(
-      'Define the workflow outcome, tell the orchestrator how the process should run',
+      'Define the workflow outcome, structure the stages, and tell the orchestrator how',
     );
+    expect(source).toContain('instead of separate governance config');
     expect(source).toContain('Process');
     expect(source).toContain('Inputs');
     expect(source).toContain('Advanced');
@@ -33,11 +34,11 @@ describe('playbook authoring form source', () => {
     expect(source).toContain('Advanced');
   });
 
-  it('rebuilds the detailed sections around process guidance, rules, inputs, and advanced overrides', () => {
+  it('rebuilds the detailed sections around process guidance, stages, inputs, and advanced overrides', () => {
     const source = readSource();
     expect(source).toContain('ProcessInstructionsSection');
     expect(source).toContain('TeamRolesSection');
-    expect(source).toContain('WorkflowRulesSection');
+    expect(source).toContain('WorkflowStagesSection');
     expect(source).toContain('LaunchInputsSection');
     expect(source).toContain('AdvancedWorkflowSection');
     expect(source).not.toContain('availableToolOptions');

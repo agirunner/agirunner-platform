@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { ChevronDown, ChevronUp, Minus, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, Minus, Plus } from 'lucide-react';
 
 import { Button } from '../../components/ui/button.js';
 import { Input } from '../../components/ui/input.js';
@@ -10,33 +10,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '../../components/ui/select.js';
-import { Switch } from '../../components/ui/switch.js';
 import { Textarea } from '../../components/ui/textarea.js';
 import {
-  createEmptyApprovalRuleDraft,
-  createEmptyAssessmentRuleDraft,
-  createEmptyBranchPolicyDraft,
-  createEmptyCheckpointDraft,
   createEmptyColumnDraft,
-  createEmptyHandoffRuleDraft,
   createEmptyParameterDraft,
   createEmptyRoleDraft,
+  createEmptyStageDraft,
   validateBoardColumnsDraft,
   validateParameterDrafts,
   validateRoleDrafts,
   validateWorkflowRulesDraft,
-  type AssessmentRuleDraft,
   type BoardColumnDraft,
-  type BranchPolicyDraft,
   type ParameterDraft,
   type PlaybookAuthoringDraft,
+  type StageDraft,
 } from './playbook-authoring-support.js';
 import { canMoveDraftItem, moveDraftItem } from './playbook-authoring-reorder.js';
-import {
-  LabeledField,
-  SectionCard,
-  ToggleField,
-} from './playbook-authoring-form-fields.js';
+import { LabeledField, SectionCard, ToggleField } from './playbook-authoring-form-fields.js';
 import { TypedParameterValueControl } from './playbook-authoring-structured-controls.js';
 
 interface SectionProps {
@@ -53,63 +43,20 @@ const PARAMETER_TYPE_OPTIONS = [
   { value: 'object', label: 'Object' },
   { value: 'array', label: 'Array' },
 ] as const;
-
 const PARAMETER_CATEGORY_OPTIONS = [
   { value: '', label: 'No mapping category' },
   { value: 'input', label: 'Input' },
   { value: 'repository', label: 'Repository' },
   { value: 'credential', label: 'Credential' },
 ] as const;
-
-const RULE_MATERIALITY_OPTIONS = [
-  { value: '', label: 'Default materiality' },
-  { value: 'material', label: 'Material' },
-  { value: 'non_material', label: 'Non-material' },
-] as const;
-
-const REVISION_RETENTION_OPTIONS = [
-  { value: '', label: 'Invalidate on rework (default)' },
-  { value: 'invalidate_all', label: 'Invalidate all' },
-  { value: 'retain_advisory_only', label: 'Retain advisory only' },
-  { value: 'retain_named_assessors', label: 'Retain named assessors' },
-  { value: 'retain_non_material_only', label: 'Retain non-material only' },
-] as const;
-
-const REQUEST_CHANGES_ACTION_OPTIONS = [
-  { value: 'reopen_subject', label: 'Reopen subject' },
-  { value: 'route_to_role', label: 'Route to role' },
-] as const;
-
-const REJECTED_ACTION_OPTIONS = [
-  { value: 'block_subject', label: 'Block subject' },
-  { value: 'route_to_role', label: 'Route to role' },
-  { value: 'terminate_branch', label: 'Terminate branch' },
-] as const;
-
-const BLOCKED_ACTION_OPTIONS = [
-  { value: 'block_subject', label: 'Block subject' },
-  { value: 'route_to_role', label: 'Route to role' },
-  { value: 'escalate', label: 'Escalate' },
-  { value: 'terminate_branch', label: 'Terminate branch' },
-] as const;
-
-const BRANCH_TERMINATION_OPTIONS = [
-  { value: 'stop_branch_only', label: 'Stop branch only' },
-  { value: 'stop_branch_and_descendants', label: 'Stop branch and descendants' },
-  { value: 'stop_all_siblings', label: 'Stop all siblings' },
-] as const;
-
-const WORKSPACE_MAPPING_OPTIONS = [
-  '',
-  'workspace.credentials.git_token',
-];
+const WORKSPACE_MAPPING_OPTIONS = ['', 'workspace.credentials.git_token'];
 
 export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
   return (
     <SectionCard
       id="playbook-process-instructions"
       title="Process Instructions"
-      description="Tell the orchestrator how this workflow must run, what must be assessed, and when humans must approve."
+      description="Tell the orchestrator how this workflow should run, when to seek specialist review, when to pause for human approval, and how to escalate when the work needs intervention."
     >
       <div className="space-y-2">
         <Textarea
@@ -120,12 +67,12 @@ export function ProcessInstructionsSection(props: SectionProps): JSX.Element {
               process_instructions: event.target.value,
             }))
           }
-          className="min-h-[180px]"
-          placeholder="Example: Clarify the objective, route delivery to the appropriate role, require assessment where needed, return requested changes with findings, and require human approval before completion."
+          className="min-h-[220px]"
+          placeholder="Example: The architect clarifies scope, the developer implements in the delivery stage, a reviewer performs a substantive release review before completion, and the orchestrator requests human approval once the release packet is ready."
         />
         <p className="text-sm text-muted">
-          This is operator-authored guidance for the orchestrator. Mandatory rules below are still
-          enforced separately by the platform.
+          This guidance is the workflow contract. The orchestrator should use handoffs,
+          assessments, approvals, and escalations when the instructions call for them.
         </p>
       </div>
     </SectionCard>
@@ -137,7 +84,6 @@ export function TeamRolesSection(
 ): JSX.Element {
   const availableRoleNames = props.availableRoleNames ?? [];
   const roleValidation = validateRoleDrafts(props.draft.roles, availableRoleNames);
-
   return (
     <SectionCard
       id="playbook-team-roles"
@@ -174,7 +120,7 @@ export function TeamRolesSection(
                       {name}
                     </SelectItem>
                   ))}
-                  {!availableRoleNames.includes(role.value) && role.value.trim().length > 0 ? (
+                  {!availableRoleNames.includes(role.value) && role.value.trim() ? (
                     <SelectItem value={resolveMissingRoleValue(index)}>
                       Unknown role: {role.value}
                     </SelectItem>
@@ -226,924 +172,71 @@ export function TeamRolesSection(
   );
 }
 
-export function AssessmentRulesSection(
-  props: SectionProps & { availableRoleNames?: string[] },
-): JSX.Element {
-  const availableRoleNames = normalizedRoleOptions(props.availableRoleNames ?? []);
-  const ruleValidation = validateWorkflowRulesDraft(props.draft);
-
+export function WorkflowStagesSection(props: SectionProps): JSX.Element {
+  const stageValidation = validateWorkflowRulesDraft(props.draft);
   return (
     <SectionCard
-      id="playbook-assessment-rules"
-      title="Assessment Rules"
-      description="Use explicit assessment rules for specialist checks instead of hoping the orchestrator infers them."
+      id="playbook-workflow-stages"
+      title="Workflow Stages"
+      description="Define the structured milestones for this workflow. The process instructions tell the orchestrator what should happen inside each stage."
     >
       <div className="space-y-4">
-        {props.draft.assessment_rules.map((rule, index) => (
-          <InlineRuleRow
-            key={`assessment-rule-${index}`}
-            fieldsClassName="md:grid-cols-2 xl:grid-cols-5"
-            error={ruleValidation.assessmentRuleErrors[index]}
-            details={
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <ToggleField
-                  label="Allow blocked decision"
-                  checked={rule.allow_blocked_decision}
-                  onCheckedChange={(checked) =>
-                    props.onChange((current) => ({
-                      ...current,
-                      assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
-                        entryIndex === index ? { ...entry, allow_blocked_decision: checked } : entry,
-                      ),
-                    }))
-                  }
-                />
-                <OutcomeActionRuleField
-                  label="On blocked"
-                  action={rule.blocked_action}
-                  role={rule.blocked_target}
-                  roleLabel="Route blocked work to"
-                  availableRoleNames={availableRoleNames}
-                  actionOptions={BLOCKED_ACTION_OPTIONS}
-                  disabled={!rule.allow_blocked_decision}
-                  onActionChange={(value) =>
-                    props.onChange((current) => ({
-                      ...current,
-                      assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
-                        entryIndex === index
-                          ? { ...entry, blocked_action: value as AssessmentRuleDraft['blocked_action'] }
-                          : entry,
-                      ),
-                    }))
-                  }
-                  onRoleChange={(value) =>
-                    updateAssessmentRule(props.onChange, index, 'blocked_target', value)
-                  }
-                />
-                <SelectRuleField
-                  label="Materiality"
-                  value={rule.materiality}
-                  placeholder="Default materiality"
-                  options={RULE_MATERIALITY_OPTIONS}
-                  onValueChange={(value) =>
-                    updateAssessmentRule(props.onChange, index, 'materiality', value)
-                  }
-                />
-                <SelectRuleField
-                  label="Assessment retention"
-                  value={rule.assessment_retention}
-                  placeholder="Invalidate on rework (default)"
-                  options={REVISION_RETENTION_OPTIONS}
-                  onValueChange={(value) =>
-                    updateAssessmentRule(props.onChange, index, 'assessment_retention', value)
-                  }
-                />
-                <SelectRuleField
-                  label="Approval retention"
-                  value={rule.approval_retention}
-                  placeholder="Invalidate on rework (default)"
-                  options={REVISION_RETENTION_OPTIONS}
-                  onValueChange={(value) =>
-                    updateAssessmentRule(props.onChange, index, 'approval_retention', value)
-                  }
-                />
-              </div>
-            }
-            actions={
-              <InlineRuleActions
-                required={rule.required}
-                onRequiredChange={(checked) =>
-                  props.onChange((current) => ({
-                    ...current,
-                    assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
-                      entryIndex === index ? { ...entry, required: checked } : entry,
-                    ),
-                  }))
-                }
-                onMoveEarlier={
-                  canMoveDraftItem(index, props.draft.assessment_rules.length, 'earlier')
-                    ? () =>
-                        props.onChange((current) => ({
-                          ...current,
-                          assessment_rules: moveDraftItem(current.assessment_rules, index, 'earlier'),
-                        }))
-                    : undefined
-                }
-                onMoveLater={
-                  canMoveDraftItem(index, props.draft.assessment_rules.length, 'later')
-                    ? () =>
-                        props.onChange((current) => ({
-                          ...current,
-                          assessment_rules: moveDraftItem(current.assessment_rules, index, 'later'),
-                        }))
-                    : undefined
-                }
-                onRemove={() =>
-                  props.onChange((current) => ({
-                    ...current,
-                    assessment_rules: current.assessment_rules.filter(
-                      (_, entryIndex) => entryIndex !== index,
-                    ),
-                  }))
-                }
-              />
-            }
-          >
-            <RoleSelectField
-              label="Assess output from"
-              value={rule.subject_role}
-              availableRoleNames={availableRoleNames}
-              inline
-              className="min-w-0"
-              triggerClassName="min-w-0"
-              onValueChange={(value) =>
-                updateAssessmentRule(props.onChange, index, 'subject_role', value)
-              }
-            />
-            <RoleSelectField
-              label="Assessed by"
-              value={rule.assessed_by}
-              availableRoleNames={availableRoleNames}
-              inline
-              className="min-w-0"
-              triggerClassName="min-w-0"
-              onValueChange={(value) =>
-                updateAssessmentRule(props.onChange, index, 'assessed_by', value)
-              }
-            />
-            <InlineRuleField label="Checkpoint" className="min-w-0">
-              <Input
-                value={rule.checkpoint}
-                onChange={(event) =>
-                  updateAssessmentRule(props.onChange, index, 'checkpoint', event.target.value)
-                }
-                placeholder="Optional checkpoint"
-              />
-            </InlineRuleField>
-            <OutcomeActionRuleField
-              label="On changes requested"
-              action={rule.request_changes_action}
-              role={rule.request_changes_target}
-              roleLabel="Route requested changes to"
-              availableRoleNames={availableRoleNames}
-              inline
-              className="min-w-0"
-              actionOptions={REQUEST_CHANGES_ACTION_OPTIONS}
-              onActionChange={(value) =>
-                updateAssessmentRule(props.onChange, index, 'request_changes_action', value)
-              }
-              onRoleChange={(value) =>
-                updateAssessmentRule(props.onChange, index, 'request_changes_target', value)
-              }
-            />
-            <OutcomeActionRuleField
-              label="On rejected"
-              action={rule.rejected_action}
-              role={rule.rejected_target}
-              roleLabel="Route rejected work to"
-              availableRoleNames={availableRoleNames}
-              inline
-              className="min-w-0"
-              actionOptions={REJECTED_ACTION_OPTIONS}
-              onActionChange={(value) =>
-                updateAssessmentRule(props.onChange, index, 'rejected_action', value)
-              }
-              onRoleChange={(value) =>
-                updateAssessmentRule(props.onChange, index, 'rejected_target', value)
-              }
-            />
-          </InlineRuleRow>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            props.onChange((current) => ({
-              ...current,
-              assessment_rules: [...current.assessment_rules, createEmptyAssessmentRuleDraft()],
-            }))
-          }
-        >
-          <Plus className="h-4 w-4" />
-          Add Assessment Rule
-        </Button>
-      </div>
-    </SectionCard>
-  );
-}
-
-export function ApprovalRulesSection(props: SectionProps): JSX.Element {
-  const checkpoints = props.draft.checkpoints
-    .map((entry) => entry.name.trim())
-    .filter(Boolean);
-  const ruleValidation = validateWorkflowRulesDraft(props.draft);
-
-  return (
-    <SectionCard
-      id="playbook-approval-rules"
-      title="Approval Rules"
-      description="Use human approvals only where the workflow truly needs an explicit operator decision."
-    >
-      <div className="space-y-4">
-        {props.draft.approval_rules.map((rule, index) => (
-          <InlineRuleRow
-            key={`approval-rule-${index}`}
-            fieldsClassName="md:grid-cols-2"
-            error={ruleValidation.approvalRuleErrors[index]}
-            details={
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-                <ToggleField
-                  label="Allow blocked decision"
-                  checked={rule.allow_blocked_decision}
-                  onCheckedChange={(checked) =>
-                    updateApprovalRule(props.onChange, index, 'allow_blocked_decision', checked)
-                  }
-                />
-                <ToggleField
-                  label="Approval before assessment"
-                  checked={rule.approval_before_assessment}
-                  onCheckedChange={(checked) =>
-                    updateApprovalRule(props.onChange, index, 'approval_before_assessment', checked)
-                  }
-                />
-                <SelectRuleField
-                  label="Materiality"
-                  value={rule.materiality}
-                  placeholder="Default materiality"
-                  options={RULE_MATERIALITY_OPTIONS}
-                  onValueChange={(value) =>
-                    updateApprovalRule(props.onChange, index, 'materiality', value)
-                  }
-                />
-                <SelectRuleField
-                  label="Assessment retention"
-                  value={rule.assessment_retention}
-                  placeholder="Invalidate on rework (default)"
-                  options={REVISION_RETENTION_OPTIONS}
-                  onValueChange={(value) =>
-                    updateApprovalRule(props.onChange, index, 'assessment_retention', value)
-                  }
-                />
-                <SelectRuleField
-                  label="Approval retention"
-                  value={rule.approval_retention}
-                  placeholder="Invalidate on rework (default)"
-                  options={REVISION_RETENTION_OPTIONS}
-                  onValueChange={(value) =>
-                    updateApprovalRule(props.onChange, index, 'approval_retention', value)
-                  }
-                />
-              </div>
-            }
-            actions={
-              <InlineRuleActions
-                required={rule.required}
-                onRequiredChange={(checked) =>
-                  props.onChange((current) => ({
-                    ...current,
-                    approval_rules: current.approval_rules.map((entry, entryIndex) =>
-                      entryIndex === index ? { ...entry, required: checked } : entry,
-                    ),
-                  }))
-                }
-                onMoveEarlier={
-                  canMoveDraftItem(index, props.draft.approval_rules.length, 'earlier')
-                    ? () =>
-                        props.onChange((current) => ({
-                          ...current,
-                          approval_rules: moveDraftItem(current.approval_rules, index, 'earlier'),
-                        }))
-                    : undefined
-                }
-                onMoveLater={
-                  canMoveDraftItem(index, props.draft.approval_rules.length, 'later')
-                    ? () =>
-                        props.onChange((current) => ({
-                          ...current,
-                          approval_rules: moveDraftItem(current.approval_rules, index, 'later'),
-                        }))
-                    : undefined
-                }
-                onRemove={() =>
-                  props.onChange((current) => ({
-                    ...current,
-                    approval_rules: current.approval_rules.filter(
-                      (_, entryIndex) => entryIndex !== index,
-                    ),
-                  }))
-                }
-              />
-            }
-          >
-            <InlineRuleField label="When" className="min-w-0">
-              <Select
-                value={rule.on}
-                onValueChange={(value) =>
-                  props.onChange((current) => ({
-                    ...current,
-                    approval_rules: current.approval_rules.map((entry, entryIndex) =>
-                      entryIndex === index
-                        ? {
-                            ...entry,
-                            on: value as 'checkpoint' | 'completion',
-                            checkpoint: value === 'completion' ? '' : entry.checkpoint,
-                            approval_before_assessment:
-                              value === 'completion' ? false : entry.approval_before_assessment,
-                          }
-                        : entry,
-                    ),
-                  }))
-                }
-              >
-                <SelectTrigger className="min-w-0">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="checkpoint">At a checkpoint</SelectItem>
-                  <SelectItem value="completion">Before completion</SelectItem>
-                </SelectContent>
-              </Select>
-            </InlineRuleField>
-            {rule.on === 'checkpoint' ? (
-              <InlineRuleField label="Checkpoint" className="min-w-0">
-                <Select
-                  value={rule.checkpoint || ENTRY_COLUMN_UNSET}
-                  onValueChange={(value) =>
-                    props.onChange((current) => ({
-                      ...current,
-                      approval_rules: current.approval_rules.map((entry, entryIndex) =>
-                        entryIndex === index
-                          ? {
-                              ...entry,
-                              checkpoint: value === ENTRY_COLUMN_UNSET ? '' : value,
-                            }
-                          : entry,
-                      ),
-                    }))
-                  }
-                >
-                  <SelectTrigger className="min-w-0">
-                    <SelectValue placeholder="Select checkpoint" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={ENTRY_COLUMN_UNSET}>Select checkpoint</SelectItem>
-                    {checkpoints.map((checkpoint) => (
-                      <SelectItem key={checkpoint} value={checkpoint}>
-                        {checkpoint}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </InlineRuleField>
-            ) : (
-              <InlineRuleField label="Checkpoint" className="min-w-0">
-                <div className="flex min-h-9 items-center rounded-md border border-border/70 bg-muted/20 px-3 text-xs text-muted">
-                  Before completion
-                </div>
-              </InlineRuleField>
-            )}
-          </InlineRuleRow>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            props.onChange((current) => ({
-              ...current,
-              approval_rules: [...current.approval_rules, createEmptyApprovalRuleDraft()],
-            }))
-          }
-        >
-          <Plus className="h-4 w-4" />
-          Add Approval Rule
-        </Button>
-      </div>
-    </SectionCard>
-  );
-}
-
-export function BranchPoliciesSection(props: SectionProps): JSX.Element {
-  const ruleValidation = validateWorkflowRulesDraft(props.draft);
-
-  return (
-    <SectionCard
-      id="playbook-branch-policies"
-      title="Branch Policies"
-      description="Author branch termination semantics explicitly before any assessment rule can terminate a branch."
-    >
-      <div className="space-y-4">
-        {props.draft.branch_policies.map((policy, index) => (
-          <InlineRuleRow
-            key={`branch-policy-${index}`}
-            fieldsClassName="md:grid-cols-2"
-            error={ruleValidation.branchPolicyErrors[index]?.branch_key}
-            actions={
-              <InlineRuleActions
-                onMoveEarlier={
-                  canMoveDraftItem(index, props.draft.branch_policies.length, 'earlier')
-                    ? () =>
-                        props.onChange((current) => ({
-                          ...current,
-                          branch_policies: moveDraftItem(current.branch_policies, index, 'earlier'),
-                        }))
-                    : undefined
-                }
-                onMoveLater={
-                  canMoveDraftItem(index, props.draft.branch_policies.length, 'later')
-                    ? () =>
-                        props.onChange((current) => ({
-                          ...current,
-                          branch_policies: moveDraftItem(current.branch_policies, index, 'later'),
-                        }))
-                    : undefined
-                }
-                onRemove={() =>
-                  props.onChange((current) => ({
-                    ...current,
-                    branch_policies: current.branch_policies.filter(
-                      (_, entryIndex) => entryIndex !== index,
-                    ),
-                  }))
-                }
-              />
-            }
-          >
-            <InlineRuleField label="Branch key" className="min-w-0">
-              <Input
-                value={policy.branch_key}
-                onChange={(event) =>
-                  updateBranchPolicy(props.onChange, index, 'branch_key', event.target.value)
-                }
-                placeholder="regional-variant"
-              />
-            </InlineRuleField>
-            <SelectRuleField
-              label="Termination policy"
-              value={policy.termination_policy}
-              options={BRANCH_TERMINATION_OPTIONS}
-              onValueChange={(value) =>
-                updateBranchPolicy(props.onChange, index, 'termination_policy', value)
-              }
-            />
-          </InlineRuleRow>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            props.onChange((current) => ({
-              ...current,
-              branch_policies: [...current.branch_policies, createEmptyBranchPolicyDraft()],
-            }))
-          }
-        >
-          <Plus className="h-4 w-4" />
-          Add Branch Policy
-        </Button>
-      </div>
-    </SectionCard>
-  );
-}
-
-export function HandoffRulesSection(
-  props: SectionProps & { availableRoleNames?: string[] },
-): JSX.Element {
-  const availableRoleNames = normalizedRoleOptions(props.availableRoleNames ?? []);
-  const ruleValidation = validateWorkflowRulesDraft(props.draft);
-
-  return (
-    <SectionCard
-      id="playbook-handoff-rules"
-      title="Handoff Rules"
-      description="Declare the required role-to-role transitions so the next specialist always receives the right predecessor context. Completed task handoffs are stored on the task and surfaced back into work-item continuity."
-    >
-      <div className="space-y-4">
-        {props.draft.handoff_rules.map((rule, index) => (
-          <InlineRuleRow
-            key={`handoff-rule-${index}`}
-            fieldsClassName="md:grid-cols-2"
-            error={ruleValidation.handoffRuleErrors[index]}
-            actions={
-              <InlineRuleActions
-                required={rule.required}
-                onRequiredChange={(checked) =>
-                  props.onChange((current) => ({
-                    ...current,
-                    handoff_rules: current.handoff_rules.map((entry, entryIndex) =>
-                      entryIndex === index ? { ...entry, required: checked } : entry,
-                    ),
-                  }))
-                }
-                onMoveEarlier={
-                  canMoveDraftItem(index, props.draft.handoff_rules.length, 'earlier')
-                    ? () =>
-                        props.onChange((current) => ({
-                          ...current,
-                          handoff_rules: moveDraftItem(current.handoff_rules, index, 'earlier'),
-                        }))
-                    : undefined
-                }
-                onMoveLater={
-                  canMoveDraftItem(index, props.draft.handoff_rules.length, 'later')
-                    ? () =>
-                        props.onChange((current) => ({
-                          ...current,
-                          handoff_rules: moveDraftItem(current.handoff_rules, index, 'later'),
-                        }))
-                    : undefined
-                }
-                onRemove={() =>
-                  props.onChange((current) => ({
-                    ...current,
-                    handoff_rules: current.handoff_rules.filter(
-                      (_, entryIndex) => entryIndex !== index,
-                    ),
-                  }))
-                }
-              />
-            }
-          >
-            <RoleSelectField
-              label="From"
-              value={rule.from_role}
-              availableRoleNames={availableRoleNames}
-              inline
-              className="min-w-0"
-              triggerClassName="min-w-0"
-              onValueChange={(value) =>
-                updateHandoffRule(props.onChange, index, 'from_role', value)
-              }
-            />
-            <RoleSelectField
-              label="To"
-              value={rule.to_role}
-              availableRoleNames={availableRoleNames}
-              inline
-              className="min-w-0"
-              triggerClassName="min-w-0"
-              onValueChange={(value) =>
-                updateHandoffRule(props.onChange, index, 'to_role', value)
-              }
-            />
-          </InlineRuleRow>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            props.onChange((current) => ({
-              ...current,
-              handoff_rules: [...current.handoff_rules, createEmptyHandoffRuleDraft()],
-            }))
-          }
-        >
-          <Plus className="h-4 w-4" />
-          Add Handoff Rule
-        </Button>
-      </div>
-    </SectionCard>
-  );
-}
-
-export function WorkflowCheckpointsSection(props: SectionProps): JSX.Element {
-  const ruleValidation = validateWorkflowRulesDraft(props.draft);
-
-  return (
-    <SectionCard
-      id="playbook-workflow-checkpoints"
-      title="Workflow Checkpoints"
-      description="Checkpoints are lightweight milestones. Keep them sparse and meaningful."
-    >
-      <div className="space-y-4">
-        {props.draft.checkpoints.map((checkpoint, index) => (
-          <RuleCard
-            key={`checkpoint-${index}`}
-            title={`Checkpoint ${index + 1}`}
-            onMoveEarlier={
-              canMoveDraftItem(index, props.draft.checkpoints.length, 'earlier')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      checkpoints: moveDraftItem(current.checkpoints, index, 'earlier'),
-                    }))
-                : undefined
-            }
-            onMoveLater={
-              canMoveDraftItem(index, props.draft.checkpoints.length, 'later')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      checkpoints: moveDraftItem(current.checkpoints, index, 'later'),
-                    }))
-                : undefined
-            }
+        {props.draft.stages.map((stage, index) => (
+          <DraftCard
+            key={`stage-${index}`}
+            moveEarlier={moveHandler(props, 'stages', index, 'earlier')}
+            moveLater={moveHandler(props, 'stages', index, 'later')}
             onRemove={() =>
               props.onChange((current) => ({
                 ...current,
-                checkpoints: current.checkpoints.filter((_, entryIndex) => entryIndex !== index),
+                stages: current.stages.filter((_, entryIndex) => entryIndex !== index),
               }))
             }
           >
             <div className="grid gap-3 md:grid-cols-2">
-              <LabeledField label="Checkpoint name">
+              <LabeledField label="Stage name">
                 <Input
-                  value={checkpoint.name}
-                  onChange={(event) =>
-                    updateCheckpoint(props.onChange, index, 'name', event.target.value)
-                  }
+                  value={stage.name}
+                  onChange={(event) => updateStage(props, index, 'name', event.target.value)}
                 />
               </LabeledField>
-              <ToggleField
-                label="Human gate"
-                checked={checkpoint.human_gate}
-                onCheckedChange={(checked) =>
-                  props.onChange((current) => ({
-                    ...current,
-                    checkpoints: current.checkpoints.map((entry, entryIndex) =>
-                      entryIndex === index ? { ...entry, human_gate: checked } : entry,
-                    ),
-                  }))
-                }
-              />
-              <LabeledField label="Goal" className="md:col-span-2">
-                <Textarea
-                  value={checkpoint.goal}
-                  onChange={(event) =>
-                    updateCheckpoint(props.onChange, index, 'goal', event.target.value)
-                  }
-                  className="min-h-[92px]"
-                />
-              </LabeledField>
-              <LabeledField label="Entry criteria" className="md:col-span-2">
-                <Textarea
-                  value={checkpoint.entry_criteria}
-                  onChange={(event) =>
-                    updateCheckpoint(props.onChange, index, 'entry_criteria', event.target.value)
-                  }
-                  className="min-h-[92px]"
+              <LabeledField label="Stage goal">
+                <Input
+                  value={stage.goal}
+                  onChange={(event) => updateStage(props, index, 'goal', event.target.value)}
                 />
               </LabeledField>
             </div>
-            {ruleValidation.checkpointErrors[index]?.name ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {ruleValidation.checkpointErrors[index]?.name}
-              </p>
-            ) : null}
-            {ruleValidation.checkpointErrors[index]?.goal ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {ruleValidation.checkpointErrors[index]?.goal}
-              </p>
-            ) : null}
-          </RuleCard>
+            <LabeledField label="Stage guidance">
+              <Textarea
+                value={stage.guidance}
+                onChange={(event) => updateStage(props, index, 'guidance', event.target.value)}
+                className="min-h-[110px]"
+                placeholder="Optional stage-specific guidance for the orchestrator."
+              />
+            </LabeledField>
+            <ValidationText issue={stageValidation.stageErrors[index]?.name} />
+            <ValidationText issue={stageValidation.stageErrors[index]?.goal} />
+          </DraftCard>
         ))}
+        {stageValidation.blockingIssues.length > 0 && props.draft.stages.length === 0 ? (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {stageValidation.blockingIssues[0]}
+          </p>
+        ) : null}
         <Button
           type="button"
           variant="outline"
           onClick={() =>
             props.onChange((current) => ({
               ...current,
-              checkpoints: [...current.checkpoints, createEmptyCheckpointDraft()],
+              stages: [...current.stages, createEmptyStageDraft()],
             }))
           }
         >
           <Plus className="h-4 w-4" />
-          Add Checkpoint
+          Add Stage
         </Button>
-      </div>
-    </SectionCard>
-  );
-}
-
-export function BoardColumnsSection(props: SectionProps): JSX.Element {
-  const boardColumnValidation = validateBoardColumnsDraft(
-    props.draft.columns,
-    props.draft.entry_column_id,
-  );
-
-  return (
-    <SectionCard
-      id="playbook-board-columns"
-      title="Board Override"
-      description="Most playbooks should keep the standard board. Override it only when the workflow truly needs custom lanes."
-    >
-      <div className="space-y-4">
-        <LabeledField label="Default intake column">
-          <div className="space-y-1">
-            <Select
-              value={resolveBoardEntryColumnValue(props.draft)}
-              onValueChange={(value) =>
-                props.onChange((current) => ({
-                  ...current,
-                  entry_column_id: value === ENTRY_COLUMN_UNSET ? '' : value,
-                }))
-              }
-            >
-              <SelectTrigger
-                aria-invalid={boardColumnValidation.entryColumnError ? true : undefined}
-              >
-                <SelectValue placeholder="Select the intake column" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ENTRY_COLUMN_UNSET}>Select the intake column</SelectItem>
-                {buildEntryColumnOptions(props.draft.columns).map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted">
-              Automation and manual intake land here unless a work item explicitly targets another
-              column.
-            </p>
-          </div>
-        </LabeledField>
-        {props.draft.columns.map((column, index) => (
-          <RuleCard
-            key={`column-${index}`}
-            title={`Column ${index + 1}`}
-            onMoveEarlier={
-              canMoveDraftItem(index, props.draft.columns.length, 'earlier')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      columns: moveDraftItem(current.columns, index, 'earlier'),
-                    }))
-                : undefined
-            }
-            onMoveLater={
-              canMoveDraftItem(index, props.draft.columns.length, 'later')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      columns: moveDraftItem(current.columns, index, 'later'),
-                    }))
-                : undefined
-            }
-            onRemove={() =>
-              props.onChange((current) => ({
-                ...current,
-                columns:
-                  current.columns.length === 1
-                    ? current.columns
-                    : current.columns.filter((_, entryIndex) => entryIndex !== index),
-              }))
-            }
-          >
-            <div className="grid gap-3 md:grid-cols-2">
-              <LabeledField label="Column ID">
-                <Input
-                  value={column.id}
-                  onChange={(event) =>
-                    updateColumn(props.onChange, index, 'id', event.target.value)
-                  }
-                />
-              </LabeledField>
-              <LabeledField label="Label">
-                <Input
-                  value={column.label}
-                  onChange={(event) =>
-                    updateColumn(props.onChange, index, 'label', event.target.value)
-                  }
-                />
-              </LabeledField>
-              <LabeledField label="Description" className="md:col-span-2">
-                <Textarea
-                  value={column.description}
-                  onChange={(event) =>
-                    updateColumn(props.onChange, index, 'description', event.target.value)
-                  }
-                  className="min-h-[88px]"
-                />
-              </LabeledField>
-              <ToggleField
-                label="Blocked lane"
-                checked={column.is_blocked}
-                onCheckedChange={(checked) =>
-                  updateColumnBoolean(props.onChange, index, 'is_blocked', checked)
-                }
-              />
-              <ToggleField
-                label="Terminal lane"
-                checked={column.is_terminal}
-                onCheckedChange={(checked) =>
-                  updateColumnBoolean(props.onChange, index, 'is_terminal', checked)
-                }
-              />
-            </div>
-            {boardColumnValidation.columnErrors[index]?.id ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {boardColumnValidation.columnErrors[index]?.id}
-              </p>
-            ) : null}
-            {boardColumnValidation.columnErrors[index]?.label ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {boardColumnValidation.columnErrors[index]?.label}
-              </p>
-            ) : null}
-          </RuleCard>
-        ))}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() =>
-            props.onChange((current) => ({
-              ...current,
-              columns: [...current.columns, createEmptyColumnDraft()],
-            }))
-          }
-        >
-          <Plus className="h-4 w-4" />
-          Add Column
-        </Button>
-      </div>
-    </SectionCard>
-  );
-}
-
-export function OrchestratorSection(props: SectionProps): JSX.Element {
-  return (
-    <SectionCard
-      id="playbook-orchestrator-policy"
-      title="Orchestration Policy"
-      description="Use these controls for loop, retry, and concurrency policy."
-    >
-      <div className="grid gap-3 md:grid-cols-2">
-        <LabeledField label="Max rework iterations">
-          <Input
-            inputMode="numeric"
-            value={props.draft.orchestrator.max_rework_iterations}
-            onChange={(event) =>
-              updateOrchestratorField(
-                props.onChange,
-                'max_rework_iterations',
-                event.target.value,
-              )
-            }
-          />
-        </LabeledField>
-        <LabeledField label="Task max iterations">
-          <Input
-            inputMode="numeric"
-            placeholder="Inherit system default"
-            value={props.draft.orchestrator.max_iterations}
-            onChange={(event) =>
-              updateOrchestratorField(props.onChange, 'max_iterations', event.target.value)
-            }
-          />
-          <p className="text-xs text-muted">
-            Leave blank to inherit the system default. Set a value only when this playbook needs a different loop cap.
-          </p>
-        </LabeledField>
-        <LabeledField label="LLM retry attempts">
-          <Input
-            inputMode="numeric"
-            placeholder="Inherit system default"
-            value={props.draft.orchestrator.llm_max_retries}
-            onChange={(event) =>
-              updateOrchestratorField(props.onChange, 'llm_max_retries', event.target.value)
-            }
-          />
-          <p className="text-xs text-muted">
-            Leave blank to inherit the system default. Set a value only when this playbook needs a different provider retry budget.
-          </p>
-        </LabeledField>
-        <LabeledField label="Max active tasks">
-          <Input
-            inputMode="numeric"
-            value={props.draft.orchestrator.max_active_tasks}
-            onChange={(event) =>
-              updateOrchestratorField(props.onChange, 'max_active_tasks', event.target.value)
-            }
-          />
-        </LabeledField>
-        <LabeledField label="Max active tasks per work item">
-          <Input
-            inputMode="numeric"
-            value={props.draft.orchestrator.max_active_tasks_per_work_item}
-            onChange={(event) =>
-              updateOrchestratorField(
-                props.onChange,
-                'max_active_tasks_per_work_item',
-                event.target.value,
-              )
-            }
-          />
-          <p className="text-xs text-muted">
-            A value of 2 lets one work item run two concurrent specialist tasks without
-            monopolizing all available capacity.
-          </p>
-        </LabeledField>
-        <ToggleField
-          label="Allow parallel work items"
-          checked={props.draft.orchestrator.allow_parallel_work_items}
-          onCheckedChange={(checked) =>
-            props.onChange((current) => ({
-              ...current,
-              orchestrator: { ...current.orchestrator, allow_parallel_work_items: checked },
-            }))
-          }
-        />
       </div>
     </SectionCard>
   );
@@ -1155,36 +248,18 @@ export function LaunchInputsSection(
   },
 ): JSX.Element {
   const parameterValidation = validateParameterDrafts(props.draft.parameters);
-
   return (
     <SectionCard
       id="playbook-launch-inputs"
       title="Launch Inputs"
-      description="Define only the operator inputs the workflow actually needs at launch."
+      description="Define the operator inputs and optional workspace mappings available when the workflow starts."
     >
       <div className="space-y-4">
         {props.draft.parameters.map((parameter, index) => (
-          <RuleCard
+          <DraftCard
             key={`parameter-${index}`}
-            title={`Input ${index + 1}`}
-            onMoveEarlier={
-              canMoveDraftItem(index, props.draft.parameters.length, 'earlier')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      parameters: moveDraftItem(current.parameters, index, 'earlier'),
-                    }))
-                : undefined
-            }
-            onMoveLater={
-              canMoveDraftItem(index, props.draft.parameters.length, 'later')
-                ? () =>
-                    props.onChange((current) => ({
-                      ...current,
-                      parameters: moveDraftItem(current.parameters, index, 'later'),
-                    }))
-                : undefined
-            }
+            moveEarlier={moveHandler(props, 'parameters', index, 'earlier')}
+            moveLater={moveHandler(props, 'parameters', index, 'later')}
             onRemove={() =>
               props.onChange((current) => ({
                 ...current,
@@ -1193,25 +268,16 @@ export function LaunchInputsSection(
             }
           >
             <ParameterFields
-              parameter={parameter}
-              onChange={(field, value) => updateParameter(props.onChange, index, field, value)}
-              onBooleanChange={(field, value) =>
-                updateParameterBoolean(props.onChange, index, field, value)
-              }
-              onParameterIssueChange={props.onParameterIssueChange}
               index={index}
+              parameter={parameter}
+              onChange={(field, value) => updateParameter(props, index, field, value)}
+              onBooleanChange={(field, value) => updateParameterBoolean(props, index, field, value)}
+              onParameterIssueChange={props.onParameterIssueChange}
             />
-            {parameterValidation.parameterErrors[index]?.category ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {parameterValidation.parameterErrors[index]?.category}
-              </p>
-            ) : null}
-            {parameterValidation.parameterErrors[index]?.secret ? (
-              <p className="text-xs text-red-600 dark:text-red-400">
-                {parameterValidation.parameterErrors[index]?.secret}
-              </p>
-            ) : null}
-          </RuleCard>
+            <ValidationText issue={parameterValidation.parameterErrors[index]?.category} />
+            <ValidationText issue={parameterValidation.parameterErrors[index]?.secret} />
+            <ValidationText issue={parameterValidation.parameterErrors[index]?.maps_to} />
+          </DraftCard>
         ))}
         <Button
           type="button"
@@ -1231,26 +297,178 @@ export function LaunchInputsSection(
   );
 }
 
-export function WorkflowRulesSection(
-  props: SectionProps & { availableRoleNames?: string[] },
-): JSX.Element {
-  return (
-    <div className="space-y-4">
-      <AssessmentRulesSection {...props} />
-      <ApprovalRulesSection draft={props.draft} onChange={props.onChange} />
-      <BranchPoliciesSection draft={props.draft} onChange={props.onChange} />
-      <HandoffRulesSection {...props} />
-      <WorkflowCheckpointsSection draft={props.draft} onChange={props.onChange} />
-    </div>
-  );
-}
-
 export function AdvancedWorkflowSection(props: SectionProps): JSX.Element {
   return (
     <div className="space-y-4">
       <BoardColumnsSection draft={props.draft} onChange={props.onChange} />
       <OrchestratorSection draft={props.draft} onChange={props.onChange} />
     </div>
+  );
+}
+
+function BoardColumnsSection(props: SectionProps): JSX.Element {
+  const boardValidation = validateBoardColumnsDraft(props.draft.columns, props.draft.entry_column_id);
+  return (
+    <SectionCard
+      id="playbook-board-columns"
+      title="Board Columns"
+      description="Keep the board simple. Most playbooks should keep the standard intake, active, review, blocked, and done lanes."
+    >
+      <div className="space-y-4">
+        <LabeledField label="Default intake column">
+          <Select
+            value={props.draft.entry_column_id || ENTRY_COLUMN_UNSET}
+            onValueChange={(value) =>
+              props.onChange((current) => ({
+                ...current,
+                entry_column_id: value === ENTRY_COLUMN_UNSET ? '' : value,
+              }))
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Choose the default intake column" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ENTRY_COLUMN_UNSET}>Choose the default intake column</SelectItem>
+              {props.draft.columns
+                .map((column) => column.id.trim())
+                .filter(Boolean)
+                .map((columnId) => (
+                  <SelectItem key={columnId} value={columnId}>
+                    {columnId}
+                  </SelectItem>
+                ))}
+            </SelectContent>
+          </Select>
+        </LabeledField>
+        {boardValidation.entryColumnError ? (
+          <p className="text-xs text-red-600 dark:text-red-400">
+            {boardValidation.entryColumnError}
+          </p>
+        ) : null}
+        {props.draft.columns.map((column, index) => (
+          <DraftCard
+            key={`column-${index}`}
+            moveEarlier={moveHandler(props, 'columns', index, 'earlier')}
+            moveLater={moveHandler(props, 'columns', index, 'later')}
+            onRemove={() =>
+              props.onChange((current) => ({
+                ...current,
+                columns: current.columns.filter((_, entryIndex) => entryIndex !== index),
+              }))
+            }
+          >
+            <div className="grid gap-3 md:grid-cols-2">
+              <LabeledField label="Column id">
+                <Input
+                  value={column.id}
+                  onChange={(event) => updateColumn(props, index, 'id', event.target.value)}
+                />
+              </LabeledField>
+              <LabeledField label="Column label">
+                <Input
+                  value={column.label}
+                  onChange={(event) => updateColumn(props, index, 'label', event.target.value)}
+                />
+              </LabeledField>
+            </div>
+            <LabeledField label="Description">
+              <Textarea
+                value={column.description}
+                onChange={(event) => updateColumn(props, index, 'description', event.target.value)}
+                className="min-h-[90px]"
+              />
+            </LabeledField>
+            <div className="flex flex-col gap-3 md:flex-row">
+              <ToggleField
+                label="Blocked lane"
+                checked={column.is_blocked}
+                onCheckedChange={(checked) => updateColumnBoolean(props, index, 'is_blocked', checked)}
+              />
+              <ToggleField
+                label="Terminal lane"
+                checked={column.is_terminal}
+                onCheckedChange={(checked) => updateColumnBoolean(props, index, 'is_terminal', checked)}
+              />
+            </div>
+            <ValidationText issue={boardValidation.columnErrors[index]?.id} />
+            <ValidationText issue={boardValidation.columnErrors[index]?.label} />
+          </DraftCard>
+        ))}
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            props.onChange((current) => ({
+              ...current,
+              columns: [...current.columns, createEmptyColumnDraft()],
+            }))
+          }
+        >
+          <Plus className="h-4 w-4" />
+          Add Column
+        </Button>
+      </div>
+    </SectionCard>
+  );
+}
+
+function OrchestratorSection(props: SectionProps): JSX.Element {
+  return (
+    <SectionCard
+      id="playbook-orchestration-policy"
+      title="Orchestration Policy"
+      description="Tune concurrency and iteration limits without changing the workflow contract."
+    >
+      <div className="grid gap-3 md:grid-cols-2">
+        <LabeledField label="Max rework iterations">
+          <Input
+            value={props.draft.orchestrator.max_rework_iterations}
+            onChange={(event) =>
+              updateOrchestrator(props, 'max_rework_iterations', event.target.value)
+            }
+          />
+        </LabeledField>
+        <LabeledField label="Task max iterations">
+          <Input
+            value={props.draft.orchestrator.max_iterations}
+            onChange={(event) => updateOrchestrator(props, 'max_iterations', event.target.value)}
+          />
+        </LabeledField>
+        <LabeledField label="LLM retry attempts">
+          <Input
+            value={props.draft.orchestrator.llm_max_retries}
+            onChange={(event) => updateOrchestrator(props, 'llm_max_retries', event.target.value)}
+          />
+        </LabeledField>
+        <LabeledField label="Max active tasks">
+          <Input
+            value={props.draft.orchestrator.max_active_tasks}
+            onChange={(event) => updateOrchestrator(props, 'max_active_tasks', event.target.value)}
+          />
+        </LabeledField>
+        <LabeledField label="Max active tasks per work item">
+          <Input
+            value={props.draft.orchestrator.max_active_tasks_per_work_item}
+            onChange={(event) =>
+              updateOrchestrator(props, 'max_active_tasks_per_work_item', event.target.value)
+            }
+          />
+        </LabeledField>
+        <div className="flex items-center">
+          <ToggleField
+            label="Allow parallel work items"
+            checked={props.draft.orchestrator.allow_parallel_work_items}
+            onCheckedChange={(checked) =>
+              props.onChange((current) => ({
+                ...current,
+                orchestrator: { ...current.orchestrator, allow_parallel_work_items: checked },
+              }))
+            }
+          />
+        </div>
+      </div>
+    </SectionCard>
   );
 }
 
@@ -1267,10 +485,7 @@ function ParameterFields(props: {
         <Input value={props.parameter.name} onChange={(event) => props.onChange('name', event.target.value)} />
       </LabeledField>
       <LabeledField label="Type">
-        <Select
-          value={props.parameter.type}
-          onValueChange={(value) => props.onChange('type', value)}
-        >
+        <Select value={props.parameter.type} onValueChange={(value) => props.onChange('type', value)}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
@@ -1290,8 +505,7 @@ function ParameterFields(props: {
         <Select
           value={props.parameter.maps_to || ENTRY_COLUMN_UNSET}
           onValueChange={(value) => {
-            const nextValue = value === ENTRY_COLUMN_UNSET ? '' : value;
-            props.onChange('maps_to', nextValue);
+            props.onChange('maps_to', value === ENTRY_COLUMN_UNSET ? '' : value);
             props.onParameterIssueChange(props.index, 'mapping');
           }}
         >
@@ -1309,443 +523,133 @@ function ParameterFields(props: {
         </Select>
       </LabeledField>
       <LabeledField label="Category">
-        <Select
-          value={props.parameter.category || ENTRY_COLUMN_UNSET}
-          onValueChange={(value) => props.onChange('category', value === ENTRY_COLUMN_UNSET ? '' : value)}
-        >
+        <Select value={props.parameter.category || ENTRY_COLUMN_UNSET} onValueChange={(value) => props.onChange('category', value === ENTRY_COLUMN_UNSET ? '' : value)}>
           <SelectTrigger>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {PARAMETER_CATEGORY_OPTIONS.map((option) => (
-              <SelectItem
-                key={option.value || ENTRY_COLUMN_UNSET}
-                value={option.value || ENTRY_COLUMN_UNSET}
-              >
+              <SelectItem key={option.value || ENTRY_COLUMN_UNSET} value={option.value || ENTRY_COLUMN_UNSET}>
                 {option.label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </LabeledField>
-      <ToggleField
-        label="Required"
-        checked={props.parameter.required}
-        onCheckedChange={(checked) => props.onBooleanChange('required', checked)}
-      />
-      <ToggleField
-        label="Secret"
-        checked={props.parameter.secret}
-        onCheckedChange={(checked) => props.onBooleanChange('secret', checked)}
-      />
-      <LabeledField label="Help text" className="md:col-span-2">
-        <Textarea
-          value={props.parameter.help_text}
-          onChange={(event) => props.onChange('help_text', event.target.value)}
-          className="min-h-[84px]"
-        />
+      <LabeledField label="Description">
+        <Input value={props.parameter.description} onChange={(event) => props.onChange('description', event.target.value)} />
       </LabeledField>
-      <LabeledField label="Description" className="md:col-span-2">
-        <Textarea
-          value={props.parameter.description}
-          onChange={(event) => props.onChange('description', event.target.value)}
-          className="min-h-[84px]"
-        />
+      <LabeledField label="Help text">
+        <Input value={props.parameter.help_text} onChange={(event) => props.onChange('help_text', event.target.value)} />
+      </LabeledField>
+      <LabeledField label="Allowed values">
+        <Input value={props.parameter.allowed_values} onChange={(event) => props.onChange('allowed_values', event.target.value)} />
       </LabeledField>
       <LabeledField label="Default value" className="md:col-span-2">
           <TypedParameterValueControl
             valueType={props.parameter.type}
             value={props.parameter.default_value}
-            onValidationChange={(issue) =>
+            onChange={(nextValue) => props.onChange('default_value', nextValue)}
+            onValidationChange={(issue?: string) =>
               props.onParameterIssueChange(props.index, 'default', issue)
             }
-            onChange={(value) => {
-              props.onChange('default_value', value);
-            }}
           />
       </LabeledField>
-    </div>
-  );
-}
-
-function RoleSelectField(props: {
-  label: string;
-  value: string;
-  availableRoleNames: string[];
-  onValueChange(value: string): void;
-  placeholder?: string;
-  allowUnset?: boolean;
-  inline?: boolean;
-  className?: string;
-  triggerClassName?: string;
-}): JSX.Element {
-  const control = (
-    <Select
-      value={props.value || ROLE_SELECT_UNSET}
-      onValueChange={(value) =>
-        props.onValueChange(value === ROLE_SELECT_UNSET ? '' : value)
-      }
-    >
-      <SelectTrigger className={props.triggerClassName}>
-        <SelectValue placeholder={props.placeholder ?? 'Select role'} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={ROLE_SELECT_UNSET}>
-          {props.allowUnset ? 'No role selected' : 'Select role'}
-        </SelectItem>
-        {props.availableRoleNames.map((name) => (
-          <SelectItem key={name} value={name}>
-            {name}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  );
-
-  if (props.inline) {
-    return (
-      <InlineRuleField label={props.label} className={props.className}>
-        {control}
-      </InlineRuleField>
-    );
-  }
-
-  return (
-    <LabeledField label={props.label} className={props.className}>
-      {control}
-    </LabeledField>
-  );
-}
-
-function SelectRuleField(props: {
-  label: string;
-  value: string;
-  options: ReadonlyArray<{ value: string; label: string }>;
-  placeholder?: string;
-  onValueChange(value: string): void;
-}): JSX.Element {
-  const hasExplicitEmptyOption = props.options.some((option) => option.value === '');
-  return (
-    <InlineRuleField label={props.label} className="min-w-0">
-      <Select
-        value={props.value || ENTRY_COLUMN_UNSET}
-        onValueChange={(value) => props.onValueChange(value === ENTRY_COLUMN_UNSET ? '' : value)}
-      >
-        <SelectTrigger className="min-w-0">
-          <SelectValue placeholder={props.placeholder ?? 'Select option'} />
-        </SelectTrigger>
-        <SelectContent>
-          {!hasExplicitEmptyOption ? (
-            <SelectItem value={ENTRY_COLUMN_UNSET}>
-              {props.placeholder ?? 'Select option'}
-            </SelectItem>
-          ) : null}
-          {props.options.map((option) => (
-            <SelectItem
-              key={option.value || `${props.label}-default`}
-              value={option.value || ENTRY_COLUMN_UNSET}
-            >
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </InlineRuleField>
-  );
-}
-
-function OutcomeActionRuleField(props: {
-  label: string;
-  action: string;
-  role: string;
-  roleLabel: string;
-  availableRoleNames: string[];
-  actionOptions: ReadonlyArray<{ value: string; label: string }>;
-  onActionChange(value: string): void;
-  onRoleChange(value: string): void;
-  disabled?: boolean;
-  inline?: boolean;
-  className?: string;
-}): JSX.Element {
-  const content = (
-    <div className="grid gap-2">
-      <Select
-        value={props.action || ENTRY_COLUMN_UNSET}
-        onValueChange={(value) => props.onActionChange(value === ENTRY_COLUMN_UNSET ? '' : value)}
-        disabled={props.disabled}
-      >
-        <SelectTrigger className="min-w-0">
-          <SelectValue placeholder="Select action" />
-        </SelectTrigger>
-        <SelectContent>
-          {props.actionOptions.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {props.action === 'route_to_role' ? (
-        <RoleSelectField
-          label={props.roleLabel}
-          value={props.role}
-          availableRoleNames={props.availableRoleNames}
-          allowUnset
-          inline
-          className="min-w-0"
-          triggerClassName="min-w-0"
-          onValueChange={props.onRoleChange}
+      <div className="flex flex-col gap-3 md:col-span-2 md:flex-row">
+        <ToggleField
+          label="Required"
+          checked={props.parameter.required}
+          onCheckedChange={(checked) => props.onBooleanChange('required', checked)}
         />
-      ) : null}
-    </div>
-  );
-
-  if (props.inline) {
-    return (
-      <InlineRuleField label={props.label} className={props.className}>
-        {content}
-      </InlineRuleField>
-    );
-  }
-  return content;
-}
-
-function InlineRuleField(props: {
-  label: string;
-  children: ReactNode;
-  className?: string;
-}): JSX.Element {
-  return (
-    <div
-      className={`flex flex-col gap-1 lg:flex-row lg:items-center lg:gap-2 ${props.className ?? ''}`.trim()}
-    >
-      <span className="text-xs font-medium text-foreground lg:w-16 lg:shrink-0">
-        {props.label}
-      </span>
-      <div className="min-w-0 flex-1">
-        {props.children}
+        <ToggleField
+          label="Secret"
+          checked={props.parameter.secret}
+          onCheckedChange={(checked) => props.onBooleanChange('secret', checked)}
+        />
       </div>
     </div>
   );
 }
 
-function InlineRuleRow(props: {
+function DraftCard(props: {
   children: ReactNode;
-  actions: ReactNode;
-  error?: string;
-  details?: ReactNode;
-  fieldsClassName?: string;
+  moveEarlier?: () => void;
+  moveLater?: () => void;
+  onRemove(): void;
 }): JSX.Element {
   return (
-    <div className="space-y-2 rounded-md border border-border/70 bg-background/40 p-3">
-      <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-        <div
-          className={`grid gap-3 ${props.fieldsClassName ?? ''} xl:flex xl:min-w-0 xl:flex-1 xl:items-center xl:gap-3 xl:[&>*]:min-w-0 xl:[&>*]:flex-1`.trim()}
-        >
-          {props.children}
-        </div>
-        <div className="xl:shrink-0">{props.actions}</div>
-      </div>
-      {props.error ? (
-        <p className="text-xs text-red-600 dark:text-red-400">{props.error}</p>
-      ) : null}
-      {props.details ? (
-        <div className="rounded-md border border-border/50 bg-background/70 p-3">
-          {props.details}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function InlineRuleActions(props: {
-  required?: boolean;
-  onRequiredChange?(checked: boolean): void;
-  onMoveEarlier?: () => void;
-  onMoveLater?: () => void;
-  onRemove?: () => void;
-}): JSX.Element {
-  return (
-    <div className="flex flex-nowrap items-center gap-1">
-      {typeof props.required === 'boolean' && props.onRequiredChange ? (
-        <label className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border/70 px-1.5 text-[11px] font-medium text-foreground">
-          <Switch checked={props.required} onCheckedChange={props.onRequiredChange} />
-          <span>Required</span>
-        </label>
-      ) : null}
-      {props.onMoveEarlier ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Move rule earlier"
-          title="Move earlier"
-          onClick={props.onMoveEarlier}
-        >
-          <ChevronUp className="h-4 w-4" />
-        </Button>
-      ) : null}
-      {props.onMoveLater ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Move rule later"
-          title="Move later"
-          onClick={props.onMoveLater}
-        >
-          <ChevronDown className="h-4 w-4" />
-        </Button>
-      ) : null}
-      {props.onRemove ? (
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="h-7 w-7"
-          aria-label="Remove rule"
-          title="Remove rule"
-          onClick={props.onRemove}
-        >
-          <Trash2 className="h-4 w-4" />
-        </Button>
-      ) : null}
-    </div>
-  );
-}
-
-function RuleCard(props: {
-  title: string;
-  children: ReactNode;
-  onMoveEarlier?: () => void;
-  onMoveLater?: () => void;
-  onRemove?: () => void;
-}): JSX.Element {
-  return (
-    <div className="rounded-md border border-border/70 p-4">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <div className="text-sm font-medium">{props.title}</div>
-        <div className="flex flex-wrap gap-2">
-          {props.onMoveEarlier ? (
-            <Button type="button" variant="outline" size="sm" onClick={props.onMoveEarlier}>
-              Move Earlier
-            </Button>
-          ) : null}
-          {props.onMoveLater ? (
-            <Button type="button" variant="outline" size="sm" onClick={props.onMoveLater}>
-              Move Later
-            </Button>
-          ) : null}
-          {props.onRemove ? (
-            <Button type="button" variant="outline" size="sm" onClick={props.onRemove}>
-              <Minus className="h-4 w-4" />
-              Remove
-            </Button>
-          ) : null}
-        </div>
+    <div className="rounded-xl border border-border/70 bg-card/60 p-4">
+      <div className="mb-3 flex flex-wrap items-center justify-end gap-2">
+        <IconButton icon={<ChevronUp className="h-4 w-4" />} onClick={props.moveEarlier} />
+        <IconButton icon={<ChevronDown className="h-4 w-4" />} onClick={props.moveLater} />
+        <IconButton icon={<Minus className="h-4 w-4" />} onClick={props.onRemove} />
       </div>
       <div className="space-y-3">{props.children}</div>
     </div>
   );
 }
 
-function updateCheckpoint(
-  onChange: SectionProps['onChange'],
-  index: number,
-  field: 'name' | 'goal' | 'entry_criteria',
-  value: string,
-): void {
-  onChange((current) => ({
-    ...current,
-    checkpoints: current.checkpoints.map((entry, entryIndex) =>
-      entryIndex === index ? { ...entry, [field]: value } : entry,
-    ),
-  }));
+function IconButton(props: { icon: JSX.Element; onClick?: () => void }): JSX.Element {
+  return (
+    <Button type="button" variant="outline" size="icon" disabled={!props.onClick} onClick={props.onClick}>
+      {props.icon}
+    </Button>
+  );
 }
 
-function updateAssessmentRule(
-  onChange: SectionProps['onChange'],
+function moveHandler(
+  props: SectionProps,
+  key: 'stages' | 'columns' | 'parameters',
   index: number,
-  field:
-    | 'subject_role'
-    | 'assessed_by'
-    | 'checkpoint'
-    | 'materiality'
-    | 'assessment_retention'
-    | 'approval_retention'
-    | 'request_changes_action'
-    | 'request_changes_target'
-    | 'rejected_action'
-    | 'rejected_target'
-    | 'blocked_target'
-    | 'blocked_action',
-  value: string,
-): void {
-  onChange((current) => ({
-    ...current,
-    assessment_rules: current.assessment_rules.map((entry, entryIndex) =>
-      entryIndex === index ? { ...entry, [field]: value } : entry,
-    ),
-  }));
+  direction: 'earlier' | 'later',
+): (() => void) | undefined {
+  const values =
+    key === 'stages' ? props.draft.stages : key === 'columns' ? props.draft.columns : props.draft.parameters;
+  if (!canMoveDraftItem(index, values.length, direction)) {
+    return undefined;
+  }
+  if (key === 'stages') {
+    return () =>
+      props.onChange((current) => ({
+        ...current,
+        stages: moveDraftItem(current.stages, index, direction),
+      }));
+  }
+  if (key === 'columns') {
+    return () =>
+      props.onChange((current) => ({
+        ...current,
+        columns: moveDraftItem(current.columns, index, direction),
+      }));
+  }
+  return () =>
+    props.onChange((current) => ({
+      ...current,
+      parameters: moveDraftItem(current.parameters, index, direction),
+    }));
 }
 
-function updateApprovalRule(
-  onChange: SectionProps['onChange'],
+function updateStage(
+  props: SectionProps,
   index: number,
-  field:
-    | 'checkpoint'
-    | 'materiality'
-    | 'assessment_retention'
-    | 'approval_retention'
-    | 'allow_blocked_decision'
-    | 'approval_before_assessment',
-  value: string | boolean,
-): void {
-  onChange((current) => ({
-    ...current,
-    approval_rules: current.approval_rules.map((entry, entryIndex) =>
-      entryIndex === index ? { ...entry, [field]: value } : entry,
-    ),
-  }));
-}
-
-function updateBranchPolicy(
-  onChange: SectionProps['onChange'],
-  index: number,
-  field: 'branch_key' | 'termination_policy',
+  field: keyof StageDraft,
   value: string,
 ): void {
-  onChange((current) => ({
+  props.onChange((current) => ({
     ...current,
-    branch_policies: current.branch_policies.map((entry, entryIndex) =>
-      entryIndex === index ? { ...entry, [field]: value } : entry,
-    ),
-  }));
-}
-
-function updateHandoffRule(
-  onChange: SectionProps['onChange'],
-  index: number,
-  field: 'from_role' | 'to_role',
-  value: string,
-): void {
-  onChange((current) => ({
-    ...current,
-    handoff_rules: current.handoff_rules.map((entry, entryIndex) =>
+    stages: current.stages.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
     ),
   }));
 }
 
 function updateColumn(
-  onChange: SectionProps['onChange'],
+  props: SectionProps,
   index: number,
-  field: 'id' | 'label' | 'description',
+  field: keyof Omit<BoardColumnDraft, 'is_blocked' | 'is_terminal'>,
   value: string,
 ): void {
-  onChange((current) => ({
+  props.onChange((current) => ({
     ...current,
     columns: current.columns.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
@@ -1754,12 +658,12 @@ function updateColumn(
 }
 
 function updateColumnBoolean(
-  onChange: SectionProps['onChange'],
+  props: SectionProps,
   index: number,
   field: 'is_blocked' | 'is_terminal',
   value: boolean,
 ): void {
-  onChange((current) => ({
+  props.onChange((current) => ({
     ...current,
     columns: current.columns.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
@@ -1767,29 +671,24 @@ function updateColumnBoolean(
   }));
 }
 
-function updateOrchestratorField(
-  onChange: SectionProps['onChange'],
-  field:
-    | 'max_rework_iterations'
-    | 'max_iterations'
-    | 'llm_max_retries'
-    | 'max_active_tasks'
-    | 'max_active_tasks_per_work_item',
+function updateOrchestrator(
+  props: SectionProps,
+  field: keyof PlaybookAuthoringDraft['orchestrator'],
   value: string,
 ): void {
-  onChange((current) => ({
+  props.onChange((current) => ({
     ...current,
     orchestrator: { ...current.orchestrator, [field]: value },
   }));
 }
 
 function updateParameter(
-  onChange: SectionProps['onChange'],
+  props: SectionProps,
   index: number,
   field: keyof Omit<ParameterDraft, 'required' | 'secret'>,
   value: string,
 ): void {
-  onChange((current) => ({
+  props.onChange((current) => ({
     ...current,
     parameters: current.parameters.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
@@ -1798,12 +697,12 @@ function updateParameter(
 }
 
 function updateParameterBoolean(
-  onChange: SectionProps['onChange'],
+  props: SectionProps,
   index: number,
   field: 'required' | 'secret',
   value: boolean,
 ): void {
-  onChange((current) => ({
+  props.onChange((current) => ({
     ...current,
     parameters: current.parameters.map((entry, entryIndex) =>
       entryIndex === index ? { ...entry, [field]: value } : entry,
@@ -1811,41 +710,20 @@ function updateParameterBoolean(
   }));
 }
 
-function normalizedRoleOptions(values: string[]): string[] {
-  return values
-    .map((value) => value.trim())
-    .filter((value, index, all) => value.length > 0 && all.indexOf(value) === index)
-    .sort((left, right) => left.localeCompare(right));
-}
-
 function resolveRoleSelectionValue(
   value: string,
   availableRoleNames: string[],
   index: number,
 ): string {
-  if (!value.trim()) {
-    return ROLE_SELECT_UNSET;
-  }
-  return availableRoleNames.includes(value) ? value : resolveMissingRoleValue(index);
+  return availableRoleNames.includes(value) ? value : value.trim() ? resolveMissingRoleValue(index) : ROLE_SELECT_UNSET;
 }
 
 function resolveMissingRoleValue(index: number): string {
   return `__missing_role_${index}__`;
 }
 
-function resolveBoardEntryColumnValue(draft: PlaybookAuthoringDraft): string {
-  const current = draft.entry_column_id.trim();
-  if (current && draft.columns.some((column) => column.id.trim() === current)) {
-    return current;
-  }
-  return buildEntryColumnOptions(draft.columns)[0]?.value ?? ENTRY_COLUMN_UNSET;
-}
-
-function buildEntryColumnOptions(columns: BoardColumnDraft[]): Array<{ value: string; label: string }> {
-  return columns
-    .map((column) => ({
-      value: column.id.trim(),
-      label: column.label.trim() || column.id.trim(),
-    }))
-    .filter((option) => option.value.length > 0);
+function ValidationText(props: { issue?: string }): JSX.Element | null {
+  return props.issue ? (
+    <p className="text-xs text-red-600 dark:text-red-400">{props.issue}</p>
+  ) : null;
 }

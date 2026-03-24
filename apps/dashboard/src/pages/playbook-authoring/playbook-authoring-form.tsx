@@ -14,7 +14,7 @@ import {
   LaunchInputsSection,
   ProcessInstructionsSection,
   TeamRolesSection,
-  WorkflowRulesSection,
+  WorkflowStagesSection,
 } from './playbook-authoring-form-sections.js';
 
 interface PlaybookAuthoringFormProps {
@@ -119,9 +119,9 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
             <CardHeader className="space-y-2">
               <CardTitle>Process-first authoring</CardTitle>
               <p className="text-sm text-muted">
-                Define the workflow outcome, tell the orchestrator how the process should run, and
-                add only the mandatory role, review, approval, and handoff rules needed to keep the
-                workflow deterministic.
+                Define the workflow outcome, structure the stages, and tell the orchestrator how
+                the process should run. Reviews, approvals, handoffs, and escalations come from the
+                playbook instructions instead of separate governance config.
               </p>
             </CardHeader>
           </Card>
@@ -131,10 +131,9 @@ export function PlaybookAuthoringForm(props: PlaybookAuthoringFormProps): JSX.El
             onChange={updateDraft}
             availableRoleNames={availableRoleNames}
           />
-          <WorkflowRulesSection
+          <WorkflowStagesSection
             draft={props.draft}
             onChange={updateDraft}
-            availableRoleNames={availableRoleNames}
           />
         </TabsContent>
 
