@@ -31,12 +31,12 @@ describe('log filters source', () => {
     expect(source).not.toContain('Sources');
   });
 
-  it('moves reset into saved views instead of keeping a separate top-row button', () => {
+  it('keeps a visible reset button in the top filter row', () => {
     const source = readSource('./log-filters.tsx');
 
-    expect(source).toContain('onReset={resetFilters}');
-    expect(source).not.toContain('<RotateCcw');
-    expect(source).not.toContain('>Reset<');
+    expect(source).toContain('<RotateCcw className="h-4 w-4" />');
+    expect(source).toContain('Reset');
+    expect(source).toContain('onClick={resetFilters}');
   });
 
   it('debounces text filter inputs to avoid per-keystroke refetches', () => {

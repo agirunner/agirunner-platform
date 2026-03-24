@@ -1,5 +1,5 @@
 import { useCallback, useState, useMemo, useEffect, type ChangeEvent } from 'react';
-import { Search, X } from 'lucide-react';
+import { RotateCcw, Search, X } from 'lucide-react';
 import { LogEntityScope } from './log-entity-scope.js';
 import { LogClassificationTabs } from './log-classification-tabs.js';
 import { MultiSelectChips, CATEGORY_OPTIONS } from './ui/multi-select-chips.js';
@@ -22,6 +22,7 @@ import {
   useDebounced,
 } from './log-filters.support.js';
 import { SavedViews, type SavedViewFilters } from '../saved-views/saved-views.js';
+import { Button } from '../ui/button.js';
 import { Input } from '../ui/input.js';
 import { applyLogScope, type LogScope } from './log-scope.js';
 
@@ -159,6 +160,10 @@ export function LogFilters({
         <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
           <TimeRangePicker value={filters.time} onChange={(range) => setFilter('time', range)} />
           <LevelSelector value={filters.level} onChange={(level) => setFilter('level', level)} />
+          <Button type="button" variant="outline" size="sm" onClick={resetFilters}>
+            <RotateCcw className="h-4 w-4" />
+            Reset
+          </Button>
           <SavedViews
             storageKey="logs"
             currentFilters={savedViewFilters}
