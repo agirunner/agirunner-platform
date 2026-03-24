@@ -1364,6 +1364,35 @@ def evaluate_expectations(
             )
             if not passed:
                 failures.append(f"expected at least {minimum} non-orchestrator tasks, found {actual}")
+        forbidden_task_kinds = sorted(
+            {
+                item.strip()
+                for item in workflow_task_expectations.get("forbid_task_kinds", [])
+                if isinstance(item, str) and item.strip() != ""
+            }
+        )
+        if forbidden_task_kinds:
+            actual_forbidden = sorted(
+                {
+                    task_kind
+                    for task in non_orchestrator_tasks
+                    for task_kind in [_task_kind(task)]
+                    if task_kind in forbidden_task_kinds
+                }
+            )
+            passed = len(actual_forbidden) == 0
+            checks.append(
+                {
+                    "name": "workflow_tasks.forbid_task_kinds",
+                    "passed": passed,
+                    "expected_forbidden": forbidden_task_kinds,
+                    "actual_forbidden": actual_forbidden,
+                }
+            )
+            if not passed:
+                failures.append(
+                    f"expected workflow to avoid task kinds {forbidden_task_kinds}, found {actual_forbidden}"
+                )
 
     fleet_expectations = expectations.get("fleet", {})
     if isinstance(fleet_expectations, dict):

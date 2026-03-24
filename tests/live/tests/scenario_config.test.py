@@ -23,6 +23,10 @@ class ScenarioConfigTests(unittest.TestCase):
         self.assertTrue(scenario["workspace"]["repo"])
         self.assertEqual(4, scenario["expect"]["workflow_tasks"]["min_non_orchestrator_count"])
         self.assertEqual(
+            ["assessment", "approval"],
+            scenario["expect"]["workflow_tasks"]["forbid_task_kinds"],
+        )
+        self.assertEqual(
             [
                 {
                     "source_role": "prose-sdlc-solution-architect",

@@ -1749,6 +1749,45 @@ class RunWorkflowScenarioTests(unittest.TestCase):
         self.assertFalse(verification["passed"])
         self.assertGreaterEqual(len(verification["failures"]), 4)
 
+    def test_evaluate_expectations_rejects_globally_forbidden_task_kinds(self) -> None:
+        verification = run_workflow_scenario.evaluate_expectations(
+            {
+                "workflow_tasks": {
+                    "min_non_orchestrator_count": 2,
+                    "forbid_task_kinds": ["assessment", "approval"],
+                }
+            },
+            workflow={
+                "state": "completed",
+                "tasks": [
+                    {
+                        "id": "task-impl-1",
+                        "role": "implementation-engineer",
+                        "metadata": {"task_kind": "delivery"},
+                        "is_orchestrator_task": False,
+                    },
+                    {
+                        "id": "task-review-1",
+                        "role": "release-reviewer",
+                        "metadata": {"task_kind": "assessment"},
+                        "is_orchestrator_task": False,
+                    },
+                ],
+            },
+            board={"data": {"data": {"columns": []}}},
+            work_items={"data": {"data": []}},
+            workspace={"memory": {}},
+            artifacts={"data": {"items": []}},
+            approval_actions=[],
+            events={"data": {"data": []}},
+        )
+
+        self.assertFalse(verification["passed"])
+        self.assertIn(
+            "expected workflow to avoid task kinds ['approval', 'assessment'], found ['assessment']",
+            verification["failures"],
+        )
+
     def test_evaluate_expectations_requires_declared_approval_actions(self) -> None:
         verification = run_workflow_scenario.evaluate_expectations(
             {

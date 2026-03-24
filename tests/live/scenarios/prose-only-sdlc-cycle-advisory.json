@@ -23,7 +23,8 @@
   "expect": {
     "state": "completed",
     "workflow_tasks": {
-      "min_non_orchestrator_count": 4
+      "min_non_orchestrator_count": 4,
+      "forbid_task_kinds": ["assessment", "approval"]
     },
     "direct_handoff_expectations": [
       {
