@@ -2031,6 +2031,9 @@ describe('PlaybookWorkflowControlService', () => {
         if (sql.includes('UPDATE workflows')) {
           throw new Error('planned work item updates should not persist workflow.current_stage');
         }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -2297,6 +2300,9 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -2486,6 +2492,9 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -2559,6 +2568,9 @@ describe('PlaybookWorkflowControlService', () => {
           };
         }
         if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
           return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
@@ -2646,6 +2658,9 @@ describe('PlaybookWorkflowControlService', () => {
         if (sql.includes('SELECT latest_assessment.resolution AS blocking_resolution')) {
           return { rowCount: 0, rows: [] };
         }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -2665,6 +2680,81 @@ describe('PlaybookWorkflowControlService', () => {
       pool as never,
     )).rejects.toThrow(
       "Cannot complete work item 'Draft review-ready product brief' while required handoff by 'rework-technical-editor' is still pending.",
+    );
+  });
+
+  it('rejects completing a work item while a non-terminal task still exists for that work item', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'implementation',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM workflow_work_items') && sql.includes('AND id = $3') && sql.includes('FOR UPDATE')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'wi-implementation-1',
+              parent_work_item_id: null,
+              stage_name: 'implementation',
+              title: 'Implement the reporting pipeline',
+              goal: 'Ship the feature',
+              acceptance_criteria: 'The reporting pipeline is complete.',
+              column_id: 'planned',
+              owner_role: 'implementer',
+              next_expected_actor: null,
+              next_expected_action: null,
+              rework_count: 0,
+              priority: 'high',
+              notes: null,
+              completed_at: null,
+              metadata: {},
+              updated_at: new Date('2026-03-11T00:00:00Z'),
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          expect(sql).toContain('state::text <> ALL($4::text[])');
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'wi-implementation-1', ['completed', 'failed', 'cancelled']]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-implementation-1',
+              role: 'implementer',
+              state: 'in_progress',
+              stage_name: 'implementation',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    await expect(service.completeWorkItem(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      'wi-implementation-1',
+      {},
+      pool as never,
+    )).rejects.toThrow(
+      "Cannot complete work item 'Implement the reporting pipeline' while task 'implementer' is still in_progress.",
     );
   });
 
@@ -2774,6 +2864,9 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 0,
             rows: [],
           };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -2891,6 +2984,9 @@ describe('PlaybookWorkflowControlService', () => {
             rowCount: 0,
             rows: [],
           };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -3023,6 +3119,9 @@ describe('PlaybookWorkflowControlService', () => {
               updated_at: updatedAt,
             }],
           };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -4102,6 +4201,9 @@ describe('PlaybookWorkflowControlService', () => {
           ]);
           return { rowCount: 1, rows: [] };
         }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -4287,6 +4389,9 @@ describe('PlaybookWorkflowControlService', () => {
             JSON.stringify([]),
           ]);
           return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -4619,6 +4724,9 @@ describe('PlaybookWorkflowControlService', () => {
           ]);
           return { rowCount: 1, rows: [] };
         }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -4745,6 +4853,9 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -4822,6 +4933,9 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -4840,6 +4954,57 @@ describe('PlaybookWorkflowControlService', () => {
       pool as never,
     )).rejects.toThrow(
       "Cannot complete workflow while stage 'implementation' still has required assessment by 'release-assessor' pending on work item 'Implement the reporting pipeline'.",
+    );
+  });
+
+  it('rejects workflow completion while a non-terminal specialist task still exists', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('FROM workflows w') && sql.includes('JOIN playbooks p')) {
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'workflow-1',
+              workspace_id: 'workspace-1',
+              playbook_id: 'playbook-1',
+              lifecycle: 'planned',
+              active_stage_name: 'implementation',
+              state: 'active',
+              definition,
+            }],
+          };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          expect(sql).toContain('state::text <> ALL($3::text[])');
+          expect(params).toEqual(['tenant-1', 'workflow-1', ['completed', 'failed', 'cancelled']]);
+          return {
+            rowCount: 1,
+            rows: [{
+              id: 'task-implementation-1',
+              role: 'implementer',
+              state: 'in_progress',
+              stage_name: 'implementation',
+            }],
+          };
+        }
+        throw new Error(`unexpected query: ${sql}`);
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: { recomputeWorkflowState: vi.fn(async () => 'active') } as never,
+      activationService: { enqueueForWorkflow: vi.fn() } as never,
+      activationDispatchService: { dispatchActivation: vi.fn() } as never,
+    });
+
+    await expect(service.completeWorkflow(
+      { tenantId: 'tenant-1', scope: 'admin', ownerType: 'user', ownerId: 'user-1', keyPrefix: 'k1', id: 'key-1' },
+      'workflow-1',
+      { summary: 'Done', final_artifacts: [] },
+      pool as never,
+    )).rejects.toThrow(
+      "Cannot complete workflow while task 'implementer' in stage 'implementation' is still in_progress.",
     );
   });
 
@@ -4931,6 +5096,9 @@ describe('PlaybookWorkflowControlService', () => {
               next_expected_action: 'handoff',
             }],
           };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
@@ -5107,6 +5275,9 @@ describe('PlaybookWorkflowControlService', () => {
             }],
           };
         }
+        if (sql.includes('FROM tasks') && sql.includes('is_orchestrator_task = false')) {
+          return { rowCount: 0, rows: [] };
+        }
         throw new Error(`unexpected query: ${sql}`);
       }),
     };
@@ -5178,6 +5349,9 @@ describe('PlaybookWorkflowControlService', () => {
               updated_at: new Date('2026-03-23T00:00:00Z'),
             }],
           };
+        }
+        if (sql.includes('FROM tasks') && sql.includes('work_item_id = $3')) {
+          return { rowCount: 0, rows: [] };
         }
         throw new Error(`unexpected query: ${sql}`);
       }),
