@@ -434,14 +434,25 @@ export class PlaybookWorkflowControlService {
           $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, 'awaiting_approval', $9, $10, now(), $11,
           (
             SELECT CASE
-              WHEN COUNT(*) = 1 THEN MIN(wi.id)
+              WHEN (
+                SELECT COUNT(*)
+                FROM workflow_work_items wi
+                WHERE wi.tenant_id = $1
+                  AND wi.workflow_id = $2
+                  AND wi.stage_name = $4
+                  AND wi.completed_at IS NULL
+              ) = 1 THEN (
+                SELECT wi.id
+                FROM workflow_work_items wi
+                WHERE wi.tenant_id = $1
+                  AND wi.workflow_id = $2
+                  AND wi.stage_name = $4
+                  AND wi.completed_at IS NULL
+                ORDER BY wi.created_at ASC, wi.id ASC
+                LIMIT 1
+              )
               ELSE NULL
             END
-            FROM workflow_work_items wi
-            WHERE wi.tenant_id = $1
-              AND wi.workflow_id = $2
-              AND wi.stage_name = $4
-              AND wi.completed_at IS NULL
           )
         )
       RETURNING id, workflow_id, stage_id, stage_name, status, request_summary, recommendation,

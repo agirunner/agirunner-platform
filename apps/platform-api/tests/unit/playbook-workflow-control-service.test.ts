@@ -137,6 +137,12 @@ describe('PlaybookWorkflowControlService', () => {
       { summary: 'Ready for gate review' },
     );
 
+    const insertCall = client.query.mock.calls.find(([sql]) =>
+      typeof sql === 'string' && sql.includes('INSERT INTO workflow_stage_gates'),
+    );
+    expect(insertCall?.[0]).toContain('SELECT COUNT(*)');
+    expect(insertCall?.[0]).toContain('ORDER BY wi.created_at ASC, wi.id ASC');
+    expect(insertCall?.[0]).not.toContain('MIN(wi.id)');
     expect(stage.gate_status).toBe('awaiting_approval');
     expect(eventService.emit).toHaveBeenCalledWith(
       expect.objectContaining({
