@@ -278,4 +278,15 @@ describe('ContainerInventoryService', () => {
     expect(listQuery).not.toContain('SELECT DISTINCT ON (was.desired_state_id)');
     expect(listQuery).not.toContain('ON awt.desired_state_id = live.desired_state_id');
   });
+
+  it('prefers the active assigned task over heartbeat bookkeeping when resolving runtime task labels', async () => {
+    pool.query.mockResolvedValueOnce({ rows: [], rowCount: 0 });
+
+    await service.listCurrentContainers(TENANT_ID);
+
+    const listQuery = pool.query.mock.calls[0]?.[0] as string;
+    expect(listQuery).toContain('COALESCE(t.id, live.live_task_id, live.active_task_id, live.heartbeat_task_id) AS task_id');
+    expect(listQuery).toContain('t.id = COALESCE(live.live_task_id, live.active_task_id, live.heartbeat_task_id)');
+    expect(listQuery).not.toContain('COALESCE(t.id, live.live_task_id, live.heartbeat_task_id, live.active_task_id) AS task_id');
+  });
 });

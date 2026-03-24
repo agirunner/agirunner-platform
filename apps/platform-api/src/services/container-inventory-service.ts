@@ -176,7 +176,7 @@ SELECT
   CASE
     WHEN live.kind = 'orchestrator' THEN 'orchestrator:' || COALESCE(NULLIF(BTRIM(live.name), ''), live.container_id)
     WHEN live.kind = 'runtime' THEN 'runtime:' || COALESCE(NULLIF(BTRIM(live.runtime_id), ''), live.container_id)
-    ELSE 'task:' || COALESCE(COALESCE(t.id, live.live_task_id, live.heartbeat_task_id, live.active_task_id)::text, live.container_id)
+    ELSE 'task:' || COALESCE(COALESCE(t.id, live.live_task_id, live.active_task_id, live.heartbeat_task_id)::text, live.container_id)
   END AS id,
   live.kind,
   live.container_id,
@@ -198,7 +198,7 @@ SELECT
   COALESCE(p.name, NULLIF(BTRIM(live.live_playbook_name), '')) AS playbook_name,
   COALESCE(w.id, live.live_workflow_id) AS workflow_id,
   w.name AS workflow_name,
-  COALESCE(t.id, live.live_task_id, live.heartbeat_task_id, live.active_task_id) AS task_id,
+  COALESCE(t.id, live.live_task_id, live.active_task_id, live.heartbeat_task_id) AS task_id,
   live.execution_backend,
   t.title AS task_title,
   t.stage_name AS stage_name,
@@ -212,7 +212,7 @@ LEFT JOIN worker_desired_state wd
  AND wd.id = live.desired_state_id
 LEFT JOIN tasks t
   ON t.tenant_id = $1
- AND t.id = COALESCE(live.live_task_id, live.heartbeat_task_id, live.active_task_id)
+ AND t.id = COALESCE(live.live_task_id, live.active_task_id, live.heartbeat_task_id)
 LEFT JOIN workflows w
   ON w.tenant_id = $1
  AND w.id = COALESCE(live.live_workflow_id, t.workflow_id)
