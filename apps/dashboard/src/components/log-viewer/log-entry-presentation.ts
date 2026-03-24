@@ -152,7 +152,7 @@ function describeToolOwner(entry: LogEntry): string | null {
 
 function readToolLabel(payload: Record<string, unknown> | null | undefined): string | null {
   const raw = readString(payload?.tool_name) ?? readString(payload?.command_or_path) ?? readString(payload?.command);
-  return raw ? humanize(raw) : null;
+  return raw ? humanizeSentence(raw) : null;
 }
 
 function describeLlmDetail(payload: Record<string, unknown>): string {
@@ -207,4 +207,18 @@ function humanize(value: string): string {
     .filter((part) => part.length > 0)
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+}
+
+function humanizeSentence(value: string): string {
+  const words = value
+    .split(/[_.\-/\s]+/g)
+    .filter((part) => part.length > 0)
+    .map((part) => part.toLowerCase());
+
+  if (words.length === 0) {
+    return '';
+  }
+
+  const [first, ...rest] = words;
+  return [first.charAt(0).toUpperCase() + first.slice(1), ...rest].join(' ');
 }

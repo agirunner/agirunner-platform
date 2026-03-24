@@ -50,7 +50,7 @@ describe('log entry presentation', () => {
       task_title: 'Orchestrate Content Assessment Blocked',
     });
 
-    expect(describeLogActivityTitle(entry)).toBe('Submit Handoff');
+    expect(describeLogActivityTitle(entry)).toBe('Submit handoff');
     expect(describeLogActivityDetail(entry)).toBe('Tool call');
     expect(describeLogActivityDetail(entry)).not.toContain('Reviewed the latest handoff');
     expect(describeLogActivityDetail(entry)).not.toContain('Orchestrate Content Assessment Blocked');
