@@ -82,6 +82,8 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain('## Current Stage\nreview');
     expect(layer!.content).toContain('## Stage Routing');
     expect(layer!.content).toContain('Successor stage after acceptance: verification');
+    expect(layer!.content).toContain('## Stage Name Contract');
+    expect(layer!.content).toContain('Use only these exact authored stage_name values when routing work: implementation, review, verification.');
     expect(layer!.content).toContain('## Active Continuity');
     expect(layer!.content).toContain('Next expected actor: human');
     expect(layer!.content).toContain('Next expected action: approve');

@@ -19,14 +19,24 @@ class WorkflowCliTests(unittest.TestCase):
             payload,
         )
 
-    def test_status_report_command_is_not_implemented_yet(self) -> None:
+    def test_status_report_command_emits_stable_json(self) -> None:
         completed = subprocess.run(
             [sys.executable, "-m", "workflow_cli", "status-report", "--scenario-name", "runtime-task-sandbox-split"],
+            check=True,
             capture_output=True,
             text=True,
         )
 
-        self.assertNotEqual(0, completed.returncode)
+        payload = json.loads(completed.stdout)
+        self.assertEqual(
+            {
+                "release_summary_artifact": "reports/runtime-task-sandbox-summary.md",
+                "scenario_name": "runtime-task-sandbox-split",
+                "service": "workflow-cli",
+                "status": "ready",
+            },
+            payload,
+        )
 
 
 if __name__ == "__main__":

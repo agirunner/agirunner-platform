@@ -133,6 +133,7 @@ function buildOrchestratorSections(params: {
     const successorStage = nextStageName(params.definition, params.stage.name);
     if (params.lifecycle === 'planned') {
       sections.push(`## Stage Routing\n${formatStageRouting(params.stage.name, successorStage)}`);
+      sections.push(`## Stage Name Contract\n${formatStageNameContract(params.definition)}`);
       const emptyStageGuidance = formatEmptyPlannedStageGuidance(
         params.definition,
         params.stage.name,
@@ -192,6 +193,16 @@ function buildSpecialistSections(params: {
   ];
 
   return sections.filter((section) => section.trim().length > 0);
+}
+
+function formatStageNameContract(definition: ReturnType<typeof parsePlaybookDefinition>) {
+  const stageNames = definition.stages
+    .map((entry) => entry.name.trim())
+    .filter((name) => name.length > 0);
+  if (stageNames.length === 0) {
+    return 'Use only exact authored stage_name values when routing work items or tasks. Do not paraphrase or shorten stage names.';
+  }
+  return `Use only these exact authored stage_name values when routing work: ${stageNames.join(', ')}. Do not paraphrase, shorten, or invent alternate stage names.`;
 }
 
 function buildWorkflowBriefSection(workflow: Record<string, unknown>) {

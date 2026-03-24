@@ -108,7 +108,7 @@ SELECT jsonb_build_object(
           created_at,
           updated_at,
           completed_at
-        FROM work_items
+        FROM workflow_work_items
         WHERE workflow_id = {workflow}
       ) work_item_row
     ),
