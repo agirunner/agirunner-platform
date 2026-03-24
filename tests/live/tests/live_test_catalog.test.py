@@ -27,6 +27,19 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertEqual(sorted(live_test_catalog.EXPECTED_SCENARIOS), sorted(supported))
         self.assertEqual(len(supported), tracker["supported"]["total"])
 
+    def test_tracker_prioritizes_prose_only_advisory_scenarios_first(self) -> None:
+        tracker = json.loads(TRACKER_FILE.read_text())
+        supported = tracker["supported"]["scenarios"]
+        self.assertEqual(
+            supported[:4],
+            [
+                "prose-only-approval-advisory",
+                "prose-only-assessment-advisory",
+                "prose-only-escalation-advisory",
+                "prose-only-handoff-advisory",
+            ],
+        )
+
     def test_tracker_unsupported_future_design_entries_are_descriptive(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         deferred = tracker["unsupported_future_design"]

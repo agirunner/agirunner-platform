@@ -35,6 +35,7 @@
   - shared API client, catalog, and scenario helpers
 - `live_test_tracker.json`
   - long-term corpus tracker for all supported scenarios plus the reserved `unsupported_future_design` bucket
+  - the `supported.scenarios` order is the authoritative unattended execution order for the corpus
 - `scenarios/`
   - scenario JSON files plus thin executable wrappers
 - `tests/`
@@ -68,6 +69,8 @@ The batch runner is:
 ```bash
 bash tests/live/scenarios/run-live-scenario-batch.sh 5
 ```
+
+When no explicit scenario names are passed, the batch runner uses `live_test_tracker.json` order rather than filesystem sort.
 
 Thin per-scenario wrappers call that runner for convenience.
 

@@ -4,6 +4,53 @@ log_live_test() {
   echo "[tests/live] $*"
 }
 
+list_live_test_supported_scenarios() {
+  local scenario_root="$1"
+  local tracker_file="${2:-}"
+  python3 - "${scenario_root}" "${tracker_file}" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+scenario_root = Path(sys.argv[1])
+tracker_file = sys.argv[2].strip()
+
+scenario_files = {path.stem for path in scenario_root.glob("*.json")}
+if not tracker_file:
+    for name in sorted(scenario_files):
+        print(name)
+    raise SystemExit(0)
+
+tracker_path = Path(tracker_file)
+if not tracker_path.is_file():
+    raise SystemExit(f"[tests/live] live test tracker file not found: {tracker_path}")
+
+tracker = json.loads(tracker_path.read_text())
+ordered = tracker.get("supported", {}).get("scenarios", [])
+if not isinstance(ordered, list):
+    raise SystemExit("[tests/live] supported.scenarios must be a list in live test tracker")
+
+missing = [name for name in ordered if name not in scenario_files]
+if missing:
+    raise SystemExit(
+        "[tests/live] tracker scenarios missing JSON definitions: " + ", ".join(missing)
+    )
+
+seen = set()
+for name in ordered:
+    if name in seen:
+      raise SystemExit(f"[tests/live] duplicate scenario in tracker: {name}")
+    seen.add(name)
+    print(name)
+
+untracked = sorted(scenario_files - seen)
+if untracked:
+    raise SystemExit(
+        "[tests/live] scenario JSON files missing from tracker order: " + ", ".join(untracked)
+    )
+PY
+}
+
 count_live_test_matrix_status() {
   local scenario_root="$1"
   local artifacts_root="$2"
@@ -37,25 +84,34 @@ PY
 list_live_test_failing_scenarios() {
   local scenario_root="$1"
   local artifacts_root="$2"
-  python3 - "${scenario_root}" "${artifacts_root}" <<'PY'
+  local tracker_file="${3:-}"
+  python3 - "${scenario_root}" "${artifacts_root}" "${tracker_file}" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 scenario_root = Path(sys.argv[1])
 artifacts_root = Path(sys.argv[2])
+tracker_file = sys.argv[3].strip()
 
-for scenario_file in sorted(scenario_root.glob("*.json")):
-    result_file = artifacts_root / scenario_file.stem / "workflow-run.json"
+scenario_names: list[str]
+if tracker_file:
+    tracker = json.loads(Path(tracker_file).read_text())
+    scenario_names = tracker.get("supported", {}).get("scenarios", [])
+else:
+    scenario_names = sorted(path.stem for path in scenario_root.glob("*.json"))
+
+for scenario_name in scenario_names:
+    result_file = artifacts_root / scenario_name / "workflow-run.json"
     if not result_file.exists():
         continue
     try:
         data = json.loads(result_file.read_text())
     except Exception:
-        print(scenario_file.stem)
+        print(scenario_name)
         continue
     if data.get("verification_passed") is not True:
-        print(scenario_file.stem)
+        print(scenario_name)
 PY
 }
 

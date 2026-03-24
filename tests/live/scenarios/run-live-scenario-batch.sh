@@ -32,6 +32,14 @@ if (( $# > 0 )) && [[ "$1" =~ ^[0-9]+$ ]]; then
 fi
 
 scenario_root="${LIVE_TEST_SCENARIO_ROOT:-${LIVE_TEST_SCENARIO_DIR:-${LIVE_TEST_ROOT}/scenarios}}"
+default_tracker_file="${LIVE_TEST_ROOT}/live_test_tracker.json"
+if [[ -n "${LIVE_TEST_TRACKER_FILE:-}" ]]; then
+  tracker_file="${LIVE_TEST_TRACKER_FILE}"
+elif [[ "${scenario_root}" == "${LIVE_TEST_ROOT}/scenarios" ]]; then
+  tracker_file="${default_tracker_file}"
+else
+  tracker_file=""
+fi
 shared_bootstrap_script="${LIVE_TEST_SHARED_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-shared-environment.sh}"
 scenario_runner="${LIVE_TEST_SCENARIO_RUNNER:-${LIVE_TEST_ROOT}/scenarios/run-live-scenario.sh}"
 scenario_bootstrap_script="${LIVE_TEST_BOOTSTRAP_SCRIPT:-${LIVE_TEST_ROOT}/prepare-live-test-run.sh}"
@@ -52,11 +60,12 @@ elif [[ "${failed_only}" == "true" ]]; then
   while IFS= read -r scenario_name; do
     [[ -n "${scenario_name}" ]] || continue
     scenarios+=("${scenario_name}")
-  done < <(list_live_test_failing_scenarios "${scenario_root}" "${artifacts_dir}")
+  done < <(list_live_test_failing_scenarios "${scenario_root}" "${artifacts_dir}" "${tracker_file}")
 else
-  while IFS= read -r scenario_file; do
-    scenarios+=("$(basename "${scenario_file}" .json)")
-  done < <(find "${scenario_root}" -maxdepth 1 -name '*.json' -type f | sort)
+  while IFS= read -r scenario_name; do
+    [[ -n "${scenario_name}" ]] || continue
+    scenarios+=("${scenario_name}")
+  done < <(list_live_test_supported_scenarios "${scenario_root}" "${tracker_file}")
 fi
 
 if (( ${#scenarios[@]} == 0 )); then
