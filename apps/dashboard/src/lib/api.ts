@@ -93,8 +93,9 @@ export interface DashboardApiKeyRecord {
   label: string | null;
   key_prefix: string;
   last_used_at: string | null;
-  expires_at: string;
+  expires_at: string | null;
   is_revoked: boolean;
+  revoked_at?: string | null;
   created_at: string;
 }
 
@@ -1865,11 +1866,11 @@ export interface DashboardApi {
   listEvents(filters?: Record<string, string>): Promise<DashboardEventPage>;
   listApiKeys(): Promise<DashboardApiKeyRecord[]>;
   createApiKey(payload: {
-    scope: 'agent' | 'worker' | 'admin';
-    owner_type: string;
+    scope: 'agent' | 'worker' | 'admin' | 'service';
+    owner_type?: string;
     owner_id?: string;
     label?: string;
-    expires_at: string;
+    expires_at?: string | null;
   }): Promise<{ api_key: string; key_prefix: string }>;
   revokeApiKey(id: string): Promise<unknown>;
   search(query: string): Promise<DashboardSearchResult[]>;

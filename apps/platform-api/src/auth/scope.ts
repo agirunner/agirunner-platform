@@ -1,15 +1,20 @@
 import { ForbiddenError } from '../errors/domain-errors.js';
 
-export type ApiKeyScope = 'agent' | 'worker' | 'admin';
+export type ApiKeyScope = 'agent' | 'worker' | 'admin' | 'service';
 
-const scopeRank: Record<ApiKeyScope, number> = {
-  agent: 1,
-  worker: 2,
-  admin: 3,
+const ALLOWED_SCOPES: Record<ApiKeyScope, ApiKeyScope[]> = {
+  agent: ['agent', 'worker', 'admin', 'service'],
+  worker: ['worker', 'admin', 'service'],
+  admin: ['admin', 'service'],
+  service: ['service'],
 };
 
 export function hasRequiredScope(actual: ApiKeyScope, required: ApiKeyScope): boolean {
-  return scopeRank[actual] >= scopeRank[required];
+  return ALLOWED_SCOPES[required].includes(actual);
+}
+
+export function isOperatorScope(scope: ApiKeyScope): boolean {
+  return scope === 'admin' || scope === 'service';
 }
 
 export function enforceScope(actual: ApiKeyScope, required: ApiKeyScope): void {

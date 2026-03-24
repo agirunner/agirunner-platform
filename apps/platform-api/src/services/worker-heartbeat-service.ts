@@ -1,4 +1,5 @@
 import type { ApiKeyIdentity } from '../auth/api-key.js';
+import { isOperatorScope } from '../auth/scope.js';
 import { ForbiddenError, NotFoundError } from '../errors/domain-errors.js';
 import { toStoredTaskState, type TaskState } from '../orchestration/task-state-machine.js';
 import { assertValidWorkerTransition, type WorkerState } from '../orchestration/worker-state-machine.js';
@@ -8,7 +9,7 @@ const ACTIVE_EXECUTION_STATES: TaskState[] = ['claimed', 'in_progress'];
 const STORED_ACTIVE_EXECUTION_STATES = ACTIVE_EXECUTION_STATES.map(toStoredTaskState);
 
 export function ensureWorkerAccess(identity: ApiKeyIdentity, workerId: string): void {
-  if (identity.scope === 'admin') {
+  if (isOperatorScope(identity.scope)) {
     return;
   }
   if (identity.scope === 'worker' && identity.ownerId === workerId) {

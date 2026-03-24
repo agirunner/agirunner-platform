@@ -33,6 +33,7 @@ export function withRole(minimumRole: RbacRole) {
 export function scopeToRole(scope: string): RbacRole {
   switch (scope) {
     case 'admin':
+    case 'service':
       return 'org_admin';
     case 'worker':
       return 'agent_admin';

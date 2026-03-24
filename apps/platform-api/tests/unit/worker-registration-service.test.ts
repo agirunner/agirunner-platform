@@ -5,7 +5,7 @@ vi.mock('../../src/auth/api-key.js', () => ({
 }));
 
 import { createApiKey } from '../../src/auth/api-key.js';
-import { getWorker, listWorkers, registerWorker } from '../../src/services/worker-registration-service.js';
+import { deleteWorker, getWorker, listWorkers, registerWorker } from '../../src/services/worker-registration-service.js';
 
 const mockedCreateApiKey = vi.mocked(createApiKey);
 
@@ -238,5 +238,46 @@ describe('worker registration service', () => {
         },
       },
     });
+  });
+
+  it('deletes worker-owned agent keys when a worker is removed', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        if (sql.includes('FROM workers')) {
+          return {
+            rowCount: 1,
+            rows: [{ id: 'worker-1', name: 'my-runtime', metadata: {}, host_info: {} }],
+          };
+        }
+        return {
+          rowCount: 1,
+          rows: [],
+        };
+      }),
+    };
+
+    const context = {
+      pool,
+      connectionHub: { unregisterWorker: vi.fn() },
+      eventService: { emit: vi.fn() },
+    };
+    const identity = {
+      id: 'admin-key',
+      tenantId: 'tenant-1',
+      scope: 'admin' as const,
+      ownerType: 'user',
+      ownerId: null,
+      keyPrefix: 'admin',
+    };
+
+    await deleteWorker(context as never, identity as never, 'worker-1');
+
+    const apiKeyDeleteSql = pool.query.mock.calls
+      .map(([sql]) => String(sql))
+      .find((sql) => sql.includes('DELETE FROM api_keys'));
+
+    expect(apiKeyDeleteSql).toContain('DELETE FROM api_keys');
+    expect(apiKeyDeleteSql).toContain('FROM agents');
+    expect(context.connectionHub.unregisterWorker).toHaveBeenCalledWith('worker-1');
   });
 });
