@@ -55,7 +55,7 @@ export function describeLogActorDetail(entry: LogEntry): string {
 }
 
 export function describeLogToolDisplay(entry: LogEntry): string | null {
-  const label = readToolLabel(entry.payload);
+  const label = readActualToolLabel(entry.payload);
   if (!label) {
     return null;
   }
@@ -165,6 +165,11 @@ function describeToolOwner(entry: LogEntry): string | null {
 
 function readToolLabel(payload: Record<string, unknown> | null | undefined): string | null {
   const raw = readString(payload?.tool_name) ?? readString(payload?.command_or_path) ?? readString(payload?.command);
+  return raw ? humanizeSentence(raw) : null;
+}
+
+function readActualToolLabel(payload: Record<string, unknown> | null | undefined): string | null {
+  const raw = readString(payload?.tool_name);
   return raw ? humanizeSentence(raw) : null;
 }
 

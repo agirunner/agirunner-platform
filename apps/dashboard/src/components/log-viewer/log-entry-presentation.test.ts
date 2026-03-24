@@ -85,6 +85,19 @@ describe('log entry presentation', () => {
     expect(describeLogToolDisplay(entry)).toBe('Shell exec(npm test -- --runInBand src/compone…)');
   });
 
+  it('does not treat lifecycle phases like populate as tool usage', () => {
+    const entry = makeEntry({
+      category: 'runtime_lifecycle',
+      operation: 'container.populate',
+      payload: {
+        command_or_path: 'populate',
+        command: 'populate',
+      },
+    });
+
+    expect(describeLogToolDisplay(entry)).toBeNull();
+  });
+
   it('falls back to dashes in compact views when workflow and stage are absent', () => {
     expect(describeWorkflowStageSummary(makeEntry())).toEqual({
       workflow: '-',
