@@ -117,6 +117,16 @@ export interface LogStatsFilters {
   stageName?: string;
   activationId?: string;
   isOrchestratorTask?: boolean;
+  executionBackend?: string[];
+  toolOwner?: string[];
+  source?: string[];
+  category?: string[];
+  level?: string;
+  operation?: string[];
+  status?: string[];
+  role?: string[];
+  actorId?: string[];
+  search?: string;
   since?: string;
   until?: string;
   groupBy:
@@ -182,6 +192,10 @@ export interface ActorInfo {
   actor_id: string;
   actor_name: string;
   count: number;
+  latest_role?: string | null;
+  latest_workflow_id?: string | null;
+  latest_workflow_name?: string | null;
+  latest_workflow_label?: string | null;
 }
 
 const DEFAULT_PER_PAGE = 100;
@@ -366,8 +380,12 @@ export class LogService {
     const groupExpression = groupExpressionFor(filters.groupBy);
     const conditions: string[] = ['tenant_id = $1'];
     const values: unknown[] = [tenantId];
-
-    this.applyStatsFilters(conditions, values, filters);
+    const { groupBy: _groupBy, ...queryFilters } = filters;
+    this.applyFilters(
+      conditions,
+      values,
+      applyDefaultTimeBounds(queryFilters as LogFilters),
+    );
 
     const whereClause = conditions.join(' AND ');
 
@@ -418,14 +436,11 @@ export class LogService {
     return { groups, totals };
   }
 
-  async operations(tenantId: string, since: Date, category?: string): Promise<OperationCount[]> {
-    const conditions: string[] = ['tenant_id = $1', 'created_at >= $2'];
-    const values: unknown[] = [tenantId, since.toISOString()];
-
-    if (category) {
-      values.push(category);
-      conditions.push(`category = $${values.length}`);
-    }
+  async operations(tenantId: string, filters: LogFilters): Promise<OperationCount[]> {
+    const conditions: string[] = ['tenant_id = $1'];
+    const values: unknown[] = [tenantId];
+    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['operation']);
+    this.applyFilters(conditions, values, scopedFilters);
 
     const whereClause = conditions.join(' AND ');
     const result = await this.pool.query<{ operation: string; count: string }>(
@@ -444,20 +459,21 @@ export class LogService {
     }));
   }
 
-  async roles(tenantId: string, since: Date): Promise<{ role: string; count: number }[]> {
+  async roles(tenantId: string, filters: LogFilters): Promise<{ role: string; count: number }[]> {
+    const conditions: string[] = ['tenant_id = $1', `role IS NOT NULL`, `role <> ''`];
+    const values: unknown[] = [tenantId];
+    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['role']);
+    this.applyFilters(conditions, values, scopedFilters);
+    const whereClause = conditions.join(' AND ');
+
     const result = await this.pool.query<{ role: string; count: string }>(
       `SELECT role, COUNT(*)::text AS count
-       FROM (
-         SELECT role FROM execution_logs
-         WHERE tenant_id = $1 AND created_at >= $2 AND role IS NOT NULL
-         UNION ALL
-         SELECT DISTINCT role FROM tasks
-         WHERE tenant_id = $1 AND role IS NOT NULL AND role <> ''
-       ) combined
+       FROM execution_logs
+       WHERE ${whereClause}
        GROUP BY role
        ORDER BY count DESC
        LIMIT 50`,
-      [tenantId, since.toISOString()],
+      values,
     );
 
     return result.rows.map((row) => ({
@@ -466,20 +482,78 @@ export class LogService {
     }));
   }
 
-  async actors(tenantId: string, since: Date): Promise<ActorInfo[]> {
+  async actors(tenantId: string, filters: LogFilters): Promise<ActorInfo[]> {
+    const conditions: string[] = ['tenant_id = $1', 'actor_id IS NOT NULL'];
+    const values: unknown[] = [tenantId];
+    const scopedFilters = omitLogFilters(applyDefaultTimeBounds(filters), ['actorId']);
+    this.applyFilters(conditions, values, scopedFilters);
+    const whereClause = conditions.join(' AND ');
+
     const result = await this.pool.query<{
       actor_type: string;
       actor_id: string;
       actor_name: string;
       count: string;
+      latest_role: string | null;
+      latest_workflow_id: string | null;
+      latest_workflow_name: string | null;
+      latest_workflow_label: string | null;
     }>(
-      `SELECT actor_type, actor_id, actor_name, COUNT(*)::text AS count
-       FROM execution_logs
-       WHERE tenant_id = $1 AND created_at >= $2 AND actor_id IS NOT NULL
-       GROUP BY actor_type, actor_id, actor_name
-       ORDER BY count DESC
+      `WITH filtered AS (
+         SELECT
+           actor_type,
+           actor_id,
+           actor_name,
+           role,
+           workflow_id,
+           workflow_name,
+           created_at,
+           id
+         FROM execution_logs
+         WHERE ${whereClause}
+       ),
+       actor_counts AS (
+         SELECT
+           actor_type,
+           actor_id,
+           actor_name,
+           COUNT(*)::text AS count
+         FROM filtered
+         GROUP BY actor_type, actor_id, actor_name
+       ),
+       actor_latest AS (
+         SELECT
+           actor_type,
+           actor_id,
+           actor_name,
+           role AS latest_role,
+           workflow_id::text AS latest_workflow_id,
+           workflow_name AS latest_workflow_name,
+           COALESCE(workflow_name, workflow_id::text) AS latest_workflow_label,
+           ROW_NUMBER() OVER (
+             PARTITION BY actor_type, actor_id, actor_name
+             ORDER BY created_at DESC, id DESC
+           ) AS row_number
+         FROM filtered
+       )
+       SELECT
+         actor_counts.actor_type,
+         actor_counts.actor_id,
+         actor_counts.actor_name,
+         actor_counts.count,
+         actor_latest.latest_role,
+         actor_latest.latest_workflow_id,
+         actor_latest.latest_workflow_name,
+         actor_latest.latest_workflow_label
+       FROM actor_counts
+       LEFT JOIN actor_latest
+         ON actor_latest.actor_type = actor_counts.actor_type
+        AND actor_latest.actor_id = actor_counts.actor_id
+        AND actor_latest.actor_name IS NOT DISTINCT FROM actor_counts.actor_name
+        AND actor_latest.row_number = 1
+       ORDER BY actor_counts.count DESC
        LIMIT 100`,
-      [tenantId, since.toISOString()],
+      values,
     );
 
     return result.rows.map((row) => ({
@@ -487,6 +561,10 @@ export class LogService {
       actor_id: row.actor_id,
       actor_name: row.actor_name,
       count: Number(row.count),
+      latest_role: row.latest_role,
+      latest_workflow_id: row.latest_workflow_id,
+      latest_workflow_name: row.latest_workflow_name,
+      latest_workflow_label: row.latest_workflow_label,
     }));
   }
 
@@ -706,52 +784,6 @@ export class LogService {
     }
   }
 
-  private applyStatsFilters(
-    conditions: string[],
-    values: unknown[],
-    filters: LogStatsFilters,
-  ): void {
-    if (filters.workspaceId) {
-      values.push(filters.workspaceId);
-      conditions.push(`workspace_id = $${values.length}`);
-    }
-    if (filters.traceId) {
-      values.push(filters.traceId);
-      conditions.push(`trace_id = $${values.length}`);
-    }
-    if (filters.workflowId) {
-      values.push(filters.workflowId);
-      conditions.push(`workflow_id = $${values.length}`);
-    }
-    if (filters.taskId) {
-      values.push(filters.taskId);
-      conditions.push(`task_id = $${values.length}`);
-    }
-    if (filters.workItemId) {
-      values.push(filters.workItemId);
-      conditions.push(`work_item_id = $${values.length}`);
-    }
-    if (filters.stageName) {
-      values.push(filters.stageName);
-      conditions.push(`stage_name = $${values.length}`);
-    }
-    if (filters.activationId) {
-      values.push(filters.activationId);
-      conditions.push(`activation_id = $${values.length}`);
-    }
-    if (filters.isOrchestratorTask !== undefined) {
-      values.push(filters.isOrchestratorTask);
-      conditions.push(`is_orchestrator_task = $${values.length}`);
-    }
-    if (filters.since) {
-      values.push(filters.since);
-      conditions.push(`created_at >= $${values.length}`);
-    }
-    if (filters.until) {
-      values.push(filters.until);
-      conditions.push(`created_at <= $${values.length}`);
-    }
-  }
 }
 
 const DEFAULT_TIME_BOUND_MS = 24 * 60 * 60 * 1000;
@@ -761,6 +793,17 @@ function applyDefaultTimeBounds(filters: LogFilters): LogFilters {
     return filters;
   }
   return { ...filters, since: new Date(Date.now() - DEFAULT_TIME_BOUND_MS).toISOString() };
+}
+
+function omitLogFilters(
+  filters: LogFilters,
+  keys: ReadonlyArray<keyof LogFilters>,
+): LogFilters {
+  const next = { ...filters };
+  for (const key of keys) {
+    delete next[key];
+  }
+  return next;
 }
 
 const GROUP_BY_EXPRESSIONS: Record<LogStatsFilters['groupBy'], string> = {

@@ -477,4 +477,165 @@ describe('execution-logs route helpers', () => {
       expect(response.body).toContain('[REDACTED]');
     });
   });
+  describe('aggregate routes', () => {
+    async function registerRoutesWithSpies(input: {
+      operations?: ReturnType<typeof vi.fn>;
+      roles?: ReturnType<typeof vi.fn>;
+      actors?: ReturnType<typeof vi.fn>;
+      stats?: ReturnType<typeof vi.fn>;
+    } = {}) {
+      const { executionLogRoutes } = await import('../../src/api/routes/execution-logs.routes.js');
+
+      app = fastify();
+      registerErrorHandler(app);
+      app.decorate('config', { EVENT_STREAM_KEEPALIVE_INTERVAL_MS: 1000 });
+      app.decorate('logStreamService', { subscribe: vi.fn(() => () => {}) });
+      app.decorate('logService', {
+        insertBatch: vi.fn(),
+        query: vi.fn(),
+        getById: vi.fn(),
+        export: vi.fn(),
+        stats: input.stats ?? vi.fn().mockResolvedValue({ groups: [], totals: {} }),
+        operations: input.operations ?? vi.fn().mockResolvedValue([]),
+        roles: input.roles ?? vi.fn().mockResolvedValue([]),
+        actors: input.actors ?? vi.fn().mockResolvedValue([]),
+      });
+
+      await app.register(executionLogRoutes);
+      return app.logService as {
+        stats: ReturnType<typeof vi.fn>;
+        operations: ReturnType<typeof vi.fn>;
+        roles: ReturnType<typeof vi.fn>;
+        actors: ReturnType<typeof vi.fn>;
+      };
+    }
+
+    it('passesFullParsedFiltersToOperations', async () => {
+      const logService = await registerRoutesWithSpies();
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs/operations?category=agent_loop,tool,llm,task_lifecycle,container&workflow_id=wf-1&level=warn&role=developer&actor_id=agent-1&search=timeout',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(logService.operations).toHaveBeenCalledTimes(1);
+      expect(logService.operations).toHaveBeenCalledWith(
+        'tenant-1',
+        expect.objectContaining({
+          category: ['agent_loop', 'tool', 'llm', 'task_lifecycle', 'container'],
+          workflowId: 'wf-1',
+          level: 'warn',
+          role: ['developer'],
+          actorId: ['agent-1'],
+          search: 'timeout',
+        }),
+      );
+    });
+
+    it('passesFullParsedFiltersToRoles', async () => {
+      const logService = await registerRoutesWithSpies();
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs/roles?workflow_id=wf-1&operation=tool.exec&actor=agent-1',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(logService.roles).toHaveBeenCalledWith(
+        'tenant-1',
+        expect.objectContaining({
+          workflowId: 'wf-1',
+          operation: ['tool.exec'],
+          actorId: ['agent-1'],
+        }),
+      );
+    });
+
+    it('passesFullParsedFiltersToActors', async () => {
+      const logService = await registerRoutesWithSpies();
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs/actors?workflow_id=wf-1&operation=tool.exec&role=developer',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(logService.actors).toHaveBeenCalledWith(
+        'tenant-1',
+        expect.objectContaining({
+          workflowId: 'wf-1',
+          operation: ['tool.exec'],
+          role: ['developer'],
+        }),
+      );
+    });
+
+    it('returnsActorRowsWithRepresentativeContext', async () => {
+      const logService = await registerRoutesWithSpies({
+        actors: vi.fn().mockResolvedValue([
+          {
+            actor_type: 'worker',
+            actor_id: 'worker-1',
+            actor_name: 'Runtime worker 1',
+            count: 12,
+            latest_role: 'developer',
+            latest_workflow_id: 'wf-1',
+            latest_workflow_name: 'Customer migration',
+            latest_workflow_label: 'Customer migration',
+          },
+        ]),
+      });
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs/actors',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(logService.actors).toHaveBeenCalledTimes(1);
+      expect(response.json()).toEqual({
+        data: [
+          {
+            actor_type: 'worker',
+            actor_id: 'worker-1',
+            actor_name: 'Runtime worker 1',
+            count: 12,
+            latest_role: 'developer',
+            latest_workflow_id: 'wf-1',
+            latest_workflow_name: 'Customer migration',
+            latest_workflow_label: 'Customer migration',
+          },
+        ],
+      });
+    });
+
+    it('passesFullParsedFiltersToStats', async () => {
+      const logService = await registerRoutesWithSpies();
+
+      const response = await app!.inject({
+        method: 'GET',
+        url: '/api/v1/logs/stats?group_by=category&workflow_id=wf-1&level=warn&operation=tool.exec&role=developer&actor_id=agent-1&search=timeout',
+        headers: { authorization: 'Bearer test' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(logService.stats).toHaveBeenCalledWith(
+        'tenant-1',
+        expect.objectContaining({
+          groupBy: 'category',
+          workflowId: 'wf-1',
+          level: 'warn',
+          operation: ['tool.exec'],
+          role: ['developer'],
+          actorId: ['agent-1'],
+          search: 'timeout',
+        }),
+      );
+    });
+  });
 });

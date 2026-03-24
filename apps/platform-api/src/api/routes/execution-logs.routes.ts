@@ -108,6 +108,31 @@ function parseOrThrow<T>(result: z.SafeParseReturnType<unknown, T>): T {
   throw new SchemaValidationFailedError('Invalid request body', { issues: result.error.flatten() });
 }
 
+function parseCommonLogFilters(query: Record<string, string | undefined>): LogFilters {
+  return {
+    workspaceId: query.workspace_id,
+    workflowId: query.workflow_id,
+    taskId: query.task_id,
+    workItemId: query.work_item_id,
+    stageName: query.stage_name,
+    activationId: query.activation_id,
+    isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
+    executionBackend: parseCsv(query.execution_backend),
+    toolOwner: parseCsv(query.tool_owner),
+    traceId: query.trace_id,
+    source: parseCsv(query.source),
+    category: parseCsv(query.category),
+    level: query.level,
+    operation: parseCsv(query.operation),
+    status: parseCsv(query.status),
+    role: parseCsv(query.role),
+    actorId: parseCsv(query.actor ?? query.actor_id),
+    search: query.search,
+    since: query.since,
+    until: query.until,
+  };
+}
+
 export const executionLogRoutes: FastifyPluginAsync = async (app) => {
   const logService = app.logService;
   const logStreamService = app.logStreamService;
@@ -168,26 +193,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
     async (request) => {
       const query = request.query as Record<string, string | undefined>;
       const filters: LogFilters = {
-        workspaceId: query.workspace_id,
-        workflowId: query.workflow_id,
-        taskId: query.task_id,
-        workItemId: query.work_item_id,
-        stageName: query.stage_name,
-        activationId: query.activation_id,
-        isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
-        executionBackend: parseCsv(query.execution_backend),
-        toolOwner: parseCsv(query.tool_owner),
-        traceId: query.trace_id,
-        source: parseCsv(query.source),
-        category: parseCsv(query.category),
-        level: query.level,
-        operation: parseCsv(query.operation),
-        status: parseCsv(query.status),
-        role: parseCsv(query.role),
-        actorId: parseCsv(query.actor ?? query.actor_id),
-        search: query.search,
-        since: query.since,
-        until: query.until,
+        ...parseCommonLogFilters(query),
         cursor: query.cursor,
         perPage: query.per_page ? Number(query.per_page) : undefined,
         order: query.order === 'asc' ? 'asc' : 'desc',
@@ -344,16 +350,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const filters: LogStatsFilters = {
-        workspaceId: query.workspace_id,
-        traceId: query.trace_id,
-        workflowId: query.workflow_id,
-        taskId: query.task_id,
-        workItemId: query.work_item_id,
-        stageName: query.stage_name,
-        activationId: query.activation_id,
-        isOrchestratorTask: parseBoolean(query.is_orchestrator_task),
-        since: query.since,
-        until: query.until,
+        ...parseCommonLogFilters(query),
         groupBy: groupBy as LogStatsFilters['groupBy'],
       };
 
@@ -368,8 +365,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const query = request.query as Record<string, string | undefined>;
-      const since = query.since ? new Date(query.since) : new Date(Date.now() - 86400000);
-      return { data: await logService.operations(request.auth!.tenantId, since, query.category) };
+      return { data: await logService.operations(request.auth!.tenantId, parseCommonLogFilters(query)) };
     },
   );
 
@@ -380,8 +376,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const query = request.query as Record<string, string | undefined>;
-      const since = query.since ? new Date(query.since) : new Date(Date.now() - 86400000);
-      return { data: await logService.roles(request.auth!.tenantId, since) };
+      return { data: await logService.roles(request.auth!.tenantId, parseCommonLogFilters(query)) };
     },
   );
 
@@ -392,8 +387,7 @@ export const executionLogRoutes: FastifyPluginAsync = async (app) => {
     { preHandler: [authenticateApiKey, withScope('agent')] },
     async (request) => {
       const query = request.query as Record<string, string | undefined>;
-      const since = query.since ? new Date(query.since) : new Date(Date.now() - 86400000);
-      return { data: await logService.actors(request.auth!.tenantId, since) };
+      return { data: await logService.actors(request.auth!.tenantId, parseCommonLogFilters(query)) };
     },
   );
 };
