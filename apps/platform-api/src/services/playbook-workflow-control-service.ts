@@ -1849,7 +1849,7 @@ export class PlaybookWorkflowControlService {
              AND h.workflow_id = $2
              AND h.stage_name = $3
              AND h.created_at > $4
-             AND COALESCE(t.role, '') <> 'orchestrator'
+             AND COALESCE(t.is_orchestrator_task, FALSE) = FALSE
         ) AS has_rework`,
       [tenantId, workflowId, stageName, decidedAt],
     );

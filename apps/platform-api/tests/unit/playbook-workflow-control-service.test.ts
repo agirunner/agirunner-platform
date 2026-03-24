@@ -18,6 +18,34 @@ const definition = {
 };
 
 describe('PlaybookWorkflowControlService', () => {
+  it('filters newer gate-related handoffs by explicit orchestrator flag instead of role name', async () => {
+    const pool = {
+      query: vi.fn(async (sql: string) => {
+        expect(sql).toContain('COALESCE(t.is_orchestrator_task, FALSE) = FALSE');
+        expect(sql).not.toContain("COALESCE(t.role, '') <> 'orchestrator'");
+        return { rows: [{ has_rework: true }], rowCount: 1 };
+      }),
+    };
+    const service = new PlaybookWorkflowControlService({
+      pool: pool as never,
+      eventService: { emit: vi.fn(async () => undefined) } as never,
+      stateService: {} as never,
+      activationService: {} as never,
+      activationDispatchService: {} as never,
+    });
+
+    const result = await (service as any).hasNewGateRelatedHandoffSinceGateDecision(
+      'tenant-1',
+      'workflow-1',
+      null,
+      'review',
+      new Date('2026-03-24T20:00:00Z'),
+      pool,
+    );
+
+    expect(result).toBe(true);
+  });
+
   it('wraps gate requests in a transaction when no client is provided', async () => {
     const eventService = { emit: vi.fn(async () => undefined) };
     const client = {

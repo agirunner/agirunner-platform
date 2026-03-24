@@ -3,6 +3,34 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkItemContinuityService } from '../../src/services/work-item-continuity-service.js';
 
 describe('WorkItemContinuityService', () => {
+  it('filters newer specialist handoffs by explicit orchestrator flag instead of role name', async () => {
+    const pool = {
+      query: vi
+        .fn()
+        .mockResolvedValueOnce({
+          rows: [{ queued_at: new Date('2026-03-24T20:00:00Z') }],
+          rowCount: 1,
+        })
+        .mockImplementationOnce(async (sql: string) => {
+          expect(sql).toContain('COALESCE(t.is_orchestrator_task, FALSE) = FALSE');
+          expect(sql).not.toContain("COALESCE(t.role, '') <> 'orchestrator'");
+          return { rows: [{ has_newer_specialist_handoff: true }], rowCount: 1 };
+        }),
+    };
+
+    const service = new WorkItemContinuityService(pool as never);
+    const result = await (service as any).hasNewerSpecialistHandoffSinceActivation(
+      'tenant-1',
+      'workflow-1',
+      'work-item-1',
+      null,
+      'activation-1',
+      pool,
+    );
+
+    expect(result).toBe(true);
+  });
+
   it('clears continuity to a neutral state when no config-driven routing exists', async () => {
     const pool = {
       query: vi

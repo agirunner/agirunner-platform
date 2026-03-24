@@ -304,13 +304,13 @@ export class WorkItemContinuityService {
       `SELECT EXISTS (
           SELECT 1
             FROM task_handoffs h
-            JOIN tasks t
+           JOIN tasks t
               ON t.tenant_id = h.tenant_id
              AND t.id = h.task_id
            WHERE h.tenant_id = $1
              AND h.workflow_id = $2
              AND h.created_at > $3
-             AND COALESCE(t.role, '') <> 'orchestrator'
+             AND COALESCE(t.is_orchestrator_task, FALSE) = FALSE
              AND h.work_item_id = ANY($4::uuid[])
         ) AS has_newer_specialist_handoff`,
       [tenantId, workflowId, queuedAt, scopedWorkItemIds],
