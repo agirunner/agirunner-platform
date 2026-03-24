@@ -588,7 +588,8 @@ export class WorkItemService {
       );
     }
 
-    if (predecessor.latest_handoff_completion !== 'full') {
+    const predecessorReadyByApprovedGate = predecessor.human_gate && predecessor.gate_status === 'approved';
+    if (!predecessorReadyByApprovedGate && predecessor.latest_handoff_completion !== 'full') {
       throw new ValidationError(
         `Cannot create successor work item in stage '${successorStageName}' before predecessor ` +
           `'${predecessor.title}' (${predecessor.stage_name}) has a full handoff. ` +
@@ -600,8 +601,11 @@ export class WorkItemService {
       );
     }
     if (
-      predecessor.latest_handoff_resolution === 'request_changes'
-      || predecessor.latest_handoff_resolution === 'rejected'
+      !predecessorReadyByApprovedGate
+      && (
+        predecessor.latest_handoff_resolution === 'request_changes'
+        || predecessor.latest_handoff_resolution === 'rejected'
+      )
     ) {
       throw new ValidationError(
         `Cannot create successor work item in stage '${successorStageName}' while predecessor ` +
