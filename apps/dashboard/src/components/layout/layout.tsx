@@ -174,7 +174,7 @@ const SIDEBAR_SECTION_GROUP_CLASSES =
   'mt-1 rounded-xl bg-stone-50/85 p-1.5 ring-1 ring-stone-200/90 dark:bg-slate-900/55 dark:ring-slate-800';
 
 const SIDEBAR_ACTIVE_ITEM_CLASSES =
-  'bg-sky-100 text-sky-950 shadow-sm ring-1 ring-sky-200/90 dark:bg-slate-100 dark:text-slate-950';
+  'bg-sky-100 text-sky-950 shadow-sm ring-1 ring-sky-200/90 dark:bg-white dark:text-slate-950 dark:font-semibold';
 
 const SIDEBAR_INACTIVE_ITEM_CLASSES =
   'text-slate-700 hover:bg-stone-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800/90 dark:hover:text-slate-100';

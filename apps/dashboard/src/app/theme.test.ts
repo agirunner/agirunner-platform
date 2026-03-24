@@ -53,6 +53,15 @@ describe('FR-428: readTheme', () => {
     mockLocalStorage({ 'agirunner.theme': '' });
     expect(readTheme()).toBe('dark');
   });
+
+  it('ignores system color-scheme and still defaults to dark when nothing is stored', () => {
+    mockLocalStorage();
+    vi.stubGlobal('window', {
+      matchMedia: vi.fn(() => ({ matches: false })),
+    });
+
+    expect(readTheme()).toBe('dark');
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
