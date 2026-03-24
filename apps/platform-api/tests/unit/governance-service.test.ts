@@ -105,4 +105,43 @@ describe('GovernanceService retention policies', () => {
       execution_log_retention_days: 90,
     });
   });
+
+  it('creates the governance object when saving retention into empty tenant settings', async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 'tenant-1', settings: {} }],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+    await service.updateRetentionPolicy(
+      {
+        tenantId: 'tenant-1',
+      } as never,
+      {
+        task_prune_after_days: 21,
+      },
+    );
+
+    const updateQuery = pool.query.mock.calls[1]?.[0] as string;
+    expect(updateQuery).toContain("'{governance}'");
+    expect(updateQuery).toContain("'{retention}'");
+    expect(updateQuery).not.toContain("'{governance,retention}'");
+  });
+
+  it('creates the logging object when saving logging level into empty tenant settings', async () => {
+    pool.query.mockResolvedValueOnce({ rowCount: 1, rows: [] });
+
+    await service.setLoggingLevel(
+      {
+        tenantId: 'tenant-1',
+      } as never,
+      'warn',
+    );
+
+    const updateQuery = pool.query.mock.calls[0]?.[0] as string;
+    expect(updateQuery).toContain("'{logging}'");
+    expect(updateQuery).toContain("'{level}'");
+    expect(updateQuery).not.toContain("'{logging,level}'");
+  });
 });

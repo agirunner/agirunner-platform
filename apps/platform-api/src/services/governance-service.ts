@@ -47,8 +47,13 @@ export class GovernanceService {
       `UPDATE tenants
        SET settings = jsonb_set(
              COALESCE(settings, '{}'::jsonb),
-             '{governance,retention}',
-             $2::jsonb,
+             '{governance}',
+             jsonb_set(
+               COALESCE(COALESCE(settings, '{}'::jsonb)->'governance', '{}'::jsonb),
+               '{retention}',
+               $2::jsonb,
+               true
+             ),
              true
            ),
            updated_at = now()
@@ -106,8 +111,13 @@ export class GovernanceService {
       `UPDATE tenants
        SET settings = jsonb_set(
          COALESCE(settings, '{}'::jsonb),
-         '{logging,level}',
-         $2::jsonb,
+         '{logging}',
+         jsonb_set(
+           COALESCE(COALESCE(settings, '{}'::jsonb)->'logging', '{}'::jsonb),
+           '{level}',
+           $2::jsonb,
+           true
+         ),
          true
        ),
        updated_at = now()
