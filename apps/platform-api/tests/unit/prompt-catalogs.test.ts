@@ -109,7 +109,10 @@ describe('prompt catalogs', () => {
       'Prior handoff prose is not authoritative gate state.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'request_gate_approval must target the human-gate stage that is awaiting approval, not the predecessor stage that produced the accepted work.',
+      'request_gate_approval targets the human-gate stage, never the predecessor stage.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If prose asks for approval or assessment without configured metadata, treat it as advisory and non-blocking, not as a required control-plane step.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'When approval_before_assessment is authored, request and resolve the gate before dispatching downstream assessment for that boundary.',
@@ -118,7 +121,7 @@ describe('prompt catalogs', () => {
       'If continuity says the next expected action is rework for a reopened subject, route only that actor next.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
-      'If a workflow has multiple open work items, every work-item-scoped continuity or activation-checkpoint mutation MUST include the explicit work_item_id',
+      'When multiple work items are open, every continuity or activation-checkpoint mutation MUST include the exact work_item_id',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'Avoid setting specialist token_budget unless you have a concrete budget reason',

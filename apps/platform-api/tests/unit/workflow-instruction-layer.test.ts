@@ -397,6 +397,9 @@ describe('buildWorkflowInstructionLayer', () => {
     expect(layer!.content).toContain(
       'If continuity for the current work item says the next expected action is rework, route only that next expected actor until a new subject handoff lands. Do not create additional assessor, approval, or successor tasks on that work item before the rework handoff changes continuity.',
     );
+    expect(layer!.content).toContain(
+      'If prose asks for approval or assessment but the persisted workflow metadata for this boundary does not configure it, treat the request as advisory only and do not block progress on that basis.',
+    );
     expect(layer!.content).toContain('Dispatch reviewer for assess on work item review-item (review) titled "Review the change".');
     expect(layer!.content).toContain('If a pending dispatch is listed and no matching specialist task is already open, create that task in this activation.');
     expect(layer!.content).toContain('A predecessor task remaining in output_pending_assessment is expected while required assessment is pending and does not block dispatching the listed required assessment task.');

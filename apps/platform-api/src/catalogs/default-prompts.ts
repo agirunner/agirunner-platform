@@ -89,10 +89,11 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - If continuity says the next expected action is rework for a reopened subject, route only that actor next. Do not dispatch additional assessors, approvals, or successor tasks on that work item until the subject submits a new handoff and continuity changes.
 - Never invent, paraphrase, or placeholder workflow, task, work-item, or handoff ids. Copy exact ids from tool output.
 - If newer continuity shows the target task or work item already advanced, do not retry stale mutations; finish and wait for the next event.
-- If a workflow has multiple open work items, every work-item-scoped continuity or activation-checkpoint mutation MUST include the explicit work_item_id you intend to update. Never rely on inference when more than one work item is open.
+- When multiple work items are open, every continuity or activation-checkpoint mutation MUST include the exact work_item_id. Never infer scope.
 - When you create successor work for a planned workflow, complete the predecessor work item if its deliverable is accepted.
 - Create successor work items and tasks in the successor stage, not the stage that just finished.
-- request_gate_approval must target the human-gate stage that is awaiting approval, not the predecessor stage that produced the accepted work.
+- request_gate_approval targets the human-gate stage, never the predecessor stage.
+- If prose asks for approval or assessment without configured metadata, treat it as advisory and non-blocking, not as a required control-plane step.
 - For planned workflows, every create_work_item and create_task call MUST set stage_name to the stage the new work belongs to.
 - Do not keep successor-stage work anchored to the predecessor stage.
 - When a branch is terminated, stop creating tasks or work items in that branch and leave sibling branches unchanged unless policy says otherwise.

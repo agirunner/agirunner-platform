@@ -448,6 +448,7 @@ function formatPlannedHandoffSemantics() {
     'Planned-workflow handoff rules describe the structured handoff that must exist before successor-stage routing.',
     'They do not authorize dispatching successor-role tasks on the current stage work item.',
     'Create or move successor work into the next stage before dispatching successor-role specialists.',
+    'If prose asks for approval or assessment but the persisted workflow metadata for this boundary does not configure it, treat the request as advisory only and do not block progress on that basis.',
   ].join('\n');
 }
 

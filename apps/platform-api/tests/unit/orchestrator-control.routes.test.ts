@@ -3,6 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { registerErrorHandler } from '../../src/errors/error-handler.js';
 import { ValidationError } from '../../src/errors/domain-errors.js';
+import { PlaybookWorkflowControlService } from '../../src/services/playbook-workflow-control-service.js';
+import { TaskAgentScopeService } from '../../src/services/task-agent-scope-service.js';
 import {
   normalizeExplicitAssessmentSubjectTaskLinkage,
   normalizeOrchestratorChildWorkflowLinkage,
@@ -92,6 +94,7 @@ describe('orchestratorControlRoutes', () => {
   let app: ReturnType<typeof fastify> | undefined;
 
   beforeEach(() => {
+    vi.restoreAllMocks();
     vi.resetAllMocks();
   });
 
@@ -100,6 +103,110 @@ describe('orchestratorControlRoutes', () => {
       await app.close();
       app = undefined;
     }
+  });
+
+  it('records an advisory result instead of failing when gate approval is requested for an unconfigured stage', async () => {
+    const eventService = { emit: vi.fn(async () => undefined) };
+    const requestStageGateApprovalSpy = vi
+      .spyOn(PlaybookWorkflowControlService.prototype, 'requestStageGateApproval')
+      .mockRejectedValue(new ValidationError("Stage 'operator-approval' does not require a human gate"));
+    const loadTaskScopeSpy = vi
+      .spyOn(TaskAgentScopeService.prototype, 'loadAgentOwnedOrchestratorTask')
+      .mockResolvedValue({
+      id: 'task-orchestrator',
+      workflow_id: 'workflow-1',
+      workspace_id: 'workspace-1',
+      work_item_id: 'work-item-1',
+      stage_name: 'draft-package',
+      activation_id: 'activation-1',
+      assigned_agent_id: 'agent-1',
+      is_orchestrator_task: true,
+      state: 'in_progress',
+    });
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('pg_advisory_xact_lock')) {
+          return { rowCount: 1, rows: [] };
+        }
+        if (sql.includes('SELECT response') && sql.includes('workflow_tool_results')) {
+          expect(params).toEqual(['tenant-1', 'workflow-1', 'request_gate_approval', 'request-gate-1']);
+          return { rowCount: 0, rows: [] };
+        }
+        if (sql.includes('INSERT INTO workflow_tool_results')) {
+          return { rowCount: 1, rows: [{ response: params?.[4] }] };
+        }
+        throw new Error(`unexpected client query: ${sql}`);
+      }),
+      release: vi.fn(),
+    };
+    const pool = {
+      connect: vi.fn(async () => client),
+    };
+
+    app = fastify();
+    registerErrorHandler(app);
+    app.decorate('pgPool', pool);
+    app.decorate('config', { TASK_DEFAULT_TIMEOUT_MINUTES: 30 });
+    app.decorate('eventService', eventService);
+    app.decorate('workflowService', { createWorkflowWorkItem: vi.fn(), getWorkflowWorkItem: vi.fn() });
+    app.decorate('taskService', {});
+    app.decorate('workspaceService', {
+      patchWorkspaceMemory: vi.fn(),
+      removeWorkspaceMemory: vi.fn(),
+    });
+
+    await app.register(orchestratorControlRoutes);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/orchestrator/tasks/task-orchestrator/stages/operator-approval/request-gate',
+      headers: { authorization: 'Bearer test' },
+      payload: {
+        request_id: 'request-gate-1',
+        summary: 'Need human approval before release',
+      },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().data).toEqual({
+      advisory: true,
+      advisory_event_type: 'workflow.advisory_recorded',
+      advisory_kind: 'approval_not_configured',
+      advisory_recorded: true,
+      blocking: false,
+      configured: false,
+      control_type: 'approval',
+      message: "Stage 'operator-approval' does not require a human gate",
+      reason_code: 'approval_not_configured',
+      request_summary: 'Need human approval before release',
+      stage_name: 'operator-approval',
+      status: 'ignored_not_configured',
+      task_id: 'task-orchestrator',
+      work_item_id: 'work-item-1',
+      workflow_id: 'workflow-1',
+    });
+    expect(requestStageGateApprovalSpy).toHaveBeenCalledTimes(1);
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'workflow.advisory_recorded',
+        entityType: 'workflow',
+        entityId: 'workflow-1',
+        data: expect.objectContaining({
+          advisory_kind: 'approval_not_configured',
+      configured: false,
+      blocking: false,
+      stage_name: 'operator-approval',
+      task_id: 'task-orchestrator',
+      work_item_id: 'work-item-1',
+        }),
+      }),
+      client,
+    );
+    requestStageGateApprovalSpy.mockRestore();
+    loadTaskScopeSpy.mockRestore();
   });
 
   it('replays stored create_work_item results after recovery without rerunning the mutation', async () => {

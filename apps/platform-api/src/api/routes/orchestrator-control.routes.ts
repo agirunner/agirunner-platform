@@ -17,7 +17,11 @@ import {
   type ActiveOrchestratorTaskScope,
 } from '../../services/task-agent-scope-service.js';
 import { HandoffService } from '../../services/handoff-service.js';
-import { SchemaValidationFailedError, ValidationError } from '../../errors/domain-errors.js';
+import {
+  NotFoundError,
+  SchemaValidationFailedError,
+  ValidationError,
+} from '../../errors/domain-errors.js';
 import { readWorkerDispatchAckTimeoutMs } from '../../services/platform-timing-defaults.js';
 import { WorkflowToolResultService } from '../../services/workflow-tool-result-service.js';
 import {
@@ -932,14 +936,31 @@ export const orchestratorControlRoutes: FastifyPluginAsync = async (app) => {
         taskScope.workflow_id,
         'request_gate_approval',
         body.request_id,
-        (client) =>
-          playbookControlService.requestStageGateApproval(
-            request.auth!,
-            taskScope.workflow_id,
-            params.stageName,
-            body,
-            client,
-          ),
+        async (client) => {
+          try {
+            return await playbookControlService.requestStageGateApproval(
+              request.auth!,
+              taskScope.workflow_id,
+              params.stageName,
+              body,
+              client,
+            );
+          } catch (error) {
+            const advisory = await buildUnconfiguredGateApprovalAdvisory(
+              app,
+              request.auth!,
+              taskScope,
+              params.stageName,
+              body,
+              client,
+              error,
+            );
+            if (advisory) {
+              return advisory;
+            }
+            throw error;
+          }
+        },
       );
       return { data: stored };
     },
@@ -1382,6 +1403,65 @@ async function createWorkflowWorkItemOrNoop(
     }
     throw error;
   }
+}
+
+async function buildUnconfiguredGateApprovalAdvisory(
+  app: FastifyInstance,
+  identity: ApiKeyIdentity,
+  taskScope: ActiveOrchestratorTaskScope,
+  stageName: string,
+  input: z.infer<typeof gateRequestSchema>,
+  client: import('../../db/database.js').DatabaseClient,
+  error: unknown,
+): Promise<Record<string, unknown> | null> {
+  const reasonCode = classifyUnconfiguredGateApprovalReason(error);
+  if (!reasonCode) {
+    return null;
+  }
+
+  const message = error instanceof Error ? error.message : 'Approval stage is not configured';
+  const advisory = {
+    advisory: true,
+    advisory_event_type: 'workflow.advisory_recorded',
+    advisory_kind: 'approval_not_configured',
+    advisory_recorded: true,
+    blocking: false,
+    configured: false,
+    control_type: 'approval',
+    message,
+    reason_code: reasonCode,
+    request_summary: input.summary.trim(),
+    stage_name: stageName,
+    status: 'ignored_not_configured',
+    task_id: taskScope.id,
+    work_item_id: taskScope.work_item_id ?? null,
+    workflow_id: taskScope.workflow_id,
+  } satisfies Record<string, unknown>;
+
+  await app.eventService.emit(
+    {
+      tenantId: identity.tenantId,
+      type: 'workflow.advisory_recorded',
+      entityType: 'workflow',
+      entityId: taskScope.workflow_id,
+      actorType: identity.scope,
+      actorId: identity.keyPrefix,
+      data: advisory,
+    },
+    client,
+  );
+
+  return advisory;
+}
+
+function classifyUnconfiguredGateApprovalReason(error: unknown): string | null {
+  if (error instanceof ValidationError && error.message.includes('does not require a human gate')) {
+    return 'approval_not_configured';
+  }
+  if (error instanceof NotFoundError && error.message.includes('Workflow stage')) {
+    return 'approval_not_configured';
+  }
+  return null;
 }
 
 function buildRecoverableCreateWorkItemNoop(
