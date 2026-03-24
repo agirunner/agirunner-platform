@@ -81,7 +81,7 @@ describe('role definitions page source', () => {
     expect(source).toContain('Task sandbox override');
     expect(source).toContain('placeholder="2"');
     expect(source).toContain('placeholder="256m"');
-    expect(source).toContain('placeholder="1g"');
+    expect(source).toContain('placeholder="512m"');
   });
 
   it('provides an inline active toggle so operators skip the full dialog for status changes', () => {

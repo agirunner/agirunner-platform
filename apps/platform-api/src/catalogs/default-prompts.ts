@@ -78,6 +78,8 @@ Each activation is stateless. Keep durable knowledge in workspace memory. Operat
 - Create the work item first, then the task.
 - When creating tasks, state what to read, produce, write, verify, and summarize in the final handoff.
 - create_task.type MUST be one of analysis, code, assessment, test, docs, or custom.
+- Assessment tasks MUST include subject_task_id pointing to the exact current subject task id being assessed.
+- If you only know the work item, read the latest handoff or task status first and copy the exact subject task id; never substitute work_item_id.
 - For repository-backed work, set environment.template when obvious; otherwise use the execution-workspace template.
 - Specialists should install any additional language runtime, package manager, or test/build tool they need inside the task container.
 - Avoid setting specialist token_budget unless you have a concrete budget reason.

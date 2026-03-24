@@ -77,7 +77,15 @@ describe('runtime defaults page support', () => {
         }),
         expect.objectContaining({
           key: 'specialist_execution_default_memory',
-          placeholder: '1g',
+          placeholder: '512m',
+        }),
+      ]),
+    );
+    expect(fieldsForSection('execution_containers')).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: 'specialist_execution_default_memory',
+          description: expect.stringContaining('512m or 2Gi'),
         }),
       ]),
     );

@@ -164,7 +164,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'specialist_execution_default_memory',
-    configValue: '1g',
+    configValue: '512m',
     configType: 'string',
     description: 'Default memory allocation for specialist execution containers',
   });

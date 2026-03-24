@@ -123,9 +123,9 @@ const BASE_FIELD_DEFINITIONS: FieldDefinition[] = [
     key: 'specialist_execution_default_memory',
     label: 'Memory',
     description:
-      'Memory allocation per specialist execution container, for example 1g or 2Gi.',
+      'Memory allocation per specialist execution container, for example 512m or 2Gi.',
     configType: 'string',
-    placeholder: '1g',
+    placeholder: '512m',
     section: 'execution_containers',
   },
   {

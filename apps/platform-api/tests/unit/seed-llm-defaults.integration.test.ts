@@ -115,7 +115,7 @@ describe.runIf(canRunIntegration)('seedConfigTables LLM defaults integration', (
 
     expect(defaults.rows).toEqual([
       { config_key: 'specialist_execution_default_cpu', config_value: '2' },
-      { config_key: 'specialist_execution_default_memory', config_value: '1g' },
+      { config_key: 'specialist_execution_default_memory', config_value: '512m' },
       { config_key: 'specialist_runtime_default_cpu', config_value: '2' },
       { config_key: 'specialist_runtime_default_memory', config_value: '256m' },
     ]);

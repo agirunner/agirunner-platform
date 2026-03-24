@@ -175,6 +175,12 @@ describe('prompt catalogs', () => {
       'create_task.type MUST be one of analysis, code, assessment, test, docs, or custom.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'Assessment tasks MUST include subject_task_id pointing to the exact current subject task id being assessed.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
+      'If you only know the work item, read the latest handoff or task status first and copy the exact subject task id; never substitute work_item_id.',
+    );
+    expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
       'On heartbeat-only activations, exit when specialist work is progressing and nothing new is actionable.',
     );
     expect(DEFAULT_ORCHESTRATOR_PROMPT).toContain(
