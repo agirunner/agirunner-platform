@@ -27,10 +27,10 @@ class LiveTestCatalogTests(unittest.TestCase):
         self.assertEqual(sorted(live_test_catalog.EXPECTED_SCENARIOS), sorted(supported))
         self.assertEqual(len(supported), tracker["supported"]["total"])
 
-    def test_tracker_starts_with_the_repo_backed_prose_sdlc_scenario(self) -> None:
+    def test_tracker_starts_with_artifact_memory_publishing(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
         supported = tracker["supported"]["scenarios"]
-        self.assertEqual("prose-only-sdlc-cycle-advisory", supported[0])
+        self.assertEqual("artifact-memory-publishing-approval", supported[0])
 
     def test_tracker_unsupported_future_design_entries_are_descriptive(self) -> None:
         tracker = json.loads(TRACKER_FILE.read_text())
@@ -119,30 +119,6 @@ class LiveTestCatalogTests(unittest.TestCase):
 
     def test_sdlc_single_assessment_profile_seeds_a_real_repo_and_verification_path(self) -> None:
         seed_root = LIBRARY_DIR / "sdlc-assessment-approve" / "repo-seed"
-        self.assertTrue((seed_root / "README.md").is_file())
-        self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
-        self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
-        self.assertTrue((seed_root / "tests" / "test_cli.py").is_file())
-
-    def test_prose_only_sdlc_profile_reuses_a_real_repo_seed(self) -> None:
-        seed_root = LIBRARY_DIR / "prose-only-sdlc-cycle-advisory" / "repo-seed"
-        self.assertTrue((seed_root / "README.md").is_file())
-        self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
-        self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())
-        self.assertTrue((seed_root / "tests" / "test_cli.py").is_file())
-
-    def test_runtime_task_sandbox_split_profile_uses_prose_only_playbook_shape_and_real_repo_seed(self) -> None:
-        playbook = live_test_catalog.read_fixture(
-            LIBRARY_DIR / "runtime-task-sandbox-split" / "playbook.json"
-        )
-        definition = playbook["definition"]
-        self.assertTrue(definition.get("process_instructions"))
-        self.assertNotIn("checkpoints", definition)
-        self.assertNotIn("assessment_rules", definition)
-        self.assertNotIn("approval_rules", definition)
-        self.assertNotIn("human_gate", definition)
-
-        seed_root = LIBRARY_DIR / "runtime-task-sandbox-split" / "repo-seed"
         self.assertTrue((seed_root / "README.md").is_file())
         self.assertTrue((seed_root / "workflow_cli" / "__main__.py").is_file())
         self.assertTrue((seed_root / "scripts" / "verify.sh").is_file())

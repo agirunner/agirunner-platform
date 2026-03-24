@@ -84,7 +84,7 @@ The current corpus is intentionally realistic rather than toy-like. It spans:
 - host-directory maintenance flows
 - concurrency and race-condition stress scenarios
 - custom role-image coverage
-- five prose-only advisory scenarios, including a realistic SDLC cycle, proving that unconfigured approval, assessment, escalation, and successor suggestions remain advisory and non-blocking
+- prose-driven governance scenarios across SDLC, requirements, publishing, host-directory, and concurrency flows
 
 Long-term corpus planning lives in:
 
