@@ -39,6 +39,7 @@ interface TaskAttemptHandoffOutcome {
   completion: string | null;
   resolution: string | null;
   summary: string | null;
+  outcome_action_applied: string | null;
 }
 
 interface SubjectTaskChangeService {
@@ -440,13 +441,14 @@ async function maybeApplyExplicitAssessmentOutcomeAction(
   const subjectWorkItemId = asOptionalString(subjectTask.work_item_id);
   const subjectRole = asOptionalString(subjectTask.role);
   const assessorRole = asOptionalString(completedTask.role);
-  const outcomeAction = resolveAssessmentOutcomeAction({
-    definition,
-    subjectRole,
-    assessorRole,
-    checkpointName: asOptionalString(completedTask.stage_name),
-    decisionState,
-  });
+  const outcomeAction = resolveExplicitAssessmentOutcomeAction(latestHandoffOutcome)
+    ?? resolveAssessmentOutcomeAction({
+      definition,
+      subjectRole,
+      assessorRole,
+      checkpointName: asOptionalString(completedTask.stage_name),
+      decisionState,
+    });
   if (!outcomeAction || !subjectWorkItemId) {
     return false;
   }
@@ -1212,10 +1214,16 @@ async function loadLatestTaskAttemptHandoffOutcome(
     return null;
   }
 
-  const result = await client.query<{ completion: string | null; resolution: string | null; summary: string | null }>(
+  const result = await client.query<{
+    completion: string | null;
+    resolution: string | null;
+    summary: string | null;
+    outcome_action_applied: string | null;
+  }>(
     `SELECT completion,
             resolution,
-            summary
+            summary,
+            outcome_action_applied
        FROM task_handoffs
       WHERE tenant_id = $1
         AND task_id = $2
@@ -1232,7 +1240,19 @@ async function loadLatestTaskAttemptHandoffOutcome(
     completion: asOptionalString(row.completion),
     resolution: normalizeAssessmentOutcome(row.resolution),
     summary: asOptionalString((row as { summary?: string | null }).summary),
+    outcome_action_applied: asOptionalString((row as { outcome_action_applied?: string | null }).outcome_action_applied),
   } satisfies TaskAttemptHandoffOutcome;
+}
+
+function resolveExplicitAssessmentOutcomeAction(latestHandoffOutcome: TaskAttemptHandoffOutcome | null) {
+  const action = asOptionalString(latestHandoffOutcome?.outcome_action_applied);
+  if (!action) {
+    return null;
+  }
+  if (action === 'block_subject' || action === 'escalate' || action === 'terminate_branch') {
+    return { action };
+  }
+  return null;
 }
 
 function readRequestChangesFeedback(

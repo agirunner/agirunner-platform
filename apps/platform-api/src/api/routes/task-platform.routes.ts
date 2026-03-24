@@ -57,6 +57,9 @@ const taskHandoffSchema = z
     role_data: z.record(z.unknown()).optional(),
     subject_ref: z.record(z.unknown()).optional(),
     subject_revision: z.number().int().positive().optional(),
+    outcome_action_applied: z
+      .enum(['continue', 'reopen_subject', 'route_to_role', 'block_subject', 'escalate', 'terminate_branch'])
+      .optional(),
     branch_id: z.string().uuid().optional(),
     artifact_ids: z.array(z.string().uuid()).max(100).optional(),
   })

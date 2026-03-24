@@ -22,6 +22,7 @@ export const DEFAULT_PLATFORM_INSTRUCTIONS = `- Escalate only after exhausting a
 - Completion and decision are separate.
 - Full assessment or approval handoffs MUST set resolution to approved, request_changes, rejected, or blocked.
 - Assessment and approval handoffs MUST cite concrete current-subject findings and the evidence behind the decision.
+- If an assessment or approval decision should explicitly trigger workflow control such as block_subject or escalate, set submit_handoff.outcome_action_applied to that exact action instead of relying on summary prose.
 - Blocked completions MUST omit resolution.
 - Delivery handoffs MUST omit resolution entirely. Omit the resolution key itself; do not send resolution: approved or placeholders.
 - submit_handoff accepts only its documented schema fields. Do not invent extras such as tests_run or verification_results; put evidence into the documented handoff fields.

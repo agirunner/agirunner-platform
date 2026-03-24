@@ -273,7 +273,7 @@ describe('task platform handoff routes', () => {
                 work_item_id: 'work-item-impl-1',
               },
               subject_revision: 3,
-              outcome_action_applied: null,
+              outcome_action_applied: 'block_subject',
               branch_id: null,
               artifact_ids: [],
               created_at: new Date('2026-03-23T12:00:00Z'),
@@ -329,6 +329,7 @@ describe('task platform handoff routes', () => {
         summary: 'Blocked pending legal clarification.',
         completion_state: 'full',
         decision_state: 'blocked',
+        outcome_action_applied: 'block_subject',
         blockers: ['Legal clarification is required before release.'],
       },
     });
@@ -339,6 +340,7 @@ describe('task platform handoff routes', () => {
         id: 'handoff-1',
         completion_state: 'full',
         decision_state: 'blocked',
+        outcome_action_applied: 'block_subject',
       }),
     );
   });

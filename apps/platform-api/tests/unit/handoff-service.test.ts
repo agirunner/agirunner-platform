@@ -668,7 +668,7 @@ describe('HandoffService', () => {
               work_item_id: 'work-item-impl-1',
             },
             subject_revision: 3,
-            outcome_action_applied: null,
+            outcome_action_applied: 'block_subject',
             branch_id: null,
             artifact_ids: [],
             created_at: new Date('2026-03-23T12:00:00Z'),
@@ -683,6 +683,7 @@ describe('HandoffService', () => {
       summary: 'Policy blocked the release packet pending legal clarification.',
       completion_state: 'full',
       decision_state: 'blocked',
+      outcome_action_applied: 'block_subject',
       blockers: ['Legal clarification is required before release.'],
     } as never);
 
@@ -691,6 +692,7 @@ describe('HandoffService', () => {
         id: 'handoff-qa-3',
         completion_state: 'full',
         decision_state: 'blocked',
+        outcome_action_applied: 'block_subject',
         subject_revision: 3,
         subject_ref: expect.objectContaining({
           kind: 'task',
@@ -706,6 +708,7 @@ describe('HandoffService', () => {
     expect(insertCall?.[0]).toContain('decision_state');
     expect(insertCall?.[0]).toContain('subject_ref');
     expect(insertCall?.[0]).toContain('subject_revision');
+    expect(insertCall?.[0]).toContain('outcome_action_applied');
   });
 
   it('rejects conflicting legacy and explicit handoff state fields', async () => {
@@ -777,7 +780,7 @@ describe('HandoffService', () => {
       summary: 'Implemented auth flow.',
       completion: 'full',
       resolution: 'approved',
-    })).rejects.toThrowError(new ValidationError('resolution is only allowed on assessment or approval handoffs'));
+    })).rejects.toThrowError(new ValidationError('resolution and outcome_action_applied are only allowed on assessment or approval handoffs'));
 
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
@@ -811,7 +814,7 @@ describe('HandoffService', () => {
       summary: 'Blocked on missing credentials.',
       completion: 'full',
       resolution: 'blocked' as never,
-    })).rejects.toThrowError(new ValidationError('resolution is only allowed on assessment or approval handoffs'));
+    })).rejects.toThrowError(new ValidationError('resolution and outcome_action_applied are only allowed on assessment or approval handoffs'));
 
     expect(pool.query).toHaveBeenCalledTimes(1);
   });
@@ -845,7 +848,7 @@ describe('HandoffService', () => {
       summary: 'Implemented the requested change.',
       completion: 'full',
       resolution: 'approved',
-    })).rejects.toThrowError(new ValidationError('resolution is only allowed on assessment or approval handoffs'));
+    })).rejects.toThrowError(new ValidationError('resolution and outcome_action_applied are only allowed on assessment or approval handoffs'));
 
     expect(pool.query).toHaveBeenCalledTimes(1);
   });

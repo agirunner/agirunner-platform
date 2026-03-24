@@ -980,6 +980,166 @@ describe('applyTaskCompletionSideEffects', () => {
     );
   });
 
+  it('blocks the subject work item when a rejected assessment explicitly applies block_subject', async () => {
+    let blockedSubjectWorkItem = false;
+    const client = {
+      query: vi.fn(async (sql: string, params?: unknown[]) => {
+        if (sql.includes("FROM tasks\n     WHERE tenant_id = $1 AND state = 'pending'")) {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('SELECT playbook_id FROM workflows')) {
+          return { rows: [{ playbook_id: 'playbook-1' }], rowCount: 1 };
+        }
+        if (sql.includes('FROM task_handoffs')) {
+          return {
+            rows: [{
+              completion: 'full',
+              resolution: 'rejected',
+              summary: 'The draft must not continue; block the subject and preserve workflow continuity.',
+              outcome_action_applied: 'block_subject',
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('SELECT p.definition')) {
+          return {
+            rows: [{
+              definition: {
+                process_instructions: 'Assessors may reject and block unsafe draft revisions.',
+                roles: ['blocked-content-author', 'blocked-quality-assessor'],
+                board: {
+                  columns: [
+                    { id: 'planned', label: 'Planned' },
+                    { id: 'blocked', label: 'Blocked', is_blocked: true },
+                    { id: 'done', label: 'Done', is_terminal: true },
+                  ],
+                },
+                stages: [{ name: 'draft-revision', goal: 'Draft revisions are assessed.' }],
+              },
+            }],
+            rowCount: 1,
+          };
+        }
+        if (
+          sql.includes('FROM tasks')
+          && sql.includes("AND state = ANY($4::task_state[])")
+          && sql.includes('AND id = $3')
+        ) {
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'task-author',
+            ['output_pending_assessment', 'completed'],
+            'task-assessment',
+          ]);
+          return {
+            rows: [{
+              id: 'task-author',
+              tenant_id: 'tenant-1',
+              workflow_id: 'workflow-1',
+              work_item_id: 'work-item-author',
+              role: 'blocked-content-author',
+              state: 'output_pending_assessment',
+              output: { summary: 'draft ready' },
+              metadata: {},
+            }],
+            rowCount: 1,
+          };
+        }
+        if (sql.includes('UPDATE workflow_work_items') && sql.includes("blocked_state = 'blocked'")) {
+          blockedSubjectWorkItem = true;
+          expect(params).toEqual([
+            'tenant-1',
+            'workflow-1',
+            'work-item-author',
+            'The draft must not continue; block the subject and preserve workflow continuity.',
+            'blocked',
+          ]);
+          return { rows: [], rowCount: 1 };
+        }
+        if (sql.includes('INSERT INTO workflow_activations')) {
+          return {
+            rows: [{
+              id: 'activation-1',
+              workflow_id: 'workflow-1',
+              activation_id: null,
+              request_id: 'task-completed:task-assessment:updated',
+              reason: 'task.completed',
+              event_type: 'task.completed',
+              payload: {},
+              state: 'queued',
+              dispatch_attempt: 0,
+              dispatch_token: null,
+              queued_at: new Date(),
+              started_at: null,
+              consumed_at: null,
+              completed_at: null,
+              summary: null,
+              error: null,
+            }],
+            rowCount: 1,
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+    };
+    const eventService = {
+      emit: vi.fn(async () => undefined),
+    };
+    const workItemContinuityService = {
+      recordTaskCompleted: vi.fn(async () => ({
+        matchedRuleType: null,
+        nextExpectedActor: null,
+        nextExpectedAction: null,
+        requiresHumanApproval: false,
+        reworkDelta: 0,
+        satisfiedAssessmentExpectation: false,
+      })),
+    };
+
+    await applyTaskCompletionSideEffects(
+      eventService as never,
+      undefined,
+      workItemContinuityService as never,
+      {
+        id: 'agent-key',
+        tenantId: 'tenant-1',
+        scope: 'agent',
+        ownerType: 'agent',
+        ownerId: 'agent-1',
+        keyPrefix: 'agent-key',
+      },
+      {
+        id: 'task-assessment',
+        workflow_id: 'workflow-1',
+        work_item_id: 'assessment-work-item',
+        role: 'blocked-quality-assessor',
+        stage_name: 'draft-revision',
+        is_orchestrator_task: false,
+        rework_count: 0,
+        input: { subject_task_id: 'task-author', subject_revision: 1 },
+        metadata: { task_kind: 'assessment', subject_task_id: 'task-author', subject_revision: 1 },
+        output: { verdict: 'rejected' },
+      },
+      client as never,
+    );
+
+    expect(blockedSubjectWorkItem).toBe(true);
+    expect(eventService.emit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'task.assessment_block_applied',
+        entityId: 'task-assessment',
+        actorId: 'assessment_resolver',
+        data: expect.objectContaining({
+          subject_work_item_id: 'work-item-author',
+          decision_state: 'rejected',
+          outcome_action: 'block_subject',
+        }),
+      }),
+      client,
+    );
+  });
+
   it('dispatches the completion activation immediately when a playbook task finishes', async () => {
     const activationDispatchService = {
       dispatchActivation: vi.fn(async () => 'orchestrator-task-1'),

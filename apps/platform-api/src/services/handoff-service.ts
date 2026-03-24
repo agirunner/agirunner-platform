@@ -50,9 +50,18 @@ export interface SubmitTaskHandoffInput {
   role_data?: Record<string, unknown>;
   subject_ref?: Record<string, unknown>;
   subject_revision?: number;
+  outcome_action_applied?: 'continue' | 'reopen_subject' | 'route_to_role' | 'block_subject' | 'escalate' | 'terminate_branch';
   branch_id?: string;
   artifact_ids?: string[];
 }
+
+type HandoffOutcomeAction =
+  | 'continue'
+  | 'reopen_subject'
+  | 'route_to_role'
+  | 'block_subject'
+  | 'escalate'
+  | 'terminate_branch';
 
 interface TaskContextRow {
   id: string;
@@ -526,16 +535,19 @@ function assertHandoffStateAllowed(
   payload: ReturnType<typeof buildNormalizedHandoffPayload>,
 ) {
   if (!allowsHandoffResolution(task)) {
-    if (!payload.decision_state) {
+    if (!payload.decision_state && !payload.outcome_action_applied) {
       return;
     }
-    throw new ValidationError('resolution is only allowed on assessment or approval handoffs');
+    throw new ValidationError('resolution and outcome_action_applied are only allowed on assessment or approval handoffs');
   }
   if (payload.completion_state === 'full' && !payload.decision_state) {
     throw new ValidationError('resolution is required on full assessment or approval handoffs');
   }
   if (payload.completion_state === 'blocked' && payload.decision_state) {
     throw new ValidationError('decision_state is only allowed when completion_state is full');
+  }
+  if (payload.completion_state !== 'full' && payload.outcome_action_applied) {
+    throw new ValidationError('outcome_action_applied is only allowed when completion_state is full');
   }
 }
 
@@ -568,7 +580,7 @@ function buildNormalizedHandoffPayload(task: TaskContextRow, input: SubmitTaskHa
     role_data: roleData,
     subject_ref: subjectRef,
     subject_revision: subjectRevision,
-    outcome_action_applied: null,
+    outcome_action_applied: normalizeOutcomeActionApplied(input.outcome_action_applied),
     branch_id: branchId,
     artifact_ids: normalizeStringArray(input.artifact_ids),
   };
@@ -777,6 +789,21 @@ function normalizeCompletionState(value: unknown): 'full' | 'blocked' | null {
   }
   const normalized = value.trim().toLowerCase();
   return normalized === 'full' || normalized === 'blocked' ? normalized : null;
+}
+
+function normalizeOutcomeActionApplied(value: unknown): HandoffOutcomeAction | null {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'continue'
+    || normalized === 'reopen_subject'
+    || normalized === 'route_to_role'
+    || normalized === 'block_subject'
+    || normalized === 'escalate'
+    || normalized === 'terminate_branch'
+    ? normalized
+    : null;
 }
 
 function resolveSubjectRef(
