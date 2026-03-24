@@ -27,7 +27,7 @@ export async function logTaskContextAttachments(
     spanId: randomUUID(),
     source: 'platform',
     category: 'task_lifecycle',
-    level: 'info',
+    level: 'debug',
     operation: 'task.context.attachments',
     status: 'completed',
     payload: input.summary,

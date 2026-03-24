@@ -37,7 +37,7 @@ export async function logPredecessorHandoffResolution(
     spanId: randomUUID(),
     source: 'platform',
     category: 'task_lifecycle',
-    level: 'info',
+    level: 'debug',
     operation: input.operation,
     status: 'completed',
     payload: {

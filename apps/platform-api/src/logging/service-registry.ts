@@ -5,6 +5,7 @@ export interface ServiceLogConfig {
   ignoreFields: string[];
   ignoreMethods: string[];
   logMethods?: string[];
+  debugMethods?: string[];
 }
 
 export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
@@ -124,6 +125,7 @@ export const SERVICE_REGISTRY: Record<string, ServiceLogConfig> = {
     ignoreFields: ['updatedAt', 'createdAt', 'lastHeartbeatAt'],
     ignoreMethods: ['getWorker', 'listWorkers'],
     logMethods: ['sendSignal', 'acknowledgeSignal', 'acknowledgeTask'],
+    debugMethods: ['sendSignal', 'acknowledgeSignal', 'acknowledgeTask'],
   },
   GovernanceService: {
     entityType: 'governance',

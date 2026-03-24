@@ -103,7 +103,7 @@ export class GovernanceService {
     if (typeof level === 'string' && ['debug', 'info', 'warn', 'error'].includes(level)) {
       return level;
     }
-    return 'info';
+    return 'debug';
   }
 
   async setLoggingLevel(identity: ApiKeyIdentity, level: string): Promise<string> {

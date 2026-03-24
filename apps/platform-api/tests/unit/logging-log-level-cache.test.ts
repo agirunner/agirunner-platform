@@ -12,11 +12,11 @@ function createPool(result: { rowCount?: number; rows?: Array<{ level: string | 
 }
 
 describe('LogLevelCache', () => {
-  it('defaults to info when no tenant override exists', async () => {
+  it('defaults to debug when no tenant override exists', async () => {
     const pool = createPool();
     const cache = new LogLevelCache(pool as never);
 
-    await expect(cache.getLevel('tenant-1')).resolves.toBe('info');
+    await expect(cache.getLevel('tenant-1')).resolves.toBe('debug');
   });
 
   it('returns the stored tenant override when present', async () => {

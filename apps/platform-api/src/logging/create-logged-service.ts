@@ -151,7 +151,7 @@ export function createLoggedService<T extends object>(
               spanId: randomUUID(),
               source: 'platform',
               category: config.category,
-              level: 'info',
+              level: successLogLevel(config, prop),
               operation,
               status: 'completed',
               durationMs,
@@ -238,6 +238,13 @@ export function createLoggedService<T extends object>(
 
 function shouldLogMethod(method: string, explicitMethods: string[]): boolean {
   return explicitMethods.includes(method) || MUTATION_PREFIXES.some((prefix) => method.startsWith(prefix));
+}
+
+function successLogLevel(
+  config: { debugMethods?: string[] },
+  method: string,
+): 'debug' | 'info' {
+  return config.debugMethods?.includes(method) ? 'debug' : 'info';
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

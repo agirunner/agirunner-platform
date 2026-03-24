@@ -37,7 +37,7 @@ export async function logTaskGovernanceTransition(
     spanId: randomUUID(),
     source: 'platform' as const,
     category: 'task_lifecycle' as const,
-    level: 'info' as const,
+    level: 'debug' as const,
     operation: input.operation,
     status: 'completed' as const,
     payload: input.payload,

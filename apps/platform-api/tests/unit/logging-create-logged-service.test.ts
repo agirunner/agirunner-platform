@@ -110,6 +110,27 @@ describe('createLoggedService', () => {
     );
   });
 
+  it('logs routine worker acknowledgements at debug', async () => {
+    const service = {
+      acknowledgeTask: vi.fn().mockResolvedValue({ id: 'worker-1', name: 'worker-1' }),
+    };
+    const logInsert = vi.fn().mockResolvedValue(undefined);
+    const logService = { insert: logInsert };
+
+    const wrapped = createLoggedService(service, 'WorkerService', logService as never);
+
+    await wrapped.acknowledgeTask('task-1');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(logInsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'container',
+        level: 'debug',
+        operation: 'container.worker.acknowledged',
+      }),
+    );
+  });
+
   it('skipsLoggingForIgnoredMethods', async () => {
     const service = {
       getWorkspace: vi.fn().mockResolvedValue({ id: 'proj-1' }),

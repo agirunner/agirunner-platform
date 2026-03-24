@@ -5,7 +5,7 @@ import { createLogger } from '../../observability/logger.js';
 import { safetynetTriggerCounter } from '../../observability/metrics.js';
 import type { SafetynetEntry } from './types.js';
 
-const logger = createLogger(process.env.LOG_LEVEL ?? 'info');
+const logger = createLogger(process.env.LOG_LEVEL ?? 'debug');
 
 export function logSafetynetTriggered(
   entry: SafetynetEntry,

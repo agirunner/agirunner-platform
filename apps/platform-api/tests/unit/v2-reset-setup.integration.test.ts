@@ -44,6 +44,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
         WHERE tenant_id = $1
           AND config_key IN (
             'api.events_heartbeat_seconds',
+            'log.level',
             'workspace.clone_max_retries',
             'workspace.clone_backoff_base_seconds',
             'workspace.snapshot_interval',
@@ -58,6 +59,7 @@ describe.runIf(canRunIntegration)('v2 reset/setup integration', () => {
       { config_key: 'api.events_heartbeat_seconds', config_value: '10' },
       { config_key: 'container.max_reuse_age_seconds', config_value: '1800' },
       { config_key: 'container.max_reuse_tasks', config_value: '10' },
+      { config_key: 'log.level', config_value: 'debug' },
       { config_key: 'pool.refresh_interval_seconds', config_value: '300' },
       { config_key: 'workspace.clone_backoff_base_seconds', config_value: '1' },
       { config_key: 'workspace.clone_max_retries', config_value: '3' },

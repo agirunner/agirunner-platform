@@ -61,7 +61,7 @@ export async function logWorkItemContinuityTransition(
       spanId: randomUUID(),
       source: 'platform',
       category: 'task_lifecycle',
-      level: 'info',
+      level: 'debug',
       operation: CONTINUITY_OPERATION_BY_EVENT[input.event],
       status: 'completed',
       payload: {

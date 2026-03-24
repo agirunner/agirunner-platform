@@ -283,7 +283,7 @@ async function seedRuntimeDefaults(service: RuntimeDefaultsService): Promise<voi
 
   await service.upsertDefault(DEFAULT_TENANT_ID, {
     configKey: 'log.level',
-    configValue: 'info',
+    configValue: 'debug',
     configType: 'string',
     description: 'Runtime process log level applied to connected worker processes',
   });
