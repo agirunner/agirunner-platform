@@ -807,6 +807,47 @@ describe('TaskLifecycleService worker identity + payload semantics', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('treats cancellation as idempotent once the task is already completed', async () => {
+    const queueWorkerCancelSignal = vi.fn(async () => 'signal-1');
+    const client = {
+      query: vi.fn(async () => ({ rows: [], rowCount: 0 })),
+      release: vi.fn(),
+    };
+    const existingTask = {
+      id: 'task-complete',
+      state: 'completed',
+      assigned_agent_id: null,
+      assigned_worker_id: null,
+      workflow_id: null,
+    };
+
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: { recomputeWorkflowState: vi.fn() } as never,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi.fn().mockResolvedValue(existingTask),
+      toTaskResponse: (task) => task,
+      queueWorkerCancelSignal,
+    });
+
+    const result = await service.cancelTask(
+      {
+        id: 'admin',
+        tenantId: 'tenant-1',
+        scope: 'admin',
+        ownerType: 'user',
+        ownerId: null,
+        keyPrefix: 'admin',
+      },
+      'task-complete',
+    );
+
+    expect(result).toEqual(existingTask);
+    expect(queueWorkerCancelSignal).not.toHaveBeenCalled();
+    expect(client.query).not.toHaveBeenCalled();
+  });
+
   it('treats a repeated approval as idempotent once parallelism has already queued the approved task in pending', async () => {
     const client = {
       query: vi.fn(async () => ({ rows: [], rowCount: 0 })),

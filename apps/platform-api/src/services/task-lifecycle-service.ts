@@ -1441,10 +1441,9 @@ export class TaskLifecycleService {
 
   async cancelTask(identity: ApiKeyIdentity, taskId: string, client?: DatabaseClient) {
     const task = normalizeTaskRecord(await this.deps.loadTaskOrThrow(identity.tenantId, taskId, client));
-    if (task.state === 'cancelled') {
+    if (task.state === 'cancelled' || task.state === 'completed') {
       return this.deps.toTaskResponse(task);
     }
-    if (task.state === 'completed') throw new ConflictError('Completed task cannot be cancelled');
 
     if (
       (task.state === 'claimed' || task.state === 'in_progress') &&
