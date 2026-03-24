@@ -651,6 +651,27 @@ export class TaskLifecycleService {
     return undefined;
   }
 
+  private async lockWorkflowRowForTask(
+    tenantId: string,
+    task: Record<string, unknown>,
+    client: DatabaseClient,
+  ): Promise<void> {
+    const workflowId = readOptionalText(task.workflow_id);
+    if (!workflowId) {
+      return;
+    }
+
+    const workflowResult = await client.query(
+      `SELECT id
+         FROM workflows
+        WHERE tenant_id = $1
+          AND id = $2
+        FOR UPDATE`,
+      [tenantId, workflowId],
+    );
+    if (!workflowResult.rowCount) return;
+  }
+
   async applyStateTransition(
     identity: ApiKeyIdentity,
     taskId: string,
@@ -682,6 +703,8 @@ export class TaskLifecycleService {
       ) {
         throw new ConflictError('Task is assigned to a different worker');
       }
+
+      await this.lockWorkflowRowForTask(identity.tenantId, task, client);
 
       const resolvedNextState = await this.resolveNextState(identity.tenantId, task, nextState, client);
       const updateFragments: string[] = ['state = $3', 'state_changed_at = now()'];

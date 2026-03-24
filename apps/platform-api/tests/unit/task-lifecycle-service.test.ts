@@ -4068,6 +4068,82 @@ describe('TaskLifecycleService replay-safe idempotent guards', () => {
     expect(client.query).not.toHaveBeenCalled();
   });
 
+  it('locks the workflow row before updating a workflow-linked task to in_progress', async () => {
+    const client = {
+      query: vi.fn(async (sql: string) => {
+        if (sql === 'BEGIN' || sql === 'ROLLBACK' || sql === 'COMMIT') {
+          return { rows: [], rowCount: 0 };
+        }
+        if (sql.includes('FROM workflows') && sql.includes('FOR UPDATE')) {
+          return { rows: [{ id: 'workflow-1' }], rowCount: 1 };
+        }
+        if (sql.startsWith('UPDATE tasks SET')) {
+          return {
+            rowCount: 1,
+            rows: [
+              {
+                id: 'task-start-lock-order',
+                state: 'in_progress',
+                workflow_id: 'workflow-1',
+                assigned_agent_id: 'agent-1',
+                assigned_worker_id: null,
+              },
+            ],
+          };
+        }
+        return { rows: [], rowCount: 0 };
+      }),
+      release: vi.fn(),
+    };
+    const workflowStateService = { recomputeWorkflowState: vi.fn(async () => 'active') };
+    const evaluateWorkflowBudget = vi.fn(async () => undefined);
+    const service = new TaskLifecycleService({
+      pool: { connect: vi.fn(async () => client) } as never,
+      eventService: { emit: vi.fn() } as never,
+      workflowStateService: workflowStateService as never,
+      evaluateWorkflowBudget,
+      defaultTaskTimeoutMinutes: 30,
+      loadTaskOrThrow: vi
+        .fn()
+        .mockResolvedValueOnce({
+          id: 'task-start-lock-order',
+          state: 'claimed',
+          workflow_id: 'workflow-1',
+          assigned_agent_id: 'agent-1',
+          assigned_worker_id: null,
+        })
+        .mockResolvedValueOnce({
+          id: 'task-start-lock-order',
+          state: 'claimed',
+          workflow_id: 'workflow-1',
+          assigned_agent_id: 'agent-1',
+          assigned_worker_id: null,
+        }),
+      toTaskResponse: (task: Record<string, unknown>) => task,
+    });
+
+    await service.startTask(agentIdentity, 'task-start-lock-order', {
+      agent_id: 'agent-1',
+    });
+
+    const sqls = client.query.mock.calls.map(([sql]) => String(sql));
+    const workflowLockIndex = sqls.findIndex(
+      (sql) => sql.includes('FROM workflows') && sql.includes('FOR UPDATE'),
+    );
+    const taskUpdateIndex = sqls.findIndex((sql) => sql.startsWith('UPDATE tasks SET'));
+
+    expect(workflowLockIndex).toBeGreaterThanOrEqual(0);
+    expect(taskUpdateIndex).toBeGreaterThanOrEqual(0);
+    expect(workflowLockIndex).toBeLessThan(taskUpdateIndex);
+    expect(workflowStateService.recomputeWorkflowState).toHaveBeenCalledWith(
+      'tenant-1',
+      'workflow-1',
+      client,
+      expect.any(Object),
+    );
+    expect(evaluateWorkflowBudget).toHaveBeenCalledWith('tenant-1', 'workflow-1', client);
+  });
+
   it('does not short-circuit startTask when the in-progress task belongs to a different agent', async () => {
     const existingTask = {
       id: 'task-start-different-agent',
